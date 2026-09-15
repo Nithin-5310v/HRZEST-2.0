@@ -371,16 +371,23 @@ def _create_notification(recipient_type, title, message, employee_id=None):
         app_log.warning("_create_notification failed (recipient_type=%s, employee_id=%s): %s", recipient_type, employee_id, exc, exc_info=True)
         return
     # Mobile push -- best-effort, and only attempted once the in-app
-    # notification row above actually landed. utils/push_utils.py's own
-    # functions are independently exception-safe, so a push/network
-    # failure here can never surface to this function's caller either.
-    # Imported lazily to avoid a circular import (utils/push_utils.py
-    # imports _db from this module).
+    # notification row above actually landed. Handed to the same in-
+    # process background writer utils/async_writer.py already uses for
+    # high-frequency security bookkeeping (never Postgres-backed like
+    # utils/email_utils.py's email_queue -- losing a push on a crash is an
+    # acceptable tradeoff for a best-effort channel, the same call
+    # async_writer.py's own docstring already makes for login-failure
+    # counters) -- _send_expo_push()'s blocking urllib call (up to
+    # _TIMEOUT_SECONDS) would otherwise run on the request thread handling
+    # whatever leave/ticket/announcement action triggered this. Imported
+    # lazily to avoid a circular import (utils/push_utils.py imports _db
+    # from this module).
+    from utils.async_writer import enqueue_write
     from utils.push_utils import send_push_notification, send_push_notification_broadcast
     if recipient_type == "employee" and employee_id:
-        send_push_notification("employee", employee_id, title, message)
+        enqueue_write(send_push_notification, "employee", employee_id, title, message)
     elif recipient_type == "admin":
-        send_push_notification_broadcast("admin", title, message)
+        enqueue_write(send_push_notification_broadcast, "admin", title, message)
 
 
 # ── Malware scanning (ClamAV) ─────────────────────────────────────────────────
@@ -769,6 +776,14 @@ def post_announcement(cursor, db, title, content, priority, visibility, target_e
                 [(eid, f"📢 {title}", snippet) for eid in emp_ids]
             )
             db.commit()
+            # This branch bypasses _create_notification() entirely (the
+            # executemany() above is the whole point -- one round-trip for
+            # the whole company instead of one per employee), so it needs
+            # its own push dispatch too, via the bulk twin of
+            # _create_notification's own enqueue_write() call below.
+            from utils.async_writer import enqueue_write
+            from utils.push_utils import send_push_notification_bulk
+            enqueue_write(send_push_notification_bulk, "employee", emp_ids, f"📢 {title}", snippet)
         cursor.execute("SELECT email FROM employees WHERE is_active=1 AND email IS NOT NULL AND email != ''")
         recipient_emails = [row[0] for row in cursor.fetchall()]
     _email_announcement(title, content, priority, recipient_emails,

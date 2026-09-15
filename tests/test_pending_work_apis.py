@@ -212,6 +212,30 @@ def _cleanup_onboarding(db_engine, template_id, ob_id):
 
 
 class TestEmployeeOnboardingApi:
+    def test_task_list_exposes_has_document_not_the_raw_path(self, client, seed_employee, db_engine):
+        """api_my_onboarding()'s document_path field used to return the raw
+        stored value straight from the DB -- harmless when that was a bare
+        filename, but it's now save_private()'s opaque stored_ref (an
+        internal filesystem path or s3://... URI). Must expose only a
+        boolean, never the ref itself."""
+        import io
+        template_id, task_id = _make_template(db_engine, "Has-Document Template")
+        ob_id, task_row_id = _assign_onboarding(db_engine, seed_employee["employee_id"], template_id, task_id)
+        try:
+            token = _emp_token(client, seed_employee)
+            client.post(
+                f"/api/employee/onboarding/task/{task_row_id}/done",
+                data={"ob_id": str(ob_id), "document": (io.BytesIO(b"%PDF-1.4 fake pdf content"), "cert.pdf")},
+                content_type="multipart/form-data",
+                headers=_auth(token),
+            )
+            res = client.get("/api/employee/onboarding", headers=_auth(token)).get_json()
+            task = res["tasks"][0]
+            assert task["has_document"] is True
+            assert "document_path" not in task
+        finally:
+            _cleanup_onboarding(db_engine, template_id, ob_id)
+
     def test_fetch_and_complete_task(self, client, seed_employee, db_engine):
         template_id, task_id = _make_template(db_engine)
         ob_id, task_row_id = _assign_onboarding(db_engine, seed_employee["employee_id"], template_id, task_id)

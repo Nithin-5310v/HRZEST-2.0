@@ -2,6 +2,7 @@ import psycopg2
 
 from extensions import app_log
 from utils.auth import generate_password_hash, check_password_hash
+from .core_tables import _attach_updated_at_trigger
 
 
 def _run_schema_migrations(cursor, db):
@@ -17,6 +18,39 @@ def _run_schema_migrations(cursor, db):
     _run_data_integrity_migrations(cursor, db)
     _run_company_policies_seed(cursor, db)
     _run_company_policies_seed_v2(cursor, db)
+    _run_push_tokens_table_migration(cursor, db)
+
+
+def _run_push_tokens_table_migration(cursor, db):
+    """Backfills the push_tokens table (see core_tables.py's own copy) into
+    tenants provisioned BEFORE it was added there. _init_core_tables() only
+    ever runs for a brand-new tenant (init_tenant_db()) or the default
+    schema at startup (init_db()) -- it is never re-run against an already-
+    provisioned tenant, so a table added only there is invisible to every
+    tenant that existed first. This is that same gap company_policies
+    already has; closing it here rather than there too, since a genuinely
+    new table (as opposed to a new column) needs its CREATE TABLE in this
+    file specifically to ever reach _run_migrations_for_all_tenants()'s
+    per-tenant backfill (see migrations/orchestration.py). Plain CREATE
+    TABLE IF NOT EXISTS is naturally idempotent -- no _applied_migrations
+    bookkeeping needed, unlike the one-time *data* migrations below."""
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS push_tokens (
+                id SERIAL PRIMARY KEY,
+                owner_type VARCHAR(20) NOT NULL CHECK (owner_type IN ('admin', 'employee')),
+                owner_id VARCHAR(50) NOT NULL,
+                expo_push_token VARCHAR(255) NOT NULL UNIQUE,
+                platform VARCHAR(20),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        _attach_updated_at_trigger(cursor, "push_tokens")
+        db.commit()
+    except psycopg2.Error as exc:
+        db.rollback()
+        app_log.warning("Migration 'push_tokens table backfill' failed: %s", exc, exc_info=True)
 
 
 def _run_column_migrations(cursor, db):
