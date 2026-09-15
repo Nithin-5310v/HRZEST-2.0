@@ -216,7 +216,7 @@
               </span>
             {% endif %}
             {% if t[3] %}<span class="tag tag-doc"><i class="ti ti-paperclip u-fs-10"></i> Doc required</span>{% endif %}
-            {% if t[7] %}<a href="/static/onboarding_docs/{{ t[7] }}" target="_blank" class="tag tag-doc u-tdec-none"><i class="ti ti-download u-fs-10"></i> View doc</a>{% endif %}
+            {% if t[7] %}<a href="{{ tpath('/onboarding_document/' ~ t[0]) }}" target="_blank" class="tag tag-doc u-tdec-none"><i class="ti ti-download u-fs-10"></i> View doc</a>{% endif %}
           </div>
         </div>
         {% if t[5] != 'Done' %}

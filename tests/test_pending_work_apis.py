@@ -243,6 +243,52 @@ class TestEmployeeOnboardingApi:
         finally:
             _cleanup_onboarding(db_engine, template_id, ob_id)
 
+    def test_complete_with_valid_document_stores_private_ref(self, client, seed_employee, db_engine):
+        """API twin of the same security fix covered in
+        tests/test_onboarding.py's TestMyOnboardingTaskDocumentUpload --
+        document_path must be a save_private() stored_ref, never the old
+        bare-filename-under-static/ format."""
+        import io
+        template_id, task_id = _make_template(db_engine, "Doc Upload Template")
+        ob_id, task_row_id = _assign_onboarding(db_engine, seed_employee["employee_id"], template_id, task_id)
+        try:
+            token = _emp_token(client, seed_employee)
+            resp = client.post(
+                f"/api/employee/onboarding/task/{task_row_id}/done",
+                data={"ob_id": str(ob_id), "document": (io.BytesIO(b"%PDF-1.4 fake pdf content"), "cert.pdf")},
+                content_type="multipart/form-data",
+                headers=_auth(token),
+            )
+            assert resp.status_code == 200
+            cur = db_engine.cursor()
+            cur.execute("SELECT document_path FROM employee_onboarding_tasks WHERE id=%s", (task_row_id,))
+            document_path = cur.fetchone()[0]
+            cur.close()
+            assert document_path is not None
+            assert "static" not in document_path.replace("\\", "/").split("/")
+        finally:
+            _cleanup_onboarding(db_engine, template_id, ob_id)
+
+    def test_complete_with_disallowed_file_type_rejected(self, client, seed_employee, db_engine):
+        import io
+        template_id, task_id = _make_template(db_engine, "Doc Reject Template")
+        ob_id, task_row_id = _assign_onboarding(db_engine, seed_employee["employee_id"], template_id, task_id)
+        try:
+            token = _emp_token(client, seed_employee)
+            resp = client.post(
+                f"/api/employee/onboarding/task/{task_row_id}/done",
+                data={"ob_id": str(ob_id), "document": (io.BytesIO(b"MZ\x90\x00fake exe"), "payload.exe")},
+                content_type="multipart/form-data",
+                headers=_auth(token),
+            )
+            assert resp.status_code == 400
+            cur = db_engine.cursor()
+            cur.execute("SELECT status FROM employee_onboarding_tasks WHERE id=%s", (task_row_id,))
+            assert cur.fetchone()[0] == "Pending"
+            cur.close()
+        finally:
+            _cleanup_onboarding(db_engine, template_id, ob_id)
+
     def test_complete_someone_elses_task_is_forbidden(self, client, seed_employee, other_employee, db_engine):
         template_id, task_id = _make_template(db_engine, "Other Emp Template")
         ob_id, task_row_id = _assign_onboarding(db_engine, other_employee, template_id, task_id)
