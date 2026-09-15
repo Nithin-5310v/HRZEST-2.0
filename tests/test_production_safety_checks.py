@@ -152,6 +152,42 @@ class TestAiAssistantProductionCheck:
         assert logger.critical.call_count == 2
 
 
+class TestRedisProductionCheck:
+    """Unlike the ClamAV/AI-assistant checks above (a feature silently
+    doesn't work), a missing REDIS_HOST makes a security control silently
+    weaker than it looks: utils/waf.py's auto-ban breach counter and
+    Flask-Limiter both fall back to per-worker in-memory storage, so under
+    multiple gunicorn workers the effective ban/rate threshold is the
+    configured one times the worker count."""
+
+    def test_production_with_no_redis_host_warns_critically(self):
+        logger = _fake_logger()
+        check_production_safety("production", "clamav.internal", redis_configured=False, logger=logger)
+        logger.critical.assert_called_once()
+        assert "REDIS_HOST" in logger.critical.call_args[0][0]
+
+    def test_production_with_redis_configured_is_silent(self):
+        logger = _fake_logger()
+        check_production_safety("production", "clamav.internal", redis_configured=True, logger=logger)
+        logger.critical.assert_not_called()
+
+    def test_development_with_no_redis_host_is_silent(self):
+        """No Redis in local dev/test is the normal, documented case --
+        must not warn."""
+        logger = _fake_logger()
+        check_production_safety("development", "clamav.internal", redis_configured=False, logger=logger)
+        logger.critical.assert_not_called()
+
+    def test_default_assumes_configured_so_existing_callers_stay_silent(self):
+        """redis_configured defaults to True, matching malware_scan_enabled/
+        ai_assistant_configured's own defaults -- every existing call site/
+        test that doesn't pass it explicitly keeps behaving exactly as
+        before this check was added."""
+        logger = _fake_logger()
+        check_production_safety("production", "clamav.internal", logger=logger)
+        logger.critical.assert_not_called()
+
+
 class TestRazorpayProductionBootCheck:
     """utils/razorpay_utils.py's module-level fail-fast check used to only
     refuse to start when APP_ENV=production and a leftover TEST key
