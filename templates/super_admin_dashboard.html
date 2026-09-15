@@ -467,6 +467,14 @@
               Support Tickets
               {% if open_tickets_count %}<span style="background:var(--warning);color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;margin-left:2px;">{{ open_tickets_count }}</span>{% endif %}
             </a>
+            {% if grafana_url %}
+            <a href="{{ grafana_url }}" target="_blank" rel="noopener" title="Self-hosted log analysis (Grafana/Loki) -- opens on a separate server, reachable only from an allowed admin IP"
+               style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
+               onmouseover="this.style.background='#e2e8f0';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
+               onmouseout="this.style.background='#f1f5f9';this.style.boxShadow='none';this.style.transform='none';">
+              <i class="ti ti-chart-line"></i> Log Analysis
+            </a>
+            {% endif %}
           </div>
 
           <form class="tenant-filter-bar" method="GET" action="/super_admin">

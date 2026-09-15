@@ -16,6 +16,7 @@ session key means those hooks simply no-op here, and this blueprint
 enforces its own (lighter) idle timeout below.
 """
 import io
+import os
 import re
 import csv
 import time
@@ -613,6 +614,15 @@ def platform_admin_dashboard():
         pending_applications_count=pending_applications_count,
         unacknowledged_alerts_count=unacknowledged_alerts_count,
         open_tickets_count=open_tickets_count,
+        # Link to the standalone Grafana log-analysis dashboard (see
+        # observability/README.md) -- unset by default so the button below
+        # only appears once that stack is actually deployed. Points at the
+        # log server's own SG-restricted UI (trusted_admin_cidrs only), so
+        # this link is a convenience for someone already on an allowed IP,
+        # not a way around that restriction -- clicking it from anywhere
+        # else just gets a connection timeout, same as typing the URL in
+        # directly would.
+        grafana_url=os.environ.get("GRAFANA_URL", "").rstrip("/") or None,
     )
 
 
