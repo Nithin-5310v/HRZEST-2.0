@@ -140,6 +140,28 @@ def _init_core_tables(cursor, db):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Expo push tokens -- one row per device install. owner_type/owner_id
+    # mirrors notifications.recipient_type/employee_id: 'employee' rows are
+    # keyed by employee_id, 'admin' rows by admin_users.username (covers
+    # admin/hr/manager alike, same as notifications.recipient_type='admin'
+    # already being a shared, not per-user, inbox). UNIQUE on the token
+    # alone, not (owner_type, owner_id, token) -- a physical device can only
+    # be signed in as one identity at a time, so re-registering the same
+    # token under a different owner (a logout/login as someone else on the
+    # same phone) should reassign that row, not create a duplicate that
+    # would double-send or send to the wrong stale owner.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS push_tokens (
+            id SERIAL PRIMARY KEY,
+            owner_type VARCHAR(20) NOT NULL CHECK (owner_type IN ('admin', 'employee')),
+            owner_id VARCHAR(50) NOT NULL,
+            expo_push_token VARCHAR(255) NOT NULL UNIQUE,
+            platform VARCHAR(20),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    _attach_updated_at_trigger(cursor, "push_tokens")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS resignation_requests (
             id SERIAL PRIMARY KEY,

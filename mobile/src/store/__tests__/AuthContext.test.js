@@ -39,7 +39,16 @@ jest.mock('../../utils/preferences', () => ({
   getBiometricLockEnabled: jest.fn().mockResolvedValue(false),
 }));
 
+// signIn() now fires this off after every login -- mocked at this boundary
+// (like api/client above) rather than mocking expo-notifications/
+// expo-constants directly, since registerForPushNotifications() itself
+// already has its own dedicated tests (pushNotifications.test.js).
+jest.mock('../../utils/pushNotifications', () => ({
+  registerForPushNotifications: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { AuthProvider, useAuth } from '../AuthContext';
+import { registerForPushNotifications } from '../../utils/pushNotifications';
 import { saveLocalEmployee, getLocalEmployees } from '../../utils/employeeStore';
 import { queuePunch, getPendingPunches } from '../../utils/offlineQueue';
 import { __store as secureStoreBackingStore } from 'expo-secure-store';
@@ -147,5 +156,39 @@ describe('AuthContext cross-account cache isolation', () => {
     });
 
     expect(await getLocalEmployees()).toHaveLength(0);
+    // Unlike `first` above, this tree was never explicitly unmounted --
+    // left dangling, it bled into whichever describe block ran next
+    // (surfaced by adding the push-notification tests below: their
+    // renderHook() calls intermittently got back a null context, and RTL
+    // warned of "overlapping act() calls").
+    second.unmount();
+  });
+});
+
+describe('AuthContext push notification registration', () => {
+  const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    secureStoreBackingStore.clear();
+    registerForPushNotifications.mockClear();
+  });
+
+  it('registers for push notifications with the signed-in user after signIn()', async () => {
+    const { result } = await renderHook(() => useAuth(), { wrapper });
+    const userData = { role: 'employee', employeeId: 'E1', name: 'Alice' };
+    await act(async () => {
+      await result.current.signIn('tok1', userData);
+    });
+    expect(registerForPushNotifications).toHaveBeenCalledWith(userData);
+  });
+
+  it('does not block signIn() if push registration itself rejects', async () => {
+    registerForPushNotifications.mockRejectedValueOnce(new Error('boom'));
+    const { result } = await renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.signIn('tok1', { role: 'admin', name: 'admin1' });
+    });
+    expect(result.current.user).toEqual(expect.objectContaining({ name: 'admin1' }));
   });
 });

@@ -428,3 +428,9 @@ export const changeAdminPassword = (currentPassword, newPassword, confirmPasswor
     current_password: currentPassword, new_password: newPassword, confirm_password: confirmPassword,
   });
 
+export const registerEmployeePushToken = (expoPushToken, platform) =>
+  client.post('/api/employee/push_token', { expo_push_token: expoPushToken, platform });
+
+export const registerAdminPushToken = (expoPushToken, platform) =>
+  client.post('/api/push_token', { expo_push_token: expoPushToken, platform });
+

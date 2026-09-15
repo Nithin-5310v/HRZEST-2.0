@@ -369,6 +369,18 @@ def _create_notification(recipient_type, title, message, employee_id=None):
             db.close()
     except Exception as exc:
         app_log.warning("_create_notification failed (recipient_type=%s, employee_id=%s): %s", recipient_type, employee_id, exc, exc_info=True)
+        return
+    # Mobile push -- best-effort, and only attempted once the in-app
+    # notification row above actually landed. utils/push_utils.py's own
+    # functions are independently exception-safe, so a push/network
+    # failure here can never surface to this function's caller either.
+    # Imported lazily to avoid a circular import (utils/push_utils.py
+    # imports _db from this module).
+    from utils.push_utils import send_push_notification, send_push_notification_broadcast
+    if recipient_type == "employee" and employee_id:
+        send_push_notification("employee", employee_id, title, message)
+    elif recipient_type == "admin":
+        send_push_notification_broadcast("admin", title, message)
 
 
 # ── Malware scanning (ClamAV) ─────────────────────────────────────────────────
