@@ -48,17 +48,23 @@ def register_push_token(owner_type: str, owner_id: str, expo_push_token: str, pl
         db.commit()
 
 
+_EXPO_MAX_MESSAGES_PER_REQUEST = 100
+
+
 def _send_expo_push(tokens: list, title: str, body: str):
-    """POSTs one batched request to Expo's push API (it accepts an array of
-    up to 100 messages per call; this app's per-notification fan-out is far
-    below that, so no batching-into-chunks logic is needed here). Returns
-    the list of per-token result dicts Expo returns, or [] on any
-    request-level failure -- a push-delivery failure must never raise into
-    the caller (_create_notification() already treats this as best-effort).
-    """
+    """POSTs to Expo's push API in chunks of _EXPO_MAX_MESSAGES_PER_REQUEST
+    (Expo's own documented cap per call) -- a single employee-targeted push
+    is always one token, well under that, but send_push_notification_bulk()
+    below can hand this hundreds at once for a company-wide announcement.
+    Returns the concatenated list of per-token result dicts, in the same
+    order as `tokens`, so callers can zip() them back together for
+    pruning -- one chunk's request-level failure ([] for that chunk) still
+    lets every other chunk's results come through rather than discarding
+    the whole batch. Never raises -- a push-delivery failure must never
+    surface to the caller (_create_notification() already treats this as
+    best-effort)."""
     if not tokens:
         return []
-    payload = [{"to": t, "title": title, "body": body, "sound": "default"} for t in tokens]
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
@@ -66,16 +72,21 @@ def _send_expo_push(tokens: list, title: str, body: str):
     }
     if _ACCESS_TOKEN:
         headers["Authorization"] = f"Bearer {_ACCESS_TOKEN}"
-    req = urllib.request.Request(
-        _EXPO_PUSH_URL, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:  # nosec B310
-            result = json.loads(resp.read().decode("utf-8"))
-            return result.get("data", [])
-    except Exception as exc:
-        app_log.warning("Expo push send failed for %d token(s): %s", len(tokens), exc, exc_info=True)
-        return []
+    all_results = []
+    for i in range(0, len(tokens), _EXPO_MAX_MESSAGES_PER_REQUEST):
+        chunk = tokens[i:i + _EXPO_MAX_MESSAGES_PER_REQUEST]
+        payload = [{"to": t, "title": title, "body": body, "sound": "default"} for t in chunk]
+        req = urllib.request.Request(
+            _EXPO_PUSH_URL, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:  # nosec B310
+                result = json.loads(resp.read().decode("utf-8"))
+                all_results.extend(result.get("data", []))
+        except Exception as exc:
+            app_log.warning("Expo push send failed for a %d-token chunk: %s", len(chunk), exc, exc_info=True)
+            all_results.extend([None] * len(chunk))
+    return all_results
 
 
 def _prune_stale_tokens(tokens: list, results: list):
@@ -117,6 +128,38 @@ def send_push_notification(owner_type: str, owner_id: str, title: str, body: str
         app_log.warning(
             "send_push_notification failed (owner_type=%s, owner_id=%s): %s",
             owner_type, owner_id, exc, exc_info=True,
+        )
+
+
+def send_push_notification_bulk(owner_type: str, owner_ids: list, title: str, body: str):
+    """Best-effort push to every device registered for ANY of owner_ids --
+    one query for every matching token, one (possibly chunked, see
+    _send_expo_push) send, rather than looping send_push_notification() per
+    owner_id (a separate DB round-trip and Expo request each). The
+    company-wide-announcement broadcast path (utils.helpers.
+    post_announcement()'s public branch) is the actual reason this exists:
+    it fans out to every active employee via one executemany() rather than
+    utils.helpers._create_notification() per employee, so it needs this
+    same shape to reach every one of them without inverting back into a
+    per-employee loop."""
+    if not owner_ids:
+        return
+    try:
+        with _db() as (cursor, _conn):
+            cursor.execute(
+                "SELECT expo_push_token FROM push_tokens WHERE owner_type=%s AND owner_id = ANY(%s)",
+                (owner_type, list(owner_ids)),
+            )
+            tokens = [r[0] for r in cursor.fetchall()]
+        if not tokens:
+            return
+        results = _send_expo_push(tokens, title, body)
+        if results:
+            _prune_stale_tokens(tokens, results)
+    except Exception as exc:
+        app_log.warning(
+            "send_push_notification_bulk failed (owner_type=%s, %d owner_ids): %s",
+            owner_type, len(owner_ids), exc, exc_info=True,
         )
 
 

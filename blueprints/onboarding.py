@@ -1622,7 +1622,15 @@ def api_my_onboarding():
             {"id": t[0], "task_title": t[1], "task_description": t[2],
              "requires_document": bool(t[3]), "due_days": t[4], "status": t[5],
              "completed_at": t[6].isoformat() if t[6] else None,
-             "document_path": t[7], "employee_note": t[8]}
+             # t[7] (document_path) is now save_private()'s opaque
+             # stored_ref (an internal filesystem path or s3://... URI, per
+             # its own docstring's "never build a URL from it directly")
+             # -- never return it raw to a client; a boolean is all a
+             # caller can actually use. (download_onboarding_document()
+             # below is session-only, not Bearer-token -- there is no
+             # mobile-reachable download route for this yet; nothing in
+             # the mobile app currently renders this field either way.)
+             "has_document": bool(t[7]), "employee_note": t[8]}
             for t in tasks
         ],
     })

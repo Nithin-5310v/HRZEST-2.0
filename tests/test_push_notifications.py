@@ -142,13 +142,14 @@ class TestCreateNotificationTriggersPush:
     leave/ticket/announcement action already goes through -- must attempt
     a push after the in-app row lands, routed by recipient_type."""
 
-    def test_employee_notification_triggers_targeted_push(self, monkeypatch):
+    def test_employee_notification_triggers_targeted_push(self, monkeypatch, seed_employee):
         from utils.helpers import _create_notification
+        emp_id = seed_employee["employee_id"]
         calls = []
         monkeypatch.setattr("utils.push_utils.send_push_notification",
                              lambda *a, **k: calls.append(a))
-        _create_notification("employee", "Title", "Body", employee_id="TST001")
-        assert calls == [("employee", "TST001", "Title", "Body")]
+        _create_notification("employee", "Title", "Body", employee_id=emp_id)
+        assert calls == [("employee", emp_id, "Title", "Body")]
 
     def test_admin_notification_triggers_broadcast_push(self, monkeypatch):
         from utils.helpers import _create_notification
@@ -172,6 +173,190 @@ class TestCreateNotificationTriggersPush:
         monkeypatch.setattr("utils.push_utils.send_push_notification", lambda *a, **k: calls.append(a))
         _create_notification("employee", "Title", "Body", employee_id="TST001")
         assert calls == []
+
+    def test_push_is_dispatched_through_the_async_writer_not_called_directly(self, monkeypatch, seed_employee):
+        """The push send must go through utils.async_writer.enqueue_write(),
+        not a direct call on the request thread -- _send_expo_push()'s
+        blocking urllib call (up to 10s) would otherwise add that much
+        latency to whatever leave/ticket/announcement request triggered
+        this. Patches enqueue_write itself (rather than relying on
+        tests/conftest.py's set_synchronous_mode(True), which would call
+        the real function and mask exactly this regression) so this
+        assertion is meaningful independent of test-mode synchronicity."""
+        from utils.helpers import _create_notification
+        import utils.push_utils as push_utils_module
+        emp_id = seed_employee["employee_id"]
+        enqueue_calls = []
+        monkeypatch.setattr("utils.async_writer.enqueue_write", lambda fn, *a, **k: enqueue_calls.append((fn, a)))
+        direct_calls = []
+        monkeypatch.setattr(push_utils_module, "send_push_notification", lambda *a, **k: direct_calls.append(a))
+        _create_notification("employee", "Title", "Body", employee_id=emp_id)
+        assert direct_calls == []
+        assert len(enqueue_calls) == 1
+        fn, args = enqueue_calls[0]
+        assert fn is push_utils_module.send_push_notification
+        assert args == ("employee", emp_id, "Title", "Body")
+
+
+class TestPostAnnouncementBroadcastPush:
+    """post_announcement()'s public-visibility branch bypasses
+    _create_notification() entirely (a batched executemany() instead, for
+    a single company-wide round-trip) -- it needs its own push dispatch,
+    or a broadcast announcement (the common case) never reaches a phone at
+    all while a private one-employee announcement does."""
+
+    def test_public_announcement_dispatches_bulk_push_for_every_active_employee(self, monkeypatch, seed_employee, db_engine):
+        from utils.helpers import post_announcement
+        cur = db_engine.cursor()
+        enqueue_calls = []
+        monkeypatch.setattr("utils.async_writer.enqueue_write", lambda fn, *a, **k: enqueue_calls.append((fn, a)))
+        import utils.push_utils as push_utils_module
+        post_announcement(cur, db_engine, "Office Closed", "Closed tomorrow for maintenance.", "Urgent", "public")
+        db_engine.commit()
+        cur.execute("DELETE FROM notifications WHERE title LIKE %s", ("%Office Closed%",))
+        cur.execute("DELETE FROM announcements WHERE title=%s", ("Office Closed",))
+        db_engine.commit()
+        cur.close()
+        bulk_calls = [c for c in enqueue_calls if c[0] is push_utils_module.send_push_notification_bulk]
+        assert len(bulk_calls) == 1
+        _, args = bulk_calls[0]
+        owner_type, owner_ids, title, body = args
+        assert owner_type == "employee"
+        assert seed_employee["employee_id"] in owner_ids
+        assert "Office Closed" in title
+
+    def test_private_announcement_does_not_use_bulk_push(self, monkeypatch, seed_employee, db_engine):
+        """Private (single-employee) announcements already go through
+        _create_notification() -> send_push_notification() -- must not
+        ALSO fire the bulk path."""
+        from utils.helpers import post_announcement
+        cur = db_engine.cursor()
+        enqueue_calls = []
+        monkeypatch.setattr("utils.async_writer.enqueue_write", lambda fn, *a, **k: enqueue_calls.append((fn, a)))
+        import utils.push_utils as push_utils_module
+        post_announcement(cur, db_engine, "Just For You", "A private note.", "Normal", "private",
+                          target_emp=seed_employee["employee_id"])
+        db_engine.commit()
+        cur.execute("DELETE FROM notifications WHERE title LIKE %s", ("%Just For You%",))
+        cur.execute("DELETE FROM announcements WHERE title=%s", ("Just For You",))
+        db_engine.commit()
+        cur.close()
+        assert not any(c[0] is push_utils_module.send_push_notification_bulk for c in enqueue_calls)
+        assert any(c[0] is push_utils_module.send_push_notification for c in enqueue_calls)
+
+
+class TestSendPushNotificationBulk:
+    def test_sends_to_tokens_across_multiple_owner_ids_in_one_call(self, db_engine, monkeypatch):
+        from utils.push_utils import register_push_token, send_push_notification_bulk
+        register_push_token("employee", "TST001", "ExponentPushToken[bulk1]", "ios")
+        register_push_token("employee", "OTHER_BULK_EMP", "ExponentPushToken[bulk2]", "android")
+        calls = []
+        monkeypatch.setattr("utils.push_utils._send_expo_push",
+                             lambda tokens, title, body: calls.append(set(tokens)) or [])
+        send_push_notification_bulk("employee", ["TST001", "OTHER_BULK_EMP"], "Announcement", "Body")
+        assert len(calls) == 1
+        assert calls[0] == {"ExponentPushToken[bulk1]", "ExponentPushToken[bulk2]"}
+
+    def test_empty_owner_ids_skips_entirely(self, monkeypatch):
+        from utils.push_utils import send_push_notification_bulk
+        calls = []
+        monkeypatch.setattr("utils.push_utils._send_expo_push", lambda *a, **k: calls.append(a) or [])
+        send_push_notification_bulk("employee", [], "Title", "Body")
+        assert calls == []
+
+
+class TestSendExpoPushChunking:
+    def test_chunks_requests_at_the_expo_message_cap(self, monkeypatch):
+        from utils.push_utils import _send_expo_push, _EXPO_MAX_MESSAGES_PER_REQUEST
+        tokens = [f"ExponentPushToken[{i}]" for i in range(_EXPO_MAX_MESSAGES_PER_REQUEST + 5)]
+        sent_chunks = []
+
+        class _FakeResp:
+            def __init__(self, n):
+                self._n = n
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+            def read(self):
+                import json as _json
+                return _json.dumps({"data": [{"status": "ok"}] * self._n}).encode("utf-8")
+
+        def _fake_urlopen(req, timeout=None):
+            import json as _json
+            payload = _json.loads(req.data.decode("utf-8"))
+            sent_chunks.append(len(payload))
+            return _FakeResp(len(payload))
+
+        monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen)
+        results = _send_expo_push(tokens, "Title", "Body")
+        assert sent_chunks == [_EXPO_MAX_MESSAGES_PER_REQUEST, 5]
+        assert len(results) == len(tokens)
+
+
+class TestPushTokensTenantBackfill:
+    """push_tokens is only created inside _init_core_tables(), which never
+    re-runs against an already-provisioned tenant -- _run_migrations_for_
+    all_tenants() only calls _run_schema_migrations(). Without a matching
+    CREATE TABLE IF NOT EXISTS in that same chain (which DOES run for
+    every existing tenant), any tenant provisioned before this feature
+    shipped would 500 on push-token registration forever."""
+
+    def test_run_schema_migrations_actually_calls_the_push_tokens_migration(self, db_engine, monkeypatch):
+        """Direct proof of the wiring itself -- _run_schema_migrations() is
+        the function _run_migrations_for_all_tenants() calls for every
+        already-provisioned tenant; this confirms the new migration is
+        actually reachable from there, not just correct in isolation."""
+        import app as app_module
+        calls = []
+        monkeypatch.setattr(app_module, "_run_push_tokens_table_migration",
+                            lambda cursor, db: calls.append(True))
+        cur = db_engine.cursor()
+        app_module._run_schema_migrations(cur, db_engine)
+        cur.close()
+        assert calls == [True]
+
+    def test_migration_creates_push_tokens_if_missing(self, db_engine):
+        from app import _run_push_tokens_table_migration
+        cur = db_engine.cursor()
+        cur.execute("DROP TABLE IF EXISTS push_tokens CASCADE")
+        cur.execute("SELECT to_regclass('push_tokens')")
+        assert cur.fetchone()[0] is None
+        _run_push_tokens_table_migration(cur, db_engine)
+        cur.execute("SELECT to_regclass('push_tokens')")
+        assert cur.fetchone()[0] is not None
+        cur.close()
+
+    def test_migration_is_a_noop_when_table_already_exists(self, db_engine):
+        """Idempotent -- running it again (as every real boot does, via
+        _run_migrations_for_all_tenants()) must not error or touch
+        existing rows."""
+        from app import _run_push_tokens_table_migration
+        from utils.push_utils import register_push_token
+        register_push_token("employee", "TST001", "ExponentPushToken[idempotent]", "ios")
+        cur = db_engine.cursor()
+        _run_push_tokens_table_migration(cur, db_engine)
+        cur.execute("SELECT owner_id FROM push_tokens WHERE expo_push_token=%s", ("ExponentPushToken[idempotent]",))
+        assert cur.fetchone()[0] == "TST001"
+        cur.execute("DELETE FROM push_tokens WHERE expo_push_token=%s", ("ExponentPushToken[idempotent]",))
+        cur.close()
+
+    def test_backfilled_table_actually_works_end_to_end(self, db_engine):
+        """Not just that the table exists -- that a real insert/query
+        against it (what register_push_token()/send_push_notification()
+        actually do) succeeds afterward, same as a fresh install's copy."""
+        from app import _run_push_tokens_table_migration
+        from utils.push_utils import register_push_token
+        cur = db_engine.cursor()
+        cur.execute("DROP TABLE IF EXISTS push_tokens CASCADE")
+        _run_push_tokens_table_migration(cur, db_engine)
+        cur.close()
+        register_push_token("employee", "TST001", "ExponentPushToken[backfilled]", "ios")
+        cur = db_engine.cursor()
+        cur.execute("SELECT owner_id FROM push_tokens WHERE expo_push_token=%s", ("ExponentPushToken[backfilled]",))
+        assert cur.fetchone()[0] == "TST001"
+        cur.execute("DELETE FROM push_tokens WHERE expo_push_token=%s", ("ExponentPushToken[backfilled]",))
+        cur.close()
 
 
 class TestPushTokenApiEndpoints:
