@@ -4,16 +4,105 @@ import datetime
 import hashlib
 import html as _html
 import secrets
+import uuid
 import psycopg2
-from flask import Blueprint, request, session, redirect, render_template, flash, jsonify
+from io import BytesIO
+from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, send_file
 from database import get_db_connection
 from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, api_required, employee_api_required
-from utils.helpers import tpath, get_company_settings, _safe_app_url, _db, hr_scope_column, hr_scope_denied
+from utils.helpers import tpath, get_company_settings, _safe_app_url, _db, hr_scope_column, hr_scope_denied, _validate_upload
+from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
-from extensions import limiter, app_log
+from extensions import limiter, app_log, app, log_security_event
 
 onboarding_bp = Blueprint("onboarding", __name__)
+
+# Same allowlist blueprints/documents.py's employee-document uploads use --
+# onboarding completion docs are the same class of data (offer letters,
+# certificates, ID proofs), just attached to a task instead of a doc_type.
+_ONBOARDING_DOC_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'}
+
+
+def _save_onboarding_task_document(f, emp_id, task_id):
+    """Shared by the web and API twins of the task-completion upload below.
+
+    Used to just be `f.save(os.path.join("static", "onboarding_docs", ...))`
+    -- no extension/MIME/magic-byte check, no malware scan, and a
+    web-servable destination, unlike every other upload path in this app
+    (blueprints/documents.py, employees.py's photos, admin_views.py's
+    logos), which all go through _validate_upload()/_validate_image_file()
+    and land under private_uploads/ (utils/storage.py's save_private()).
+    Brought in line with that: same validation, same private storage, same
+    ClamAV scan (fails closed outside development -- see
+    utils/helpers.py's _scan_for_malware()).
+
+    Returns (stored_ref_or_None, error_or_None). A returned stored_ref is
+    opaque (per save_private()'s own contract) -- never build a URL from it
+    directly; see download_onboarding_document() below for the only
+    sanctioned way to read one back out.
+    """
+    ok, err = _validate_upload(f, _ONBOARDING_DOC_ALLOWED_EXT)
+    if not ok:
+        return None, err
+    rel_path = f"onboarding_docs/{emp_id}/{task_id}/{uuid.uuid4()}_{secure_filename(f.filename)}"
+    stored_ref, err = save_private(app.root_path, f, rel_path)
+    if err:
+        return None, err
+    return stored_ref, None
+
+
+@onboarding_bp.route("/onboarding_document/<int:task_id>")
+def download_onboarding_document(task_id):
+    """Serves a completed onboarding task's attached document -- the only
+    sanctioned way to read one back (templates/my_onboarding.html and
+    onboarding_detail.html both used to link straight to
+    /static/onboarding_docs/<name>, which no longer exists since uploads
+    now land in private storage via _save_onboarding_task_document() above).
+
+    Same admin-vs-employee split every other onboarding route in this file
+    uses: an admin-tier session is scoped by hr_scope_denied() (HR limited
+    to its assigned employees, admin unrestricted), an employee session may
+    only ever reach its own task's document."""
+    is_admin = session.get("admin_logged_in")
+    emp_session = session.get("employee_id")
+    if not is_admin and not emp_session:
+        return redirect(tpath("/login"))
+
+    with _db() as (cursor, _conn):
+        cursor.execute(
+            "SELECT employee_id, document_path, task_title FROM employee_onboarding_tasks WHERE id=%s",
+            (task_id,)
+        )
+        row = cursor.fetchone()
+    if not row or not row[1]:
+        flash("Document not found.", "danger")
+        return redirect(tpath("/employees") if is_admin else tpath("/my_onboarding"))
+    doc_emp_id, stored_ref, task_title = row
+
+    if is_admin:
+        if hr_scope_denied(doc_emp_id):
+            flash("Document not found.", "danger")
+            return redirect(tpath("/employees"))
+    elif doc_emp_id != emp_session:
+        log_security_event(
+            "access.denied", "Onboarding document access denied: not the owning employee",
+            level="ERROR", identifier=emp_session, requested_owner=doc_emp_id, resource_id=task_id,
+        )
+        flash("Access denied.", "danger")
+        return redirect(tpath("/my_onboarding"))
+
+    try:
+        data = open_private(stored_ref)
+    except Exception:
+        flash("Document file is missing or unreadable.", "danger")
+        return redirect(tpath("/employees") if is_admin else tpath("/my_onboarding"))
+    # stored_ref's basename is "<uuid>_<original secure_filename>" (see
+    # _save_onboarding_task_document above) -- reusing it keeps the real
+    # extension intact, unlike building a name from task_title alone.
+    import os as _os
+    download_name = f"{secure_filename(task_title or 'document')}{_os.path.splitext(stored_ref)[1]}"
+    return send_file(BytesIO(data), as_attachment=True, download_name=download_name)
 
 
 @onboarding_bp.route("/api/onboarding", methods=["GET"])
@@ -1434,12 +1523,12 @@ def my_onboarding_task_done():
     if 'document' in request.files:
         f = request.files['document']
         if f and f.filename:
-            import os as _os
-            upload_dir = _os.path.join("static", "onboarding_docs")
-            _os.makedirs(upload_dir, exist_ok=True)
-            safe_name = f"{emp_id}_{task_id}_{f.filename.replace(' ', '_')}"
-            f.save(_os.path.join(upload_dir, safe_name))
-            doc_path = safe_name
+            doc_path, upload_err = _save_onboarding_task_document(f, emp_id, task_id)
+            if upload_err:
+                cursor.close()
+                db.close()
+                flash(upload_err, "error")
+                return redirect(tpath(f"/my_onboarding?ob_id={ob_id}"))
 
     if doc_path:
         cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, document_path=%s, employee_note=%s WHERE id=%s",
@@ -1563,12 +1652,11 @@ def api_my_onboarding_task_done(task_id):
     if 'document' in request.files:
         f = request.files['document']
         if f and f.filename:
-            import os as _os
-            upload_dir = _os.path.join("static", "onboarding_docs")
-            _os.makedirs(upload_dir, exist_ok=True)
-            safe_name = f"{emp_id}_{task_id}_{f.filename.replace(' ', '_')}"
-            f.save(_os.path.join(upload_dir, safe_name))
-            doc_path = safe_name
+            doc_path, upload_err = _save_onboarding_task_document(f, emp_id, task_id)
+            if upload_err:
+                cursor.close()
+                db.close()
+                return jsonify({"ok": False, "msg": upload_err}), 400
 
     if doc_path:
         cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, document_path=%s, employee_note=%s WHERE id=%s",

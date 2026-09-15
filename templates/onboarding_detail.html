@@ -164,7 +164,7 @@
           {% if task_due %}<span class="task-tag {% if is_overdue %}row--overdue{% endif %}"><i class="ti ti-calendar u-fs-10"></i> Due {{ task_due.strftime('%d %b %Y') }}</span>{% endif %}
           {% if t[3] %}<span class="task-tag doc"><i class="ti ti-paperclip u-fs-10"></i> Doc required</span>{% endif %}
           {% if t[6] %}<span class="task-tag done"><i class="ti ti-calendar-check u-fs-10"></i> Done {{ t[6].strftime('%d %b') }}</span>{% endif %}
-          {% if t[7] %}<a href="/static/onboarding_docs/{{ t[7] }}" target="_blank" class="task-tag u-c-1e3a8a u-bg-dbeafe u-tdec-none"><i class="ti ti-paperclip u-fs-10"></i> View Doc</a>{% endif %}
+          {% if t[7] %}<a href="{{ tpath('/onboarding_document/' ~ t[0]) }}" target="_blank" class="task-tag u-c-1e3a8a u-bg-dbeafe u-tdec-none"><i class="ti ti-paperclip u-fs-10"></i> View Doc</a>{% endif %}
         </div>
         {% if t[8] %}<div class="u-fs-12 u-c-64748b u-mt-6 u-bg-f8fafc u-p-6-10 u-br-6 u-bdl-3-solid-93c5fd"><strong>Admin note:</strong> {{ t[8] }}</div>{% endif %}
         {% if t[9] %}<div class="u-fs-12 u-c-374151 u-mt-6 u-bg-f0fdf4 u-p-6-10 u-br-6 u-bdl-3-solid-86efac"><strong>Employee note:</strong> {{ t[9] }}</div>{% endif %}

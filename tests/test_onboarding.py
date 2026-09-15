@@ -8,6 +8,7 @@ Run with:
 """
 import datetime
 import hashlib
+import io
 import pytest
 
 import blueprints.onboarding as onboarding_module
@@ -676,6 +677,126 @@ class TestMyOnboardingEmployeeFacing:
         cur.execute("SELECT status FROM employee_onboarding_tasks WHERE id=%s", (task_row_ids[0],))
         assert cur.fetchone()[0] == "Pending"
         cur.close()
+
+
+class TestMyOnboardingTaskDocumentUpload:
+    """Regression coverage for the security fix to my_onboarding_task_done()'s
+    document attachment: it used to save straight to static/onboarding_docs/
+    (world-readable, no validation, no malware scan) with just the bare
+    filename in document_path. Now goes through the same _validate_upload()
+    + save_private() every other document upload in this app uses -- see
+    blueprints/onboarding.py's _save_onboarding_task_document()."""
+
+    def test_valid_document_is_stored_privately_not_under_static(self, client, db_engine, seed_employee, assigned_onboarding):
+        ob_id, task_row_ids = assigned_onboarding
+        _employee_session(client, seed_employee)
+        resp = client.post("/my_onboarding_task_done", data={
+            "task_id": task_row_ids[0], "ob_id": ob_id,
+            "document": (io.BytesIO(b"%PDF-1.4 fake pdf content"), "certificate.pdf"),
+        }, content_type="multipart/form-data", follow_redirects=False)
+        assert resp.status_code in (301, 302)
+        cur = db_engine.cursor()
+        cur.execute("SELECT status, document_path FROM employee_onboarding_tasks WHERE id=%s", (task_row_ids[0],))
+        status, document_path = cur.fetchone()
+        cur.close()
+        assert status == "Done"
+        # The pre-fix format was a bare "EMP_TASKID_certificate.pdf" with no
+        # path separator at all, living directly under static/ -- a
+        # save_private() stored_ref always has one (a private_uploads/...
+        # local path, or an s3://... URL), and never contains "static".
+        assert document_path is not None
+        assert "/" in document_path or "\\" in document_path
+        assert "static" not in document_path.replace("\\", "/").split("/")
+
+    def test_disallowed_file_type_rejected_and_task_not_completed(self, client, db_engine, seed_employee, assigned_onboarding):
+        ob_id, task_row_ids = assigned_onboarding
+        _employee_session(client, seed_employee)
+        resp = client.post("/my_onboarding_task_done", data={
+            "task_id": task_row_ids[0], "ob_id": ob_id,
+            "document": (io.BytesIO(b"MZ\x90\x00fake exe"), "payload.exe"),
+        }, content_type="multipart/form-data", follow_redirects=True)
+        assert resp.status_code == 200
+        assert b"not allowed" in resp.data.lower()
+        cur = db_engine.cursor()
+        cur.execute("SELECT status, document_path FROM employee_onboarding_tasks WHERE id=%s", (task_row_ids[0],))
+        status, document_path = cur.fetchone()
+        cur.close()
+        assert status == "Pending"
+        assert document_path is None
+
+    def test_spoofed_extension_with_wrong_magic_bytes_rejected(self, client, db_engine, seed_employee, assigned_onboarding):
+        """A file named *.pdf whose content isn't actually a PDF -- the
+        extension/content-type allowlist alone wouldn't catch this; the
+        magic-byte check inside _validate_upload() is what does."""
+        ob_id, task_row_ids = assigned_onboarding
+        _employee_session(client, seed_employee)
+        resp = client.post("/my_onboarding_task_done", data={
+            "task_id": task_row_ids[0], "ob_id": ob_id,
+            "document": (io.BytesIO(b"not actually a pdf"), "certificate.pdf"),
+        }, content_type="multipart/form-data", follow_redirects=True)
+        assert resp.status_code == 200
+        cur = db_engine.cursor()
+        cur.execute("SELECT status FROM employee_onboarding_tasks WHERE id=%s", (task_row_ids[0],))
+        assert cur.fetchone()[0] == "Pending"
+        cur.close()
+
+
+class TestOnboardingDocumentDownload:
+    """/onboarding_document/<task_id> -- the only sanctioned way to read a
+    completed task's attachment back now that it's no longer served
+    directly from static/."""
+
+    @pytest.fixture
+    def completed_task_with_doc(self, client, db_engine, seed_employee, assigned_onboarding):
+        ob_id, task_row_ids = assigned_onboarding
+        _employee_session(client, seed_employee)
+        client.post("/my_onboarding_task_done", data={
+            "task_id": task_row_ids[0], "ob_id": ob_id,
+            "document": (io.BytesIO(b"%PDF-1.4 fake pdf content"), "certificate.pdf"),
+        }, content_type="multipart/form-data")
+        client.get("/logout")
+        return task_row_ids[0]
+
+    def test_requires_login(self, client, completed_task_with_doc):
+        resp = client.get(f"/onboarding_document/{completed_task_with_doc}", follow_redirects=False)
+        assert resp.status_code in (302, 401)
+        assert "/login" in resp.headers.get("Location", "")
+
+    def test_owning_employee_can_download(self, client, seed_employee, completed_task_with_doc):
+        _employee_session(client, seed_employee)
+        resp = client.get(f"/onboarding_document/{completed_task_with_doc}")
+        assert resp.status_code == 200
+        assert resp.data.startswith(b"%PDF")
+
+    def test_other_employee_denied(self, client, db_engine, completed_task_with_doc):
+        cur = db_engine.cursor()
+        cur.execute(
+            "INSERT INTO employees (employee_id, name, email, password, force_pin_change) "
+            "VALUES ('ONBOARD_OTHER','Other','other2@test.local','x',0) ON CONFLICT DO NOTHING"
+        )
+        db_engine.commit()
+        cur.close()
+        with client.session_transaction() as sess:
+            sess["employee_id"] = "ONBOARD_OTHER"
+        resp = client.get(f"/onboarding_document/{completed_task_with_doc}", follow_redirects=False)
+        assert resp.status_code in (301, 302)
+        assert "/my_onboarding" in resp.headers["Location"]
+        cur = db_engine.cursor()
+        cur.execute("DELETE FROM employees WHERE employee_id='ONBOARD_OTHER'")
+        db_engine.commit()
+        cur.close()
+
+    def test_admin_can_download(self, client, seed_admin, completed_task_with_doc):
+        _admin_session(client, seed_admin)
+        resp = client.get(f"/onboarding_document/{completed_task_with_doc}")
+        assert resp.status_code == 200
+        assert resp.data.startswith(b"%PDF")
+
+    def test_missing_document_redirects(self, client, seed_admin, assigned_onboarding):
+        _, task_row_ids = assigned_onboarding
+        _admin_session(client, seed_admin)
+        resp = client.get(f"/onboarding_document/{task_row_ids[0]}", follow_redirects=False)
+        assert resp.status_code in (301, 302)
 
     def test_stale_session_for_deleted_employee_redirects_to_login(self, client):
         """my_onboarding() used to crash with a 500 (emp[1] on None) if the
