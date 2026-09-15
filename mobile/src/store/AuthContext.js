@@ -7,6 +7,7 @@ import { secureGetItem, secureSetItem, secureMultiRemove } from '../utils/secure
 import { getBiometricLockEnabled } from '../utils/preferences';
 import { clearLocalEmployees } from '../utils/employeeStore';
 import { clearQueue as clearOfflinePunchQueue } from '../utils/offlineQueue';
+import { registerForPushNotifications } from '../utils/pushNotifications';
 
 const AuthContext = createContext(null);
 
@@ -106,6 +107,14 @@ export function AuthProvider({ children }) {
     await secureSetItem('user', JSON.stringify(userData));
     setUser(userData);
     setLocked(false);
+    // Fire-and-forget -- registerForPushNotifications() is fully
+    // self-contained (permissions, token fetch, upload) and must never
+    // block or fail a login; it already no-ops safely wherever push isn't
+    // set up yet (no EAS project, permission denied, etc), but the .catch
+    // here is a second line of defense against an unhandled rejection
+    // (e.g. a mocked/monkeypatched caller in tests) since this call is
+    // never awaited.
+    registerForPushNotifications(userData).catch(() => {});
   };
 
   const signOut = async () => {
