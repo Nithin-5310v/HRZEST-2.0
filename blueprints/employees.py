@@ -6,13 +6,15 @@ import hashlib
 import datetime
 import secrets
 import psycopg2
+from io import BytesIO
 from flask import (
-    Blueprint, request, session, redirect, jsonify, render_template, flash,
+    Blueprint, request, session, redirect, jsonify, render_template, flash, send_file,
 )
 
 from extensions import app, app_log, limiter, log_security_event
 from database import get_db_connection, transaction
 from qr_generator import generate_qr
+from utils.storage import open_private
 from utils.auth import admin_required, generate_password_hash, api_required, role_required, api_role_required, HR_ROLE
 from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
@@ -1237,6 +1239,31 @@ def regenerate_qr(emp_id):
     return redirect(tpath("/employees"))
 
 
+@employees_bp.route("/employees/<emp_id>/qr")
+@admin_required
+def admin_view_qr(emp_id):
+    """Admin/HR-side twin of blueprints/employee_portal.py's my_qr() -- the
+    only two sanctioned ways to ever read an employee's attendance QR back
+    out, now that generate_qr() saves it to private storage instead of
+    static/ (see that function's own docstring for why: the QR image is a
+    bearer credential, not just a picture). HR sessions are scoped to
+    their assigned employees exactly like every other single-record
+    employee route in this file; admin is unrestricted."""
+    if _hr_scope_denied(emp_id):
+        return "Employee not found", 404
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT 1 FROM employees WHERE employee_id=%s", (emp_id,))
+    found = cursor.fetchone()
+    cursor.close()
+    db.close()
+    if not found:
+        return "Employee not found", 404
+    stored_ref = generate_qr(emp_id)
+    return send_file(BytesIO(open_private(stored_ref)), mimetype="image/png",
+                     as_attachment=True, download_name=f"QR_{emp_id}.png")
+
+
 @employees_bp.route("/dataset/<path:filename>")
 @admin_required
 def serve_dataset(filename):
@@ -1535,6 +1562,17 @@ def _idc_static_path(rel_path):
     return os.path.join(app.root_path, "static", rel_path)
 
 
+def _idc_qr_image(emp_id):
+    """PIL Image of emp_id's attendance QR, for pasting into a rendered ID
+    card. generate_qr() now saves to private storage (see its own
+    docstring for why -- the QR payload is a bearer credential, never
+    world-readable), so this always regenerates fresh and reads it back
+    through open_private() rather than assuming a bare local path the way
+    the two call sites below both used to."""
+    stored_ref = generate_qr(emp_id)
+    return Image.open(BytesIO(open_private(stored_ref)))
+
+
 def _idc_box_bg_color(img, box):
     """Best-guess background fill color for a text field's box, sampled from
     the (unmodified) template image at each edge's midpoint. Custom templates
@@ -1716,14 +1754,11 @@ def _render_default_front(emp_id, row, company_name=None, logo_path=None, compan
                 _idc_center_text(fd, line, addr_font, CW, addr_y, _IDC_DGRAY)
                 addr_y += 16
 
-    qr_path = os.path.join("static", "qrcodes", emp_id + ".png")
-    if not os.path.exists(qr_path):
-        qr_path = generate_qr(emp_id)
     qr_x = CW // 2 - QS_SMALL // 2
     qr_y = min(addr_y + 6, max_qr_y)
     try:
         fd.rounded_rectangle([(qr_x - QR_MARGIN, qr_y - QR_MARGIN), (qr_x + QS_SMALL + QR_MARGIN, qr_y + QS_SMALL + QR_MARGIN)], radius=10, fill=_IDC_WHITE)
-        qr_img = Image.open(qr_path).convert("RGB").resize((QS_SMALL, QS_SMALL), Image.LANCZOS)
+        qr_img = _idc_qr_image(emp_id).convert("RGB").resize((QS_SMALL, QS_SMALL), Image.LANCZOS)
         front.paste(qr_img, (qr_x, qr_y))
     except Exception as exc:
         # Card still renders without the front QR -- not fatal (this is now
@@ -1895,11 +1930,8 @@ def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, compan
                 except Exception as exc:
                     app_log.warning("ID card custom-template logo paste failed for %s: %s", emp_id, exc, exc_info=True)
         elif key == "qr":
-            qr_path = os.path.join("static", "qrcodes", emp_id + ".png")
-            if not os.path.exists(qr_path):
-                qr_path = generate_qr(emp_id)
             try:
-                qr_img = Image.open(qr_path).convert("RGB").resize((w, h), Image.LANCZOS)
+                qr_img = _idc_qr_image(emp_id).convert("RGB").resize((w, h), Image.LANCZOS)
                 img.paste(qr_img, (x, y))
             except Exception as exc:
                 app_log.warning("ID card custom-template QR paste failed for %s: %s", emp_id, exc, exc_info=True)

@@ -554,8 +554,8 @@
       <div class="card-title"><i class="ti ti-qrcode"></i> QR Code</div>
       {% if qr_code %}
         <div class="center-col">
-          <img class="qr" src="/{{ qr_code|qr_url }}" alt="QR for {{ name }}">
-          <a class="btn-dl" href="/{{ qr_code|qr_url }}" download="{{ emp_id }}_qr.png">
+          <img class="qr" src="{{ tpath('/employees/' ~ emp_id ~ '/qr') }}" alt="QR for {{ name }}">
+          <a class="btn-dl" href="{{ tpath('/employees/' ~ emp_id ~ '/qr') }}" download="{{ emp_id }}_qr.png">
             <i class="ti ti-download"></i> Download QR
           </a>
         </div>

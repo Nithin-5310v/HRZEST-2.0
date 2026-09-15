@@ -74,7 +74,7 @@ def company_employee(db_engine, temp_company):
     cur.execute("DELETE FROM employees WHERE employee_id='IDC001'")
     cur.close()
     jpg = os.path.join(flask_app.config["UPLOAD_FOLDER"], "IDC001.jpg")
-    qr = os.path.join("static", "qrcodes", "IDC001.png")
+    qr = os.path.join(flask_app.root_path, "private_uploads", "qrcodes", "IDC001.png")
     if os.path.exists(jpg):
         os.remove(jpg)
     if os.path.exists(qr):

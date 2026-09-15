@@ -2,6 +2,7 @@ import qrcode
 import os
 import hmac
 import hashlib
+from io import BytesIO
 
 
 def _qr_signature(emp_id: str) -> str:
@@ -22,16 +23,36 @@ def _qr_signature(emp_id: str) -> str:
 
 
 def generate_qr(emp_id):
-    folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "qrcodes")
+    """Generates (or regenerates -- the signature is deterministic, so this
+    is idempotent and cheap to call on every view) the employee's
+    attendance QR and saves it to PRIVATE storage, never static/. The
+    scanned payload ("<employee_id>.<hmac signature>") is a bearer
+    credential: whoever holds a copy of this image can check that
+    employee in/out indefinitely with no further proof of identity. A
+    world-readable copy under static/ would hand that out to anyone who
+    can guess an employee_id (routinely sequential -- EMP001, EMP002, ...)
+    with zero authentication, completely bypassing the HMAC signature's
+    own purpose (see _qr_signature()'s docstring above). Retrieval must
+    always go through an authenticated, ownership-checked route -- see
+    blueprints/employee_portal.py's my_qr() and blueprints/employees.py's
+    admin-side twin.
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    Returns save_private()'s opaque stored_ref -- read it back with
+    utils.storage.open_private(), never assume it's a bare local path."""
+    from utils.storage import save_private
+    from werkzeug.datastructures import FileStorage
 
-    path = os.path.join(folder, f"{emp_id}.png")
+    app_root_path = os.path.dirname(os.path.abspath(__file__))
     qr_value = f"{emp_id}.{_qr_signature(emp_id)}"
     img = qrcode.make(qr_value)
-    img.save(path)
-    return f"static/qrcodes/{emp_id}.png"
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    file_storage = FileStorage(stream=buf, filename=f"{emp_id}.png", content_type="image/png")
+    stored_ref, err = save_private(app_root_path, file_storage, f"qrcodes/{emp_id}.png")
+    if err:
+        raise RuntimeError(f"Failed to save QR code for {emp_id}: {err}")
+    return stored_ref
 
 
 def verify_qr_value(qr_value: str):
