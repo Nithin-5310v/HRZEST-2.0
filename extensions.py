@@ -279,7 +279,7 @@ CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
 # (see the StreamHandler setup at the top of this file), so it can't be
 # silently swallowed the way a log line at a filtered level could.
 def check_production_safety(app_env, clamav_host, malware_scan_enabled=True,
-                            ai_assistant_configured=True, logger=None):
+                            ai_assistant_configured=True, redis_configured=True, logger=None):
     """Pure-ish (env values passed in, not read internally) so this can be
     unit-tested directly without reloading this module or its side effects
     (CORS registration, rate limiter, etc.) against the shared Flask app
@@ -327,6 +327,29 @@ def check_production_safety(app_env, clamav_host, malware_scan_enabled=True,
             "of those three env vars, or ignore this if the assistant is "
             "intentionally disabled for this deployment."
         )
+    # Unlike the two checks above, this isn't "a feature quietly doesn't
+    # work" -- it's a security control quietly weaker than it looks. Without
+    # REDIS_HOST, utils/waf.py's auto-ban breach counter (and Flask-
+    # Limiter's rate limiter) each fall back to their own per-worker
+    # in-memory storage instead of the shared Redis one -- a complete,
+    # working fallback, not a stub, but under N gunicorn workers each
+    # enforces independently, so the effective ban/rate threshold an
+    # attacker actually has to clear is N times the configured one. A
+    # single-worker deployment is unaffected either way, but nothing here
+    # can tell the difference from an env var alone, so this warns
+    # regardless of worker count rather than risk missing the multi-worker
+    # case.
+    if not redis_configured:
+        logger.critical(
+            "APP_ENV=production but REDIS_HOST is not set. The WAF auto-ban "
+            "breach counter and the rate limiter will both fall back to "
+            "per-worker in-memory storage instead of a shared Redis backend -- "
+            "under multiple gunicorn workers, this multiplies the effective "
+            "ban/rate threshold by the worker count, letting an attacker make "
+            "that many more attempts before being throttled or banned. Set "
+            "REDIS_HOST (and REDIS_PORT/REDIS_PASSWORD if needed), or ignore "
+            "this if this deployment intentionally runs a single worker."
+        )
 
 
 _malware_scan_enabled_at_boot = os.environ.get("MALWARE_SCAN_ENABLED", "true").strip().lower() not in ("false", "0", "no")
@@ -336,7 +359,8 @@ _ai_assistant_configured_at_boot = bool(
     or os.environ.get("ANTHROPIC_API_KEY", "").strip()
 )
 check_production_safety(_app_env, os.environ.get("CLAMAV_HOST"), _malware_scan_enabled_at_boot,
-                        _ai_assistant_configured_at_boot)
+                        _ai_assistant_configured_at_boot,
+                        redis_configured=bool(os.environ.get("REDIS_HOST", "").strip()))
 
 
 # ── Redis (optional shared cache — rate limiter + WAF auto-ban counters) ──────
