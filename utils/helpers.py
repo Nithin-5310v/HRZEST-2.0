@@ -18,7 +18,7 @@ from extensions import app_log, log_security_event, redis_client
 _SAFE_IDENT_RE = re.compile(r'^[a-z][a-z0-9_]*$')
 
 # Employee IDs are used to build filesystem paths (dataset/<emp_id>.jpg,
-# static/qrcodes/<emp_id>.png) before the DB row necessarily exists yet
+# private_uploads/qrcodes/<emp_id>.png) before the DB row necessarily exists yet
 # (registration), so a DB existence check can't be relied on to reject
 # path-traversal characters the way it does for update-in-place routes.
 _EMP_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,32}$')

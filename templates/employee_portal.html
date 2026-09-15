@@ -636,7 +636,7 @@
             <!-- QR code -->
             {% if emp[27] %}
             <div class="u-fxs-0 u-d-flex u-fxd-column u-ai-center u-jc-flex-start u-pt-4 u-bdl-1-solid-f1f5f9 u-pl-14 u-gap-4">
-              <img class="u-w-100 u-h-100 u-br-8 u-bd-1-solid-e2e8f0 u-d-block" src="/{{ emp[27]|qr_url }}" alt="My QR" />
+              <img class="u-w-100 u-h-100 u-br-8 u-bd-1-solid-e2e8f0 u-d-block" src="{{ tpath('/my_qr') }}" alt="My QR" />
               <div class="u-fs-9 u-fw-600 u-c-94a3b8 u-ttr-uppercase u-ls-0d5">Your QR</div>
             </div>
             {% endif %}

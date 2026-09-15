@@ -28,7 +28,7 @@ import utils.face_utils as face_utils
 from extensions import app as flask_app
 
 UPLOAD_FOLDER = flask_app.config["UPLOAD_FOLDER"]
-QR_FOLDER = os.path.join(os.path.dirname(os.path.abspath(UPLOAD_FOLDER)), "static", "qrcodes")
+QR_FOLDER = os.path.join(flask_app.root_path, "private_uploads", "qrcodes")
 
 
 def _fake_jpeg_bytes():

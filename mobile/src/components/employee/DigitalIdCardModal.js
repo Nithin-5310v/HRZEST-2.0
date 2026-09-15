@@ -1,10 +1,9 @@
 import React from "react";
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
-import { API_BASE_URL } from "../../config";
-
+import { fetchMyQrCode } from "../../api/client";
 import { useAuth } from "../../store/AuthContext";
 
 export default function DigitalIdCardModal({ visible, employee, onClose }) {
@@ -15,13 +14,37 @@ export default function DigitalIdCardModal({ visible, employee, onClose }) {
   // `employee` is ever null on one render and non-null on another (e.g.
   // while ProfileScreen's data is still loading).
   const empId = employee?.employeeId || employee?.employee_id || "EMP-1001";
-  const serverQrUri = `${API_BASE_URL}/static/qrcodes/${empId}.png`;
-  const [qrUri, setQrUri] = React.useState(serverQrUri);
+  const [qrBase64, setQrBase64] = React.useState(null);
+  const [qrFailed, setQrFailed] = React.useState(false);
+
+  // The attendance QR encodes a signed, permanently-replayable check-in
+  // credential for this employee (see qr_generator.py's _qr_signature) --
+  // it used to be fetched from a public, predictable static/ path, with a
+  // fallback to a third-party QR-generator service that would have encoded
+  // the bare, unsigned employee ID (forgeable by anyone). Both were real
+  // vulnerabilities. Now fetched the same authenticated, base64-JSON way
+  // every other binary asset in this app is (see IdCardScreen.js) -- if it
+  // can't be fetched, this shows a plain "unavailable" state instead of
+  // ever falling back to an insecure alternative.
+  React.useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    setQrBase64(null);
+    setQrFailed(false);
+    fetchMyQrCode()
+      .then((res) => {
+        if (!cancelled && res?.data?.ok) setQrBase64(res.data.image_base64);
+        else if (!cancelled) setQrFailed(true);
+      })
+      .catch(() => {
+        if (!cancelled) setQrFailed(true);
+      });
+    return () => { cancelled = true; };
+  }, [visible]);
 
   if (!employee) return null;
 
   const companyName = (employee.company || user?.company || "Enterprise Workforce Platform").toUpperCase();
-  const fallbackQrUri = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(empId)}`;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -66,11 +89,21 @@ export default function DigitalIdCardModal({ visible, employee, onClose }) {
             </View>
 
             <View style={styles.qrContainer}>
-              <Image
-                source={{ uri: qrUri }}
-                style={{ width: 120, height: 120, borderRadius: 12 }}
-                onError={() => setQrUri(fallbackQrUri)}
-              />
+              {qrBase64 ? (
+                <Image
+                  source={{ uri: `data:image/png;base64,${qrBase64}` }}
+                  style={{ width: 120, height: 120, borderRadius: 12 }}
+                />
+              ) : qrFailed ? (
+                <View style={styles.qrUnavailable}>
+                  <Ionicons name="qr-code-outline" size={32} color="#94A3B8" />
+                  <Text style={styles.qrUnavailableText}>QR unavailable</Text>
+                </View>
+              ) : (
+                <View style={styles.qrUnavailable}>
+                  <ActivityIndicator size="small" color="#94A3B8" />
+                </View>
+              )}
               <Text style={styles.qrText}>Scan for Digital Verification</Text>
             </View>
           </View>
@@ -107,6 +140,8 @@ const styles = StyleSheet.create({
   detailValue: { fontSize: 12, fontWeight: "700", color: "#0F172A" },
   qrContainer: { alignItems: "center", marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9", width: "100%" },
   qrText: { fontSize: 11, color: "#94A3B8", marginTop: 4 },
+  qrUnavailable: { width: 120, height: 120, borderRadius: 12, backgroundColor: "#F8FAFC", justifyContent: "center", alignItems: "center", gap: 6 },
+  qrUnavailableText: { fontSize: 10, color: "#94A3B8", fontWeight: "600" },
   closeBtn: { backgroundColor: "#F1F5F9", paddingVertical: 14, alignItems: "center" },
   closeBtnText: { color: "#64748B", fontWeight: "700", fontSize: 13 },
 });

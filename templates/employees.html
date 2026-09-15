@@ -551,7 +551,7 @@
                       <i class="ti ti-camera"></i>
                     </button>
                     <button class="btn-icon btn-qr" title="QR Code"
-                      onclick="openQR(this.dataset.empId,this.dataset.empName,this.dataset.qrUrl)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" data-qr-url="{{ qr_code|qr_url|e }}">
+                      onclick="openQR(this.dataset.empId,this.dataset.empName,this.dataset.hasQr)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" data-has-qr="{{ '1' if qr_code else '' }}">
                       <i class="ti ti-qrcode"></i>
                     </button>
                     <button class="btn-icon btn-idcard" title="ID Card"
@@ -1863,17 +1863,22 @@
       }
 
       // ========== QR MODAL ==========
-      function openQR(empId, name, qrPath) {
+      function openQR(empId, name, hasQr) {
         document.getElementById('qrEmpName').textContent = name;
         document.getElementById('qrEmpId').textContent   = 'ID: ' + empId;
         const imgEl     = document.getElementById('qrImg');
         const dlBtn     = document.getElementById('qrDownload');
         const regenForm = document.getElementById('qrRegenForm');
         regenForm.action = '/regenerate_qr/' + empId;
-        if (qrPath && qrPath !== 'None' && qrPath !== '') {
-          imgEl.src           = '/' + qrPath;
+        // qr_code is now an opaque private-storage reference (see
+        // qr_generator.py's generate_qr()), never a usable relative URL --
+        // the only way to fetch the image itself is this authenticated,
+        // ownership-checked route, same reasoning as regenForm.action above.
+        const qrUrl = '/employees/' + empId + '/qr';
+        if (hasQr && hasQr !== 'None' && hasQr !== '') {
+          imgEl.src           = qrUrl;
           imgEl.style.display = 'block';
-          dlBtn.href          = '/' + qrPath;
+          dlBtn.href          = qrUrl;
           dlBtn.download      = empId + '_qr.png';
           dlBtn.style.display = 'inline-flex';
         } else {

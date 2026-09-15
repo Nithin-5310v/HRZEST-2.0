@@ -31,14 +31,21 @@ Callers, not this module, decide public vs. private:
   - save_public(): local path is under static/ (Flask serves it
     directly); S3 path uploads with public-read-equivalent access
     (bucket policy, not ACLs -- ACLs are deprecated/often disabled on
-    newer buckets) and returns a direct object URL. For company
-    logos, QR codes -- anything already safe to be world-readable today.
+    newer buckets) and returns a direct object URL. For company logos,
+    ID card template backgrounds -- pure branding artwork with no
+    encoded meaning, genuinely safe to be world-readable.
   - save_private(): local path is OUTSIDE static/ (mirrors
     utils/helpers.py's save_application_document() convention); S3 path
     uploads to the same bucket but the URL returned is None -- callers
     must use open_private()/a presigned URL, never a bare object URL,
     for anything that needs an auth check first (employee documents, KYC
-    application documents).
+    application documents, attendance QR codes -- see qr_generator.py's
+    generate_qr(): the QR image itself IS a bearer credential, an
+    unsigned copy of it under static/ would let anyone who can guess an
+    employee_id fetch a permanently-valid, replayable check-in code for
+    that person with no login at all, which is exactly the attack
+    qr_generator.py's own HMAC signature was added to prevent -- so the
+    image has to be gated the same way the signature already is).
 
 Wired in today: utils/helpers.py's save_uploaded_logo() (public) and
 save_application_document() (private) -- the two centralized,

@@ -434,3 +434,5 @@ export const registerEmployeePushToken = (expoPushToken, platform) =>
 export const registerAdminPushToken = (expoPushToken, platform) =>
   client.post('/api/push_token', { expo_push_token: expoPushToken, platform });
 
+export const fetchMyQrCode = () => client.get('/api/employee/my_qr');
+

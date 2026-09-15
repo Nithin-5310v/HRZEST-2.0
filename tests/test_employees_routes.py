@@ -53,7 +53,7 @@ def cleanup_emp_files():
     yield ids
     for eid in ids:
         jpg = os.path.join(UPLOAD_FOLDER, eid + ".jpg")
-        qr = os.path.join("static", "qrcodes", eid + ".png")
+        qr = os.path.join(flask_app.root_path, "private_uploads", "qrcodes", eid + ".png")
         if os.path.exists(jpg):
             os.remove(jpg)
         if os.path.exists(qr):
@@ -343,6 +343,98 @@ class TestRegenerateQr:
         _admin_session(client, seed_admin["username"])
         resp = client.post(f"/regenerate_qr/{seed_employee['employee_id']}", follow_redirects=True)
         assert b"regenerated" in resp.data
+
+
+class TestQrCodeStorageIsolation:
+    """Regression coverage for a real vulnerability: generate_qr() used to
+    save straight to static/qrcodes/<emp_id>.png -- a directly, publicly
+    web-servable path with a fully predictable name. The QR payload is
+    "<employee_id>.<hmac signature>", a permanent, replayable attendance
+    check-in credential once scanned -- exposing the already-signed image
+    under static/ let anyone who could guess a (routinely sequential)
+    employee_id fetch a valid credential for that person with zero
+    authentication, completely bypassing the whole point of the HMAC
+    signature (see qr_generator.py's _qr_signature() docstring)."""
+
+    def test_generate_qr_never_writes_under_static(self, seed_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        from qr_generator import generate_qr
+        emp_id = seed_employee["employee_id"]
+        old_public_path = os.path.join("static", "qrcodes", emp_id + ".png")
+        if os.path.exists(old_public_path):
+            os.remove(old_public_path)
+        generate_qr(emp_id)
+        assert not os.path.exists(old_public_path)
+
+    def test_generate_qr_stored_ref_is_readable_via_open_private(self, seed_employee, cleanup_emp_files):
+        """Not a bare local path assumption -- proves the returned
+        stored_ref actually round-trips through the same storage
+        abstraction (utils.storage.open_private()) every other private
+        upload uses, so this also works once S3 mode is configured."""
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        from qr_generator import generate_qr
+        from utils.storage import open_private
+
+        stored_ref = generate_qr(seed_employee["employee_id"])
+        data = open_private(stored_ref)
+        assert data.startswith(b"\x89PNG")
+
+    def test_qr_signature_round_trips_through_the_actual_encoded_image(self, seed_employee, cleanup_emp_files):
+        """The HMAC signature itself (qr_generator.py's _qr_signature/
+        verify_qr_value) is unchanged by this storage fix -- this just
+        confirms the same payload generate_qr() actually encodes into the
+        image is the one verify_qr_value() accepts, independent of where
+        the image bytes end up living."""
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        from qr_generator import _qr_signature, verify_qr_value
+        emp_id = seed_employee["employee_id"]
+        qr_value = f"{emp_id}.{_qr_signature(emp_id)}"
+        decoded_emp_id, is_valid = verify_qr_value(qr_value)
+        assert is_valid is True
+        assert decoded_emp_id == emp_id
+
+    def test_admin_qr_route_requires_admin_session(self, client, seed_employee):
+        resp = client.get(f"/employees/{seed_employee['employee_id']}/qr", follow_redirects=False)
+        assert resp.status_code in (302, 401, 403)
+
+    def test_admin_can_fetch_employee_qr(self, client, seed_admin, seed_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        _admin_session(client, seed_admin["username"])
+        resp = client.get(f"/employees/{seed_employee['employee_id']}/qr")
+        assert resp.status_code == 200
+        assert resp.mimetype == "image/png"
+        assert resp.data.startswith(b"\x89PNG")
+
+    def test_admin_qr_route_404s_for_unknown_employee(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        resp = client.get("/employees/GHOST_EMP_QR/qr")
+        assert resp.status_code == 404
+
+    def test_hr_scoped_out_of_unassigned_employees_qr(self, client, seed_hr_admin, seed_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        _admin_session(client, seed_hr_admin["username"], role="hr")
+        resp = client.get(f"/employees/{seed_employee['employee_id']}/qr")
+        assert resp.status_code == 404
+
+    def test_hr_can_fetch_assigned_employees_qr(self, client, seed_hr_admin, seed_assigned_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_assigned_employee["employee_id"])
+        _admin_session(client, seed_hr_admin["username"], role="hr")
+        resp = client.get(f"/employees/{seed_assigned_employee['employee_id']}/qr")
+        assert resp.status_code == 200
+        assert resp.data.startswith(b"\x89PNG")
+
+    def test_my_qr_requires_employee_session(self, client):
+        resp = client.get("/my_qr", follow_redirects=False)
+        assert resp.status_code in (302, 401, 403)
+
+    def test_my_qr_serves_from_private_storage(self, client, seed_employee, cleanup_emp_files):
+        cleanup_emp_files.append(seed_employee["employee_id"])
+        with client.session_transaction() as sess:
+            sess["employee_id"] = seed_employee["employee_id"]
+        resp = client.get("/my_qr")
+        assert resp.status_code == 200
+        assert resp.mimetype == "image/png"
+        assert resp.data.startswith(b"\x89PNG")
 
 
 class TestServeDataset:

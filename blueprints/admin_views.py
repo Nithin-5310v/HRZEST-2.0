@@ -1707,7 +1707,11 @@ def edit_company(cid):
 
                 for old_eid, new_eid in to_rename:
                     new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
-                    new_qr = os.path.join("static", "qrcodes", new_eid + ".png")
+                    # qr_code stores save_private()'s stored_ref (private_uploads/,
+                    # never static/ -- see qr_generator.py's generate_qr()) --
+                    # this mirrors that same local-mode path convention so a
+                    # renamed employee's QR file and DB pointer stay in sync.
+                    new_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", new_eid + ".png")
                     cursor.execute(
                         "UPDATE employees SET employee_id=%s, face_image=%s, qr_code=%s "
                         "WHERE employee_id=%s AND company_id=%s",
@@ -1727,8 +1731,8 @@ def edit_company(cid):
     for old_eid, new_eid in to_rename:
         old_img = os.path.join(app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
         new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
-        old_qr = os.path.join("static", "qrcodes", old_eid + ".png")
-        new_qr = os.path.join("static", "qrcodes", new_eid + ".png")
+        old_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", old_eid + ".png")
+        new_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", new_eid + ".png")
         if os.path.exists(old_img):
             try:
                 os.rename(old_img, new_img)

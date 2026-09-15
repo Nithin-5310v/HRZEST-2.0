@@ -66,8 +66,20 @@ _WIPE_TABLES = [
 # Never touch these — schema bookkeeping, not tenant data.
 _PRESERVE_TABLES = {"_applied_migrations"}
 
-_UPLOAD_DIRS = ["dataset", os.path.join("static", "qrcodes"),
-                os.path.join("static", "employee_docs")]
+_UPLOAD_DIRS = [
+    "dataset",
+    # QR codes and employee documents both moved to private storage
+    # (utils/storage.py's save_private()) -- qr_generator.py's
+    # generate_qr() (QR images are a bearer attendance credential, never
+    # safe under static/) and blueprints/documents.py (employee documents,
+    # pre-existing). The old static/ paths are listed too in case this
+    # runs against a database that predates either migration and still
+    # has files sitting there.
+    os.path.join("private_uploads", "qrcodes"),
+    os.path.join("private_uploads", "employee_documents"),
+    os.path.join("static", "qrcodes"),
+    os.path.join("static", "employee_docs"),
+]
 
 
 def _discover_schemas(cur):

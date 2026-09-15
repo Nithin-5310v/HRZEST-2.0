@@ -155,15 +155,6 @@ def _hr_has_own_employee():
     return _g._hr_has_own_employee
 
 
-@app.template_filter('qr_url')
-def _qr_url_filter(p):
-    """Normalize QR code paths -- old code stored absolute OS paths; extract just static/qrcodes/<file>."""
-    import re
-    if not p:
-        return ''
-    m = re.search(r'static[/\\]qrcodes[/\\]([^/\\]+\.png)', str(p))
-    return f'static/qrcodes/{m.group(1)}' if m else str(p)
-
 # /favicon.ico and /healthz are served by blueprints/health.py
 
 
