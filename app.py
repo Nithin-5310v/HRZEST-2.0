@@ -2046,6 +2046,19 @@ if __name__ == "__main__":
     from utils.tenant_routing import TenantPrefixMiddleware
     if not isinstance(app.wsgi_app, TenantPrefixMiddleware):
         app.wsgi_app = TenantPrefixMiddleware(app.wsgi_app)
+    # Same story as TenantPrefixMiddleware just above: wsgi.py wraps this
+    # at import time, so running app.py directly never gets it. Without
+    # it, every request tunneled through something like ngrok (testing a
+    # Razorpay webhook against a local server, say) looks to Flask like it
+    # came from 127.0.0.1 -- ngrok's local agent is the actual TCP peer --
+    # so the WAF's rate-limit-breach auto-ban ends up banning localhost
+    # itself, locking out the developer along with whatever tripped it.
+    # x_for=1 trusts exactly one forwarded-for hop, matching wsgi.py's own
+    # setting; harmless for plain direct localhost access, which never
+    # sends the header at all.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    if not isinstance(app.wsgi_app, ProxyFix):
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     # Only started here -- when app.py is run directly (`python app.py`,
     # local dev). wsgi.py (the real production entrypoint) already starts
     # this exact worker itself before importing app.py; starting it again
