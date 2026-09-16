@@ -81,6 +81,15 @@ def init_master_db():
         # existed, or via the Platform Admin direct-create path (which
         # deliberately doesn't collect one -- see platform_admin_create_tenant()).
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS gst_number VARCHAR(20) DEFAULT NULL")
+        # PAN/CIN, same duplicate-detection purpose as gst_number just
+        # above -- backfilled from utils/document_verification.py's OCR
+        # extraction once an application is automatically (or manually)
+        # approved, used by check_duplicate_pan()/check_duplicate_cin() to
+        # catch a re-registration under a different company name/GST that
+        # still shares the same real-world business's PAN or CIN. NULL for
+        # every tenant provisioned before this existed.
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS pan VARCHAR(20) DEFAULT NULL")
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS cin VARCHAR(30) DEFAULT NULL")
         # Platform-operator identity (blueprints/platform_admin.py) --
         # lives in att_master, not any tenant schema, since tenant
         # admin_users rows only exist inside their own schema and this
@@ -239,6 +248,25 @@ def init_master_db():
         # status/payment_option convention, neither of which has one
         # either): pending_documents -> pending_review -> approved | rejected.
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS doc_review_status VARCHAR(20) NOT NULL DEFAULT 'pending_documents'")
+        # Automated document verification (utils/document_verification.py)
+        # -- a durable job queue modeled on utils/email_utils.py's
+        # email_queue (same reasoning: silently losing this job would
+        # strand a real applicant behind the login gate forever). NULL
+        # until all 4 documents are uploaded (_save_application_documents()
+        # sets 'pending' at that point); 'processing' while a worker has
+        # claimed it; 'done' once an outcome was applied (approved,
+        # rejected, OR left at doc_review_status='pending_review' for a
+        # human -- 'done' means "the automated attempt finished", not
+        # "auto-approved"); 'failed' after verification_attempts exhausts
+        # its retry budget (falls back to the manual queue either way).
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_job_status VARCHAR(20) DEFAULT NULL")
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_attempts INT NOT NULL DEFAULT 0")
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_error TEXT DEFAULT NULL")
+        # Raw structured extraction result (gst_number/pan/cin/company_name/
+        # address plus per-field legibility) -- kept even for an
+        # inconclusive/manual-fallback outcome so a human reviewer in
+        # platform_admin.py's queue isn't starting from zero context.
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS ocr_extraction JSONB DEFAULT NULL")
         # Internal-only record of a signup blocked because its company_name
         # matched an existing tenant. Deliberately a SEPARATE table from
         # tenant_applications (rather than a flag/column on it) so the real

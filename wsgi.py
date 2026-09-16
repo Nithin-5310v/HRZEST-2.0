@@ -67,6 +67,13 @@ import threading
 from utils.email_utils import _email_queue_worker
 threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-worker").start()
 
+# ── Start the automated document-verification worker ─────────────────────────
+# Drains tenant_applications rows _save_application_documents() enqueues
+# (blueprints/org.py) -- unlike email_queue, tenant_applications is
+# master-schema-only, so this is a single global queue, no per-tenant loop.
+from utils.document_verification import _document_verification_worker
+threading.Thread(target=_document_verification_worker, daemon=True, name="document-verification-worker").start()
+
 # ── Shared app setup & blueprint registration ─────────────────────────────────
 # The blueprint-split migration mentioned below is long complete -- every
 # route now lives in blueprints/, registered by the single loop near the

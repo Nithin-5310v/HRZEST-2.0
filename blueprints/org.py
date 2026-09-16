@@ -538,6 +538,41 @@ def check_duplicate_gst(gst_number):
     return row
 
 
+def check_duplicate_pan(pan):
+    """Exact match against every already-provisioned tenant's PAN --
+    same purpose as check_duplicate_gst() above, but PAN is never typed at
+    signup (only GST is); this is populated purely from OCR-extracted
+    document content (utils/document_verification.py) and only ever
+    compared against other tenants' OCR-extracted PANs, never against
+    anything a registrant typed. Returns (tenant_id, company_name,
+    admin_email) if found, else None."""
+    if not pan:
+        return None
+    from database import get_master_db
+    mconn = get_master_db()
+    mcur = mconn.cursor()
+    mcur.execute("SELECT id, company_name, admin_email FROM tenants WHERE pan=%s", (pan,))
+    row = mcur.fetchone()
+    mcur.close()
+    mconn.close()
+    return row
+
+
+def check_duplicate_cin(cin):
+    """Exact match against every already-provisioned tenant's CIN --
+    same shape/purpose as check_duplicate_pan() above."""
+    if not cin:
+        return None
+    from database import get_master_db
+    mconn = get_master_db()
+    mcur = mconn.cursor()
+    mcur.execute("SELECT id, company_name, admin_email FROM tenants WHERE cin=%s", (cin,))
+    row = mcur.fetchone()
+    mcur.close()
+    mconn.close()
+    return row
+
+
 def check_duplicate_admin_email(admin_email):
     """Exact (case-insensitive) match against every already-provisioned
     tenant's admin_email. A trial-abuse registrant reusing their own email
@@ -916,6 +951,93 @@ def _provision_application_instantly(application):
     return True, None, portal_url, checkin_url
 
 
+def _approve_application_reviewed(application, reviewed_by):
+    """Approves an already-provisioned application's KYC review
+    (doc_review_status 'pending_review' -> 'approved'), reinstating the
+    tenant if it was previously suspended for a rejected review. Shared by
+    blueprints/platform_admin.py's human-reviewer route AND
+    utils/document_verification.py's automated worker -- reviewed_by is
+    what distinguishes the two in the audit trail (a platform-admin
+    username, or the literal string 'system:automated_verification').
+
+    Returns (ok, msg) -- ok is False only if the application wasn't
+    actually awaiting review (stale/double-submitted call); msg is a
+    human-readable result either way, safe to flash() as-is."""
+    if application["tenant_id"] is None:
+        return False, "Application is not yet provisioned."
+    if application["doc_review_status"] != "pending_review":
+        return False, "This application's documents aren't awaiting review."
+    from database import get_master_db
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    cur.execute(
+        "UPDATE tenant_applications SET doc_review_status='approved', reviewed_by=%s, reviewed_at=NOW(), "
+        "updated_at=NOW() WHERE id=%s",
+        (reviewed_by, application["id"])
+    )
+    cur.execute("SELECT status FROM tenants WHERE id=%s", (application["tenant_id"],))
+    tenant_row = cur.fetchone()
+    reinstated = bool(tenant_row and tenant_row[0] == "suspended")
+    if reinstated:
+        cur.execute("UPDATE tenants SET status='active' WHERE id=%s", (application["tenant_id"],))
+    conn.commit()
+    cur.close()
+    conn.close()
+    if reinstated:
+        log_security_event(
+            "platform_admin.tenant_reinstated",
+            f"Tenant {application['tenant_id']} reinstated -- corrected KYC documents approved",
+            level="WARNING", identifier=reviewed_by, application_id=application["id"], tenant_id=application["tenant_id"],
+        )
+    log_security_event(
+        "platform_admin.application_approved",
+        f"Application {application['id']} KYC documents approved (tenant already provisioned)",
+        level="INFO", identifier=reviewed_by, application_id=application["id"], tenant_id=application["tenant_id"],
+    )
+    return True, f"'{application['company_name']}'s documents approved."
+
+
+def _reject_application_reviewed(application, reviewed_by, reason):
+    """Rejects an already-provisioned application's KYC review, suspending
+    the live tenant (utils/tenant_routing.py stops resolving a
+    status!='active' tenant's slug at all -- the same mechanism
+    platform_admin_set_status() relies on elsewhere) and emailing a fresh
+    magic-link re-upload URL so the applicant has a way back in even
+    though they can no longer log in to use the in-portal verification
+    page. Shared by blueprints/platform_admin.py's human-reviewer route
+    AND utils/document_verification.py's automated worker.
+
+    Returns (ok, msg) -- ok is False only if the application isn't
+    actually provisioned yet (nothing to suspend)."""
+    if application["tenant_id"] is None:
+        return False, "Application is not yet provisioned."
+    from database import get_master_db
+    from utils.auth import _hash_token
+    new_token = secrets.token_urlsafe(32)
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    cur.execute(
+        "UPDATE tenant_applications SET doc_review_status='rejected', reviewed_by=%s, reviewed_at=NOW(), "
+        "rejection_reason=%s, access_token_hash=%s, updated_at=NOW() WHERE id=%s",
+        (reviewed_by, reason, _hash_token(new_token), application["id"])
+    )
+    cur.execute("UPDATE tenants SET status='suspended' WHERE id=%s", (application["tenant_id"],))
+    conn.commit()
+    cur.close()
+    conn.close()
+    log_security_event(
+        "platform_admin.tenant_suspended_kyc_rejected",
+        f"Tenant {application['tenant_id']} suspended -- KYC documents rejected: {reason}",
+        level="WARNING", identifier=reviewed_by, application_id=application["id"],
+        tenant_id=application["tenant_id"], reason=reason,
+    )
+    status_url = f"{_safe_app_url()}/create_org/status/{application['id']}?token={new_token}"
+    send_application_rejected_email(application["admin_email"], application["company_name"], reason, status_url)
+    log_security_event("platform_admin.application_rejected", f"Application {application['id']} rejected",
+                       level="INFO", identifier=reviewed_by, application_id=application["id"], reason=reason)
+    return True, "Application rejected."
+
+
 def _save_application_documents(application, files):
     """Shared document-upload logic for both web and mobile. `files` is a
     dict-like of {doc_kind: FileStorage} (request.files works directly).
@@ -962,11 +1084,17 @@ def _save_application_documents(application, files):
         # keeps that status (it now means "has a tenant", tracked
         # separately from KYC review progress) and only doc_review_status
         # moves, to 'pending_review'.
+        # verification_job_status='pending' hands this straight to
+        # utils/document_verification.py's automated worker -- a re-upload
+        # after rejection resets verification_attempts/ocr_extraction too,
+        # same "must look like a fresh submission" reasoning as
+        # rejection_reason/reviewed_by/reviewed_at just below.
         "UPDATE tenant_applications SET doc_registration_cert=%s, doc_address_proof=%s, doc_visiting_card=%s, "
         "doc_name_board_photo=%s, documents_submitted_at=NOW(), "
         "status = CASE WHEN status='provisioned' THEN status ELSE 'pending_review' END, "
         "doc_review_status='pending_review', updated_at=NOW(), "
-        "rejection_reason=NULL, reviewed_by=NULL, reviewed_at=NULL "
+        "rejection_reason=NULL, reviewed_by=NULL, reviewed_at=NULL, "
+        "verification_job_status='pending', verification_attempts=0, verification_error=NULL, ocr_extraction=NULL "
         "WHERE id=%s",
         (saved_paths["registration_cert"], saved_paths["address_proof"], saved_paths["visiting_card"],
          saved_paths["name_board_photo"], application["id"])

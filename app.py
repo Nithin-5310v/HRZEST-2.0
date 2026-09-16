@@ -948,18 +948,43 @@ def _security_headers(response):
         # loopback agent get path-scoped exceptions only.
         _is_turnstile_page = request.path in ("/admin_login", "/login")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
-        _frame_src = "https://challenges.cloudflare.com" if _is_turnstile_page else "'none'"
+        # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
+        # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
+        # /settings/seats; admin_views.py's /settings) -- without this, the
+        # default 'self'-only script-src silently blocks
+        # checkout.razorpay.com/v1/checkout.js from ever loading, so the
+        # "Pay" button's onclick handler runs but `new Razorpay(...)` never
+        # gets a Razorpay global to construct, and clicking it does
+        # nothing. frame-src/connect-src additions are what Checkout.js's
+        # own embedded iframe (card/UPI entry) and its API/analytics calls
+        # need once the script itself loads.
+        _is_razorpay_page = (
+            request.path in ("/pay_overdue_bill", "/settings/seats", "/settings")
+            or request.path.startswith("/create_org/pay/")
+            or request.path.startswith("/create_org/setup_trial/")
+        )
+        _razorpay_script_src = " https://checkout.razorpay.com https://cdn.razorpay.com" if _is_razorpay_page else ""
+        _razorpay_frame_src = "https://checkout.razorpay.com https://api.razorpay.com" if _is_razorpay_page else ""
+        _razorpay_connect_src = " https://api.razorpay.com https://lumberjack.razorpay.com" if _is_razorpay_page else ""
+        if _is_turnstile_page and _is_razorpay_page:
+            _frame_src = "https://challenges.cloudflare.com " + _razorpay_frame_src
+        elif _is_turnstile_page:
+            _frame_src = "https://challenges.cloudflare.com"
+        elif _is_razorpay_page:
+            _frame_src = _razorpay_frame_src
+        else:
+            _frame_src = "'none'"
         _is_employee_portal_page = request.path == "/employee_portal"
         _agent_src = " http://127.0.0.1:47823" if _is_employee_portal_page else ""
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}{_turnstile_src}; "
+            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}{_turnstile_src}{_razorpay_script_src}; "
             f"style-src-elem 'self' 'nonce-{nonce}'; "
             "style-src-attr 'unsafe-inline'; "
             f"style-src 'self' 'nonce-{nonce}'; "
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "
-            f"connect-src 'self'{_turnstile_src}{_agent_src}; "
+            f"connect-src 'self'{_turnstile_src}{_agent_src}{_razorpay_connect_src}; "
             f"frame-src {_frame_src}; "
             "frame-ancestors 'none'; "
             "object-src 'none'; "
@@ -2103,6 +2128,9 @@ if __name__ == "__main__":
     # with no row locking -- a live duplicate-delivery bug, not a
     # hypothetical one.
     threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-worker").start()
+    # Same "only started here" reasoning as email-queue-worker just above.
+    from utils.document_verification import _document_verification_worker
+    threading.Thread(target=_document_verification_worker, daemon=True, name="document-verification-worker").start()
     import os as _os
     from werkzeug.serving import WSGIRequestHandler
 

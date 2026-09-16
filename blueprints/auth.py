@@ -87,6 +87,51 @@ def _start_login_mfa_decoy(login_template):
     return redirect(tpath("/mfa_verify"))
 
 
+def _kyc_verification_blocks_login():
+    """True if this tenant's company-KYC review (blueprints/org.py's
+    automated/manual document-verification pipeline) hasn't reached
+    doc_review_status='approved' yet. Blocks ADMIN login entirely for the
+    whole tenant, regardless of which admin_users account is used or
+    whether MFA is configured -- the company as a whole isn't verified
+    yet, not any one account, so gating a single login path would leave
+    others (e.g. an auto-provisioned HR account) able to slip through.
+    Never applies to employee logins (blueprints/auth.py's employee
+    branch never calls this).
+
+    No tenant_applications row at all -- a legacy pre-KYC tenant, or one
+    created via Platform Admin's own always-free direct-create tool,
+    which never collects KYC documents -- is NOT blocked, same
+    "nothing to show/block" reasoning app.py's
+    inject_company_verification_status() context processor already uses
+    for its advisory banner (this function's query is the same join
+    shape). Fails OPEN on any DB error: a transient master-schema blip
+    must not lock every already-verified tenant's admin out of the whole
+    platform, same posture inject_company_verification_status() already
+    takes for the same reason."""
+    try:
+        from database import get_master_db
+        db = get_master_db()
+        cur = db.cursor(buffered=True)
+        cur.execute(
+            "SELECT ta.doc_review_status FROM tenant_applications ta JOIN tenants t ON ta.tenant_id=t.id "
+            "WHERE t.db_name=%s ORDER BY ta.id DESC LIMIT 1",
+            (g.tenant_db,)
+        )
+        row = cur.fetchone()
+        cur.close()
+        db.close()
+        return bool(row) and row[0] != "approved"
+    except Exception as exc:
+        app_log.warning("_kyc_verification_blocks_login: check failed, failing open: %s", exc)
+        return False
+
+
+_KYC_PENDING_LOGIN_MSG = (
+    "Your company's documents are still being verified -- this is usually automatic and "
+    "takes under a minute. Please check back shortly."
+)
+
+
 def _start_login_mfa(co, login_template, kind, identifier, email, role_label):
     """Common second step once a password has already checked out (called
     from admin_login()'s admin/employee branches): email a one-time code
@@ -406,6 +451,8 @@ def admin_login():
                     show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY,
                 )
             _clear_login_failures(identifier)
+            if _kyc_verification_blocks_login():
+                return render_template("admin_login.html", co=co, error=_KYC_PENDING_LOGIN_MSG)
             return _start_login_mfa(co, "admin_login.html", "admin_users", identifier, admin_row[2],
                                     "Executive Administrator")
         if admin_row and check_password_hash(admin_row[0], password):
@@ -424,6 +471,8 @@ def admin_login():
                     show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY,
                 )
             _clear_login_failures(identifier)
+            if _kyc_verification_blocks_login():
+                return render_template("admin_login.html", co=co, error=_KYC_PENDING_LOGIN_MSG)
             # Upgrade legacy hash to bcrypt on first successful login
             if admin_row[0] and not admin_row[0].startswith("$2"):
                 with _db() as (_uc, _ud):

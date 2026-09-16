@@ -1151,7 +1151,8 @@ def platform_admin_view_document(application_id, doc_kind):
 @_platform_admin_required
 def platform_admin_approve_application(application_id):
     from blueprints.org import provision_tenant, check_duplicate_name, check_duplicate_gst, \
-        check_duplicate_admin_email, _record_duplicate_alert, send_portal_ready_email, _GENERIC_DUPLICATE_MSG
+        check_duplicate_admin_email, _record_duplicate_alert, send_portal_ready_email, _GENERIC_DUPLICATE_MSG, \
+        _approve_application_reviewed
 
     application = _fetch_application(application_id)
     if not application:
@@ -1162,44 +1163,17 @@ def platform_admin_approve_application(application_id):
         # Every self-serve application now provisions instantly right
         # after OTP verification (blueprints/org.py's
         # _provision_application_instantly()) -- by the time it reaches
-        # this queue, the tenant has been live for a while already.
-        # Approval here is a no-op confirmation of the KYC review, not a
-        # provisioning trigger; `status` itself is left alone (it stays
-        # 'provisioned' forever once set -- only doc_review_status tracks
-        # review progress from here on). The only real side effect is
-        # reinstating a tenant that was previously suspended for a
-        # rejected review, once the corrected documents are approved.
-        if application["doc_review_status"] != "pending_review":
-            flash("This application's documents aren't awaiting review.", "error")
-            return redirect("/super_admin/applications")
-        reviewer = session.get("platform_admin_username")
-        conn = get_master_db()
-        cur = conn.cursor(buffered=True)
-        cur.execute(
-            "UPDATE tenant_applications SET doc_review_status='approved', reviewed_by=%s, reviewed_at=NOW(), "
-            "updated_at=NOW() WHERE id=%s",
-            (reviewer, application_id)
-        )
-        cur.execute("SELECT status FROM tenants WHERE id=%s", (application["tenant_id"],))
-        tenant_row = cur.fetchone()
-        reinstated = bool(tenant_row and tenant_row[0] == "suspended")
-        if reinstated:
-            cur.execute("UPDATE tenants SET status='active' WHERE id=%s", (application["tenant_id"],))
-        conn.commit()
-        cur.close()
-        conn.close()
-        if reinstated:
-            log_security_event(
-                "platform_admin.tenant_reinstated",
-                f"Tenant {application['tenant_id']} reinstated -- corrected KYC documents approved",
-                level="WARNING", identifier=reviewer, application_id=application_id, tenant_id=application["tenant_id"],
-            )
-        log_security_event(
-            "platform_admin.application_approved",
-            f"Application {application_id} KYC documents approved (tenant already provisioned)",
-            level="INFO", identifier=reviewer, application_id=application_id, tenant_id=application["tenant_id"],
-        )
-        flash(f"'{application['company_name']}'s documents approved.", "success")
+        # this queue, the tenant has been live for a while already, and
+        # utils/document_verification.py's automated worker has usually
+        # already resolved most applications one way or the other before a
+        # human ever sees this route -- this only fires for whatever the
+        # automation left at 'pending_review' (or the rare case a platform
+        # admin wants to override before the automated check finishes).
+        # _approve_application_reviewed() is the exact same logic the
+        # automated worker itself calls, just with reviewed_by set to this
+        # platform admin's username instead of the worker's system identity.
+        ok, msg = _approve_application_reviewed(application, session.get("platform_admin_username"))
+        flash(msg, "success" if ok else "error")
         return redirect("/super_admin/applications")
 
     if application["status"] != "pending_review":
@@ -1329,7 +1303,7 @@ def platform_admin_approve_application(application_id):
 @platform_admin_bp.route("/super_admin/applications/<int:application_id>/reject", methods=["POST"])
 @_platform_admin_required
 def platform_admin_reject_application(application_id):
-    from blueprints.org import send_application_rejected_email
+    from blueprints.org import send_application_rejected_email, _reject_application_reviewed
     from utils.auth import _hash_token
     from utils.helpers import _safe_app_url
     reason = request.form.get("reason", "").strip()[:1000]
@@ -1339,6 +1313,16 @@ def platform_admin_reject_application(application_id):
         return redirect("/super_admin/applications")
 
     reviewer = session.get("platform_admin_username")
+
+    if application["tenant_id"] is not None:
+        # Already provisioned -- reuse the exact same suspend+re-upload-link
+        # logic utils/document_verification.py's automated worker itself
+        # calls for a confident duplicate match, just with reviewed_by set
+        # to this platform admin instead of the worker's system identity.
+        ok, msg = _reject_application_reviewed(application, reviewer, reason)
+        flash(msg, "success" if ok else "error")
+        return redirect("/super_admin/applications")
+
     # A fresh access_token is issued here specifically so the rejection
     # email can carry a working re-upload link -- the original raw token
     # (from application submission) was never persisted anywhere except
@@ -1350,40 +1334,14 @@ def platform_admin_reject_application(application_id):
     new_token = secrets.token_urlsafe(32)
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    if application["tenant_id"] is not None:
-        # Already provisioned -- `status` stays 'provisioned' forever once
-        # set (see blueprints/org.py's _provision_application_instantly()
-        # and _save_application_documents()); only doc_review_status
-        # records the rejection. The live tenant is suspended instead,
-        # reusing the exact enforcement mechanism platform_admin_set_status()
-        # already relies on elsewhere (utils/tenant_routing.py's
-        # _resolve_tenant() only resolves status='active' tenants) -- a
-        # suspended tenant's admin can't log in to use the in-portal
-        # verification page, so the magic link this email carries is their
-        # ONLY way back in to re-upload corrected documents.
-        cur.execute(
-            "UPDATE tenant_applications SET doc_review_status='rejected', reviewed_by=%s, reviewed_at=NOW(), "
-            "rejection_reason=%s, access_token_hash=%s, updated_at=NOW() WHERE id=%s",
-            (reviewer, reason, _hash_token(new_token), application_id)
-        )
-        cur.execute("UPDATE tenants SET status='suspended' WHERE id=%s", (application["tenant_id"],))
-    else:
-        cur.execute(
-            "UPDATE tenant_applications SET status='rejected', doc_review_status='rejected', reviewed_by=%s, "
-            "reviewed_at=NOW(), rejection_reason=%s, access_token_hash=%s, updated_at=NOW() WHERE id=%s",
-            (reviewer, reason, _hash_token(new_token), application_id)
-        )
+    cur.execute(
+        "UPDATE tenant_applications SET status='rejected', doc_review_status='rejected', reviewed_by=%s, "
+        "reviewed_at=NOW(), rejection_reason=%s, access_token_hash=%s, updated_at=NOW() WHERE id=%s",
+        (reviewer, reason, _hash_token(new_token), application_id)
+    )
     conn.commit()
     cur.close()
     conn.close()
-
-    if application["tenant_id"] is not None:
-        log_security_event(
-            "platform_admin.tenant_suspended_kyc_rejected",
-            f"Tenant {application['tenant_id']} suspended -- KYC documents rejected: {reason}",
-            level="WARNING", identifier=reviewer, application_id=application_id,
-            tenant_id=application["tenant_id"], reason=reason,
-        )
 
     status_url = f"{_safe_app_url()}/create_org/status/{application_id}?token={new_token}"
     send_application_rejected_email(application["admin_email"], application["company_name"], reason, status_url)
