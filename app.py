@@ -315,6 +315,42 @@ def inject_billing_lock_status():
         return {"billing_lock_status": None}
 
 
+@app.context_processor
+def inject_company_verification_status():
+    """Lets templates/admin_base.html show a "finish your company
+    verification" banner without every route handler fetching it -- same
+    fail-soft, admin-session-only posture as inject_billing_lock_status()
+    just above. Needed because provisioning no longer waits on KYC
+    document review (blueprints/org.py's _provision_application_instantly()):
+    an admin can be fully logged in and using the portal with their
+    company's documents still unreviewed, or even rejected (though a
+    rejected+suspended tenant can't reach this render at all -- see
+    utils/tenant_routing.py -- so 'rejected' realistically only shows up
+    here in the brief window between rejection and the tenant_routing
+    re-check catching up, per _TENANT_STATUS_RECHECK_SEC)."""
+    if not session.get("admin_logged_in"):
+        return {}
+    try:
+        from flask import g as _g
+        db = get_master_db()
+        cur = db.cursor(buffered=True)
+        cur.execute(
+            "SELECT ta.id, ta.doc_review_status, ta.rejection_reason FROM tenant_applications ta "
+            "JOIN tenants t ON ta.tenant_id=t.id WHERE t.db_name=%s ORDER BY ta.id DESC LIMIT 1",
+            (_g.tenant_db,)
+        )
+        row = cur.fetchone()
+        cur.close()
+        db.close()
+        if not row or row[1] == "approved":
+            return {"company_verification_status": None}
+        return {"company_verification_status": {
+            "application_id": row[0], "doc_review_status": row[1], "rejection_reason": row[2],
+        }}
+    except Exception:
+        return {"company_verification_status": None}
+
+
 _SESSION_MAX_AGE = 8 * 3600  # 8 hours absolute -- stolen cookie cannot be used indefinitely
 # How often _resolve_tenant() re-checks tenants.status for an
 # already-session-cached tenant. Bounds how long a platform-admin

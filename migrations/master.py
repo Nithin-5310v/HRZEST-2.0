@@ -226,6 +226,19 @@ def init_master_db():
         # for why this exists; carried on the application row first and
         # copied onto tenants.gst_number by provision_tenant() once approved.
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS gst_number VARCHAR(20) DEFAULT NULL")
+        # Tracks KYC document review progress SEPARATELY from `status` above.
+        # `status` used to double as both "has this application been
+        # provisioned" AND "where's the KYC review at" -- that stopped
+        # working once every self-serve signup provisions instantly right
+        # after OTP verification (blueprints/org.py's
+        # _provision_application_instantly()), before any document is even
+        # uploaded: an application can now be status='provisioned' (has a
+        # live tenant) while doc_review_status is anywhere from
+        # 'pending_documents' through 'approved'/'rejected'. Values (no DB
+        # CHECK, app-level enforced -- matches this table's existing
+        # status/payment_option convention, neither of which has one
+        # either): pending_documents -> pending_review -> approved | rejected.
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS doc_review_status VARCHAR(20) NOT NULL DEFAULT 'pending_documents'")
         # Internal-only record of a signup blocked because its company_name
         # matched an existing tenant. Deliberately a SEPARATE table from
         # tenant_applications (rather than a flag/column on it) so the real

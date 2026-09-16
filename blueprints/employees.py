@@ -865,12 +865,32 @@ def employee_detail(emp_id):
 
     pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
 
-    # Documents for this employee
+    # Documents for this employee -- excludes doc_kind IS NOT NULL rows,
+    # which are the separate verification-document workflow below (kept
+    # out of this general list so the same row never shows twice).
     cursor.execute(
-        "SELECT id, doc_type, original_name, uploaded_by, uploaded_at FROM employee_documents WHERE employee_id=%s ORDER BY uploaded_at DESC",
+        "SELECT id, doc_type, original_name, uploaded_by, uploaded_at FROM employee_documents "
+        "WHERE employee_id=%s AND doc_kind IS NULL ORDER BY uploaded_at DESC",
         (emp_id,)
     )
     emp_docs = cursor.fetchall()
+
+    # Employee verification documents (Company Onboarding -> Trial ->
+    # Document Verification -> Subscription Activation, blueprints/
+    # documents.py). DISTINCT ON doc_kind -- a rejected document is
+    # re-uploaded as a NEW row (no uniqueness constraint, keeps history),
+    # so only the latest row per kind reflects current status. Local
+    # import (not top-of-file) since blueprints/documents.py doesn't need
+    # to know about employees.py at all -- no reason to risk a circular
+    # import for two constants only this one view uses.
+    from blueprints.documents import _EMPLOYEE_VERIFICATION_DOC_KINDS, _EMPLOYEE_VERIFICATION_DOC_LABELS
+    cursor.execute(
+        "SELECT DISTINCT ON (doc_kind) id, doc_kind, original_name, verification_status, verified_by, "
+        "verified_at, rejection_reason, uploaded_at FROM employee_documents "
+        "WHERE employee_id=%s AND doc_kind IS NOT NULL ORDER BY doc_kind, uploaded_at DESC",
+        (emp_id,)
+    )
+    verification_docs = cursor.fetchall()
 
     cursor.close()
     db.close()
@@ -894,6 +914,9 @@ def employee_detail(emp_id):
                            pending_resignations=pending_resignations,
                            pending_tickets=pending_tickets,
                            emp_docs=emp_docs,
+                           verification_docs=verification_docs,
+                           verification_doc_kinds=_EMPLOYEE_VERIFICATION_DOC_KINDS,
+                           verification_doc_labels=_EMPLOYEE_VERIFICATION_DOC_LABELS,
                            salary_hidden=salary_hidden,
                            active_nav="employees",
                            )

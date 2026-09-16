@@ -1034,7 +1034,7 @@ _APPLICATION_STATUS_COLS = (
     "id, company_name, subdomain, admin_username, admin_email, email_domain, gst_number, employee_count, "
     "payment_option, logo_path, email_verified_at, doc_registration_cert, doc_address_proof, "
     "doc_visiting_card, doc_name_board_photo, documents_submitted_at, status, reviewed_by, "
-    "reviewed_at, rejection_reason, tenant_id, created_at"
+    "reviewed_at, rejection_reason, tenant_id, created_at, doc_review_status"
 )
 _APPLICATION_COLS = [c.strip() for c in _APPLICATION_STATUS_COLS.split(",")]
 
@@ -1054,18 +1054,35 @@ def _fetch_application(application_id):
 @platform_admin_bp.route("/super_admin/applications", methods=["GET"])
 @_platform_admin_required
 def platform_admin_applications_queue():
+    # "pending_review" here now means "KYC review outstanding", which since
+    # every self-serve application provisions instantly right after OTP
+    # (blueprints/org.py's _provision_application_instantly()) covers two
+    # shapes: the now-rare legacy row (status='pending_review', no tenant
+    # yet) and the common case (status='provisioned', doc_review_status=
+    # 'pending_review'). Every other filter value still matches doc_review_status
+    # directly, which is what actually tracks review state for a provisioned
+    # application.
     status_filter = request.args.get("status", "pending_review")
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     if status_filter == "all":
         cur.execute(f"SELECT {_APPLICATION_STATUS_COLS} FROM tenant_applications ORDER BY created_at DESC")  # nosec B608 -- fixed constant, see _fetch_application  # noqa: E501
+    elif status_filter == "pending_review":
+        cur.execute(
+            f"SELECT {_APPLICATION_STATUS_COLS} FROM tenant_applications "  # nosec B608
+            "WHERE status='pending_review' OR (status='provisioned' AND doc_review_status='pending_review') "
+            "ORDER BY created_at ASC"
+        )
     else:
         cur.execute(
             f"SELECT {_APPLICATION_STATUS_COLS} FROM tenant_applications WHERE status=%s ORDER BY created_at ASC",  # nosec B608
             (status_filter,)
         )
     rows = cur.fetchall()
-    cur.execute("SELECT COUNT(*) FROM tenant_applications WHERE status='pending_review'")
+    cur.execute(
+        "SELECT COUNT(*) FROM tenant_applications "
+        "WHERE status='pending_review' OR (status='provisioned' AND doc_review_status='pending_review')"
+    )
     pending_count = cur.fetchone()[0]
     cur.close()
     conn.close()
@@ -1140,6 +1157,51 @@ def platform_admin_approve_application(application_id):
     if not application:
         flash("Application not found.", "error")
         return redirect("/super_admin/applications")
+
+    if application["tenant_id"] is not None:
+        # Every self-serve application now provisions instantly right
+        # after OTP verification (blueprints/org.py's
+        # _provision_application_instantly()) -- by the time it reaches
+        # this queue, the tenant has been live for a while already.
+        # Approval here is a no-op confirmation of the KYC review, not a
+        # provisioning trigger; `status` itself is left alone (it stays
+        # 'provisioned' forever once set -- only doc_review_status tracks
+        # review progress from here on). The only real side effect is
+        # reinstating a tenant that was previously suspended for a
+        # rejected review, once the corrected documents are approved.
+        if application["doc_review_status"] != "pending_review":
+            flash("This application's documents aren't awaiting review.", "error")
+            return redirect("/super_admin/applications")
+        reviewer = session.get("platform_admin_username")
+        conn = get_master_db()
+        cur = conn.cursor(buffered=True)
+        cur.execute(
+            "UPDATE tenant_applications SET doc_review_status='approved', reviewed_by=%s, reviewed_at=NOW(), "
+            "updated_at=NOW() WHERE id=%s",
+            (reviewer, application_id)
+        )
+        cur.execute("SELECT status FROM tenants WHERE id=%s", (application["tenant_id"],))
+        tenant_row = cur.fetchone()
+        reinstated = bool(tenant_row and tenant_row[0] == "suspended")
+        if reinstated:
+            cur.execute("UPDATE tenants SET status='active' WHERE id=%s", (application["tenant_id"],))
+        conn.commit()
+        cur.close()
+        conn.close()
+        if reinstated:
+            log_security_event(
+                "platform_admin.tenant_reinstated",
+                f"Tenant {application['tenant_id']} reinstated -- corrected KYC documents approved",
+                level="WARNING", identifier=reviewer, application_id=application_id, tenant_id=application["tenant_id"],
+            )
+        log_security_event(
+            "platform_admin.application_approved",
+            f"Application {application_id} KYC documents approved (tenant already provisioned)",
+            level="INFO", identifier=reviewer, application_id=application_id, tenant_id=application["tenant_id"],
+        )
+        flash(f"'{application['company_name']}'s documents approved.", "success")
+        return redirect("/super_admin/applications")
+
     if application["status"] != "pending_review":
         flash("This application isn't awaiting review.", "error")
         return redirect("/super_admin/applications")
@@ -1288,14 +1350,40 @@ def platform_admin_reject_application(application_id):
     new_token = secrets.token_urlsafe(32)
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    cur.execute(
-        "UPDATE tenant_applications SET status='rejected', reviewed_by=%s, reviewed_at=NOW(), rejection_reason=%s, "
-        "access_token_hash=%s, updated_at=NOW() WHERE id=%s",
-        (reviewer, reason, _hash_token(new_token), application_id)
-    )
+    if application["tenant_id"] is not None:
+        # Already provisioned -- `status` stays 'provisioned' forever once
+        # set (see blueprints/org.py's _provision_application_instantly()
+        # and _save_application_documents()); only doc_review_status
+        # records the rejection. The live tenant is suspended instead,
+        # reusing the exact enforcement mechanism platform_admin_set_status()
+        # already relies on elsewhere (utils/tenant_routing.py's
+        # _resolve_tenant() only resolves status='active' tenants) -- a
+        # suspended tenant's admin can't log in to use the in-portal
+        # verification page, so the magic link this email carries is their
+        # ONLY way back in to re-upload corrected documents.
+        cur.execute(
+            "UPDATE tenant_applications SET doc_review_status='rejected', reviewed_by=%s, reviewed_at=NOW(), "
+            "rejection_reason=%s, access_token_hash=%s, updated_at=NOW() WHERE id=%s",
+            (reviewer, reason, _hash_token(new_token), application_id)
+        )
+        cur.execute("UPDATE tenants SET status='suspended' WHERE id=%s", (application["tenant_id"],))
+    else:
+        cur.execute(
+            "UPDATE tenant_applications SET status='rejected', doc_review_status='rejected', reviewed_by=%s, "
+            "reviewed_at=NOW(), rejection_reason=%s, access_token_hash=%s, updated_at=NOW() WHERE id=%s",
+            (reviewer, reason, _hash_token(new_token), application_id)
+        )
     conn.commit()
     cur.close()
     conn.close()
+
+    if application["tenant_id"] is not None:
+        log_security_event(
+            "platform_admin.tenant_suspended_kyc_rejected",
+            f"Tenant {application['tenant_id']} suspended -- KYC documents rejected: {reason}",
+            level="WARNING", identifier=reviewer, application_id=application_id,
+            tenant_id=application["tenant_id"], reason=reason,
+        )
 
     status_url = f"{_safe_app_url()}/create_org/status/{application_id}?token={new_token}"
     send_application_rejected_email(application["admin_email"], application["company_name"], reason, status_url)

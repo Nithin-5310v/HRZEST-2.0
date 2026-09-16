@@ -427,7 +427,20 @@ class TestTrialSignupIntegration:
         assert resp.status_code in (301, 302)
         return application_id
 
-    def test_trial_signup_provisions_tenant_with_armed_mandate_and_first_login_clock(self, client, db_engine, monkeypatch):
+    def test_trial_signup_provisions_instantly_with_no_upfront_mandate_and_first_login_clock(self, client, db_engine, monkeypatch):
+        """Every self-serve signup lane (including 'trial') now provisions
+        the tenant instantly right after OTP verification -- see
+        blueprints/org.py's _provision_application_instantly(). The old
+        mandate-first flow this test used to exercise
+        (/api/create_org/setup_trial/<id>/create_subscription -> /confirm)
+        never gets a chance to run anymore: by the time
+        _run_pipeline_to_approval() finishes (OTP -> docs -> platform-admin
+        review), the application is ALREADY 'provisioned'. Those two old
+        routes are left in place (harmless dead code for this lane) rather
+        than removed -- the second half of this test confirms they fail
+        closed (400, not a silent double-provision) against an
+        already-provisioned application, instead of just asserting they're
+        merely unreached."""
         from app import init_master_db
         init_master_db()
 
@@ -440,35 +453,15 @@ class TestTrialSignupIntegration:
             )
 
             cur = db_engine.cursor()
-            cur.execute("SELECT status, payment_option FROM att_master.tenant_applications WHERE id=%s", (application_id,))
-            app_status, app_payment_option = cur.fetchone()
+            cur.execute(
+                "SELECT status, payment_option, doc_review_status FROM att_master.tenant_applications WHERE id=%s",
+                (application_id,)
+            )
+            app_status, app_payment_option, doc_review_status = cur.fetchone()
             assert app_payment_option == "trial"
-            assert app_status == "approved_pending_payment"  # not provisioned yet -- mandate step still pending
+            assert app_status == "provisioned"
+            assert doc_review_status == "approved"  # the platform-admin approve step in _run_pipeline_to_approval
             cur.close()
-
-            # No tenant schema should exist yet -- provisioning is deferred
-            # to create_org_setup_trial_confirm(), same as the online-payment
-            # flow defers to billing.py's verify_payment().
-            cur = db_engine.cursor()
-            cur.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name=%s", (schema_name,))
-            assert cur.fetchone() is None
-            cur.close()
-
-            resp = client.post(f"/api/create_org/setup_trial/{application_id}/create_subscription")
-            assert resp.status_code == 200
-            sub_data = resp.get_json()
-            assert sub_data["ok"] is True
-            assert sub_data["demo"] is True
-            assert sub_data["subscription_id"].startswith("demo_sub_")
-
-            resp = client.post(f"/api/create_org/setup_trial/{application_id}/confirm", json={
-                "razorpay_subscription_id": sub_data["subscription_id"],
-                "razorpay_payment_id": "demo_payment", "razorpay_signature": "",
-            })
-            assert resp.status_code == 200
-            confirm_data = resp.get_json()
-            assert confirm_data["ok"] is True
-            assert confirm_data["portal_url"]
 
             cur = db_engine.cursor()
             cur.execute(
@@ -484,6 +477,20 @@ class TestTrialSignupIntegration:
             # Deliberately NULL until first login (app.py's
             # inject_billing_lock_status()) -- not stamped at provisioning.
             assert trial_start is None and trial_end is None
+
+            # No auto_debit_mandates row exists yet -- nothing is collected
+            # upfront under this flow anymore. A mandate only shows up
+            # later if/when the admin voluntarily enrolls via
+            # blueprints/auto_debit.py's enroll() (Settings -> Billing).
+            cur.execute("SELECT 1 FROM att_master.auto_debit_mandates WHERE tenant_schema=%s", (schema_name,))
+            assert cur.fetchone() is None
+
+            # The old mandate-first setup routes are still reachable but
+            # correctly refuse to do anything for an already-provisioned
+            # application, rather than silently double-provisioning.
+            resp = client.post(f"/api/create_org/setup_trial/{application_id}/create_subscription")
+            assert resp.status_code == 400
+            assert resp.get_json()["ok"] is False
 
             # Tenant-prefixed path -- a bare /login resolves to this test
             # environment's default single-tenant fallback ("att_test"),
@@ -505,20 +512,6 @@ class TestTrialSignupIntegration:
             lower = datetime.timedelta(days=TRIAL_DURATION_DAYS) - datetime.timedelta(minutes=1)
             upper = datetime.timedelta(days=TRIAL_DURATION_DAYS) + datetime.timedelta(minutes=1)
             assert lower < delta < upper
-
-            cur.execute(
-                "SELECT status, razorpay_subscription_id FROM att_master.auto_debit_mandates WHERE tenant_schema=%s",
-                (schema_name,),
-            )
-            mandate_row = cur.fetchone()
-            assert mandate_row is not None, "trial mandate was not recorded"
-            assert mandate_row[0] == "active"
-            assert mandate_row[1] == sub_data["subscription_id"]
-
-            cur.execute("SELECT status, tenant_id FROM att_master.tenant_applications WHERE id=%s", (application_id,))
-            final_app = cur.fetchone()
-            assert final_app[0] == "provisioned"
-            assert final_app[1] is not None
             cur.close()
         finally:
             cur = db_engine.cursor()

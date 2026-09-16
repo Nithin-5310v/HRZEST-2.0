@@ -300,3 +300,36 @@ class TestHrScopeRouteGuards:
         }, follow_redirects=True)
         assert resp.status_code == 200
         assert b"Employee not found" in resp.data
+
+    # See tests/test_employee_document_verification.py's own TestHrScopeEnforcement
+    # for the full upload+verify HR-scoping coverage -- this is just the one
+    # representative case matching every other blueprint's entry here.
+    def test_verify_employee_document_denied_for_unassigned_employee(self, client, seed_admin, seed_hr_admin, seed_employee, db_engine):
+        import io
+        with client.session_transaction() as sess:
+            sess["admin_logged_in"] = True
+            sess["admin_username"] = seed_admin["username"]
+            sess["admin_role"] = "admin"
+        client.post("/upload_verification_document", data={
+            "employee_id": seed_employee["employee_id"], "doc_kind": "id_proof",
+            "document": (io.BytesIO(b"%PDF-1.4\n" + b"x" * 20), "id.pdf"),
+        }, content_type="multipart/form-data")
+        cur = db_engine.cursor()
+        cur.execute(
+            "SELECT id FROM employee_documents WHERE employee_id=%s AND doc_kind='id_proof' ORDER BY uploaded_at DESC LIMIT 1",
+            (seed_employee["employee_id"],),
+        )
+        did = cur.fetchone()[0]
+        cur.close()
+
+        with client.session_transaction() as sess:
+            sess["admin_logged_in"] = True
+            sess["admin_username"] = seed_hr_admin["username"]
+            sess["admin_role"] = "hr"
+        resp = client.post(f"/employees/{seed_employee['employee_id']}/documents/{did}/verify",
+                           data={"action": "approve"}, follow_redirects=False)
+        assert resp.status_code in (301, 302)
+        cur = db_engine.cursor()
+        cur.execute("SELECT verification_status FROM employee_documents WHERE id=%s", (did,))
+        assert cur.fetchone()[0] == "pending", "HR must not be able to verify an unassigned employee's document"
+        cur.close()

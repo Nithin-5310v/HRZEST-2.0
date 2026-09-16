@@ -214,6 +214,25 @@
     <a href="{{ tpath('/pay_overdue_bill') }}" style="background:{% if billing_lock_status.state == 'locked' %}#dc2626{% else %}#b45309{% endif %};color:#fff;padding:6px 14px;border-radius:8px;text-decoration:none;font-weight:700;white-space:nowrap;">Pay Now</a>
   </div>
   {% endif %}
+  {% if company_verification_status %}
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+              padding:12px 18px;border-radius:10px;margin-bottom:14px;font-size:13px;font-weight:600;
+              {% if company_verification_status.doc_review_status == 'rejected' %}background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;
+              {% else %}background:#e0f2fe;border:1px solid #bae6fd;color:#075985;{% endif %}">
+    <span>
+      {% if company_verification_status.doc_review_status == 'rejected' %}
+      <i class="ti ti-file-x"></i> Your company documents were not approved{% if company_verification_status.rejection_reason %}: {{ company_verification_status.rejection_reason }}{% endif %} — please re-upload corrected documents.
+      {% elif company_verification_status.doc_review_status == 'pending_review' %}
+      <i class="ti ti-file-clock"></i> Your company documents are submitted and awaiting review.
+      {% else %}
+      <i class="ti ti-file-upload"></i> Finish verifying your company by uploading your business documents.
+      {% endif %}
+    </span>
+    {% if company_verification_status.doc_review_status != 'pending_review' %}
+    <a href="{{ tpath('/settings/company_verification') }}" style="background:#0369a1;color:#fff;padding:6px 14px;border-radius:8px;text-decoration:none;font-weight:700;white-space:nowrap;">{% if company_verification_status.doc_review_status == 'rejected' %}Re-upload Documents{% else %}Upload Documents{% endif %}</a>
+    {% endif %}
+  </div>
+  {% endif %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <ul class="flash-list">

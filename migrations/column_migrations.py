@@ -202,6 +202,24 @@ def _run_column_migrations(cursor, db):
         # for every login path until something explicitly sets it to 0.
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active SMALLINT NOT NULL DEFAULT 1",
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+        # Employee document verification (Company Onboarding -> Trial ->
+        # Document Verification -> Subscription Activation): doc_kind
+        # ('id_proof'|'address_proof', see blueprints/documents.py's
+        # _EMPLOYEE_VERIFICATION_DOC_KINDS) is NULL for every existing
+        # free-text doc_type row -- only the new verification-specific
+        # upload path populates it. verification_status is NULL until then
+        # too; 'pending'|'approved'|'rejected' once it is.
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS doc_kind VARCHAR(30) DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verification_status VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verified_by VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR(500) DEFAULT NULL",
+        # Set exactly once, atomically, the moment the LAST required
+        # doc_kind for this employee flips to 'approved' -- doubles as the
+        # notification-idempotency guard (blueprints/documents.py's
+        # verify_employee_document()) and the persisted "is this employee
+        # fully verified" signal.
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS doc_verification_notified_at TIMESTAMP DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)

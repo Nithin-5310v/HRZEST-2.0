@@ -5,13 +5,13 @@ import re
 import html
 import secrets
 import difflib
-from flask import Blueprint, request, redirect, render_template, flash, jsonify, session
+from flask import Blueprint, request, redirect, render_template, flash, jsonify, session, g
 from extensions import app_log, limiter, log_security_event
-from utils.auth import generate_password_hash, _hash_token, turnstile_enabled, verify_turnstile, _TURNSTILE_SITE_KEY, validate_new_password
+from utils.auth import generate_password_hash, _hash_token, turnstile_enabled, verify_turnstile, _TURNSTILE_SITE_KEY, validate_new_password, admin_required
 from utils.plan_limits import PLAN_LABEL, get_per_employee_paise, format_price_inr
 from utils.email_utils import get_email_config, send_email_async
 from utils.tenant_routing import RESERVED_PATH_SEGMENTS
-from utils.helpers import clean_email_domain, validate_email_domain_format, _safe_app_url, save_application_document
+from utils.helpers import clean_email_domain, validate_email_domain_format, _safe_app_url, save_application_document, tpath
 
 org_bp = Blueprint("org", __name__)
 
@@ -84,7 +84,7 @@ _PAYMENT_OPTIONS = frozenset({"online", "manual", "trial"})
 
 def provision_tenant(company_name, subdomain, admin_username, admin_password_hash, admin_email,
                      payment_option="online", email_domain=None, employee_count=None, logo_path=None,
-                     gst_number=None):
+                     gst_number=None, subscription_status=None):
     """Shared tenant-provisioning core: schema creation, admin-user seed,
     and master-registry insert. Callers must run
     _validate_new_tenant_fields() first -- this only does the actual
@@ -130,6 +130,23 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
     tenants row so check_duplicate_gst() can block a second signup under
     the same real-world business later. None for the Platform Admin
     direct-create path, which doesn't collect one.
+
+    subscription_status overrides the default "'trialing' iff
+    payment_option=='trial', else 'active'" rule -- explicit None (the
+    default) preserves that original rule for every existing caller
+    (billing.py's paid-verified provisioning, Platform Admin's own
+    always-free direct-create tool). Pass 'trialing' explicitly to force
+    trial-lifecycle status (the 2-employee cap, the 2-day expiry cron)
+    regardless of payment_option -- used by org.py's self-serve
+    create_org_verify_otp(), since every self-serve lane now provisions
+    before any payment is collected, so "online"/"manual" no longer imply
+    "already paid" the way they did when provisioning happened after
+    checkout. Deliberately NOT the new default for every caller: Platform
+    Admin's own tenant-creation tool is an intentionally-free/unmetered
+    override with paid_employee_slots=None (unlimited) already, and
+    _tenant_is_trialing() checks subscription_status before
+    paid_employee_slots in add_employee_seat_cap_check() -- forcing it
+    trialing there would wrongly cap an "unlimited" tenant at 2 employees.
 
     Returns (ok, error_message_or_None, portal_url_or_None, checkin_url_or_None).
     """
@@ -211,23 +228,23 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
         from database import get_master_db
         mconn = get_master_db()
         mcur = mconn.cursor()
-        if payment_option == "trial":
-            # subscription_status='trialing', but trial_start_date/
-            # trial_end_date are deliberately left NULL here -- the trial
-            # clock starts at the tenant's FIRST admin login (app.py's
-            # inject_billing_lock_status() stamps both columns then, once,
-            # using blueprints/trial_billing.TRIAL_DURATION_DAYS), not at
-            # provisioning, so a company that gets provisioned but doesn't
-            # log in for a few days isn't silently burning trial time it
-            # never used. Applies uniformly to every trial-tenant creation
-            # path -- the public self-serve signup (blueprints/org.py's
-            # create_org_setup_trial_confirm(), which collects a payment
-            # mandate first) and the Platform Admin "Free Signup" panel
-            # alike -- so a trial tenant is never billed forever/never
-            # regardless of which path created it. One with no mandate on
-            # file (the Platform Admin path doesn't collect one) safely
-            # degrades to subscription_status='past_due' at trial end
-            # instead of crashing -- see blueprints/trial_billing.py.
+        _effective_subscription_status = (
+            subscription_status if subscription_status is not None
+            else ("trialing" if payment_option == "trial" else "active")
+        )
+        if _effective_subscription_status == "trialing":
+            # trial_start_date/trial_end_date are deliberately left NULL
+            # here -- the trial clock starts at the tenant's FIRST admin
+            # login (app.py's inject_billing_lock_status() stamps both
+            # columns then, once, using
+            # blueprints/trial_billing.TRIAL_DURATION_DAYS), not at
+            # provisioning, so a company that gets provisioned but
+            # doesn't log in for a few days isn't silently burning trial
+            # time it never used. A tenant that never sets up a mandate
+            # before its trial clock runs out safely degrades to
+            # subscription_status='past_due' rather than crashing or
+            # silently staying free forever -- see
+            # blueprints/trial_billing.py's _convert_one_trial().
             mcur.execute(
                 "INSERT INTO tenants (company_name, subdomain, db_name, admin_email, plan, payment_option, "
                 "status, subscription_status, gst_number) "
@@ -718,7 +735,7 @@ def _load_application(application_id, access_token):
         "email_domain, employee_count, payment_option, logo_path, access_token_hash, otp_code_hash, "
         "otp_expires_at, otp_attempts, email_verified_at, doc_registration_cert, doc_address_proof, "
         "doc_visiting_card, doc_name_board_photo, documents_submitted_at, status, reviewed_by, "
-        "reviewed_at, rejection_reason, tenant_id "
+        "reviewed_at, rejection_reason, tenant_id, doc_review_status, gst_number "
         "FROM tenant_applications WHERE id=%s",
         (application_id,)
     )
@@ -731,7 +748,7 @@ def _load_application(application_id, access_token):
             "email_domain", "employee_count", "payment_option", "logo_path", "access_token_hash", "otp_code_hash",
             "otp_expires_at", "otp_attempts", "email_verified_at", "doc_registration_cert", "doc_address_proof",
             "doc_visiting_card", "doc_name_board_photo", "documents_submitted_at", "status", "reviewed_by",
-            "reviewed_at", "rejection_reason", "tenant_id"]
+            "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status", "gst_number"]
     application = dict(zip(cols, row))
     if not secrets.compare_digest(application["access_token_hash"], _hash_token(access_token)):
         return None
@@ -837,6 +854,68 @@ def _mark_application_otp_verified(application_id, mconn, mcur):
     mconn.close()
 
 
+def _provision_application_instantly(application):
+    """Called right after OTP verification succeeds, for EVERY
+    payment_option -- every self-serve signup lane now provisions the
+    tenant immediately, with KYC document collection/review moved fully
+    async (see _save_application_documents()'s 'provisioned' guard below,
+    and blueprints/platform_admin.py's approve/reject branches for an
+    application whose tenant_id is already set). subscription_status is
+    forced 'trialing' regardless of payment_option, since none of the
+    three lanes collect payment upfront anymore -- see provision_tenant()'s
+    own docstring for why this can't just be provision_tenant()'s default
+    behavior (Platform Admin's own always-free tenant-creation tool shares
+    that function and must NOT become trial-capped).
+
+    Idempotent: a retried/duplicate request against an already-provisioned
+    application (status=='provisioned') is a no-op success reusing the
+    existing tenant, not a second schema-creation attempt.
+
+    Returns (ok, error, portal_url_or_None, checkin_url_or_None) -- same
+    shape as provision_tenant() itself."""
+    from database import get_master_db
+
+    if application["status"] == "provisioned":
+        portal_url = f"{_safe_app_url()}/{application['subdomain']}/login"
+        checkin_url = f"{_safe_app_url()}/{application['subdomain']}/checkin"
+        return True, None, portal_url, checkin_url
+
+    ok, error, portal_url, checkin_url = provision_tenant(
+        application["company_name"], application["subdomain"], application["admin_username"],
+        application["admin_password_hash"], application["admin_email"],
+        payment_option=application["payment_option"], email_domain=application["email_domain"],
+        employee_count=application["employee_count"], logo_path=application["logo_path"],
+        gst_number=application["gst_number"], subscription_status="trialing",
+    )
+    if not ok:
+        return False, error, None, None
+
+    mconn = get_master_db()
+    mcur = mconn.cursor(buffered=True)
+    mcur.execute("SELECT id FROM tenants WHERE subdomain=%s", (application["subdomain"],))
+    tenant_row = mcur.fetchone()
+    tenant_id = tenant_row[0] if tenant_row else None
+    mcur.execute(
+        "UPDATE tenant_applications SET status='provisioned', tenant_id=%s, updated_at=NOW() WHERE id=%s",
+        (tenant_id, application["id"])
+    )
+    mconn.commit()
+    mcur.close()
+    mconn.close()
+
+    log_security_event(
+        "org.tenant_provisioned_instant",
+        f"Self-serve signup '{application['company_name']}' provisioned instantly "
+        f"(payment_option={application['payment_option']}) -- KYC document review still pending, async",
+        level="INFO", subdomain=application["subdomain"], application_id=application["id"], tenant_id=tenant_id,
+    )
+    send_portal_ready_email(
+        application["admin_email"], application["company_name"], application["admin_username"],
+        portal_url, checkin_url=checkin_url,
+    )
+    return True, None, portal_url, checkin_url
+
+
 def _save_application_documents(application, files):
     """Shared document-upload logic for both web and mobile. `files` is a
     dict-like of {doc_kind: FileStorage} (request.files works directly).
@@ -848,8 +927,16 @@ def _save_application_documents(application, files):
     without it they'd have to restart the entire application (company_name/
     subdomain/admin_username/password, all of it) from scratch at
     POST /create_org, re-triggering the duplicate-name check and a fresh
-    OTP for no reason, since none of that was ever wrong."""
-    if application["status"] not in ("otp_verified", "pending_review", "rejected"):
+    OTP for no reason, since none of that was ever wrong.
+
+    'provisioned' is also allowed -- every self-serve application reaches
+    this state right after OTP verification now (see
+    _provision_application_instantly()), before ever uploading a single
+    document, so this is the common case going forward, not an edge case.
+    For a 'provisioned' application, `status` itself is left alone below
+    (it means "has a tenant" now, not "where's the KYC review at") and
+    only `doc_review_status` advances -- see that column's own comment."""
+    if application["status"] not in ("otp_verified", "pending_review", "rejected", "provisioned"):
         return False, "This application isn't ready for document upload."
 
     saved_paths = {}
@@ -869,9 +956,16 @@ def _save_application_documents(application, files):
         # rejection_reason/reviewed_by/reviewed_at reset to NULL -- a
         # re-upload from 'rejected' must look like a fresh submission to
         # the platform admin's queue/detail view, not carry forward stale
-        # rejection context from the prior review.
+        # rejection context from the prior review. `status` only advances
+        # to 'pending_review' for the legacy (pre-instant-provisioning)
+        # in-flight applications -- an already-'provisioned' application
+        # keeps that status (it now means "has a tenant", tracked
+        # separately from KYC review progress) and only doc_review_status
+        # moves, to 'pending_review'.
         "UPDATE tenant_applications SET doc_registration_cert=%s, doc_address_proof=%s, doc_visiting_card=%s, "
-        "doc_name_board_photo=%s, documents_submitted_at=NOW(), status='pending_review', updated_at=NOW(), "
+        "doc_name_board_photo=%s, documents_submitted_at=NOW(), "
+        "status = CASE WHEN status='provisioned' THEN status ELSE 'pending_review' END, "
+        "doc_review_status='pending_review', updated_at=NOW(), "
         "rejection_reason=NULL, reviewed_by=NULL, reviewed_at=NULL "
         "WHERE id=%s",
         (saved_paths["registration_cert"], saved_paths["address_proof"], saved_paths["visiting_card"],
@@ -1014,6 +1108,17 @@ def create_org_verify_otp():
         flash(error, "error")
         return redirect(f"/create_org/verify_otp?application_id={application_id}")
 
+    # Re-fetch: _verify_application_otp() just advanced status to
+    # 'otp_verified' in the DB, but `application` here is still the
+    # pre-verification snapshot loaded at the top of this request.
+    application = _load_application(application_id, session.get("org_access_token"))
+    ok, error, portal_url, checkin_url = _provision_application_instantly(application)
+    if not ok:
+        app_log.error("create_org_verify_otp: instant provisioning failed for application %s: %s",
+                      application_id, error)
+        flash(f"Could not set up your company: {error}. Please contact support.", "error")
+        return redirect("/create_org")
+
     return redirect(f"/create_org/upload_documents?application_id={application_id}")
 
 
@@ -1072,6 +1177,15 @@ def create_org_upload_documents():
         _token_qs = f"&token={request.form.get('token', '')}" if request.form.get("token") else ""
         return redirect(f"/create_org/upload_documents?application_id={application_id}{_token_qs}")
 
+    # Every self-serve application reaches status='provisioned' right after
+    # OTP now (see _provision_application_instantly()) -- there's nothing
+    # left to "wait" for once documents are in, so send them straight to
+    # their live company's status/login page instead of the old
+    # please-wait screen, which only still applies to a legacy in-flight
+    # application that somehow reached here pre-provisioned.
+    if application["status"] == "provisioned":
+        flash("Documents submitted -- your company is live. Log in below.", "info")
+        return redirect(f"/create_org/status/{application_id}")
     return redirect(f"/create_org/pending?application_id={application_id}")
 
 
@@ -1098,6 +1212,71 @@ def create_org_status_page(application_id):
     portal_url = f"{_safe_app_url()}/{application['subdomain']}/login" if application["status"] == "provisioned" else None
     return render_template("create_org_status.html", application=application, portal_url=portal_url,
                            access_token=access_token)
+
+
+def _load_own_tenant_application():
+    """Looks up the logged-in admin's own tenant's tenant_applications row
+    by session identity (g.tenant_db) rather than a token -- unlike
+    _load_application() above, which is for the pre-login/token-based
+    magic-link flow. Used by /settings/company_verification below, the
+    in-portal counterpart that exists because provisioning no longer waits
+    on KYC review: an admin can be fully logged in with their documents
+    still unreviewed and needs a way back to that step that doesn't depend
+    on finding the original signup email. Returns None if none found
+    (shouldn't happen for a real tenant, but fails soft rather than 500ing
+    a settings page over it)."""
+    from database import get_master_db
+    mconn = get_master_db()
+    mcur = mconn.cursor(buffered=True)
+    mcur.execute(
+        "SELECT id, company_name, subdomain, admin_username, admin_email, admin_password_hash, "
+        "email_domain, employee_count, payment_option, logo_path, access_token_hash, otp_code_hash, "
+        "otp_expires_at, otp_attempts, email_verified_at, doc_registration_cert, doc_address_proof, "
+        "doc_visiting_card, doc_name_board_photo, documents_submitted_at, status, reviewed_by, "
+        "reviewed_at, rejection_reason, tenant_id, doc_review_status "
+        "FROM tenant_applications ta JOIN tenants t ON ta.tenant_id=t.id "
+        "WHERE t.db_name=%s ORDER BY ta.id DESC LIMIT 1",
+        (g.tenant_db,)
+    )
+    row = mcur.fetchone()
+    mcur.close()
+    mconn.close()
+    if not row:
+        return None
+    cols = ["id", "company_name", "subdomain", "admin_username", "admin_email", "admin_password_hash",
+            "email_domain", "employee_count", "payment_option", "logo_path", "access_token_hash", "otp_code_hash",
+            "otp_expires_at", "otp_attempts", "email_verified_at", "doc_registration_cert", "doc_address_proof",
+            "doc_visiting_card", "doc_name_board_photo", "documents_submitted_at", "status", "reviewed_by",
+            "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status"]
+    return dict(zip(cols, row))
+
+
+@org_bp.route("/settings/company_verification", methods=["GET"])
+@admin_required
+def company_verification_page():
+    application = _load_own_tenant_application()
+    if not application:
+        flash("No company verification record found.", "error")
+        return redirect(tpath("/admin"))
+    return render_template(
+        "company_verification.html", application=application, doc_kinds=_APPLICATION_DOC_KINDS,
+    )
+
+
+@org_bp.route("/settings/company_verification", methods=["POST"])
+@admin_required
+def company_verification_upload():
+    application = _load_own_tenant_application()
+    if not application:
+        flash("No company verification record found.", "error")
+        return redirect(tpath("/admin"))
+
+    ok, error = _save_application_documents(application, request.files)
+    if not ok:
+        flash(error, "error")
+    else:
+        flash("Documents submitted for review. We'll notify you once they're checked.", "success")
+    return redirect(tpath("/settings/company_verification"))
 
 
 @org_bp.route("/create_org/pay/<int:application_id>", methods=["GET"])
@@ -1407,7 +1586,16 @@ def api_create_org_verify_otp():
     if not ok:
         return jsonify({"ok": False, "msg": error}), 400
 
-    return jsonify({"ok": True, "step": "documents"})
+    # Re-fetch: _verify_application_otp() just advanced status in the DB,
+    # but `application` here is still the pre-verification snapshot.
+    application = _load_application(data.get("application_id"), data.get("access_token", ""))
+    ok, error, portal_url, checkin_url = _provision_application_instantly(application)
+    if not ok:
+        app_log.error("api_create_org_verify_otp: instant provisioning failed for application %s: %s",
+                      application["id"], error)
+        return jsonify({"ok": False, "msg": f"Could not set up your company: {error}. Contact support."}), 500
+
+    return jsonify({"ok": True, "step": "documents", "portal_url": portal_url, "checkin_url": checkin_url})
 
 
 @org_bp.route("/api/create_org/resend_otp", methods=["POST"])
@@ -1445,6 +1633,10 @@ def api_create_org_upload_documents():
     if not ok:
         return jsonify({"ok": False, "msg": error}), 400
 
+    if application["status"] == "provisioned":
+        portal_url = f"{_safe_app_url()}/{application['subdomain']}/login"
+        return jsonify({"ok": True, "step": "provisioned", "portal_url": portal_url,
+                        "msg": "Documents submitted -- your company is live. Log in below."})
     return jsonify({"ok": True, "step": "pending_review",
                     "msg": "Your application has been submitted and is under review. We'll email you once it's approved."})
 

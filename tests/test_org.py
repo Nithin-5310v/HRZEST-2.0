@@ -329,8 +329,10 @@ class TestGatedSignupFlow:
             sess["platform_admin_last_activity"] = _time.time()
 
     def _run_full_pipeline(self, client, monkeypatch, **overrides):
-        """Start -> verify OTP -> upload docs, leaving the application at
-        status='pending_review'. Returns application_id."""
+        """Start -> verify OTP (which now provisions the tenant instantly,
+        see blueprints/org.py's _provision_application_instantly()) ->
+        upload docs, leaving the application at status='provisioned',
+        doc_review_status='pending_review'. Returns application_id."""
         resp, otp = self._start_application(client, monkeypatch, **overrides)
         assert resp.status_code in (301, 302), resp.data
         application_id = self._application_id_from_redirect(resp)
@@ -338,15 +340,20 @@ class TestGatedSignupFlow:
 
         resp = self._verify_otp(client, application_id, otp)
         assert resp.status_code in (301, 302)
-        assert "/create_org/upload_documents" in resp.headers["Location"]
+        assert "/create_org/upload_documents" in resp.headers["Location"], resp.headers.get("Location")
 
         resp = self._upload_documents(client, application_id)
         assert resp.status_code in (301, 302)
-        assert "/create_org/pending" in resp.headers["Location"]
+        assert "/create_org/status" in resp.headers["Location"], resp.headers.get("Location")
 
         return application_id
 
     def test_full_flow_provisions_real_tenant_schema(self, client, db_engine, monkeypatch):
+        """Every self-serve signup lane now provisions the tenant
+        INSTANTLY right after OTP verification -- before any document is
+        uploaded, let alone reviewed by a platform admin. KYC review still
+        happens, but it's tracked separately (doc_review_status) and no
+        longer gates login/schema creation at all."""
         from app import init_master_db
         init_master_db()
 
@@ -360,33 +367,54 @@ class TestGatedSignupFlow:
             )
 
             cur = db_engine.cursor()
-            cur.execute("SELECT status FROM att_master.tenant_applications WHERE id=%s", (application_id,))
-            assert cur.fetchone()[0] == "pending_review"
-
-            self._login_platform_admin(client)
-            resp = client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
-            assert resp.status_code in (301, 302)
-
             cur.execute(
                 "SELECT schema_name FROM information_schema.schemata WHERE schema_name=%s", (schema_name,)
             )
             assert cur.fetchone() is not None, "tenant schema was not created"
 
-            cur.execute("SELECT db_name, status, plan FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+            cur.execute("SELECT db_name, status, plan, subscription_status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             row = cur.fetchone()
             assert row is not None, "tenant was not registered in att_master.tenants"
             assert row[0] == schema_name
             assert row[1] == "active"
             import utils.plan_limits as plan_limits
             assert row[2] == plan_limits.PLAN_LABEL
+            # subscription_status='trialing' regardless of the chosen
+            # payment_option ("online" here, the default) -- nobody pays
+            # upfront anymore under this flow, see provision_tenant()'s
+            # subscription_status parameter.
+            assert row[3] == "trialing"
 
             cur.execute(f'SELECT username FROM "{schema_name}".admin_users WHERE username=%s', ("e2e_admin",))
             assert cur.fetchone() is not None, "admin user was not seeded into the new tenant schema"
 
-            cur.execute("SELECT status, tenant_id FROM att_master.tenant_applications WHERE id=%s", (application_id,))
+            cur.execute(
+                "SELECT status, tenant_id, doc_review_status FROM att_master.tenant_applications WHERE id=%s",
+                (application_id,)
+            )
             app_row = cur.fetchone()
             assert app_row[0] == "provisioned"
             assert app_row[1] is not None
+            # Documents were uploaded (inside _run_full_pipeline) but not
+            # yet reviewed -- KYC review is fully decoupled from provisioning now.
+            assert app_row[2] == "pending_review"
+
+            # Platform-admin approval, for an already-provisioned
+            # application, is now a no-op confirmation of the KYC review --
+            # it must NOT attempt to re-provision or change tenants.status.
+            self._login_platform_admin(client)
+            resp = client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
+            assert resp.status_code in (301, 302)
+
+            cur.execute(
+                "SELECT status, doc_review_status FROM att_master.tenant_applications WHERE id=%s",
+                (application_id,)
+            )
+            app_row = cur.fetchone()
+            assert app_row[0] == "provisioned"
+            assert app_row[1] == "approved"
+            cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+            assert cur.fetchone()[0] == "active", "approval must not touch an already-active tenant's status"
             cur.close()
         finally:
             _drop_schema(db_engine, schema_name)
@@ -415,11 +443,13 @@ class TestGatedSignupFlow:
         cur.close()
         assert not polluted, "tenant schema migration leaked into the master registry schema"
 
-    def test_duplicate_subdomain_rejected_at_approval(self, client, db_engine, monkeypatch):
-        # Subdomain availability is only enforced at provision_tenant()
-        # time now (approval), not at step-1 submission -- two applicants
-        # could both submit the same slug, but only the first can ever be
-        # approved.
+    def test_duplicate_subdomain_rejected_at_verification(self, client, db_engine, monkeypatch):
+        # Subdomain availability is now enforced at OTP-verification time
+        # (provision_tenant() runs right there, see
+        # _provision_application_instantly()) -- not at step-1 submission,
+        # and not at platform-admin approval either. Two applicants could
+        # both submit the same slug, but only the first to verify their
+        # OTP can ever actually provision it.
         from app import init_master_db
         init_master_db()
 
@@ -427,26 +457,47 @@ class TestGatedSignupFlow:
         schema_name = "att_" + subdomain.replace("-", "_")
         _drop_schema(db_engine, schema_name)
         try:
-            app1 = self._run_full_pipeline(
+            # NOTE: /create_org's org_access_token lives in the session
+            # cookie, one at a time -- verify each applicant fully before
+            # starting the next, or the second _start_application()
+            # overwrites the first's token and _load_application() fails
+            # for an unrelated reason (token mismatch, not the subdomain
+            # race this test actually means to exercise).
+            resp1, otp1 = self._start_application(
                 client, monkeypatch, subdomain=subdomain, company_name="Dup Org One",
                 admin_username="dup_admin1", admin_email="dup1@test.local",
             )
-            app2 = self._run_full_pipeline(
+            app1 = self._application_id_from_redirect(resp1)
+            resp = self._verify_otp(client, app1, otp1)
+            assert resp.status_code in (301, 302)
+            assert "/create_org/upload_documents" in resp.headers["Location"]
+
+            resp2, otp2 = self._start_application(
                 client, monkeypatch, subdomain=subdomain, company_name="Dup Org Two",
                 admin_username="dup_admin2", admin_email="dup2@test.local",
             )
+            app2 = self._application_id_from_redirect(resp2)
 
-            self._login_platform_admin(client)
-            resp1 = client.post(f"/super_admin/applications/{app1}/approve", follow_redirects=False)
-            assert resp1.status_code in (301, 302)
-
-            resp2 = client.post(f"/super_admin/applications/{app2}/approve", follow_redirects=True)
-            assert resp2.status_code == 200
-            assert b"already taken" in resp2.data
+            # Second applicant's OTP is correct too, but provisioning now
+            # fails inside verify_otp itself, since the slug is taken --
+            # flashed error, redirected back to the start of the form.
+            resp = self._verify_otp(client, app2, otp2)
+            assert resp.status_code in (301, 302)
+            assert resp.headers["Location"] == "/create_org"
 
             cur = db_engine.cursor()
-            cur.execute("SELECT status FROM att_master.tenant_applications WHERE id=%s", (app2,))
-            assert cur.fetchone()[0] == "pending_review", "a failed approval must not silently mark provisioned"
+            cur.execute("SELECT status, tenant_id FROM att_master.tenant_applications WHERE id=%s", (app1,))
+            row1 = cur.fetchone()
+            assert row1[0] == "provisioned"
+            assert row1[1] is not None
+
+            cur.execute("SELECT status, tenant_id FROM att_master.tenant_applications WHERE id=%s", (app2,))
+            row2 = cur.fetchone()
+            assert row2[0] == "otp_verified", "a failed provisioning attempt must not silently mark provisioned"
+            assert row2[1] is None
+
+            cur.execute("SELECT COUNT(*) FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+            assert cur.fetchone()[0] == 1, "only the first applicant's tenant should exist"
             cur.close()
         finally:
             _drop_schema(db_engine, schema_name)
@@ -532,35 +583,47 @@ class TestGatedSignupFlow:
             db_engine.commit()
             cur.close()
 
-    def test_application_rejected_by_platform_admin_never_provisions(self, client, db_engine, monkeypatch):
+    def test_application_rejected_by_platform_admin_suspends_provisioned_tenant(self, client, db_engine, monkeypatch):
+        """The tenant is already live by the time a platform admin ever
+        gets to review its KYC documents (provisioning happens right after
+        OTP verification now) -- rejection can no longer "prevent"
+        provisioning, so it suspends the already-live tenant instead,
+        reusing the same enforcement utils/tenant_routing.py already
+        applies to any platform-admin-suspended tenant."""
         from app import init_master_db
         init_master_db()
 
         subdomain = "e2e-reject-org"
+        schema_name = "att_" + subdomain.replace("-", "_")
+        _drop_schema(db_engine, schema_name)
         try:
             application_id = self._run_full_pipeline(
                 client, monkeypatch, subdomain=subdomain, company_name="Reject Me Org",
                 admin_username="reject_admin", admin_email="reject@test.local",
             )
+            cur = db_engine.cursor()
+            cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+            assert cur.fetchone()[0] == "active", "tenant should already be live before any review happens"
+
             self._login_platform_admin(client)
             resp = client.post(f"/super_admin/applications/{application_id}/reject",
                                data={"reason": "Documents did not match."}, follow_redirects=False)
             assert resp.status_code in (301, 302)
 
-            cur = db_engine.cursor()
-            cur.execute("SELECT status, rejection_reason FROM att_master.tenant_applications WHERE id=%s",
-                        (application_id,))
+            cur.execute(
+                "SELECT status, doc_review_status, rejection_reason FROM att_master.tenant_applications WHERE id=%s",
+                (application_id,)
+            )
             row = cur.fetchone()
-            assert row[0] == "rejected"
-            assert row[1] == "Documents did not match."
-            cur.execute("SELECT 1 FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
-            assert cur.fetchone() is None, "a rejected application must never provision a tenant"
+            assert row[0] == "provisioned", "status must stay 'provisioned' -- the tenant still exists"
+            assert row[1] == "rejected"
+            assert row[2] == "Documents did not match."
+
+            cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+            assert cur.fetchone()[0] == "suspended", "a rejected review must suspend the live tenant"
             cur.close()
         finally:
-            cur = db_engine.cursor()
-            cur.execute("DELETE FROM att_master.tenant_applications WHERE subdomain=%s", (subdomain,))
-            db_engine.commit()
-            cur.close()
+            _drop_schema(db_engine, schema_name)
 
     def test_duplicate_gst_blocked_even_with_a_wholly_different_company_name(self, client, db_engine, monkeypatch):
         """The trial-abuse case check_duplicate_name() alone can't catch:
