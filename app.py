@@ -949,18 +949,43 @@ def _security_headers(response):
         # loopback agent get path-scoped exceptions only.
         _is_turnstile_page = request.path in ("/admin_login", "/login")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
-        _frame_src = "https://challenges.cloudflare.com" if _is_turnstile_page else "'none'"
+        # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
+        # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
+        # /settings/seats; admin_views.py's /settings) -- without this, the
+        # default 'self'-only script-src silently blocks
+        # checkout.razorpay.com/v1/checkout.js from ever loading, so the
+        # "Pay" button's onclick handler runs but `new Razorpay(...)` never
+        # gets a Razorpay global to construct, and clicking it does
+        # nothing. frame-src/connect-src additions are what Checkout.js's
+        # own embedded iframe (card/UPI entry) and its API/analytics calls
+        # need once the script itself loads.
+        _is_razorpay_page = (
+            request.path in ("/pay_overdue_bill", "/settings/seats", "/settings")
+            or request.path.startswith("/create_org/pay/")
+            or request.path.startswith("/create_org/setup_trial/")
+        )
+        _razorpay_script_src = " https://checkout.razorpay.com https://cdn.razorpay.com" if _is_razorpay_page else ""
+        _razorpay_frame_src = "https://checkout.razorpay.com https://api.razorpay.com" if _is_razorpay_page else ""
+        _razorpay_connect_src = " https://api.razorpay.com https://lumberjack.razorpay.com" if _is_razorpay_page else ""
+        if _is_turnstile_page and _is_razorpay_page:
+            _frame_src = "https://challenges.cloudflare.com " + _razorpay_frame_src
+        elif _is_turnstile_page:
+            _frame_src = "https://challenges.cloudflare.com"
+        elif _is_razorpay_page:
+            _frame_src = _razorpay_frame_src
+        else:
+            _frame_src = "'none'"
         _is_employee_portal_page = request.path == "/employee_portal"
         _agent_src = " http://127.0.0.1:47823" if _is_employee_portal_page else ""
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}{_turnstile_src}; "
+            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}{_turnstile_src}{_razorpay_script_src}; "
             f"style-src-elem 'self' 'nonce-{nonce}'; "
             "style-src-attr 'unsafe-inline'; "
             f"style-src 'self' 'nonce-{nonce}'; "
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "
-            f"connect-src 'self'{_turnstile_src}{_agent_src}; "
+            f"connect-src 'self'{_turnstile_src}{_agent_src}{_razorpay_connect_src}; "
             f"frame-src {_frame_src}; "
             "frame-ancestors 'none'; "
             "object-src 'none'; "
@@ -3164,6 +3189,15 @@ def init_master_db():
         # existed, or via the Platform Admin direct-create path (which
         # deliberately doesn't collect one -- see platform_admin_create_tenant()).
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS gst_number VARCHAR(20) DEFAULT NULL")
+        # PAN/CIN, same duplicate-detection purpose as gst_number just
+        # above -- backfilled from utils/document_verification.py's OCR
+        # extraction once an application is automatically (or manually)
+        # approved, used by check_duplicate_pan()/check_duplicate_cin() to
+        # catch a re-registration under a different company name/GST that
+        # still shares the same real-world business's PAN or CIN. NULL for
+        # every tenant provisioned before this existed.
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS pan VARCHAR(20) DEFAULT NULL")
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS cin VARCHAR(30) DEFAULT NULL")
         # Platform-operator identity (blueprints/platform_admin.py) --
         # lives in att_master, not any tenant schema, since tenant
         # admin_users rows only exist inside their own schema and this
@@ -3322,6 +3356,26 @@ def init_master_db():
         # status/payment_option convention, neither of which has one
         # either): pending_documents -> pending_review -> approved | rejected.
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS doc_review_status VARCHAR(20) NOT NULL DEFAULT 'pending_documents'")
+        # Automated document verification (utils/document_verification.py)
+        # -- a durable job queue modeled on utils/email_utils.py's
+        # email_queue (same reasoning: silently losing this job would
+        # strand a real applicant behind the login gate blueprints/auth.py's
+        # admin_login() now enforces). NULL until all 4 documents are
+        # uploaded (_save_application_documents() sets 'pending' at that
+        # point); 'processing' while a worker has claimed it; 'done' once
+        # an outcome was applied (approved, rejected, OR left at
+        # doc_review_status='pending_review' for a human -- 'done' means
+        # "the automated attempt finished", not "auto-approved"); 'failed'
+        # after verification_attempts exhausts its retry budget (falls
+        # back to the manual queue either way).
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_job_status VARCHAR(20) DEFAULT NULL")
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_attempts INT NOT NULL DEFAULT 0")
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_error TEXT DEFAULT NULL")
+        # Raw structured extraction result (gst_number/pan/cin/company_name/
+        # address plus per-field legibility) -- kept even for an
+        # inconclusive/manual-fallback outcome so a human reviewer in
+        # platform_admin.py's queue isn't starting from zero context.
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS ocr_extraction JSONB DEFAULT NULL")
         # Internal-only record of a signup blocked because its company_name
         # matched an existing tenant. Deliberately a SEPARATE table from
         # tenant_applications (rather than a flag/column on it) so the real
@@ -4616,6 +4670,9 @@ if __name__ == "__main__":
     # with no row locking -- a live duplicate-delivery bug, not a
     # hypothetical one.
     threading.Thread(target=_email_queue_worker, daemon=True, name="email-queue-worker").start()
+    # Same "only started here" reasoning as email-queue-worker just above.
+    from utils.document_verification import _document_verification_worker
+    threading.Thread(target=_document_verification_worker, daemon=True, name="document-verification-worker").start()
     import os as _os
     from werkzeug.serving import WSGIRequestHandler
 
