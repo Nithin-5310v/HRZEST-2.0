@@ -316,6 +316,42 @@ def inject_billing_lock_status():
         return {"billing_lock_status": None}
 
 
+@app.context_processor
+def inject_company_verification_status():
+    """Lets templates/admin_base.html show a "finish your company
+    verification" banner without every route handler fetching it -- same
+    fail-soft, admin-session-only posture as inject_billing_lock_status()
+    just above. Needed because provisioning no longer waits on KYC
+    document review (blueprints/org.py's _provision_application_instantly()):
+    an admin can be fully logged in and using the portal with their
+    company's documents still unreviewed, or even rejected (though a
+    rejected+suspended tenant can't reach this render at all -- see
+    utils/tenant_routing.py -- so 'rejected' realistically only shows up
+    here in the brief window between rejection and the tenant_routing
+    re-check catching up, per _TENANT_STATUS_RECHECK_SEC)."""
+    if not session.get("admin_logged_in"):
+        return {}
+    try:
+        from flask import g as _g
+        db = get_master_db()
+        cur = db.cursor(buffered=True)
+        cur.execute(
+            "SELECT ta.id, ta.doc_review_status, ta.rejection_reason FROM tenant_applications ta "
+            "JOIN tenants t ON ta.tenant_id=t.id WHERE t.db_name=%s ORDER BY ta.id DESC LIMIT 1",
+            (_g.tenant_db,)
+        )
+        row = cur.fetchone()
+        cur.close()
+        db.close()
+        if not row or row[1] == "approved":
+            return {"company_verification_status": None}
+        return {"company_verification_status": {
+            "application_id": row[0], "doc_review_status": row[1], "rejection_reason": row[2],
+        }}
+    except Exception:
+        return {"company_verification_status": None}
+
+
 _SESSION_MAX_AGE = 8 * 3600  # 8 hours absolute -- stolen cookie cannot be used indefinitely
 # How often _resolve_tenant() re-checks tenants.status for an
 # already-session-cached tenant. Bounds how long a platform-admin
@@ -2145,6 +2181,24 @@ def _run_column_migrations(cursor, db):
         # for every login path until something explicitly sets it to 0.
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active SMALLINT NOT NULL DEFAULT 1",
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+        # Employee document verification (Company Onboarding -> Trial ->
+        # Document Verification -> Subscription Activation): doc_kind
+        # ('id_proof'|'address_proof', see blueprints/documents.py's
+        # _EMPLOYEE_VERIFICATION_DOC_KINDS) is NULL for every existing
+        # free-text doc_type row -- only the new verification-specific
+        # upload path populates it. verification_status is NULL until then
+        # too; 'pending'|'approved'|'rejected' once it is.
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS doc_kind VARCHAR(30) DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verification_status VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verified_by VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP DEFAULT NULL",
+        "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS rejection_reason VARCHAR(500) DEFAULT NULL",
+        # Set exactly once, atomically, the moment the LAST required
+        # doc_kind for this employee flips to 'approved' -- doubles as the
+        # notification-idempotency guard (blueprints/documents.py's
+        # verify_employee_document()) and the persisted "is this employee
+        # fully verified" signal.
+        "ALTER TABLE employees ADD COLUMN IF NOT EXISTS doc_verification_notified_at TIMESTAMP DEFAULT NULL",
     ]:
         try:
             cursor.execute(sql)
@@ -3255,6 +3309,19 @@ def init_master_db():
         # for why this exists; carried on the application row first and
         # copied onto tenants.gst_number by provision_tenant() once approved.
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS gst_number VARCHAR(20) DEFAULT NULL")
+        # Tracks KYC document review progress SEPARATELY from `status` above.
+        # `status` used to double as both "has this application been
+        # provisioned" AND "where's the KYC review at" -- that stopped
+        # working once every self-serve signup provisions instantly right
+        # after OTP verification (blueprints/org.py's
+        # _provision_application_instantly()), before any document is even
+        # uploaded: an application can now be status='provisioned' (has a
+        # live tenant) while doc_review_status is anywhere from
+        # 'pending_documents' through 'approved'/'rejected'. Values (no DB
+        # CHECK, app-level enforced -- matches this table's existing
+        # status/payment_option convention, neither of which has one
+        # either): pending_documents -> pending_review -> approved | rejected.
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS doc_review_status VARCHAR(20) NOT NULL DEFAULT 'pending_documents'")
         # Internal-only record of a signup blocked because its company_name
         # matched an existing tenant. Deliberately a SEPARATE table from
         # tenant_applications (rather than a flag/column on it) so the real

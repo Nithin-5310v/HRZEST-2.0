@@ -40,7 +40,16 @@
 </head>
 <body>
   <div class="card">
-    {% if application.status == 'provisioned' %}
+    {% if application.status == 'provisioned' and application.doc_review_status == 'rejected' %}
+      <div class="icon rejected"><i class="ti ti-circle-x"></i></div>
+      <h1>Account Suspended — Documents Not Approved</h1>
+      <p>{{ application.company_name }}'s account has been suspended because its business documents weren't approved.</p>
+      {% if application.rejection_reason %}
+      <div class="reason-box">{{ application.rejection_reason }}</div>
+      {% endif %}
+      <p style="margin-top:14px;">Re-upload corrected documents below -- your account is reinstated automatically once they're approved.</p>
+      <a class="btn-submit" href="/create_org/upload_documents?application_id={{ application.id }}{% if access_token %}&token={{ access_token }}{% endif %}">Re-upload Corrected Documents</a>
+    {% elif application.status == 'provisioned' %}
       <div class="icon approved"><i class="ti ti-circle-check"></i></div>
       <h1>Approved!</h1>
       <p>{{ application.company_name }}'s portal is live.</p>

@@ -549,6 +549,97 @@
       {% endif %}
     </div>
 
+    <!-- Verification Documents (Onboarding trial verification -- separate
+         workflow from the free-text documents above) -->
+    <div class="card full">
+      <div class="u-bg-linear-gradiene204f8 u-br-10 u-p-12-18 u-mb-18 u-d-flex u-ai-center u-gap-10">
+        <i class="ti ti-shield-check u-c-fff u-fs-18"></i>
+        <span class="u-fs-14 u-fw-800 u-c-fff u-ls-d5 u-ttr-uppercase">Verification Documents</span>
+        <span class="u-fs-11 u-c-rgba255_255_255_d65 u-fw-400 u-ttr-none u-ls-0 u-ml-4">— Required before subscription setup</span>
+      </div>
+
+      {% set vdocs_by_kind = {} %}
+      {% for did, doc_kind, orig_name, verification_status, verified_by, verified_at, rejection_reason, uploaded_at in verification_docs %}
+        {% set _ = vdocs_by_kind.update({doc_kind: (did, orig_name, verification_status, verified_by, verified_at, rejection_reason, uploaded_at)}) %}
+      {% endfor %}
+
+      <div class="u-d-flex u-fxd-column u-gap-10 u-mb-18">
+        {% for kind in verification_doc_kinds %}
+        {% set vd = vdocs_by_kind.get(kind) %}
+        <div class="u-d-flex u-ai-center u-jc-space-between u-p-12-16 u-bd-1-solid-e2e8f0 u-br-10 u-bg-fff u-fxw-wrap u-gap-8">
+          <div class="u-d-flex u-ai-center u-gap-12">
+            <div class="u-w-26 u-h-26 u-br-8 u-bg-eff6ff u-d-flex u-ai-center u-jc-center u-fxs-0">
+              <i class="ti ti-file-shield u-fs-13 u-c-3b82f6"></i>
+            </div>
+            <div>
+              <div class="u-fs-13 u-fw-700 u-c-1e293b">{{ verification_doc_labels[kind] }}</div>
+              {% if vd %}
+              <div class="u-fs-11 u-c-64748b u-mt-2">{{ vd[1] }}</div>
+              {% if vd[2] == 'rejected' and vd[5] %}
+              <div class="u-fs-11 u-c-dc2626 u-mt-2">Rejected: {{ vd[5] }}</div>
+              {% endif %}
+              {% else %}
+              <div class="u-fs-11 u-c-94a3b8 u-mt-2">Not uploaded yet</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="u-d-flex u-ai-center u-gap-8">
+            {% if vd %}
+              {% if vd[2] == 'approved' %}
+              <span class="u-p-5-12 u-br-20 u-fs-11 u-fw-700 u-bg-dcfce7 u-c-166534"><i class="ti ti-circle-check"></i> Approved</span>
+              {% elif vd[2] == 'rejected' %}
+              <span class="u-p-5-12 u-br-20 u-fs-11 u-fw-700 u-bg-fee2e2 u-c-991b1b"><i class="ti ti-circle-x"></i> Rejected</span>
+              {% else %}
+              <span class="u-p-5-12 u-br-20 u-fs-11 u-fw-700 u-bg-fef9c3 u-c-854d0e"><i class="ti ti-clock"></i> Pending review</span>
+              {% endif %}
+              <a class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-eff6ff u-c-1e3a8a u-bd-1-solid-bfdbfe u-br-7 u-fs-12 u-fw-700 u-tdec-none" href="/download_document/{{ vd[0] }}">
+                <i class="ti ti-download"></i>
+              </a>
+              {% if vd[2] == 'pending' %}
+              <form action="{{ tpath('/employees/' ~ emp[0] ~ '/documents/' ~ vd[0] ~ '/verify') }}" method="POST" class="u-d-inline">
+                <input type="hidden" name="action" value="approve">
+                <button class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-f0fdf4 u-c-166534 u-bd-1-solid-bbf7d0 u-br-7 u-fs-12 u-fw-700 u-cur-pointer" type="submit">
+                  <i class="ti ti-check"></i> Approve
+                </button>
+              </form>
+              <button class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-fff5f5 u-c-dc2626 u-bd-1-solid-fecaca u-br-7 u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="var f=document.getElementById('reject-form-{{ vd[0] }}');f.style.display=(f.style.display==='none')?'flex':'none';">
+                <i class="ti ti-x"></i> Reject
+              </button>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+        {% if vd and vd[2] == 'pending' %}
+        <form id="reject-form-{{ vd[0] }}" action="{{ tpath('/employees/' ~ emp[0] ~ '/documents/' ~ vd[0] ~ '/verify') }}" method="POST" style="display:none;" class="u-gap-8 u-p-12-16 u-bg-fff5f5 u-br-10 u-bd-1-solid-fecaca">
+          <input type="hidden" name="action" value="reject">
+          <input class="u-fx-1 u-p-8-12 u-bd-1-solid-fecaca u-br-8 u-fs-13" type="text" name="reason" placeholder="Reason for rejection (required)" required>
+          <button class="u-p-8-16 u-bg-dc2626 u-c-fff u-bd-none u-br-8 u-fs-12 u-fw-700 u-cur-pointer" type="submit">Confirm Reject</button>
+        </form>
+        {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- Verification upload form -->
+      <form class="u-d-flex u-gap-10 u-ai-flex-end u-fxw-wrap u-p-16 u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-10" action="{{ tpath('/upload_verification_document') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="employee_id" value="{{ emp[0] }}">
+        <div class="u-fx-1 u-minw-150">
+          <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Document Kind</label>
+          <select class="u-w-100pct u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-fs-13 u-bg-fff u-c-1e293b u-out-none" name="doc_kind" required>
+            {% for kind in verification_doc_kinds %}
+            <option value="{{ kind }}">{{ verification_doc_labels[kind] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="u-fx-2 u-minw-200">
+          <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">File</label>
+          <input class="u-w-100pct u-p-8-12 u-bd-1-solid-dbeafe u-br-8 u-fs-13 u-bg-fff u-c-1e293b" type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+        </div>
+        <button class="u-p-9-20 u-bg-1e3a8a u-c-fff u-bd-none u-br-8 u-fs-13 u-fw-700 u-cur-pointer u-ws-nowrap" type="submit">
+          <i class="ti ti-upload"></i> Upload
+        </button>
+      </form>
+    </div>
+
     <!-- QR Code -->
     <div class="card">
       <div class="card-title"><i class="ti ti-qrcode"></i> QR Code</div>
