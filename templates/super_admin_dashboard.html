@@ -196,6 +196,8 @@
       .activity-row .a-level.INFO { background: var(--success); }
       .activity-row .a-level.WARNING { background: var(--warning); }
       .activity-row .a-level.ERROR { background: var(--danger); }
+      .activity-row .a-level.CRITICAL { background: #7f1d1d; }
+      .activity-row .a-ip { color: var(--text-muted); font-family: monospace; font-size: 11.5px; }
       .activity-row .a-msg { flex: 1; color: var(--text-bright); }
       .activity-row .a-who { color: var(--text-muted); }
       .activity-row .a-when { color: var(--text-dim); font-size: 11px; white-space: nowrap; }
@@ -852,6 +854,7 @@
             <div class="a-level {{ ev.level }}"></div>
             <div class="a-msg">{{ ev.message }}</div>
             {% if ev.identifier %}<div class="a-who">{{ ev.identifier }}</div>{% endif %}
+            {% if ev.ip %}<div class="a-ip" title="Source IP address">{{ ev.ip }}</div>{% endif %}
             <div class="a-when">{{ ev.created_at.strftime('%Y-%m-%d %H:%M') if ev.created_at else '' }}</div>
           </div>
           {% endfor %}

@@ -118,4 +118,26 @@ describe('registerForPushNotifications', () => {
     Notifications.getExpoPushTokenAsync.mockRejectedValue(new Error('no EAS project'));
     await expect(registerForPushNotifications({ role: 'employee', employeeId: 'E1' })).resolves.toBeUndefined();
   });
+
+  it('no-ops under Expo Go even with a projectId configured (SDK 53+ removed remote push from Expo Go)', async () => {
+    // IS_EXPO_GO is computed once at module-load time (correct in a real
+    // app -- appOwnership never changes mid-run), so exercising the Expo
+    // Go branch means resetting the module registry and re-requiring
+    // EVERYTHING fresh (jest.mock's factory re-runs per require after
+    // resetModules, producing new mock object instances) -- reusing the
+    // outer-scope `Notifications`/`Constants` here would silently assert
+    // against stale, unrelated mock instances instead of the ones the
+    // freshly-reloaded pushNotifications module actually calls.
+    jest.resetModules();
+    const freshConstants = require('expo-constants').default;
+    freshConstants.appOwnership = 'expo';
+    const freshNotifications = require('expo-notifications');
+    const { registerEmployeePushToken: freshRegisterEmployee } = require('../../api/client');
+    const { registerForPushNotifications: registerUnderExpoGo } = require('../pushNotifications');
+
+    await registerUnderExpoGo({ role: 'employee', employeeId: 'E1' });
+
+    expect(freshNotifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(freshRegisterEmployee).not.toHaveBeenCalled();
+  });
 });

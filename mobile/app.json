@@ -2,16 +2,11 @@
   "expo": {
     "name": "HRzest.com",
     "slug": "employee-attendance",
-    "sdkVersion": "54.0.0",
+    "sdkVersion": "57.0.0",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0f2027"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.magzest.attendance",
@@ -22,13 +17,18 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0f2027"
+        "backgroundColor": "#28323c"
       },
       "package": "com.magzest.attendance",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET"
       ]
     },
     "plugins": [
@@ -38,7 +38,21 @@
       "expo-secure-store",
       "expo-file-system",
       "expo-document-picker",
-      "@sentry/react-native"
-    ]
+      "@sentry/react-native",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#28323c"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ea22ee12-1283-4435-8965-bcafec381509"
+      }
+    },
+    "owner": "knithin47"
   }
 }

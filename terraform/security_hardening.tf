@@ -261,8 +261,8 @@ variable "app_origin_domain" {
 }
 
 resource "aws_cloudfront_distribution" "app" {
-  count   = var.app_origin_domain == "" ? 0 : 1
-  enabled = true
+  count      = var.app_origin_domain == "" ? 0 : 1
+  enabled    = true
   web_acl_id = aws_wafv2_web_acl.app.arn
 
   origin {
@@ -271,17 +271,17 @@ resource "aws_cloudfront_distribution" "app" {
 
     custom_origin_config {
       http_port              = 8080
-      https_port              = 8443
-      origin_protocol_policy  = "https-only"
-      origin_ssl_protocols    = ["TLSv1.2"]
+      https_port             = 8443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
     }
   }
 
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
-    cached_methods          = ["GET", "HEAD"]
-    target_origin_id        = "${var.project_name}-ec2-origin"
-    viewer_protocol_policy  = "redirect-to-https"
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "${var.project_name}-ec2-origin"
+    viewer_protocol_policy = "redirect-to-https"
     # This app is dynamic (session cookies, CSRF tokens) on nearly every
     # route — cache nothing by default. A follow-up cache behavior can carve
     # out /static/* separately once this is stable in production.

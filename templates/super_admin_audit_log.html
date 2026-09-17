@@ -64,6 +64,7 @@
       .level-dot.INFO { background: var(--success); }
       .level-dot.WARNING { background: var(--warning); }
       .level-dot.ERROR { background: var(--danger); }
+      .level-dot.CRITICAL { background: #7f1d1d; }
       .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; letter-spacing: .3px; }
       .badge-type { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border-color); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       .empty-state { text-align: center; padding: 40px; color: var(--text-dim); }
@@ -91,6 +92,7 @@
           <option value="INFO" {% if level_filter == 'INFO' %}selected{% endif %}>Info</option>
           <option value="WARNING" {% if level_filter == 'WARNING' %}selected{% endif %}>Warning</option>
           <option value="ERROR" {% if level_filter == 'ERROR' %}selected{% endif %}>Error</option>
+          <option value="CRITICAL" {% if level_filter == 'CRITICAL' %}selected{% endif %}>Critical</option>
         </select>
         <button type="submit" class="mini-btn"><i class="ti ti-search"></i> Search</button>
         {% if q or level_filter %}<a href="/super_admin/audit-log" class="mini-btn mini-btn-link">Clear</a>{% endif %}

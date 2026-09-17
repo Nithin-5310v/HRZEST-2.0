@@ -259,6 +259,34 @@ class TestDashboard:
             cur.execute("DELETE FROM att_master.tenant_duplicate_alerts WHERE id=%s", (alert_id,))
             cur.close()
 
+    def test_dashboard_activity_feed_shows_honeypot_hit_with_ip(self, client, db_engine):
+        """The dashboard's Recent Activity preview (_recent_platform_activity())
+        must include deception-honeypot trap hits and their source IP --
+        previously it only queried platform_admin./billing./org. prefixes,
+        so a scanner bot tripping /.env or /wp-admin/ never showed up here
+        at all, only buried in the DB with no UI surfacing it."""
+        _login_platform_admin(client)
+        cur = db_engine.cursor()
+        cur.execute(
+            "INSERT INTO security_events (event_type, level, message, identifier, ip) VALUES "
+            "('secops.honeypot_triggered', 'CRITICAL', "
+            "'Deception honeypot trap ''/wp-admin/'' triggered by automated scanner bot', NULL, '198.51.100.23') "
+            "RETURNING id"
+        )
+        event_id = cur.fetchone()[0]
+        db_engine.commit()
+        try:
+            resp = client.get("/super_admin")
+            assert resp.status_code == 200
+            assert b"Deception honeypot trap" in resp.data
+            assert b"198.51.100.23" in resp.data
+        finally:
+            cur.execute("SET audit.bypass = 'on'")
+            cur.execute("DELETE FROM security_events WHERE id=%s", (event_id,))
+            cur.execute("SET audit.bypass = 'off'")
+            db_engine.commit()
+            cur.close()
+
     def test_dashboard_shows_recent_feedback(self, client, db_engine):
         """Product feedback from the public landing page (POST /api/feedback,
         blueprints/org.py) is read-only on the dashboard --
@@ -1127,15 +1155,19 @@ class TestAuditLog:
         only to clean them up."""
         cur = db_engine.cursor()
         cur.execute(
-            "INSERT INTO security_events (event_type, level, message, identifier) VALUES "
-            "('platform_admin.rate_updated', 'WARNING', 'Per-employee rate changed from X to Y', 'AUDIT_TEST_ADMIN'),"
-            "('platform_admin.tenant_created', 'INFO', 'Platform admin created tenant Audit Test Co', 'AUDIT_TEST_ADMIN'),"
-            "('auth.admin_login_success', 'INFO', 'Should never appear -- not a platform-admin-scoped prefix', 'AUDIT_TEST_ADMIN')"
+            "INSERT INTO security_events (event_type, level, message, identifier, ip) VALUES "
+            "('platform_admin.rate_updated', 'WARNING', 'Per-employee rate changed from X to Y', 'AUDIT_TEST_ADMIN', NULL),"
+            "('platform_admin.tenant_created', 'INFO', 'Platform admin created tenant Audit Test Co', 'AUDIT_TEST_ADMIN', NULL),"
+            "('auth.admin_login_success', 'INFO', 'Should never appear -- not a platform-admin-scoped prefix', 'AUDIT_TEST_ADMIN', NULL),"
+            "('secops.honeypot_triggered', 'CRITICAL', 'Deception honeypot trap ''/.env'' triggered by automated scanner bot', NULL, '203.0.113.77')"
         )
         db_engine.commit()
         yield
         cur.execute("SET audit.bypass = 'on'")
-        cur.execute("DELETE FROM security_events WHERE identifier='AUDIT_TEST_ADMIN'")
+        cur.execute(
+            "DELETE FROM security_events WHERE identifier='AUDIT_TEST_ADMIN' "
+            "OR (event_type='secops.honeypot_triggered' AND ip='203.0.113.77')"
+        )
         cur.execute("SET audit.bypass = 'off'")
         db_engine.commit()
         cur.close()
@@ -1166,6 +1198,25 @@ class TestAuditLog:
         assert resp.status_code == 200
         assert b"Per-employee rate changed from X to Y" in resp.data
         assert b"Platform admin created tenant Audit Test Co" not in resp.data
+
+    def test_shows_honeypot_trap_hits_with_source_ip(self, client, audit_events):
+        """secops.* (blueprints/honeypot_routes.py's deception-honeypot
+        trap) must be audit-log-visible -- previously excluded entirely,
+        since 'secops.' wasn't in _AUDIT_LOG_PREFIXES, so a scanner bot
+        tripping a decoy route left no trace anywhere a platform admin
+        would ever look."""
+        _login_platform_admin(client)
+        resp = client.get("/super_admin/audit-log")
+        assert resp.status_code == 200
+        assert b"Deception honeypot trap" in resp.data
+        assert b"203.0.113.77" in resp.data
+
+    def test_critical_level_filter_shows_only_honeypot_hit(self, client, audit_events):
+        _login_platform_admin(client)
+        resp = client.get("/super_admin/audit-log?level=CRITICAL")
+        assert resp.status_code == 200
+        assert b"Deception honeypot trap" in resp.data
+        assert b"Per-employee rate changed from X to Y" not in resp.data
 
     def test_out_of_range_page_clamps_instead_of_erroring(self, client, audit_events):
         _login_platform_admin(client)

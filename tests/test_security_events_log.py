@@ -88,6 +88,52 @@ class TestSecurityEventPersistence:
         _purge_security_events(db_engine, identifier)
 
 
+class TestRealTimeAlertDispatch:
+    """log_security_event()'s real-time webhook dispatch (utils.alerts.
+    send_security_alert) must fire for ERROR and CRITICAL, and only those --
+    CRITICAL specifically because blueprints/honeypot_routes.py logs
+    deception-honeypot trap hits at that level, and a scanner bot tripping
+    a decoy route with no real-time alert reaching anyone defeats the
+    point of having a honeypot at all."""
+
+    def test_error_level_triggers_alert(self, client, db_engine, monkeypatch):
+        import utils.alerts
+        calls = []
+        monkeypatch.setattr(utils.alerts, "send_security_alert",
+                            lambda *a, **kw: calls.append((a, kw)))
+        identifier = "TEST_ALERT_ERROR"
+        with client.application.test_request_context("/some/path"):
+            log_security_event("test.error_event", "msg", level="ERROR", identifier=identifier)
+        assert len(calls) == 1
+        assert calls[0][1]["level"] == "ERROR"
+        _purge_security_events(db_engine, identifier)
+
+    def test_critical_level_triggers_alert(self, client, db_engine, monkeypatch):
+        import utils.alerts
+        calls = []
+        monkeypatch.setattr(utils.alerts, "send_security_alert",
+                            lambda *a, **kw: calls.append((a, kw)))
+        identifier = "TEST_ALERT_CRITICAL"
+        with client.application.test_request_context("/some/path", environ_base={"REMOTE_ADDR": "203.0.113.5"}):
+            log_security_event("secops.honeypot_triggered", "trap hit", level="CRITICAL",
+                               identifier=identifier)
+        assert len(calls) == 1
+        assert calls[0][1]["level"] == "CRITICAL"
+        assert calls[0][1]["ip"] == "203.0.113.5"
+        _purge_security_events(db_engine, identifier)
+
+    def test_warning_level_does_not_trigger_alert(self, client, db_engine, monkeypatch):
+        import utils.alerts
+        calls = []
+        monkeypatch.setattr(utils.alerts, "send_security_alert",
+                            lambda *a, **kw: calls.append((a, kw)))
+        identifier = "TEST_ALERT_WARNING"
+        with client.application.test_request_context("/some/path"):
+            log_security_event("test.warning_event", "msg", level="WARNING", identifier=identifier)
+        assert calls == []
+        _purge_security_events(db_engine, identifier)
+
+
 class TestAuditTablesAreAppendOnly:
     """security_events and audit_logs must be tamper-resistant even against
     a party with direct DB access (not just app-level guards) — a BEFORE
