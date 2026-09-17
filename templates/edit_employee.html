@@ -1,64 +1,56 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Edit Employee — {{ emp[0] }}</title>
-    <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-      body {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      }
-      .card {
-        background: rgba(255,255,255,0.12);
-        backdrop-filter: blur(16px);
-        border-radius: 20px; padding: 44px 38px;
-        width: 100%; max-width: 440px; color: white;
-        box-shadow: 0 24px 60px rgba(0,0,0,0.35);
-      }
-      .card-header { text-align: center; margin-bottom: 32px; }
-      .card-header .icon { font-size: 44px; }
-      .card-header h1 { font-size: 22px; font-weight: 700; margin-top: 12px; }
-      .card-header p { font-size: 13px; opacity: 0.55; margin-top: 5px; }
-      label {
-        display: block; font-size: 12px; opacity: 0.7;
-        font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px;
-      }
-      input {
-        width: 100%; padding: 12px 14px;
-        border: none; border-radius: 10px;
-        background: rgba(255,255,255,0.18); color: white; font-size: 15px;
-        outline: none; transition: 0.2s; margin-bottom: 18px;
-      }
-      input::placeholder { color: rgba(255,255,255,0.4); }
-      input:focus { background: rgba(255,255,255,0.28); }
-      input:disabled { opacity: 0.5; cursor: not-allowed; }
-      .btn {
-        width: 100%; padding: 13px; border: none; border-radius: 10px;
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        color: white; font-size: 15px; font-weight: 700;
-        cursor: pointer; transition: 0.2s;
-      }
-      .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(102,126,234,0.4); }
-      .back { display: block; text-align: center; margin-top: 20px; font-size: 13px;
-              color: rgba(255,255,255,0.5); text-decoration: none; }
-      .back:hover { color: rgba(255,255,255,0.85); }
+{% extends "admin_base.html" %}
 
-      /* ── Dark mode ── */
-      body.dark-mode { background: #0d1117 !important; }
-      body.dark-mode .card { background: #161b22 !important; color: #cdd9e5 !important; }
-      body.dark-mode .card-header h1 { color: #cdd9e5 !important; }
-      body.dark-mode label { color: #768390 !important; opacity: 1 !important; }
-      body.dark-mode input { background: #1c2128 !important; color: #cdd9e5 !important; border: 1px solid #30363d !important; }
-      body.dark-mode input::placeholder { color: #768390 !important; opacity: 1 !important; }
-      body.dark-mode .card-header p { color: #768390 !important; opacity: 1 !important; }
-      body.dark-mode .back { color: #768390 !important; opacity: 1 !important; }
-    </style>
-  <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
-  </head>
-  <body>
+{% block title %}Edit Employee{% endblock %}
+
+{% block page_css %}
+<style>
+  .edit-employee-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 56px); }
+  .card {
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(16px);
+    border-radius: 20px; padding: 44px 38px;
+    width: 100%; max-width: 440px; color: white;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+  }
+  .card-header { text-align: center; margin-bottom: 32px; }
+  .card-header .icon { font-size: 44px; }
+  .card-header h1 { font-size: 22px; font-weight: 700; margin-top: 12px; }
+  .card-header p { font-size: 13px; opacity: 0.55; margin-top: 5px; }
+  label {
+    display: block; font-size: 12px; opacity: 0.7;
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px;
+  }
+  input {
+    width: 100%; padding: 12px 14px;
+    border: none; border-radius: 10px;
+    background: rgba(255,255,255,0.18); color: white; font-size: 15px;
+    outline: none; transition: 0.2s; margin-bottom: 18px;
+  }
+  input::placeholder { color: rgba(255,255,255,0.4); }
+  input:focus { background: rgba(255,255,255,0.28); }
+  input:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn {
+    width: 100%; padding: 13px; border: none; border-radius: 10px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    color: white; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: 0.2s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(102,126,234,0.4); }
+  .back { display: block; text-align: center; margin-top: 20px; font-size: 13px;
+          color: rgba(255,255,255,0.5); text-decoration: none; }
+  .back:hover { color: rgba(255,255,255,0.85); }
+
+  /* Card keeps its own gradient regardless of light/dark mode -- this page
+     is a focused edit dialog, not a data page, so it doesn't follow
+     admin_base.html's light/dark background swap. */
+  .card { background: rgba(255,255,255,0.12) !important; color: white !important; }
+  .card-header h1 { color: white !important; }
+  body.dark-mode .card { background: rgba(255,255,255,0.12) !important; }
+</style>
+{% endblock %}
+
+{% block main %}
+  <div class="edit-employee-wrap">
     <div class="card">
       <div class="card-header">
         <div class="icon">✏️</div>
@@ -86,6 +78,5 @@
 
       <a href="{{ tpath('/admin') }}" class="back">← Back to Admin Panel</a>
     </div>
-  <script src="{{ static_url('darkmode.min.js') }}"></script>
-</body>
-</html>
+  </div>
+{% endblock %}

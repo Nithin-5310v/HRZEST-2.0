@@ -298,26 +298,27 @@ class TestPushTokensTenantBackfill:
     """push_tokens is only created inside _init_core_tables(), which never
     re-runs against an already-provisioned tenant -- _run_migrations_for_
     all_tenants() only calls _run_schema_migrations(). Without a matching
-    CREATE TABLE IF NOT EXISTS in that same chain (which DOES run for
-    every existing tenant), any tenant provisioned before this feature
-    shipped would 500 on push-token registration forever."""
+    CREATE TABLE IF NOT EXISTS in the migrations/column_migrations.py
+    chain (which DOES run for every existing tenant), any tenant
+    provisioned before this feature shipped would 500 on push-token
+    registration forever."""
 
     def test_run_schema_migrations_actually_calls_the_push_tokens_migration(self, db_engine, monkeypatch):
         """Direct proof of the wiring itself -- _run_schema_migrations() is
         the function _run_migrations_for_all_tenants() calls for every
         already-provisioned tenant; this confirms the new migration is
         actually reachable from there, not just correct in isolation."""
-        import app as app_module
+        import migrations.column_migrations as column_migrations_module
         calls = []
-        monkeypatch.setattr(app_module, "_run_push_tokens_table_migration",
+        monkeypatch.setattr(column_migrations_module, "_run_push_tokens_table_migration",
                             lambda cursor, db: calls.append(True))
         cur = db_engine.cursor()
-        app_module._run_schema_migrations(cur, db_engine)
+        column_migrations_module._run_schema_migrations(cur, db_engine)
         cur.close()
         assert calls == [True]
 
     def test_migration_creates_push_tokens_if_missing(self, db_engine):
-        from app import _run_push_tokens_table_migration
+        from migrations.column_migrations import _run_push_tokens_table_migration
         cur = db_engine.cursor()
         cur.execute("DROP TABLE IF EXISTS push_tokens CASCADE")
         cur.execute("SELECT to_regclass('push_tokens')")
@@ -331,7 +332,7 @@ class TestPushTokensTenantBackfill:
         """Idempotent -- running it again (as every real boot does, via
         _run_migrations_for_all_tenants()) must not error or touch
         existing rows."""
-        from app import _run_push_tokens_table_migration
+        from migrations.column_migrations import _run_push_tokens_table_migration
         from utils.push_utils import register_push_token
         register_push_token("employee", "TST001", "ExponentPushToken[idempotent]", "ios")
         cur = db_engine.cursor()
@@ -345,7 +346,7 @@ class TestPushTokensTenantBackfill:
         """Not just that the table exists -- that a real insert/query
         against it (what register_push_token()/send_push_notification()
         actually do) succeeds afterward, same as a fresh install's copy."""
-        from app import _run_push_tokens_table_migration
+        from migrations.column_migrations import _run_push_tokens_table_migration
         from utils.push_utils import register_push_token
         cur = db_engine.cursor()
         cur.execute("DROP TABLE IF EXISTS push_tokens CASCADE")

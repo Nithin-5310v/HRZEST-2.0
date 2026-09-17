@@ -1,15 +1,9 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ID Card Template — {{ company_name }}</title>
-  <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
-  <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
-    body{background:#f1f5f9;min-height:100vh}
-    .main{max-width:1100px;margin:0 auto;padding:28px 24px}
+{% extends "admin_base.html" %}
+
+{% block title %}ID Card Template{% endblock %}
+
+{% block page_css %}
+<style>
     .breadcrumb{font-size:12px;color:#64748b;margin-bottom:8px}
     .breadcrumb a{color:#1e3a8a;text-decoration:none}
     .page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:22px}
@@ -47,10 +41,10 @@
     .field-round-toggle{position:absolute;right:-2px;top:-20px;background:#fff;border:1px solid #cbd5e1;border-radius:4px;font-size:9px;padding:1px 4px;display:flex;align-items:center;gap:2px;cursor:pointer;white-space:nowrap}
     .empty-hint{font-size:13px;color:#94a3b8;font-style:italic;padding:20px;text-align:center}
     .actions-row{display:flex;gap:10px;margin-top:18px}
-  </style>
-</head>
-<body>
-  <div class="main">
+</style>
+{% endblock %}
+
+{% block main %}
     <div class="breadcrumb"><a href="{{ tpath('/settings?tab=company') }}">&larr; Back to Settings</a></div>
     <div class="page-header">
       <h1><i class="ti ti-id-badge-2 u-c-1e3a8a"></i> ID Card Template — {{ company_name }}</h1>
@@ -60,16 +54,6 @@
       </form>
       {% endif %}
     </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-      <ul class="flash-list">
-        {% for category, message in messages %}
-        <li class="flash-msg flash-{{ 'success' if category == 'success' else 'error' }}">{{ message }}</li>
-        {% endfor %}
-      </ul>
-      {% endif %}
-    {% endwith %}
 
     <div class="section">
       <div class="section-title"><i class="ti ti-upload"></i> Upload Your Card Design</div>
@@ -122,12 +106,13 @@
     {% else %}
     <div class="section"><div class="empty-hint">Upload a front template image above to start placing fields.</div></div>
     {% endif %}
-  </div>
 
   <form id="savePositionsForm" method="POST" action="/companies/{{ cid }}/id_card_template/save_positions" style="display:none">
     <input type="hidden" name="positions_json" id="positionsJsonInput" />
   </form>
+{% endblock %}
 
+{% block scripts %}
   <script>
     var FIELD_DEFS = {
       photo:           {side: 'front', label: 'Photo',          color: '#2563eb'},
@@ -345,5 +330,4 @@
       window.addEventListener('load', buildToggles);
     }
   </script>
-</body>
-</html>
+{% endblock %}

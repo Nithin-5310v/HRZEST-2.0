@@ -1905,6 +1905,7 @@ def id_card_template_editor(cid):
         cid=cid, company_name=company_name,
         front_image=front_image, back_image=back_image,
         fields_json=json.dumps(fields),
+        active_nav="settings",
     )
 
 
