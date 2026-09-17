@@ -736,13 +736,24 @@ def admin_set_recovery_email():
     return redirect(tpath("/settings?tab=email&email_ok=1#password-management"))
 
 
+# Was 1 hour -- widened after reports of links "expiring" almost
+# immediately, which traced back to slow/queued SMTP delivery on the
+# hosted deployment eating most or all of a short window before the email
+# even arrived, not an actual bug in the expiry check itself. 3 hours
+# gives real-world delivery delays room without matching the 24h welcome-
+# email window (_send_welcome_credentials_email in blueprints/employees.py),
+# which intentionally stays longer since that link may sit unread further
+# out than an active forgot-password request.
+RESET_TOKEN_VALID_HOURS = 3
+
+
 def _new_reset_token():
     """(token, token_hash, expiry) for a password-reset link -- shared by
     admin_forgot_password and employee_forgot_password, which previously
     each generated this identically."""
     token = secrets.token_hex(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+    expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=RESET_TOKEN_VALID_HOURS)
     return token, token_hash, expiry
 
 
@@ -801,7 +812,7 @@ def admin_forgot_password():
       border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
       Reset My Password
     </a>
-    <p style="font-size:13px;color:#64748b;">This link expires in <strong>1 hour</strong>. If you did not request this, ignore this email.</p>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>{RESET_TOKEN_VALID_HOURS} hours</strong>. If you did not request this, ignore this email.</p>
     <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
   </div>
 </div>"""
@@ -895,7 +906,7 @@ def employee_forgot_password():
       border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
       Reset My Password
     </a>
-    <p style="font-size:13px;color:#64748b;">This link expires in <strong>1 hour</strong>. If you did not request this, please ignore this email.</p>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>{RESET_TOKEN_VALID_HOURS} hours</strong>. If you did not request this, please ignore this email.</p>
     <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
   </div>
 </div>"""
