@@ -1,0 +1,66 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Ticket #{{ ticket.id }}{% endblock %}
+
+{% block page_css %}
+<style>
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: #1e3a8a; text-decoration: none; font-weight: 600; font-size: 13px; margin-bottom: 16px; }
+  .p-card { max-width: 780px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); margin-bottom: 20px; }
+  .p-card h2 { font-size: 17px; color: #0f172a; margin-bottom: 4px; }
+  .badge-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: capitalize; }
+  .badge-success { background: #dcfce7; color: #15803d; }
+  .badge-pending { background: #fef9c3; color: #854d0e; }
+  .badge-failed { background: #fee2e2; color: #991b1b; }
+  .thread { display: flex; flex-direction: column; gap: 14px; }
+  .bubble { max-width: 85%; padding: 12px 16px; border-radius: 14px; font-size: 13.5px; line-height: 1.5; }
+  .bubble.mine { align-self: flex-end; background: #1e3a8a; color: #fff; border-bottom-right-radius: 4px; }
+  .bubble.theirs { align-self: flex-start; background: #f1f5f9; color: #0f172a; border-bottom-left-radius: 4px; }
+  .bubble .meta { font-size: 10.5px; opacity: 0.75; margin-top: 6px; }
+  .p-input { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+  .p-btn { display: inline-block; background: #1e3a8a; color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none; }
+  .banner { padding: 12px 18px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; font-weight: 600; }
+  .banner.info { background: #e0f2fe; border: 1px solid #bae6fd; color: #075985; }
+</style>
+{% endblock %}
+
+{% block main %}
+  <a class="back-link" href="{{ tpath('/profile/tickets') }}"><i class="ti ti-arrow-left"></i> Back to Support Tickets</a>
+
+  <div class="p-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+      <div>
+        <h2>{{ ticket.subject }}</h2>
+        <div style="font-size:12px;color:#64748b;">#{{ ticket.id }} &middot; {{ ticket.priority|capitalize }} priority &middot; raised {{ ticket.created_at.strftime('%d %b %Y') if ticket.created_at else '—' }}</div>
+      </div>
+      <span class="badge-pill {{ 'badge-success' if ticket.status in ('resolved','closed') else 'badge-pending' }}">{{ ticket.status.replace('_', ' ') }}</span>
+    </div>
+    <p style="margin-top:16px;font-size:13.5px;color:#334155;white-space:pre-wrap;">{{ ticket.description }}</p>
+  </div>
+
+  <div class="p-card">
+    <h2 style="margin-bottom:16px;">Conversation</h2>
+    <div class="thread">
+      {% for c in ticket.comments %}
+        <div class="bubble {{ 'mine' if c.author_kind == 'company_admin' else 'theirs' }}">
+          {{ c.comment }}
+          <div class="meta">{{ c.author }} &middot; {{ c.created_at.strftime('%d %b %Y, %I:%M %p') if c.created_at else '' }}</div>
+        </div>
+      {% else %}
+        <div style="color:#94a3b8;font-size:13px;">No replies yet.</div>
+      {% endfor %}
+    </div>
+
+    {% if ticket.status == 'closed' %}
+      <div class="banner info" style="margin-top:20px;">
+        <i class="ti ti-lock"></i> This ticket is closed. To follow up, raise a new ticket from the
+        <a href="{{ tpath('/profile/tickets') }}" style="color:inherit;font-weight:700;">Support Tickets</a> tab
+        and reference ticket #{{ ticket.id }}.
+      </div>
+    {% else %}
+      <form method="POST" action="{{ tpath('/profile/tickets/' + ticket.id|string + '/reply') }}" style="margin-top:20px;">
+        <textarea class="p-input" name="comment" rows="3" placeholder="Write a reply…" required maxlength="2000"></textarea>
+        <button class="p-btn" type="submit">Send Reply</button>
+      </form>
+    {% endif %}
+  </div>
+{% endblock %}

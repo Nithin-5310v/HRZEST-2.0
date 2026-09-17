@@ -1357,11 +1357,12 @@ def _load_own_tenant_application():
     mconn = get_master_db()
     mcur = mconn.cursor(buffered=True)
     mcur.execute(
-        "SELECT id, company_name, subdomain, admin_username, admin_email, admin_password_hash, "
-        "email_domain, employee_count, payment_option, logo_path, access_token_hash, otp_code_hash, "
-        "otp_expires_at, otp_attempts, email_verified_at, doc_registration_cert, doc_address_proof, "
-        "doc_visiting_card, doc_name_board_photo, documents_submitted_at, status, reviewed_by, "
-        "reviewed_at, rejection_reason, tenant_id, doc_review_status "
+        "SELECT ta.id, ta.company_name, ta.subdomain, ta.admin_username, ta.admin_email, ta.admin_password_hash, "
+        "ta.email_domain, ta.employee_count, ta.payment_option, ta.logo_path, ta.access_token_hash, ta.otp_code_hash, "
+        "ta.otp_expires_at, ta.otp_attempts, ta.email_verified_at, ta.doc_registration_cert, ta.doc_address_proof, "
+        "ta.doc_visiting_card, ta.doc_name_board_photo, ta.documents_submitted_at, ta.status, ta.reviewed_by, "
+        "ta.reviewed_at, ta.rejection_reason, ta.tenant_id, ta.doc_review_status, "
+        "t.created_at, t.gst_number, t.pan, t.cin "
         "FROM tenant_applications ta JOIN tenants t ON ta.tenant_id=t.id "
         "WHERE t.db_name=%s ORDER BY ta.id DESC LIMIT 1",
         (g.tenant_db,)
@@ -1375,7 +1376,11 @@ def _load_own_tenant_application():
             "email_domain", "employee_count", "payment_option", "logo_path", "access_token_hash", "otp_code_hash",
             "otp_expires_at", "otp_attempts", "email_verified_at", "doc_registration_cert", "doc_address_proof",
             "doc_visiting_card", "doc_name_board_photo", "documents_submitted_at", "status", "reviewed_by",
-            "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status"]
+            "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status",
+            # Added for the Profile page's Company Info tab (account creation
+            # date + KYC dedup identifiers) -- from `tenants`, not
+            # `tenant_applications`, since that's where they're backfilled to.
+            "tenant_created_at", "gst_number", "pan", "cin"]
     return dict(zip(cols, row))
 
 

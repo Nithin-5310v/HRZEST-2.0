@@ -726,6 +726,13 @@ def admin_set_recovery_email():
         db.commit()
         cursor.close()
         db.close()
+    # return_to lets the Profile page's Company Info tab reuse this same
+    # route for its own admin-contact-email field instead of re-implementing
+    # it -- defaults to the original hardcoded redirect so every existing
+    # caller (templates/settings.html's form has no such field) is unaffected.
+    return_to = request.form.get("return_to", "").strip()
+    if return_to == "profile":
+        return redirect(tpath("/profile?tab=company&email_ok=1"))
     return redirect(tpath("/settings?tab=email&email_ok=1#password-management"))
 
 

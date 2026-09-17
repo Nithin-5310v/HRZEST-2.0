@@ -354,9 +354,20 @@ def _audit(action, table=None, record_id=None, detail=None):
 
 
 # ── Notification helper ───────────────────────────────────────────────────────
-def _create_notification(recipient_type, title, message, employee_id=None):
+def _create_notification(recipient_type, title, message, employee_id=None, tenant_schema=None):
+    """tenant_schema is only needed by a caller that has no flask.g.tenant_db
+    of its own to rely on -- get_db_connection() falls back to the "public"
+    schema when g.tenant_db is unset, which is exactly platform_admin.py's
+    /super_admin/* routes (deliberately no resolved tenant there). Passing
+    tenant_schema explicitly routes the INSERT at the right tenant's
+    notifications table instead of silently landing in "public". Every
+    existing call site leaves this None and is unaffected."""
     try:
-        db = get_db_connection()
+        if tenant_schema is not None:
+            from database import get_tenant_db
+            db = get_tenant_db(tenant_schema)
+        else:
+            db = get_db_connection()
         cursor = db.cursor()
         try:
             cursor.execute(
@@ -935,6 +946,8 @@ def get_company_settings():
                 # column); a real integer is the seat count actually paid
                 # for at signup -- see add_employee_seat_cap_check() below.
                 "paid_employee_slots": row_dict.get("paid_employee_slots"),
+                "contact_phone": row_dict.get("contact_phone") or "",
+                "address": row_dict.get("address") or "",
             }
             _cache_set(_co_cache, "settings_co", result, _CO_CACHE_TTL)
             return dict(result)
@@ -946,7 +959,7 @@ def get_company_settings():
     return {"company_name": "My Company", "company_tagline": "HRzest.com",
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
             "setup_done": False, "company_code": "", "session_timeout": 30, "logo_url": "", "plan": "basic",
-            "email_domain": "", "paid_employee_slots": None}
+            "email_domain": "", "paid_employee_slots": None, "contact_phone": "", "address": ""}
 
 
 def _company_tzinfo():

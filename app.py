@@ -2064,11 +2064,13 @@ if "core.home" not in app.view_functions:
     from blueprints.disbursement import disbursement_bp
     from blueprints.hr_dashboard import hr_dashboard_bp
     from blueprints.policies import policies_bp
+    from blueprints.company_profile import company_profile_bp
     for _bp in (health_bp, notifications_bp, payroll_bp, leave_bp, admin_views_bp,
                 auth_bp, employees_bp, attendance_bp, tickets_bp, performance_bp,
                 documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp,
                 ai_hrms_bp, email_blast_bp, daily_report_bp, billing_bp, webhooks_bp, seats_bp, auto_debit_bp,
-                billing_dunning_bp, platform_admin_bp, honeypot_bp, disbursement_bp, hr_dashboard_bp, policies_bp):
+                billing_dunning_bp, platform_admin_bp, honeypot_bp, disbursement_bp, hr_dashboard_bp, policies_bp,
+                company_profile_bp):
         app.register_blueprint(_bp)
 
 

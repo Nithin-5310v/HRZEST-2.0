@@ -190,6 +190,9 @@
   <a class="nav-item {{ 'active' if active_nav == 'settings' }}" href="{{ tpath('/settings') }}" {{ 'aria-current=page' if active_nav == 'settings' }}>
     <span class="nav-icon"><i class="ti ti-settings"></i></span>Settings
   </a>
+  <a class="nav-item {{ 'active' if active_nav == 'profile' }}" href="{{ tpath('/profile') }}" {{ 'aria-current=page' if active_nav == 'profile' }}>
+    <span class="nav-icon"><i class="ti ti-id-badge-2"></i></span>Profile
+  </a>
   {% endif %}
   <a class="nav-item" href="{{ tpath('/logout') }}">
     <span class="nav-icon"><i class="ti ti-logout"></i></span>Logout

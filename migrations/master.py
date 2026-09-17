@@ -546,6 +546,16 @@ def init_master_db():
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket ON tenant_ticket_comments (ticket_id, created_at)")
+        # Company-admin Profile page's Support Tickets tab makes this table
+        # two-way (previously platform-admin-authored only) -- linked_ticket_id
+        # is how a closed ticket points at the fresh ticket raised to follow
+        # up on it (closed tickets can't just be reopened by a reply), and
+        # author_kind tells the thread which side wrote each comment. No FK
+        # constraint, matching every other cross-table reference in this
+        # schema (e.g. payment_orders.application_id) -- app-level only.
+        cur.execute("ALTER TABLE tenant_support_tickets ADD COLUMN IF NOT EXISTS linked_ticket_id INT DEFAULT NULL")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_tickets_linked ON tenant_support_tickets (linked_ticket_id)")
+        cur.execute("ALTER TABLE tenant_ticket_comments ADD COLUMN IF NOT EXISTS author_kind VARCHAR(20) NOT NULL DEFAULT 'platform_admin'")
         db.commit()
         cur.close()
         db.close()

@@ -1,0 +1,272 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block page_css %}
+<style>
+  .profile-tabs { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
+  .profile-tab {
+    padding: 10px 18px; border-radius: 10px; background: #fff; border: 1px solid #e2e8f0;
+    color: #475569; font-weight: 600; font-size: 13px; text-decoration: none;
+    display: flex; align-items: center; gap: 8px; transition: 0.15s;
+  }
+  .profile-tab:hover { border-color: #93c5fd; color: #1e3a8a; }
+  .profile-tab.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+
+  .p-card {
+    max-width: 780px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 28px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); margin-bottom: 20px;
+  }
+  .p-card h2 { font-size: 17px; color: #0f172a; margin-bottom: 4px; }
+  .p-card .sub { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+  .p-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; gap: 12px; }
+  .p-row:last-child { border-bottom: none; }
+  .p-row .p-label { color: #64748b; }
+  .p-row .p-value { color: #0f172a; font-weight: 600; text-align: right; }
+  .field-label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+  .p-input {
+    width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .p-btn {
+    display: inline-block; background: #1e3a8a; color: #fff; border: none; padding: 9px 18px;
+    border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none;
+  }
+  .p-btn.secondary { background: #fff; color: #1e3a8a; border: 1px solid #1e3a8a; }
+  .badge-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: capitalize; }
+  .badge-success { background: #dcfce7; color: #15803d; }
+  .badge-pending { background: #fef9c3; color: #854d0e; }
+  .badge-failed { background: #fee2e2; color: #991b1b; }
+  .badge-neutral { background: #e2e8f0; color: #475569; }
+
+  .usage-row { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; margin-bottom: 22px; }
+  .usage-row .num { font-size: 22px; font-weight: 800; color: #0f172a; }
+  .usage-row .lbl { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .usage-bar-track { height: 8px; border-radius: 6px; background: #e2e8f0; margin-top: 10px; overflow: hidden; }
+  .usage-bar-fill { height: 100%; border-radius: 6px; background: #2563eb; }
+  .usage-bar-fill.danger { background: #dc2626; }
+  .usage-bar-fill.warning { background: #d97706; }
+
+  .banner { padding: 12px 18px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .banner.warn { background: #fef9c3; border: 1px solid #fde68a; color: #854d0e; }
+  .banner.danger { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+  .banner.info { background: #e0f2fe; border: 1px solid #bae6fd; color: #075985; }
+
+  .p-table-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+  .p-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .p-table th { text-align: left; padding: 12px 16px; color: #64748b; font-weight: 700; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; background: #f8fafc; }
+  .p-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; }
+  .p-table tr:last-child td { border-bottom: none; }
+  .p-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: flex-end; }
+  .p-filters label { font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 4px; }
+  .p-filters select, .p-filters input { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 7px; font-size: 12.5px; }
+  .pager { display: flex; gap: 8px; align-items: center; margin-top: 16px; font-size: 13px; }
+  .pager a { color: #1e3a8a; text-decoration: none; font-weight: 600; }
+  .empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 13px; }
+
+  .ticket-row { display: block; padding: 14px 16px; border-bottom: 1px solid #f1f5f9; text-decoration: none; color: inherit; }
+  .ticket-row:last-child { border-bottom: none; }
+  .ticket-row:hover { background: #f8fafc; }
+  .ticket-row .t-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .ticket-row .t-subject { font-weight: 700; color: #0f172a; font-size: 13.5px; }
+  .ticket-row .t-meta { font-size: 11.5px; color: #94a3b8; }
+</style>
+{% endblock %}
+
+{% block main %}
+  <div class="profile-tabs">
+    <a class="profile-tab {{ 'active' if active_tab == 'company' }}" href="{{ tpath('/profile') }}"><i class="ti ti-building"></i> Company Info</a>
+    <a class="profile-tab {{ 'active' if active_tab == 'billing' }}" href="{{ tpath('/profile/billing') }}"><i class="ti ti-credit-card"></i> Subscription &amp; Billing</a>
+    <a class="profile-tab {{ 'active' if active_tab == 'payments' }}" href="{{ tpath('/profile/payments') }}"><i class="ti ti-receipt"></i> Payment History</a>
+    <a class="profile-tab {{ 'active' if active_tab == 'tickets' }}" href="{{ tpath('/profile/tickets') }}"><i class="ti ti-headset"></i> Support Tickets</a>
+  </div>
+
+  {# ══════════════════════ COMPANY INFO ══════════════════════ #}
+  {% if active_tab == 'company' %}
+    <div class="p-card">
+      <h2>Company Details</h2>
+      <div class="sub">Your company's profile as it appears across HRZEST.</div>
+      <div class="p-row"><span class="p-label">Company name</span><span class="p-value">{{ co.company_name }}</span></div>
+      <div class="p-row">
+        <span class="p-label">Document verification</span>
+        <span class="p-value">
+          {% if not application %}<span class="badge-pill badge-neutral">Not required</span>
+          {% elif application.doc_review_status == 'approved' %}<span class="badge-pill badge-success">Verified</span>
+          {% elif application.doc_review_status == 'rejected' %}<span class="badge-pill badge-failed">Rejected</span>
+          {% elif application.doc_review_status == 'pending_review' %}<span class="badge-pill badge-pending">Under review</span>
+          {% else %}<span class="badge-pill badge-pending">Documents pending</span>{% endif %}
+        </span>
+      </div>
+      {% if application and application.doc_review_status != 'pending_review' %}
+      <div class="p-row">
+        <span class="p-label">&nbsp;</span>
+        <span class="p-value"><a class="p-btn secondary" href="{{ tpath('/settings/company_verification') }}" style="padding:6px 14px;font-size:12px;">{{ 'Re-upload documents' if application.doc_review_status == 'rejected' else 'Upload documents' }}</a></span>
+      </div>
+      {% endif %}
+      <div class="p-row"><span class="p-label">Account created</span><span class="p-value">{{ application.tenant_created_at.strftime('%d %b %Y') if application and application.tenant_created_at else '—' }}</span></div>
+      <div class="p-row">
+        <span class="p-label">Employees</span>
+        <span class="p-value">{{ employee_count }}{% if seat_cap is not none %} / {{ seat_cap }}{% else %} (unlimited plan){% endif %}</span>
+      </div>
+      <div class="p-row"><span class="p-label">GST number</span><span class="p-value">{{ application.gst_number if application and application.gst_number else '—' }}</span></div>
+    </div>
+
+    <div class="p-card">
+      <h2>Contact Details</h2>
+      <div class="sub">Only these fields can be edited here — company name and business documents go through verification instead.</div>
+      {% if email_ok %}<div class="banner info"><i class="ti ti-circle-check"></i> Contact email updated.</div>{% endif %}
+      <form method="POST" action="{{ tpath('/admin_set_recovery_email') }}">
+        <input type="hidden" name="return_to" value="profile">
+        <label class="field-label" for="p-recovery-email">Admin contact email</label>
+        <input class="p-input" type="email" id="p-recovery-email" name="recovery_email" value="{{ admin_recovery_email }}" placeholder="you@company.com">
+        <button class="p-btn" type="submit">Save Email</button>
+      </form>
+    </div>
+
+    <div class="p-card">
+      <form method="POST" action="{{ tpath('/profile/company_info') }}">
+        <label class="field-label" for="p-contact-phone">Contact phone</label>
+        <input class="p-input" type="tel" id="p-contact-phone" name="contact_phone" value="{{ co.contact_phone }}" placeholder="+91 98765 43210">
+        <label class="field-label" for="p-address">Address</label>
+        <input class="p-input" type="text" id="p-address" name="address" value="{{ co.address }}" placeholder="Registered office address">
+        <button class="p-btn" type="submit">Save Details</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {# ══════════════════════ SUBSCRIPTION & BILLING ══════════════════════ #}
+  {% if active_tab == 'billing' %}
+    {% if subscription_status == 'trialing' %}
+      <div class="banner info"><i class="ti ti-hourglass"></i> You're on a free trial{% if trial_days_remaining is not none %} — {{ trial_days_remaining }} day{{ 's' if trial_days_remaining != 1 else '' }} remaining{% endif %}{% if trial_end_date %} (ends {{ trial_end_date.strftime('%d %b %Y') }}){% endif %}.</div>
+    {% elif subscription_status == 'past_due' %}
+      <div class="banner danger"><i class="ti ti-alert-triangle"></i> Your last payment failed or is overdue — see <a href="{{ tpath('/settings?tab=billing') }}" style="color:inherit;">Settings &rarr; Billing</a> to resolve auto-debit.</div>
+    {% endif %}
+
+    <div class="p-card">
+      <h2>Plan Status</h2>
+      <div class="p-row"><span class="p-label">Status</span><span class="p-value"><span class="badge-pill {{ 'badge-success' if subscription_status == 'active' else ('badge-pending' if subscription_status == 'trialing' else 'badge-failed') }}">{{ subscription_status.replace('_', ' ') }}</span></span></div>
+      <div class="p-row">
+        <span class="p-label">Employees</span>
+        <span class="p-value">{{ employee_count }}{% if employee_seat_cap is not none %} / {{ employee_seat_cap }}{% else %} (unlimited plan){% endif %}</span>
+      </div>
+      <div class="p-row"><span class="p-label">Rate per employee</span><span class="p-value">{{ per_employee_paise // 100 }} / month</span></div>
+      <div class="p-row"><span class="p-label">Estimated next charge</span><span class="p-value">{{ monthly_bill_display }}</span></div>
+      <div class="p-row">
+        <span class="p-label">Auto-debit</span>
+        <span class="p-value">
+          {% if auto_debit_status %}<span class="badge-pill {{ 'badge-success' if auto_debit_status.status == 'active' else ('badge-failed' if auto_debit_status.status == 'cancelled' else 'badge-pending') }}">{{ auto_debit_status.status.replace('_', ' ') }}</span>
+          {% else %}<span class="badge-pill badge-neutral">Not enabled</span>{% endif %}
+        </span>
+      </div>
+      <div class="p-row">
+        <span class="p-label">&nbsp;</span>
+        <span class="p-value"><a class="p-btn" href="{{ tpath('/settings?tab=billing') }}">Manage Plan</a></span>
+      </div>
+    </div>
+
+    <div class="p-card">
+      <h2>Recent Charges</h2>
+      <div class="sub">Your last {{ invoices|length }} recurring charges. See the Payment History tab for your complete record.</div>
+      {% if invoices %}
+      <table class="p-table">
+        <thead><tr><th>Period</th><th>Employees</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for inv in invoices %}
+          <tr>
+            <td>{{ inv.billing_period.strftime('%b %Y') if inv.billing_period else '—' }}</td>
+            <td>{{ inv.employee_count }}</td>
+            <td>{{ inv.amount_display }}</td>
+            <td><span class="badge-pill {{ 'badge-success' if inv.status == 'paid' else ('badge-failed' if inv.status == 'failed' else 'badge-pending') }}">{{ inv.status }}</span></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">No recurring charges yet.</div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# ══════════════════════ PAYMENT HISTORY ══════════════════════ #}
+  {% if active_tab == 'payments' %}
+    <form class="p-filters" method="GET" action="{{ tpath('/profile/payments') }}">
+      <div>
+        <label for="pf-status">Status</label>
+        <select id="pf-status" name="status">
+          <option value="">All</option>
+          <option value="success" {{ 'selected' if filters.status == 'success' }}>Success</option>
+          <option value="pending" {{ 'selected' if filters.status == 'pending' }}>Pending</option>
+          <option value="failed" {{ 'selected' if filters.status == 'failed' }}>Failed</option>
+        </select>
+      </div>
+      <div><label for="pf-from">From</label><input id="pf-from" type="date" name="from" value="{{ request.args.get('from', '') }}"></div>
+      <div><label for="pf-to">To</label><input id="pf-to" type="date" name="to" value="{{ request.args.get('to', '') }}"></div>
+      <button class="p-btn secondary" type="submit" style="padding:7px 16px;">Filter</button>
+      <a class="p-btn secondary" style="padding:7px 16px;" href="{{ tpath('/profile/payments/export.csv') }}?status={{ filters.status or '' }}&from={{ request.args.get('from','') }}&to={{ request.args.get('to','') }}">Export CSV</a>
+    </form>
+
+    <div class="p-table-wrap">
+      {% if payments %}
+      <table class="p-table">
+        <thead><tr><th>Type</th><th>Reference</th><th>Employees</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
+        <tbody>
+        {% for p in payments %}
+          <tr>
+            <td>{{ p.kind }}</td>
+            <td>{{ p.order_id or p.payment_id or '—' }}</td>
+            <td>{{ p.employee_count if p.employee_count is not none else '—' }}</td>
+            <td>{{ p.amount_display }}</td>
+            <td><span class="badge-pill {{ 'badge-success' if p.status_group == 'success' else ('badge-failed' if p.status_group == 'failed' else 'badge-pending') }}">{{ p.status }}</span></td>
+            <td>{{ (p.paid_at or p.created_at).strftime('%d %b %Y') if (p.paid_at or p.created_at) else '—' }}</td>
+            <td>{% if p.status_group == 'success' %}<a href="{{ tpath('/profile/payments/' + p.kind_key + '/' + p.id|string + '/receipt.pdf') }}">Receipt</a>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">No payments match these filters.</div>
+      {% endif %}
+    </div>
+    {% if total_pages > 1 %}
+    <div class="pager">
+      {% if page > 1 %}<a href="?page={{ page - 1 }}{% if filters.status %}&status={{ filters.status }}{% endif %}">&larr; Prev</a>{% endif %}
+      <span>Page {{ page }} of {{ total_pages }} ({{ total_payments }} total)</span>
+      {% if page < total_pages %}<a href="?page={{ page + 1 }}{% if filters.status %}&status={{ filters.status }}{% endif %}">Next &rarr;</a>{% endif %}
+    </div>
+    {% endif %}
+  {% endif %}
+
+  {# ══════════════════════ SUPPORT TICKETS ══════════════════════ #}
+  {% if active_tab == 'tickets' %}
+    <div class="p-card">
+      <h2>Raise a New Ticket</h2>
+      <form method="POST" action="{{ tpath('/profile/tickets') }}">
+        <label class="field-label" for="tk-subject">Subject</label>
+        <input class="p-input" id="tk-subject" name="subject" required maxlength="200">
+        <label class="field-label" for="tk-priority">Priority</label>
+        <select class="p-input" id="tk-priority" name="priority">
+          {% for pr in ticket_priorities %}<option value="{{ pr }}" {{ 'selected' if pr == 'normal' }}>{{ pr|capitalize }}</option>{% endfor %}
+        </select>
+        <label class="field-label" for="tk-description">Description</label>
+        <textarea class="p-input" id="tk-description" name="description" rows="4" required maxlength="4000"></textarea>
+        <button class="p-btn" type="submit">Raise Ticket</button>
+      </form>
+    </div>
+
+    <div class="p-table-wrap">
+      {% if tickets %}
+        {% for t in tickets %}
+        <a class="ticket-row" href="{{ tpath('/profile/tickets/' + t.id|string) }}">
+          <div class="t-top">
+            <span class="t-subject">{{ t.subject }}</span>
+            <span class="badge-pill {{ 'badge-success' if t.status in ('resolved','closed') else 'badge-pending' }}">{{ t.status.replace('_', ' ') }}</span>
+          </div>
+          <div class="t-meta">#{{ t.id }} &middot; {{ t.priority|capitalize }} priority &middot; updated {{ t.updated_at.strftime('%d %b %Y') if t.updated_at else '—' }}</div>
+        </a>
+        {% endfor %}
+      {% else %}
+      <div class="empty-state">You haven't raised any support tickets yet.</div>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

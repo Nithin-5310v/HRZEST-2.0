@@ -120,6 +120,10 @@ def _run_column_migrations(cursor, db):
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS company_code VARCHAR(10) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS email_domain VARCHAR(255) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS paid_employee_slots INT DEFAULT NULL",
+        # Company Admin Profile page's Company Info tab -- the only two
+        # non-sensitive fields it lets an admin edit inline.
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(30) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS address VARCHAR(500) DEFAULT NULL",
         # Read by utils/helpers.py's get_company_settings() as co.logo_url,
         # rendered in templates/admin_base.html's sidebar (admin + HR) and
         # templates/employee_portal.html's sidebar -- this ALTER, not

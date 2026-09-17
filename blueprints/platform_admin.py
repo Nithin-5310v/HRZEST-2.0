@@ -18,7 +18,6 @@ enforces its own (lighter) idle timeout below.
 import io
 import os
 import re
-import csv
 import time
 import datetime
 import secrets
@@ -33,8 +32,11 @@ from utils.plan_limits import (
     get_per_employee_paise, invalidate_rate_paise_cache, calculate_price, format_price_inr,
     get_tenant_employee_count, get_base_fee_paise, get_minimum_monthly_paise, invalidate_extra_cost_cache,
 )
-from utils.helpers import coerce_datetime, _safe_app_url
+from utils.helpers import coerce_datetime, _safe_app_url, _create_notification
 from utils.analytics import get_traffic_stats
+from utils.csv_export import csv_response as _csv_response
+from utils.payment_history import get_payment_history
+from utils.ticket_constants import TICKET_STATUSES as _TICKET_STATUSES, TICKET_PRIORITIES as _TICKET_PRIORITIES
 from utils import chat_utils
 
 platform_admin_bp = Blueprint("platform_admin", __name__)
@@ -265,126 +267,13 @@ def _self_signup_tenant_ids():
 
 
 def _recent_payments(limit=20, tenant_id=None, tenant_schema=None):
-    """Payment history -- real and demo-mode orders alike
-    (payment_orders.razorpay_order_id starts with "demo_order_" for the
-    latter, same table either way per blueprints/billing.py). Also merges
-    in seat_topup_orders (blueprints/seats.py) -- an existing tenant paying
-    to raise its paid_employee_slots cap -- and monthly_invoices
-    (blueprints/auto_debit.py) -- a tenant's recurring per-employee
-    auto-debit charge, collected automatically each cycle -- so the
-    Platform Admin sees every payment reaching them through any of the
-    three flows in one feed.
-
-    Across every tenant by default; pass tenant_id + tenant_schema (both --
-    payment_orders keys off the former, seat_topup_orders/monthly_invoices
-    off the latter) to scope this to one company's financial history
-    instead, for the company profile page."""
-    try:
-        conn = get_master_db()
-        cur = conn.cursor(buffered=True)
-        if tenant_id is not None:
-            cur.execute(
-                "SELECT company_name, subdomain, employee_count, amount_paise, status, "
-                "razorpay_order_id, razorpay_payment_id, created_at, paid_at, "
-                "admin_username, admin_email "
-                "FROM payment_orders WHERE tenant_id=%s ORDER BY created_at DESC LIMIT %s",
-                (tenant_id, limit)
-            )
-        else:
-            cur.execute(
-                "SELECT company_name, subdomain, employee_count, amount_paise, status, "
-                "razorpay_order_id, razorpay_payment_id, created_at, paid_at, "
-                "admin_username, admin_email "
-                "FROM payment_orders ORDER BY created_at DESC LIMIT %s",
-                (limit,)
-            )
-        signup_payments = [
-            {
-                "company_name": r[0], "subdomain": r[1], "employee_count": r[2],
-                "amount_display": format_price_inr(r[3]), "status": r[4],
-                "is_demo": (r[5] or "").startswith("demo_order_"),
-                "order_id": r[5], "payment_id": r[6], "created_at": r[7], "paid_at": r[8],
-                "admin_username": r[9], "admin_email": r[10], "kind": "Signup",
-            }
-            for r in cur.fetchall()
-        ]
-
-        if tenant_schema is not None:
-            cur.execute(
-                "SELECT t.company_name, t.subdomain, s.seats_purchased, s.amount_paise, s.status, "
-                "s.razorpay_order_id, s.razorpay_payment_id, s.created_at, s.paid_at, s.requested_by, "
-                "s.company_name AS fallback_company_name "
-                "FROM seat_topup_orders s LEFT JOIN tenants t ON t.db_name = s.tenant_schema "
-                "WHERE s.tenant_schema=%s ORDER BY s.created_at DESC LIMIT %s",
-                (tenant_schema, limit)
-            )
-        else:
-            cur.execute(
-                "SELECT t.company_name, t.subdomain, s.seats_purchased, s.amount_paise, s.status, "
-                "s.razorpay_order_id, s.razorpay_payment_id, s.created_at, s.paid_at, s.requested_by, "
-                "s.company_name AS fallback_company_name "
-                "FROM seat_topup_orders s LEFT JOIN tenants t ON t.db_name = s.tenant_schema "
-                "ORDER BY s.created_at DESC LIMIT %s",
-                (limit,)
-            )
-        seat_payments = [
-            {
-                "company_name": r[0] or r[10], "subdomain": r[1] or "—", "employee_count": r[2],
-                "amount_display": format_price_inr(r[3]), "status": r[4],
-                "is_demo": (r[5] or "").startswith("demo_seat_order_"),
-                "order_id": r[5], "payment_id": r[6], "created_at": r[7], "paid_at": r[8],
-                "admin_username": r[9], "admin_email": "—", "kind": "Seat Top-up",
-            }
-            for r in cur.fetchall()
-        ]
-        if tenant_schema is not None:
-            cur.execute(
-                "SELECT t.company_name, t.subdomain, m.employee_count, m.amount_paise, m.status, "
-                "m.razorpay_subscription_id, m.razorpay_payment_id, m.created_at, m.company_name AS fallback_company_name "
-                "FROM monthly_invoices m LEFT JOIN tenants t ON t.db_name = m.tenant_schema "
-                "WHERE m.tenant_schema=%s ORDER BY m.created_at DESC LIMIT %s",
-                (tenant_schema, limit)
-            )
-        else:
-            cur.execute(
-                "SELECT t.company_name, t.subdomain, m.employee_count, m.amount_paise, m.status, "
-                "m.razorpay_subscription_id, m.razorpay_payment_id, m.created_at, m.company_name AS fallback_company_name "
-                "FROM monthly_invoices m LEFT JOIN tenants t ON t.db_name = m.tenant_schema "
-                "ORDER BY m.created_at DESC LIMIT %s",
-                (limit,)
-            )
-        auto_debit_payments = [
-            {
-                "company_name": r[0] or r[8], "subdomain": r[1] or "—", "employee_count": r[2],
-                "amount_display": format_price_inr(r[3]), "status": r[4],
-                # Prefix-based, same convention as the signup/seat-topup
-                # sources above -- checking the subscription_id (not
-                # payment_id, which is a hardcoded "demo_payment" literal in
-                # blueprints/auto_debit.py's _maybe_simulate_demo_charge and
-                # has no structural relationship to the subscription itself).
-                "is_demo": (r[5] or "").startswith("demo_sub_"),
-                "order_id": r[5], "payment_id": r[6], "created_at": r[7], "paid_at": r[7],
-                "admin_username": "—", "admin_email": "—", "kind": "Auto-Debit",
-            }
-            for r in cur.fetchall()
-        ]
-        cur.close()
-        conn.close()
-
-        merged = signup_payments + seat_payments + auto_debit_payments
-        # coerce_datetime: created_at/paid_at come back as real datetimes
-        # from Postgres but as plain strings under the local SQLite
-        # fallback (see its docstring) -- sorting a mix of the two raises
-        # TypeError and this whole feed goes blank (caught by the except
-        # below), so every value is normalized before comparison.
-        merged.sort(
-            key=lambda p: coerce_datetime(p["paid_at"]) or coerce_datetime(p["created_at"]) or datetime.datetime.min,
-            reverse=True,
-        )
-        return merged[:limit]
-    except Exception as exc:
-        app_log.warning("platform_admin: payment history lookup failed: %s", exc)
-        return []
+    """Thin wrapper over utils/payment_history.py's get_payment_history() --
+    the merge-three-tables-into-one-feed logic used to live here, now shared
+    with the Company Admin Profile page's Payment History tab so the two
+    can't drift on what "this tenant's payment history" means. Kept as a
+    wrapper (rather than repointing every call site) purely to avoid
+    touching this file's existing call sites' argument shape."""
+    return get_payment_history(tenant_id=tenant_id, tenant_schema=tenant_schema, limit=limit)["payments"]
 
 
 def _recent_leads(limit=20):
@@ -623,17 +512,6 @@ def platform_admin_dashboard():
         # else just gets a connection timeout, same as typing the URL in
         # directly would.
         grafana_url=os.environ.get("GRAFANA_URL", "").rstrip("/") or None,
-    )
-
-
-def _csv_response(filename, header, rows):
-    buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerow(header)
-    writer.writerows(rows)
-    return Response(
-        buf.getvalue(), mimetype="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -1482,8 +1360,6 @@ def platform_admin_audit_log():
 # queue -- distinct from the real-time chat below, which has no status or
 # history a report could be built on.
 
-_TICKET_STATUSES = ("open", "in_progress", "resolved", "closed")
-_TICKET_PRIORITIES = ("low", "normal", "high", "urgent")
 
 
 def _fetch_tenant(tenant_id):
@@ -1763,20 +1639,32 @@ def platform_admin_add_ticket_comment(ticket_id):
 
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    cur.execute("SELECT 1 FROM tenant_support_tickets WHERE id=%s", (ticket_id,))
-    if not cur.fetchone():
+    cur.execute("SELECT tenant_id, subject FROM tenant_support_tickets WHERE id=%s", (ticket_id,))
+    ticket_row = cur.fetchone()
+    if not ticket_row:
         cur.close()
         conn.close()
         flash("Ticket not found.", "error")
         return redirect("/super_admin/tickets")
+    tenant_id, subject = ticket_row
     cur.execute(
-        "INSERT INTO tenant_ticket_comments (ticket_id, author, comment) VALUES (%s,%s,%s)",
+        "INSERT INTO tenant_ticket_comments (ticket_id, author, comment, author_kind) VALUES (%s,%s,%s,'platform_admin')",
         (ticket_id, session.get("platform_admin_username"), comment),
     )
     cur.execute("UPDATE tenant_support_tickets SET updated_at=NOW() WHERE id=%s", (ticket_id,))
     conn.commit()
     cur.close()
     conn.close()
+    # Notify the company admin in-app -- resolved via the same
+    # tenant_id->schema lookup the chat feature already uses below, since
+    # this route (like every /super_admin/* route) has no g.tenant_db of
+    # its own for _create_notification()'s default path to fall back on.
+    schema_row = _tenant_schema_for_id(tenant_id)
+    if schema_row:
+        schema_name, _company_name = schema_row
+        _create_notification(
+            "admin", f"Support ticket reply: {subject}", comment, tenant_schema=schema_name,
+        )
     flash("Comment added.", "success")
     return redirect(f"/super_admin/tickets/{ticket_id}")
 
