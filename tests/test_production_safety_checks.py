@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from extensions import check_production_safety, check_secret_key_configured
+from extensions import check_production_safety, check_secret_key_configured, check_redis_requirement
 
 
 def _fake_logger():
@@ -152,37 +152,120 @@ class TestAiAssistantProductionCheck:
         assert logger.critical.call_count == 2
 
 
-class TestRedisProductionCheck:
-    """Unlike the ClamAV/AI-assistant checks above (a feature silently
-    doesn't work), a missing REDIS_HOST makes a security control silently
-    weaker than it looks: utils/waf.py's auto-ban breach counter and
-    Flask-Limiter both fall back to per-worker in-memory storage, so under
-    multiple gunicorn workers the effective ban/rate threshold is the
-    configured one times the worker count."""
+class TestRedisRequirementCheck:
+    """check_redis_requirement() replaces what used to be a warning-only
+    check_production_safety() branch. Unlike the ClamAV/AI-assistant checks
+    above (a feature silently doesn't work), a missing REDIS_HOST makes a
+    security control silently weaker than it looks: utils/waf.py's
+    auto-ban breach counter and Flask-Limiter both fall back to per-worker
+    in-memory storage, so under multiple gunicorn workers the effective
+    ban/rate threshold is the configured one times the worker count.
+    REQUIRE_REDIS now makes the response to that an explicit choice
+    instead of always just a warning -- default true (hard-fail) in
+    production, default false (warn-only) elsewhere, either overridable."""
 
-    def test_production_with_no_redis_host_warns_critically(self):
+    def test_redis_configured_is_always_silent(self):
+        """Whatever REQUIRE_REDIS says, an actually-configured Redis never
+        warns or raises -- there's nothing to flag."""
         logger = _fake_logger()
-        check_production_safety("production", "clamav.internal", redis_configured=False, logger=logger)
+        check_redis_requirement("production", redis_configured=True, logger=logger)
+        logger.critical.assert_not_called()
+        logger.warning.assert_not_called()
+
+    def test_production_default_with_no_redis_refuses_to_boot(self):
+        """require_redis=None (REQUIRE_REDIS unset) in production defaults
+        to required -- same fail-secure posture as check_secret_key_configured's
+        SECRET_KEY check."""
+        logger = _fake_logger()
+        with pytest.raises(RuntimeError, match="REDIS_HOST"):
+            check_redis_requirement("production", redis_configured=False, logger=logger)
         logger.critical.assert_called_once()
         assert "REDIS_HOST" in logger.critical.call_args[0][0]
 
-    def test_production_with_redis_configured_is_silent(self):
+    def test_development_default_with_no_redis_only_warns(self):
+        """require_redis=None (REQUIRE_REDIS unset) outside production
+        defaults to NOT required -- the normal local-dev/test case, must
+        not raise."""
         logger = _fake_logger()
-        check_production_safety("production", "clamav.internal", redis_configured=True, logger=logger)
+        check_redis_requirement("development", redis_configured=False, logger=logger)
+        logger.critical.assert_not_called()
+        logger.warning.assert_called_once()
+
+    def test_require_redis_true_string_in_development_still_refuses_to_boot(self):
+        """An explicit REQUIRE_REDIS=true overrides the app_env-based
+        default even in development -- the flag means what it says
+        regardless of environment."""
+        logger = _fake_logger()
+        with pytest.raises(RuntimeError, match="REDIS_HOST"):
+            check_redis_requirement("development", redis_configured=False, require_redis="true", logger=logger)
+
+    def test_require_redis_false_string_in_production_only_warns(self):
+        """An explicit REQUIRE_REDIS=false overrides the production
+        default -- the documented opt-out for a deliberate single-worker
+        production deployment."""
+        logger = _fake_logger()
+        check_redis_requirement("production", redis_configured=False, require_redis="false", logger=logger)
+        logger.critical.assert_not_called()
+        logger.warning.assert_called_once()
+        assert "REQUIRE_REDIS=false" in logger.warning.call_args[0][0]
+
+    def test_require_redis_false_variants_all_parse_as_false(self):
+        """Matches the same falsy-string convention every other boolean-
+        shaped env var in this module uses (MALWARE_SCAN_ENABLED, etc.)."""
+        logger = _fake_logger()
+        for falsy in ("false", "False", "0", "no", " FALSE "):
+            logger.reset_mock()
+            check_redis_requirement("production", redis_configured=False, require_redis=falsy, logger=logger)
+            logger.critical.assert_not_called()
+
+    def test_require_redis_as_real_bool_true_refuses_to_boot(self):
+        """Callers that already parsed a bool (rather than the raw env
+        string) must work too -- not just string-shaped input."""
+        logger = _fake_logger()
+        with pytest.raises(RuntimeError, match="REDIS_HOST"):
+            check_redis_requirement("development", redis_configured=False, require_redis=True, logger=logger)
+
+    def test_default_logger_is_extensions_app_log(self):
+        """No logger passed -- must not raise a NameError/AttributeError
+        finding the default logger, matching the module's other checks."""
+        check_redis_requirement("development", redis_configured=True)
+
+
+class TestDbSslmodeProductionCheck:
+    """database.py's DB_SSLMODE defaults to 'prefer', which encrypts the
+    Postgres connection when the server supports TLS but silently degrades
+    to plaintext otherwise. This check surfaces that at boot for a
+    production deployment rather than leaving it to be discovered as a
+    network capture -- warns rather than refusing to start, since an
+    operator may have deliberately chosen no TLS (e.g. same private
+    network, no other option)."""
+
+    def test_production_with_default_prefer_warns_critically(self):
+        logger = _fake_logger()
+        check_production_safety("production", "clamav.internal", db_sslmode="prefer", logger=logger)
+        logger.critical.assert_called_once()
+        assert "DB_SSLMODE" in logger.critical.call_args[0][0]
+
+    def test_production_with_require_is_silent(self):
+        logger = _fake_logger()
+        check_production_safety("production", "clamav.internal", db_sslmode="require", logger=logger)
         logger.critical.assert_not_called()
 
-    def test_development_with_no_redis_host_is_silent(self):
-        """No Redis in local dev/test is the normal, documented case --
-        must not warn."""
+    def test_production_with_verify_full_is_silent(self):
         logger = _fake_logger()
-        check_production_safety("development", "clamav.internal", redis_configured=False, logger=logger)
+        check_production_safety("production", "clamav.internal", db_sslmode="verify-full", logger=logger)
         logger.critical.assert_not_called()
 
-    def test_default_assumes_configured_so_existing_callers_stay_silent(self):
-        """redis_configured defaults to True, matching malware_scan_enabled/
-        ai_assistant_configured's own defaults -- every existing call site/
-        test that doesn't pass it explicitly keeps behaving exactly as
-        before this check was added."""
+    def test_development_with_default_prefer_is_silent(self):
+        logger = _fake_logger()
+        check_production_safety("development", "clamav.internal", db_sslmode="prefer", logger=logger)
+        logger.critical.assert_not_called()
+
+    def test_default_assumes_require_so_existing_callers_stay_silent(self):
+        """db_sslmode defaults to 'require', matching every other
+        production-safety flag's fail-quiet default -- every existing call
+        site/test that doesn't pass it explicitly keeps behaving exactly
+        as before this check was added."""
         logger = _fake_logger()
         check_production_safety("production", "clamav.internal", logger=logger)
         logger.critical.assert_not_called()

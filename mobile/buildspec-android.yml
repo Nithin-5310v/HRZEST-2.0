@@ -1,0 +1,68 @@
+version: 0.2
+# CodeBuild buildspec -- produces mobile/'s signed release AAB.
+# See MOBILE_AWS_BUILD.md for the one-time setup this depends on
+# (terraform/mobile_codebuild.tf's Secrets Manager secret must already be
+# populated with the real keystore before this can succeed).
+
+env:
+  variables:
+    ANDROID_SDK_ROOT: "/root/android-sdk"
+    ANDROID_HOME: "/root/android-sdk"
+    # compileSdkVersion/buildToolsVersion Expo SDK 54 / RN 0.76+ expects.
+    # Bump alongside mobile/package.json's expo/react-native versions.
+    ANDROID_PLATFORM: "android-35"
+    ANDROID_BUILD_TOOLS: "35.0.0"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+      java: corretto17
+    commands:
+      - echo "Installing Android SDK command-line tools..."
+      - mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+      - curl -sSL -o /tmp/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+      - unzip -q /tmp/cmdline-tools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
+      - mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+      - export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+      - yes | sdkmanager --licenses > /dev/null
+      - sdkmanager --install "platform-tools" "platforms;${ANDROID_PLATFORM}" "build-tools;${ANDROID_BUILD_TOOLS}" > /dev/null
+
+  pre_build:
+    commands:
+      - export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+      - cd mobile
+      - npm ci
+      - echo "Fetching Android signing keystore from Secrets Manager..."
+      - >
+        aws secretsmanager get-secret-value --secret-id "$SIGNING_SECRET_ID"
+        --query SecretString --output text > /tmp/signing-secret.json
+      - export MYAPP_UPLOAD_STORE_PASSWORD=$(python3 -c "import json;print(json.load(open('/tmp/signing-secret.json'))['KEYSTORE_STORE_PASSWORD'])")
+      - export MYAPP_UPLOAD_KEY_PASSWORD=$(python3 -c "import json;print(json.load(open('/tmp/signing-secret.json'))['KEYSTORE_KEY_PASSWORD'])")
+      - export MYAPP_UPLOAD_KEY_ALIAS=$(python3 -c "import json;print(json.load(open('/tmp/signing-secret.json'))['KEYSTORE_KEY_ALIAS'])")
+      - python3 -c "import json,base64;d=json.load(open('/tmp/signing-secret.json'));open('/tmp/upload-key.keystore','wb').write(base64.b64decode(d['KEYSTORE_BASE64']))"
+      - export MYAPP_UPLOAD_STORE_FILE=/tmp/upload-key.keystore
+      - rm -f /tmp/signing-secret.json
+      - keytool -list -keystore "$MYAPP_UPLOAD_STORE_FILE" -storepass "$MYAPP_UPLOAD_STORE_PASSWORD" -alias "$MYAPP_UPLOAD_KEY_ALIAS" > /dev/null
+      - echo "Keystore verified OK."
+
+  build:
+    commands:
+      - npx expo prebuild --platform android --clean --non-interactive
+      - node scripts/patch-android-release-signing.js
+      - cd android
+      - chmod +x gradlew
+      - ./gradlew bundleRelease --no-daemon
+      - cd ..
+      - mkdir -p ../build-output
+      - cp android/app/build/outputs/bundle/release/app-release.aab ../build-output/hrzest-$(node -p "require('./app.json').expo.version")-$(date +%Y%m%d%H%M%S).aab
+
+  post_build:
+    commands:
+      - rm -f /tmp/upload-key.keystore
+      - echo "Build complete -- AAB in build-output/, uploaded to S3 via the artifacts config."
+
+artifacts:
+  files:
+    - 'build-output/**/*'
+  discard-paths: no

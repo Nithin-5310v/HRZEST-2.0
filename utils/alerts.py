@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """Real-time security alerting -- Slack/Discord webhook delivery.
 
-Wired into extensions.log_security_event(): any event logged at ERROR
-severity is also pushed here, so this never runs on the hot path for
-routine INFO/WARNING logging -- only for events someone decided are worth
-paging a human for (account lockouts, malware detections, injection-shaped
-input, privilege-escalation attempts).
+Wired into extensions.log_security_event(): any event logged at ERROR or
+CRITICAL severity is also pushed here, so this never runs on the hot path
+for routine INFO/WARNING logging -- only for events someone decided are
+worth paging a human for (account lockouts, malware detections,
+injection-shaped input, privilege-escalation attempts, honeypot trap
+hits).
 
 Delivery is fire-and-forget on a background thread (same pattern as
 send_email_async in utils/email_utils.py) -- a webhook outage or a slow

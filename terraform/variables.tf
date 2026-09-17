@@ -32,7 +32,7 @@ variable "trusted_admin_cidrs" {
     home IP, or VPN range as "x.x.x.x/32" entries. Intentionally has no
     default: a filtered port open to 0.0.0.0/0 isn't filtered at all.
   EOT
-  type = list(string)
+  type        = list(string)
 }
 
 variable "db_name" {
@@ -56,7 +56,7 @@ variable "db_password" {
 variable "db_instance_class" {
   description = "RDS instance size"
   type        = string
-  default     = "db.t4g.micro"
+  default     = "db.t3.micro"
 }
 
 variable "db_allocated_storage" {

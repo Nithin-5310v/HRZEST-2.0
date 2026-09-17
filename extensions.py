@@ -92,15 +92,19 @@ def log_security_event(event_type: str, message: str, level: str = "WARNING", **
         extra={"security_event": True, "event_type": event_type,
                "ip": ip, "path": path, "method": method, **safe_fields},
     )
-    # ERROR-level security events get a real-time webhook alert on top of
-    # the log line — lockouts, malware detections, injection-shaped input,
-    # privilege-escalation attempts. INFO/WARNING stay log-only; paging a
-    # human for every anonymous 401 would make the channel worth ignoring.
-    # Lazy import: utils/alerts.py imports app_log from this module, so
-    # importing it at module load time here would be circular.
-    if level.upper() == "ERROR":
+    # ERROR/CRITICAL security events get a real-time webhook alert on top
+    # of the log line — lockouts, malware detections, injection-shaped
+    # input, privilege-escalation attempts, and honeypot trap hits
+    # (blueprints/honeypot_routes.py logs those at CRITICAL specifically
+    # so they're never mistaken for a routine application error). INFO/
+    # WARNING stay log-only; paging a human for every anonymous 401 would
+    # make the channel worth ignoring. Lazy import: utils/alerts.py
+    # imports app_log from this module, so importing it at module load
+    # time here would be circular.
+    upper_level = level.upper()
+    if upper_level in ("ERROR", "CRITICAL"):
         from utils.alerts import send_security_alert
-        send_security_alert(event_type, message, level="ERROR",
+        send_security_alert(event_type, message, level=upper_level,
                             ip=ip, path=path, method=method, **fields)
 
     # Every event (not just ERROR) also lands in the security_events table,
@@ -174,6 +178,68 @@ def check_secret_key_configured(app_env, secret_key_env_value, logger=None):
 
 
 check_secret_key_configured(os.environ.get("APP_ENV", "production"), os.environ.get("SECRET_KEY", ""))
+
+
+def check_redis_requirement(app_env, redis_configured, require_redis=None, logger=None):
+    """Pure-ish (env values passed in, not read internally), same pattern as
+    check_secret_key_configured() above -- unit-tested directly without
+    reloading this module, see tests/test_production_safety_checks.py.
+
+    Without REDIS_HOST, utils/waf.py's auto-ban breach counter and Flask-
+    Limiter's rate limiter both fall back to their own per-worker in-memory
+    storage -- a complete, working fallback, not a stub, but under N
+    gunicorn workers each enforces independently, so the effective ban/rate
+    threshold an attacker actually has to clear is N times the configured
+    one. That used to be a boot-time warning only, regardless of intent --
+    this makes it an explicit choice instead: REQUIRE_REDIS defaults to
+    true in production (refuse to start without Redis, same fail-secure
+    posture as check_secret_key_configured's SECRET_KEY check) and false
+    everywhere else, but can be set either way to override the default --
+    e.g. REQUIRE_REDIS=false for a deployment that deliberately runs a
+    single gunicorn worker and has no need for a shared backend.
+
+    require_redis: None (env var unset -- use the app_env-based default),
+    or a "true"/"false"-shaped string (as read straight from os.environ),
+    or an actual bool (for callers/tests that already parsed it).
+    """
+    logger = logger or app_log
+    if isinstance(require_redis, str):
+        effective_require = require_redis.strip().lower() not in ("false", "0", "no")
+    elif require_redis is None:
+        effective_require = (app_env == "production")
+    else:
+        effective_require = bool(require_redis)
+
+    if redis_configured:
+        return
+
+    if effective_require:
+        logger.critical(
+            "FATAL: REDIS_HOST is not set -- refusing to start. Without a shared "
+            "Redis backend, the WAF auto-ban breach counter and Flask-Limiter's "
+            "rate limiter both fall back to per-worker in-memory storage, "
+            "silently multiplying the effective ban/rate threshold by the "
+            "gunicorn worker count. Set REDIS_HOST (and REDIS_PORT/REDIS_PASSWORD "
+            "if needed), or set REQUIRE_REDIS=false to intentionally boot "
+            "without Redis (e.g. a deliberate single-worker deployment)."
+        )
+        raise RuntimeError(
+            "REDIS_HOST is not set and REQUIRE_REDIS is not false -- refusing to "
+            "start (fail-secure). Set REDIS_HOST, or set REQUIRE_REDIS=false to "
+            "opt out."
+        )
+    logger.warning(
+        "REDIS_HOST is not set (REQUIRE_REDIS=false) -- booting anyway. The WAF "
+        "auto-ban breach counter and the rate limiter will both run in "
+        "per-worker, in-memory-only mode: fine for a single gunicorn worker, but "
+        "under multiple workers each enforces independently, multiplying the "
+        "effective ban/rate threshold by the worker count."
+    )
+
+
+check_redis_requirement(os.environ.get("APP_ENV", "production"),
+                        bool(os.environ.get("REDIS_HOST", "").strip()),
+                        require_redis=os.environ.get("REQUIRE_REDIS"))
 
 
 # ── Flask app ─────────────────────────────────────────────────────────────────
@@ -279,7 +345,8 @@ CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
 # (see the StreamHandler setup at the top of this file), so it can't be
 # silently swallowed the way a log line at a filtered level could.
 def check_production_safety(app_env, clamav_host, malware_scan_enabled=True,
-                            ai_assistant_configured=True, redis_configured=True, logger=None):
+                            ai_assistant_configured=True,
+                            db_sslmode="require", logger=None):
     """Pure-ish (env values passed in, not read internally) so this can be
     unit-tested directly without reloading this module or its side effects
     (CORS registration, rate limiter, etc.) against the shared Flask app
@@ -327,28 +394,30 @@ def check_production_safety(app_env, clamav_host, malware_scan_enabled=True,
             "of those three env vars, or ignore this if the assistant is "
             "intentionally disabled for this deployment."
         )
-    # Unlike the two checks above, this isn't "a feature quietly doesn't
-    # work" -- it's a security control quietly weaker than it looks. Without
-    # REDIS_HOST, utils/waf.py's auto-ban breach counter (and Flask-
-    # Limiter's rate limiter) each fall back to their own per-worker
-    # in-memory storage instead of the shared Redis one -- a complete,
-    # working fallback, not a stub, but under N gunicorn workers each
-    # enforces independently, so the effective ban/rate threshold an
-    # attacker actually has to clear is N times the configured one. A
-    # single-worker deployment is unaffected either way, but nothing here
-    # can tell the difference from an env var alone, so this warns
-    # regardless of worker count rather than risk missing the multi-worker
-    # case.
-    if not redis_configured:
+    # database.py's DB_SSLMODE defaults to "prefer" -- it encrypts the
+    # connection whenever the server supports TLS but silently degrades to
+    # plaintext otherwise, with nothing here able to tell which happened
+    # from an env var alone. RDS always supports TLS, so a production
+    # deployment left on the default gets encryption today but has no
+    # actual guarantee of it -- a misconfigured security group, a
+    # non-RDS Postgres, or a downgrade attack would all fail open to
+    # plaintext instead of failing the connection. "require" (or stricter:
+    # verify-ca/verify-full with DB_SSLROOTCERT) makes that a hard
+    # connection failure instead of a silent downgrade. Warns rather than
+    # refusing to start, same as the Redis check above -- an operator who
+    # already made this tradeoff deliberately (e.g. a private-network-only
+    # Postgres with no TLS configured at all) shouldn't be blocked from
+    # booting over it.
+    if db_sslmode not in ("require", "verify-ca", "verify-full"):
         logger.critical(
-            "APP_ENV=production but REDIS_HOST is not set. The WAF auto-ban "
-            "breach counter and the rate limiter will both fall back to "
-            "per-worker in-memory storage instead of a shared Redis backend -- "
-            "under multiple gunicorn workers, this multiplies the effective "
-            "ban/rate threshold by the worker count, letting an attacker make "
-            "that many more attempts before being throttled or banned. Set "
-            "REDIS_HOST (and REDIS_PORT/REDIS_PASSWORD if needed), or ignore "
-            "this if this deployment intentionally runs a single worker."
+            "APP_ENV=production but DB_SSLMODE=%s (default is 'prefer', which "
+            "silently falls back to a plaintext DB connection if TLS isn't "
+            "available, instead of failing). Set DB_SSLMODE=require (or "
+            "verify-full with DB_SSLROOTCERT pointing at the RDS CA bundle) "
+            "for a production Postgres connection, or ignore this if this "
+            "deployment intentionally has no TLS between app and database "
+            "(e.g. both on the same private network with no other option).",
+            db_sslmode,
         )
 
 
@@ -360,7 +429,7 @@ _ai_assistant_configured_at_boot = bool(
 )
 check_production_safety(_app_env, os.environ.get("CLAMAV_HOST"), _malware_scan_enabled_at_boot,
                         _ai_assistant_configured_at_boot,
-                        redis_configured=bool(os.environ.get("REDIS_HOST", "").strip()))
+                        db_sslmode=os.environ.get("DB_SSLMODE", "prefer").strip())
 
 
 # ── Redis (optional shared cache — rate limiter + WAF auto-ban counters) ──────

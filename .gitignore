@@ -14,6 +14,11 @@ static/qrcodes/
 mobile/node_modules/
 mobile/.expo/
 mobile/dist/
+# Generated fresh by `expo prebuild` on every CodeBuild run (see
+# mobile/buildspec-android.yml) -- never committed, this stays a managed
+# Expo workflow rather than a permanently-ejected/bare one.
+mobile/android/
+mobile/ios/
 static/employee_docs/
 static/company_logos/
 static/id_card_templates/
@@ -36,3 +41,7 @@ hashi/
 blueprints/static/
 pg_data/
 face_models/
+.venv/
+.venv_test/
+.claude/
+terraform/tfplan*

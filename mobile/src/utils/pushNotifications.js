@@ -15,18 +15,32 @@ import { registerEmployeePushToken, registerAdminPushToken } from '../api/client
 // Calling this repeatedly (setNotificationHandler included) is harmless --
 // it's idempotent, so re-registering on every login is the simplest
 // correct behavior rather than tracking "have we already done this."
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+//
+// Expo Go itself (not just "no EAS project configured") is a second,
+// separate reason this can't run: since SDK 53, expo-notifications throws
+// immediately on remote-push APIs (even just setNotificationHandler's own
+// internal listener setup) when running inside the generic Expo Go client
+// -- "Use a development build instead of Expo Go" -- unrelated to whether
+// a projectId exists. Constants.appOwnership is 'expo' only inside Expo
+// Go; undefined/'standalone' in a real dev-client or store build, where
+// this works normally with no other code changes needed.
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
+
+if (!IS_EXPO_GO) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 export async function registerForPushNotifications(user) {
   if (!user || (user.role !== 'employee' && user.role !== 'admin')) return;
+  if (IS_EXPO_GO) return;
 
   const projectId = Constants.expoConfig?.extra?.eas?.projectId;
   if (!projectId) return;
