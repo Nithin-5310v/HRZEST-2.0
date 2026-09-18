@@ -6,7 +6,7 @@ from flask import Blueprint, request, session, redirect, flash, send_file, jsoni
 from extensions import app, app_log
 from database import get_db_connection, transaction
 from werkzeug.utils import secure_filename
-from utils.auth import admin_required, enforce_ownership, api_required, api_role_required, employee_api_required
+from utils.auth import admin_required, employee_required, enforce_ownership, api_required, api_role_required, employee_api_required
 from utils.helpers import tpath, _audit, _validate_upload, _safe_referrer_redirect, hr_scope_denied, _create_notification
 from utils.storage import save_private, open_private, delete_private
 
@@ -149,10 +149,9 @@ def upload_my_document():
 
 
 @documents_bp.route("/delete_my_document/<int:did>", methods=["POST"])
+@employee_required
 def delete_my_document(did):
-    emp_id = session.get("employee_id")
-    if not emp_id:
-        return redirect(tpath("/login"))
+    emp_id = session["employee_id"]
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, stored_name FROM employee_documents WHERE id=%s AND employee_id=%s", (did, emp_id))
