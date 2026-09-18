@@ -23,8 +23,14 @@ from utils.razorpay_utils import verify_webhook_signature
 
 webhooks_bp = Blueprint("webhooks", __name__)
 
-# {(provider, event): handler(payload: dict)} -- populated by each feature
-# blueprint at import time via register_webhook_handler() below.
+# {(provider, event): [handler(payload: dict), ...]} -- populated by each
+# feature blueprint at import time via register_webhook_handler() below.
+# A list, not a single callable, because more than one feature can care
+# about the same event (e.g. "payment.captured" fires for a dunning
+# repayment, a signup order, AND a seat top-up -- each handler is expected
+# to check its own table and no-op on a non-match, per this module's own
+# original design intent). A bare dict-of-callables would let a second
+# registration for the same key silently replace the first with no error.
 _HANDLERS = {}
 
 # provider -> callable(raw_body: bytes, request) -> bool. Each provider
@@ -42,8 +48,12 @@ def register_webhook_handler(provider: str, event: str, handler):
     """Registers `handler(payload: dict)` to run when POST /webhooks/<provider>
     receives an `event`-named event, after signature verification passes.
     Call this at blueprint import time (module level) -- see
-    blueprints/auto_debit.py."""
-    _HANDLERS[(provider, event)] = handler
+    blueprints/auto_debit.py. Multiple handlers may register for the same
+    (provider, event) pair -- all of them run; each is expected to check
+    whether the payload is actually theirs (e.g. by order-id table lookup)
+    and no-op if not, same as blueprints/billing_dunning.py's existing
+    payment.captured handler already does for orders it doesn't recognize."""
+    _HANDLERS.setdefault((provider, event), []).append(handler)
 
 
 @webhooks_bp.route("/webhooks/<provider>", methods=["POST"])
@@ -73,8 +83,9 @@ def receive_webhook(provider):
 
     payload = request.get_json(silent=True) or {}
     event = payload.get("event", "")
-    handler = _HANDLERS.get((provider, event))
-    if handler:
+    handlers = _HANDLERS.get((provider, event), [])
+    failed = False
+    for handler in handlers:
         try:
             handler(payload)
         except Exception:
@@ -83,10 +94,18 @@ def receive_webhook(provider):
             # log before re-raising so Flask's normal error handling still
             # returns 500 (providers retry on that), but the failure is
             # now visible to monitoring instead of silently disappearing.
+            # Every OTHER registered handler for this event still runs
+            # first -- one feature's bug shouldn't stop an unrelated
+            # feature's handler for the same event from doing its job,
+            # and each handler is independently idempotent so a provider
+            # retry of the whole event (triggered by the raise below) is
+            # always safe even for the handlers that already succeeded.
             app_log.error(
                 "webhooks.handler_failed: provider=%s event=%s", provider, event, exc_info=True
             )
-            raise
+            failed = True
+    if failed:
+        raise RuntimeError(f"webhooks: one or more handlers failed for {provider}.{event}")
     # 200 regardless of whether an event had a registered handler --
     # an unhandled-but-authentic event (one we simply don't act on yet)
     # is not a delivery failure Razorpay should retry.

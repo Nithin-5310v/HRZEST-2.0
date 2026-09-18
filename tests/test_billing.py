@@ -354,3 +354,93 @@ class TestVerifyPayment:
             assert not provision_calls, "the loser of the race must never call provision_tenant"
         finally:
             _cleanup(db_engine, application_id=application_id)
+
+
+class TestSignupPaymentCapturedWebhook:
+    """_handle_signup_payment_captured() -- the server-side safety net for
+    when a browser's post-checkout callback to /api/billing/verify_payment
+    never reaches the server (closed tab, network blip, ad-blocker) even
+    though Razorpay itself captured the payment. Dispatched via the shared
+    POST /webhooks/razorpay receiver (blueprints/webhooks.py), signature
+    already verified upstream by that route -- these tests mock that
+    verification the same way tests/test_webhooks.py does, and never touch
+    blueprints.billing.verify_payment_signature (irrelevant to this path)."""
+
+    def _post_payment_captured(self, client, monkeypatch, order_id, payment_id="pay_webhook_ok"):
+        monkeypatch.setattr("blueprints.webhooks.verify_webhook_signature", lambda *a, **k: True)
+        return client.post("/webhooks/razorpay", json={
+            "event": "payment.captured",
+            "payload": {"payment": {"entity": {"order_id": order_id, "id": payment_id}}},
+        })
+
+    def test_provisions_an_order_the_browser_callback_never_reached(self, client, db_engine, monkeypatch):
+        provision_calls = []
+
+        def fake_provision_tenant(company_name, subdomain, admin_username, admin_password_hash, admin_email, **kw):
+            provision_calls.append({"subdomain": subdomain})
+            return True, None, f"http://testserver/{subdomain}/login", f"http://testserver/{subdomain}/checkin"
+
+        monkeypatch.setattr("blueprints.org.provision_tenant", fake_provision_tenant)
+        monkeypatch.setattr("blueprints.org.send_payment_confirmation_email", lambda *a, **k: None)
+
+        application_id, fields = _insert_application(db_engine)
+        order_id = "order_webhook_" + secrets.token_hex(6)
+        # Left at 'created' -- simulates the browser's callback never having
+        # arrived at all, unlike every verify_payment() test above.
+        _insert_payment_order(db_engine, application_id, fields, order_id, status="created")
+
+        db_name = "att_" + fields["subdomain"].replace("-", "_")
+        cur = db_engine.cursor()
+        cur.execute(
+            "INSERT INTO att_master.tenants (company_name, subdomain, db_name, admin_email, plan, status) "
+            "VALUES (%s,%s,%s,%s,'per_employee','active') RETURNING id",
+            (fields["company_name"], fields["subdomain"], db_name, fields["admin_email"]),
+        )
+        tenant_id = cur.fetchone()[0]
+        cur.close()
+
+        try:
+            resp = self._post_payment_captured(client, monkeypatch, order_id)
+            assert resp.status_code == 200
+            assert len(provision_calls) == 1
+            assert provision_calls[0]["subdomain"] == fields["subdomain"]
+
+            cur = db_engine.cursor()
+            cur.execute(
+                "SELECT status, tenant_id FROM att_master.payment_orders WHERE razorpay_order_id=%s", (order_id,)
+            )
+            assert cur.fetchone() == ("provisioned", tenant_id)
+            cur.close()
+        finally:
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM att_master.tenants WHERE id=%s", (tenant_id,))
+            cur.close()
+            _cleanup(db_engine, application_id=application_id)
+
+    def test_unrecognized_order_id_noops_without_error(self, client, monkeypatch):
+        """An order id belonging to a seat top-up or dunning payment (a
+        different order-id space entirely) must not raise -- same
+        no-op-on-mismatch contract billing_dunning.py's own handler for
+        this event already has."""
+        resp = self._post_payment_captured(client, monkeypatch, "order_not_a_signup_" + secrets.token_hex(6))
+        assert resp.status_code == 200
+
+    def test_noop_once_already_provisioned_by_the_browser_callback(self, client, db_engine, monkeypatch):
+        """The normal case -- verify_payment() already finished the job
+        before the webhook arrives. Must not attempt to re-provision."""
+        provision_calls = []
+        monkeypatch.setattr(
+            "blueprints.org.provision_tenant",
+            lambda *a, **k: provision_calls.append(1) or (True, None, "http://x/login", "http://x/checkin"),
+        )
+
+        application_id, fields = _insert_application(db_engine)
+        order_id = "order_already_done_" + secrets.token_hex(6)
+        _insert_payment_order(db_engine, application_id, fields, order_id, status="provisioned")
+
+        try:
+            resp = self._post_payment_captured(client, monkeypatch, order_id)
+            assert resp.status_code == 200
+            assert not provision_calls
+        finally:
+            _cleanup(db_engine, application_id=application_id)

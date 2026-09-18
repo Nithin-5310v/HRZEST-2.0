@@ -28,6 +28,7 @@ from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
     key_id as razorpay_key_id, create_id_or_demo, verify_or_demo,
 )
+from blueprints.webhooks import register_webhook_handler
 billing_bp = Blueprint("billing", __name__)
 
 # Demo/test-mode checkout, used only while RAZORPAY_KEY_ID/SECRET aren't
@@ -118,33 +119,32 @@ def create_order():
     })
 
 
-@billing_bp.route("/api/billing/verify_payment", methods=["POST"])
-@limiter.limit("20 per minute")
-def verify_payment():
+def _finalize_signup_order(razorpay_order_id, razorpay_payment_id):
+    """Look up a signup payment_orders row by order id and, if it's not
+    already provisioned, provision the tenant. Shared by verify_payment()
+    below (the browser's own post-checkout callback, already signature-
+    verified by the time it calls this) and _handle_signup_payment_captured()
+    (the server-to-server payment.captured webhook, verified upstream by
+    blueprints/webhooks.py's receive_webhook() before dispatch) -- this
+    function itself does no signature verification of its own, and must
+    only ever be called after the caller has confirmed authenticity by
+    whichever means is appropriate to it.
+
+    Returns a plain result dict (not a Flask response) so both callers can
+    shape their own reply -- the webhook caller doesn't need to reply to
+    Razorpay at all, it just logs the outcome.
+
+    result["status"] is one of:
+      "not_found"           -- no payment_orders row for this order id
+      "already_provisioned" -- no-op, tenant already exists
+      "already_paid"        -- lost the provisioning race to a concurrent
+                                call; the winner already handled it
+      "provisioning_failed" -- provision_tenant() itself errored
+      "provisioned"         -- this call just provisioned it
+    """
     from blueprints.org import provision_tenant, send_payment_confirmation_email
     from utils.auth import generate_password_hash
     from utils.helpers import _safe_app_url
-
-    data = request.get_json(silent=True) or request.form
-    razorpay_order_id = (data.get("razorpay_order_id") or "").strip()
-    razorpay_payment_id = (data.get("razorpay_payment_id") or "").strip()
-    razorpay_signature = (data.get("razorpay_signature") or "").strip()
-
-    ok, is_demo, error = verify_or_demo(
-        razorpay_order_id, _DEMO_ORDER_PREFIX, razorpay_payment_id, razorpay_signature, verify_payment_signature
-    )
-    if is_demo and ok:
-        log_security_event(
-            "billing.demo_checkout_completed", "Demo/test-mode checkout completed (no real payment)",
-            level="INFO", order_id=razorpay_order_id,
-        )
-    elif not ok:
-        if not is_demo:
-            log_security_event(
-                "billing.signature_invalid", "Razorpay payment signature verification failed",
-                level="ERROR", order_id=razorpay_order_id,
-            )
-        return jsonify({"ok": False, "msg": error}), 400
 
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
@@ -158,31 +158,32 @@ def verify_payment():
     if not row:
         cur.close()
         conn.close()
-        return jsonify({"ok": False, "msg": "Unknown order."}), 404
+        return {"status": "not_found"}
 
     (employee_count, company_name, subdomain, admin_username, admin_email, email_domain, logo_path, status,
      application_id) = row
 
-    # Idempotent: a retried/duplicate client POST for an already-provisioned
-    # order must not attempt to re-provision (the subdomain is now taken,
-    # which provision_tenant() would correctly reject as "already taken" --
-    # but there's no reason to even try).
+    # Idempotent: a retried/duplicate call for an already-provisioned order
+    # must not attempt to re-provision (the subdomain is now taken, which
+    # provision_tenant() would correctly reject as "already taken" -- but
+    # there's no reason to even try).
     if status == "provisioned":
         cur.close()
         conn.close()
         portal_url = f"{_safe_app_url()}/{subdomain}/login"  # "/admin_login" hasn't been a real route since an earlier rename
-        return jsonify({"ok": True, "portal_url": portal_url, "already_provisioned": True})
+        return {"status": "already_provisioned", "portal_url": portal_url}
 
     # "AND status != 'paid'" is load-bearing, not decorative -- mirrors
-    # seats.py's verify_payment() exactly: two near-simultaneous requests
-    # for the same order (a flaky-network client retry, a double-tap)
-    # must not both pass the status=='provisioned' check above and each
-    # go on to call provision_tenant() for the same subdomain. Only the
-    # request whose UPDATE actually flips a row (cur.rowcount == 1) gets
-    # to provision below; the loser re-reads the now-committed status and
-    # returns the same idempotent "already provisioned"/"already paid"
-    # response a retried request expects, instead of racing into
-    # provision_tenant()'s own subdomain-taken rejection.
+    # seats.py's verify_payment() exactly: two near-simultaneous calls for
+    # the same order (a flaky-network client retry, a double-tap, OR now
+    # the browser callback racing the payment.captured webhook for the
+    # exact same order) must not both pass the status=='provisioned' check
+    # above and each go on to call provision_tenant() for the same
+    # subdomain. Only the call whose UPDATE actually flips a row
+    # (cur.rowcount == 1) gets to provision below; the loser re-reads the
+    # now-committed status and returns the same idempotent "already
+    # provisioned"/"already paid" outcome a retried call expects, instead
+    # of racing into provision_tenant()'s own subdomain-taken rejection.
     cur.execute(
         "UPDATE payment_orders SET status='paid', razorpay_payment_id=%s, paid_at=NOW() "
         "WHERE razorpay_order_id=%s AND status != 'paid'",
@@ -202,8 +203,8 @@ def verify_payment():
         conn.close()
         if _row and _row[0] == "provisioned":
             portal_url = f"{_safe_app_url()}/{subdomain}/login"
-            return jsonify({"ok": True, "portal_url": portal_url, "already_provisioned": True})
-        return jsonify({"ok": True, "already_paid": True})
+            return {"status": "already_provisioned", "portal_url": portal_url}
+        return {"status": "already_paid"}
 
     # The applicant already set (and it was hashed at) their real admin
     # password during the gated signup application -- OTP-verified and
@@ -243,7 +244,7 @@ def verify_payment():
         conn.commit()
         cur.close()
         conn.close()
-        return jsonify({"ok": False, "msg": f"Payment received, but provisioning failed: {error}. Contact support with order ID {razorpay_order_id}."}), 500
+        return {"status": "provisioning_failed", "error": error}
 
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
@@ -277,7 +278,91 @@ def verify_payment():
         level="INFO", subdomain=subdomain, employee_count=employee_count, order_id=razorpay_order_id,
     )
 
-    return jsonify({
-        "ok": True, "portal_url": portal_url,
+    return {
+        "status": "provisioned", "portal_url": portal_url,
         "employee_count": employee_count, "amount_display": format_price_inr(amount_paise),
+    }
+
+
+@billing_bp.route("/api/billing/verify_payment", methods=["POST"])
+@limiter.limit("20 per minute")
+def verify_payment():
+    data = request.get_json(silent=True) or request.form
+    razorpay_order_id = (data.get("razorpay_order_id") or "").strip()
+    razorpay_payment_id = (data.get("razorpay_payment_id") or "").strip()
+    razorpay_signature = (data.get("razorpay_signature") or "").strip()
+
+    ok, is_demo, error = verify_or_demo(
+        razorpay_order_id, _DEMO_ORDER_PREFIX, razorpay_payment_id, razorpay_signature, verify_payment_signature
+    )
+    if is_demo and ok:
+        log_security_event(
+            "billing.demo_checkout_completed", "Demo/test-mode checkout completed (no real payment)",
+            level="INFO", order_id=razorpay_order_id,
+        )
+    elif not ok:
+        if not is_demo:
+            log_security_event(
+                "billing.signature_invalid", "Razorpay payment signature verification failed",
+                level="ERROR", order_id=razorpay_order_id,
+            )
+        return jsonify({"ok": False, "msg": error}), 400
+
+    result = _finalize_signup_order(razorpay_order_id, razorpay_payment_id)
+    st = result["status"]
+    if st == "not_found":
+        return jsonify({"ok": False, "msg": "Unknown order."}), 404
+    if st == "already_provisioned":
+        return jsonify({"ok": True, "portal_url": result["portal_url"], "already_provisioned": True})
+    if st == "already_paid":
+        return jsonify({"ok": True, "already_paid": True})
+    if st == "provisioning_failed":
+        return jsonify({
+            "ok": False,
+            "msg": f"Payment received, but provisioning failed: {result['error']}. "
+                   f"Contact support with order ID {razorpay_order_id}.",
+        }), 500
+    # "provisioned"
+    return jsonify({
+        "ok": True, "portal_url": result["portal_url"],
+        "employee_count": result["employee_count"], "amount_display": result["amount_display"],
     })
+
+
+def _handle_signup_payment_captured(payload):
+    """blueprints/webhooks.py dispatches here for every authentic
+    payment.captured event -- including ones for an overdue-dunning
+    repayment (blueprints/billing_dunning.py) or a seat top-up
+    (blueprints/seats.py), which simply won't match any row in
+    payment_orders and no-op harmlessly (separate order-id spaces),
+    same pattern as billing_dunning.py's own handler for this event.
+
+    This is the server-side safety net for signup checkout: verify_payment()
+    above depends entirely on the browser's own post-checkout JS callback
+    reaching this server, which can fail to fire (closed tab, network
+    blip, ad-blocker) even though Razorpay itself successfully captured
+    the payment -- leaving payment_orders stuck at status='created'
+    forever with nothing else to notice. This webhook means the payment
+    gets finalized (and the tenant provisioned) even if that callback
+    never arrives."""
+    payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+    order_id = payment_entity.get("order_id")
+    payment_id = payment_entity.get("id")
+    if not order_id:
+        return
+    result = _finalize_signup_order(order_id, payment_id)
+    if result["status"] == "provisioning_failed":
+        app_log.error(
+            "billing.webhook: payment.captured for order %s verified but provisioning failed: %s",
+            order_id, result.get("error"),
+        )
+    elif result["status"] == "provisioned":
+        log_security_event(
+            "billing.tenant_provisioned_via_webhook",
+            f"Signup order {order_id} provisioned via payment.captured webhook "
+            "(browser callback never reached the server)",
+            level="WARNING", order_id=order_id,
+        )
+
+
+register_webhook_handler("razorpay", "payment.captured", _handle_signup_payment_captured)
