@@ -512,6 +512,12 @@ def platform_admin_dashboard():
         # else just gets a connection timeout, same as typing the URL in
         # directly would.
         grafana_url=os.environ.get("GRAFANA_URL", "").rstrip("/") or None,
+        # Gates the "SOC Dashboard" nav button -- points at the standalone
+        # cross-app SOC service (soc-dashboard/, see its README) that
+        # aggregates security events from the 4 separate apps into one
+        # MongoDB collection. Distinct from this table's own
+        # security_events (Postgres, platform-admin-only audit log above).
+        soc_dashboard_configured=bool(os.environ.get("SOC_DASHBOARD_URL")),
     )
 
 
@@ -1351,6 +1357,33 @@ def platform_admin_audit_log():
         "super_admin_audit_log.html", events=events, q=q, level_filter=level_filter,
         page=page, total_pages=total_pages, total=total,
     )
+
+
+@platform_admin_bp.route("/super_admin/soc", methods=["GET"])
+@_platform_admin_required
+def platform_admin_soc_dashboard():
+    """Embeds the standalone cross-app SOC dashboard (soc-dashboard/, a
+    separate Node/Express + React service -- see its README) in an iframe.
+
+    That service aggregates security events (login attempts, failed
+    logins, unauthorized access, suspicious activity) from the 4 separate
+    apps -- HRMS Portal, Job Portal, Gradzest Portal, Food Delivery App --
+    into one shared MongoDB collection. It is unrelated to this app's own
+    `security_events` Postgres table used above by the audit log: that one
+    is this Flask app's internal platform-admin action log.
+
+    SOC_ADMIN_TOKEN is read server-side and appended to the iframe URL just
+    once on page load so the SOC dashboard's own token gate never has to be
+    shown to the platform admin -- the token itself never touches this
+    app's own session or database.
+    """
+    soc_url = os.environ.get("SOC_DASHBOARD_URL", "").rstrip("/")
+    if not soc_url:
+        flash("SOC dashboard is not configured. Set SOC_DASHBOARD_URL in the environment.", "error")
+        return redirect("/super_admin")
+    soc_token = os.environ.get("SOC_ADMIN_TOKEN", "")
+    iframe_src = f"{soc_url}/?token={soc_token}" if soc_token else soc_url
+    return render_template("super_admin_soc_dashboard.html", iframe_src=iframe_src)
 
 
 # ── Mini-CRM: company profile (financials + notes + tickets) ───────────────

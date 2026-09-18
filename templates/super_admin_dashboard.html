@@ -462,6 +462,14 @@
                onmouseout="this.style.background='#f1f5f9';this.style.boxShadow='none';this.style.transform='none';">
               Audit Log
             </a>
+            {% if soc_dashboard_configured %}
+            <a href="/super_admin/soc" title="Cross-app Security Operations Center — login attempts, failed logins, and suspicious activity across HRMS Portal, Job Portal, Gradzest Portal and Food Delivery App"
+               style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
+               onmouseover="this.style.background='#fee2e2';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
+               onmouseout="this.style.background='#fef2f2';this.style.boxShadow='none';this.style.transform='none';">
+              <i class="ti ti-shield-lock"></i> SOC Dashboard
+            </a>
+            {% endif %}
             <a href="/super_admin/tickets" title="Trackable support tickets across every company"
                style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);border:1px solid var(--primary-soft-border);color:var(--primary-dark);padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
                onmouseover="this.style.background='#e0e2fa';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
