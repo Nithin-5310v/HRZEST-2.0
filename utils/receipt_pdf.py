@@ -28,7 +28,6 @@ def build_receipt_pdf(company_name, amount_paise, paid_at, reference_id, kind_la
         base.update(kw)
         return ParagraphStyle(name, **base)
 
-    s_normal = ps("normal")
     s_small = ps("small", fontSize=8, textColor=GRAY)
     s_title = ps("title", fontSize=18, fontName="Helvetica-Bold", textColor=BLUE, alignment=TA_CENTER)
 

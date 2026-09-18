@@ -176,27 +176,11 @@ def api_payout_lock():
     return jsonify({"ok": True})
 
 
-# ── Disbursement runs: list, approve, reject ─────────────────────────────────
-
-@disbursement_bp.route("/disbursement/runs")
-@role_required("admin")
-def list_disbursement_runs():
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "SELECT id, year, month, status, total_amount, employee_count, "
-        "prepared_at, approved_by, approved_at "
-        "FROM salary_disbursement_runs ORDER BY prepared_at DESC LIMIT 24"
-    )
-    rows = cursor.fetchall()
-    cursor.close()
-    db.close()
-    runs = [{
-        "id": r[0], "year": r[1], "month": r[2], "status": r[3],
-        "total_amount": float(r[4]), "employee_count": r[5],
-        "prepared_at": r[6], "approved_by": r[7], "approved_at": r[8],
-    } for r in rows]
-    return jsonify({"ok": True, "runs": runs})
+# ── Disbursement runs: approve, reject ────────────────────────────────────────
+# The run list itself is rendered server-side into /settings' template
+# context by blueprints/admin_views.py (its own query against
+# salary_disbursement_runs) -- there's no separate JSON list endpoint here,
+# only the two actions below.
 
 
 @disbursement_bp.route("/disbursement/<int:run_id>/approve", methods=["POST"])

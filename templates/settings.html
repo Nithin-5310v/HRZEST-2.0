@@ -1053,6 +1053,10 @@
                 </div>
               </div>
               <form id="payout-bank-form" class="u-d-none" onsubmit="return payoutSaveBankConfig(event)">
+                <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
+                  <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
+                  <button type="button" class="btn-test" onclick="payoutLock()">🔒 Lock now</button>
+                </div>
                 <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
                   <div class="field"><label>Account Holder Name</label><input type="text" id="payout-holder" required /></div>
                   <div class="field"><label>Bank Name</label><input type="text" id="payout-bank-name" required /></div>
@@ -1121,6 +1125,32 @@
             </div>
 
             <script>
+              // Idle re-lock, same pattern as Email Settings' gate below --
+              // only starts once payoutLoadBankConfig() actually unlocks the
+              // form, and clears itself on payoutLock()/page reload.
+              var payoutIdleTimer = null;
+              var PAYOUT_IDLE_MS = 15 * 60 * 1000;
+              function resetPayoutIdleTimer() {
+                if (payoutIdleTimer) clearTimeout(payoutIdleTimer);
+                if (document.getElementById('payout-bank-form').classList.contains('u-d-none')) return;
+                payoutIdleTimer = setTimeout(payoutLock, PAYOUT_IDLE_MS);
+              }
+              ['mousemove', 'keydown', 'click', 'scroll'].forEach(function(evt) {
+                document.addEventListener(evt, function() {
+                  if (!document.getElementById('payout-bank-form').classList.contains('u-d-none')) resetPayoutIdleTimer();
+                }, { passive: true });
+              });
+              function payoutLock() {
+                if (payoutIdleTimer) { clearTimeout(payoutIdleTimer); payoutIdleTimer = null; }
+                document.getElementById('payout-bank-form').classList.add('u-d-none');
+                document.getElementById('payout-locked').classList.remove('u-d-none');
+                document.getElementById('payout-2fa-start').classList.remove('u-d-none');
+                document.getElementById('payout-2fa-enroll').classList.add('u-d-none');
+                document.getElementById('payout-2fa-verify').classList.add('u-d-none');
+                document.getElementById('payout-account-number').value = '';
+                fetch('{{ tpath("/api/payout/lock") }}', { method: 'POST' }).catch(function() {});
+              }
+
               // Step 0 -- figure out whether this admin already has TOTP
               // enrolled (shared account-wide with Email Settings, so an
               // admin who enrolled there is already enrolled here too) and
@@ -1190,6 +1220,7 @@
                   } else {
                     document.getElementById('payout-acct-hint').textContent = '(required -- no account on file yet)';
                   }
+                  resetPayoutIdleTimer();
                 });
               }
               function payoutSaveBankConfig(ev) {
@@ -1764,8 +1795,58 @@
             </div>
             <div class="two-col">
               <div class="section">
-                <!-- SMTP Settings Panel (Direct Access) -->
-                <div id="email-settings-panel">
+                <div class="section-title">📡 SMTP Configuration</div>
+
+                <!-- Locked state: no SMTP data has been fetched yet -- nothing
+                     sensitive is in the page until this gate is passed. -->
+                <div id="email-2fa-gate">
+                  <div class="u-d-flex u-ai-center u-gap-8 u-mb-10">
+                    <i class="ti ti-shield-lock u-c-dc2626 u-fs-20"></i>
+                    <div class="u-fs-14 u-fw-700 u-c-1e293b">Identity Verification Required</div>
+                  </div>
+                  <div class="u-fs-12 u-c-64748b u-mb-14">
+                    SMTP settings include a stored password. Confirm it's you before this loads.
+                  </div>
+
+                  <!-- First-time enrollment sub-view (hidden unless no TOTP is set up yet) -->
+                  <div id="email-2fa-enroll" class="u-d-none">
+                    <div class="u-fs-12 u-c-64748b u-mb-10">Scan with Google Authenticator (or any TOTP app), then enter the 6-digit code it shows to confirm setup.</div>
+                    <img id="email-2fa-qr" class="u-mb-10 u-br-8 u-bd-1d5-solid-e2e8f0" width="160" height="160" alt="Scan with your authenticator app" />
+                    <div class="u-fs-11 u-c-94a3b8 u-mb-10">Can't scan? Enter this key manually: <span class="u-ff-monospace u-fw-700" id="email-2fa-secret"></span></div>
+                    <div class="u-d-flex u-gap-8">
+                      <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="email-2fa-enroll-code" placeholder="6-digit code" maxlength="6" />
+                      <button type="button" class="btn-submit" onclick="confirmEmail2faEnroll()">Confirm &amp; Enable</button>
+                    </div>
+                    <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-enroll-err"></div>
+                  </div>
+
+                  <!-- Normal unlock sub-view (shown once TOTP is already enrolled) -->
+                  <div id="email-2fa-verify" class="u-d-none">
+                    <div class="u-fs-13 u-c-64748b u-mb-12">Enter the 6-digit code from your authenticator app.</div>
+                    <div class="u-d-flex u-gap-8">
+                      <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="email-2fa-code" placeholder="6-digit code" maxlength="6" />
+                      <button type="button" class="btn-submit" onclick="verifyEmail2fa()">Verify &amp; Unlock</button>
+                    </div>
+                    <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-err"></div>
+                    <div class="u-ta-center u-mt-10">
+                      <a href="#" class="u-fs-11 u-c-94a3b8" onclick="event.preventDefault();document.getElementById('email-2fa-lost').classList.remove('u-d-none');this.classList.add('u-d-none');">Lost access to your authenticator?</a>
+                    </div>
+                    <div id="email-2fa-lost" class="u-d-none u-mt-10 u-pt-10 u-bdt-1-solid-e2e8f0">
+                      <div class="u-fs-11 u-c-64748b u-mb-8">Confirm your password to reset MFA and get a fresh QR code.</div>
+                      <div class="field"><label>Password</label><input type="password" id="email-2fa-reset-password" autocomplete="current-password" /></div>
+                      <button type="button" class="btn-submit" onclick="resetEmail2fa()">Reset &amp; Get New QR Code</button>
+                      <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-reset-err"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Unlocked state: populated from /api/settings/email only
+                     after verifyEmail2fa()/confirmEmail2faEnroll() succeeds. -->
+                <div id="email-settings-panel" class="u-d-none">
+                  <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
+                    <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
+                    <button type="button" class="btn-test" onclick="lockEmailSettings()">🔒 Lock now</button>
+                  </div>
                   <div class="field"><label>SMTP Host</label><input type="text" id="es-host" placeholder="smtp.gmail.com" /></div>
                   <div class="field"><label>Port</label><input type="number" id="es-port" placeholder="587" /></div>
                   <div class="field"><label>Username</label><input type="email" id="es-user" placeholder="you@gmail.com" /></div>
@@ -2470,28 +2551,104 @@
         document.addEventListener(evt, function() { if (unlocked) resetIdleTimer(); }, { passive: true });
       });
 
-      window.lockEmailSettings = function() {};
-
-      window.initEmail2faGate = function() {
-        unlockEmailSettingsUI();
+      window.lockEmailSettings = function() {
+        unlocked = false;
+        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+        document.getElementById('email-settings-panel').classList.add('u-d-none');
+        document.getElementById('email-2fa-gate').classList.remove('u-d-none');
+        document.getElementById('es-pass').value = '';
+        fetch('/api/settings/2fa/lock', { method: 'POST' }).catch(function() {});
       };
 
-      function unlockEmailSettingsUI() {
-        fetch('/api/settings/email')
+      window.initEmail2faGate = function() {
+        fetch('/api/settings/2fa/setup')
           .then(function(r) { return r.json(); })
           .then(function(d) {
             if (!d.ok) return;
-            var c = d.config || {};
-            if (document.getElementById('es-host')) document.getElementById('es-host').value       = c.host || '';
-            if (document.getElementById('es-port')) document.getElementById('es-port').value       = c.port || 587;
-            if (document.getElementById('es-user')) document.getElementById('es-user').value       = c.user || '';
-            if (document.getElementById('es-pass')) document.getElementById('es-pass').value       = c.password || '';
-            if (document.getElementById('es-from-name')) document.getElementById('es-from-name').value  = c.from_name || '';
-            if (document.getElementById('es-from-email')) document.getElementById('es-from-email').value = c.from_email || '';
-            var panel = document.getElementById('email-settings-panel');
-            if (panel) panel.style.display = 'block';
+            if (d.already_enabled) {
+              document.getElementById('email-2fa-verify').classList.remove('u-d-none');
+              document.getElementById('email-2fa-enroll').classList.add('u-d-none');
+            } else {
+              document.getElementById('email-2fa-qr').src = d.qr_code;
+              document.getElementById('email-2fa-secret').textContent = d.secret;
+              document.getElementById('email-2fa-enroll').classList.remove('u-d-none');
+              document.getElementById('email-2fa-verify').classList.add('u-d-none');
+            }
           })
           .catch(function() {});
+      };
+
+      window.confirmEmail2faEnroll = function() {
+        var code = document.getElementById('email-2fa-enroll-code').value.trim();
+        var err  = document.getElementById('email-2fa-enroll-err');
+        err.classList.add('u-d-none');
+        fetch('/api/settings/2fa/enable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Invalid code'; err.classList.remove('u-d-none'); return; }
+            unlockEmailSettingsUI();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.classList.remove('u-d-none'); });
+      };
+
+      window.verifyEmail2fa = function() {
+        var code = document.getElementById('email-2fa-code').value.trim();
+        var err  = document.getElementById('email-2fa-err');
+        err.classList.add('u-d-none');
+        fetch('/api/settings/verify-2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Invalid code'; err.classList.remove('u-d-none'); return; }
+            unlockEmailSettingsUI();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.classList.remove('u-d-none'); });
+      };
+
+      window.resetEmail2fa = function() {
+        var password = document.getElementById('email-2fa-reset-password').value;
+        var err = document.getElementById('email-2fa-reset-err');
+        err.classList.add('u-d-none');
+        fetch('/api/settings/2fa/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Reset failed'; err.classList.remove('u-d-none'); return; }
+            document.getElementById('email-2fa-reset-password').value = '';
+            document.getElementById('email-2fa-lost').classList.add('u-d-none');
+            window.initEmail2faGate();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.classList.remove('u-d-none'); });
+      };
+
+      function unlockEmailSettingsUI() {
+        unlocked = true;
+        fetch('/api/settings/email')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { unlocked = false; window.initEmail2faGate(); return; }
+            var c = d.config || {};
+            document.getElementById('es-host').value       = c.host || '';
+            document.getElementById('es-port').value       = c.port || 587;
+            document.getElementById('es-user').value       = c.user || '';
+            document.getElementById('es-pass').value       = c.password || '';
+            document.getElementById('es-from-name').value  = c.from_name || '';
+            document.getElementById('es-from-email').value = c.from_email || '';
+            document.getElementById('email-2fa-gate').classList.add('u-d-none');
+            document.getElementById('email-settings-panel').classList.remove('u-d-none');
+            resetIdleTimer();
+          })
+          .catch(function() { window.lockEmailSettings(); });
       }
 
       window.loadEmailTemplatePreview = function() {

@@ -20,7 +20,7 @@ from utils.helpers import (
     tpath, get_company_settings, coerce_datetime,
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
 )
-from utils.plan_limits import get_billing_snapshot, get_tenant_employee_count, format_price_inr
+from utils.plan_limits import get_billing_snapshot, format_price_inr
 from utils.payment_history import get_payment_history, get_payment_row
 from utils.receipt_pdf import build_receipt_pdf
 from utils.ticket_constants import TICKET_STATUSES, TICKET_PRIORITIES
