@@ -390,6 +390,11 @@ jobs:
             git pull origin main
             COMPOSE="podman-compose -f compose.yaml -f compose.prod.yaml"
             $COMPOSE build app
-            $COMPOSE up -d --no-deps app nginx certbot
+            # clamav must be listed explicitly alongside app/nginx/certbot --
+            # --no-deps means Compose won't auto-start it just because app
+            # depends_on it, and without it running, utils/helpers.py's
+            # _scan_for_malware() fails closed on every upload in production
+            # (APP_ENV=production), rejecting all KYC/document uploads.
+            $COMPOSE up -d --no-deps app nginx certbot clamav
             podman image prune -f
             echo "Deploy complete at $(date)"

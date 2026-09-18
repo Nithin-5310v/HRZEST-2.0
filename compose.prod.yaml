@@ -1,5 +1,10 @@
 # Production override — use together with compose.yaml:
-#   podman-compose -f compose.yaml -f compose.prod.yaml up -d --no-deps app nginx certbot
+#   podman-compose -f compose.yaml -f compose.prod.yaml up -d --no-deps app nginx certbot clamav
+#
+# clamav must be named explicitly here too -- --no-deps means Compose won't
+# auto-start it just because app depends_on it, and without it running,
+# utils/helpers.py's _scan_for_malware() fails closed on every upload in
+# production (APP_ENV=production), rejecting all KYC/document uploads.
 #
 # --no-deps + the explicit service list keeps the local `db` container from
 # the base file out of the prod stack entirely (Compose's depends_on merge
