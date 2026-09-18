@@ -19,7 +19,7 @@ from extensions import app_log
 from database import get_db_connection
 from utils.auth import (
     admin_required, employee_required, api_required, employee_api_required, api_role_required,
-    role_required, MANAGER_ROLE,
+    role_required, MANAGER_ROLE, HR_ROLE,
 )
 from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
@@ -462,7 +462,8 @@ def leave_action(lid):
         WHERE lr.id = %s
     """, (lid,))
     leave_row = cursor.fetchone()
-    if leave_row and (hr_scope_denied(leave_row[0]) or manager_scope_denied(leave_row[0])):
+    if leave_row and (hr_scope_denied(leave_row[0]) or manager_scope_denied(leave_row[0])
+                      or _approving_own_record(leave_row[0])):
         cursor.close()
         db.close()
         return "Forbidden", 403
@@ -721,7 +722,8 @@ def resignation_action(rid):
         WHERE rr.id = %s
     """, (rid,))
     resign_row = cursor.fetchone()
-    if resign_row and (hr_scope_denied(resign_row[0]) or manager_scope_denied(resign_row[0])):
+    if resign_row and (hr_scope_denied(resign_row[0]) or manager_scope_denied(resign_row[0])
+                       or _approving_own_record(resign_row[0])):
         cursor.close()
         db.close()
         return "Forbidden", 403
@@ -916,6 +918,32 @@ def _api_manager_scope_denied(emp_id):
     return not row or row[0] != g.api_user
 
 
+def _approving_own_record(emp_id):
+    """Block the self-approval loophole hr_scope_denied()/manager_scope_denied()
+    leave open by design: both intentionally return False (not denied) when
+    emp_id is the acting session's own employee_id, so an HR/manager session
+    can still see its own request in a shared list. That exemption must never
+    extend to actually approving/rejecting it -- only the action routes
+    (leave/resignation/overtime, web) need this extra check on top of the
+    existing scope check. Not applied to 'admin' -- that role isn't
+    auto-provisioned from (and 1:1 tied to) an employee record the way hr/
+    manager are, so admin_username matching an employee_id isn't the same
+    self-approval scenario."""
+    return (session.get("admin_role") in (HR_ROLE, MANAGER_ROLE)
+            and emp_id == session.get("admin_username"))
+
+
+def _api_approving_own_record(emp_id):
+    """Bearer-token twin of _approving_own_record() -- see its docstring."""
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT role FROM admin_users WHERE username=%s", (g.api_user,))
+    row = cursor.fetchone()
+    cursor.close()
+    db.close()
+    return bool(row) and row[0] in (HR_ROLE, MANAGER_ROLE) and emp_id == g.api_user
+
+
 @leave_bp.route("/api/leave_requests", methods=["GET"])
 @api_required
 @api_role_required(*_LEAVE_APPROVER_ROLES)
@@ -958,7 +986,7 @@ def api_leave_action(lid):
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, leave_date FROM leave_requests WHERE id=%s", (lid,))
     row = cursor.fetchone()
-    if row and _api_manager_scope_denied(row[0]):
+    if row and (_api_manager_scope_denied(row[0]) or _api_approving_own_record(row[0])):
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Leave request not found."}), 404
@@ -1021,7 +1049,7 @@ def api_resignation_action(rid):
         WHERE rr.id = %s
     """, (rid,))
     resign_row = cursor.fetchone()
-    if resign_row and _api_manager_scope_denied(resign_row[0]):
+    if resign_row and (_api_manager_scope_denied(resign_row[0]) or _api_approving_own_record(resign_row[0])):
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Resignation request not found."}), 404
@@ -1405,7 +1433,7 @@ def api_overtime_action(oid):
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Overtime record not found."}), 404
-    if _api_manager_scope_denied(ot_row[0]):
+    if _api_manager_scope_denied(ot_row[0]) or _api_approving_own_record(ot_row[0]):
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Overtime record not found."}), 404
@@ -1579,7 +1607,8 @@ def overtime_action(oid):
     # Fetch OT record before updating
     cursor.execute("SELECT employee_id, ot_minutes, status FROM overtime_records WHERE id=%s", (oid,))
     ot_row = cursor.fetchone()
-    if ot_row and (hr_scope_denied(ot_row[0]) or manager_scope_denied(ot_row[0])):
+    if ot_row and (hr_scope_denied(ot_row[0]) or manager_scope_denied(ot_row[0])
+                   or _approving_own_record(ot_row[0])):
         cursor.close()
         db.close()
         return "Forbidden", 403

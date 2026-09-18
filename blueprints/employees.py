@@ -1592,6 +1592,7 @@ def _idc_qr_image(emp_id):
     world-readable), so this always regenerates fresh and reads it back
     through open_private() rather than assuming a bare local path the way
     the two call sites below both used to."""
+    from PIL import Image
     stored_ref = generate_qr(emp_id)
     return Image.open(BytesIO(open_private(stored_ref)))
 
