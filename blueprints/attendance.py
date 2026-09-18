@@ -297,6 +297,11 @@ def api_breaks():
         if hasattr(bt, 'seconds'):
             total = bt.seconds
             h, m = divmod(total // 60, 60)
+        elif isinstance(bt, str):
+            # SQLite fallback stores TIME columns as plain "HH:MM[:SS]"
+            # text -- Postgres never takes this branch (psycopg2 returns
+            # a timedelta or datetime.time for a real TIME column).
+            h, m = (int(x) for x in bt.split(':')[:2])
         else:
             h, m = bt.hour, bt.minute
         result.append({"id": row[0], "name": row[1],

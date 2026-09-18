@@ -340,6 +340,18 @@ def _seed_sqlite_db(raw_conn):
         );
         ''')
         cur.execute('''
+        CREATE TABLE IF NOT EXISTS break_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            break_name TEXT NOT NULL,
+            break_time TEXT NOT NULL,
+            duration_minutes INTEGER NOT NULL DEFAULT 10,
+            is_active INTEGER DEFAULT 1,
+            break_type TEXT DEFAULT 'coffee',
+            shift_id INTEGER,
+            company_id INTEGER
+        );
+        ''')
+        cur.execute('''
         CREATE TABLE IF NOT EXISTS leave_requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             employee_id TEXT,
