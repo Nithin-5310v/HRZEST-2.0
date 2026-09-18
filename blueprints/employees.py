@@ -2288,6 +2288,7 @@ def api_employee_detail(emp_id):
 
 @employees_bp.route("/api/employees/<emp_id>", methods=["PUT"])
 @api_required
+@api_role_required("admin")
 def api_edit_employee(emp_id):
     data = request.get_json() or {}
     name = data.get("name", "").strip()

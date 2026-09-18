@@ -2188,7 +2188,7 @@
 
     function acMakeShiftRow(name, start, half, end) {
       var row = document.createElement('div');
-      row.style.cssText = 'display:grid;grid-template-columns:1fr 82px 82px 82px 28px;gap:6px;align-items:center;';
+      Object.assign(row.style, {display:'grid', gridTemplateColumns:'1fr 82px 82px 82px 28px', gap:'6px', alignItems:'center'});
       var inp = 'padding:7px 6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;';
       row.innerHTML =
         '<input type="text" name="shift_name[]"  value="'+name+'" placeholder="Shift name" />' +
@@ -2204,7 +2204,7 @@
 
     function acMakeBreakRow(name, time, dur) {
       var row = document.createElement('div');
-      row.style.cssText = 'display:grid;grid-template-columns:1fr 90px 70px 28px;gap:6px;align-items:center;';
+      Object.assign(row.style, {display:'grid', gridTemplateColumns:'1fr 90px 70px 28px', gap:'6px', alignItems:'center'});
       row.innerHTML =
         '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text"   name="break_name[]"     value="'+name+'" placeholder="Break name" />' +
         '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="time"   name="break_time[]"     value="'+time+'" />' +

@@ -825,6 +825,10 @@ _CSP_EV_SQ = re.compile(
     rb"|transitionend|wheel)\s*=\s*'([^']*)'",
     re.IGNORECASE,
 )
+# Same idea for inline style="" attribute values, so style-src-attr can drop
+# 'unsafe-inline' in favor of per-response sha256 hashes.
+_CSP_STYLE_DQ = re.compile(rb'\bstyle\s*=\s*"([^"]*)"', re.IGNORECASE)
+_CSP_STYLE_SQ = re.compile(rb"\bstyle\s*=\s*'([^']*)'", re.IGNORECASE)
 _CSRF_SCRIPT = (
     b'<script>(function(){'
     b'var m=document.querySelector(\'meta[name="csrf-token"]\');'
@@ -944,6 +948,26 @@ def _security_headers(response):
             _ev_hashes = set()
         _unsafe_hashes = " 'unsafe-hashes'" if _ev_hashes else ""
         _hash_src = (" " + " ".join(sorted(_ev_hashes))) if _ev_hashes else ""
+        # Same treatment for inline style="" attribute values, so
+        # style-src-attr can drop 'unsafe-inline' -- every remaining
+        # dynamic style/cssText write in app JS was migrated to
+        # el.style.setProperty()/Object.assign(el.style, ...), which CSP
+        # doesn't restrict, so only these server-rendered attributes need
+        # hashing.
+        try:
+            _style_hashes: set = set()
+            for _pat in (_CSP_STYLE_DQ, _CSP_STYLE_SQ):
+                for _m in _pat.finditer(data):
+                    _body = _html.unescape(_m.group(1).decode("utf-8", errors="replace"))
+                    _style_hashes.add(
+                        "'sha256-" + base64.b64encode(
+                            hashlib.sha256(_body.encode("utf-8")).digest()
+                        ).decode() + "'"
+                    )
+        except Exception:
+            _style_hashes = set()
+        _style_unsafe_hashes = " 'unsafe-hashes'" if _style_hashes else ""
+        _style_hash_src = (" " + " ".join(sorted(_style_hashes))) if _style_hashes else ""
         # Cloudflare Turnstile (admin_login CAPTCHA) and employee portal
         # loopback agent get path-scoped exceptions only.
         _is_turnstile_page = request.path in ("/admin_login", "/login")
@@ -980,7 +1004,7 @@ def _security_headers(response):
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}{_turnstile_src}{_razorpay_script_src}; "
             f"style-src-elem 'self' 'nonce-{nonce}'; "
-            "style-src-attr 'unsafe-inline'; "
+            f"style-src-attr{_style_unsafe_hashes}{_style_hash_src}; "
             f"style-src 'self' 'nonce-{nonce}'; "
             "img-src 'self' data: blob:; "
             "font-src 'self' data:; "

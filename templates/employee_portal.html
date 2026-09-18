@@ -2258,7 +2258,7 @@
                 const d = document.createElement('button');
                 d.id = 'fpRemoveBtn';
                 d.setAttribute('onclick','removeFpEnroll()');
-                d.setAttribute('style','padding:10px 22px;border:1px solid #fca5a5;border-radius:10px;background:#fff;color:#dc2626;font-size:14px;font-weight:600;cursor:pointer;');
+                Object.assign(d.style, {padding:'10px 22px', border:'1px solid #fca5a5', borderRadius:'10px', background:'#fff', color:'#dc2626', fontSize:'14px', fontWeight:'600', cursor:'pointer'});
                 d.textContent = '🗑️ Remove Fingerprint';
                 btn.parentNode.appendChild(d);
               }
@@ -3165,7 +3165,10 @@
             "<div style='font-size:15px;font-weight:800;color:#15803d;margin-bottom:12px;'>" + resTitle + "</div>" +
             "<div style='display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #d1fae5;font-size:13px;'><span style='color:#64748b;'>Employee</span><span style='font-weight:700;color:#2563eb;'>" + escHtml(result.name) + "</span></div>" +
             "<div style='display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #d1fae5;font-size:13px;'><span style='color:#64748b;'>Time</span><span style='font-weight:700;color:#2563eb;'>" + escHtml(result.time) + "</span></div>" +
-            "<div style='display:flex;justify-content:space-between;padding:7px 0;" + (resType ? "border-bottom:1px solid #d1fae5;" : "") + "font-size:13px;'><span style='color:#64748b;'>Status</span><span style='font-weight:700;color:#16a34a;'>" + escHtml(resStatus) + "</span></div>" +
+            (resType
+              ? "<div style='display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #d1fae5;font-size:13px;'>"
+              : "<div style='display:flex;justify-content:space-between;padding:7px 0;font-size:13px;'>"
+            ) + "<span style='color:#64748b;'>Status</span><span style='font-weight:700;color:#16a34a;'>" + escHtml(resStatus) + "</span></div>" +
             (resType ? "<div style='display:flex;justify-content:space-between;padding:7px 0;font-size:13px;'><span style='color:#64748b;'>Attendance Type</span><span style='font-weight:700;color:#16a34a;'>" + escHtml(resType) + "</span></div>" : "");
           resBox.style.display = "block";
         } catch(err) {
@@ -3194,7 +3197,7 @@
             var img = document.createElement('img');
             img.id = 'profilePreview';
             img.src = e.target.result;
-            img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            Object.assign(img.style, {width:'100%', height:'100%', objectFit:'cover'});
             init.parentNode.replaceChild(img, init);
           }
         };
@@ -3362,7 +3365,7 @@
           var tstr = (h12 < 10 ? '0' : '') + h12 + ':' + (b.minute < 10 ? '0' : '') + b.minute + ' ' + ampm;
           var icon = b.duration >= 30 ? '🍽️' : '☕';
           var el   = document.createElement('div');
-          el.style.cssText = 'display:flex;align-items:center;gap:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:10px 16px;min-width:180px;';
+          Object.assign(el.style, {display:'flex', alignItems:'center', gap:'10px', background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'12px', padding:'10px 16px', minWidth:'180px'});
           el.innerHTML = '<span class="u-fs-22">' + icon + '</span>'
             + '<div><div class="u-fs-13 u-fw-700 u-c-1e293b">' + escHtml(b.name) + '</div>'
             + '<div class="u-fs-12 u-c-64748b u-mt-2">' + tstr + ' &nbsp;·&nbsp; ' + b.duration + ' min</div></div>';

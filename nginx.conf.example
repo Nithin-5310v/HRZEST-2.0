@@ -7,6 +7,9 @@
 limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=login_limit:10m rate=5r/m;
 
+# Hide the nginx version from the Server header (curl -I / scanners).
+server_tokens off;
+
 # HTTP -> HTTPS Redirection
 server {
     listen 80;
@@ -47,6 +50,8 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(self), microphone=(), geolocation=(self)" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Cross-Origin-Resource-Policy "same-origin" always;
 
     # Gzip Compression
     gzip on;

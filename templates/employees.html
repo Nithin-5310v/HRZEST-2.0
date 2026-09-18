@@ -1711,7 +1711,7 @@
 
       function makeEduRow(degree, institution, year, pct) {
         var row = document.createElement('div');
-        row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 90px 70px 28px;gap:6px;align-items:center;';
+        Object.assign(row.style, {display:'grid', gridTemplateColumns:'1fr 1fr 90px 70px 28px', gap:'6px', alignItems:'center'});
         row.innerHTML =
           '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="degree[]" value="' + degree + '" placeholder="B.Tech" />' +
           '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="institution[]" value="' + institution + '" placeholder="University" />' +
