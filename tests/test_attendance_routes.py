@@ -196,9 +196,16 @@ class TestApiBreaks:
     def test_expired_bearer_token_returns_401(self, client, db_engine, seed_employee):
         token_hash = hashlib.sha256(b"expired-token-value").hexdigest()
         cur = db_engine.cursor()
+        # expires_at computed via the DB's own NOW() (not Python's local-tz
+        # datetime.now()) -- api_tokens.expires_at is TIMESTAMP WITHOUT TIME
+        # ZONE, compared against NOW() in the DB session's timezone. A
+        # Python-side "now() - 1h" in a local timezone ahead of the DB
+        # session's (e.g. IST, UTC+5:30) can still land in the DB's future,
+        # making an intentionally-expired fixture row look unexpired.
         cur.execute(
-            "INSERT INTO api_tokens (identity, token, token_type, expires_at) VALUES (%s,%s,'employee',%s)",
-            (seed_employee["employee_id"], token_hash, datetime.datetime.now() - datetime.timedelta(hours=1)),
+            "INSERT INTO api_tokens (identity, token, token_type, expires_at) "
+            "VALUES (%s,%s,'employee',NOW() - INTERVAL '1 hour')",
+            (seed_employee["employee_id"], token_hash),
         )
         cur.close()
         resp = client.get("/api/breaks", headers={"Authorization": "Bearer expired-token-value"})

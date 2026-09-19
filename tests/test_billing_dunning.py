@@ -497,9 +497,19 @@ class TestGraceAndLockStateMachine:
 
     def test_grace_period_expires_into_locked(self, db_engine, clean_invoices, restore_tenant_billing_state):
         from blueprints.billing_dunning import _run_billing_check
+        # grace_period_ends_at computed from the DB's own NOW(), not Python's
+        # local-tz datetime.now() -- this column is compared against NOW()
+        # in the DB session's timezone, and a Python-side "now() - 1h" in a
+        # local timezone ahead of it (e.g. IST, UTC+5:30) can still land in
+        # the DB's future, making an intentionally-passed deadline look not
+        # yet due.
+        cur = db_engine.cursor()
+        cur.execute("SELECT NOW() - INTERVAL '1 hour'")
+        deadline_already_passed = cur.fetchone()[0]
+        cur.close()
         _set_billing_state(
             db_engine, billing_state="grace",
-            grace_period_ends_at=datetime.datetime.now() - datetime.timedelta(hours=1),  # deadline already passed
+            grace_period_ends_at=deadline_already_passed,
             payment_option="online",
             created_at=datetime.datetime.now() - datetime.timedelta(days=90),
         )

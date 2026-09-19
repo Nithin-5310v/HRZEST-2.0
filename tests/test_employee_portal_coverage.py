@@ -165,6 +165,51 @@ class TestMyIdCard:
         assert rv.status_code in (200, 500)
 
 
+# ── my_attendance / my_leaves / my_salary / my_profile (tab deep links) ────────
+
+class TestPortalTabDeepLinks:
+
+    def test_my_attendance_unauthenticated_redirects(self, client):
+        rv = client.get("/my_attendance")
+        assert rv.status_code == 302
+
+    def test_my_attendance_redirects_to_portal_tab(self, client, seed_employee):
+        _emp_session(client, seed_employee)
+        rv = client.get("/my_attendance")
+        assert rv.status_code == 302
+        assert rv.headers["Location"].endswith("/employee_portal#tab-attendance")
+
+    def test_my_leaves_unauthenticated_redirects(self, client):
+        rv = client.get("/my_leaves")
+        assert rv.status_code == 302
+
+    def test_my_leaves_redirects_to_portal_tab(self, client, seed_employee):
+        _emp_session(client, seed_employee)
+        rv = client.get("/my_leaves")
+        assert rv.status_code == 302
+        assert rv.headers["Location"].endswith("/employee_portal#tab-leaves")
+
+    def test_my_salary_unauthenticated_redirects(self, client):
+        rv = client.get("/my_salary")
+        assert rv.status_code == 302
+
+    def test_my_salary_redirects_to_portal_tab(self, client, seed_employee):
+        _emp_session(client, seed_employee)
+        rv = client.get("/my_salary")
+        assert rv.status_code == 302
+        assert rv.headers["Location"].endswith("/employee_portal#tab-salary")
+
+    def test_my_profile_unauthenticated_redirects(self, client):
+        rv = client.get("/my_profile")
+        assert rv.status_code == 302
+
+    def test_my_profile_redirects_to_portal_tab(self, client, seed_employee):
+        _emp_session(client, seed_employee)
+        rv = client.get("/my_profile")
+        assert rv.status_code == 302
+        assert rv.headers["Location"].endswith("/employee_portal#tab-profile")
+
+
 # ── update_my_profile ─────────────────────────────────────────────────────────
 
 class TestUpdateMyProfile:

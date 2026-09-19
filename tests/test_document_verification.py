@@ -7,8 +7,20 @@ extract_kyc_fields() (the actual Claude vision call) is always mocked here
 reject-on-duplicate / inconclusive-falls-back-to-manual-queue) and the
 login gate, never make a real API call.
 """
+import pytest
 from extensions import app as flask_app
 from utils.auth import generate_password_hash
+
+
+@pytest.fixture(autouse=True)
+def _configured_app_url(monkeypatch):
+    """provision_tenant() and _reject_application_reviewed() (both called by
+    the automated worker with no HTTP request in flight) build portal/status
+    links via utils/helpers.py's _safe_app_url(), which only falls back to
+    request.host_url when APP_URL is unset -- a RuntimeError outside a
+    request. Production always sets APP_URL; the tests must too, or they
+    only pass on a machine whose .env happens to define it."""
+    monkeypatch.setattr("utils.helpers._APP_URL", "http://localhost")
 
 
 def _insert_tenant(db_engine, company_name, subdomain, admin_email="owner@test.local",
