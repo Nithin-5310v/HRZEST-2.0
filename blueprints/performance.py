@@ -8,9 +8,9 @@ values are always %s-bound params.
 """
 import datetime
 from functools import wraps
-from flask import Blueprint, request, session, redirect, render_template, flash, jsonify
+from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, g
 from database import get_db_connection
-from utils.auth import admin_required, employee_required, employee_api_required
+from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE
 from utils.helpers import tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings, get_employee_sidebar_info
 from extensions import limiter, log_security_event
 
@@ -81,9 +81,39 @@ def _admin_session_or_api_role_required(*allowed_roles):
                     actual_role=actual_role, identifier=identity,
                 )
                 return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+            g.api_user = identity
+            g.api_role = actual_role
             return f(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def _acting_hr_username():
+    """Username of the acting principal when it is an HR-role account (web
+    session or Bearer token), else None. The web routes get HR scoping from
+    utils/helpers.py's session-only hr_scope_*() helpers; those no-op for a
+    Bearer caller (no session), which is how the API twins below used to
+    skip HR scoping entirely."""
+    if session.get("admin_logged_in"):
+        return session.get("admin_username") if session.get("admin_role") == HR_ROLE else None
+    return g.api_user if getattr(g, "api_role", None) == HR_ROLE else None
+
+
+def _hr_write_denied(emp_id):
+    """True if the acting principal is HR and may not write performance data
+    for emp_id: not one of its assigned employees, or itself. Unlike
+    hr_scope_denied() -- which deliberately allows self-access so an HR
+    session can still see its own record -- a write path must never let HR
+    rate its own review/KPIs. Always False for non-HR roles."""
+    hr_user = _acting_hr_username()
+    if not hr_user:
+        return False
+    if emp_id == hr_user:
+        return True
+    with _db() as (cursor, _conn):
+        cursor.execute("SELECT assigned_hr_username FROM employees WHERE employee_id=%s", (emp_id,))
+        row = cursor.fetchone()
+    return not row or row[0] != hr_user
 
 
 @performance_bp.route("/api/performance", methods=["GET"])
@@ -96,16 +126,18 @@ def api_performance():
     see _admin_session_or_api_role_required() above for how both paths
     are equally role-gated.
     """
+    hr_user = _acting_hr_username()
+    hr_filter = "AND e.assigned_hr_username = %s" if hr_user else ""
     with _db() as (cursor, conn):
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT e.employee_id, e.name, COALESCE(e.role,'Employee'), COALESCE(e.department,'General'),
                    pr.id, COALESCE(pr.overall_rating, 0.0), COALESCE(pr.status, 'Pending Review'),
                    pr.updated_at
             FROM employees e
             LEFT JOIN performance_reviews pr ON pr.employee_id = e.employee_id
-            WHERE e.is_active = 1
+            WHERE e.is_active = 1 {hr_filter}
             ORDER BY e.name ASC
-        """)
+        """, (hr_user,) if hr_user else ())  # nosec B608 -- hr_filter is a fixed literal, value is %s-bound
         rows = cursor.fetchall()
         reviews = []
         for r in rows:
@@ -143,6 +175,9 @@ def api_submit_performance_review():
         return jsonify({"ok": False, "msg": "employee_id and a valid quarter (1-4) are required."}), 400
     feedback = (data.get("reviewer_feedback") or "").strip()
     status = (data.get("status") or "Draft").strip()
+
+    if _hr_write_denied(emp_id):
+        return jsonify({"ok": False, "msg": f"Unknown employee_id '{emp_id}'."}), 400
 
     with _db() as (cursor, conn):
         cursor.execute("SELECT 1 FROM employees WHERE employee_id=%s", (emp_id,))
@@ -344,7 +379,7 @@ def performance_save_review():
     feedback = request.form.get("reviewer_feedback", "").strip()
     status = request.form.get("status", "Draft")
 
-    if hr_scope_denied(emp_id):
+    if _hr_write_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
 
@@ -393,7 +428,7 @@ def performance_add_kpi():
         flash("KPI title is required.", "error")
         return redirect(tpath(f"/performance_review/{emp_id}?quarter={q}&year={yr}"))
 
-    if hr_scope_denied(emp_id):
+    if _hr_write_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
 
@@ -433,15 +468,22 @@ def performance_rate_kpi():
     achievement = request.form.get("achievement", "").strip()
     comments = request.form.get("comments", "").strip()
 
-    if hr_scope_denied(emp_id):
+    if _hr_write_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    # The scope check above is on the form's employee_id, so the KPI row must
+    # be bound to that same employee's review here -- otherwise a valid
+    # employee_id paired with someone else's kpi_id passes the check and
+    # edits a KPI the caller has no scope over.
     cursor.execute("""
-        UPDATE performance_kpis SET rating=%s, achievement=%s, comments=%s WHERE id=%s
-    """, (rating, achievement, comments, kpi_id))
+        UPDATE performance_kpis SET rating=%s, achievement=%s, comments=%s
+        WHERE id=%s AND review_id IN (
+            SELECT id FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s
+        )
+    """, (rating, achievement, comments, kpi_id, emp_id, q, yr))
     db.commit()
 
     # Recalculate overall rating
@@ -469,12 +511,18 @@ def performance_delete_kpi():
     emp_id = request.form["employee_id"]
     q = int(request.form["quarter"])
     yr = int(request.form["year"])
-    if hr_scope_denied(emp_id):
+    if _hr_write_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("DELETE FROM performance_kpis WHERE id=%s", (kpi_id,))
+    # Bound to emp_id's own review for the same reason as performance_rate_kpi.
+    cursor.execute("""
+        DELETE FROM performance_kpis
+        WHERE id=%s AND review_id IN (
+            SELECT id FROM performance_reviews WHERE employee_id=%s AND quarter=%s AND year=%s
+        )
+    """, (kpi_id, emp_id, q, yr))
     db.commit()
     cursor.close()
     db.close()
@@ -924,9 +972,16 @@ def performance_import():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    # Validate employee IDs exist
-    cursor.execute("SELECT employee_id FROM employees WHERE is_active=1")
+    # Validate employee IDs exist -- and, for an HR uploader, are in its own
+    # assigned scope (and not itself); an unscoped check here let an HR
+    # session overwrite any employee's reviews/KPIs via a spreadsheet.
+    _hr_user = _acting_hr_username()
+    if _hr_user:
+        cursor.execute("SELECT employee_id FROM employees WHERE is_active=1 AND assigned_hr_username=%s", (_hr_user,))
+    else:
+        cursor.execute("SELECT employee_id FROM employees WHERE is_active=1")
     valid_ids = {r[0] for r in cursor.fetchall()}
+    valid_ids.discard(_hr_user)
 
     imported = 0
     unknown = []
