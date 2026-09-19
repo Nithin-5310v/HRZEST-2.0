@@ -15,6 +15,7 @@ import calendar
 import math
 import io as _io
 import openpyxl
+from markupsafe import escape
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template,
@@ -872,7 +873,7 @@ def my_attendance_pdf():
     total_h = f"{total_sec//3600}h {(total_sec % 3600)//60}m"
 
     html = f"""<!doctype html><html><head><meta charset="UTF-8">
-<title>Attendance Report -- {emp[1]} -- {month_name}</title>
+<title>Attendance Report -- {escape(emp[1])} -- {month_name}</title>
 <style>
   body {{ font-family: "Segoe UI", sans-serif; margin: 0; padding: 32px; color: #1e293b; background: white; }}
   .header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px;
@@ -894,7 +895,7 @@ def my_attendance_pdf():
 </style></head><body>
 <div class="header">
   <div><div class="title">Attendance Report</div>
-    <div class="sub">{emp[1]} &nbsp;·&nbsp; {emp[0]} &nbsp;·&nbsp; {emp[2] or 'Employee'}</div>
+    <div class="sub">{escape(emp[1])} &nbsp;·&nbsp; {escape(emp[0])} &nbsp;·&nbsp; {escape(emp[2] or 'Employee')}</div>
     <div class="sub">{month_name}</div></div>
   <div class="meta">Generated: {datetime.date.today().strftime('%d %b %Y')}<br>
     <button onclick="window.print()" style="margin-top:8px;padding:8px 16px;background:#1e3a8a;color:white;
@@ -911,7 +912,7 @@ def my_attendance_pdf():
 </div>
 <table><thead><tr><th>Date</th><th>Day</th><th>Login</th><th>Logout</th><th>Status</th></tr></thead>
 <tbody>{rows_html}</tbody></table>
-<div class="footer">HRzest.com &nbsp;·&nbsp; {emp[1]} &nbsp;·&nbsp; {month_name}</div>
+<div class="footer">HRzest.com &nbsp;·&nbsp; {escape(emp[1])} &nbsp;·&nbsp; {month_name}</div>
 </body></html>"""
     return html
 
@@ -1618,7 +1619,7 @@ def download_tax_statement(emp_id, year):
     <body>
       <div class="header">
         <h2>ANNUAL TAX & FORM 16 / W-2 STATEMENT ({year})</h2>
-        <p>Employee: <strong>{emp[0] if emp else emp_id}</strong> ({emp_id})</p>
+        <p>Employee: <strong>{escape(emp[0] if emp else emp_id)}</strong> ({escape(emp_id)})</p>
       </div>
       <div class="box">
         <h3>Earnings & Deductions Summary</h3>

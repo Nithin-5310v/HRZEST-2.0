@@ -596,3 +596,67 @@ class TestBuildSalarySlipHtml:
             "February 2025", 2025, 2, salary_data,
         )
         assert "Bob" in html
+
+
+# ── HTML documents built from employee data must escape it ────────────────────
+
+class TestEmployeeDataIsEscapedInGeneratedHtml:
+    """my_attendance_pdf and download_tax_statement assemble whole HTML pages
+    from f-strings. HR/admin can edit an employee's name/role, and
+    download_tax_statement's emp_id comes straight from the URL, so any of
+    them reaching the page unescaped is script injection -- and app.py's
+    after_request adds the response's CSP nonce to EVERY <script tag in the
+    body, so an injected script would carry a valid nonce and execute."""
+
+    PAYLOAD = "<script>alert(1)</script>"
+    ESCAPED = "&lt;script&gt;alert(1)&lt;/script&gt;"
+
+    def _set_name_and_role(self, db_engine, emp_id):
+        cur = db_engine.cursor()
+        cur.execute("UPDATE employees SET name=%s, role=%s WHERE employee_id=%s",
+                    (self.PAYLOAD, self.PAYLOAD, emp_id))
+        cur.close()
+
+    def test_attendance_report_escapes_name_and_role(self, client, seed_employee, db_engine):
+        _emp_session(client, seed_employee)
+        self._set_name_and_role(db_engine, seed_employee["employee_id"])
+        rv = client.get("/my_attendance_pdf")
+        assert rv.status_code == 200
+        assert self.PAYLOAD.encode() not in rv.data
+        assert self.ESCAPED.encode() in rv.data
+
+    def test_tax_statement_escapes_employee_name(self, client, seed_employee, db_engine):
+        _emp_session(client, seed_employee)
+        self._set_name_and_role(db_engine, seed_employee["employee_id"])
+        rv = client.get(f"/download_tax_statement/{seed_employee['employee_id']}/2025")
+        assert rv.status_code == 200
+        assert self.PAYLOAD.encode() not in rv.data
+        assert self.ESCAPED.encode() in rv.data
+
+    def test_tax_statement_escapes_an_employee_id_containing_markup(self, client, db_engine):
+        """The statement prints the id from the URL next to the name. A
+        session for an id with no employee row is rejected by
+        employee_required before the view runs, so the reachable case is an
+        employee whose own id contains markup. The payload is inert markup
+        with no "/" (a slash would split the URL path and 404) that the WAF
+        lets through -- utils/waf.py blocks classic script/onerror=
+        signatures in path params, but a signature list is no substitute
+        for escaping, so this proves the view itself escapes."""
+        from utils.auth import generate_password_hash
+        hostile_id = "<u>injected"
+        cur = db_engine.cursor()
+        cur.execute(
+            "INSERT INTO employees (employee_id, name, email, password, force_pin_change) "
+            "VALUES (%s,%s,%s,%s,0) ON CONFLICT (employee_id) DO NOTHING",
+            (hostile_id, "Markup Id Employee", "markup@test.local", generate_password_hash("EmpPass@1")),
+        )
+        try:
+            with client.session_transaction() as sess:
+                sess["employee_id"] = hostile_id
+            rv = client.get(f"/download_tax_statement/{hostile_id}/2025")
+            assert rv.status_code == 200
+            assert hostile_id.encode() not in rv.data
+            assert b"&lt;u&gt;injected" in rv.data
+        finally:
+            cur.execute("DELETE FROM employees WHERE employee_id=%s", (hostile_id,))
+            cur.close()
