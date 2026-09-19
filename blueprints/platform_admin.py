@@ -55,7 +55,7 @@ _AUDIT_LOG_PER_PAGE = 50
 # function's docstring), so this filter is what keeps the audit log
 # platform-admin-relevant instead of showing every tenant's routine
 # admin/employee logins too.
-_AUDIT_LOG_PREFIXES = ("platform_admin.", "auth.platform_admin_", "billing.", "org.")
+_AUDIT_LOG_PREFIXES = ("platform_admin.", "auth.platform_admin_", "billing.", "org.", "secops.")
 
 
 def _paginate(items, page, per_page):
@@ -220,10 +220,14 @@ def _recent_platform_activity(limit=20):
     try:
         conn = get_db_connection()
         cur = conn.cursor(buffered=True)
+        # secops.% is blueprints/honeypot_routes.py's deception-honeypot trap
+        # hits (a scanner bot probing /.env, /wp-admin/, ...) -- cross-tenant
+        # perimeter events with a source IP, which is exactly what a platform
+        # admin needs to see and had no way to before.
         cur.execute(
-            "SELECT event_type, level, message, identifier, created_at FROM security_events "
+            "SELECT event_type, level, message, identifier, ip, created_at FROM security_events "
             "WHERE event_type LIKE 'platform_admin.%%' OR event_type LIKE 'auth.platform_admin_%%' "
-            "OR event_type LIKE 'billing.%%' "
+            "OR event_type LIKE 'billing.%%' OR event_type LIKE 'secops.%%' "
             "ORDER BY created_at DESC LIMIT %s",
             (limit,)
         )
@@ -231,7 +235,7 @@ def _recent_platform_activity(limit=20):
         cur.close()
         conn.close()
         return [
-            {"event_type": r[0], "level": r[1], "message": r[2], "identifier": r[3], "created_at": r[4]}
+            {"event_type": r[0], "level": r[1], "message": r[2], "identifier": r[3], "ip": r[4], "created_at": r[5]}
             for r in rows
         ]
     except Exception as exc:
@@ -1323,7 +1327,7 @@ def platform_admin_audit_log():
     prefix_clause = " OR ".join(["event_type LIKE %s"] * len(_AUDIT_LOG_PREFIXES))
     conditions = [f"({prefix_clause})"]
     params = [f"{p}%" for p in _AUDIT_LOG_PREFIXES]
-    if level_filter in ("INFO", "WARNING", "ERROR"):
+    if level_filter in ("INFO", "WARNING", "ERROR", "CRITICAL"):
         conditions.append("level=%s")
         params.append(level_filter)
     if q:
