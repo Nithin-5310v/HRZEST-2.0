@@ -7,7 +7,6 @@ extract_kyc_fields() (the actual Claude vision call) is always mocked here
 reject-on-duplicate / inconclusive-falls-back-to-manual-queue) and the
 login gate, never make a real API call.
 """
-import pytest
 from extensions import app as flask_app
 from utils.auth import generate_password_hash
 

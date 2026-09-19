@@ -1392,7 +1392,6 @@ def platform_admin_soc_dashboard():
 # history a report could be built on.
 
 
-
 def _fetch_tenant(tenant_id):
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
