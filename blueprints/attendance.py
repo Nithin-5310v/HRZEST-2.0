@@ -13,11 +13,11 @@ import io as _io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from flask import (
-    Blueprint, request, session, redirect, jsonify, render_template, flash,
+    Blueprint, request, session, redirect, jsonify, render_template, flash, g,
 )
 from extensions import limiter, app_log
 from database import get_db_connection
-from utils.auth import admin_required, api_required, resolve_bearer_identity_any
+from utils.auth import admin_required, api_required, resolve_bearer_identity_any, HR_ROLE
 from utils.helpers import (
     tpath, get_auth_config, get_company_settings, _safe_redirect, _safe_referrer_redirect,
     co_scope_column, hr_scope_column, hr_scope_denied, decrypt_pii, get_pending_action_counts,
@@ -796,6 +796,20 @@ def bulk_mark_attendance():
                            )
 
 
+def _api_hr_username():
+    """Bearer-token counterpart of hr_scope_column()'s session check: the
+    caller's username if its admin_users.role is HR, else None. The session-
+    based hr_scope_*() helpers no-op for a Bearer caller (no session), so the
+    API twins below need their own way to apply the same HR scoping."""
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute("SELECT role FROM admin_users WHERE username=%s", (g.api_user,))
+    row = cursor.fetchone()
+    cursor.close()
+    db.close()
+    return g.api_user if row and row[0] == HR_ROLE else None
+
+
 @attendance_bp.route("/api/bulk_mark_attendance", methods=["GET", "POST"])
 @api_required
 def api_bulk_mark_attendance():
@@ -811,11 +825,21 @@ def api_bulk_mark_attendance():
 
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
+        # Same scope the web bulk_mark_attendance() gets from hr_scope_column():
+        # active employees only, and for an HR caller only its assigned ones.
+        # Without this, any admin-side token could write attendance rows for
+        # arbitrary (even nonexistent) employee IDs.
+        _hr_user = _api_hr_username()
+        if _hr_user:
+            cursor.execute("SELECT employee_id FROM employees WHERE is_active=1 AND assigned_hr_username=%s", (_hr_user,))
+        else:
+            cursor.execute("SELECT employee_id FROM employees WHERE is_active=1")
+        allowed_ids = {row[0] for row in cursor.fetchall()}
         rows = []
         for r in records:
             eid = r.get("emp_id") or r.get("employee_id")
             att_type = r.get("attendance_type", "").strip()
-            if not eid or not att_type:
+            if not eid or not att_type or eid not in allowed_ids:
                 continue
             login_t = r.get("login_time") or None
             logout_t = r.get("logout_time") or None
@@ -845,18 +869,20 @@ def api_bulk_mark_attendance():
     except ValueError:
         date_obj = today
 
+    _hr_user = _api_hr_username()
+    _hr_filter = "AND e.assigned_hr_username=%s" if _hr_user else ""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT e.employee_id, e.name, COALESCE(e.department,''), COALESCE(e.role,''),
                COALESCE(TO_CHAR(s.start_time,'HH24:MI'),'09:00'),
                COALESCE(TO_CHAR(s.end_time,'HH24:MI'),'18:00'),
                COALESCE(e.work_mode,'office')
         FROM employees e
         LEFT JOIN shifts s ON s.id=e.shift_id
-        WHERE COALESCE(e.is_active, 1)=1
+        WHERE COALESCE(e.is_active, 1)=1 {_hr_filter}
         ORDER BY e.name
-    """)
+    """, (_hr_user,) if _hr_user else ())  # nosec B608 -- _hr_filter is a fixed literal, value is %s-bound
     emp_rows = cursor.fetchall()
 
     cursor.execute("SELECT employee_id, login_time, logout_time, attendance_type FROM attendance WHERE date=%s", (date_obj,))
