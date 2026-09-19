@@ -188,9 +188,17 @@ def api_payout_lock():
 @require_payout_2fa
 def approve_disbursement_run(run_id):
     """Authorizes real money movement -- the one explicit human click the
-    plan requires before anything executes. Status guard below prevents
-    double-approval (same shape as platform_admin.py's application-approval
-    race guard)."""
+    plan requires before anything executes.
+
+    "AND status='pending_approval'" on the UPDATE below is load-bearing,
+    not decorative -- mirrors billing.py's verify_payment() exactly: two
+    near-simultaneous POSTs for the same run (a double-click, a browser
+    retry, two admin tabs) must not both pass the SELECT's status check
+    above and each go on to call _process_disbursement_run(), which would
+    call execute_payout() for every item a second time. Only the request
+    whose UPDATE actually flips a row (cursor.rowcount == 1) proceeds to
+    process the run; the loser gets an idempotent "already being
+    processed" result instead of a second payout pass."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT status, year, month FROM salary_disbursement_runs WHERE id=%s", (run_id,))
@@ -209,12 +217,19 @@ def approve_disbursement_run(run_id):
 
     approver = session.get("admin_username")
     cursor.execute(
-        "UPDATE salary_disbursement_runs SET status='processing', approved_by=%s, approved_at=NOW() WHERE id=%s",
+        "UPDATE salary_disbursement_runs SET status='processing', approved_by=%s, approved_at=NOW() "
+        "WHERE id=%s AND status='pending_approval'",
         (approver, run_id)
     )
+    won_race = cursor.rowcount == 1
     db.commit()
     cursor.close()
     db.close()
+
+    if not won_race:
+        flash("This run is already being processed by another request.", "info")
+        return redirect(tpath("/settings?tab=payroll"))
+
     log_security_event("payout.disbursement_approved",
                        f"Disbursement run {run_id} ({year}-{month:02d}) approved for processing",
                        level="INFO", identifier=approver)
@@ -252,10 +267,19 @@ def reject_disbursement_run(run_id):
         db.close()
         flash("This run can't be cancelled from its current state.", "error")
         return redirect(tpath("/settings?tab=payroll"))
-    cursor.execute("UPDATE salary_disbursement_runs SET status='cancelled' WHERE id=%s", (run_id,))
+    # Same race-guard shape as approve_disbursement_run() above -- avoids a
+    # duplicate audit-log/security-event pair if this fires twice.
+    cursor.execute(
+        "UPDATE salary_disbursement_runs SET status='cancelled' WHERE id=%s AND status='pending_approval'",
+        (run_id,)
+    )
+    won_race = cursor.rowcount == 1
     db.commit()
     cursor.close()
     db.close()
+    if not won_race:
+        flash("This run was already cancelled or approved by another request.", "info")
+        return redirect(tpath("/settings?tab=payroll"))
     _audit("cancel_disbursement_run", "salary_disbursement_runs", run_id, reason)
     log_security_event("payout.disbursement_cancelled", f"Disbursement run {run_id} cancelled",
                        level="INFO", identifier=session.get("admin_username"), reason=reason)

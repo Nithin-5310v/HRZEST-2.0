@@ -338,10 +338,22 @@ def _mark_invoice_paid_and_unlock(razorpay_order_id, razorpay_payment_id, expect
         conn.close()
         return True
 
+    # "AND status != 'paid'" is load-bearing, not decorative -- mirrors
+    # billing.py's verify_payment() exactly: the browser-side verify call
+    # and the payment.captured webhook can both reach here for the same
+    # order after both passing the status=='paid' check above. Only the
+    # request whose UPDATE actually flips a row (cursor.rowcount == 1)
+    # reactivates the tenant and sends the notification; the loser gets
+    # the same idempotent True a retried call expects.
     cur.execute(
-        "UPDATE monthly_invoices SET status='paid', razorpay_payment_id=%s WHERE id=%s",
+        "UPDATE monthly_invoices SET status='paid', razorpay_payment_id=%s WHERE id=%s AND status != 'paid'",
         (razorpay_payment_id, invoice_id)
     )
+    won_race = cur.rowcount == 1
+    if not won_race:
+        cur.close()
+        conn.close()
+        return True
     cur.execute(
         "UPDATE tenants SET billing_state='current', grace_period_ends_at=NULL, locked_at=NULL WHERE db_name=%s",
         (tenant_schema,)

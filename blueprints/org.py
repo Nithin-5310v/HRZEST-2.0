@@ -970,11 +970,23 @@ def _approve_application_reviewed(application, reviewed_by):
     from database import get_master_db
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
+    # "AND doc_review_status='pending_review'" is load-bearing, not
+    # decorative -- this is called from both the platform-admin route AND
+    # utils/document_verification.py's automated worker, which can race
+    # each other for the same application. Only the request whose UPDATE
+    # actually flips a row (cursor.rowcount == 1) proceeds to reinstate/
+    # log; the loser gets the same success result a retried call expects,
+    # without a second reinstate or a duplicate security-event pair.
     cur.execute(
         "UPDATE tenant_applications SET doc_review_status='approved', reviewed_by=%s, reviewed_at=NOW(), "
-        "updated_at=NOW() WHERE id=%s",
+        "updated_at=NOW() WHERE id=%s AND doc_review_status='pending_review'",
         (reviewed_by, application["id"])
     )
+    if cur.rowcount != 1:
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True, f"'{application['company_name']}'s documents approved."
     cur.execute("SELECT status FROM tenants WHERE id=%s", (application["tenant_id"],))
     tenant_row = cur.fetchone()
     reinstated = bool(tenant_row and tenant_row[0] == "suspended")

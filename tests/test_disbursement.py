@@ -326,6 +326,109 @@ class TestApprovalGuards:
         assert resp2.status_code == 302
 
 
+class _RacingConnection:
+    """Wraps the real connection the approve/reject route opens, so that
+    right after the route's status SELECT returns (its check), a second
+    "request" flips the row on the test's own connection -- the exact
+    check-then-update interleaving a double-click or two admin tabs produce.
+    Everything else delegates to the real connection untouched."""
+
+    def __init__(self, real, race):
+        self._real = real
+        self._race = race
+
+    def cursor(self, *args, **kwargs):
+        return _RacingCursor(self._real.cursor(*args, **kwargs), self._race)
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+class _RacingCursor:
+    def __init__(self, real, race):
+        self._real = real
+        self._race = race
+        self._fired = False
+
+    def execute(self, sql, *args, **kwargs):
+        result = self._real.execute(sql, *args, **kwargs)
+        if not self._fired and sql.lstrip().upper().startswith("SELECT STATUS"):
+            self._fired = True
+            self._race()
+        return result
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+class TestApprovalRace:
+    def _pending_run(self, db_engine, month):
+        cur = db_engine.cursor()
+        cur.execute("DELETE FROM salary_disbursement_runs WHERE year=2020 AND month=%s", (month,))
+        cur.execute(
+            "INSERT INTO salary_disbursement_runs (year, month, status, total_amount, employee_count) "
+            "VALUES (2020, %s, 'pending_approval', 0, 0) RETURNING id", (month,)
+        )
+        run_id = cur.fetchone()[0]
+        db_engine.commit()
+        cur.close()
+        return run_id
+
+    def _install_race(self, monkeypatch, db_engine, run_id, winner_status):
+        import blueprints.disbursement as disbursement
+        real_get = disbursement.get_db_connection
+        opened = {"n": 0}
+
+        def race():
+            cur = db_engine.cursor()
+            cur.execute(
+                "UPDATE salary_disbursement_runs SET status=%s, approved_by='winner' WHERE id=%s",
+                (winner_status, run_id),
+            )
+            db_engine.commit()
+            cur.close()
+
+        def racing_get():
+            conn = real_get()
+            opened["n"] += 1
+            return _RacingConnection(conn, race) if opened["n"] == 1 else conn
+
+        monkeypatch.setattr(disbursement, "get_db_connection", racing_get)
+
+    def test_approve_loser_of_a_race_never_processes_the_run(self, client, seed_admin, db_engine, monkeypatch):
+        import blueprints.disbursement as disbursement
+        _admin_session(client, seed_admin)
+        run_id = self._pending_run(db_engine, 3)
+        processed = []
+        monkeypatch.setattr(disbursement, "_process_disbursement_run", lambda rid: processed.append(rid))
+        self._install_race(monkeypatch, db_engine, run_id, "processing")
+
+        resp = client.post(f"/disbursement/{run_id}/approve", follow_redirects=False)
+        assert resp.status_code == 302
+
+        assert processed == [], "the request that lost the race must not run the payout pass a second time"
+        cur = db_engine.cursor()
+        cur.execute("SELECT status, approved_by FROM salary_disbursement_runs WHERE id=%s", (run_id,))
+        status, approved_by = cur.fetchone()
+        cur.close()
+        assert status == "processing"
+        assert approved_by == "winner", "the loser must not overwrite the winner's approver"
+
+    def test_reject_loser_of_a_race_does_not_cancel_an_approved_run(self, client, seed_admin, db_engine, monkeypatch):
+        _admin_session(client, seed_admin)
+        run_id = self._pending_run(db_engine, 4)
+        self._install_race(monkeypatch, db_engine, run_id, "processing")
+
+        resp = client.post(f"/disbursement/{run_id}/reject", follow_redirects=False)
+        assert resp.status_code == 302
+
+        cur = db_engine.cursor()
+        cur.execute("SELECT status FROM salary_disbursement_runs WHERE id=%s", (run_id,))
+        status = cur.fetchone()[0]
+        cur.close()
+        assert status == "processing", "a cancel that lost the race must not clobber an already-approved run"
+
+
 class TestStubNeverClaimsSuccess:
     def test_unconfigured_provider_marks_items_stub_not_completed(self, client, seed_admin, seed_employee, db_engine, monkeypatch):
         monkeypatch.delenv("PAYOUT_PROVIDER", raising=False)
