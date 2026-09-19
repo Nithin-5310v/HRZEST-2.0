@@ -759,6 +759,17 @@ def _enforce_csrf():
         # request signature instead (blueprints/webhooks.py's generic
         # /webhooks/<provider> route).
         return
+    if request.path == "/csp-report":
+        # The browser's own report-uri mechanism (app.py's Content-Security-
+        # Policy header sets "report-uri /csp-report") fires this POST
+        # automatically whenever a page violates CSP -- there is no page JS
+        # in the loop to attach an X-CSRF-Token header, and no <form> to
+        # carry one either, so this can never pass the check below. Without
+        # this exemption every violation report was silently 403'd before
+        # ever reaching blueprints/core.py's csp_report() logging -- CSP
+        # reporting was wired up but completely inert, on every page,
+        # for every visitor, since the day it was added.
+        return
     if request.path in ("/login", "/admin_login", "/hr_login"):
         return  # Login routes handle credential verification & rate-limiting
     # NOTE: We intentionally do NOT skip JSON requests here. The auto-inject

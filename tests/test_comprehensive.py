@@ -819,6 +819,26 @@ class TestCSRF:
         resp = client.post("/api/login", json={"username": "x", "password": "y"})
         assert resp.status_code in (200, 401)  # not 403
 
+    def test_csp_report_endpoint_is_exempt_from_csrf(self, client, monkeypatch):
+        """app.py's CSP header sets "report-uri /csp-report", so the browser
+        itself POSTs violation reports there -- with no page JS or <form> in
+        the loop to attach a CSRF token. The hook is skipped entirely in
+        testing mode, so this flips it back on: the control request proves
+        CSRF is genuinely enforced here, and the report must still get
+        through (regression: every report was 403'd before reaching
+        blueprints/core.py's csp_report(), leaving CSP reporting inert)."""
+        import json
+        from extensions import app as flask_app
+        monkeypatch.setitem(flask_app.config, "TESTING", False)
+
+        control = client.post("/change_admin_password", json={})
+        assert control.status_code == 403
+        assert b"Session expired" in control.data
+
+        report = {"csp-report": {"blocked-uri": "inline", "violated-directive": "style-src-elem"}}
+        resp = client.post("/csp-report", data=json.dumps(report), content_type="application/csp-report")
+        assert resp.status_code == 204
+
 
 # ===========================================================================
 # 22. ADMIN DASHBOARD LIVE API
