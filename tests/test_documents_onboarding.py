@@ -200,6 +200,34 @@ class TestUploadDocument:
         cur.close()
         assert row is not None
 
+    def test_upload_rejects_employee_id_outside_the_registration_allowlist(
+            self, client, seed_admin, db_engine, monkeypatch):
+        """employee_id is interpolated into the storage path, so it must pass
+        the same allowlist registration uses (utils/helpers.py:
+        validate_emp_id) before anything is written -- the storage layer must
+        never even be called with it. The WAF (utils/waf.py) already 403s a
+        literal "../" in a form field, but that is a signature list that
+        encoding tricks can dodge; this uses a value the WAF lets through to
+        prove the view enforces the allowlist itself."""
+        import blueprints.documents as documents
+        saved = []
+        monkeypatch.setattr(documents, "save_private", lambda *a, **k: saved.append(a) or ("x", None))
+        _admin_session(client, seed_admin)
+        hostile = "EMP 001 x"
+        resp = client.post("/upload_document", data={
+            "employee_id": hostile,
+            "doc_type":    "ID Proof",
+            "document":    (io.BytesIO(b"%PDF-1.4 fake pdf content"), "id_proof.pdf"),
+        }, content_type="multipart/form-data", follow_redirects=True)
+        assert resp.status_code == 200
+        assert b"Invalid employee ID" in resp.data
+        assert saved == [], "a traversal id must not reach the storage layer"
+        cur = db_engine.cursor()
+        cur.execute("SELECT COUNT(*) FROM employee_documents WHERE employee_id=%s", (hostile,))
+        count = cur.fetchone()[0]
+        cur.close()
+        assert count == 0
+
     def test_upload_missing_employee_id_rejected(self, client, seed_admin):
         _admin_session(client, seed_admin)
         resp = client.post("/upload_document", data={

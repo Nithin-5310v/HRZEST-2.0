@@ -7,7 +7,9 @@ from extensions import app, app_log
 from database import get_db_connection, transaction
 from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, enforce_ownership, api_required, api_role_required, employee_api_required
-from utils.helpers import tpath, _audit, _validate_upload, _safe_referrer_redirect, hr_scope_denied, _create_notification
+from utils.helpers import (
+    tpath, _audit, _validate_upload, _safe_referrer_redirect, hr_scope_denied, _create_notification, validate_emp_id,
+)
 from utils.storage import save_private, open_private, delete_private
 
 documents_bp = Blueprint("documents", __name__)
@@ -24,6 +26,12 @@ def upload_document():
     if not emp_id or not doc_type or not f or not f.filename:
         flash("All fields required.", "danger")
         return redirect(tpath(f"/employee_detail/{emp_id}" if emp_id else "/employees"))
+    # emp_id is interpolated into the storage path below (local disk or S3
+    # key), so it must pass the same allowlist registration uses -- otherwise
+    # "../../static/x" walks the write out of private_uploads/.
+    if not validate_emp_id(emp_id):
+        flash("Invalid employee ID.", "danger")
+        return redirect(tpath("/employees"))
     ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
     if not ok:
         flash(err, "danger")
