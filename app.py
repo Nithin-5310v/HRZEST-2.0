@@ -36,6 +36,7 @@ import threading
 import hashlib
 import time
 import base64
+from urllib.parse import urlsplit
 from werkzeug.exceptions import HTTPException
 from dotenv import load_dotenv
 
@@ -1001,12 +1002,24 @@ def _security_headers(response):
         _razorpay_script_src = " https://checkout.razorpay.com https://cdn.razorpay.com" if _is_razorpay_page else ""
         _razorpay_frame_src = "https://checkout.razorpay.com https://api.razorpay.com" if _is_razorpay_page else ""
         _razorpay_connect_src = " https://api.razorpay.com https://lumberjack.razorpay.com" if _is_razorpay_page else ""
+        # /super_admin/soc (blueprints/platform_admin.py) embeds the standalone
+        # SOC dashboard in an iframe. Without this, the default frame-src 'none'
+        # makes the browser refuse to load it and the page shows an empty box.
+        # Only that service's own origin (scheme://host:port of SOC_DASHBOARD_URL,
+        # never the path or the token) is allowed, and only on this one page.
+        _soc_frame_src = ""
+        if request.path == "/super_admin/soc":
+            _soc_url = urlsplit(os.environ.get("SOC_DASHBOARD_URL", ""))
+            if _soc_url.scheme in ("http", "https") and _soc_url.netloc:
+                _soc_frame_src = f"{_soc_url.scheme}://{_soc_url.netloc}"
         if _is_turnstile_page and _is_razorpay_page:
             _frame_src = "https://challenges.cloudflare.com " + _razorpay_frame_src
         elif _is_turnstile_page:
             _frame_src = "https://challenges.cloudflare.com"
         elif _is_razorpay_page:
             _frame_src = _razorpay_frame_src
+        elif _soc_frame_src:
+            _frame_src = _soc_frame_src
         else:
             _frame_src = "'none'"
         _is_employee_portal_page = request.path == "/employee_portal"
@@ -2100,12 +2113,13 @@ if "core.home" not in app.view_functions:
     from blueprints.hr_dashboard import hr_dashboard_bp
     from blueprints.policies import policies_bp
     from blueprints.company_profile import company_profile_bp
+    from blueprints.seo import seo_bp
     for _bp in (health_bp, notifications_bp, payroll_bp, leave_bp, admin_views_bp,
                 auth_bp, employees_bp, attendance_bp, tickets_bp, performance_bp,
                 documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp,
                 ai_hrms_bp, email_blast_bp, daily_report_bp, billing_bp, webhooks_bp, seats_bp, auto_debit_bp,
                 billing_dunning_bp, platform_admin_bp, honeypot_bp, disbursement_bp, hr_dashboard_bp, policies_bp,
-                company_profile_bp):
+                company_profile_bp, seo_bp):
         app.register_blueprint(_bp)
 
 
