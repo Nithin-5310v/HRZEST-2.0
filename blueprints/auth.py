@@ -812,7 +812,8 @@ def admin_forgot_password():
       border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
       Reset My Password
     </a>
-    <p style="font-size:13px;color:#64748b;">This link expires in <strong>{RESET_TOKEN_VALID_HOURS} hours</strong>. If you did not request this, ignore this email.</p>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>{RESET_TOKEN_VALID_HOURS} hours</strong>.
+      If you did not request this, ignore this email.</p>
     <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
   </div>
 </div>"""
@@ -906,7 +907,8 @@ def employee_forgot_password():
       border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
       Reset My Password
     </a>
-    <p style="font-size:13px;color:#64748b;">This link expires in <strong>{RESET_TOKEN_VALID_HOURS} hours</strong>. If you did not request this, please ignore this email.</p>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>{RESET_TOKEN_VALID_HOURS} hours</strong>.
+      If you did not request this, please ignore this email.</p>
     <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
   </div>
 </div>"""

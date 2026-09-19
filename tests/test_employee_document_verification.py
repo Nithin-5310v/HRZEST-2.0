@@ -8,7 +8,6 @@ one admin notification once every required kind is approved for a given
 employee.
 """
 import io
-import pytest
 
 
 _FAKE_PDF = b"%PDF-1.4\n" + b"x" * 20
@@ -76,6 +75,7 @@ class TestUploadVerificationDocument:
         cur.close()
         assert row is not None
         assert row[0] == "pending"
+
 
 class TestVerifyEmployeeDocument:
     def test_requires_admin(self, client, seed_employee):

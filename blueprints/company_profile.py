@@ -307,7 +307,7 @@ def profile_ticket_detail(ticket_id):
     if not ticket:
         return "Ticket not found.", 404
     return render_template("profile_ticket_detail.html", active_nav="profile", ticket=ticket,
-                            co=get_company_settings())
+                           co=get_company_settings())
 
 
 @company_profile_bp.route("/profile/tickets/<int:ticket_id>/reply", methods=["POST"])

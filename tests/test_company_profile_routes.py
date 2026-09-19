@@ -12,7 +12,6 @@ real att_master.tenants row (via tenant_id), which doesn't exist for
 each test that needs it, following the exact pattern tests/test_platform_admin.py's
 TestCompanyProfile.crm_tenant fixture already uses for its own tenant.
 """
-import datetime
 import pytest
 
 TENANT_SCHEMA = "att_test"
@@ -304,7 +303,7 @@ class TestSupportTicketsTab:
 
         _admin_session(client, seed_admin["username"])
         resp = client.post(f"/profile/tickets/{ticket_id}/reply", data={"comment": "reopen please"},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert resp.status_code == 200
         cur = db_engine.cursor()
         cur.execute("SELECT COUNT(*) FROM att_master.tenant_ticket_comments WHERE ticket_id=%s", (ticket_id,))
@@ -379,7 +378,7 @@ class TestPlatformAdminReplyNotifiesCorrectTenant:
             sess["platform_admin_last_activity"] = _time.time()
 
         resp = client.post(f"/super_admin/tickets/{ticket_id}/comment", data={"comment": "We're on it."},
-                            follow_redirects=True)
+                           follow_redirects=True)
         assert resp.status_code == 200
 
         cur = db_engine.cursor()

@@ -34,7 +34,7 @@ def _normalize_status(raw_status):
 
 
 def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
-                         date_from=None, date_to=None, limit=None, offset=0):
+                        date_from=None, date_to=None, limit=None, offset=0):
     """Merged, sorted (newest first) feed of every payment made by one
     tenant (or, with both keys left None, across every tenant -- the
     platform-admin-wide view). Each row keeps its own table's raw `status`
@@ -195,7 +195,7 @@ def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
         return {"payments": merged, "total": total}
     except Exception as exc:
         app_log.warning("get_payment_history: lookup failed (tenant_id=%s, tenant_schema=%s): %s",
-                         tenant_id, tenant_schema, exc)
+                        tenant_id, tenant_schema, exc)
         return {"payments": [], "total": 0}
 
 

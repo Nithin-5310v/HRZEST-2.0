@@ -387,7 +387,9 @@ def leave_holidays():
     resignations = cursor.fetchall()
     cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub} {_hr_sub} {_mgr_sub}", _co_args + _hr_args + _mgr_args)  # nosec B608
     pending_leaves = cursor.fetchone()[0]
-    cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub} {_hr_sub} {_mgr_sub}", _co_args + _hr_args + _mgr_args)  # nosec B608
+    cursor.execute(
+        f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub} {_hr_sub} {_mgr_sub}",  # nosec B608
+        _co_args + _hr_args + _mgr_args)
     pending_resignations = cursor.fetchone()[0]
 
     # Holidays data

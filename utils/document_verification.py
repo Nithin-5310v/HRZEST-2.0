@@ -66,9 +66,12 @@ _CLAUDE_VISION_MEDIA_TYPES = {
     ".webp": "image/webp",
 }
 
-_EXTRACTION_PROMPT = """You are reviewing scanned business-registration documents submitted by a company during signup to an HR platform. You are given, in order: the Company Registration Certificate, Company Address Proof, Company Visiting Card, and Office Name-Board Photo (any of these may be missing from the images provided if that document could not be read).
+_EXTRACTION_PROMPT = """You are reviewing scanned business-registration documents submitted by a company during signup to an HR platform. \
+You are given, in order: the Company Registration Certificate, Company Address Proof, Company Visiting Card, and Office Name-Board Photo \
+(any of these may be missing from the images provided if that document could not be read).
 
-Extract the following fields by reading the documents. If a field genuinely is not present/legible in any document, use null for it -- never guess or fabricate a value.
+Extract the following fields by reading the documents. If a field genuinely is not present/legible in any document, \
+use null for it -- never guess or fabricate a value.
 
 Respond with STRICT JSON ONLY (no markdown fences, no prose before or after), exactly this shape:
 {

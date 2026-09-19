@@ -73,7 +73,7 @@ class TestSendPushNotification:
         register_push_token("employee", "TST001", "ExponentPushToken[two]", "android")
         calls = []
         monkeypatch.setattr("utils.push_utils._send_expo_push",
-                             lambda tokens, title, body: calls.append((set(tokens), title, body)) or [])
+                            lambda tokens, title, body: calls.append((set(tokens), title, body)) or [])
         send_push_notification("employee", "TST001", "Leave Approved", "Your leave was approved.")
         assert len(calls) == 1
         tokens, title, body = calls[0]
@@ -93,7 +93,7 @@ class TestSendPushNotification:
         from utils.push_utils import register_push_token, send_push_notification
         register_push_token("employee", "TST001", "ExponentPushToken[boom]", "ios")
         monkeypatch.setattr("utils.push_utils._send_expo_push",
-                             lambda *a, **k: (_ for _ in ()).throw(RuntimeError("network down")))
+                            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("network down")))
         send_push_notification("employee", "TST001", "Title", "Body")  # must not raise
 
     def test_stale_device_token_is_pruned(self, db_engine, monkeypatch):
@@ -131,7 +131,7 @@ class TestSendPushNotificationBroadcast:
         register_push_token("employee", "TST001", "ExponentPushToken[emp]", "ios")
         calls = []
         monkeypatch.setattr("utils.push_utils._send_expo_push",
-                             lambda tokens, title, body: calls.append(set(tokens)) or [])
+                            lambda tokens, title, body: calls.append(set(tokens)) or [])
         send_push_notification_broadcast("admin", "New Ticket", "A new ticket was raised.")
         assert len(calls) == 1
         assert calls[0] == {"ExponentPushToken[admin1]", "ExponentPushToken[admin2]"}
@@ -147,7 +147,7 @@ class TestCreateNotificationTriggersPush:
         emp_id = seed_employee["employee_id"]
         calls = []
         monkeypatch.setattr("utils.push_utils.send_push_notification",
-                             lambda *a, **k: calls.append(a))
+                            lambda *a, **k: calls.append(a))
         _create_notification("employee", "Title", "Body", employee_id=emp_id)
         assert calls == [("employee", emp_id, "Title", "Body")]
 
@@ -155,7 +155,7 @@ class TestCreateNotificationTriggersPush:
         from utils.helpers import _create_notification
         calls = []
         monkeypatch.setattr("utils.push_utils.send_push_notification_broadcast",
-                             lambda *a, **k: calls.append(a))
+                            lambda *a, **k: calls.append(a))
         _create_notification("admin", "Title", "Body")
         assert calls == [("admin", "Title", "Body")]
 
@@ -252,7 +252,7 @@ class TestSendPushNotificationBulk:
         register_push_token("employee", "OTHER_BULK_EMP", "ExponentPushToken[bulk2]", "android")
         calls = []
         monkeypatch.setattr("utils.push_utils._send_expo_push",
-                             lambda tokens, title, body: calls.append(set(tokens)) or [])
+                            lambda tokens, title, body: calls.append(set(tokens)) or [])
         send_push_notification_bulk("employee", ["TST001", "OTHER_BULK_EMP"], "Announcement", "Body")
         assert len(calls) == 1
         assert calls[0] == {"ExponentPushToken[bulk1]", "ExponentPushToken[bulk2]"}
@@ -274,10 +274,13 @@ class TestSendExpoPushChunking:
         class _FakeResp:
             def __init__(self, n):
                 self._n = n
+
             def __enter__(self):
                 return self
+
             def __exit__(self, *a):
                 return False
+
             def read(self):
                 import json as _json
                 return _json.dumps({"data": [{"status": "ok"}] * self._n}).encode("utf-8")
@@ -364,8 +367,8 @@ class TestPushTokenApiEndpoints:
     def test_admin_can_register_push_token(self, client, seed_admin, db_engine):
         token = _admin_token(client, seed_admin)
         resp = client.post("/api/push_token",
-                            headers={"Authorization": f"Bearer {token}"},
-                            json={"expo_push_token": "ExponentPushToken[adminapi]", "platform": "ios"})
+                           headers={"Authorization": f"Bearer {token}"},
+                           json={"expo_push_token": "ExponentPushToken[adminapi]", "platform": "ios"})
         assert resp.status_code == 200
         assert resp.get_json()["ok"] is True
         cur = db_engine.cursor()
@@ -386,8 +389,8 @@ class TestPushTokenApiEndpoints:
     def test_employee_can_register_push_token(self, client, seed_employee, db_engine):
         token = _emp_token(client, seed_employee)
         resp = client.post("/api/employee/push_token",
-                            headers={"Authorization": f"Bearer {token}"},
-                            json={"expo_push_token": "ExponentPushToken[empapi]", "platform": "android"})
+                           headers={"Authorization": f"Bearer {token}"},
+                           json={"expo_push_token": "ExponentPushToken[empapi]", "platform": "android"})
         assert resp.status_code == 200
         cur = db_engine.cursor()
         cur.execute("SELECT owner_type, owner_id FROM push_tokens WHERE expo_push_token=%s",

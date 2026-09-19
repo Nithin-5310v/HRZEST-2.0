@@ -301,6 +301,7 @@ class TestHrScopeRouteGuards:
         assert resp.status_code == 200
         assert b"Employee not found" in resp.data
 
+
 class TestManagerScopeHelpers:
     """Direct unit tests for utils/helpers.py's manager_scope_column/
     manager_scope_subquery/manager_scope_denied -- the manager-role twin
