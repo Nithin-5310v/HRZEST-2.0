@@ -23,8 +23,9 @@ def mail(monkeypatch):
     monkeypatch.setattr(alerts, "_email_last_sent", {})
     monkeypatch.setenv("SECURITY_ALERT_EMAIL", "soc@example.com, oncall@example.com")
     import utils.email_utils as eu
-    monkeypatch.setattr(eu, "get_email_config", lambda: {"host": "smtp.example.com", "user": "u", "password": "p",
-                                                        "port": 587, "from_name": "HRzest", "from_email": "u@example.com"})
+    smtp_cfg = {"host": "smtp.example.com", "user": "u", "password": "p",
+                "port": 587, "from_name": "HRzest", "from_email": "u@example.com"}
+    monkeypatch.setattr(eu, "get_email_config", lambda: smtp_cfg)
     monkeypatch.setattr(eu, "send_email_async", lambda to, subj, body, cfg, **k: sent.append((to, subj, body)))
     return sent
 
