@@ -140,7 +140,7 @@
         {% endif %}
         <form class="comment-form" action="/super_admin/tickets/{{ ticket.id }}/comment" method="POST">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-          <textarea name="comment" placeholder="Add an internal comment…" required></textarea>
+          <textarea aria-label="Add an internal comment…" name="comment" placeholder="Add an internal comment…" required></textarea>
           <button type="submit" class="mini-btn"><i class="ti ti-plus"></i> Add Comment</button>
         </form>
       </div>

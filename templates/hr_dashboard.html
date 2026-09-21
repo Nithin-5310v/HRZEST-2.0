@@ -153,7 +153,7 @@
   <div class="hr-view" id="hrview-employees">
     <div class="hr-section">
       <div class="hr-section-hd">
-        <input class="hr-search" type="text" id="hrEmpSearch" placeholder="Search name, ID, department…" oninput="_hrFilterEmployees()" />
+        <input aria-label="Search name, ID, department…" class="hr-search" type="text" id="hrEmpSearch" placeholder="Search name, ID, department…" oninput="_hrFilterEmployees()" />
         <a href="{{ tpath('/employees') }}">Manage Employees <i class="ti ti-arrow-right"></i></a>
       </div>
       <div class="hr-table-wrap">
@@ -317,7 +317,7 @@
         <form action="{{ tpath('/policies/add') }}" method="POST" style="display:flex; flex-direction:column; gap:8px;">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <select name="category" class="hr-search" style="max-width:180px;" required>
+            <select aria-label="Category" name="category" class="hr-search" style="max-width:180px;" required>
               <option value="terms">Terms &amp; Conditions</option>
               <option value="rules">Rules &amp; Regulations</option>
               <option value="limitations">Limitations</option>
@@ -325,9 +325,9 @@
               <option value="posh">POSH Policy</option>
               <option value="resignation">Resignation Policy</option>
             </select>
-            <input class="hr-search" style="max-width:280px;" type="text" name="title" placeholder="Title" required />
+            <input aria-label="Title" class="hr-search" style="max-width:280px;" type="text" name="title" placeholder="Title" required />
           </div>
-          <textarea class="hr-search" style="max-width:100%; min-height:80px;" name="body" placeholder="Policy text…" required></textarea>
+          <textarea aria-label="Policy text…" class="hr-search" style="max-width:100%; min-height:80px;" name="body" placeholder="Policy text…" required></textarea>
           <div><button type="submit" class="quick-link" style="padding:6px 14px; display:inline-flex;">Save Policy</button></div>
         </form>
       </div>

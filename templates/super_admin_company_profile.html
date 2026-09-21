@@ -173,7 +173,7 @@
           {% endif %}
           <form class="stack-form" action="/super_admin/companies/{{ tenant.id }}/notes" method="POST">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-            <textarea name="note" placeholder="Add an internal note about this company…" required></textarea>
+            <textarea aria-label="Add an internal note about this company…" name="note" placeholder="Add an internal note about this company…" required></textarea>
             <button type="submit" class="mini-btn"><i class="ti ti-plus"></i> Add Note</button>
           </form>
         </div>
@@ -196,14 +196,14 @@
           <form class="stack-form" action="/super_admin/companies/{{ tenant.id }}/tickets" method="POST">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
             <div class="row">
-              <input type="text" name="subject" placeholder="Ticket subject" required maxlength="200" />
-              <select name="priority">
+              <input aria-label="Ticket subject" type="text" name="subject" placeholder="Ticket subject" required maxlength="200" />
+              <select aria-label="Priority" name="priority">
                 {% for p in ticket_priorities %}
                 <option value="{{ p }}" {% if p == 'normal' %}selected{% endif %}>{{ p.title() }}</option>
                 {% endfor %}
               </select>
             </div>
-            <textarea name="description" placeholder="Describe the issue…" required></textarea>
+            <textarea aria-label="Describe the issue…" name="description" placeholder="Describe the issue…" required></textarea>
             <button type="submit" class="mini-btn"><i class="ti ti-plus"></i> Open Ticket</button>
           </form>
         </div>

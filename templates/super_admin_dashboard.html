@@ -512,15 +512,15 @@
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <div class="field">
                 <label>Company Name</label>
-                <input type="text" name="company_name" required />
+                <input aria-label="Company Name" type="text" name="company_name" required />
               </div>
               <div class="field">
                 <label>Company Logo (optional)</label>
-                <input type="file" name="logo" accept="image/jpeg,image/png,image/webp,image/bmp" />
+                <input aria-label="Company Logo (optional)" type="file" name="logo" accept="image/jpeg,image/png,image/webp,image/bmp" />
               </div>
               <div class="field">
                 <label>Subdomain</label>
-                <input type="text" name="subdomain" pattern="[a-z0-9\-]+" placeholder="acme-corp" required />
+                <input aria-label="Subdomain" type="text" name="subdomain" pattern="[a-z0-9\-]+" placeholder="acme-corp" required />
               </div>
               <div class="field">
                 <label>Employee Email Domain</label>
@@ -528,19 +528,19 @@
               </div>
               <div class="field">
                 <label>Admin Username</label>
-                <input type="text" name="admin_username" required />
+                <input aria-label="Admin Username" type="text" name="admin_username" required />
               </div>
               <div class="field">
                 <label>Admin Email</label>
-                <input type="email" name="admin_email" required />
+                <input aria-label="Admin Email" type="email" name="admin_email" required />
               </div>
               <div class="field">
                 <label>Admin Password</label>
-                <input type="password" name="admin_password" minlength="8" required />
+                <input aria-label="Admin Password" type="password" name="admin_password" minlength="8" required />
               </div>
               <div class="field">
                 <label>Payment Option</label>
-                <select name="payment_option">
+                <select aria-label="Payment Option" name="payment_option">
                   <option value="online">Online (Razorpay)</option>
                   <option value="manual" selected>Bank Transfer / Manual Invoice</option>
                   <option value="trial">Free / Trial</option>
@@ -563,15 +563,15 @@
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <div class="field">
                 <label>New Rate (₹ per employee / month)</label>
-                <input type="number" name="per_employee_rupees" min="0.01" step="0.01" value="{{ '%.2f' | format(per_employee_paise / 100) }}" required />
+                <input aria-label="New Rate (₹ per employee / month)" type="number" name="per_employee_rupees" min="0.01" step="0.01" value="{{ '%.2f' | format(per_employee_paise / 100) }}" required />
               </div>
               <div class="field">
                 <label>Base fee (₹ / month, optional — added on top of the per-employee rate)</label>
-                <input type="number" name="base_fee_rupees" min="0" step="0.01" value="{{ '%.2f' | format(base_fee_paise / 100) }}" />
+                <input aria-label="Base fee (₹ / month, optional — added on top of the per-employee rate)" type="number" name="base_fee_rupees" min="0" step="0.01" value="{{ '%.2f' | format(base_fee_paise / 100) }}" />
               </div>
               <div class="field">
                 <label>Minimum monthly bill (₹, optional — floor applied after the above)</label>
-                <input type="number" name="minimum_monthly_rupees" min="0" step="0.01" value="{{ '%.2f' | format(minimum_monthly_paise / 100) }}" />
+                <input aria-label="Minimum monthly bill (₹, optional — floor applied after the above)" type="number" name="minimum_monthly_rupees" min="0" step="0.01" value="{{ '%.2f' | format(minimum_monthly_paise / 100) }}" />
               </div>
               <div class="actions">
                 <button type="submit" class="submit-btn">Save Rate</button>
@@ -839,7 +839,7 @@
               <label style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);font-weight:700;margin-bottom:6px;">
                 Type <strong id="delSubdomainLabel" style="color:var(--danger);"></strong> to confirm
               </label>
-              <input type="text" id="delConfirmInput" oninput="checkDeleteConfirm()" autocomplete="off"
+              <input aria-label="Type to confirm" type="text" id="delConfirmInput" oninput="checkDeleteConfirm()" autocomplete="off"
                      style="width:100%;background:#fff;border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;font-size:13.5px;margin-bottom:14px;" />
               <div style="display:flex;justify-content:flex-end;gap:10px;">
                 <button type="button" class="mini-btn" onclick="closeDeleteModal()">Cancel</button>
@@ -951,7 +951,7 @@
         </a>
         <div id="tcMsgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#f8fafc;"></div>
         <form id="tcSendForm" style="display:flex;gap:8px;padding:10px;border-top:1px solid #e2e8f0;background:#fff;" onsubmit="return tenantChatSend(event)">
-          <input id="tcInput" placeholder="Message this company's admin/HR&hellip;" autocomplete="off"
+          <input aria-label="Message this company's admin/HR…" id="tcInput" placeholder="Message this company's admin/HR&hellip;" autocomplete="off"
                  style="flex:1;padding:9px 12px;border:1px solid #e2e8f0;border-radius:20px;font-size:13px;outline:none;background:#fff;color:#0f172a;">
           <button type="submit" style="border:none;background:#3538cd;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;">&#10148;</button>
         </form>

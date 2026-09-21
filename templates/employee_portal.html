@@ -799,13 +799,13 @@
         <!-- Filter bar -->
         <div class="cal-filter">
           <label>Month</label>
-          <select id="selMonth">
+          <select aria-label="Month" id="selMonth">
             {% for m_num, m_name in months %}
             <option value="{{ m_num }}" {% if m_num == sel_month %}selected{% endif %}>{{ m_name }}</option>
             {% endfor %}
           </select>
           <label>Year</label>
-          <select id="selYear">
+          <select aria-label="Year" id="selYear">
             {% for y in years %}
             <option value="{{ y }}" {% if y == sel_year %}selected{% endif %}>{{ y }}</option>
             {% endfor %}
@@ -942,7 +942,7 @@
           {% if leave_types_for_form %}
           <div class="u-mb-14">
             <label class="u-fs-12 u-c-475569 u-fw-600 u-ttr-uppercase u-ls-0d4 u-d-block u-mb-6">Leave Type</label>
-            <select class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-app-auto" name="leave_type_id" required>
+            <select aria-label="Leave Type" class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-app-auto" name="leave_type_id" required>
               <option value="">— Select leave type —</option>
               {% for lt in leave_types_for_form %}
               <option value="{{ lt.id }}">{{ lt.name }}</option>
@@ -982,11 +982,11 @@
           <div class="u-d-flex u-gap-10 u-mb-14">
             <div class="u-fx-1 u-d-flex u-fxd-column u-gap-6">
               <label class="u-fs-12 u-c-475569 u-fw-600 u-ttr-uppercase u-ls-0d4">From Date</label>
-              <input class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none" type="date" name="leave_date_start" id="leave-date-start" required />
+              <input aria-label="From Date" class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none" type="date" name="leave_date_start" id="leave-date-start" required />
             </div>
             <div class="u-fx-1 u-d-flex u-fxd-column u-gap-6" id="to-date-wrap">
               <label class="u-fs-12 u-c-475569 u-fw-600 u-ttr-uppercase u-ls-0d4">To Date</label>
-              <input class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none" type="date" name="leave_date_end" id="leave-date-end" />
+              <input aria-label="To Date" class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none" type="date" name="leave_date_end" id="leave-date-end" />
             </div>
           </div>
           <div class="u-d-none u-m--6-0-14 u-p-6-12 u-bg-eff6ff u-br-8 u-fs-12 u-fw-700 u-c-2563eb u-w-fit-content" id="leave-days-badge">1 day selected</div>
@@ -1164,7 +1164,7 @@
             A <strong>1-month notice period</strong> is mandatory.<br><br>
             To continue, type <strong class="u-c-b91c1c u-ls-2">RESIGN</strong> below.
           </p>
-          <input class="u-w-100pct u-bxs-border-box u-p-10-14 u-bd-2-solid-e5e7eb u-br-8 u-fs-15 u-ta-center u-ls-2 u-ttr-uppercase u-out-none u-mb-16" id="resign-gate-input" type="text" placeholder="Type RESIGN to confirm"
+          <input aria-label="Type RESIGN to confirm" class="u-w-100pct u-bxs-border-box u-p-10-14 u-bd-2-solid-e5e7eb u-br-8 u-fs-15 u-ta-center u-ls-2 u-ttr-uppercase u-out-none u-mb-16" id="resign-gate-input" type="text" placeholder="Type RESIGN to confirm"
                  oninput="checkResignGate()" />
           <div class="u-d-flex u-gap-12 u-jc-center">
             <button class="u-p-10-24 u-bd-none u-br-8 u-bg-e5e7eb u-c-374151 u-fs-14 u-cur-pointer u-fw-600" onclick="closeResignGate()">
@@ -1368,7 +1368,7 @@
             <div class="u-d-flex u-gap-10 u-ai-flex-end u-fxw-wrap u-mb-20">
               <div class="u-fx-1 u-minw-130">
                 <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Month</label>
-                <select class="u-w-100pct u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" id="ps-month-sel">
+                <select aria-label="Month" class="u-w-100pct u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" id="ps-month-sel">
                   {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
                   {% for i in range(1, 13) %}
                   <option value="{{ i }}" {% if i == today_date.month %}selected{% endif %}>{{ month_names[i-1] }}</option>
@@ -1377,7 +1377,7 @@
               </div>
               <div class="u-fx-1 u-minw-100">
                 <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Year</label>
-                <select class="u-w-100pct u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" id="ps-year-sel">
+                <select aria-label="Year" class="u-w-100pct u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" id="ps-year-sel">
                   {% for y in range(today_date.year, today_date.year - 4, -1) %}
                   <option value="{{ y }}">{{ y }}</option>
                   {% endfor %}
@@ -1702,15 +1702,15 @@
                 <div class="u-d-grid u-gtc-1fr-1fr u-gap-14">
                   <div class="form-group">
                     <label>Full Name</label>
-                    <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f1f5f9 u-c-94a3b8 u-fs-14 u-w-100pct" type="text" value="{{ emp[1] }}" disabled />
+                    <input aria-label="Full Name" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f1f5f9 u-c-94a3b8 u-fs-14 u-w-100pct" type="text" value="{{ emp[1] }}" disabled />
                   </div>
                   <div class="form-group">
                     <label>Employee ID</label>
-                    <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f1f5f9 u-c-94a3b8 u-fs-14 u-w-100pct" type="text" value="{{ emp[0] }}" disabled />
+                    <input aria-label="Employee ID" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f1f5f9 u-c-94a3b8 u-fs-14 u-w-100pct" type="text" value="{{ emp[0] }}" disabled />
                   </div>
                   <div class="form-group">
                     <label>Gender</label>
-                    <select class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" name="gender">
+                    <select aria-label="Gender" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" name="gender">
                       <option value="">— Select —</option>
                       {% for g in ['Male','Female','Non-binary','Prefer not to say'] %}
                         <option value="{{ g }}" {% if emp[11] == g %}selected{% endif %}>{{ g }}</option>
@@ -1719,11 +1719,11 @@
                   </div>
                   <div class="form-group">
                     <label>Date of Birth</label>
-                    <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="date" name="dob" value="{{ emp[12].strftime('%Y-%m-%d') if emp[12] else '' }}" />
+                    <input aria-label="Date of Birth" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="date" name="dob" value="{{ emp[12].strftime('%Y-%m-%d') if emp[12] else '' }}" />
                   </div>
                   <div class="form-group">
                     <label>Blood Group</label>
-                    <select class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" name="blood_group">
+                    <select aria-label="Blood Group" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" name="blood_group">
                       <option value="">— Select —</option>
                       {% for bg in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
                         <option value="{{ bg }}" {% if emp[13] == bg %}selected{% endif %}>{{ bg }}</option>
@@ -1732,7 +1732,7 @@
                   </div>
                   <div class="form-group">
                     <label>Phone Number</label>
-                    <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="tel" name="phone" value="{{ emp[10] or '' }}" placeholder="+91 00000 00000" />
+                    <input aria-label="Phone Number" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="tel" name="phone" value="{{ emp[10] or '' }}" placeholder="+91 00000 00000" />
                   </div>
                 </div>
               </div>
@@ -1742,20 +1742,20 @@
                 <h3>🏠 Contact Details &amp; Address</h3>
                 <div class="form-group">
                   <label>Street Address</label>
-                  <textarea class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-rsz-vertical u-ff-inherit" name="address" rows="2" placeholder="House no., Street, Area…">{{ emp[14] or '' }}</textarea>
+                  <textarea aria-label="Street Address" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-rsz-vertical u-ff-inherit" name="address" rows="2" placeholder="House no., Street, Area…">{{ emp[14] or '' }}</textarea>
                 </div>
                 <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-12">
                   <div class="form-group">
                     <label>City</label>
-                    <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="city" value="{{ emp[15] or '' }}" placeholder="Hyderabad" />
+                    <input aria-label="City" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="city" value="{{ emp[15] or '' }}" placeholder="Hyderabad" />
                   </div>
                   <div class="form-group">
                     <label>State</label>
-                    <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="state" value="{{ emp[16] or '' }}" placeholder="Telangana" />
+                    <input aria-label="State" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="state" value="{{ emp[16] or '' }}" placeholder="Telangana" />
                   </div>
                   <div class="form-group">
                     <label>Pincode</label>
-                    <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="pincode" value="{{ emp[17] or '' }}" placeholder="500001" maxlength="10" />
+                    <input aria-label="Pincode" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="pincode" value="{{ emp[17] or '' }}" placeholder="500001" maxlength="10" />
                   </div>
                 </div>
               </div>
@@ -1765,7 +1765,7 @@
                 <h3>📝 About Me</h3>
                 <div class="form-group">
                   <label>Brief Bio / Introduction</label>
-                  <textarea class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-rsz-vertical u-ff-inherit" name="about_me" rows="4" placeholder="Tell us a little about yourself — your strengths, interests, or anything you'd like the team to know…">{{ emp[29] or '' }}</textarea>
+                  <textarea aria-label="Brief Bio / Introduction" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-rsz-vertical u-ff-inherit" name="about_me" rows="4" placeholder="Tell us a little about yourself — your strengths, interests, or anything you'd like the team to know…">{{ emp[29] or '' }}</textarea>
                 </div>
               </div>
 
@@ -1820,11 +1820,11 @@
                 <h3>🚨 Emergency Contact</h3>
                 <div class="form-group">
                   <label>Contact Name</label>
-                  <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="emergency_contact_name" value="{{ emp[18] or '' }}" placeholder="Full name" />
+                  <input aria-label="Contact Name" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="emergency_contact_name" value="{{ emp[18] or '' }}" placeholder="Full name" />
                 </div>
                 <div class="form-group">
                   <label>Relationship</label>
-                  <select class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" name="emergency_contact_relation">
+                  <select aria-label="Relationship" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" name="emergency_contact_relation">
                     <option value="">— Select —</option>
                     {% for r in ['Father','Mother','Spouse','Sibling','Child','Friend','Other'] %}
                       <option value="{{ r }}" {% if emp[20] == r %}selected{% endif %}>{{ r }}</option>
@@ -1833,7 +1833,7 @@
                 </div>
                 <div class="form-group">
                   <label>Contact Phone</label>
-                  <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="tel" name="emergency_contact_phone" value="{{ emp[19] or '' }}" placeholder="+91 00000 00000" />
+                  <input aria-label="Contact Phone" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="tel" name="emergency_contact_phone" value="{{ emp[19] or '' }}" placeholder="+91 00000 00000" />
                 </div>
               </div>
 
@@ -1857,7 +1857,7 @@
           <form class="u-d-flex u-gap-10 u-fxw-wrap u-ai-flex-end u-mb-16" action="{{ tpath('/upload_my_document') }}" method="POST" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
             <div class="u-fx-1 u-minw-160">
               <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Document Type</label>
-              <select class="u-w-100pct u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" name="doc_type" required>
+              <select aria-label="Document Type" class="u-w-100pct u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" name="doc_type" required>
                 <option value="">— Select —</option>
                 <option>Offer Letter</option>
                 <option>Contract</option>
@@ -1869,7 +1869,7 @@
             </div>
             <div class="u-fx-2 u-minw-200">
               <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">File</label>
-              <input class="u-w-100pct u-p-8-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"/>
+              <input aria-label="File" class="u-w-100pct u-p-8-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" type="file" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"/>
             </div>
             <button class="u-p-10-18 u-bg-linear-gradiene68600 u-c-fff u-bd-none u-br-9 u-fs-13 u-fw-600 u-cur-pointer u-ws-nowrap" type="submit">
               <i class="ti ti-upload"></i> Upload
@@ -1959,19 +1959,19 @@
               <div class="u-d-grid u-gtc-1fr-1fr u-gap-12">
                 <div class="form-group u-m-0">
                   <label>Company / Organisation</label>
-                  <input class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="company" required placeholder="Infosys Ltd." />
+                  <input aria-label="Company / Organisation" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="company" required placeholder="Infosys Ltd." />
                 </div>
                 <div class="form-group u-m-0">
                   <label>Designation / Role</label>
-                  <input class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="designation" required placeholder="Software Engineer" />
+                  <input aria-label="Designation / Role" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="designation" required placeholder="Software Engineer" />
                 </div>
                 <div class="form-group u-m-0">
                   <label>From Year</label>
-                  <input class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="from_year" required placeholder="2020" maxlength="4" />
+                  <input aria-label="From Year" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="from_year" required placeholder="2020" maxlength="4" />
                 </div>
                 <div class="form-group u-m-0">
                   <label>To Year <span class="u-fs-11 u-c-94a3b8">(leave blank if current)</span></label>
-                  <input class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="to_year" placeholder="2023" maxlength="4" id="toYearInputExp" />
+                  <input aria-label="To Year (leave blank if current)" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="to_year" placeholder="2023" maxlength="4" id="toYearInputExp" />
                 </div>
                 <div class="form-group u-m-0 u-d-flex u-ai-center u-gap-8 u-pt-20">
                   <input class="u-w-16 u-h-16" type="checkbox" name="is_current" id="isCurrentChk"
@@ -1980,7 +1980,7 @@
                 </div>
                 <div class="form-group u-m-0 u-gc-1_-1">
                   <label>Description <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
-                  <textarea class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none u-rsz-vertical u-ff-inherit" name="description" rows="2" placeholder="Brief description of your role…"></textarea>
+                  <textarea aria-label="Description (optional)" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none u-rsz-vertical u-ff-inherit" name="description" rows="2" placeholder="Brief description of your role…"></textarea>
                 </div>
               </div>
               <button class="u-mt-12 u-p-9-22 u-bd-none u-br-8 u-bg-1e3a8a u-c-white u-fs-13 u-fw-700 u-cur-pointer" type="submit">+ Add Entry</button>
@@ -2018,19 +2018,19 @@
               <div class="u-d-grid u-gtc-1fr-1fr u-gap-12">
                 <div class="form-group u-m-0">
                   <label>Degree / Qualification</label>
-                  <input class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="degree" required placeholder="B.Tech, MBA, 12th Grade…" />
+                  <input aria-label="Degree / Qualification" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="degree" required placeholder="B.Tech, MBA, 12th Grade…" />
                 </div>
                 <div class="form-group u-m-0">
                   <label>Institution / School</label>
-                  <input class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="institution" required placeholder="IIT Hyderabad" />
+                  <input aria-label="Institution / School" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="institution" required placeholder="IIT Hyderabad" />
                 </div>
                 <div class="form-group u-m-0">
                   <label>Year of Passing <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
-                  <input class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="year_of_passing" placeholder="2022" maxlength="4" />
+                  <input aria-label="Year of Passing (optional)" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="year_of_passing" placeholder="2022" maxlength="4" />
                 </div>
                 <div class="form-group u-m-0">
                   <label>Grade / Percentage <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
-                  <input class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="percentage" placeholder="8.5 CGPA or 85%" />
+                  <input aria-label="Grade / Percentage (optional)" class="u-p-9-12 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-fs-13 u-w-100pct u-out-none" type="text" name="percentage" placeholder="8.5 CGPA or 85%" />
                 </div>
               </div>
               <button class="u-mt-12 u-p-9-22 u-bd-none u-br-8 u-bg-7c3aed u-c-white u-fs-13 u-fw-700 u-cur-pointer" type="submit">+ Add Entry</button>
@@ -2048,32 +2048,32 @@
             <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-14">
               <div class="form-group">
                 <label>Aadhar Number</label>
-                <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="aadhar_number" value="{{ emp[21] or '' }}"
+                <input aria-label="Aadhar Number" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="aadhar_number" value="{{ emp[21] or '' }}"
                        placeholder="XXXX XXXX XXXX" maxlength="14" />
               </div>
               <div class="form-group">
                 <label>PAN Number</label>
-                <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-ttr-uppercase" type="text" name="pan_number" value="{{ emp[22] or '' }}"
+                <input aria-label="PAN Number" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-ttr-uppercase" type="text" name="pan_number" value="{{ emp[22] or '' }}"
                        placeholder="ABCDE1234F" maxlength="10" />
               </div>
               <div class="form-group">
                 <label>UAN / PF Number</label>
-                <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="uan_number" value="{{ emp[26] or '' }}"
+                <input aria-label="UAN / PF Number" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="uan_number" value="{{ emp[26] or '' }}"
                        placeholder="100XXXXXXXXX" />
               </div>
               <div class="form-group">
                 <label>Bank Name</label>
-                <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="bank_name" value="{{ emp[23] or '' }}"
+                <input aria-label="Bank Name" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="bank_name" value="{{ emp[23] or '' }}"
                        placeholder="State Bank of India" />
               </div>
               <div class="form-group">
                 <label>Account Number</label>
-                <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="bank_account" value="{{ emp[24] or '' }}"
+                <input aria-label="Account Number" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="bank_account" value="{{ emp[24] or '' }}"
                        placeholder="XXXXXXXXXXXXXXXXXX" />
               </div>
               <div class="form-group">
                 <label>IFSC Code</label>
-                <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-ttr-uppercase" type="text" name="bank_ifsc" value="{{ emp[25] or '' }}"
+                <input aria-label="IFSC Code" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-ttr-uppercase" type="text" name="bank_ifsc" value="{{ emp[25] or '' }}"
                        placeholder="SBIN0001234" maxlength="11" />
               </div>
             </div>
@@ -2096,18 +2096,18 @@
             <div class="flash-banner flash-banner-red">❌ New passwords do not match.</div>
           {% endif %}
           <form class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-14 u-ai-end u-maxw-760" action="{{ tpath('/change_password') }}" method="POST">
-            <input type="text" name="username" value="{{ session.get('employee_id', '') }}" autocomplete="username" style="display:none" aria-hidden="true" />
+            <input aria-label="Username" type="text" name="username" value="{{ session.get('employee_id', '') }}" autocomplete="username" style="display:none" aria-hidden="true" />
             <div class="form-group u-m-0">
               <label>Current Password</label>
-              <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-w-100pct" type="password" name="current_password" required autocomplete="current-password" />
+              <input aria-label="Current Password" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-w-100pct" type="password" name="current_password" required autocomplete="current-password" />
             </div>
             <div class="form-group u-m-0">
               <label>New Password</label>
-              <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-w-100pct" type="password" name="new_password" required minlength="6" autocomplete="new-password" />
+              <input aria-label="New Password" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-w-100pct" type="password" name="new_password" required minlength="6" autocomplete="new-password" />
             </div>
             <div class="form-group u-m-0">
               <label>Confirm New Password</label>
-              <input class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-w-100pct" type="password" name="confirm_password" required minlength="6" autocomplete="new-password" />
+              <input aria-label="Confirm New Password" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-w-100pct" type="password" name="confirm_password" required minlength="6" autocomplete="new-password" />
             </div>
             <div class="u-gc-1_-1 u-mt-4">
               <button class="u-p-11-28 u-bd-none u-br-10 u-bg-1e3a8a u-c-white u-fs-14 u-fw-700 u-cur-pointer" type="submit">
@@ -2171,23 +2171,23 @@
             const btn = document.getElementById('fpEnrollBtn');
             if (btn.disabled) return;   // prevent double-click
             btn.disabled    = true;
-            btn.textContent = '&#9203; Waiting for sensor...';
+            btn.textContent = '⏳ Waiting for sensor...';
             showMsg('');
 
             if (!window.isSecureContext) {
-              showMsg('&#9888; Fingerprint requires HTTPS or localhost. Use https://127.0.0.1:5000 or ask your admin to set up HTTPS.', true);
-              btn.disabled = false; btn.textContent = '&#128400; Enroll Fingerprint';
+              showMsg('⚠ Fingerprint requires HTTPS or localhost. Use https://127.0.0.1:5000 or ask your admin to set up HTTPS.', true);
+              btn.disabled = false; btn.textContent = '🖐 Enroll Fingerprint';
               return;
             }
             if (!window.PublicKeyCredential) {
-              showMsg('&#9888; This browser does not support WebAuthn. Use Chrome or Edge.', true);
-              btn.disabled = false; btn.textContent = '&#128400; Enroll Fingerprint';
+              showMsg('⚠ This browser does not support WebAuthn. Use Chrome or Edge.', true);
+              btn.disabled = false; btn.textContent = '🖐 Enroll Fingerprint';
               return;
             }
             const avail = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
             if (!avail) {
-              showMsg('&#9888; No fingerprint sensor detected on this device.', true);
-              btn.disabled = false; btn.textContent = '&#128400; Enroll Fingerprint';
+              showMsg('⚠ No fingerprint sensor detected on this device.', true);
+              btn.disabled = false; btn.textContent = '🖐 Enroll Fingerprint';
               return;
             }
 
@@ -2201,12 +2201,12 @@
                 const errBody = await optR.text().catch(() => "");
                 let errMsg = "";
                 try { errMsg = JSON.parse(errBody).error || JSON.parse(errBody).msg || ""; } catch(e) {}
-                showMsg('&#10006; Server error getting enrolment options (HTTP ' + optR.status + ')' + (errMsg ? ': ' + errMsg : '') + '. Check server logs.', true);
+                showMsg('✖ Server error getting enrolment options (HTTP ' + optR.status + ')' + (errMsg ? ': ' + errMsg : '') + '. Check server logs.', true);
                 return;
               }
               const regOpts = await optR.json();
               if (regOpts.ok === false) {
-                showMsg('&#10006; ' + (regOpts.msg || regOpts.error || 'Could not start enrolment.'), true);
+                showMsg('✖ ' + (regOpts.msg || regOpts.error || 'Could not start enrolment.'), true);
                 return;
               }
 
@@ -2242,15 +2242,15 @@
                 body:    JSON.stringify({ credential: regCredentialToJSON(cred) }),
               });
               if (saveR.status === 401) {
-                showMsg('&#9888; Session expired — please log in again.', true);
+                showMsg('⚠ Session expired — please log in again.', true);
                 setTimeout(() => { window.location.href = '/login'; }, 2000);
                 return;
               }
               const saved = await saveR.json();
               if (!saved.ok) throw new Error(saved.msg || 'Save failed');
 
-              showMsg('&#10003; Fingerprint enrolled successfully! You can now use it at the kiosk.', false);
-              btn.textContent = '&#128400; Re-enroll Fingerprint';
+              showMsg('✓ Fingerprint enrolled successfully! You can now use it at the kiosk.', false);
+              btn.textContent = '🖐 Re-enroll Fingerprint';
               document.getElementById('fpEnrollStatus').innerHTML =
                 '<div class="u-d-inline-flex u-ai-center u-gap-8 u-bg-f0fdf4 u-bd-1-solid-86efac u-br-10 u-p-10-16 u-fs-13 u-fw-600 u-c-15803d">&#10003; Fingerprint registered</div>';
               const rmBtn = document.getElementById('fpRemoveBtn');
@@ -2264,33 +2264,37 @@
               }
             } catch(err) {
               if (err.name === 'NotAllowedError') {
-                showMsg('&#10006; Enrollment cancelled or timed out. Please try again.', true);
+                showMsg('✖ Enrollment cancelled or timed out. Please try again.', true);
               } else if (err.name === 'SecurityError') {
-                showMsg('&#10006; Security error: ' + err.message + ' — fingerprint enrollment requires HTTPS with a valid domain name (not an IP address).', true);
+                showMsg('✖ Security error: ' + err.message + ' — fingerprint enrollment requires HTTPS with a valid domain name (not an IP address).', true);
               } else if (err.name === 'InvalidStateError') {
-                showMsg('&#10006; A passkey for this account already exists on this device. Remove it first or use a different device.', true);
+                showMsg('✖ A passkey for this account already exists on this device. Remove it first or use a different device.', true);
               } else {
-                showMsg('&#10006; ' + (err.message || 'Unknown error'), true);
+                showMsg('✖ ' + (err.message || 'Unknown error'), true);
               }
             } finally {
               btn.disabled    = false;
-              btn.textContent = '&#128400; Re-enroll Fingerprint';
+              btn.textContent = '🖐 Re-enroll Fingerprint';
             }
           };
 
           window.removeFpEnroll = async function() {
             if (!confirm('Remove your enrolled fingerprint? You will need to re-enroll before using fingerprint attendance.')) return;
-            const res  = await fetch('/api/employee/webauthn-unenroll', { method: 'POST' });
-            const data = await res.json();
-            if (data.ok) {
-              document.getElementById('fpEnrollStatus').innerHTML =
-                '<div class="u-d-inline-flex u-ai-center u-gap-8 u-bg-fefce8 u-bd-1-solid-fde047 u-br-10 u-p-10-16 u-fs-13 u-fw-600 u-c-854d0e">&#9888; No fingerprint enrolled yet</div>';
-              const rb = document.getElementById('fpRemoveBtn');
-              if (rb) rb.remove();
-              document.getElementById('fpEnrollBtn').textContent = '&#128400; Enroll Fingerprint';
-              showMsg('Fingerprint removed.', false);
-            } else {
-              showMsg('Failed to remove: ' + (data.msg || ''), true);
+            try {
+              const res  = await fetch('/api/employee/webauthn-unenroll', { method: 'POST' });
+              const data = await res.json();
+              if (data.ok) {
+                document.getElementById('fpEnrollStatus').innerHTML =
+                  '<div class="u-d-inline-flex u-ai-center u-gap-8 u-bg-fefce8 u-bd-1-solid-fde047 u-br-10 u-p-10-16 u-fs-13 u-fw-600 u-c-854d0e">&#9888; No fingerprint enrolled yet</div>';
+                const rb = document.getElementById('fpRemoveBtn');
+                if (rb) rb.remove();
+                document.getElementById('fpEnrollBtn').textContent = '🖐 Enroll Fingerprint';
+                showMsg('Fingerprint removed.', false);
+              } else {
+                showMsg('Failed to remove: ' + (data.msg || ''), true);
+              }
+            } catch (err) {
+              showMsg('✖ Could not remove the fingerprint (' + (err && err.message ? err.message : 'network error') + '). Please try again.', true);
             }
           };
         })();
@@ -2394,7 +2398,7 @@
                 <div class="u-fs-36">👤</div>
                 <div>
                   <div class="u-fs-16 u-fw-700 u-c-1e293b">{{ emp[1] }}</div>
-                  <div class="u-fs-13 u-c-64748b">{{ emp[2] if emp|length > 2 else '' }} &nbsp;|&nbsp; ${label}</div>
+                  <div class="u-fs-13 u-c-64748b">{{ emp[2] if emp|length > 2 else '' }} &nbsp;|&nbsp; ${escHtml(label)}</div>
                   <div class="u-fs-12 u-c-94a3b8 u-mt-2">Daily Rate: ₹${d.salary_per_day.toFixed(2)}</div>
                 </div>
               </div>
@@ -2404,17 +2408,17 @@
                 </div>
                 <div class="u-d-grid u-gtc-1fr-auto-auto u-p-14-18 u-fs-14 u-bdt-1-solid-e2e8f0 u-ai-center">
                   <span class="u-d-flex u-ai-center u-gap-8"><span class="u-w-10 u-h-10 u-br-50pct u-bg-16a34a u-d-inline-block"></span><span class="u-c-16a34a u-fw-600">Full Day Present</span></span>
-                  <span class="u-ta-center u-pr-28 u-c-1e293b u-fw-600">${d.full_days}</span>
+                  <span class="u-ta-center u-pr-28 u-c-1e293b u-fw-600">${Number(d.full_days)}</span>
                   <span class="u-ta-right u-c-1e293b">₹${d.full_earn.toFixed(2)}</span>
                 </div>
                 <div class="u-d-grid u-gtc-1fr-auto-auto u-p-14-18 u-fs-14 u-bdt-1-solid-e2e8f0 u-bg-fefce8 u-ai-center">
                   <span class="u-d-flex u-ai-center u-gap-8"><span class="u-w-10 u-h-10 u-br-50pct u-bg-d97706 u-d-inline-block"></span><span class="u-c-d97706 u-fw-600">Late – Full Day</span></span>
-                  <span class="u-ta-center u-pr-28 u-c-1e293b u-fw-600">${d.late_days}</span>
+                  <span class="u-ta-center u-pr-28 u-c-1e293b u-fw-600">${Number(d.late_days)}</span>
                   <span class="u-ta-right u-c-1e293b">₹${d.late_earn.toFixed(2)}</span>
                 </div>
                 <div class="u-d-grid u-gtc-1fr-auto-auto u-p-14-18 u-fs-14 u-bdt-1-solid-e2e8f0 u-ai-center">
                   <span class="u-d-flex u-ai-center u-gap-8"><span class="u-w-10 u-h-10 u-br-50pct u-bg-f97316 u-d-inline-block"></span><span class="u-c-f97316 u-fw-600">Half Day (×0.5)</span></span>
-                  <span class="u-ta-center u-pr-28 u-c-1e293b u-fw-600">${d.half_days}</span>
+                  <span class="u-ta-center u-pr-28 u-c-1e293b u-fw-600">${Number(d.half_days)}</span>
                   <span class="u-ta-right u-c-1e293b">₹${d.half_earn.toFixed(2)}</span>
                 </div>
                 <div class="u-d-grid u-gtc-1fr-auto-auto u-p-14-18 u-fs-14 u-fw-700 u-bdt-2-solid-dbeafe u-bg-f0f7ff u-ai-center">
@@ -2440,7 +2444,7 @@
                 </div>
               </div>
               <div class="u-d-flex u-gap-12 u-fxw-wrap">
-                <a class="u-fx-1 u-minw-160 u-d-inline-flex u-ai-center u-jc-center u-gap-8 u-p-13-24 u-bg-linear-gradiene7a6cb u-c-fff u-br-11 u-fs-14 u-fw-600 u-tdec-none u-shad-0-4-14-rgba37_e838f4" href="/view_payslip/{{ emp[0] }}/${year}/${month}">
+                <a class="u-fx-1 u-minw-160 u-d-inline-flex u-ai-center u-jc-center u-gap-8 u-p-13-24 u-bg-linear-gradiene7a6cb u-c-fff u-br-11 u-fs-14 u-fw-600 u-tdec-none u-shad-0-4-14-rgba37_e838f4" href="/view_payslip/{{ emp[0] }}/${Number(year)}/${Number(month)}">
                   🖨️ Open & Print Full Slip
                 </a>
                 <button class="u-fx-1 u-minw-120 u-p-13-24 u-bg-f1f5f9 u-bd-1-solid-e2e8f0 u-c-475569 u-br-11 u-fs-14 u-fw-600 u-cur-pointer" onclick="closePayslipModal()">
@@ -2584,7 +2588,7 @@
           if (d === todayDay) el.classList.add("cal-today");
           const tip = type === "holiday" && holNames[d] ? holNames[d] : tipMap[type];
           if (tip) el.setAttribute("data-tip", tip);
-          el.innerHTML = `<span class="day-num">${d}</span>`;
+          el.innerHTML = `<span class="day-num">${Number(d)}</span>`;
           grid.appendChild(el);
         }
       })();
@@ -2792,18 +2796,18 @@
                     <div class="u-w-46 u-h-46 u-br-12 u-bg-rgba255_255_255_d15 u-d-flex u-ai-center u-jc-center u-fs-22">👤</div>
                     <div>
                       <div class="u-fs-16 u-fw-800 u-c-fff">{{ emp[1] }}</div>
-                      <div class="u-fs-12 u-c-rgba255_255_255_d7">{{ emp[2] or '' }} &nbsp;·&nbsp; ${label}</div>
+                      <div class="u-fs-12 u-c-rgba255_255_255_d7">{{ emp[2] or '' }} &nbsp;·&nbsp; ${escHtml(label)}</div>
                       <div class="u-fs-11 u-c-rgba255_255_255_d5 u-mt-2">Daily Rate: ₹${d.salary_per_day.toFixed(2)}</div>
                     </div>
                   </div>
                   <div class="u-d-flex u-gap-8">
-                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-rgba255_255_255_d15 u-c-fff u-bd-1-solid-rgba255b647a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/download_payslip/{{ emp[0] }}/${year}/${month}" download>
+                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-rgba255_255_255_d15 u-c-fff u-bd-1-solid-rgba255b647a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/download_payslip/{{ emp[0] }}/${Number(year)}/${Number(month)}" download>
                       <i class="ti ti-download"></i> Download
                     </a>
-                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-fff u-c-1e3a8a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/view_payslip/{{ emp[0] }}/${year}/${month}">
+                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-fff u-c-1e3a8a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/view_payslip/{{ emp[0] }}/${Number(year)}/${Number(month)}">
                       <i class="ti ti-printer"></i> Print
                     </a>
-                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-rgba255_255_255_d15 u-c-fff u-bd-1-solid-rgba255b647a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/download_tax_statement/{{ emp[0] }}/${year}" title="Annual Form 16 / tax statement for ${year}">
+                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-rgba255_255_255_d15 u-c-fff u-bd-1-solid-rgba255b647a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/download_tax_statement/{{ emp[0] }}/${Number(year)}" title="Annual Form 16 / tax statement for ${Number(year)}">
                       <i class="ti ti-file-invoice"></i> Tax Statement
                     </a>
                   </div>
@@ -2816,17 +2820,17 @@
                   </div>
                   <div class="u-p-12-0 u-d-grid u-gtc-1fr-80-110 u-ai-center u-bdb-1-solid-f1f5f9">
                     <span class="u-d-flex u-ai-center u-gap-8"><span class="u-w-8 u-h-8 u-br-50pct u-bg-16a34a u-d-inline-block"></span><span class="u-fs-13 u-c-16a34a u-fw-600">Full Day Present</span></span>
-                    <span class="u-ta-center u-fs-13 u-fw-700 u-c-1e293b">${d.full_days}</span>
+                    <span class="u-ta-center u-fs-13 u-fw-700 u-c-1e293b">${Number(d.full_days)}</span>
                     <span class="u-ta-right u-fs-13 u-c-1e293b">₹${d.full_earn.toFixed(2)}</span>
                   </div>
                   <div class="u-p-12-0 u-d-grid u-gtc-1fr-80-110 u-ai-center u-bdb-1-solid-f1f5f9 u-bg-fefce8">
                     <span class="u-d-flex u-ai-center u-gap-8 u-pl-2"><span class="u-w-8 u-h-8 u-br-50pct u-bg-d97706 u-d-inline-block"></span><span class="u-fs-13 u-c-d97706 u-fw-600">Late – Full Day</span></span>
-                    <span class="u-ta-center u-fs-13 u-fw-700 u-c-1e293b">${d.late_days}</span>
+                    <span class="u-ta-center u-fs-13 u-fw-700 u-c-1e293b">${Number(d.late_days)}</span>
                     <span class="u-ta-right u-fs-13 u-c-1e293b">₹${d.late_earn.toFixed(2)}</span>
                   </div>
                   <div class="u-p-12-0 u-d-grid u-gtc-1fr-80-110 u-ai-center u-bdb-1-solid-f1f5f9">
                     <span class="u-d-flex u-ai-center u-gap-8 u-pl-2"><span class="u-w-8 u-h-8 u-br-50pct u-bg-f97316 u-d-inline-block"></span><span class="u-fs-13 u-c-f97316 u-fw-600">Half Day (×0.5)</span></span>
-                    <span class="u-ta-center u-fs-13 u-fw-700 u-c-1e293b">${d.half_days}</span>
+                    <span class="u-ta-center u-fs-13 u-fw-700 u-c-1e293b">${Number(d.half_days)}</span>
                     <span class="u-ta-right u-fs-13 u-c-1e293b">₹${d.half_earn.toFixed(2)}</span>
                   </div>
                   <div class="u-p-12-0 u-d-grid u-gtc-1fr-80-110 u-ai-center u-bdb-2-solid-dbeafe u-bg-f0f7ff">
@@ -3057,6 +3061,7 @@
         };
       }
       async function wfhVerifyFingerprint(employeeId) {
+        // audit-ok: rejects into startWfhFlow(), which catches and shows the error
         var optR = await fetch("/webauthn/authentication-options?emp_id=" + encodeURIComponent(employeeId));
         var opts = await optR.json();
         if (opts.ok === false || !opts.allowCredentials || !opts.allowCredentials.length) {
@@ -3073,6 +3078,7 @@
             timeout:          opts.timeout || 60000,
           }
         });
+        // audit-ok: rejects into startWfhFlow(), which catches and shows the error
         var verR = await fetch("/api/employee/webauthn-verify-challenge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -3463,7 +3469,7 @@
     </div>
     <div id="aiChatMessages"></div>
     <div id="aiChatInputRow">
-      <input id="aiChatInput" type="text" placeholder="Ask about any part of your dashboard…" maxlength="1000" autocomplete="off" />
+      <input aria-label="Ask about any part of your dashboard…" id="aiChatInput" type="text" placeholder="Ask about any part of your dashboard…" maxlength="1000" autocomplete="off" />
       <button id="aiChatSend" aria-label="Send"><i class="ti ti-send"></i></button>
     </div>
   </div>

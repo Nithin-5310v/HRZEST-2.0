@@ -121,7 +121,7 @@
           </form>
           <form action="/super_admin/applications/{{ application.id }}/reject" method="POST" style="flex:1;min-width:180px;" onsubmit="return document.getElementById('rejectReason').value.trim().length > 0 || confirm('Reject without a reason?');">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-            <textarea class="reject-reason" name="reason" id="rejectReason" placeholder="Reason (shown to the applicant)..."></textarea>
+            <textarea aria-label="Reason (shown to the applicant)..." class="reject-reason" name="reason" id="rejectReason" placeholder="Reason (shown to the applicant)..."></textarea>
             <button type="submit" class="btn-reject"><i class="ti ti-x"></i> Reject</button>
           </form>
         </div>

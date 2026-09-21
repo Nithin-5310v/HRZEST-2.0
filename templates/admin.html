@@ -415,8 +415,8 @@
         <div class="sub">Mark a date as a public holiday</div>
         <form action="{{ tpath('/admin_action') }}" method="POST">
           <input type="hidden" name="action" value="holiday" />
-          <input type="date" name="date" required />
-          <input type="text" name="holiday_name" placeholder="Holiday name" required />
+          <input aria-label="Date" type="date" name="date" required />
+          <input aria-label="Holiday name" type="text" name="holiday_name" placeholder="Holiday name" required />
           <button type="submit" class="btn btn-green">Add Holiday</button>
         </form>
       </div>
@@ -427,8 +427,8 @@
         <div class="sub">Update an employee's daily pay</div>
         <form action="{{ tpath('/admin_action') }}" method="POST">
           <input type="hidden" name="action" value="salary" />
-          <input type="text"   name="emp_id" placeholder="Employee ID" required />
-          <input type="number" name="salary"  placeholder="Amount per day (₹)" step="0.01" min="0" required />
+          <input aria-label="Employee ID" type="text"   name="emp_id" placeholder="Employee ID" required />
+          <input aria-label="Amount per day (₹)" type="number" name="salary"  placeholder="Amount per day (₹)" step="0.01" min="0" required />
           <button type="submit" class="btn btn-indigo">Update Salary</button>
         </form>
       </div>
@@ -463,29 +463,29 @@
     <div class="u-bg-fff u-br-18 u-p-32 u-w-100pct u-maxw-440 u-c-0f172a u-shad-0-24-60-rgba0_0_0_0d2">
       <div class="u-d-flex u-ai-center u-jc-space-between u-mb-22">
         <h3 class="u-fs-17 u-fw-800"><i class="ti ti-edit"></i> Edit Employee</h3>
-        <button class="u-bd-none u-bg-f1f5f9 u-br-8 u-w-32 u-h-32 u-cur-pointer u-fs-16" onclick="closeEdit()"><i class="ti ti-x"></i></button>
+        <button class="u-bd-none u-bg-f1f5f9 u-br-8 u-w-32 u-h-32 u-cur-pointer u-fs-16" type="button" aria-label="Close" onclick="closeEdit()"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
       <form action="{{ tpath('/edit_employee') }}" method="POST" id="editForm">
         <input type="hidden" name="emp_id" id="edit_emp_id" />
         <div class="field">
           <label>Employee ID</label>
-          <input class="u-c-94a3b8" id="edit_emp_id_display" type="text" disabled />
+          <input aria-label="Employee ID" class="u-c-94a3b8" id="edit_emp_id_display" type="text" disabled />
         </div>
         <div class="field">
           <label>Name <span class="u-c-dc2626">*</span></label>
-          <input name="name" id="edit_name" type="text" required />
+          <input aria-label="Name" name="name" id="edit_name" type="text" required />
         </div>
         <div class="field">
           <label>Email</label>
-          <input name="email" id="edit_email" type="email" />
+          <input aria-label="Email" name="email" id="edit_email" type="email" />
         </div>
         <div class="field">
           <label>Role</label>
-          <input name="role" id="edit_role" type="text" />
+          <input aria-label="Role" name="role" id="edit_role" type="text" />
         </div>
         <div class="field u-mb-16">
           <label>Date of Joining</label>
-          <input name="date_of_joining" id="edit_doj" type="date" />
+          <input aria-label="Date of Joining" name="date_of_joining" id="edit_doj" type="date" />
         </div>
         <div class="field u-mb-12">
           <label>Work Mode</label>
@@ -505,11 +505,11 @@
           <div class="u-d-grid u-gtc-1fr-1fr u-gap-8 u-mb-8">
             <div>
               <div class="u-fs-10 u-c-64748b u-mb-3">Latitude</div>
-              <input class="u-w-100pct u-p-8-10 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lat" id="edit_work_lat" step="0.000001" min="-90" max="90" />
+              <input aria-label="Latitude" class="u-w-100pct u-p-8-10 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lat" id="edit_work_lat" step="0.000001" min="-90" max="90" />
             </div>
             <div>
               <div class="u-fs-10 u-c-64748b u-mb-3">Longitude</div>
-              <input class="u-w-100pct u-p-8-10 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="edit_work_lon" step="0.000001" min="-180" max="180" />
+              <input aria-label="Longitude" class="u-w-100pct u-p-8-10 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="edit_work_lon" step="0.000001" min="-180" max="180" />
             </div>
           </div>
           <button class="u-p-7-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocationForEdit()">
@@ -518,11 +518,11 @@
         </div>
         <div class="field">
           <label>Department</label>
-          <input name="department" id="edit_department" type="text" placeholder="e.g. Engineering" />
+          <input aria-label="Department" name="department" id="edit_department" type="text" placeholder="e.g. Engineering" />
         </div>
         <div class="field">
           <label>Reporting Manager</label>
-          <input name="manager_name" id="edit_manager_name" type="text" placeholder="e.g. Ravi Kumar" />
+          <input aria-label="Reporting Manager" name="manager_name" id="edit_manager_name" type="text" placeholder="e.g. Ravi Kumar" />
         </div>
         <div class="u-d-flex u-gap-10">
           <button class="u-fx-1 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-white u-fs-14 u-fw-700 u-cur-pointer" type="submit">Save Changes</button>
