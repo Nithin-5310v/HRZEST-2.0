@@ -574,19 +574,6 @@ def _create_pool(retries=1, delay=0.1):
     _pool = _SqlitePool()
 
 
-def pool_stats():
-    """Best-effort snapshot of connection pool utilization, for the Security
-    hub's performance panel. psycopg2 exposes no public API for this, so it
-    reads the pool's own bookkeeping (_used/_pool) -- safe read-only access,
-    never mutated here."""
-    if _pool is None:
-        return {"active": 0, "idle": 0, "max": 0}
-    try:
-        return {"active": len(_pool._used), "idle": len(_pool._pool), "max": _pool.maxconn}
-    except Exception:
-        return {"active": 0, "idle": 0, "max": 0}
-
-
 def _borrow_connection():
     """Get a connection from the pool (building/rebuilding it as needed) with
     autocommit on. MySQL sessions default to autocommit (this app relies on

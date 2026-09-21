@@ -826,13 +826,6 @@ def create_org_page():
     )
 
 
-def _safe_int(value):
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _verify_application_otp(application, otp_code):
     """Shared OTP-check logic for both the web and mobile verify_otp
     routes. Returns (True, None) on success (advances the row to

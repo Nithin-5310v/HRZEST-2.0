@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Shared geo math -- single source of truth for the haversine great-circle
-distance formula, used both by attendance geofencing (utils/attendance_utils.py)
-and by GeoIP impossible-travel detection (utils/geoip.py), which previously
-each carried their own copy in different units."""
+distance formula, used by attendance geofencing (utils/attendance_utils.py)."""
 import math
 
 EARTH_RADIUS_KM = 6371.0

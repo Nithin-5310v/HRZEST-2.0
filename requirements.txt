@@ -13,7 +13,6 @@ gunicorn>=23.0.0
 psycopg2-binary>=2.9.9
 
 # ── Face recognition & image processing ───────────────────────────────────────
-opencv-python>=4.8.1.78
 face-recognition>=1.3.0
 numpy>=1.22.0
 pillow>=12.2.0

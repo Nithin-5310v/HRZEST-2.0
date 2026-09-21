@@ -254,7 +254,7 @@ services:
   # unambiguous scan/attack activity — see utils/honeypot.py and
   # terraform/honeypot.tf for the full reasoning. Reuses the app image
   # (same build) rather than a second Containerfile — it never touches
-  # face_recognition/opencv, so the extra image weight costs nothing at
+  # face_recognition, so the extra image weight costs nothing at
   # runtime and this avoids maintaining a second build pipeline for one
   # small decoy process.
   honeypot:

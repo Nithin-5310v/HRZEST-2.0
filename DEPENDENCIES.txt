@@ -23,7 +23,6 @@ Database
   psycopg2-binary  PostgreSQL driver — every SQL query in the app goes through this.
 
 Face recognition & image processing
-  opencv-python    Camera frame capture/decoding for the face check-in flow.
   face-recognition Wraps dlib's face-detection/encoding models — compares a captured face
                     against each employee's stored face encoding at check-in/check-out.
   numpy            Array math backing face-recognition's encoding vectors and OpenCV frames.
@@ -170,10 +169,10 @@ NOTES
 - Every entry above with a version FLOOR in requirements.txt (`>=`) was checked against
   known CVEs with pip-audit during this cleanup pass; floors were raised where an older
   allowed version had a real vulnerability (flask, werkzeug, flask-cors, pillow,
-  opencv-python, numpy, cryptography, python-dotenv, setuptools). No exact versions are
+  numpy, cryptography, python-dotenv, setuptools). No exact versions are
   pinned, so a fresh install already picks up the newest compatible release regardless —
   the floor bump mainly guards against a resolver picking an old, vulnerable version.
-- opencv-python, pillow, and numpy form a face-recognition/dlib dependency chain that
+- pillow and numpy form a face-recognition/dlib dependency chain that
   should be smoke-tested (face enrollment + check-in) after the next `pip install
   --upgrade` or image rebuild, since they weren't re-installed/re-tested on this machine
   (local Python here is 3.7; the app actually deploys on Python 3.11 per Containerfile).

@@ -71,24 +71,3 @@ def mark_read(tenant_schema, reader_side):
     finally:
         cursor.close()
         conn.close()
-
-
-def unread_count(tenant_schema, reader_side):
-    conn = get_master_db()
-    cursor = conn.cursor()
-    try:
-        if reader_side == "platform":
-            cursor.execute(
-                "SELECT COUNT(*) FROM chat_messages WHERE tenant_schema=%s AND read_by_platform=0",
-                (tenant_schema,),
-            )
-        else:
-            cursor.execute(
-                "SELECT COUNT(*) FROM chat_messages WHERE tenant_schema=%s AND read_by_company=0",
-                (tenant_schema,),
-            )
-        count = cursor.fetchone()[0]
-    finally:
-        cursor.close()
-        conn.close()
-    return count
