@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Real-time security alerting -- Slack/Discord webhook delivery.
+"""Real-time security alerting -- Slack/Discord webhook and email delivery.
 
 Wired into extensions.log_security_event(): any event logged at ERROR or
 CRITICAL severity is also pushed here, so this never runs on the hot path
@@ -16,6 +16,7 @@ unrelated 500 error.
 """
 import os
 import re
+import html
 import json
 import time
 import hmac
@@ -214,22 +215,94 @@ def _deliver(payload: dict):
         app_log.warning("Security alert webhook delivery failed: %s", e)
 
 
-def send_security_alert(event_type: str, description: str, severity: str = "ERROR", **fields):
-    """Fire an immediate webhook alert for a critical security event.
+# ── Email channel ────────────────────────────────────────────────────────────
+# SECURITY_ALERT_EMAIL = comma-separated recipients. Sent through the app's
+# normal SMTP config (Email Settings page / SMTP_* env vars -- see
+# utils.email_utils.get_email_config) and its DB-backed email queue, so
+# delivery is retried like every other system email. Throttled per event type:
+# a brute-force flood must not become an inbox flood.
+_EMAIL_THROTTLE_SECONDS = 300
+_email_last_sent = {}
+_email_lock = threading.Lock()
 
-    No-ops silently (just a debug log line) if SECURITY_ALERT_WEBHOOK_URL
-    isn't configured -- this must be safe to call unconditionally from
-    every environment, including local dev and CI, without requiring a
-    webhook to exist.
-    """
-    if not _WEBHOOK_URL:
-        app_log.debug("send_security_alert called but no webhook configured -- skipping")
-        return
-    payload = _build_payload(
-        event_type=event_type,
-        description=_sanitize_description(description),
-        severity=severity.upper(),
-        timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        fields=_sanitize_fields(fields),
+
+def _alert_recipients():
+    raw = os.environ.get("SECURITY_ALERT_EMAIL", "")
+    return [a.strip() for a in raw.split(",") if "@" in a]
+
+
+def _email_throttled(event_type: str) -> bool:
+    now = time.time()
+    with _email_lock:
+        if now - _email_last_sent.get(event_type, 0) < _EMAIL_THROTTLE_SECONDS:
+            return True
+        _email_last_sent[event_type] = now
+        return False
+
+
+def _build_email(event_type, description, severity, timestamp, fields):
+    """(subject, html) -- every interpolated value is escaped: descriptions and
+    fields can carry attacker-controlled text (login names, paths)."""
+    esc = html.escape
+    rows = "".join(
+        f'<tr><td style="padding:4px 12px 4px 0;color:#64748b">{esc(k)}</td><td>{esc(v)}</td></tr>'
+        for k, v in fields.items()
     )
-    threading.Thread(target=_deliver, args=(payload,), daemon=True).start()
+    body = (
+        f'<div style="font-family:Arial,sans-serif;font-size:14px;color:#0f172a">'
+        f'<h2 style="margin:0 0 8px;color:#b91c1c">{esc(severity)} &mdash; {esc(event_type)}</h2>'
+        f'<p style="margin:0 0 12px">{esc(description)}</p>'
+        f'<table style="border-collapse:collapse">{rows}</table>'
+        f'<p style="margin-top:16px;color:#64748b;font-size:12px">HRzest.com security alert &middot; {esc(timestamp)}</p>'
+        f'</div>'
+    )
+    return f"[HRzest security {severity}] {event_type}"[:200], body
+
+
+def _send_email_alert(recipients, event_type, description, severity, timestamp, fields):
+    """Background-thread body. Any failure is logged and swallowed -- an
+    alerting problem must never surface as a second error."""
+    try:
+        from utils.email_utils import get_email_config, send_email_async  # lazy: avoids an import cycle
+        config = get_email_config()
+        if not (config.get("host") and config.get("user")):
+            app_log.warning("Security alert email skipped: no SMTP configured (Email Settings or SMTP_* env vars)")
+            return
+        subject, body = _build_email(event_type, description, severity, timestamp, fields)
+        for to_addr in recipients:
+            send_email_async(to_addr, subject, body, config)
+    except Exception as e:
+        app_log.warning("Security alert email failed: %s", e)
+
+
+def send_security_alert(event_type: str, description: str, severity: str = "ERROR", **fields):
+    """Fire an immediate alert for a critical security event, on every
+    configured channel: the webhook (SECURITY_ALERT_WEBHOOK_URL) and/or email
+    (SECURITY_ALERT_EMAIL).
+
+    No-ops silently (just a debug log line) if neither is configured --
+    this must be safe to call unconditionally from every environment,
+    including local dev and CI, without requiring either to exist.
+    """
+    recipients = _alert_recipients()
+    if not _WEBHOOK_URL and not recipients:
+        app_log.debug("send_security_alert called but no alert channel configured -- skipping")
+        return
+    severity = severity.upper()
+    timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    clean_description = _sanitize_description(description)
+    clean_fields = _sanitize_fields(fields)
+
+    if _WEBHOOK_URL:
+        payload = _build_payload(
+            event_type=event_type, description=clean_description,
+            severity=severity, timestamp=timestamp, fields=clean_fields,
+        )
+        threading.Thread(target=_deliver, args=(payload,), daemon=True).start()
+
+    if recipients and not _email_throttled(event_type):
+        threading.Thread(
+            target=_send_email_alert,
+            args=(recipients, event_type, clean_description, severity, timestamp, clean_fields),
+            daemon=True,
+        ).start()

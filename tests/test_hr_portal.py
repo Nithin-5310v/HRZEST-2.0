@@ -62,7 +62,8 @@ class TestHrScopeRestrictions:
     ])
     def test_hr_role_reaches_shared_employee_lifecycle_pages(self, client, hr_admin, path):
         _admin_session(client, hr_admin["username"], role="hr")
-        resp = client.get(path)
+        # /tickets is now a tab inside /leave_holidays, reached via a redirect
+        resp = client.get(path, follow_redirects=(path == "/tickets"))
         assert resp.status_code == 200
 
     def test_hr_role_reaches_tickets_via_redirect(self, client, hr_admin):

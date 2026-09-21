@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Employees blueprint -- CRUD, photos, QR codes, ID cards."""
 import os
+import re
 import json
 import hashlib
 import datetime
@@ -922,6 +923,15 @@ def employee_detail(emp_id):
                            )
 
 
+def _next_emp_id(prefix, max_seq, requested_id):
+    """Next free ID after `max_seq`, zero-padded to the width of the numeric
+    suffix the admin typed (PADW9 -> PADW10, EMP007 -> EMP008); 3 digits when
+    the requested ID has no numeric suffix."""
+    m = re.search(r"(\d+)$", requested_id or "")
+    width = len(m.group(1)) if m else 3
+    return f"{prefix}{max_seq + 1:0{width}d}"
+
+
 @employees_bp.route("/add_employee_page", methods=["POST"])
 @admin_required
 def add_employee_page():
@@ -976,6 +986,15 @@ def add_employee_page():
     if not validate_emp_id(emp_id):
         flash("Employee ID may only contain letters, digits, hyphens and underscores.", "error")
         return redirect(tpath("/employees"))
+    # Bounded employees.* column widths -- an over-long value would otherwise
+    # reach PostgreSQL and surface as an unhandled psycopg2.DataError (HTTP 500).
+    for _label, _value, _max_len in (
+        ("Name", name, 100), ("Employee ID", emp_id, 50), ("Email", email, 150),
+        ("Role", role, 100), ("Work mode", work_mode, 20),
+    ):
+        if _value and len(_value) > _max_len:
+            flash(f"{_label} is too long (max {_max_len} characters).", "error")
+            return redirect(tpath("/employees"))
     _domain_error = validate_employee_email_domain(email)
     if _domain_error:
         flash(_domain_error, "error")
@@ -1020,7 +1039,7 @@ def add_employee_page():
                 sfx = eid[len(prefix):]
                 if sfx.isdigit():
                     max_seq = max(max_seq, int(sfx))
-            emp_id = f"{prefix}{max_seq + 1:03d}"
+            emp_id = _next_emp_id(prefix, max_seq, emp_id)
 
     file = request.files.get("face")
     if not file or not file.filename:
@@ -1145,7 +1164,7 @@ def add_employee_page():
                 sfx = eid[len(prefix):]
                 if sfx.isdigit():
                     max_seq = max(max_seq, int(sfx))
-            emp_id = f"{prefix}{max_seq + 1:03d}"
+            emp_id = _next_emp_id(prefix, max_seq, emp_id)
 
     if registered:
         flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
