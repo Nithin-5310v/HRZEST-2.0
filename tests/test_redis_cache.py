@@ -127,6 +127,17 @@ class TestInitRedisBackend:
         monkeypatch.delenv("REDIS_HOST", raising=False)
         monkeypatch.delenv("REDIS_PASSWORD", raising=False)
 
+    def test_password_with_url_special_chars_is_percent_encoded(self, monkeypatch):
+        """A raw '@' or '/' in the password would be parsed as part of the
+        host/path, silently breaking the limiter's storage connection."""
+        monkeypatch.setenv("REDIS_HOST", "fake-redis")
+        monkeypatch.setenv("REDIS_PASSWORD", "p@ss/w:rd#1")
+        monkeypatch.setattr(extensions_module._redis_lib, "Redis", FakeRedis)
+        client, uri = extensions_module._init_redis_backend()
+        assert uri == "redis://:p%40ss%2Fw%3Ard%231@fake-redis:6379/0"
+        monkeypatch.delenv("REDIS_HOST", raising=False)
+        monkeypatch.delenv("REDIS_PASSWORD", raising=False)
+
 
 class TestWafBreachCounterRedisDispatch:
     def test_none_client_uses_in_memory_path(self, monkeypatch):

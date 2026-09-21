@@ -44,7 +44,7 @@ load_dotenv()
 _HASHI_ENV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hashi", ".env")
 load_dotenv(_HASHI_ENV)
 
-from flask import request, session, jsonify, redirect, url_for, flash, current_app, g as _g
+from flask import request, session, jsonify, redirect, url_for, flash, current_app, abort, g as _g
 import datetime
 import html as _html
 from database import get_db_connection, get_master_db
@@ -747,32 +747,67 @@ def _enforce_admin_mfa_enrollment():
 
 
 @app.before_request
+def _block_private_uploads():
+    """Uploaded HR documents used to live under static/ (and the `documents`
+    volume is still mounted at static/employee_docs), so a legacy file left in
+    either folder would be handed to anyone who can guess its URL by Flask's
+    static handler. They are only ever served through authenticated routes."""
+    if request.path.startswith(("/static/employee_docs/", "/static/onboarding_docs/")):
+        abort(404)
+
+
+_CSRF_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+_CSRF_LOGIN_PATHS = frozenset({"/login", "/admin_login", "/hr_login"})
+# Browser telemetry sinks (blueprints/core.py). The browser's own report-uri
+# mechanism fires /csp-report automatically on every CSP violation -- there is
+# no page JS in the loop to attach an X-CSRF-Token and no <form> to carry one,
+# so it can never pass the check (every report used to be silently 403'd).
+# /api/client-log is the error beacon and must also work for logged-in users.
+# Both are write-only log sinks anyone can already POST to, so a forged request
+# gains an attacker nothing.
+_CSRF_BEACON_PATHS = frozenset({"/csp-report", "/api/client-log"})
+
+
+def _session_is_authenticated():
+    return bool(session.get("admin_logged_in") or session.get("employee_id")
+                or session.get("platform_admin_logged_in"))
+
+
+def _csrf_exempt(path, has_bearer, session_authenticated):
+    """Whether a state-changing request skips the CSRF token check.
+
+    CSRF only matters when the browser attaches an ambient credential (the
+    session cookie) that a forged cross-site request can ride. Under /api/
+    that is NOT true of every route -- dozens of them (hr_accounts, settings,
+    email-blast, ...) are @admin_required/@employee_required and authenticate
+    by session, so a blanket /api/ exemption left them relying on
+    SameSite=Strict alone. An /api/ request is therefore exempt only if it
+    carries a Bearer token (can't be forged cross-site without a CORS
+    preflight) or has no logged-in session to ride (mobile/pre-login calls:
+    /api/login, /api/employee/signup, /api/leads, ...)."""
+    if path in _CSRF_LOGIN_PATHS or path in _CSRF_BEACON_PATHS:
+        return True  # login routes handle credential verification & rate-limiting
+    if path.startswith("/api/"):
+        return has_bearer or not session_authenticated
+    return False
+
+
+@app.before_request
 def _enforce_csrf():
-    if request.method != "POST":
+    if request.method not in _CSRF_METHODS:
         return
     if current_app.testing:
         return  # CSRF disabled in test mode; Bearer-token tests handle auth separately
-    if request.path.startswith("/api/"):
-        return  # API routes use Bearer-token auth -- no session/CSRF needed
     if request.path.startswith("/webhooks/"):
         # Server-to-server callbacks (Razorpay etc.) -- no session cookie
         # exists to carry a CSRF token in the first place; authenticated by
         # request signature instead (blueprints/webhooks.py's generic
         # /webhooks/<provider> route).
         return
-    if request.path == "/csp-report":
-        # The browser's own report-uri mechanism (app.py's Content-Security-
-        # Policy header sets "report-uri /csp-report") fires this POST
-        # automatically whenever a page violates CSP -- there is no page JS
-        # in the loop to attach an X-CSRF-Token header, and no <form> to
-        # carry one either, so this can never pass the check below. Without
-        # this exemption every violation report was silently 403'd before
-        # ever reaching blueprints/core.py's csp_report() logging -- CSP
-        # reporting was wired up but completely inert, on every page,
-        # for every visitor, since the day it was added.
+    if _csrf_exempt(request.path,
+                    request.headers.get("Authorization", "").startswith("Bearer "),
+                    _session_is_authenticated()):
         return
-    if request.path in ("/login", "/admin_login", "/hr_login"):
-        return  # Login routes handle credential verification & rate-limiting
     # NOTE: We intentionally do NOT skip JSON requests here. The auto-inject
     # script (_inject_csrf_meta) adds X-CSRF-Token to every fetch() call, so
     # legitimate JSON POSTs from the web UI already carry the token.
@@ -882,6 +917,27 @@ _CSRF_SCRIPT = (
 # below only ever affects non-HttpOnly cookies (e.g. anything analytics-
 # related some future page might add) -- harmless to include, not load-
 # bearing for security.
+# Frontend (browser) error reporter -> POST /api/client-log (blueprints/core.py).
+# Capped at 8 reports per page load, de-duplicated, and sends only the page
+# *path* (never the query string, which can carry reset tokens).
+_CLIENT_LOG_SCRIPT = (
+    b'<script>(function(){'
+    b'var n=0,seen={};'
+    b'function send(t,m,s,l){'
+    b'if(n>=8)return;var k=t+"|"+m+"|"+s+"|"+l;if(seen[k])return;seen[k]=1;n++;'
+    b'try{var b=JSON.stringify({type:t,message:String(m||"").slice(0,300),'
+    b'source:String(s||"").slice(0,200),line:l||"",page:location.pathname});'
+    b'if(navigator.sendBeacon){navigator.sendBeacon("/api/client-log",new Blob([b],{type:"application/json"}));}'
+    b'else{fetch("/api/client-log",{method:"POST",headers:{"Content-Type":"application/json"},body:b,keepalive:true});}'
+    b'}catch(x){}}'
+    b'window.addEventListener("error",function(e){'
+    b'if(e.target&&e.target!==window){var u=e.target.src||e.target.href;'
+    b'if(u)send("resource_error","Failed to load "+String(e.target.tagName||"resource").toLowerCase(),String(u).split("?")[0],"");}'
+    b'else send("js_error",e.message,String(e.filename||"").split("?")[0],e.lineno);},true);'
+    b'window.addEventListener("unhandledrejection",function(e){'
+    b'var r=e.reason;send("unhandled_rejection",r&&r.message?r.message:r,"","");});'
+    b'})();</script>'
+)
 _KILLSWITCH_SCRIPT = (
     b'<script>(function(){'
     b'if(typeof EventSource==="undefined")return;'
@@ -1080,7 +1136,7 @@ def _inject_csrf_meta(response):
             token = _csrf_token()
             meta = f'<meta name="csrf-token" content="{token}" />'.encode()
             data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
-            _body_scripts = _CSRF_SCRIPT
+            _body_scripts = _CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
             if session.get("admin_logged_in") or session.get("employee_id"):
                 _body_scripts += _KILLSWITCH_SCRIPT
             data = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
@@ -1298,6 +1354,10 @@ def internal_error(e):
     tb = _traceback.format_exc()
     app_log.error("500 error: %s", tb.replace('\n', '\\n'))
     _alert_on_error(tb, context=request.path if request else "")
+    # WARNING, not ERROR: _alert_on_error above already alerts. This row is for
+    # log analysis (error type only -- never the traceback).
+    log_security_event("app.server_error", "Unhandled server error", level="WARNING",
+                       error_type=type(getattr(e, "original_exception", None) or e).__name__)
     return _error_page(500, "⚙️", "Internal Server Error",
                        "Something went wrong on our end. The error has been logged.",
                        "Please try again in a moment or contact your administrator.")
@@ -1312,6 +1372,8 @@ def unhandled_exception(e):
     tb = _traceback.format_exc()
     app_log.error("Unhandled exception: %s", tb.replace('\n', '\\n'))
     _alert_on_error(tb, context=request.path if request else "")
+    log_security_event("app.server_error", "Unhandled server error", level="WARNING",
+                       error_type=type(e).__name__)
     return _error_page(500, "⚙️", "Internal Server Error",
                        "An unexpected error occurred. The team has been notified.",
                        "Please try again or contact your administrator.")

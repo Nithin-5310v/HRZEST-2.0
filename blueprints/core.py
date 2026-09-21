@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Core blueprint -- home page, CSP reporting, session-risk stream, security
+"""Core blueprint -- home page, CSP reporting + browser error reporting, session-risk stream, security
 lockout, and the simpler token-based REST API layer (/api/login,
 /api/dashboard, /api/holidays and their /api/employee/* equivalents) -- the
 last routes drained out of app.py, which now holds only shared setup
@@ -38,23 +38,106 @@ _BRIDGE_DEFAULT_TARGET = "/settings/seats"
 _BRIDGE_TARGET_ALLOWLIST = {"/settings/seats"}
 
 
+# ── Frontend (browser-side) telemetry ────────────────────────────────────────
+# Everything a browser tells us is attacker-controlled: any visitor can POST
+# here. So it is size-capped, rate-limited, stripped of control characters,
+# stored ONLY as structured fields (never in the event message), capped at
+# WARNING (an ERROR would page the alert webhook, letting anyone spam it), and
+# must be escaped by whatever displays it.
+_FRONTEND_MAX_BODY = 8 * 1024
+_CLIENT_LOG_TYPES = {
+    "js_error": "WARNING",
+    "unhandled_rejection": "WARNING",
+    "resource_error": "INFO",
+}
+
+
+def _clip(value, limit):
+    """str(value) with control characters removed and length capped."""
+    text = "" if value is None else str(value)
+    return "".join(ch for ch in text if ch >= " " and ch != chr(127))[:limit]
+
+
+def _no_query(value, limit):
+    """A URL/path with any query string or fragment removed (they can carry secrets)."""
+    return _clip(value, limit).split("?", 1)[0].split("#", 1)[0]
+
+
+def _page_path(value):
+    """A same-origin page path only -- never a query string or fragment, which
+    can carry reset tokens or other secrets."""
+    path = _no_query(value, 300)
+    if "://" in path:
+        path = "/" + path.split("://", 1)[1].split("/", 1)[-1]
+    return path if path.startswith("/") else "/" + path
+
+
+def _record_frontend_event(subtype, level, **fields):
+    who = session.get("platform_admin_username") or session.get("admin_username") or session.get("employee_id")
+    log_security_event(f"frontend.{subtype}", f"Browser reported: {subtype.replace('_', ' ')}",
+                       level=level, identifier=who, **fields)
+
+
+def _csp_violations(payload):
+    """Normalise both report formats browsers send: the legacy
+    {"csp-report": {...}} object and the Reporting API's [{"type":
+    "csp-violation", "body": {...}}] list."""
+    if isinstance(payload, list):
+        for item in payload[:5]:
+            if isinstance(item, dict) and isinstance(item.get("body"), dict):
+                yield item["body"], {"blocked-uri": "blockedURL", "violated-directive": "effectiveDirective",
+                                     "document-uri": "documentURL", "source-file": "sourceFile",
+                                     "line-number": "lineNumber"}
+    elif isinstance(payload, dict):
+        body = payload.get("csp-report", payload)
+        if isinstance(body, dict):
+            yield body, {}
+
+
 @core_bp.route("/csp-report", methods=["POST"])
+@limiter.limit("60 per minute")
 def csp_report():
-    """Receives Content-Security-Policy violation reports from browsers."""
+    """Receives Content-Security-Policy violation reports from browsers and
+    records them as frontend.csp_violation security events."""
+    if (request.content_length or 0) > _FRONTEND_MAX_BODY:
+        return "", 204
     try:
-        report = request.get_json(force=True, silent=True) or {}
-        violation = report.get("csp-report", report)
-        app_log.warning(
-            "CSP violation",
-            extra={
-                "blocked_uri": violation.get("blocked-uri", ""),
-                "violated_directive": violation.get("violated-directive", ""),
-                "document_uri": violation.get("document-uri", ""),
-                "source_file": violation.get("source-file", ""),
-            },
-        )
+        payload = request.get_json(force=True, silent=True)
+        for body, alias in _csp_violations(payload):
+            def get(key):
+                return body.get(key) if key in body else body.get(alias.get(key, key))
+            _record_frontend_event(
+                "csp_violation", "WARNING",
+                directive=_clip(get("violated-directive"), 80),
+                blocked_uri=_no_query(get("blocked-uri"), 200),
+                page=_page_path(get("document-uri")),
+                source_file=_no_query(get("source-file"), 200),
+                line=_clip(get("line-number"), 10),
+            )
     except Exception as exc:
         app_log.debug("Malformed CSP violation report: %s", exc)
+    return "", 204
+
+
+@core_bp.route("/api/client-log", methods=["POST"])
+@limiter.limit("30 per minute")
+def client_log():
+    """Sink for the small reporter injected into every page (app.py's
+    _CLIENT_LOG_SCRIPT): uncaught JS errors, unhandled promise rejections
+    and failed resource loads."""
+    if (request.content_length or 0) > _FRONTEND_MAX_BODY:
+        return "", 204
+    data = request.get_json(force=True, silent=True)
+    kind = data.get("type") if isinstance(data, dict) else None
+    if isinstance(kind, str) and kind in _CLIENT_LOG_TYPES:
+        _record_frontend_event(
+            kind, _CLIENT_LOG_TYPES[kind],
+            detail=_clip(data.get("message"), 300),
+            page=_page_path(data.get("page")),
+            source_file=_no_query(data.get("source"), 200),
+            line=_clip(data.get("line"), 10),
+            user_agent=_clip(request.headers.get("User-Agent"), 120),
+        )
     return "", 204
 
 

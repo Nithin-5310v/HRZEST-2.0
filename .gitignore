@@ -45,3 +45,4 @@ face_models/
 .venv_test/
 .claude/
 terraform/tfplan*
+backups/

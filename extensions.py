@@ -11,6 +11,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from pythonjsonlogger import jsonlogger
 import redis as _redis_lib
+from urllib.parse import quote as _urlquote
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 _log_handler = logging.StreamHandler(sys.stdout)
@@ -471,7 +472,9 @@ def _init_redis_backend():
             host, e,
         )
         return None, "memory://"
-    auth = f":{password}@" if password else ""
+    # Percent-encode: a password containing @ / : # ? would otherwise be
+    # misparsed as part of the URL's host/path by the limiter's storage URI.
+    auth = f":{_urlquote(password, safe='')}@" if password else ""
     return client, f"redis://{auth}{host}:{port}/0"
 
 
