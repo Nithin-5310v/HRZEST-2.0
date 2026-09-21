@@ -141,7 +141,8 @@ def _url_from_expr(expr):
     if not parts or parts[0][0] != "s":
         return None
     url = "".join(text if kind == "s" else "1" for kind, text in parts)
-    url = re.sub(r"[$][{][^}]*[}]", "1", url)          # JS template expression
+    url = re.sub(r"[$][{][^}]*['\"]\?[^}]*[}]", "", url)   # ${cond ? '?x=1' : ''} is an optional query string
+    url = re.sub(r"[$][{][^}]*[}]", "1", url)          # any other JS template expression
     url = re.sub(r"[{][{][^}]*[}][}]", "1", url)       # Jinja expression
     url = re.sub(r"[{]%.*?%[}]", "", url)              # Jinja statement
     return url.split("?")[0].split("#")[0]

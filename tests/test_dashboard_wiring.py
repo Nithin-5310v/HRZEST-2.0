@@ -50,6 +50,18 @@ def test_no_gaps(reports, page, category):
     assert not found, f"{page}: {category}: {found if isinstance(found, int) else found[:8]}"
 
 
+@pytest.mark.parametrize("expr,expected", [
+    ("'/api/a/' + id + '/b'", "/api/a/1/b"),                                   # concatenation
+    ("`/api/a/${id}/b`", "/api/a/1/b"),                                        # template literal
+    ("`/api/layers${force ? '?refresh=1' : ''}`", "/api/layers"),              # optional query string, not a path segment
+    ("`/api/x?a=${v}`", "/api/x"),
+    ("someVariable", None),
+])
+def test_url_reconstruction(expr, expected):
+    from tests.dashboard_audit import _url_from_expr
+    assert _url_from_expr(expr) == expected
+
+
 @pytest.mark.parametrize("page", DASHBOARDS)
 def test_template_compiles(page):
     flask_app.jinja_env.get_template(page)
