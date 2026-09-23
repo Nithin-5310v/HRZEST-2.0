@@ -567,17 +567,15 @@ _LOGO_NAME_RE = re.compile(r'[^a-z0-9\-]')
 
 def save_uploaded_logo(file_storage, name_hint):
     """Validate and save an uploaded company-logo image under
-    static/company_logos/ (or the equivalent S3 key -- see utils/storage.py,
-    a no-op switch controlled entirely by whether S3_BUCKET is set), named
-    after name_hint (the tenant's subdomain slug, already restricted to
-    [a-z0-9-] by org.py's _SUBDOMAIN_RE -- scrubbed again here defensively
-    since other callers may not enforce that). Returns (stored_ref, None)
-    on success -- stored_ref is either the "company_logos/x.png"-style
-    relative path (local disk, what company_settings.logo_url is built
-    from as before) or a full https:// S3 object URL, or (None,
-    error_message) if the file is present but invalid. Callers should
-    treat "no file provided" as optional and skip calling this entirely
-    rather than treating it as an error.
+    static/company_logos/, named after name_hint (the tenant's subdomain
+    slug, already restricted to [a-z0-9-] by org.py's _SUBDOMAIN_RE --
+    scrubbed again here defensively since other callers may not enforce
+    that). Returns (stored_ref, None) on success -- stored_ref is the
+    "company_logos/x.png"-style relative path that
+    company_settings.logo_url is built from, or (None, error_message) if
+    the file is present but invalid. Callers should treat "no file
+    provided" as optional and skip calling this entirely rather than
+    treating it as an error.
 
     Deterministic filename (no re-upload dedup needed): a second signup
     attempt for the same subdomain just overwrites the previous file,
@@ -614,10 +612,9 @@ def save_application_document(file_storage, application_id, doc_kind):
     @_platform_admin_required -- that route plus never constructing a
     client-facing URL to this path is the entire access control.
 
-    Returns (stored_ref, None) on success -- stored_ref is either an
-    absolute local filesystem path or an "s3://bucket/key" reference (see
-    utils/storage.py; a no-op switch controlled by S3_BUCKET), pass it
-    straight into open_private()/delete_private() -- or (None, error_message).
+    Returns (stored_ref, None) on success -- stored_ref is an absolute
+    local filesystem path, pass it straight into
+    open_private()/delete_private() -- or (None, error_message).
     """
     from flask import current_app
     from utils.storage import save_private

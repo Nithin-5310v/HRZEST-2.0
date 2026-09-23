@@ -29,12 +29,6 @@ except Exception:
 
 import os as _os
 from dotenv import load_dotenv
-from utils.secrets_loader import load_aws_secrets
-# In production, AWS_SECRET_ID must be set as a plain instance env var
-# (not a secret itself -- just its name/ARN). Runs before load_dotenv() so
-# Secrets Manager values win in prod; local dev with no AWS_SECRET_ID falls
-# straight through to .env unaffected.
-load_aws_secrets()
 load_dotenv()
 
 # ── Import shared extensions FIRST (no side-effects) ─────────────────────────

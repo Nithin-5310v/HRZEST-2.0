@@ -572,12 +572,11 @@ def _init_core_tables(cursor, db):
     db.commit()
 
     # Application-layer IP ban list -- the SOC dashboard's "one-click ban"
-    # tactical mitigation. Not a substitute for a real edge/WAF ban (Cloudflare
-    # or AWS Network Firewall, provisioned separately via terraform/), since a
-    # request still costs a TLS handshake + one Python request cycle before
-    # _enforce_ip_ban rejects it -- but it needs no cloud API credentials and
-    # takes effect immediately app-wide, which the Terraform-managed edge
-    # rules don't do without a redeploy.
+    # tactical mitigation. Not a substitute for a real edge/WAF ban (e.g.
+    # Cloudflare), since a request still costs a TLS handshake + one Python
+    # request cycle before _enforce_ip_ban rejects it -- but it needs no
+    # cloud API credentials and takes effect immediately app-wide, with no
+    # redeploy needed.
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS banned_ips (
             ip         VARCHAR(45) PRIMARY KEY,

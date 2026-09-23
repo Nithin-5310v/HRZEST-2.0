@@ -128,8 +128,6 @@ The app is available at `http://localhost` (nginx proxies to the Flask app on po
 
 ## Production deployment
 
-See [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for the full AWS EC2 + RDS + Terraform guide.
-
 **Quick checklist:**
 
 - [ ] Set all `.env` variables — especially `SECRET_KEY`, `ENCRYPTION_KEY`, `ADMIN_PASSWORD`, `APP_URL`, `ALLOWED_ORIGINS`
@@ -196,8 +194,7 @@ employee-attendance-system/
 ├── compose.yaml
 ├── compose.prod.yaml
 ├── nginx/
-├── .env.example
-└── AWS_DEPLOYMENT.md
+└── .env.example
 ```
 
 ---
@@ -219,7 +216,7 @@ employee-attendance-system/
 - **Security:** CSRF (custom), CSP (dynamic sha256), HSTS, rate limiting, Fernet PII encryption
 - **Face recognition:** `face_recognition` (dlib-based)
 - **Mobile:** React Native (Expo)
-- **DevOps:** Podman, nginx, Let's Encrypt, GitHub Actions CI/CD, AWS EC2 + RDS + Terraform
+- **DevOps:** Podman, nginx, Let's Encrypt, GitHub Actions CI/CD
 
 ---
 

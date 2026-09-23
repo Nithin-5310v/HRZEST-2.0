@@ -196,10 +196,7 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
         tconn = get_tenant_db(db_name)
         tcur = tconn.cursor()
         # save_uploaded_logo() (utils/helpers.py) returns a bare relative
-        # path today (local-disk mode) but a full https:// URL once
-        # S3_BUCKET is configured (utils/storage.py) -- forward-compatible
-        # so activating S3 later doesn't silently produce a broken
-        # "/static/https://..." URL here.
+        # path, local-disk only.
         if not logo_path:
             logo_url = None
         elif logo_path.startswith("http://") or logo_path.startswith("https://"):

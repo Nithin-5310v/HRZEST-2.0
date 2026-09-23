@@ -8,8 +8,7 @@
 #   - ClamAV needs 1.5-3GB just for its signature DB — MALWARE_SCAN_ENABLED
 #     is set to false below instead of running it locally.
 #   - PostgreSQL — point DB_HOST in .env at an external/managed instance
-#     instead (see AWS_DEPLOYMENT.md's RDS setup, or any other reachable
-#     PostgreSQL 16+).
+#     instead (any reachable PostgreSQL 16+).
 #   - Redis — GUNICORN_WORKERS is forced to 1 below anyway, so there's no
 #     per-worker rate-limit/WAF-counter split to fix; REDIS_HOST is
 #     cleared so the app doesn't waste a startup connection attempt (and a

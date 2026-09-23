@@ -154,7 +154,7 @@ Dev-only
                                   (Containerfile).
   postgres:16                    The application database (see compose.yaml's `db`
                                   service). Not used at all in compose.prod.yaml, which
-                                  instead points at a managed AWS RDS Postgres instance.
+                                  instead points at a managed Postgres instance.
   redis:7-alpine                  Backs the `redis` Python package above — shared
                                   rate-limit/cache state across gunicorn workers.
   clamav/clamav:stable            The antivirus daemon the `clamd` Python package talks
