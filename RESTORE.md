@@ -6,18 +6,13 @@ If you're reading this because production is down, skip to
 
 ## How backups work
 
-- `scripts/backup_db.sh` runs `pg_dump | gzip`, writes a timestamped copy to
-  `backups/` on the app server, and uploads it to the `backups` S3 bucket
-  (`terraform/s3_storage.tf`) if `BACKUP_S3_BUCKET` is set (see
-  `.env.example`). The S3 copy is the durable one — the local copy alone
-  does not survive losing the host it's on.
+- `scripts/backup_db.sh` runs `pg_dump | gzip` and writes a timestamped copy
+  to `backups/` on the app server. This local copy does not survive losing
+  the host it's on — copy `backups/` offsite on whatever schedule/mechanism
+  you set up for that before relying on this in production.
 - Scheduled daily at 02:15 server time via `scripts/hrzest-backup.service`
   + `scripts/hrzest-backup.timer` (systemd). Local copies older than 30
-  days are pruned automatically; S3 keeps every backup's current version
-  forever and expires only superseded/deleted *versions* after 90 days
-  (`terraform/s3_storage.tf`'s `hrms_backups_lifecycle` rule) — versioning
-  is enabled specifically so an accidental `aws s3 rm` doesn't destroy a
-  backup outright.
+  days are pruned automatically.
 - `BACKUP_HEARTBEAT_URL` (optional, `.env.example`) pings a dead-man's-switch
   monitor (Healthchecks.io, Cronitor, etc.) on every successful run — set
   this up so a silently-broken backup job is discovered by an alert, not by
@@ -25,36 +20,19 @@ If you're reading this because production is down, skip to
 
 ## One-time setup (new deployment)
 
-1. Apply the `backups` S3 bucket: `terraform apply` picks it up automatically
-   from `terraform/s3_storage.tf` once the rest of the terraform config is
-   applied. (Previously noted here as a known gap — `outputs.tf` referenced
-   `aws_iam_instance_profile.ec2_app_profile`, `aws_security_group.app_firewall`,
-   `aws_sns_topic.alerts`, and `aws_db_instance.this` before any of them were
-   actually defined, so `terraform apply` failed with "reference to
-   undeclared resource." Fixed: `main.tf` was restored to the real EC2-based
-   config that defines all of these, `terraform validate`/`plan` now succeed
-   against the real config end-to-end. See the "Fix Terraform" commit for
-   the full story of how this regressed and how it was diagnosed.)
-2. Grant the EC2 instance's IAM role (`ec2_app_profile`, `terraform/main.tf`)
-   `s3:PutObject` on `arn:aws:s3:::<project>-backups-<account-id>/*` —
-   the backup script relies on the AWS CLI's normal credential chain, so no
-   static keys need to touch the host.
-3. Set `BACKUP_S3_BUCKET=<project>-backups-<account-id>` in `.env` on the
-   app server.
-4. Install the scheduled job:
+1. Install the scheduled job:
    ```bash
    sudo cp scripts/hrzest-backup.service scripts/hrzest-backup.timer /etc/systemd/system/
    sudo systemctl daemon-reload
    sudo systemctl enable --now hrzest-backup.timer
    systemctl list-timers hrzest-backup.timer   # confirm it's scheduled
    ```
-5. Trigger one backup immediately rather than waiting for 02:15, to confirm
-   the whole chain (dump → gzip → S3 upload → heartbeat) actually works on
-   this host:
+2. Trigger one backup immediately rather than waiting for 02:15, to confirm
+   the chain (dump → gzip → heartbeat) actually works on this host:
    ```bash
    sudo systemctl start hrzest-backup.service
    journalctl -u hrzest-backup.service -n 50 --no-pager
-   aws s3 ls "s3://$BACKUP_S3_BUCKET/backups/" | tail -5
+   ls -la backups/
    ```
 
 ## Restore procedure
@@ -65,13 +43,9 @@ Restoring into an already-populated database will fail on the first
 overwriting — that's expected. Restore into a **new, empty database** and
 cut the app over to it, don't restore on top of a live one.
 
-1. **Get the backup file.**
+1. **Get the backup file** from the app server's local copy (or your
+   offsite copy, if you've set one up):
    ```bash
-   # From S3 (the durable copy) — list and pick the one you need:
-   aws s3 ls "s3://$BACKUP_S3_BUCKET/backups/"
-   aws s3 cp "s3://$BACKUP_S3_BUCKET/backups/db_backup_2026-01-15_02-15-03.sql.gz" .
-
-   # Or from the app server's local copy, if it's still there and recent:
    ls -la /opt/employee-attendance/backups/
    ```
 
@@ -124,12 +98,8 @@ the straightforward way.
 
 ## Verified
 
-This procedure (steps 2-4 above, without the S3 fetch) was run end-to-end
-against a local scratch database on 2026-09-11: a table with known rows was
-created, backed up via `scripts/backup_db.sh` unmodified, restored into a
-fresh database via the exact commands in step 3, and the restored rows were
-confirmed to match byte-for-byte. The S3 upload/download steps use the
-standard `aws s3 cp`/`aws s3 ls` commands directly and were not
-independently re-verified here (no AWS credentials were available in the
-environment this was written in) — verify those specifically the first
-time this is set up for real, per step 5 of the one-time setup above.
+This procedure (steps 2-4 above) was run end-to-end against a local scratch
+database on 2026-09-11: a table with known rows was created, backed up via
+`scripts/backup_db.sh` unmodified, restored into a fresh database via the
+exact commands in step 3, and the restored rows were confirmed to match
+byte-for-byte.
