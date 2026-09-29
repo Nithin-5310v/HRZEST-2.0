@@ -49,7 +49,7 @@ rq>=1.16.0
 # behind a try/except ImportError, but it was never actually declared here,
 # meaning those four jobs may have been silently no-op-ing in any environment
 # where this wasn't separately installed by hand.
-apscheduler>=3.10.4
+apscheduler>=3.11.3
 
 # ── Malware scanning ──────────────────────────────────────────────────────────
 clamd>=1.0.2
