@@ -377,7 +377,7 @@ jobs:
         # rootless Podman and owns /opt/employee-attendance directly, so no
         # sudo is needed (and it has none). Add the CI key to
         # /home/attendance/.ssh/authorized_keys on the instance.
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
