@@ -216,7 +216,7 @@ jobs:
         # extra_args, so including it here duplicates the flag; v3.95.9's
         # parser rejects that outright ("flag 'fail' cannot be repeated"),
         # which is what was actually failing this job, not a real secret.
-        uses: trufflesecurity/trufflehog@v3.95.9
+        uses: trufflesecurity/trufflehog@v3.97.9
         with:
           extra_args: --only-verified --exclude-paths=.github/trufflehog-exclude.txt
 
