@@ -38,7 +38,7 @@ bcrypt>=5.0.0
 pyotp>=2.9.0
 
 # ── Cache / rate-limit backend ────────────────────────────────────────────────
-redis>=5.0.0
+redis>=8.1.0
 
 # ── Background job queue (utils/task_queue.py) -- only used once REDIS_URL
 # is set; a no-op dependency otherwise (sync fallback needs no import at all)
