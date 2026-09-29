@@ -12,7 +12,7 @@ pytest-mock>=3.14.0
 pytest-randomly>=3.15.0
 
 # ── Code quality ──────────────────────────────────────────────────────────────
-flake8>=7.1.0
+flake8>=7.4.1
 
 # ── Static asset minification (see minify_static.py) ───────────────────────────
 rcssmin>=1.2.2
