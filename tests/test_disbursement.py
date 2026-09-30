@@ -5,7 +5,40 @@ so these tests exercise the routes without a TOTP step-up unless a test
 explicitly flips that config flag.
 """
 import datetime
+import pytest
 from utils.payout_utils import validate_ifsc, mask_account_number
+
+
+@pytest.fixture
+def prep_today(monkeypatch):
+    """Pins blueprints/disbursement.py's idea of "today" to the 15th of the
+    current month and returns that date.
+
+    The two preparation tests below used the real datetime.date.today().day
+    as the configured disbursement day so the run would be due "today" --
+    but POST /api/payout/bank_config only accepts days 1-28, so on the
+    29th, 30th and 31st the config save was rejected with a 400, nothing
+    was enabled, _prepare_one_tenant() returned early, and the tests failed
+    (or, for the idempotency test, passed without having created any run at
+    all). Only this module's clock is pinned; year and month stay real, so
+    payroll's own salary computation for the month is untouched."""
+    import blueprints.disbursement as disbursement_module
+
+    pinned = datetime.date.today().replace(day=15)
+
+    class _PinnedDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return pinned
+
+    class _PinnedDatetimeModule:
+        date = _PinnedDate
+
+        def __getattr__(self, name):
+            return getattr(datetime, name)
+
+    monkeypatch.setattr(disbursement_module, "datetime", _PinnedDatetimeModule())
+    return pinned
 
 
 def _admin_session(client, seed_admin):
@@ -187,7 +220,7 @@ class TestFirstTimeTotpEnrollment:
 
 
 class TestMissingBankDetailsFlaggedAtPrepTime:
-    def test_employee_without_bank_details_flagged_before_approval(self, client, seed_admin, seed_employee, db_engine):
+    def test_employee_without_bank_details_flagged_before_approval(self, client, seed_admin, seed_employee, db_engine, prep_today):
         """seed_employee (TST001) has no bank_account/bank_ifsc set -- its
         disbursement item must come out of preparation already marked
         missing_bank_details, visible to the admin BEFORE they approve,
@@ -196,12 +229,13 @@ class TestMissingBankDetailsFlaggedAtPrepTime:
         from utils.helpers import encrypt_pii
 
         _admin_session(client, seed_admin)
-        today = datetime.date.today()
-        client.post("/api/payout/bank_config", json={
+        today = prep_today
+        resp = client.post("/api/payout/bank_config", json={
             "account_holder_name": "Test Co", "bank_name": "Test Bank",
             "account_number": "444455556666", "ifsc_code": "UTIB0001234",
             "disbursement_day_of_month": today.day, "approval_lead_days": 5, "enabled": True,
         })
+        assert resp.status_code == 200, resp.get_json()
 
         cur = db_engine.cursor()
         # A second employee WITH complete bank details, to prove the flag is
@@ -246,16 +280,17 @@ class TestMissingBankDetailsFlaggedAtPrepTime:
 
 
 class TestRunPreparationIdempotent:
-    def test_prepare_does_not_double_create_for_same_month(self, client, seed_admin, seed_employee, db_engine):
+    def test_prepare_does_not_double_create_for_same_month(self, client, seed_admin, seed_employee, db_engine, prep_today):
         from blueprints.disbursement import _prepare_one_tenant
 
         _admin_session(client, seed_admin)
-        today = datetime.date.today()
-        client.post("/api/payout/bank_config", json={
+        today = prep_today
+        resp = client.post("/api/payout/bank_config", json={
             "account_holder_name": "Test Co", "bank_name": "Test Bank",
             "account_number": "111122223333", "ifsc_code": "ICIC0001234",
             "disbursement_day_of_month": today.day, "approval_lead_days": 5, "enabled": True,
         })
+        assert resp.status_code == 200, resp.get_json()
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s, 1000) "
@@ -277,7 +312,7 @@ class TestRunPreparationIdempotent:
         )
         count = cur.fetchone()[0]
         cur.close()
-        assert count <= 1, "prepare_pending_disbursements created more than one run for the same month"
+        assert count == 1, f"expected exactly one run for the month after two prepare calls, found {count}"
 
 
 class TestApprovalGuards:
