@@ -312,7 +312,12 @@ jobs:
           DB_NAME: att_test
           SECRET_KEY: ci-test-secret-key-not-used-in-prod
           FLASK_ENV: testing
-        run: python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=40
+        # -n auto: one pytest-xdist worker per runner CPU. tests/conftest.py
+        # gives each worker its own database (att_test_gw0, att_test_gw1,
+        # ...), created on first use by the postgres superuser above, so
+        # workers never reset each other's data. If a parallel-only failure
+        # ever shows up, drop "-n auto" here to get the serial run back.
+        run: python -m pytest tests/ -n auto -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=40
 
   podman:
     name: Podman build

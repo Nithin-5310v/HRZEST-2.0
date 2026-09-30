@@ -16,6 +16,7 @@ Run with:
 import io
 import time
 import datetime
+import os
 import secrets
 import pytest
 
@@ -26,7 +27,9 @@ from utils.plan_limits import (
 )
 
 
-TENANT_SCHEMA = "att_test"
+# DB_NAME is "att_test" in a plain run and "att_test_<worker>" under
+# pytest-xdist (see tests/conftest.py) -- read it rather than hardcoding.
+TENANT_SCHEMA = os.environ["DB_NAME"]
 
 
 def _drop_schema(db_engine, schema_name):

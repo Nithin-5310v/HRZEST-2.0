@@ -58,7 +58,41 @@ for _key in list(os.environ):
         del os.environ[_key]
 
 # Override values for testing
-os.environ["DB_NAME"] = "att_test"
+#
+# One database per pytest-xdist worker: a plain `pytest` run uses att_test
+# exactly as before; under `pytest -n N` each worker process (gw0, gw1, ...)
+# gets att_test_gw0, att_test_gw1, ... so the per-test snapshot/restore
+# further down only ever resets that worker's own data. Created on first
+# use and left in place afterwards, same as att_test itself -- every test
+# restores the baseline, so there is nothing to clean up between runs.
+_XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER", "")
+os.environ["DB_NAME"] = f"att_test_{_XDIST_WORKER}" if _XDIST_WORKER else "att_test"
+
+
+def _ensure_worker_database(db_name):
+    """CREATE DATABASE for an xdist worker if it doesn't exist yet. Has to
+    run here, before `import app` below -- that import connects to DB_NAME
+    and builds the schema."""
+    import psycopg2
+    conn = psycopg2.connect(
+        host=os.environ["DB_HOST"],
+        port=int(os.environ.get("DB_PORT", "5432")),
+        user=os.environ.get("DB_USER", "postgres"),
+        password=os.environ.get("DB_PASS", ""),
+        dbname="postgres",
+    )
+    conn.autocommit = True
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM pg_database WHERE datname=%s", (db_name,))
+    if not cur.fetchone():
+        cur.execute(f'CREATE DATABASE "{db_name}"')  # db_name is att_test_<xdist worker id>, built above -- not external input
+    cur.close()
+    conn.close()
+
+
+if _XDIST_WORKER:
+    _ensure_worker_database(os.environ["DB_NAME"])
+
 os.environ["APP_ENV"] = "development"   # avoids HTTPS-only cookies
 # utils/helpers.py's _scan_for_malware() is on by default and dials a clamd
 # daemon at CLAMAV_HOST (default "clamav", the compose service name) for
@@ -480,16 +514,41 @@ def _snapshot_schema(cur, schema):
     return snap
 
 
-def _restore_snapshot(cur, schema_snapshots, extra_schemas):
-    """Truncate every table across the snapshotted schemas in one statement
-    (Postgres resolves FK ordering for a multi-table TRUNCATE + CASCADE on
-    its own -- no manual dependency sort needed), re-insert exactly the
-    rows captured in schema_snapshots, then re-sync every serial column's
-    sequence in one combined round trip (see _target_setvals() above --
-    with ~80+ serial columns across the schema, one setval() per column
-    was the dominant per-test cost; a single statement chaining all of them
-    cut this fixture's per-test overhead by roughly 3x). Drops any schema
-    created mid-test that wasn't part of the baseline."""
+def _can_bypass_triggers(cur):
+    """True when this connection may set session_replication_role (a
+    superuser-only setting) -- the precondition for the fast DELETE-based
+    restore below. CI and docker-compose.test.yml both connect as the
+    postgres superuser; a developer running as an ordinary role gets the
+    slower TRUNCATE path instead of an error."""
+    cur.execute("SELECT current_setting('is_superuser')")
+    return cur.fetchone()[0] == "on"
+
+
+def _restore_snapshot(cur, schema_snapshots, extra_schemas, fast=False):
+    """Empty every table across the snapshotted schemas, re-insert exactly
+    the rows captured in schema_snapshots, then re-sync every serial
+    column's sequence in one combined round trip (see _target_setvals()
+    above -- with ~80+ serial columns across the schema, one setval() per
+    column was the dominant per-test cost; a single statement chaining all
+    of them cut this fixture's per-test overhead by roughly 3x). Drops any
+    schema created mid-test that wasn't part of the baseline.
+
+    How the tables are emptied is the one thing `fast` changes:
+
+    - fast=False: one multi-table TRUNCATE ... RESTART IDENTITY CASCADE
+      (Postgres resolves FK ordering for that on its own -- no manual
+      dependency sort needed). Correct for any role, but TRUNCATE rewrites
+      every table's files whether or not the test touched it -- measured
+      at 1.0-1.9s per call for this schema's ~70 tables, i.e. nearly all
+      of the suite's ~1.3s-per-test average.
+    - fast=True: plain DELETEs inside one transaction with
+      session_replication_role=replica, which switches off FK enforcement
+      for the transaction so no dependency order or CASCADE is needed.
+      DELETE on an untouched (empty) table is close to free, so the same
+      full reset measured at ~12ms. SET LOCAL scopes the setting to this
+      transaction only -- it can't leak onto the connection afterwards.
+      The end state is identical: same rows, and the setval() pass below
+      already puts every sequence where RESTART IDENTITY + re-insert did."""
     for schema in extra_schemas:
         cur.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')  # nosec B608 -- schema name sourced from information_schema, not external input
 
@@ -498,7 +557,11 @@ def _restore_snapshot(cur, schema_snapshots, extra_schemas):
         for schema, snap in schema_snapshots.items()
         for table in snap
     ]
-    if all_tables:
+    if fast:
+        statements = ["BEGIN", "SET LOCAL session_replication_role = replica", "SET LOCAL synchronous_commit = off"]
+        statements += [f"DELETE FROM {table}" for table in all_tables]  # nosec B608 -- table list built entirely from information_schema, never external input
+        cur.execute("; ".join(statements))
+    elif all_tables:
         cur.execute(f'TRUNCATE {", ".join(all_tables)} RESTART IDENTITY CASCADE')  # nosec B608 -- table list built entirely from information_schema, never external input  # noqa: E501
 
     setval_args = []
@@ -518,6 +581,9 @@ def _restore_snapshot(cur, schema_snapshots, extra_schemas):
         flat_params = [v for triple in setval_args for v in triple]
         cur.execute(f"SELECT {select_list}", flat_params)  # nosec B608 -- fixed setval(...) template repeated N times; every value is a bound param
 
+    if fast:
+        cur.execute("COMMIT")
+
 
 @pytest.fixture(scope="session")
 def _db_baseline_snapshot(db_engine, _init_test_db, _reset_login_attempts, _reset_attendance_lockouts):
@@ -530,8 +596,9 @@ def _db_baseline_snapshot(db_engine, _init_test_db, _reset_login_attempts, _rese
     cur = db_engine.cursor()
     snap = {schema: _snapshot_schema(cur, schema) for schema in _BASELINE_SCHEMAS}
     baseline_schemas = _list_user_schemas(cur)
+    fast = _can_bypass_triggers(cur)
     cur.close()
-    return snap, baseline_schemas
+    return snap, baseline_schemas, fast
 
 
 @pytest.fixture(autouse=True)
@@ -542,10 +609,19 @@ def _reset_db_after_test(db_engine, _db_baseline_snapshot):
     already leaves the database in the correct starting state.
     """
     yield
-    snap, baseline_schemas = _db_baseline_snapshot
+    snap, baseline_schemas, fast = _db_baseline_snapshot
     cur = db_engine.cursor()
     extra_schemas = _list_user_schemas(cur) - baseline_schemas
-    _restore_snapshot(cur, snap, extra_schemas)
+    try:
+        _restore_snapshot(cur, snap, extra_schemas, fast=fast)
+    except Exception:
+        # A failure part-way through the fast path leaves its explicit
+        # transaction open -- close it so the next test's teardown (and
+        # every other fixture sharing db_engine) isn't stuck inside an
+        # aborted transaction, then surface the original error.
+        if fast:
+            cur.execute("ROLLBACK")
+        raise
     cur.close()
     # utils/totp.py's is_totp_enabled_cached() caches admin_users.totp_enabled
     # for 60s, invalidated only when mark_totp_enabled()/

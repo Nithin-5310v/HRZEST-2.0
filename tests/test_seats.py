@@ -22,6 +22,7 @@ stale cap.
 Run with:
     python -m pytest tests/test_seats.py -v
 """
+import os
 import secrets
 import threading
 import pytest
@@ -141,7 +142,7 @@ class TestCreateOrder:
             )
             row = cur.fetchone()
             cur.close()
-            assert row == ("att_test", 5, calculate_price(5), "created", seed_admin["username"])
+            assert row == (os.environ["DB_NAME"], 5, calculate_price(5), "created", seed_admin["username"])
         finally:
             if order_id:
                 _cleanup_orders(db_engine, order_id)
@@ -189,8 +190,8 @@ class TestVerifyPayment:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO att_master.seat_topup_orders (tenant_schema, company_name, razorpay_order_id, "
-            "seats_purchased, amount_paise, status) VALUES ('att_test', 'Test Co', %s, 4, %s, 'created')",
-            (order_id, calculate_price(4)),
+            "seats_purchased, amount_paise, status) VALUES (%s, 'Test Co', %s, 4, %s, 'created')",
+            (os.environ["DB_NAME"], order_id, calculate_price(4)),
         )
         cur.close()
         _admin_session(client, seed_admin["username"])
