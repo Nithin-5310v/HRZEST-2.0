@@ -60,6 +60,15 @@ for _key in list(os.environ):
 # Override values for testing
 os.environ["DB_NAME"] = "att_test"
 os.environ["APP_ENV"] = "development"   # avoids HTTPS-only cookies
+# utils/helpers.py's _scan_for_malware() is on by default and dials a clamd
+# daemon at CLAMAV_HOST (default "clamav", the compose service name) for
+# every upload. No such daemon exists in a test run, so 43 upload tests
+# were each doing a real DNS lookup/connect and only passing because the
+# development-mode scanner fails open when unreachable. Off for the suite
+# (the documented clean-skip switch, read once at import); the scanner's own
+# tests (test_helpers_utils.py's TestScanForMalware) turn it back on
+# per-test with a fake clamd socket.
+os.environ["MALWARE_SCAN_ENABLED"] = "false"
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 # utils/helpers.py's PII-encryption bootstrap hard-fails at import time if
 # this is missing, in every environment including tests — no dev/test
