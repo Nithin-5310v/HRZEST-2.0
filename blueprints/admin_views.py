@@ -92,7 +92,7 @@ def admin():
     # deployments predating the overtime_records table; folding it in here
     # would make the whole dashboard 500 on that case instead of just
     # showing 0 OT pending.
-    cursor.execute(  # nosec B608
+    cursor.execute(
         f"""
         SELECT
             (SELECT COUNT(*) FROM employees e WHERE 1=1 {_co_filter}),
@@ -101,7 +101,7 @@ def admin():
             (SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}),
             (SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}),
             (SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub})
-        """,
+        """,  # nosec B608 -- _co_filter/_co_sub are fixed scope fragments, values bound
         _co_args + (today,) + _co_args + (today,) + _co_args + _co_args + _co_args + _co_args
     )
     (total, present, late,

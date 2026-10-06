@@ -1135,7 +1135,7 @@ def add_employee_seat_cap_check(cursor=None) -> str:
             try:
                 cursor.close()
                 db.close()
-            except Exception:
+            except Exception:  # nosec B110 -- best-effort close; must not mask the result
                 pass
 
     if is_trialing and current >= TRIAL_EMPLOYEE_CAP:

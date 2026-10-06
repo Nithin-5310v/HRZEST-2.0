@@ -296,7 +296,7 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
     return True, None, portal_url, checkin_url
 
 
-def send_portal_ready_email(admin_email, company_name, admin_username, portal_url, admin_password="", checkin_url=None):
+def send_portal_ready_email(admin_email, company_name, admin_username, portal_url, admin_password="", checkin_url=None):  # nosec B107
     """Welcome email with the tenant's dedicated portal link and login credentials.
 
     checkin_url is the company's own public attendance-scanner page

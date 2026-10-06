@@ -31,4 +31,4 @@ jobs:
 
       - name: Run Bandit Security Scanner
         run: |
-          bandit -r blueprints/ utils/ -s B101,B105 || true
+          bandit -r blueprints/ utils/ -s B101,B105

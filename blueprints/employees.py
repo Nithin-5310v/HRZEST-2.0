@@ -644,14 +644,15 @@ def view_employees():
         # caller that wants the real company-wide count. This runs its own
         # always-fresh, assignment-scoped queries instead.
         _assignee_sub = "employee_id IN (SELECT employee_id FROM employees WHERE assigned_hr_username=%s)"
-        cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' AND {_assignee_sub}",
-                       (current_hr_username,))  # nosec B608 -- _assignee_sub is a hardcoded literal, not user input
+        # nosec B608 below: _assignee_sub is a hardcoded literal, not user input.
+        cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' AND {_assignee_sub}",  # nosec B608
+                       (current_hr_username,))
         pending_leaves = cursor.fetchone()[0]
-        cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' AND {_assignee_sub}",
-                       (current_hr_username,))  # nosec B608
+        cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' AND {_assignee_sub}",  # nosec B608
+                       (current_hr_username,))
         pending_resignations = cursor.fetchone()[0]
-        cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') AND {_assignee_sub}",
-                       (current_hr_username,))  # nosec B608
+        cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') AND {_assignee_sub}",  # nosec B608
+                       (current_hr_username,))
         pending_tickets = cursor.fetchone()[0]
     else:
         pending_leaves, pending_resignations, pending_tickets = get_pending_counts()

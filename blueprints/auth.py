@@ -731,7 +731,7 @@ def _find_by_reset_token(cursor, table, id_column, token):
     "employee_id"), never request-controlled."""
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute(
-        f"SELECT {id_column} FROM {table} WHERE reset_token=%s AND reset_token_expiry > %s",
+        f"SELECT {id_column} FROM {table} WHERE reset_token=%s AND reset_token_expiry > %s",  # nosec B608 -- call-site literals
         (token_hash, datetime.datetime.utcnow())
     )
     return cursor.fetchone()

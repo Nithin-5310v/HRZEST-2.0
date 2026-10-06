@@ -850,7 +850,7 @@ def api_bulk_mark_attendance():
             placeholders = ",".join(["(%s,%s,%s,%s,%s,'Manual','Manual')"] * len(rows))
             params = [v for row in rows for v in row]
             cursor.execute(
-                "INSERT INTO attendance (employee_id, date, login_time, logout_time, "
+                "INSERT INTO attendance (employee_id, date, login_time, logout_time, "  # nosec B608
                 f"attendance_type, status, logout_status) VALUES {placeholders} "
                 "ON CONFLICT (employee_id, date) DO UPDATE SET "
                 "login_time=EXCLUDED.login_time, logout_time=EXCLUDED.logout_time, "
@@ -923,8 +923,8 @@ def monthly_report_export():
     active_cid = session.get("active_company_id")
     _co, _co_args = co_scope_column(active_cid)
     _hr, _hr_args = hr_scope_column()
-    cursor.execute(  # nosec B608
-        f"SELECT employee_id, name FROM employees WHERE 1=1 {_co} {_hr} ORDER BY name",
+    cursor.execute(
+        f"SELECT employee_id, name FROM employees WHERE 1=1 {_co} {_hr} ORDER BY name",  # nosec B608 -- fixed scope fragments
         _co_args + _hr_args)
     employees = cursor.fetchall()
 

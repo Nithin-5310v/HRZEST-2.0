@@ -76,14 +76,14 @@ def verify_and_update_password(table, id_column, id_value, current_pw, new_pw):
     from database import get_db_connection
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute(f"SELECT password FROM {table} WHERE {id_column}=%s", (id_value,))
+    cursor.execute(f"SELECT password FROM {table} WHERE {id_column}=%s", (id_value,))  # nosec B608 -- call-site literals
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current_pw):
         cursor.close()
         db.close()
         return False
     cursor.execute(
-        f"UPDATE {table} SET password=%s WHERE {id_column}=%s",
+        f"UPDATE {table} SET password=%s WHERE {id_column}=%s",  # nosec B608 -- call-site literals
         (generate_password_hash(new_pw), id_value)
     )
     record_password_change(cursor, table, id_value)

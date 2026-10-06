@@ -1454,8 +1454,8 @@ def admin_payslips():
     cursor = db.cursor(buffered=True)
 
     _hr, _hr_args = hr_scope_column()
-    cursor.execute(  # nosec B608
-        f"SELECT employee_id, name, role, COALESCE(phone,''), COALESCE(email,'') FROM employees WHERE 1=1 {_hr} ORDER BY name",
+    cursor.execute(
+        f"SELECT employee_id, name, role, COALESCE(phone,''), COALESCE(email,'') FROM employees WHERE 1=1 {_hr} ORDER BY name",  # nosec B608
         _hr_args)
     employees = cursor.fetchall()
 

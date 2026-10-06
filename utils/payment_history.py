@@ -77,6 +77,8 @@ def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
         row_cap = offset + limit if (is_unscoped and limit is not None and status is None) else None
         cap_clause = "" if row_cap is None else " LIMIT %s"
         cap_param = () if row_cap is None else (row_cap,)
+        # date_clause/cap_clause above are built only from fixed fragments and
+        # every value is a bound parameter -- hence the nosec B608 markers below.
 
         # -- Signup checkout orders (payment_orders, keyed by tenant_id) --
         if tenant_id is not None:
@@ -84,7 +86,7 @@ def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
                 "SELECT id, company_name, subdomain, employee_count, amount_paise, status, "
                 "razorpay_order_id, razorpay_payment_id, created_at, paid_at, "
                 "admin_username, admin_email "
-                "FROM payment_orders WHERE tenant_id=%s" + date_clause + " ORDER BY created_at DESC" + cap_clause,
+                "FROM payment_orders WHERE tenant_id=%s" + date_clause + " ORDER BY created_at DESC" + cap_clause,  # nosec B608
                 (tenant_id, *date_params, *cap_param)
             )
         elif tenant_schema is None and tenant_id is None:
@@ -92,7 +94,7 @@ def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
                 "SELECT id, company_name, subdomain, employee_count, amount_paise, status, "
                 "razorpay_order_id, razorpay_payment_id, created_at, paid_at, "
                 "admin_username, admin_email "
-                "FROM payment_orders WHERE 1=1" + date_clause + " ORDER BY created_at DESC" + cap_clause,
+                "FROM payment_orders WHERE 1=1" + date_clause + " ORDER BY created_at DESC" + cap_clause,  # nosec B608
                 tuple(date_params) + cap_param
             )
         else:
@@ -117,7 +119,7 @@ def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
                 "s.razorpay_order_id, s.razorpay_payment_id, s.created_at, s.paid_at, s.requested_by, "
                 "s.company_name AS fallback_company_name "
                 "FROM seat_topup_orders s LEFT JOIN tenants t ON t.db_name = s.tenant_schema "
-                "WHERE s.tenant_schema=%s" + date_clause.replace("created_at", "s.created_at") +
+                "WHERE s.tenant_schema=%s" + date_clause.replace("created_at", "s.created_at") +  # nosec B608
                 " ORDER BY s.created_at DESC" + cap_clause,
                 (tenant_schema, *date_params, *cap_param)
             )
@@ -127,7 +129,7 @@ def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
                 "s.razorpay_order_id, s.razorpay_payment_id, s.created_at, s.paid_at, s.requested_by, "
                 "s.company_name AS fallback_company_name "
                 "FROM seat_topup_orders s LEFT JOIN tenants t ON t.db_name = s.tenant_schema "
-                "WHERE 1=1" + date_clause.replace("created_at", "s.created_at") + " ORDER BY s.created_at DESC" + cap_clause,
+                "WHERE 1=1" + date_clause.replace("created_at", "s.created_at") + " ORDER BY s.created_at DESC" + cap_clause,  # nosec B608
                 tuple(date_params) + cap_param
             )
         else:
@@ -151,7 +153,7 @@ def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
                 "SELECT m.id, t.company_name, t.subdomain, m.employee_count, m.amount_paise, m.status, "
                 "m.razorpay_subscription_id, m.razorpay_payment_id, m.created_at, m.company_name AS fallback_company_name "
                 "FROM monthly_invoices m LEFT JOIN tenants t ON t.db_name = m.tenant_schema "
-                "WHERE m.tenant_schema=%s" + date_clause.replace("created_at", "m.created_at") +
+                "WHERE m.tenant_schema=%s" + date_clause.replace("created_at", "m.created_at") +  # nosec B608
                 " ORDER BY m.created_at DESC" + cap_clause,
                 (tenant_schema, *date_params, *cap_param)
             )
@@ -160,7 +162,7 @@ def get_payment_history(tenant_id=None, tenant_schema=None, status=None,
                 "SELECT m.id, t.company_name, t.subdomain, m.employee_count, m.amount_paise, m.status, "
                 "m.razorpay_subscription_id, m.razorpay_payment_id, m.created_at, m.company_name AS fallback_company_name "
                 "FROM monthly_invoices m LEFT JOIN tenants t ON t.db_name = m.tenant_schema "
-                "WHERE 1=1" + date_clause.replace("created_at", "m.created_at") + " ORDER BY m.created_at DESC" + cap_clause,
+                "WHERE 1=1" + date_clause.replace("created_at", "m.created_at") + " ORDER BY m.created_at DESC" + cap_clause,  # nosec B608
                 tuple(date_params) + cap_param
             )
         else:
