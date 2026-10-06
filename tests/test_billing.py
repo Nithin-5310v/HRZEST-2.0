@@ -30,8 +30,12 @@ Run with:
 """
 import secrets
 
+import pytest
+
 from utils.auth import _hash_token, generate_password_hash
 from utils.plan_limits import calculate_price, format_price_inr
+
+pytestmark = pytest.mark.usefixtures("razorpay_demo_mode")
 
 
 def _insert_application(db_engine, status="approved_pending_payment", **overrides):

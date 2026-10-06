@@ -424,6 +424,21 @@ def _reset_db_after_test(db_engine, _db_baseline_snapshot):
 
 
 @pytest.fixture
+def razorpay_demo_mode(monkeypatch):
+    """No Razorpay keys for this test, whatever the developer's local .env
+    holds. CI has none, and the billing/seats/auto-debit/dunning tests are
+    written for that demo branch -- with a real rzp_test_ key loaded they
+    stop taking it (and would call the Razorpay sandbox). utils/
+    razorpay_utils.py reads its keys once at import, so its module copies
+    are what get blanked; tests that need the live branch still monkeypatch
+    razorpay_configured on top of this. Production code is untouched."""
+    import utils.razorpay_utils as rz
+    monkeypatch.setattr(rz, "_KEY_ID", "")
+    monkeypatch.setattr(rz, "_KEY_SECRET", "")
+    monkeypatch.setattr(rz, "_WEBHOOK_SECRET", "")
+
+
+@pytest.fixture
 def client():
     flask_app.config["TESTING"] = True   # disables CSRF check + rate limits
     flask_app.config["WTF_CSRF_ENABLED"] = False

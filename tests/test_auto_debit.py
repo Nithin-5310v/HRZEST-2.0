@@ -32,6 +32,7 @@ import pytest
 from extensions import app as flask_app
 from utils.plan_limits import calculate_price, get_tenant_employee_count
 
+pytestmark = pytest.mark.usefixtures("razorpay_demo_mode")
 
 TENANT_SCHEMA = "att_test"
 
