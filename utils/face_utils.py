@@ -8,10 +8,43 @@ neither can own it exclusively without the other importing across a
 blueprint boundary.
 """
 import os
+import sys
+import types
 import datetime
 
+
+def _import_face_recognition():
+    """face_recognition_models 0.3.0 (its latest release) does
+    `from pkg_resources import resource_filename` at import time, and
+    setuptools>=82 no longer ships pkg_resources -- but setuptools<83 is
+    vulnerable (PYSEC-2026-3447). Rather than pin the vulnerable version,
+    provide just that one function (backed by importlib.resources) for the
+    duration of this import only, then remove it again so no other library
+    ever sees a partial pkg_resources. No-op when a real pkg_resources is
+    installed."""
+    injected = False
+    try:
+        import pkg_resources  # noqa: F401
+    except ImportError:
+        shim = types.ModuleType("pkg_resources")
+
+        def resource_filename(package, resource):
+            from importlib.resources import files
+            return str(files(package).joinpath(resource))
+
+        shim.resource_filename = resource_filename
+        sys.modules["pkg_resources"] = shim
+        injected = True
+    try:
+        import face_recognition as _fr
+        return _fr
+    finally:
+        if injected:
+            sys.modules.pop("pkg_resources", None)
+
+
 try:
-    import face_recognition
+    face_recognition = _import_face_recognition()
     _face_recognition_available = True
 except Exception as _fr_err:
     face_recognition = None

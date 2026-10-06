@@ -30,7 +30,7 @@ from werkzeug.utils import secure_filename
 from database import get_db_connection, transaction
 from extensions import app, app_log, log_security_event, limiter
 from utils.auth import (
-    admin_required, role_required, require_email_2fa, EMAIL_2FA_WINDOW_SEC,
+    admin_required, role_required, require_email_2fa, EMAIL_2FA_WINDOW_SEC, any_user_required,
     email_settings_step_up_refresh, email_settings_step_up_clear,
     security_settings_step_up_clear,
     check_password_hash, HR_ROLE,
@@ -1904,7 +1904,7 @@ def id_card_template_editor(cid):
         "id_card_template_editor.html",
         cid=cid, company_name=company_name,
         front_image=front_image, back_image=back_image,
-        fields_json=json.dumps(fields),
+        fields=fields,
         active_nav="settings",
     )
 
@@ -2071,11 +2071,10 @@ def announcements_admin():
 
 
 @admin_views_bp.route("/download_announcement/<int:aid>")
+@any_user_required
 def download_announcement(aid):
     is_admin = session.get("admin_logged_in")
     emp_id = session.get("employee_id")
-    if not is_admin and not emp_id:
-        return redirect(tpath("/login"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(

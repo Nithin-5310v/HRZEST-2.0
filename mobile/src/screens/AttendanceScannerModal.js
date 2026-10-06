@@ -27,7 +27,9 @@ const DEFAULT_AUTH_CONFIG = {
 function buildCombos(cfg) {
   const combos = [];
   if (cfg.qr_enabled && cfg.face_enabled)         combos.push(COMBO_QR_FACE);
-  if (cfg.qr_enabled && cfg.fingerprint_enabled)  combos.push(COMBO_QR_FINGERPRINT);
+  // QR + fingerprint skips the face check, so the server only allows it
+  // while face recognition is turned off (allowed_checkin_combos()).
+  if (cfg.qr_enabled && cfg.fingerprint_enabled && !cfg.face_enabled) combos.push(COMBO_QR_FINGERPRINT);
   if (cfg.face_enabled && cfg.fingerprint_enabled) combos.push(COMBO_FACE_FP);
   return combos;
 }

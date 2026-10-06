@@ -9,10 +9,10 @@ from flask import (
 )
 from extensions import app, app_log, limiter, log_security_event
 from database import get_db_connection
-from utils.auth import employee_required, employee_api_required, validate_new_password
+from utils.auth import employee_required, employee_api_required, validate_new_password, session_account_ok
 from utils.helpers import (
     tpath,
-    _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config,
+    _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
     company_today, company_now, coerce_datetime,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
@@ -824,15 +824,18 @@ def api_employee_change_password():
 @employee_portal_bp.route("/api/employee/portal", methods=["GET"])
 def api_employee_portal():
     from flask import g as _g
-    emp_id = session.get("employee_id") or getattr(_g, "api_emp_id", None)
+    # A session only counts if it passes the same per-request checks the
+    # decorators apply (kill switch, account active, password unchanged).
+    emp_id = (session.get("employee_id") if session_account_ok() else None) or getattr(_g, "api_emp_id", None)
     if not emp_id:
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
-            from utils.auth import _hash_token
+            from utils.auth import _hash_token, _TOKEN_NOT_STALE_SQL
             token_hash = _hash_token(auth[7:])
             with _db() as (cursor, _conn):
                 cursor.execute(
-                    "SELECT identity FROM api_tokens WHERE token=%s AND token_type='employee' AND expires_at > NOW()",
+                    "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type='employee' "
+                    f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
                     (token_hash,)
                 )
                 row = cursor.fetchone()
@@ -1245,6 +1248,12 @@ def api_employee_qr_face_checkin():
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
 
     auth_cfg = get_auth_config()
+
+    # Same server-side policy as the web kiosk (/attendance): the client's
+    # auth_combo can only select among methods the settings permit, so it
+    # can't be used to skip face verification while face is enabled.
+    if auth_combo not in allowed_checkin_combos(auth_cfg):
+        return jsonify({"ok": False, "msg": "This check-in method is not enabled for your organisation."}), 403
 
     if auth_combo in ("qr_face", "qr_fingerprint") and not auth_cfg["qr_enabled"]:
         return jsonify({"ok": False, "msg": "QR code authentication is not enabled"}), 403

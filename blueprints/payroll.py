@@ -26,7 +26,7 @@ from database import get_db_connection
 from extensions import app_log, limiter, log_security_event
 from utils.auth import (
     admin_required, employee_required, api_required, enforce_ownership, role_required, api_role_required,
-    email_settings_step_up_valid,
+    email_settings_step_up_valid, any_user_required,
 )
 from utils.helpers import tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime, hr_scope_column
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
@@ -1306,6 +1306,7 @@ def api_send_salary_email():
 
 
 @payroll_bp.route("/view_payslip/<emp_id>/<int:year>/<int:month>")
+@any_user_required
 def view_payslip(emp_id, year, month):
     # emp_id is a raw URL parameter -- this is exactly the BOLA/IDOR shape
     # (a valid session trying to view a DIFFERENT employee's salary data by
@@ -1415,6 +1416,7 @@ def _render_payslip_html(emp_id, year, month):
 
 
 @payroll_bp.route("/download_payslip/<emp_id>/<int:year>/<int:month>")
+@any_user_required
 def download_payslip(emp_id, year, month):
     # Same IDOR/role guard as view_payslip() below -- this route is safe
     # today only because it happens to call view_payslip() as a plain

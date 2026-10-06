@@ -89,7 +89,10 @@
       <button type="submit" class="sb-item" aria-label="Back to HR Dashboard"><i class="ti ti-arrow-back-up"></i>&nbsp;Back to HR Dashboard</button>
     </form>
     {% endif %}
-    <a class="sb-item danger u-tdec-none" href="{{ tpath('/employee_logout') }}">Logout</a>
+    <form action="{{ tpath('/employee_logout') }}" method="POST" class="u-m-0">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+      <button type="submit" class="sb-item danger">Logout</button>
+    </form>
 
     <div class="sb-footer"><i class="ti ti-clock u-fs-13"></i> <span class="sb-live-clock"></span></div>
   </div>

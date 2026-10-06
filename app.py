@@ -404,8 +404,14 @@ def _resolve_tenant():
     just reads that, plus enforces session/URL tenant binding (see below)."""
     from flask import g as _g
 
-    # Skip for static files and special paths
-    skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin")
+    # Skip for static files and special paths. "/oauth/callback" is where
+    # Google/Microsoft redirect back to after OAuth login
+    # (blueprints/oauth_signup.py) -- a single fixed global URL with no
+    # tenant slug in it; that route resolves its own tenant from the
+    # server-side oauth_signup_states row instead. "/create_org" already
+    # covers the OAuth *signup* entry points (/create_org/<provider>[/callback]),
+    # since no tenant exists yet at that point.
+    skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin", "/oauth/callback")
     if any(request.path.startswith(p) for p in skip_prefixes):
         return
 
@@ -2158,6 +2164,7 @@ if "core.home" not in app.view_functions:
     from blueprints.performance import performance_bp
     from blueprints.documents import documents_bp
     from blueprints.org import org_bp
+    from blueprints.oauth_signup import oauth_signup_bp
     from blueprints.onboarding import onboarding_bp
     from blueprints.employee_portal import employee_portal_bp
     from blueprints.core import core_bp
@@ -2181,7 +2188,7 @@ if "core.home" not in app.view_functions:
                 documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp,
                 ai_hrms_bp, email_blast_bp, daily_report_bp, billing_bp, webhooks_bp, seats_bp, auto_debit_bp,
                 billing_dunning_bp, platform_admin_bp, honeypot_bp, disbursement_bp, hr_dashboard_bp, policies_bp,
-                company_profile_bp, seo_bp):
+                company_profile_bp, seo_bp, oauth_signup_bp):
         app.register_blueprint(_bp)
 
 

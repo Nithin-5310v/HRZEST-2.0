@@ -96,7 +96,18 @@ class TestDocumentOwnershipGate:
         cur.execute("DELETE FROM employee_documents WHERE id=%s", (doc_id,))
         cur.close()
 
-    def test_other_employees_document_rejected(self, client, seed_employee, seed_document):
+    def test_other_employees_document_rejected(self, client, seed_employee, seed_document, db_engine):
+        # A REAL second employee: download_document is now @any_user_required,
+        # which rejects sessions for accounts that don't exist before the
+        # ownership check would even run -- a made-up id would no longer
+        # exercise the BOLA gate this test is about.
+        cur = db_engine.cursor()
+        cur.execute(
+            "INSERT INTO employees (employee_id, name, email, password, force_pin_change) "
+            "VALUES (%s,%s,%s,%s,0) ON CONFLICT (employee_id) DO NOTHING",
+            ("SOME_OTHER_EMP", "Other Emp", "other_emp@test.local", "x"),
+        )
+        cur.close()
         with client.session_transaction() as sess:
             sess["employee_id"] = "SOME_OTHER_EMP"
         resp = client.get(f"/download_document/{seed_document}", follow_redirects=False)

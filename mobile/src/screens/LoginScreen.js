@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import {
   adminLogin,
+  verifyAdminLogin,
   employeeLogin,
 } from "../api/client";
 import { useAuth } from "../store/AuthContext";
@@ -40,50 +41,97 @@ export default function LoginScreen({ navigation }) {
   const [showPass, setShowPass] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
+  // Admin login step 2 (emailed code). Only the server's opaque
+  // challenge id is kept here -- never the code itself.
+  const [challengeId, setChallengeId] = useState(null);
+  const [otpCode, setOtpCode] = useState("");
+
+  const completeAdminSignIn = async (data, typedUser) => {
+    await signIn(data.token, {
+      role: "admin",
+      // adminRole distinguishes an Admin account from an HR account
+      // within the admin panel (both share role:'admin' for
+      // top-level app routing) -- /api/login now actually returns
+      // this (blueprints/core.py); defaults to 'admin' only as a
+      // fallback for a server that hasn't been redeployed with that
+      // fix yet, not as a guess about who's really logging in.
+      adminRole: data.role || "admin",
+      name: data.username || typedUser,
+    });
+  };
+
+  const resetAdminCodeStep = () => {
+    setChallengeId(null);
+    setOtpCode("");
+  };
+
   const handleAdminLogin = async () => {
     const trimmedUser = username.trim();
-    const trimmedPass = password.trim();
-    if (!trimmedUser || !trimmedPass) {
+    // Passwords are sent exactly as typed -- spaces are valid characters.
+    if (!trimmedUser || !password) {
       Alert.alert("Input Required", "Please enter both admin username and password.");
       return;
     }
     setLoading(true);
     try {
-      const res = await adminLogin(trimmedUser, trimmedPass);
-      if (res?.data?.ok && res?.data?.token) {
-        await signIn(res.data.token, {
-          role: "admin",
-          // adminRole distinguishes an Admin account from an HR account
-          // within the admin panel (both share role:'admin' for
-          // top-level app routing) -- /api/login now actually returns
-          // this (blueprints/core.py); defaults to 'admin' only as a
-          // fallback for a server that hasn't been redeployed with that
-          // fix yet, not as a guess about who's really logging in.
-          adminRole: res.data.role || "admin",
-          name: res.data.username || trimmedUser,
-        });
+      const res = await adminLogin(trimmedUser, password);
+      if (res?.data?.ok && res?.data?.mfa_required && res?.data?.challenge_id) {
+        setChallengeId(res.data.challenge_id);
+        setOtpCode("");
+        setPassword("");
         setLoading(false);
         return;
       }
-      const errorMsg = res?.data?.msg || "Invalid admin credentials.";
-      Alert.alert("Authentication Failed", errorMsg);
+      if (res?.data?.ok && res?.data?.token) {
+        await completeAdminSignIn(res.data, trimmedUser);
+        setLoading(false);
+        return;
+      }
+      Alert.alert("Authentication Failed", "Invalid credentials.");
     } catch (err) {
-      const errorMsg = err?.response?.data?.msg || err?.message || "Invalid admin credentials. Please check username and password.";
-      Alert.alert("Authentication Failed", errorMsg);
+      const status = err?.response?.status;
+      Alert.alert(
+        "Authentication Failed",
+        status === 429 ? "Too many failed attempts. Try again later." : "Invalid credentials."
+      );
     }
+    setLoading(false);
+  };
+
+  const handleVerifyAdminCode = async () => {
+    const code = otpCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      Alert.alert("Input Required", "Enter the 6-digit code sent to your email.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await verifyAdminLogin(challengeId, code);
+      if (res?.data?.ok && res?.data?.token) {
+        const typedUser = username.trim();
+        resetAdminCodeStep();
+        await completeAdminSignIn(res.data, typedUser);
+        setLoading(false);
+        return;
+      }
+      Alert.alert("Verification Failed", "Invalid or expired code.");
+    } catch (_err) {
+      Alert.alert("Verification Failed", "Invalid or expired code. Please sign in again if it keeps failing.");
+    }
+    setOtpCode("");
     setLoading(false);
   };
 
   const handleEmployeeLogin = async () => {
     const typedId = empId.trim().toUpperCase();
-    const trimmedPass = empPassword.trim();
-    if (!typedId || !trimmedPass) {
+    // Passwords are sent exactly as typed -- spaces are valid characters.
+    if (!typedId || !empPassword) {
       Alert.alert("Input Required", "Please enter both Employee ID and password.");
       return;
     }
     setLoading(true);
     try {
-      const res = await employeeLogin(typedId, trimmedPass);
+      const res = await employeeLogin(typedId, empPassword);
       if ((res?.data?.ok || res?.data?.token) && res?.data?.token) {
         await signIn(res.data.token, {
           role: "employee",
@@ -184,7 +232,53 @@ export default function LoginScreen({ navigation }) {
 
           {/* Form Card */}
           <View style={styles.card}>
-            {tab === "admin" ? (
+            {tab === "admin" && challengeId ? (
+              <>
+                <View style={styles.formHeader}>
+                  <Text style={styles.formTitle}>Check Your Email</Text>
+                  <Text style={styles.formSubtitle}>
+                    Enter the 6-digit code we sent to the email on this account. It expires in 5 minutes.
+                  </Text>
+                </View>
+
+                <Text style={styles.label}>VERIFICATION CODE</Text>
+                <View style={styles.inputRow}>
+                  <Ionicons name="key-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="123456"
+                    placeholderTextColor={colors.textLight}
+                    value={otpCode}
+                    onChangeText={(v) => setOtpCode(v.replace(/[^0-9]/g, "").slice(0, 6))}
+                    keyboardType="number-pad"
+                    textContentType="oneTimeCode"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.submitBtn}
+                  onPress={handleVerifyAdminCode}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitBtnText}>Verify & Sign In</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ alignSelf: 'center', marginTop: 12 }}
+                  onPress={resetAdminCodeStep}
+                  disabled={loading}
+                >
+                  <Text style={{ color: '#173B8C', fontSize: 13, fontWeight: '600' }}>Start over</Text>
+                </TouchableOpacity>
+              </>
+            ) : tab === "admin" ? (
               <>
                 <View style={styles.formHeader}>
                   <Text style={styles.formTitle}>Admin Portal</Text>

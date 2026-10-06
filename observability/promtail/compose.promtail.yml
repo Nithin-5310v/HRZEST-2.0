@@ -1,0 +1,56 @@
+# Overlay file -- run this alongside the app's existing compose files on
+# the HRMS app server, same pattern as compose.prod.yaml:
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml \
+#     -f observability/promtail/compose.promtail.yml up -d --no-deps promtail
+#
+# One-time host setup before first run:
+#
+#   Docker:  nothing extra -- /var/run/docker.sock already exists.
+#
+#   Rootless Podman (this app's compose.yaml comments indicate that's what
+#   production actually runs): enable the Docker-compatible API socket for
+#   the same user the app containers run as --
+#     systemctl --user enable --now podman.socket
+#   then point the bind mount below at
+#     $XDG_RUNTIME_DIR/podman/podman.sock
+#   instead of /var/run/docker.sock (uncomment the alternate volume line).
+#
+# Promtail only ever READS the socket (mounted :ro) to list/inspect
+# containers and stream their existing log output -- it cannot start,
+# stop, or modify any container through it.
+services:
+  promtail:
+    image: docker.io/grafana/promtail:3.3.2
+    restart: always
+    networks:
+      # `frontend` (compose.yaml's non-internal network), not `backend` --
+      # `backend` is internal:true (no outbound route at all), and Promtail
+      # needs to reach the Loki server's private IP over the VPC. It has no
+      # need to reach db/redis/clamav on `backend`, so it isn't attached
+      # there.
+      - frontend
+    volumes:
+      - ./observability/promtail/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Rootless Podman alternative -- comment the line above and
+      # uncomment this one instead:
+      # - ${XDG_RUNTIME_DIR}/podman/podman.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yaml
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256m
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

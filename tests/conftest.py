@@ -44,6 +44,7 @@ from blueprints.tickets import tickets_bp
 from blueprints.performance import performance_bp
 from blueprints.documents import documents_bp
 from blueprints.org import org_bp
+from blueprints.oauth_signup import oauth_signup_bp
 from blueprints.onboarding import onboarding_bp
 from blueprints.employee_portal import employee_portal_bp
 from blueprints.core import core_bp
@@ -74,6 +75,7 @@ flask_app.register_blueprint(tickets_bp)
 flask_app.register_blueprint(performance_bp)
 flask_app.register_blueprint(documents_bp)
 flask_app.register_blueprint(org_bp)
+flask_app.register_blueprint(oauth_signup_bp)
 flask_app.register_blueprint(onboarding_bp)
 flask_app.register_blueprint(employee_portal_bp)
 flask_app.register_blueprint(core_bp)

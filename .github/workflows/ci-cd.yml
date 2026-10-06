@@ -59,6 +59,18 @@ jobs:
       - name: Lint (flake8)
         run: python -m flake8 .
 
+      - name: Dependency audit (pip-audit)
+        # Blocks on any known vulnerability in a pinned dependency -- fix by
+        # raising the package's floor in requirements.txt, not by ignoring.
+        run: |
+          pip install --no-cache-dir pip-audit
+          python -m pip_audit -r requirements.txt -r requirements-dev.txt
+
+      - name: Static analysis (Bandit, medium+ severity, high confidence)
+        run: |
+          pip install --no-cache-dir bandit
+          bandit -r . -x ./tests,./venv,./.venv,./.venv_test,./mobile,./node_modules -ll -iii
+
       - name: Run Pytest
         env:
           DB_HOST: 127.0.0.1

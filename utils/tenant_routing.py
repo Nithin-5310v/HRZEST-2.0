@@ -34,6 +34,13 @@ RESERVED_PATH_SEGMENTS = frozenset({
     # /webhooks/<provider>, dispatching to whichever feature registered
     # for that provider/event)
     "webhooks",
+    # OAuth login callback (blueprints/oauth_signup.py) -- Google/Microsoft
+    # redirect back to a single fixed global URL (/oauth/callback/<provider>)
+    # with no tenant slug in it; which tenant a login belongs to is carried
+    # in the server-side oauth_signup_states row instead, keyed by the
+    # `state` param. The signup entry points live under /create_org/...
+    # instead, already reserved above.
+    "oauth",
     # operator consoles (excluded from this migration entirely)
     "super_admin", "superadmin", "sp_admin",
     # legacy reserved words carried over from the subdomain era

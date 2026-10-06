@@ -97,23 +97,12 @@ jobs:
         # database. Fails the build on any known CVE in a resolvable
         # version — bump the affected package's floor in requirements.txt
         # to fix, don't silence this check by adding to --ignore-vuln
-        # without the same level of documentation as the one exception
-        # already here.
-        #
-        # PYSEC-2026-3447 (setuptools, fixed only in 83.0.0+) is the one
-        # deliberate exception: face_recognition_models (already at its
-        # latest release) still does `from pkg_resources import
-        # resource_filename` at import time, and setuptools 82.0.0+ removed
-        # pkg_resources entirely -- verified directly that no setuptools
-        # version both ships pkg_resources and includes this fix. See the
-        # long comment on requirements.txt's setuptools line for the full
-        # trade-off and its bound (setuptools CVEs are exploited at
-        # package-install time, not Flask request-handling runtime, and
-        # this app's builds only ever install the pinned packages in this
-        # file, never an arbitrary user-supplied one).
+        # without documenting why. (The former setuptools PYSEC-2026-3447
+        # exception is gone: setuptools>=83 is now required -- see the
+        # setuptools line in requirements.txt.)
         run: |
           pip install --no-cache-dir pip-audit
-          python -m pip_audit -r requirements.txt -r requirements-dev.txt --ignore-vuln PYSEC-2026-3447
+          python -m pip_audit -r requirements.txt -r requirements-dev.txt
 
       - name: Scan dependencies + secrets (Trivy)
         # Two things pip-audit alone doesn't cover: the mobile app's npm

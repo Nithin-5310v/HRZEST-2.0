@@ -5,7 +5,7 @@ import re
 import html
 import secrets
 import difflib
-from flask import Blueprint, request, redirect, render_template, flash, jsonify, session, g
+from flask import Blueprint, request, redirect, render_template, flash, jsonify, session, g, abort
 from extensions import app_log, limiter, log_security_event
 from utils.auth import generate_password_hash, _hash_token, turnstile_enabled, verify_turnstile, _TURNSTILE_SITE_KEY, validate_new_password, admin_required
 from utils.plan_limits import PLAN_LABEL, get_per_employee_paise, format_price_inr
@@ -106,7 +106,10 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
 
     email_domain (e.g. "acme.com") is stored on the new tenant's own
     company_settings row -- utils/helpers.py's validate_employee_email_domain()
-    reads it from there to require/check new employees' emails going forward.
+    reads it from there to require/check new employees' emails going
+    forward. NOT written onto the master tenants row here (see the
+    comment on that INSERT below) -- blueprints/oauth_signup.py sets that
+    copy itself, directly, only for the tenant it just created.
 
     logo_path is a relative static/ path (e.g. "company_logos/acme.png",
     as returned by utils/helpers.py's save_uploaded_logo()) for the
@@ -229,6 +232,17 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
             subscription_status if subscription_status is not None
             else ("trialing" if payment_option == "trial" else "active")
         )
+        # NOTE: the master tenants.email_domain column (migrations/master.py)
+        # is deliberately NOT populated here. It exists only for
+        # blueprints/oauth_signup.py's "one free trial per company domain"
+        # check, enforced by a partial unique index -- writing it
+        # unconditionally for every caller of this shared function used to
+        # break any two tenants sharing an email_domain (e.g. two entirely
+        # unrelated companies both using "test.local" in this test suite,
+        # or in practice any placeholder/shared domain) with a raw
+        # constraint-violation error on the SECOND provision_tenant() call.
+        # blueprints/oauth_signup.py sets this column itself, directly,
+        # only on the tenant row it just created.
         if _effective_subscription_status == "trialing":
             # trial_start_date/trial_end_date are deliberately left NULL
             # here -- the trial clock starts at the tenant's FIRST admin
@@ -755,6 +769,19 @@ def _load_application(application_id, access_token):
     mismatch."""
     if not application_id or not access_token:
         return None
+    application = _fetch_application_row(application_id)
+    if not application:
+        return None
+    if not secrets.compare_digest(application["access_token_hash"], _hash_token(access_token)):
+        return None
+    return application
+
+
+def _fetch_application_row(application_id):
+    """The raw tenant_applications row as a dict, with NO access check --
+    only ever call this after the caller's access to application_id has
+    been proven (_load_application's token check, or
+    _verify_application_access's session marker)."""
     try:
         application_id = int(application_id)
     except (TypeError, ValueError):
@@ -781,10 +808,25 @@ def _load_application(application_id, access_token):
             "otp_expires_at", "otp_attempts", "email_verified_at", "doc_registration_cert", "doc_address_proof",
             "doc_visiting_card", "doc_name_board_photo", "documents_submitted_at", "status", "reviewed_by",
             "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status", "gst_number"]
-    application = dict(zip(cols, row))
-    if not secrets.compare_digest(application["access_token_hash"], _hash_token(access_token)):
-        return None
-    return application
+    return dict(zip(cols, row))
+
+
+def _verify_application_access(application_id):
+    """Whether this browser has proven it holds application_id's access
+    token -- via the emailed link's ?token=, the signup session, or an
+    earlier successful check in this session. On success only the
+    (non-secret) application id is remembered in the session, never the
+    token, so later same-page API calls (create_subscription/confirm) can
+    be authorised without the page's JavaScript ever seeing the token."""
+    try:
+        application_id = int(application_id)
+    except (TypeError, ValueError):
+        return False
+    for candidate in (request.args.get("token", ""), session.get("org_access_token", "")):
+        if candidate and _load_application(application_id, candidate):
+            session["org_verified_application_id"] = application_id
+            return True
+    return session.get("org_verified_application_id") == application_id
 
 
 @org_bp.route("/get-started", methods=["GET"])
@@ -1043,8 +1085,11 @@ def _reject_application_reviewed(application, reviewed_by, reason):
 def _save_application_documents(application, files):
     """Shared document-upload logic for both web and mobile. `files` is a
     dict-like of {doc_kind: FileStorage} (request.files works directly).
-    Returns (True, None) on success (advances the row to 'pending_review'),
-    or (False, error_message).
+    Returns (True, None) on success -- documents are saved and the
+    application is auto-approved in the same call (see the
+    _approve_application_reviewed() call at the end of this function),
+    unblocking login immediately rather than waiting on a review -- or
+    (False, error_message).
 
     'rejected' is deliberately allowed back in here -- re-uploading
     corrected documents is the ONLY recovery path for a rejected applicant;
@@ -1104,6 +1149,23 @@ def _save_application_documents(application, files):
     mconn.commit()
     mcur.close()
     mconn.close()
+
+    # Auto-approve immediately on submission -- KYC review no longer
+    # gates login (matches the OAuth signup path in
+    # blueprints/oauth_signup.py, which never collects documents at all).
+    # verification_job_status stays 'pending' above, so
+    # utils/document_verification.py's automated Claude-vision worker
+    # still runs afterward and can still suspend the tenant via
+    # _reject_application_reviewed() if it finds fraud (duplicate GST/PAN/
+    # CIN) -- this removes the WAIT for a human/AI reviewer before access,
+    # not the fraud check itself, which now runs as a retroactive safety
+    # net instead of a precondition. Mutate the in-memory dict to match
+    # what the UPDATE above just wrote (doc_review_status='pending_review')
+    # -- _approve_application_reviewed()'s own guard reads this cached
+    # field, not a fresh row, and the caller's `application` here still
+    # holds whatever it looked like before this function ran.
+    application["doc_review_status"] = "pending_review"
+    _approve_application_reviewed(application, "system:auto_approved_on_submit")
     return True, None
 
 
@@ -1333,9 +1395,22 @@ def create_org_status_page(application_id):
     reveals only the requester's own application, nothing about anyone
     else's). session's org_access_token is tried first so the same-tab
     "just finished uploading, want to see it" case never needs a token
-    in the URL at all."""
-    access_token = session.get("org_access_token") or request.args.get("token", "")
-    application = _load_application(application_id, access_token)
+    in the URL at all.
+
+    The URL token is tried before the session's: approval/rejection both
+    rotate the application's token, so a session token saved at signup may
+    be stale while the emailed link is current. A session that already
+    proved access on the pay/trial page (_verify_application_access) is
+    also accepted, so that page's redirect here never needs a token."""
+    application, access_token = None, ""
+    for candidate in (request.args.get("token", ""), session.get("org_access_token", "")):
+        if candidate:
+            application = _load_application(application_id, candidate)
+            if application:
+                access_token = candidate
+                break
+    if not application and session.get("org_verified_application_id") == application_id:
+        application = _fetch_application_row(application_id)
     if not application:
         flash("Application not found.", "error")
         return redirect("/create_org")
@@ -1410,7 +1485,7 @@ def company_verification_upload():
     if not ok:
         flash(error, "error")
     else:
-        flash("Documents submitted for review. We'll notify you once they're checked.", "success")
+        flash("Documents submitted -- your account is fully active again.", "success")
     return redirect(tpath("/settings/company_verification"))
 
 
@@ -1420,13 +1495,13 @@ def create_org_pay_page(application_id):
     applications (blueprints/platform_admin.py's approve action, once
     payment_option=='online') -- pre-filled/locked to this one approved
     application rather than an editable signup form, since every other
-    field was already collected and reviewed. No access_token needed in
-    the URL: application_id alone is enough here because this page only
-    ever *displays* the company name and hands off to
-    /api/billing/create_order, which independently re-checks the
-    application's own status='approved_pending_payment' before letting
-    any charge happen -- there's nothing sensitive this page itself could
-    leak or let someone tamper with."""
+    field was already collected and reviewed. Requires the application's
+    access token (from the emailed link, or the signup session) so a
+    sequential application_id alone reveals nothing; 404 otherwise."""
+    if not _verify_application_access(application_id):
+        abort(404)
+    if request.args.get("token"):
+        return redirect(f"/create_org/pay/{application_id}")  # drop the token from the address bar
     from database import get_master_db
     mconn = get_master_db()
     mcur = mconn.cursor()
@@ -1454,7 +1529,12 @@ def create_org_setup_trial_page(application_id):
     payment MANDATE (authorized now, not charged) instead of an immediate
     payment. Provisioning happens once create_org_setup_trial_confirm()
     below verifies the authorization -- the trial clock itself only starts
-    later, at first login (see app.py's inject_billing_lock_status())."""
+    later, at first login (see app.py's inject_billing_lock_status()).
+    Same access-token requirement as create_org_pay_page()."""
+    if not _verify_application_access(application_id):
+        abort(404)
+    if request.args.get("token"):
+        return redirect(f"/create_org/setup_trial/{application_id}")
     from database import get_master_db
     mconn = get_master_db()
     mcur = mconn.cursor()
@@ -1490,6 +1570,8 @@ def create_org_setup_trial_create_subscription(application_id):
     one-off sync in trial_billing.py's check_trial_expirations()) corrects
     it to the real headcount well before the trial ends and any charge
     happens."""
+    if not _verify_application_access(application_id):
+        return jsonify({"ok": False, "msg": "Application not found."}), 404
     from database import get_master_db
     from blueprints.auto_debit import _get_or_create_plan_id, _DEMO_SUBSCRIPTION_PREFIX
     from utils.razorpay_utils import create_customer, create_subscription, create_id_or_demo, key_id as razorpay_key_id
@@ -1521,7 +1603,21 @@ def create_org_setup_trial_create_subscription(application_id):
     subscription_id, is_demo, error = create_id_or_demo(_DEMO_SUBSCRIPTION_PREFIX, _create_real_subscription)
     if error:
         app_log.error("create_org_setup_trial_create_subscription: subscription setup failed: %s", error)
-        return jsonify({"ok": False, "msg": error}), 502
+        return jsonify({"ok": False, "msg": "Could not start trial setup. Please try again."}), 502
+
+    # Bind this exact subscription to this application: the confirm step
+    # below only accepts the id recorded here, so a validly-signed
+    # authorization for some OTHER subscription can't provision it.
+    mconn = get_master_db()
+    mcur = mconn.cursor()
+    mcur.execute(
+        "UPDATE tenant_applications SET pending_subscription_id=%s, updated_at=NOW() "
+        "WHERE id=%s AND status='approved_pending_payment'",
+        (subscription_id, application_id)
+    )
+    mconn.commit()
+    mcur.close()
+    mconn.close()
 
     return jsonify({
         "ok": True, "subscription_id": subscription_id, "key_id": razorpay_key_id(), "demo": is_demo,
@@ -1554,7 +1650,8 @@ def create_org_setup_trial_confirm(application_id):
     mcur = mconn.cursor(buffered=True)
     mcur.execute(
         "SELECT company_name, subdomain, admin_username, admin_email, admin_password_hash, email_domain, "
-        "logo_path, status, payment_option, gst_number FROM tenant_applications WHERE id=%s",
+        "logo_path, status, payment_option, gst_number, pending_subscription_id "
+        "FROM tenant_applications WHERE id=%s",
         (application_id,)
     )
     row = mcur.fetchone()
@@ -1563,7 +1660,7 @@ def create_org_setup_trial_confirm(application_id):
     if not row:
         return jsonify({"ok": False, "msg": "Application not found."}), 404
     (company_name, subdomain, admin_username, admin_email, admin_password_hash, email_domain,
-     logo_path, status, payment_option, gst_number) = row
+     logo_path, status, payment_option, gst_number, pending_subscription_id) = row
 
     # Idempotent: a retried/duplicate client POST for an already-provisioned
     # application must not attempt to re-provision.
@@ -1572,6 +1669,14 @@ def create_org_setup_trial_confirm(application_id):
         return jsonify({"ok": True, "portal_url": portal_url, "already_provisioned": True})
     if payment_option != "trial" or status != "approved_pending_payment":
         return jsonify({"ok": False, "msg": "This application isn't ready for trial setup."}), 400
+    if not pending_subscription_id or not secrets.compare_digest(
+            str(pending_subscription_id), subscription_id):
+        log_security_event(
+            "org.trial_subscription_mismatch",
+            "Trial confirm presented a subscription that was not created for this application",
+            level="ERROR", application_id=application_id,
+        )
+        return jsonify({"ok": False, "msg": "Payment verification failed."}), 400
 
     ok, is_demo, error = verify_or_demo(
         subscription_id, _DEMO_SUBSCRIPTION_PREFIX, payment_id, signature, verify_subscription_signature

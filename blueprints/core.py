@@ -7,14 +7,16 @@ last routes drained out of app.py, which now holds only shared setup
 import time
 import secrets
 import datetime
-from flask import Blueprint, request, session, jsonify, render_template, redirect, Response, g
+from flask import Blueprint, request, session, jsonify, render_template, redirect, Response, g, current_app
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
 from utils.auth import (
     api_required, check_password_hash, generate_password_hash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
-    validate_new_password,
+    validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
 )
+from utils.login_otp import issue_challenge, verify_challenge
+from utils.totp import send_mfa_login_email
 from utils.helpers import (
     _db, get_auth_config, validate_employee_email_domain,
     employee_login_url, get_pending_counts, tpath, add_employee_seat_cap_check,
@@ -224,11 +226,19 @@ def security_lockout():
 @limiter.limit("5 per minute")
 @limiter.limit("20 per hour")
 def api_login():
-    data = request.get_json() or {}
-    username = data.get("username", "")
-    password = data.get("password", "")
-    if "\x00" in username or "\x00" in password:
+    """Step 1 of the mobile admin login. Same rules as the web /login:
+    per-account lockout, generic errors, and -- when MANDATORY_LOGIN_MFA is
+    on -- no token at all until the emailed code is verified at
+    /api/login/verify. The response then carries only an opaque
+    challenge_id; the code itself goes to the account's email."""
+    data = request.get_json(silent=True) or {}
+    username = str(data.get("username") or "")
+    password = str(data.get("password") or "")
+    if "\x00" in username or "\x00" in password or not username or not password:
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    locked, _until = _check_login_lockout(username)
+    if locked:
+        return jsonify({"ok": False, "msg": "Too many failed attempts. Try again later."}), 429
     with _db() as (cursor, conn):
         # role + is_active added: this never checked either before, so a
         # terminated HR account (blueprints/admin_views.py's
@@ -239,22 +249,82 @@ def api_login():
         # (mobile/src/store/AuthContext.js's user.role has always been a
         # hardcoded 'admin' for any successful admin-panel login).
         cursor.execute(
-            "SELECT password, COALESCE(role,'admin'), COALESCE(is_active,1) FROM admin_users WHERE username=%s",
+            "SELECT password, COALESCE(role,'admin'), COALESCE(is_active,1), email FROM admin_users WHERE username=%s",
             (username,)
         )
         row = cursor.fetchone()
-        if row and check_password_hash(row[0], password):
-            if not row[2]:
-                return jsonify({"ok": False, "msg": "This account has been deactivated. Contact your administrator."}), 403
-            token = secrets.token_hex(32)
-            cursor.execute(
-                "INSERT INTO api_tokens (token, token_type, identity, expires_at) "
-                "VALUES (%s, 'admin', %s, NOW() + INTERVAL '24 hours')",
-                (_hash_token(token), username)
-            )
-            conn.commit()
-            return jsonify({"ok": True, "token": token, "username": username, "role": row[1]})
-    return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    if not row:
+        dummy_password_check(password)  # equal timing for unknown usernames
+    if not row or not check_password_hash(row[0], password) or not row[2]:
+        # Deactivated accounts get the same generic answer as a wrong
+        # password, so this endpoint can't be used to probe account state.
+        _record_login_failure(username)
+        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    _clear_login_failures(username)
+
+    if not current_app.config["MANDATORY_LOGIN_MFA"]:
+        token = _issue_admin_api_token(username, mfa_verified=False)
+        return jsonify({"ok": True, "token": token, "username": username, "role": row[1]})
+
+    email = row[3]
+    if not email:
+        log_security_event("auth.mfa_email_missing", "Account has no email on file for login MFA delivery",
+                           level="ERROR", identifier=_mask_identifier(username))
+        _record_login_failure(username)
+        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    with _db() as (cursor, conn):
+        challenge_id, otp_code = issue_challenge(cursor, "admin_api", username, _API_MFA_TTL_SEC)
+        conn.commit()
+    send_mfa_login_email(email, username, "Administrator", "", otp_code)
+    return jsonify({"ok": True, "mfa_required": True, "challenge_id": challenge_id})
+
+
+_API_MFA_TTL_SEC = 300
+
+
+def _issue_admin_api_token(username, mfa_verified):
+    token = secrets.token_hex(32)
+    with _db() as (cursor, conn):
+        cursor.execute(
+            "INSERT INTO api_tokens (token, token_type, identity, expires_at, mfa_verified) "
+            "VALUES (%s, 'admin', %s, NOW() + INTERVAL '24 hours', %s)",
+            (_hash_token(token), username, 1 if mfa_verified else 0)
+        )
+        conn.commit()
+    return token
+
+
+@core_bp.route("/api/login/verify", methods=["POST"])
+@limiter.limit("10 per minute")
+@limiter.limit("40 per hour")
+def api_login_verify():
+    """Step 2 of the mobile admin login: exchanges the challenge_id from
+    /api/login plus the emailed code for a Bearer token. The challenge is
+    single-use, expires after 5 minutes and is burned after 5 wrong codes
+    (utils/login_otp.py). Tokens minted here are marked mfa_verified, which
+    is what /api/mobile/web_session_link requires."""
+    data = request.get_json(silent=True) or {}
+    challenge_id = str(data.get("challenge_id") or "")
+    submitted = str(data.get("otp_code") or "")
+    with _db() as (cursor, conn):
+        verified = verify_challenge(cursor, challenge_id, submitted, ("admin_api",))
+        conn.commit()
+    if not verified:
+        log_security_event("auth.mfa_failure", "Invalid mobile login MFA code", level="WARNING")
+        return jsonify({"ok": False, "msg": "Invalid or expired code"}), 401
+    username = verified[1]
+    with _db() as (cursor, _conn):
+        cursor.execute(
+            "SELECT COALESCE(role,'admin'), COALESCE(is_active,1) FROM admin_users WHERE username=%s",
+            (username,)
+        )
+        row = cursor.fetchone()
+    if not row or not row[1]:
+        return jsonify({"ok": False, "msg": "Invalid or expired code"}), 401
+    token = _issue_admin_api_token(username, mfa_verified=True)
+    log_security_event("auth.admin_login_success", "Admin mobile login completed with emailed code",
+                       level="INFO", identifier=_mask_identifier(username), channel="mobile_api")
+    return jsonify({"ok": True, "token": token, "username": username, "role": row[0]})
 
 
 @core_bp.route("/api/logout", methods=["POST"])
@@ -388,6 +458,14 @@ def api_mobile_web_session_link():
     ever become genuinely per-tenant (a URL-based slug, a tenant claim on
     the Bearer token, etc.), this invariant would need re-verifying rather
     than assumed."""
+    # A bridge link becomes a full web admin session, so it must never be
+    # mintable from a password-only token: when login MFA is mandatory, the
+    # Bearer token must have come from /api/login/verify (emailed code).
+    if current_app.config["MANDATORY_LOGIN_MFA"] and not getattr(g, "api_token_mfa_verified", False):
+        log_security_event("access.denied", "Web-session bridge refused for a token issued without MFA",
+                           level="WARNING", identifier=_mask_identifier(g.api_user))
+        return jsonify({"ok": False, "msg": "Please sign in again to continue."}), 403
+
     data = request.get_json(silent=True) or {}
     target = data.get("target")
     if target not in _BRIDGE_TARGET_ALLOWLIST:
@@ -487,6 +565,7 @@ def mobile_bridge_login(token):
     session["_session_created"] = time.time()
     session.permanent = True
     ensure_session_id(session)
+    stamp_password_version("admin_users", username)
 
     log_security_event(
         "auth.mobile_bridge_login", f"Mobile app bridged into a web session for '{username}' -> {target_path}",
@@ -531,15 +610,18 @@ def api_admin_profile():
 @limiter.limit("5 per minute")
 @limiter.limit("20 per hour")
 def api_employee_login():
-    data = request.get_json() or {}
-    emp_id = data.get("employee_id", "").strip()
-    password = data.get("password", "").strip()
-    if not emp_id:
-        return jsonify({"ok": False, "msg": "employee_id required"}), 400
+    data = request.get_json(silent=True) or {}
+    emp_id = str(data.get("employee_id") or "").strip()
+    # Passwords are used exactly as typed (no strip) -- and both fields are
+    # validated BEFORE any lookup, so a missing password can't produce a
+    # different answer for a real employee ID than for a made-up one.
+    password = str(data.get("password") or "")
+    if not emp_id or not password:
+        return jsonify({"ok": False, "msg": "Employee ID and password are required."}), 400
     # Check lockout before hitting the DB with credentials
-    locked, until = _check_login_lockout(emp_id, "employee")
+    locked, _until = _check_login_lockout(emp_id, "employee")
     if locked:
-        return jsonify({"ok": False, "msg": f"Account locked until {until}. Try again later."}), 429
+        return jsonify({"ok": False, "msg": "Too many failed attempts. Try again later."}), 429
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT name, email, password FROM employees WHERE employee_id=%s", (emp_id,))
@@ -547,10 +629,9 @@ def api_employee_login():
     cursor.close()
     db.close()
     if not row:
+        dummy_password_check(password)  # equal timing for unknown IDs
         _record_login_failure(emp_id, "employee")
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
-    if not password:
-        return jsonify({"ok": False, "msg": "Password required"}), 400
     if not row[2] or not check_password_hash(row[2], password):
         _record_login_failure(emp_id, "employee")
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
@@ -684,4 +765,4 @@ def api_employee_signup():
                 db.close()
             except Exception as _close_exc:
                 app_log.debug("api_employee_signup error-path db.close() failed: %s", _close_exc)
-        return jsonify({"ok": False, "msg": f"Failed to register employee: {exc}"}), 500
+        return jsonify({"ok": False, "msg": "Could not register employee. Please try again."}), 500

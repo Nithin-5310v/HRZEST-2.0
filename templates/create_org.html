@@ -123,6 +123,21 @@
       font-size: 11px; color: #065f46; line-height: 1.45; margin-bottom: 16px;
     }
     .plan-disclosure i { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+    .oauth-btn {
+      width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+      padding: 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color);
+      background: var(--bg-card); color: var(--text-main); font-size: 13.5px; font-weight: 700;
+      cursor: pointer; text-decoration: none; transition: var(--transition-fast); margin-bottom: 12px;
+    }
+    .oauth-btn:hover { border-color: var(--accent-cyan); box-shadow: 0 4px 14px rgba(79, 70, 229, 0.12); transform: translateY(-1px); }
+    .oauth-btn img, .oauth-btn i { width: 18px; height: 18px; font-size: 18px; flex-shrink: 0; }
+    .oauth-btn.microsoft i { color: #5E5E5E; }
+    .trial-badge {
+      display: flex; align-items: center; gap: 8px; background: rgba(5, 150, 105, 0.07);
+      border: 1px solid rgba(5, 150, 105, 0.22); border-radius: var(--radius-sm); padding: 10px 12px;
+      font-size: 12px; color: #065f46; line-height: 1.45; margin-bottom: 18px;
+    }
+    .trial-badge i { font-size: 15px; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -140,13 +155,10 @@
   <div class="page-container">
 
     <div class="page-intro">
-      <div class="intro-icon"><i class="ti ti-building-skyscraper"></i></div>
-      <h1>Register Your Organisation</h1>
-      <p>We verify every new company before it goes live — you'll confirm your email and upload a few business documents next.</p>
+      <div class="intro-icon"><i class="ti ti-rocket"></i></div>
+      <h1>Start Your Organisation</h1>
+      <p>Sign up with your work account — your company is ready in seconds, on a free 2-day trial.</p>
     </div>
-
-    {% set current_step = 1 %}
-    {% include "_org_wizard_steps.html" %}
 
     <div class="card">
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -157,149 +169,39 @@
         {% endfor %}
       {% endwith %}
 
-      <div class="verify-note">
-        <i class="ti ti-shield-lock"></i>
-        After this step we'll email you a verification code, then ask for a few business documents (registration certificate, address proof, visiting card, and a photo of your office name-board). A member of our team reviews every application before your portal goes live.
+      <div class="trial-badge">
+        <i class="ti ti-gift"></i>
+        No card, no waiting — you're set up on a 2-day free trial the moment you sign in.
       </div>
 
-      <form method="POST" action="/create_org" enctype="multipart/form-data" autocomplete="off">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-        <input type="hidden" name="signup_plan" id="signup_plan_input" value="pay_now" />
+      <a href="/create_org/google" class="oauth-btn google">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.68-3.88 2.68-6.62Z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18Z"/>
+          <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33Z"/>
+          <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97L3.95 7.3C4.66 5.17 6.65 3.58 9 3.58Z"/>
+        </svg>
+        <span>Sign up with Google</span>
+      </a>
+      <a href="/create_org/microsoft" class="oauth-btn microsoft">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <rect x="1" y="1" width="7.5" height="7.5" fill="#F25022"/>
+          <rect x="9.5" y="1" width="7.5" height="7.5" fill="#7FBA00"/>
+          <rect x="1" y="9.5" width="7.5" height="7.5" fill="#00A4EF"/>
+          <rect x="9.5" y="9.5" width="7.5" height="7.5" fill="#FFB900"/>
+        </svg>
+        <span>Sign up with Microsoft</span>
+      </a>
 
-        <div class="plan-toggle">
-          <div class="plan-option selected" id="planOptionPayNow" onclick="selectSignupPlan('pay_now')">
-            <div class="plan-option-title"><i class="ti ti-credit-card"></i> Pay Now</div>
-            <div class="plan-option-sub">Activate immediately, billed this month.</div>
-          </div>
-          <div class="plan-option" id="planOptionTrial" onclick="selectSignupPlan('trial')">
-            <div class="plan-option-title"><i class="ti ti-gift"></i> 2-Day Free Trial</div>
-            <div class="plan-option-sub">Full access, card required, cancel anytime.</div>
-          </div>
-        </div>
-        <div class="plan-disclosure" id="trialDisclosure" style="display:none;">
-          <i class="ti ti-info-circle"></i>
-          You'll authorize a payment method after approval. Your 2-day trial starts the first time you log in,
-          and billing starts automatically when it ends unless you cancel before then.
-        </div>
+      <div class="field-hint" style="text-align:center; margin-top: 10px;">
+        By continuing you agree this account will be your company's admin login.
+        No documents or business registration number needed to get started.
+      </div>
 
-        <div class="field-group">
-          <label class="field-label" for="company_name_input"><i class="ti ti-building"></i> Company Name</label>
-          <input class="field-input" type="text" name="company_name" id="company_name_input"
-                 placeholder="e.g. Acme Corporation" required autofocus oninput="autoFillSubdomain(this.value)" />
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="gst_number_input"><i class="ti ti-file-invoice"></i> GST / Business Registration Number</label>
-          <input class="field-input" type="text" name="gst_number" id="gst_number_input"
-                 placeholder="27AAAAA0000A1Z5" required maxlength="15"
-                 pattern="[0-9]{2}[A-Za-z]{5}[0-9]{4}[A-Za-z][1-9A-Za-z]Z[0-9A-Za-z]"
-                 title="15-character GSTIN, e.g. 27AAAAA0000A1Z5"
-                 oninput="this.value = this.value.toUpperCase().replace(/\s+/g, '')" />
-          <div class="field-hint">Verifies your company is a real, distinct business.</div>
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="subdomain_input"><i class="ti ti-world-www"></i> Corporate Subdomain URL</label>
-          <div class="subdomain-container">
-            <div class="subdomain-prefix">www.hrzest.com/</div>
-            <input class="field-input subdomain-input" type="text" name="subdomain" id="subdomain_input"
-                   placeholder="acme" pattern="[a-z0-9\-]+" required title="Lowercase letters, digits and hyphens only"
-                   oninput="cleanSubdomainInput(this)" onblur="cleanSubdomainInput(this)" />
-          </div>
-          <div class="field-hint">Your team will access their portal at: <strong id="liveUrlPreview" style="color: var(--accent-cyan);">www.hrzest.com/acme/login</strong></div>
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="admin_email_input"><i class="ti ti-mail"></i> Admin Email</label>
-          <input class="field-input" type="email" name="admin_email" id="admin_email_input"
-                 placeholder="admin@acme.com" required autocomplete="email"
-                 oninput="deriveFromEmail(this.value)" onblur="deriveFromEmail(this.value)" />
-          <div class="field-hint">We'll send your verification code here.</div>
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="admin_username_input"><i class="ti ti-user"></i> Admin Name (login username)</label>
-          <input class="field-input" type="text" name="admin_username" id="admin_username_input"
-                 placeholder="e.g. john" required minlength="2" pattern="[a-zA-Z0-9_.\-]+"
-                 title="Letters, numbers, dots, hyphens and underscores only" oninput="usernameUserEdited = true;" />
-          <div class="field-hint">This is what you and your team sign in with — pick anything memorable, no need to match your email.</div>
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="admin_password_input"><i class="ti ti-lock"></i> Admin Password</label>
-          <input class="field-input" type="password" name="admin_password" id="admin_password_input"
-                 placeholder="At least 8 characters" required minlength="8" autocomplete="new-password" />
-        </div>
-
-        <div class="field-group" style="margin-bottom: 24px;">
-          <label class="field-label" for="logo_input"><i class="ti ti-photo"></i> Company Logo (optional)</label>
-          <input class="field-input" type="file" name="logo" id="logo_input" accept="image/jpeg,image/png,image/webp,image/bmp" />
-          <div class="field-hint">Shown in your team's dashboards. JPG, PNG, WEBP or BMP, up to 5&nbsp;MB. You can skip this and add it later.</div>
-        </div>
-
-        <input type="hidden" name="email_domain" id="email_domain_input" />
-
-        {% if show_captcha %}
-        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom:20px;"></div>
-        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-        {% endif %}
-
-        <button type="submit" class="btn-submit"><span>Continue to Verification</span> <i class="ti ti-arrow-right"></i></button>
-      </form>
-
-      <a href="/login" class="footer-login-link">Already registered? Log in to your corporate workspace →</a>
+      <a href="/login" class="footer-login-link" style="margin-top: 18px;">Already registered? Log in to your corporate workspace →</a>
     </div>
 
   </div>
 
-  <script>
-  let subdomainUserEdited = false;
-  let usernameUserEdited = false;
-
-  function selectSignupPlan(plan) {
-    document.getElementById('signup_plan_input').value = plan;
-    document.getElementById('planOptionPayNow').classList.toggle('selected', plan === 'pay_now');
-    document.getElementById('planOptionTrial').classList.toggle('selected', plan === 'trial');
-    document.getElementById('trialDisclosure').style.display = plan === 'trial' ? 'flex' : 'none';
-  }
-
-  function cleanSubdomainInput(el) {
-    subdomainUserEdited = true;
-    let val = el.value.toLowerCase().trim();
-    val = val.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
-    const suffixes = ['.hrzest.com', '.hrms.gradzest.com', '.gradzest.com', '.gradzest.in', '.com', '.in', '.org', '.net', '.io'];
-    for (let s of suffixes) { if (val.endsWith(s)) val = val.slice(0, -s.length); }
-    val = val.replace(/[^a-z0-9\-]/g, '');
-    el.value = val;
-    updateLivePreview(val);
-  }
-
-  function autoFillSubdomain(name) {
-    if (subdomainUserEdited) return;
-    const sub = document.getElementById('subdomain_input');
-    if (!sub) return;
-    let val = name.toLowerCase().trim().replace(/[^a-z0-9\-]/g, '');
-    sub.value = val;
-    updateLivePreview(val);
-  }
-
-  function updateLivePreview(slug) {
-    const preview = document.getElementById('liveUrlPreview');
-    if (preview) preview.textContent = 'www.hrzest.com/' + (slug || 'acme') + '/login';
-  }
-
-  function deriveFromEmail(email) {
-    const at = email.indexOf('@');
-    if (at < 1) return;
-    const localPart = email.slice(0, at).toLowerCase().replace(/[^a-z0-9_.\-]/g, '');
-    const domainPart = email.slice(at + 1).toLowerCase();
-    // Suggest a username from the email only until the visitor types their
-    // own into that field -- once they have, their choice always wins.
-    if (!usernameUserEdited) {
-      document.getElementById('admin_username_input').value = localPart;
-    }
-    document.getElementById('email_domain_input').value = domainPart;
-  }
-  </script>
 </body>
 </html>

@@ -16,7 +16,10 @@ from extensions import app, app_log, limiter, log_security_event
 from database import get_db_connection, transaction
 from qr_generator import generate_qr
 from utils.storage import open_private
-from utils.auth import admin_required, generate_password_hash, api_required, role_required, api_role_required, HR_ROLE
+from utils.auth import (
+    admin_required, generate_password_hash, api_required, role_required, api_role_required, HR_ROLE,
+    record_password_change, any_user_required, session_account_ok,
+)
 from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
@@ -124,6 +127,7 @@ def admin_action():
                 "UPDATE employees SET password=%s WHERE employee_id=%s",
                 (generate_password_hash(emp_id), emp_id)
             )
+            record_password_change(cursor, "employees", emp_id)
             db.commit()
             flash(
                 f"Password reset for '{row[0]}' ({emp_id}). They can now login using their Employee ID as the password.", "success")
@@ -1314,6 +1318,7 @@ def serve_dataset(filename):
 
 
 @employees_bp.route("/my_photo")
+@any_user_required
 def my_photo():
     from flask import send_from_directory
     emp_id = session.get("employee_id")
@@ -1327,7 +1332,7 @@ def my_photo():
 
 @employees_bp.route("/api/generate_emp_id")
 def generate_emp_id():
-    if not session.get("admin_logged_in"):
+    if not session.get("admin_logged_in") or not session_account_ok():
         return jsonify({"error": "not logged in"}), 401
     company_id_raw = request.args.get("company_id", "").strip()
     db = get_db_connection()

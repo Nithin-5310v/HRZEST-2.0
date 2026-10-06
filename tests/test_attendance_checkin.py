@@ -172,7 +172,12 @@ class TestKioskAttendance:
         assert data["ok"] is False
         assert "Employee ID is required" in data["msg"]
 
-    def test_unknown_employee(self, client, signed_qr):
+    def test_unknown_employee(self, client, signed_qr, mocker):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
+        mocker.patch("blueprints.attendance.get_auth_config", return_value={
+            "fingerprint_enabled": False, "qr_enabled": True,
+            "face_enabled": False, "location_enabled": False,
+        })
         rv = client.post("/attendance", json={
             "employee_id": signed_qr("GHOST99"), "auth_combo": "qr_only",
         })
@@ -181,9 +186,10 @@ class TestKioskAttendance:
         assert "not found" in data["msg"].lower()
 
     def test_qr_only_login_creates_attendance_record(self, client, seed_employee, db_engine, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         today = datetime.date.today()
         cur = db_engine.cursor()
@@ -213,9 +219,10 @@ class TestKioskAttendance:
         assert row[1] is None       # logout_time still NULL
 
     def test_qr_only_logout_sets_logout_time(self, client, seed_employee, attendance_today, db_engine, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         rv = client.post("/attendance", json={
             "employee_id": signed_qr(seed_employee["employee_id"]),
@@ -233,9 +240,10 @@ class TestKioskAttendance:
         cur.close()
 
     def test_qr_only_relogin_clears_logout_time(self, client, seed_employee, attendance_completed, db_engine, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         rv = client.post("/attendance", json={
             "employee_id": signed_qr(seed_employee["employee_id"]),
@@ -304,9 +312,10 @@ class TestKioskAttendance:
         assert rv.get_json()["ok"] is False
 
     def test_fingerprint_not_verified_returns_401(self, client, seed_employee, mocker):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": True, "location_enabled": False,
-            "face_enabled": True, "qr_enabled": True,
+            "face_enabled": False, "qr_enabled": True,
         })
         mocker.patch("blueprints.attendance._wa_fingerprint_recently_verified", return_value=False)
         rv = client.post("/attendance", json={
@@ -599,8 +608,9 @@ class TestApiQrFaceCheckin:
         assert rv.status_code == 403
 
     def test_fingerprint_not_verified_returns_401(self, client, seed_employee, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=False)
@@ -631,8 +641,9 @@ class TestApiQrFaceCheckin:
                     (seed_employee["employee_id"], today))
         cur.close()
 
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=True)
@@ -684,8 +695,9 @@ class TestApiQrFaceCheckin:
 
     def test_qr_fingerprint_relogin_after_completed(
             self, client, seed_employee, attendance_completed, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=True)
