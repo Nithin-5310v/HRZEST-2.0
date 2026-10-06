@@ -181,8 +181,8 @@ def complete_oauth(provider, code, state, redirect_uri):
     """Exchanges an authorization `code` for tokens and fetches the
     provider's userinfo. Returns {sub, email, name, provider, mode,
     tenant_db}. Raises OAuthError on any failure (unknown/expired state,
-    provider error, missing/unverified email) -- callers should flash()
-    str(exc) directly rather than the raw exception."""
+    provider error, missing/unverified email) -- callers log str(exc) and
+    show the user a generic message, never the exception text."""
     consumed = _consume_state(state, provider)
     if not consumed:
         raise OAuthError("Your sign-in attempt expired or was already used. Please try again.")

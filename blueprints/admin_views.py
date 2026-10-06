@@ -2679,9 +2679,10 @@ def api_test_email():
         if err:
             return jsonify({"ok": False, "msg": f"SMTP delivery error: {err}"}), 500
         return jsonify({"ok": True, "msg": f"Test email successfully delivered to {target_email}!"})
-    except Exception as exc:
+    except Exception:
         app_log.exception("api_test_email: SMTP delivery exception")
-        return jsonify({"ok": False, "msg": f"SMTP test failed: {exc}"}), 500
+        return jsonify({"ok": False,
+                        "msg": "SMTP test failed. Check the SMTP host, port and credentials, then try again."}), 500
 
 
 # 'admin' or HR_ROLE for whichever role this admin session actually has --

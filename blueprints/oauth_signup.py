@@ -152,7 +152,8 @@ def oauth_signup_callback(provider):
     try:
         identity = complete_oauth(provider, code, state, redirect_uri)
     except OAuthError as exc:
-        flash(str(exc), "error")
+        app_log.warning("oauth_signup.signup_callback_failed: provider=%s error=%s", provider, exc)
+        flash("Sign-up failed. Please try again.", "error")
         return redirect("/create_org")
 
     if identity["mode"] != "signup":
@@ -302,7 +303,8 @@ def oauth_login_callback(provider):
     try:
         identity = complete_oauth(provider, code, state, redirect_uri)
     except OAuthError as exc:
-        flash(str(exc), "error")
+        app_log.warning("oauth_signup.login_callback_failed: provider=%s error=%s", provider, exc)
+        flash("Sign-in failed. Please try again.", "error")
         return redirect("/login")
 
     db_name = identity.get("tenant_db")

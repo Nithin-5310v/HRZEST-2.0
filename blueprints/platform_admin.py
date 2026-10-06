@@ -938,7 +938,7 @@ def platform_admin_delete_tenant(tenant_id):
         cur.close()
         conn.close()
         app_log.error("platform_admin.delete_tenant: schema drop failed for %s: %s", db_name, exc, exc_info=True)
-        flash(f"Could not delete company data: {exc}", "error")
+        flash("Could not delete company data. The error has been logged -- try again or contact engineering.", "error")
         return redirect("/super_admin")
 
     cur.execute("DELETE FROM tenants WHERE id=%s", (tenant_id,))
