@@ -1949,7 +1949,7 @@
                 <!-- Reset Employee Password -->
                 <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
                   <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-4"><i class="ti ti-key"></i> Reset Employee Password</div>
-                  <div class="u-fs-12 u-c-94a3b8 u-mb-18">Resets the employee's PIN back to their Employee ID</div>
+                  <div class="u-fs-12 u-c-94a3b8 u-mb-18">Sets a random temporary password, shown to you once. The employee must change it at their next sign-in.</div>
                   <form action="{{ tpath('/admin_action') }}" method="POST">
                     <input type="hidden" name="action" value="reset_password" />
                     <input type="hidden" name="next" value="settings" />
@@ -1958,7 +1958,7 @@
                       <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
                     </div>
                     <button type="submit" class="btn-submit"
-                      onclick="return confirm('Reset this employee\'s password to their Employee ID?')">
+                      onclick="return confirm('Reset this employee\'s password? Their current sessions will be signed out.')">
                       <i class="ti ti-key"></i> Reset Password
                     </button>
                   </form>

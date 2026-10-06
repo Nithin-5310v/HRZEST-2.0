@@ -37,7 +37,12 @@ def _run_auth_hardening_migration(cursor, db):
       sessions and API tokens issued before it (utils/auth.py).
     - api_tokens.mfa_verified: only tokens issued after the emailed-code
       step may be bridged into a web session (blueprints/core.py).
-      Existing tokens default to 0, i.e. not bridgeable until re-login."""
+      Existing tokens default to 0, i.e. not bridgeable until re-login.
+    - employees.must_change_password: set by an admin password reset
+      (blueprints/employees.py); the employee must replace the temporary
+      password at next login, web or mobile. Separate from
+      force_pin_change, which every new employee starts with and which
+      only the web login enforces."""
     from utils.login_otp import CREATE_TABLE_SQL, CREATE_INDEX_SQL, PURGE_EXPIRED_SQL
     try:
         cursor.execute(CREATE_TABLE_SQL)
@@ -46,6 +51,7 @@ def _run_auth_hardening_migration(cursor, db):
         cursor.execute("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NULL")
         cursor.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NULL")
         cursor.execute("ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS mfa_verified SMALLINT NOT NULL DEFAULT 0")
+        cursor.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS must_change_password SMALLINT NOT NULL DEFAULT 0")
         db.commit()
     except psycopg2.Error as exc:
         db.rollback()

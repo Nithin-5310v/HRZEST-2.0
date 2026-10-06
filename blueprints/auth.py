@@ -508,7 +508,8 @@ def admin_login():
         # Try employee credentials
         with _db() as (cursor, db):
             cursor.execute(
-                "SELECT employee_id, name, role, password, COALESCE(force_pin_change,0), email FROM employees WHERE employee_id=%s",
+                "SELECT employee_id, name, role, password, COALESCE(force_pin_change,0), email, "
+                "COALESCE(must_change_password,0) FROM employees WHERE employee_id=%s",
                 (identifier,)
             )
             emp_row = cursor.fetchone()
@@ -527,7 +528,8 @@ def admin_login():
                     _ud.commit()
             if app.config["MANDATORY_LOGIN_MFA"]:
                 return _start_login_mfa(co, "admin_login.html", "employee", emp_row[0], emp_row[5], "Employee")
-            return _finish_employee_login(emp_row[0], emp_row[1], emp_row[2], bool(emp_row[4]), emp_row[5])
+            return _finish_employee_login(emp_row[0], emp_row[1], emp_row[2], bool(emp_row[4] or emp_row[6]),
+                                          emp_row[5])
         if not admin_row:
             # Unknown identifier: spend the same bcrypt time a real
             # wrong-password check would, so response timing can't reveal
@@ -572,14 +574,14 @@ def mfa_verify():
             if kind == "employee":
                 with _db() as (cursor, db):
                     cursor.execute(
-                        "SELECT employee_id, name, role, COALESCE(force_pin_change,0), email "
-                        "FROM employees WHERE employee_id=%s", (username,)
+                        "SELECT employee_id, name, role, COALESCE(force_pin_change,0), email, "
+                        "COALESCE(must_change_password,0) FROM employees WHERE employee_id=%s", (username,)
                     )
                     row = cursor.fetchone()
                 if not row:
                     session.clear()
                     return redirect(tpath("/login"))
-                return _finish_employee_login(row[0], row[1], row[2], bool(row[3]), row[4])
+                return _finish_employee_login(row[0], row[1], row[2], bool(row[3] or row[5]), row[4])
             else:
                 with _db() as (cursor, db):
                     cursor.execute("SELECT role, email FROM admin_users WHERE username=%s", (username,))
@@ -913,7 +915,8 @@ def employee_reset_password(token):
         return render_template("employee_reset_password.html", valid=True, done=False,
                                token=token, error="Passwords do not match.")
     emp_id = row[0]
-    cursor.execute("UPDATE employees SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE employee_id=%s",
+    cursor.execute("UPDATE employees SET password=%s, reset_token=NULL, reset_token_expiry=NULL, "
+                   "must_change_password=0 WHERE employee_id=%s",
                    (generate_password_hash(new_pw), emp_id))
     record_password_change(cursor, "employees", emp_id)
     db.commit()
@@ -965,7 +968,7 @@ def force_change_pin():
             db = get_db_connection()
             cursor = db.cursor(buffered=True)
             cursor.execute(
-                "UPDATE employees SET password=%s, force_pin_change=0 WHERE employee_id=%s",
+                "UPDATE employees SET password=%s, force_pin_change=0, must_change_password=0 WHERE employee_id=%s",
                 (generate_password_hash(new_pwd), emp_id)
             )
             record_password_change(cursor, "employees", emp_id)

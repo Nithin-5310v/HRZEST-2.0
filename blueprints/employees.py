@@ -123,14 +123,22 @@ def admin_action():
         if not row:
             flash(f"Employee ID '{emp_id}' not found.", "error")
         else:
+            # Random one-time password, shown to this admin once (the flash
+            # below) and never stored or emailed in plaintext.
+            # must_change_password makes the employee replace it at their
+            # next login: /force_change_pin on the web, and
+            # /api/employee/login refuses to issue a token until then.
+            temp_password = secrets.token_urlsafe(9)
             cursor.execute(
-                "UPDATE employees SET password=%s WHERE employee_id=%s",
-                (generate_password_hash(emp_id), emp_id)
+                "UPDATE employees SET password=%s, must_change_password=1 WHERE employee_id=%s",
+                (generate_password_hash(temp_password), emp_id)
             )
             record_password_change(cursor, "employees", emp_id)
             db.commit()
             flash(
-                f"Password reset for '{row[0]}' ({emp_id}). They can now login using their Employee ID as the password.", "success")
+                f"Password reset for '{row[0]}' ({emp_id}). Temporary password: {temp_password} -- shown only "
+                "once, so share it with the employee privately now. They must set a new password at their next "
+                "sign-in.", "success")
 
     elif action == "holiday":
         cursor.execute(

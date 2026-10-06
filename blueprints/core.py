@@ -624,7 +624,8 @@ def api_employee_login():
         return jsonify({"ok": False, "msg": "Too many failed attempts. Try again later."}), 429
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT name, email, password FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT name, email, password, COALESCE(must_change_password,0) FROM employees "
+                   "WHERE employee_id=%s", (emp_id,))
     row = cursor.fetchone()
     cursor.close()
     db.close()
@@ -636,6 +637,14 @@ def api_employee_login():
         _record_login_failure(emp_id, "employee")
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     _clear_login_failures(emp_id, "employee")
+    # An admin-issued temporary password (blueprints/employees.py reset)
+    # must be replaced before it can mint a 24h token; the app has no
+    # change-password screen that works without one, so send them to the
+    # web login, whose /force_change_pin step clears the flag.
+    if row[3]:
+        return jsonify({"ok": False, "password_change_required": True,
+                        "msg": "Your password was reset by your administrator. Sign in on the web portal "
+                               "to set a new password, then sign in here again."}), 403
     # Upgrade legacy hash to bcrypt transparently
     if row[2] and not row[2].startswith("$2"):
         with _db() as (_uc, _ud):
