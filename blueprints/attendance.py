@@ -25,7 +25,7 @@ from utils.helpers import (
 )
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import (
-    classify_by_worked_minutes, detect_overtime, get_working_days,
+    classify_by_worked_minutes, classify_login, classify_logout, detect_overtime, get_working_days,
     fetch_holidays_set, get_employee_shift, _td_to_time, infer_type_legacy,
     is_within_range, is_within_office_range,
     check_attendance_lockout, record_attendance_failure, clear_attendance_lockout,
@@ -33,7 +33,6 @@ from utils.attendance_utils import (
 )
 from utils.face_utils import face_recognition, _face_recognition_available, _get_known_face_encoding
 from utils.webauthn_utils import _wa_fingerprint_recently_verified
-import utils.config as cfg
 
 attendance_bp = Blueprint("attendance", __name__)
 
@@ -1288,13 +1287,7 @@ def attendance():
     s_start, s_half, s_end, shift_name = get_employee_shift(emp_id, cursor)
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
-        if current_time <= grace_time:
-            login_status = "Full Day Login"
-        elif current_time <= s_half:
-            login_status = "Late Login"
-        else:
-            login_status = "Half Day Login"
+        login_status = classify_login(current_time, s_start, s_half)
         cursor.execute(
             "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
             (emp_id, today, current_time, login_status)
@@ -1317,12 +1310,7 @@ def attendance():
         session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
         total_m = worked_mins_stored + session_m
 
-        if current_time < s_half:
-            logout_status = "Half Day Logout"
-        elif current_time < s_end:
-            logout_status = "Early Logout"
-        else:
-            logout_status = "Completed"
+        logout_status = classify_logout(current_time, s_half, s_end)
         # Overtime: minutes beyond shift end
         now_mins = current_time.hour * 60 + current_time.minute
         end_mins = s_end.hour * 60 + s_end.minute
@@ -1386,15 +1374,9 @@ def process_punch(cursor, db, emp_id, employee_name, punch_dt=None):
     login_status_stored = record[2] if record else None
     worked_mins_stored = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
+    s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cursor)
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.shift_rules().start) +
-                      datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
-        if current_time <= grace_time:
-            login_status = "Full Day Login"
-        elif current_time <= cfg.shift_rules().half:
-            login_status = "Late Login"
-        else:
-            login_status = "Half Day Login"
+        login_status = classify_login(current_time, s_start, s_half)
         cursor.execute(
             "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
             (emp_id, today, current_time, login_status)
@@ -1404,13 +1386,8 @@ def process_punch(cursor, db, emp_id, employee_name, punch_dt=None):
                 "status": login_status, "time": current_time.strftime("%H:%M:%S")}
     elif not logout_time:
         total_m = compute_session_worked_minutes(current_time, today, login_time, last_relogin_stored, worked_mins_stored)
-        if current_time < cfg.shift_rules().half:
-            logout_status = "Half Day Logout"
-        elif current_time < cfg.shift_rules().end:
-            logout_status = "Early Logout"
-        else:
-            logout_status = "Completed"
-        att_type = classify_by_worked_minutes(login_status_stored, total_m, cfg.shift_rules().start, cfg.shift_rules().end)
+        logout_status = classify_logout(current_time, s_half, s_end)
+        att_type = classify_by_worked_minutes(login_status_stored, total_m, s_start, s_end)
         cursor.execute(
             "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
