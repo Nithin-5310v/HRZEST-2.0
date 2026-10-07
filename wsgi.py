@@ -44,12 +44,12 @@ from utils.tenant_routing import TenantPrefixMiddleware
 app.wsgi_app = TenantPrefixMiddleware(app.wsgi_app)
 
 # ── Startup DB init ───────────────────────────────────────────────────────────
+# Once per deploy, one worker at a time -- see migrations/runner.py (QA SCALE-02).
 with app.app_context():
     try:
         from app import init_master_db, init_db, _run_migrations_for_all_tenants
-        init_master_db()
-        init_db()
-        _run_migrations_for_all_tenants()
+        from migrations.runner import run_startup_migrations
+        run_startup_migrations(init_master_db, init_db, _run_migrations_for_all_tenants)
     except Exception as _e:
         app_log.warning("Startup init failed (non-fatal): %s", _e)
 
