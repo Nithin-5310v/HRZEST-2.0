@@ -49,3 +49,29 @@ def test_reset_clears_in_process_caches():
     assert all("stale" not in d for d in dicts)
     assert plan_limits._rate_cache["value"] is None
     assert all(entry["value"] is None for entry in plan_limits._extra_cost_cache.values())
+
+
+EXTERNAL_SERVICE_VARS = (
+    "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "N8N_WEBHOOK_URL", "N8N_WEBHOOK_SECRET",
+    "EXPO_ACCESS_TOKEN", "SECURITY_ALERT_WEBHOOK_URL", "SECURITY_ALERT_SIGNING_SECRET",
+    "SECURITY_ALERT_EMAIL", "SMTP_HOST", "SMTP_USER", "SMTP_PASS",
+    "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY", "REDIS_URL", "REDIS_HOST", "REDIS_PASSWORD",
+    "SOC_ADMIN_TOKEN", "SOC_DASHBOARD_URL", "GRAFANA_URL",
+)
+
+
+def test_no_external_service_credentials_reach_the_app():
+    """TEST-01: whatever the developer's .env holds, tests run with the same
+    blank external-service credentials as CI -- no real email, push,
+    security alerts, AI calls or shared Redis from a local test run."""
+    leaked = [n for n in EXTERNAL_SERVICE_VARS if os.environ.get(n)]
+    leaked += [k for k, v in os.environ.items() if k.startswith("HEARTBEAT_URL_") and v]
+    assert leaked == []
+
+
+def test_modules_that_read_credentials_at_import_got_blank_ones():
+    # Only booleans are asserted: a failure must never print a credential.
+    import utils.alerts as alerts
+    import utils.auth as auth
+    import_time_values_blank = not (alerts._WEBHOOK_URL or alerts._SIGNING_SECRET or auth._TURNSTILE_SECRET_KEY)
+    assert import_time_values_blank is True
