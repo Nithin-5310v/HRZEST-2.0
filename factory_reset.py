@@ -136,6 +136,12 @@ def execute(schemas):
             cur.execute(f'TRUNCATE TABLE "{schema}"."company_settings" CASCADE')
             cur.execute(f'INSERT INTO "{schema}"."company_settings" (setup_done) VALUES (0)')
             print(f"  reset {schema}.company_settings -> setup_done=0")
+    # Startup migrations and default seeding run only when the migration
+    # code changes (migrations/runner.py); forget the recorded version so
+    # the next start re-runs them and re-seeds the defaults wiped above.
+    if _table_exists(cur, "att_master", "schema_migrations"):
+        cur.execute('TRUNCATE TABLE "att_master"."schema_migrations"')
+        print("  cleared att_master.schema_migrations -> next start re-runs migrations")
     conn.commit()
     cur.close()
     conn.close()
