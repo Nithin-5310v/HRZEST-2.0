@@ -1,3 +1,94 @@
+C:\Users\knith\AppData\Local\Temp\claude\c--Users-knith-OneDrive-Desktop-HRZEST\82054be0-d839-4a2c-a23b-1d1eb7cd7b5f\scratchpad\run_cov_baseline.py:20: SyntaxWarning: invalid escape sequence '\q'
+  f"--cov-report=json:{MAIN}\qa_audit\baseline\coverage.json"]))
+bringing up nodes...
+bringing up nodes...
+
 ........................................................................ [  2%]
-E...EFE..FE.E.E..EFE.FE.E...F.E...E..................................... [  4%]
-..................................................
+......................................................................s. [  5%]
+..........................................................s............. [  8%]
+............................................s........................... [ 10%]
+.................................................s...s.................. [ 13%]
+...............................s........................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+.................s...................................................... [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+...............................{"time": "2026-10-07 10:26:44,933", "level": "WARNING", "module": "extensions", "message": "REDIS_HOST is not set (REQUIRE_REDIS=false) -- booting anyway. The WAF auto-ban breach counter and the rate limiter will both run in per-worker, in-memory-only mode: fine for a single gunicorn worker, but under multiple workers each enforces independently, multiplying the effective ban/rate threshold by the worker count."}
+{"time": "2026-10-07 10:26:52,449", "level": "INFO", "module": "database", "message": "\"Connected to PostgreSQL (attempt 1)\""}
+{"time": "2026-10-07 10:26:52,453", "level": "WARNING", "module": "database", "message": "PostgreSQL schema migration note: relation \"company_settings\" does not exist\n"}
+{"time": "2026-10-07 10:26:52,457", "level": "WARNING", "module": "config", "message": "load_default_shift failed, using existing defaults: relation \"company_settings\" does not exist\nLINE 1: SELECT shift_start, shift_half, shift_end FROM company_setti...\n                                                       ^\n", "exc_info": "Traceback (most recent call last):\n  File \"C:\\Users\\knith\\OneDrive\\Desktop\\HRZEST-qa-baseline\\utils\\config.py\", line 37, in load_default_shift\n    cur.execute(\"SELECT shift_start, shift_half, shift_end FROM company_settings LIMIT 1\")\npsycopg2.errors.UndefinedTable: relation \"company_settings\" does not exist\nLINE 1: SELECT shift_start, shift_half, shift_end FROM company_setti...\n                                                       ^\n"}
+{"time": "2026-10-07 10:26:52,463", "level": "WARNING", "module": "config", "message": "load_salary_rules failed, using existing defaults: relation \"company_settings\" does not exist\nLINE 1: ...y_pay,'paid'), COALESCE(leave_pay,'exclude') FROM company_se...\n                                                             ^\n", "exc_info": "Traceback (most recent call last):\n  File \"C:\\Users\\knith\\OneDrive\\Desktop\\HRZEST-qa-baseline\\utils\\config.py\", line 64, in load_salary_rules\n    cursor.execute(\npsycopg2.errors.UndefinedTable: relation \"company_settings\" does not exist\nLINE 1: ...y_pay,'paid'), COALESCE(leave_pay,'exclude') FROM company_se...\n                                                             ^\n"}
+INTERNALERROR> Traceback (most recent call last):
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\_pytest\main.py", line 330, in wrap_session
+INTERNALERROR>     session.exitstatus = doit(config, session) or 0
+INTERNALERROR>                          ^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\_pytest\main.py", line 384, in _main
+INTERNALERROR>     config.hook.pytest_runtestloop(session=session)
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pluggy\_hooks.py", line 512, in __call__
+INTERNALERROR>     return self._hookexec(self.name, self._hookimpls.copy(), kwargs, firstresult)
+INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pluggy\_manager.py", line 120, in _hookexec
+INTERNALERROR>     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pluggy\_callers.py", line 167, in _multicall
+INTERNALERROR>     raise exception
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+INTERNALERROR>     teardown.throw(exception)
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\_pytest\logging.py", line 816, in pytest_runtestloop
+INTERNALERROR>     return (yield)  # Run all the tests.
+INTERNALERROR>             ^^^^^
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pluggy\_callers.py", line 139, in _multicall
+INTERNALERROR>     teardown.throw(exception)
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\_pytest\terminal.py", line 708, in pytest_runtestloop
+INTERNALERROR>     result = yield
+INTERNALERROR>              ^^^^^
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pluggy\_callers.py", line 152, in _multicall
+INTERNALERROR>     teardown.send(result)
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pytest_cov\plugin.py", line 362, in pytest_runtestloop
+INTERNALERROR>     self.cov_total = self.cov_controller.summary(self.cov_report)
+INTERNALERROR>                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pytest_cov\engine.py", line 44, in ensure_topdir_wrapper
+INTERNALERROR>     return meth(self, *args, **kwargs)
+INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\pytest_cov\engine.py", line 201, in summary
+INTERNALERROR>     self.cov.json_report(ignore_errors=True, outfile=output)
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\coverage\control.py", line 1336, in json_report
+INTERNALERROR>     return render_report(self.config.json_output, JsonReporter(self), morfs, self._message)
+INTERNALERROR>            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\coverage\report_core.py", line 53, in render_report
+INTERNALERROR>     ensure_dir_for_file(output_path)
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\coverage\misc.py", line 154, in ensure_dir_for_file
+INTERNALERROR>     ensure_dir(os.path.dirname(path))
+INTERNALERROR>   File "C:\Users\knith\OneDrive\Desktop\HRZEST\.venv_test\Lib\site-packages\coverage\misc.py", line 149, in ensure_dir
+INTERNALERROR>     os.makedirs(directory, exist_ok=True)
+INTERNALERROR>   File "<frozen os>", line 225, in makedirs
+INTERNALERROR> OSError: [WinError 123] The filename, directory name, or volume label syntax is incorrect: 'C:\\Users\\knith\\OneDrive\\Desktop\\HRZEST\\qa_audit\x08aseline'
+
+2688 passed, 7 skipped in 2846.25s (0:47:26)
