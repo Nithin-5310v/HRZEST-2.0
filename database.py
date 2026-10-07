@@ -517,6 +517,9 @@ _pool = None
 # is simply dropped, leaking its connections (never .closeall()'d) until
 # Postgres's own idle-connection reaping kicks in.
 _pool_lock = threading.Lock()
+# How long a request waits for a connection when every pooled connection is
+# in use, before giving up with a 503 (see _wait_for_free_connection).
+_POOL_WAIT_SECONDS = float(os.environ.get("DB_POOL_WAIT_SECONDS", "5"))
 
 
 def _ensure_pg_schema(raw_conn):
@@ -614,20 +617,39 @@ def _borrow_connection():
         with _pool_lock:
             if _pool is None:  # re-check: another thread may have built it while we waited
                 _create_pool()
+    pool = _pool
     try:
-        conn = _pool.getconn()
-    except Exception:
-        _failed_pool = _pool
-        if not isinstance(_failed_pool, _SqlitePool):
-            with _pool_lock:
-                # Only rebuild if _pool is still the same broken object we
-                # just failed against -- another thread may have already
-                # replaced it while we waited for the lock.
-                if _pool is _failed_pool:
-                    _create_pool(retries=1, delay=0.1)
-        conn = _pool.getconn()
+        conn = pool.getconn()
+    except Exception as exc:
+        if isinstance(exc, psycopg2.pool.PoolError) and not getattr(pool, "closed", False):
+            # Every connection is in use: the pool is busy, not broken.
+            # Building a second pool next to it (the old behaviour) only
+            # multiplied the connection count under load until Postgres
+            # refused new clients (QA SCALE-09).
+            conn = _wait_for_free_connection(pool)
+        else:
+            if not isinstance(pool, _SqlitePool):
+                with _pool_lock:
+                    # Only rebuild if _pool is still the same broken object we
+                    # just failed against -- another thread may have already
+                    # replaced it while we waited for the lock.
+                    if _pool is pool:
+                        _create_pool(retries=1, delay=0.1)
+            conn = _pool.getconn()
     conn.autocommit = True
     return conn
+
+
+def _wait_for_free_connection(pool):
+    deadline = time.monotonic() + _POOL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(0.05)
+        try:
+            return pool.getconn()
+        except psycopg2.pool.PoolError:
+            continue
+    _log.error("Database connection pool exhausted for %.1fs -- returning 503", _POOL_WAIT_SECONDS)
+    raise DatabaseUnavailable("connection pool exhausted")
 
 
 def get_db_connection():
