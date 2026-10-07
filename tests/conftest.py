@@ -59,6 +59,22 @@ os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 # real secret.
 os.environ["ENCRYPTION_KEY"] = "_jboJL8OrI9muPNyf0xCNrakSo_Iz5EbJSQ1KpDcAgY="
 
+# No external services from tests (QA TEST-01): whatever the developer's .env
+# holds, tests run with the same blank credentials as CI, so a local run can't
+# send real email, push notifications, security alerts or AI requests, or
+# share a Redis with the running app. Set to "" rather than removed so a later
+# load_dotenv() (app.py calls it again) can't bring them back. Razorpay is
+# handled per test by the razorpay_demo_mode fixture below.
+_EXTERNAL_SERVICE_VARS = (
+    "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "N8N_WEBHOOK_URL", "N8N_WEBHOOK_SECRET",
+    "EXPO_ACCESS_TOKEN", "SECURITY_ALERT_WEBHOOK_URL", "SECURITY_ALERT_SIGNING_SECRET",
+    "SECURITY_ALERT_EMAIL", "SMTP_HOST", "SMTP_USER", "SMTP_PASS",
+    "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY", "REDIS_URL", "REDIS_HOST", "REDIS_PASSWORD",
+    "SOC_ADMIN_TOKEN", "SOC_DASHBOARD_URL", "GRAFANA_URL",
+)
+for _name in _EXTERNAL_SERVICE_VARS + tuple(k for k in os.environ if k.startswith("HEARTBEAT_URL_")):
+    os.environ[_name] = ""
+
 # wsgi.py (the real production entrypoint) registers the migrated
 # blueprints on the shared `app` instance from extensions.py BEFORE
 # importing app.py — mirror that exact order here. app.py's
