@@ -19,7 +19,6 @@ import uuid
 import json
 import secrets
 import datetime
-import calendar
 from io import BytesIO
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash, abort, g,
@@ -52,7 +51,7 @@ from utils.totp import (
     get_or_create_admin_totp_secret, mark_totp_enabled, verify_totp_code, totp_qr_data_uri,
     reset_admin_totp_secret,
 )
-from utils.attendance_utils import _td_to_time
+from utils.attendance_utils import _td_to_time, attendance_pct_series
 import utils.config as cfg
 
 _ANN_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'}
@@ -2188,19 +2187,9 @@ def analytics():
     cursor.execute("SELECT date FROM holidays")
     all_holidays = {r[0] for r in cursor.fetchall()}
 
-    def _working_days_in_month(y, m):
-        _, last_day = calendar.monthrange(y, m)
-        days = []
-        for d in range(1, last_day + 1):
-            dt = datetime.date(y, m, d)
-            if dt.weekday() != 6 and dt not in all_holidays:
-                days.append(dt)
-        return days
-
-    # Precompute all 6 month boundaries up front so their attendance counts
-    # can be pulled in a single grouped query below instead of one
-    # cursor.execute() per month -- this loop used to be the single biggest
-    # contributor to this route's sequential DB round-trips.
+    # Precompute all 6 month boundaries up front so their attendance can be
+    # pulled in a single grouped query below instead of one
+    # cursor.execute() per month.
     _month_bounds = []
     for i in range(5, -1, -1):
         ref = today.replace(day=1) - datetime.timedelta(days=1) * (i * 28)
@@ -2211,36 +2200,13 @@ def analytics():
         _month_bounds.append((y, m, month_start, month_end))
 
     cursor.execute("""
-        SELECT date_trunc('month', date)::date AS month_start, COUNT(DISTINCT employee_id)
-        FROM attendance
-        WHERE date >= %s AND date < %s AND login_time IS NOT NULL
-        GROUP BY date_trunc('month', date)
+        SELECT a.date, COUNT(DISTINCT a.employee_id)
+        FROM attendance a JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.date >= %s AND a.date < %s AND a.login_time IS NOT NULL
+        GROUP BY a.date
     """, (_month_bounds[0][2], _month_bounds[-1][3]))
-    _present_by_month = {r[0]: r[1] for r in cursor.fetchall()}
-
-    monthly_series = []
-    for y, m, month_start, month_end in _month_bounds:
-        working_days = _working_days_in_month(y, m)
-        if not working_days:
-            continue
-        past_days = [d for d in working_days if d <= today]
-        total_days = len(past_days)
-        if total_days == 0:
-            monthly_series.append({
-                'month_label': month_start.strftime("%b %Y"),
-                'total_days': 0, 'present_days': 0, 'absent_days': 0, 'att_pct': 0
-            })
-            continue
-        present_records = _present_by_month.get(month_start, 0)
-        expected = total_days * (total_employees or 1)
-        present_pct = round(present_records / expected * 100, 1) if expected else 0
-        monthly_series.append({
-            'month_label': month_start.strftime("%b %Y"),
-            'total_days': total_days,
-            'present_days': present_records,
-            'absent_days': max(0, expected - present_records),
-            'att_pct': present_pct
-        })
+    _present_by_day = {r[0]: r[1] for r in cursor.fetchall()}
+    monthly_series = attendance_pct_series(_month_bounds, _present_by_day, all_holidays, today, total_employees)
 
     # Current month is always the loop's last entry (i=0 above) -- reuse it
     # instead of re-running the identical query a second time.
