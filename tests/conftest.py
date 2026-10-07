@@ -447,15 +447,26 @@ def _reset_db_after_test(db_engine, _db_baseline_snapshot):
     extra_schemas = _list_user_schemas(cur) - baseline_schemas
     _restore_snapshot(cur, snap, extra_schemas)
     cur.close()
-    # utils/totp.py's is_totp_enabled_cached() caches admin_users.totp_enabled
-    # for 60s, invalidated only when mark_totp_enabled()/
-    # reset_admin_totp_secret() are the ones writing it -- but the restore
-    # above (and several fixtures like seed_admin, which reuse one fixed
-    # username across the whole suite) changes that row via raw SQL. Without
-    # this, a test enrolling MFA could leave a stale "enabled" cache entry
-    # that a LATER test using the same username reads within the TTL,
-    # regardless of what admin_users now actually says.
+    _clear_process_caches()
+
+
+def _clear_process_caches():
+    """The restore above (and fixtures that write with raw SQL) changes rows
+    behind the app's back, so anything the app cached in-process from those
+    rows is stale afterwards -- e.g. a test turning face check-in off would
+    leave `face_enabled` cached for whichever test pytest-randomly runs next
+    (QA TEST-03). Same reason for the TOTP cache: seed_admin reuses one
+    username across the suite, so a stale "MFA enabled" entry would leak."""
+    import blueprints.platform_admin as platform_admin
+    from utils import helpers, plan_limits
     from utils.totp import clear_totp_cache_for_tests
+    helpers.invalidate_settings_cache()
+    helpers.invalidate_pending_counts_cache()
+    helpers.invalidate_companies_cache()
+    helpers._onboarding_cache.clear()
+    plan_limits.invalidate_rate_paise_cache()
+    plan_limits.invalidate_extra_cost_cache()
+    platform_admin._employee_count_cache.clear()
     clear_totp_cache_for_tests()
 
 
