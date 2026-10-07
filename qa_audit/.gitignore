@@ -2,3 +2,4 @@
 baseline/template_js/
 baseline/jscpd/
 __pycache__/
+baseline/coverage.json
