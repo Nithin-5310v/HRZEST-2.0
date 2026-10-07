@@ -44,10 +44,10 @@ load_dotenv()
 _HASHI_ENV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hashi", ".env")
 load_dotenv(_HASHI_ENV)
 
-from flask import request, session, jsonify, redirect, url_for, flash, current_app, abort, g as _g
+from flask import request, session, jsonify, redirect, url_for, flash, current_app, abort, make_response, g as _g
 import datetime
 import html as _html
-from database import get_db_connection, get_master_db
+from database import get_db_connection, get_master_db, DatabaseUnavailable
 
 # ── Startup: warn if critical env vars are missing ──
 _missing_env = [k for k in ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME") if not os.environ.get(k)]
@@ -1339,6 +1339,30 @@ def rate_limit_exceeded(e):
     return _error_page(429, "⏳", "Too Many Requests",
                        "You've made too many requests in a short period.",
                        "Please wait a moment before trying again.")
+
+
+@app.errorhandler(DatabaseUnavailable)
+def database_unavailable(e):
+    """database.py raises DatabaseUnavailable instead of silently switching
+    to a local SQLite file when PostgreSQL can't be reached (outside
+    APP_ENV=development). Answer 503 so the outage is visible and retryable,
+    and alert (CRITICAL security events go to the alert webhook)."""
+    log_security_event("db.unavailable", "PostgreSQL unavailable -- request answered 503", level="CRITICAL")
+    is_ajax = (
+        request.path.startswith("/api/")
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
+    if is_ajax:
+        resp = jsonify({"ok": False, "msg": "Service temporarily unavailable. Please try again shortly."})
+    else:
+        resp = _error_page(503, "🛠️", "Service Temporarily Unavailable",
+                           "We can't reach the database right now.",
+                           "Please try again in a minute.")
+    resp = make_response(resp)
+    resp.status_code = 503
+    resp.headers["Retry-After"] = "30"
+    return resp
 
 
 @app.errorhandler(404)
