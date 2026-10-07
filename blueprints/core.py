@@ -164,11 +164,14 @@ def checkin_page():
     return render_template("index.html", auth_cfg=get_auth_config())
 
 
+# How long an open tab waits before asking /api/session/risk-stream again.
+_RISK_STREAM_RETRY_MS = 15000
+
+
 @core_bp.route("/api/session/risk-stream")
 def session_risk_stream():
-    """Server-Sent Events stream: notifies an already-open browser tab the
-    moment its session is marked compromised, instead of it having to wait
-    for its next click to find out.
+    """Server-Sent Events endpoint that tells an already-open browser tab its
+    session was marked compromised, instead of it waiting for its next click.
 
     This is enforcement's UX layer, not enforcement itself -- the actual
     kill switch is _reject_if_compromised() in utils/auth.py, checked on
@@ -176,39 +179,21 @@ def session_risk_stream():
     connected. A client that never opens this connection, or ignores every
     message it sends, still gets rejected on its very next request.
 
-    Each connection is deliberately bounded (~20s of 2s-interval checks),
-    not held open indefinitely: this app runs gunicorn's default sync
-    worker model, where one open streaming connection occupies one whole
-    worker process for as long as it stays open. EventSource reconnects
-    automatically the instant a stream closes, so bounding each connection
-    keeps the near-real-time push behavior (compromised state is caught
-    within one 2-second tick) while capping how long any single browser
-    tab can tie up a worker.
+    Answers immediately with the current state and closes; the `retry:`
+    field makes the browser's EventSource reconnect after
+    _RISK_STREAM_RETRY_MS. It used to hold the request for ~20 s of 2 s
+    checks, and since every authenticated page opens this stream, each
+    open tab permanently occupied one of the server's few gthread worker
+    threads (QA SCALE-08).
     """
     if not session.get("admin_logged_in") and not session.get("employee_id"):
         return jsonify({"ok": False, "msg": "Not authenticated"}), 401
     sid = session.get("_sid")
     if not sid:
         return jsonify({"ok": False, "msg": "No active session to monitor"}), 400
-
-    def _generate(_sid):
-        try:
-            for _ in range(10):
-                if is_session_compromised(_sid):
-                    yield "event: compromised\ndata: {}\n\n"
-                    return
-                yield ": keepalive\n\n"
-                time.sleep(2)
-            # Bounded lifetime reached with nothing to report -- close
-            # cleanly; EventSource reconnects on its own.
-            yield "event: ping\ndata: {}\n\n"
-        except GeneratorExit:
-            # Client disconnected (tab closed/navigated away) -- nothing to
-            # clean up, session_risk rows aren't tied to connection state.
-            pass
-
+    event = "compromised" if is_session_compromised(sid) else "ping"
     return Response(
-        _generate(sid),
+        f"retry: {_RISK_STREAM_RETRY_MS}\nevent: {event}\ndata: {{}}\n\n",
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

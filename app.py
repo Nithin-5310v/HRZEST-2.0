@@ -2288,10 +2288,9 @@ if __name__ == "__main__":
     # making a local port collision with anything else already bound to
     # 5000 unfixable without editing source. Same env var, same default.
     _port = int(_os.environ.get("PORT", "5000"))
-    # threaded=True: /api/session/risk-stream (blueprints/core.py) holds an
-    # SSE connection open for ~20s, and Werkzeug's dev server is single-
-    # threaded by default -- without this, one open stream blocks every
-    # other request until it closes.
+    # threaded=True: Werkzeug's dev server is single-threaded by default,
+    # so one slow request (an upload, a report) would block every other
+    # request until it finished.
     if _os.path.exists(_cert) and _os.path.exists(_key):
         # app.run(..., ssl_context=(...)) wraps the *listening* socket
         # (Werkzeug's serving.py), so every TLS handshake runs synchronously
