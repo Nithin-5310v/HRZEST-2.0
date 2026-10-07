@@ -598,6 +598,18 @@ def init_master_db():
         cur.execute("ALTER TABLE tenant_support_tickets ADD COLUMN IF NOT EXISTS linked_ticket_id INT DEFAULT NULL")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_tickets_linked ON tenant_support_tickets (linked_ticket_id)")
         cur.execute("ALTER TABLE tenant_ticket_comments ADD COLUMN IF NOT EXISTS author_kind VARCHAR(20) NOT NULL DEFAULT 'platform_admin'")
+        # One row per scheduled-job run, claimed by whichever process gets
+        # there first -- every gunicorn worker runs the scheduler, and the
+        # primary key is what makes each nightly job run once (utils/
+        # job_runs.py, QA SCALE-01).
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS scheduler_job_runs (
+                job_id      VARCHAR(100) NOT NULL,
+                fire_minute TIMESTAMP    NOT NULL,
+                claimed_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (job_id, fire_minute)
+            )
+        """)
         db.commit()
         cur.close()
         db.close()
