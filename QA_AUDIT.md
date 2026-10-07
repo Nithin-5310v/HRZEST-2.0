@@ -102,6 +102,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | DEP-01 | Dependencies | Medium | mobile/package.json:27 (axios) + lockfile | axios < 1.19.1 (High advisory, ships in the app); moment, http-cache-semantics, source-map-js, brace-expansion, braces, micromatch advisories | Known-vulnerable runtime library | `npm audit fix` (non-breaking) + jest run | S | Open |
 | TEST-03 | Tests | Medium | tests/conftest.py (`_reset_db_after_test`) | The per-test DB restore doesn't clear in-process caches (settings/auth/pending counts/companies); with pytest-randomly the order changes every run | Order-dependent flakiness (seen in practice: stale `face_enabled`) | Call `invalidate_settings_cache()` and `invalidate_pending_counts_cache()` in teardown | S | **Fixed** (test: tests/test_test_infrastructure.py): teardown clears settings/auth, pending-counts, companies, onboarding, plan-rate, extra-cost, platform employee-count and TOTP caches. Full-suite confirmation pending |
 | BUG-05 | Correctness / duplication | Medium | blueprints/employee_portal.py:659-711 | The portal's "last 3 months payslip" summary re-implements payroll: late days paid in full, half day fixed at 50%, paid holidays counted absent, approved leave requests ignored | Employees see a net pay that differs from their real payslip; 9 extra queries per load | Reuse `compute_salary_entry()` (the payslip's own function) | M | Open |
+| BUG-34 | Correctness (payroll) | Medium | blueprints/payroll.py `/api/salary_report`, `/api/send_salary_email` | The mobile admin API computed salaries without the month's holidays or the employee's approved leave (both paid as absences), without incentives, and built the emailed payslip without the employee's CTC or the company's PF/PT/TDS settings | The mobile salary report and the emailed payslip disagreed with the web report, the disbursement and the downloaded payslip (e.g. net 24,000 vs 25,750 for one paid holiday plus a 750 incentive) | Reuse `compute_salary_data_for_month()` and one shared payslip builder | S | **Fixed** (test: tests/test_qa_api_payslip_parity.py) |
 | BUG-07 | Correctness | Medium | blueprints/leave.py (request_leave) | Leave rows are inserted for Sundays and holidays, and nothing checks for duplicates or overlaps | Leave day counts include non-working days; the same date can be requested twice (balance effect: NV-05) | Skip non-working days; reject overlaps (unique `(employee_id, leave_date)` or a pre-check) | M | Open |
 | TEST-02 | Tests | Medium | tests/conftest.py:17 | The test DB name is hard-coded (`att_test`), so runs can't be parallel or isolated per session; the full suite takes ~100 min | Slow feedback; two sessions collided today | Read the name from an env var; per-worker DBs with pytest-xdist | M | **Fixed** in 0d08d81 (test: tests/test_test_infrastructure.py); full-suite confirmation pending |
 | TEST-04 | Tests | Medium | qa_audit/baseline/coverage_report.txt | Coverage is 82% overall, but the riskiest modules are the least covered: `database.py` 56% (pool rebuild/failover), `utils/razorpay_utils.py` 42%, `utils/document_verification.py` 49% (claim worker), `utils/task_queue.py` 0%, `utils/email_utils.py` 72% (queue drainer), `blueprints/disbursement.py` 73% | Regressions in payments, payouts, background workers and DB failover go unnoticed | Add tests alongside the fixes for SCALE-06/07/09 and BUG-02; payment/payout paths in demo mode | M | Open |
@@ -220,7 +221,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 
 | Category | High | Medium | Low | Total |
 |---|---|---|---|---|
-| BUG (correctness) | 3 | 13 | 17 | 33 |
+| BUG (correctness) | 3 | 14 | 17 | 34 |
 | SCALE | 5 | 3 | 0 | 8 |
 | TEST | 1 | 3 | 0 | 4 |
 | PERF | 0 | 2 | 5 | 7 |
@@ -235,7 +236,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | JS / MOB (frontend & mobile lint) | 0 | 0 | 4 | 4 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **10** | **29** | **83** | **122** |
+| **Total** | **10** | **30** | **83** | **123** |
 
 Plus 18 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 

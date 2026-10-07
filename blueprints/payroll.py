@@ -430,17 +430,12 @@ def email_config():
 # ---------------- SEND SALARY EMAIL (single) ----------------
 
 
-@payroll_bp.route("/send_salary_email", methods=["POST"])
-@admin_required
-def send_salary_email():
-    emp_id = request.form["emp_id"]
-    year = int(request.form["year"])
-    month = int(request.form["month"])
-
-    config = get_email_config()
-    if not config:
-        return jsonify({"ok": False, "msg": "Email not configured. Go to Email Settings first."})
-
+def _payslip_email(emp_id, year, month):
+    """(error, None) or (None, (email, month_name, html)) for one employee's
+    payslip email -- shared by the web and mobile-API send routes so the
+    emailed payslip is the same document either way (QA BUG-34): the
+    month's holidays, approved leave, CTC and the company's PF/PT/TDS
+    settings, exactly like view_payslip()."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -455,13 +450,13 @@ def send_salary_email():
     if not emp:
         cursor.close()
         db.close()
-        return jsonify({"ok": False, "msg": "Employee not found."})
+        return "Employee not found.", None
 
     name, email, spd, monthly_ctc, basic_pct, designation, dept = emp
     if not email:
         cursor.close()
         db.close()
-        return jsonify({"ok": False, "msg": f"No email address set for {name}."})
+        return f"No email address set for {name}.", None
 
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
@@ -504,6 +499,25 @@ def send_salary_email():
     html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry,
                                        emp_designation=designation, emp_dept=dept,
                                        payroll_cfg=payroll_cfg)
+
+    return None, (email, month_name, html_body)
+
+
+@payroll_bp.route("/send_salary_email", methods=["POST"])
+@admin_required
+def send_salary_email():
+    emp_id = request.form["emp_id"]
+    year = int(request.form["year"])
+    month = int(request.form["month"])
+
+    config = get_email_config()
+    if not config:
+        return jsonify({"ok": False, "msg": "Email not configured. Go to Email Settings first."})
+
+    error, slip = _payslip_email(emp_id, year, month)
+    if error:
+        return jsonify({"ok": False, "msg": error})
+    email, month_name, html_body = slip
 
     try:
         send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
@@ -1231,31 +1245,8 @@ def api_monthly_report():
 def api_salary_report():
     year = int(request.args.get("year", datetime.date.today().year))
     month = int(request.args.get("month", datetime.date.today().month))
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0)
-        FROM employees e
-        LEFT JOIN salary_config s ON e.employee_id = s.employee_id
-        ORDER BY e.name
-    """)
-    employees = cursor.fetchall()
-    _, last_day = calendar.monthrange(year, month)
-    cursor.execute("""
-        SELECT employee_id, date, login_time, logout_time, status, logout_status, attendance_type
-        FROM attendance WHERE date BETWEEN %s AND %s
-    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
-    att_map = {}
-    for row in cursor.fetchall():
-        att_map.setdefault(row[0], {})[row[1]] = row
-    cursor.close()
-    db.close()
-    billable_past = get_billable_past_days(year, month)
-    salary_data = []
-    for emp_id, name, email, spd in employees:
-        entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
-        entry["email"] = email
-        salary_data.append(entry)
+    # Same computation as the web salary report and disbursement (QA BUG-34).
+    salary_data = compute_salary_data_for_month(year, month)
     return jsonify({"ok": True, "salary_data": salary_data,
                     "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
                     "year": year, "month": month})
@@ -1271,37 +1262,10 @@ def api_send_salary_email():
     config = get_email_config()
     if not config:
         return jsonify({"ok": False, "msg": "Email not configured."})
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute(
-        "SELECT name, email, COALESCE(s.salary_per_day,0) FROM employees e "
-        "LEFT JOIN salary_config s ON e.employee_id=s.employee_id WHERE e.employee_id=%s",
-        (emp_id,)
-    )
-    emp = cursor.fetchone()
-    if not emp:
-        cursor.close()
-        db.close()
-        return jsonify({"ok": False, "msg": "Employee not found."})
-    name, email, spd = emp
-    if not email:
-        cursor.close()
-        db.close()
-        return jsonify({"ok": False, "msg": f"No email for {name}."})
-    _, last_day = calendar.monthrange(year, month)
-    cursor.execute("""
-        SELECT employee_id, date, login_time, logout_time, status, logout_status, attendance_type
-        FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
-    """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
-    att_map = {}
-    for row in cursor.fetchall():
-        att_map.setdefault(row[0], {})[row[1]] = row
-    cursor.close()
-    db.close()
-    billable_past = get_billable_past_days(year, month)
-    entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past)
-    month_name = datetime.date(year, month, 1).strftime("%B %Y")
-    html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
+    error, slip = _payslip_email(emp_id, year, month)
+    if error:
+        return jsonify({"ok": False, "msg": error})
+    email, month_name, html_body = slip
     send_email_async(email, f"Salary Slip - {month_name}", html_body, config)
     return jsonify({"ok": True, "msg": f"Queued for {email}"})
 
