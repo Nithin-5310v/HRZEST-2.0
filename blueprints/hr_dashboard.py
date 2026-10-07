@@ -24,6 +24,7 @@ from flask import Blueprint, jsonify, render_template, request
 from database import get_db_connection
 from utils.auth import role_required, HR_ROLE
 from utils.helpers import tpath, hr_scope_column, hr_scope_subquery, hr_scope_denied, get_company_settings, company_today
+from utils.attendance_utils import attendance_pct_series
 
 hr_dashboard_bp = Blueprint("hr_dashboard", __name__)
 
@@ -283,7 +284,6 @@ def api_hr_dashboard_reports():
     (attendance % trend, headcount trend, department breakdown), copied and
     scoped rather than modifying that route/template, which stays fully
     unscoped/company-wide for 'admin' exactly as before."""
-    import calendar as _cal
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     today = datetime.date.today()
@@ -296,15 +296,6 @@ def api_hr_dashboard_reports():
     cursor.execute("SELECT date FROM holidays")
     all_holidays = {r[0] for r in cursor.fetchall()}
 
-    def _working_days_in_month(y, m):
-        _, last_day = _cal.monthrange(y, m)
-        days = []
-        for d in range(1, last_day + 1):
-            dt = datetime.date(y, m, d)
-            if dt.weekday() != 6 and dt not in all_holidays:
-                days.append(dt)
-        return days
-
     _month_bounds = []
     for i in range(5, -1, -1):
         ref = (today.replace(day=1) - datetime.timedelta(days=1) * (i * 28)).replace(day=1)
@@ -314,27 +305,16 @@ def api_hr_dashboard_reports():
         _month_bounds.append((y, m, month_start, month_end))
 
     cursor.execute(f"""
-        SELECT date_trunc('month', a.date)::date AS month_start, COUNT(DISTINCT a.employee_id)
+        SELECT a.date, COUNT(DISTINCT a.employee_id)
         FROM attendance a JOIN employees e ON e.employee_id=a.employee_id
         WHERE a.date >= %s AND a.date < %s AND a.login_time IS NOT NULL {_hr}
-        GROUP BY date_trunc('month', a.date)
+        GROUP BY a.date
     """, (_month_bounds[0][2], _month_bounds[-1][3]) + _hr_args)  # nosec B608
-    present_by_month = {r[0]: r[1] for r in cursor.fetchall()}
+    present_by_day = {r[0]: r[1] for r in cursor.fetchall()}
+    attendance_trend = attendance_pct_series(_month_bounds, present_by_day, all_holidays, today, total_employees)
 
-    attendance_trend = []
     headcount_trend = []
-    for y, m, month_start, month_end in _month_bounds:
-        working_days = [d for d in _working_days_in_month(y, m) if d <= today]
-        total_days = len(working_days)
-        present_records = present_by_month.get(month_start, 0)
-        expected = total_days * (total_employees or 1)
-        att_pct = round(present_records / expected * 100, 1) if expected else 0
-        attendance_trend.append({
-            "month_label": month_start.strftime("%b %Y"),
-            "att_pct": att_pct,
-            "present_days": present_records,
-            "absent_days": max(0, expected - present_records),
-        })
+    for _y, _m, month_start, month_end in _month_bounds:
         cursor.execute(f"SELECT COUNT(*) FROM employees e WHERE e.date_of_joining < %s {_hr}", (month_end,) + _hr_args)  # nosec B608
         headcount_trend.append({"month_label": month_start.strftime("%b %Y"), "count": cursor.fetchone()[0]})
 
