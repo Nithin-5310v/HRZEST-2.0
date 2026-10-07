@@ -132,6 +132,7 @@ class _SqliteCursor:
         q = re.sub(r'\bILIKE\b', 'LIKE', q, flags=re.IGNORECASE)
         q = re.sub(r'\bTIMESTAMP WITH TIME ZONE\b', 'TEXT', q, flags=re.IGNORECASE)
         q = re.sub(r'\bNOW\(\)', 'CURRENT_TIMESTAMP', q, flags=re.IGNORECASE)
+        q = re.sub(r'\s+FOR UPDATE SKIP LOCKED\b', '', q, flags=re.IGNORECASE)  # single-writer SQLite
         with _sqlite_lock:
             try:
                 res = self._cur.execute(q, params)
@@ -435,9 +436,14 @@ def _seed_sqlite_db(raw_conn):
             attempts INTEGER DEFAULT 0,
             last_error TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            sent_at TEXT
+            sent_at TEXT,
+            claimed_at TEXT
         );
         ''')
+        try:
+            cur.execute("ALTER TABLE email_queue ADD COLUMN claimed_at TEXT")  # dev files created before SCALE-06
+        except sqlite3.OperationalError:
+            pass
         cur.execute('''
         CREATE TABLE IF NOT EXISTS companies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
