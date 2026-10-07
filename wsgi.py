@@ -47,12 +47,9 @@ app.wsgi_app = TenantPrefixMiddleware(app.wsgi_app)
 with app.app_context():
     try:
         from app import init_master_db, init_db, _run_migrations_for_all_tenants
-        from utils.config import load_default_shift, load_salary_rules
         init_master_db()
         init_db()
         _run_migrations_for_all_tenants()
-        load_default_shift()
-        load_salary_rules()
     except Exception as _e:
         app_log.warning("Startup init failed (non-fatal): %s", _e)
 

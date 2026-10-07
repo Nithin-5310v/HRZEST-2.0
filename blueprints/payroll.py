@@ -212,14 +212,15 @@ def salary_report():
     years = list(range(datetime.date.today().year - 2, datetime.date.today().year + 1))
 
     email_cfg = get_email_config()
+    rules = cfg.salary_rules()
 
     return render_template("salary_report.html",
                            salary_data=salary_data,
                            month_name=datetime.date(year, month, 1).strftime("%B %Y"),
                            year=year, month=month,
                            months=months, years=years,
-                           late_rate=int(cfg.LATE_DEDUCTION_RATE * 100),
-                           half_rate=int(cfg.HALF_DAY_RATE * 100),
+                           late_rate=int(rules.late_deduction_rate * 100),
+                           half_rate=int(rules.half_day_rate * 100),
                            email_configured=email_cfg is not None,
                            is_locked=is_locked,
                            lock_info=lock_info,

@@ -271,7 +271,8 @@ def _make_tenant(db_engine, slug):
 
 
 @pytest.fixture
-def two_tenants(db_engine):
+def two_tenants(db_engine, client):
+    # `client` sets TESTING=True (CSRF off) for the extra clients these tests create.
     suffix = secrets.token_hex(3)
     return _make_tenant(db_engine, f"isoa{suffix}"), _make_tenant(db_engine, f"isob{suffix}")
 

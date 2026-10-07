@@ -1242,14 +1242,11 @@ class TestUpdateDefaultShift:
         assert "error" in rv.headers["Location"]
 
     # The NameError bug this class used to regression-test (load_default_shift
-    # referenced without being imported) doesn't apply post-merge: HEAD's
-    # attendance.py uses module-qualified cfg.load_default_shift() throughout
-    # (import utils.config as cfg), so there's no bare name to go missing.
+    # referenced without being imported) can't recur: the shift is no longer
+    # loaded into module globals at all -- saving just invalidates the
+    # per-company settings cache (QA BUG-01).
 
-    def test_valid_fields_with_mocked_load_fn_redirects(self, client, seed_admin, mocker):
-        """When load_default_shift is mocked (bug fixed), the route redirects."""
-        import blueprints.attendance as att_mod
-        mocker.patch.object(att_mod, "load_default_shift", create=True, return_value=None)
+    def test_valid_fields_redirects(self, client, seed_admin):
         _admin_session(client, seed_admin)
         rv = client.post("/update_default_shift", data={
             "shift_start": "09:00",

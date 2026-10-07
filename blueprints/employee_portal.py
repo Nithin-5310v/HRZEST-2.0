@@ -1024,11 +1024,11 @@ def api_employee_checkin():
     last_relogin_stored = record[4] if record else None
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) +
-                      datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
+        grace_time = (datetime.datetime.combine(today, cfg.shift_rules().start) +
+                      datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
         if current_time <= grace_time:
             status = "Full Day Login"
-        elif current_time <= cfg.SHIFT_HALF:
+        elif current_time <= cfg.shift_rules().half:
             status = "Late Login"
         else:
             status = "Half Day Login"
@@ -1043,13 +1043,13 @@ def api_employee_checkin():
                         "status": status, "time": current_time.strftime("%H:%M:%S")})
     elif not logout_time:
         total_m = compute_session_worked_minutes(current_time, today, login_time, last_relogin_stored, worked_mins_stored)
-        if current_time < cfg.SHIFT_HALF:
+        if current_time < cfg.shift_rules().half:
             out_status = "Half Day Logout"
-        elif current_time < cfg.SHIFT_END:
+        elif current_time < cfg.shift_rules().end:
             out_status = "Early Logout"
         else:
             out_status = "Completed"
-        att_type = classify_by_worked_minutes(login_status, total_m, cfg.SHIFT_START, cfg.SHIFT_END)
+        att_type = classify_by_worked_minutes(login_status, total_m, cfg.shift_rules().start, cfg.shift_rules().end)
         cursor.execute(
             "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
@@ -1157,11 +1157,11 @@ def api_employee_sync_punches():
         last_relogin = rec[4] if rec else None
 
         if not login_time:
-            grace_time = (datetime.datetime.combine(punch_date, cfg.SHIFT_START) +
-                          datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
+            grace_time = (datetime.datetime.combine(punch_date, cfg.shift_rules().start) +
+                          datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
             if punch_time <= grace_time:
                 status = "Full Day Login"
-            elif punch_time <= cfg.SHIFT_HALF:
+            elif punch_time <= cfg.shift_rules().half:
                 status = "Late Login"
             else:
                 status = "Half Day Login"
@@ -1173,13 +1173,13 @@ def api_employee_sync_punches():
             results.append({"id": punch.get("id"), "ok": True, "action": "login", "status": status})
         elif not logout_time:
             total_m = compute_session_worked_minutes(punch_time, punch_date, login_time, last_relogin, worked_mins)
-            if punch_time < cfg.SHIFT_HALF:
+            if punch_time < cfg.shift_rules().half:
                 out_status = "Half Day Logout"
-            elif punch_time < cfg.SHIFT_END:
+            elif punch_time < cfg.shift_rules().end:
                 out_status = "Early Logout"
             else:
                 out_status = "Completed"
-            att_type = classify_by_worked_minutes(login_status, total_m, cfg.SHIFT_START, cfg.SHIFT_END)
+            att_type = classify_by_worked_minutes(login_status, total_m, cfg.shift_rules().start, cfg.shift_rules().end)
             cur2.execute(
                 "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
                 "WHERE employee_id=%s AND date=%s",
@@ -1360,11 +1360,11 @@ def api_employee_qr_face_checkin():
     last_relogin_stored = record[4] if record else None
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) +
-                      datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
+        grace_time = (datetime.datetime.combine(today, cfg.shift_rules().start) +
+                      datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
         if current_time <= grace_time:
             status = "Full Day Login"
-        elif current_time <= cfg.SHIFT_HALF:
+        elif current_time <= cfg.shift_rules().half:
             status = "Late Login"
         else:
             status = "Half Day Login"
@@ -1379,13 +1379,13 @@ def api_employee_qr_face_checkin():
                         "status": status, "time": current_time.strftime("%H:%M:%S")})
     elif not logout_time:
         total_m = compute_session_worked_minutes(current_time, today, login_time, last_relogin_stored, worked_mins_stored)
-        if current_time < cfg.SHIFT_HALF:
+        if current_time < cfg.shift_rules().half:
             out_status = "Half Day Logout"
-        elif current_time < cfg.SHIFT_END:
+        elif current_time < cfg.shift_rules().end:
             out_status = "Early Logout"
         else:
             out_status = "Completed"
-        att_type = classify_by_worked_minutes(login_status, total_m, cfg.SHIFT_START, cfg.SHIFT_END)
+        att_type = classify_by_worked_minutes(login_status, total_m, cfg.shift_rules().start, cfg.shift_rules().end)
         cursor.execute(
             "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
