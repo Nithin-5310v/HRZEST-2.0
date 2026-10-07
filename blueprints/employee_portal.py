@@ -656,60 +656,6 @@ def employee_portal():
         compoff_earned_days = 0
         compoff_avail_days = 0
 
-    # Last 3 months payslip summaries
-    recent_payslips = []
-    py2, pm2 = today.year, today.month
-    for _ in range(3):
-        pm2 -= 1
-        if pm2 == 0:
-            pm2 = 12
-            py2 -= 1
-        _, ld = calendar.monthrange(py2, pm2)
-        cursor.execute("""
-            SELECT date, login_time, logout_time, status, logout_status, attendance_type
-            FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
-        """, (emp_id, datetime.date(py2, pm2, 1), datetime.date(py2, pm2, ld)))
-        p_att = cursor.fetchall()
-        p_billable = get_billable_past_days(py2, pm2)
-        p_att_map = {r[0]: r for r in p_att}
-        p_full = p_late = p_half = p_absent = 0
-        for d in p_billable:
-            row = p_att_map.get(d)
-            if row:
-                _, lt, lot, st, _ls, at = row
-                final = at if at else infer_type_legacy(st, lt, lot)
-                if final in ("Full Day", "Approved Leave"):
-                    p_full += 1
-                elif final == "Late - Full Day":
-                    p_late += 1
-                elif final in ("Half Day", "Present"):
-                    p_half += 1
-                else:
-                    p_absent += 1
-            else:
-                p_absent += 1
-        p_gross = (p_full + p_late) * salary_per_day + p_half * salary_per_day * 0.5
-        try:
-            cursor.execute(
-                "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s", (emp_id, pm2, py2))
-            p_inc = float(cursor.fetchone()[0])
-        except Exception:
-            p_inc = 0.0
-        try:
-            cursor.execute(
-                "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s "
-                "AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'",
-                (emp_id, pm2, py2))
-            p_ot = float(cursor.fetchone()[0] or 0)
-        except Exception:
-            p_ot = 0.0
-        recent_payslips.append({
-            'month': calendar.month_name[pm2], 'year': py2,
-            'gross': p_gross, 'incentives': p_inc, 'ot_pay': p_ot,
-            'net': p_gross + p_inc + p_ot,
-            'present': p_full + p_late + p_half, 'absent': p_absent,
-        })
-
     cursor.close()
     db.close()
 
@@ -795,7 +741,6 @@ def employee_portal():
                            incentives_this_month=incentives_this_month,
                            ot_pay_this_month=ot_pay_this_month,
                            net_this_month=net_this_month,
-                           recent_payslips=recent_payslips,
                            fp_enrolled=fp_enrolled,
                            fp_enabled=get_auth_config().get("fingerprint_enabled", False),
                            attendance_auth_cfg=get_auth_config(),
