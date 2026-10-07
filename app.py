@@ -91,8 +91,8 @@ from utils.helpers import (
 # globals, mutated by its own separate load_default_shift()/
 # load_salary_rules(). utils/config.py's docstring already stated the
 # intent ("blueprints should always access them through this module") --
-# app.py just never migrated. Now the single source both use, referenced
-# throughout this file as cfg.SHIFT_START etc.
+# app.py just never migrated. Shift and payroll rules are per company
+# (QA BUG-01): read them with cfg.shift_rules() / cfg.salary_rules().
 import utils.config as cfg
 import utils.waf as waf
 
@@ -108,9 +108,10 @@ import utils.waf as waf
 
 @app.context_processor
 def inject_common_vars():
+    shift = cfg.shift_rules()
     return dict(
-        shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
-        shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
+        shift_start=shift.start.strftime("%I:%M %p"),
+        shift_end=shift.end.strftime("%I:%M %p"),
         # templates/admin_base.html's sidebar "Dashboard" link reads this
         # (`tpath('/employees') if _is_hr else tpath('/admin')`) -- it was
         # referencing this exact name already, just never actually
@@ -1199,21 +1200,9 @@ def inject_company():
     return {"co": get_company_settings()}
 
 
-# Office location, shift timings, and deduction rates now live solely in
-# utils/config.py -- see the `import utils.config as cfg` note above.
-# Startup load still happens here (same timing as before: once, at import,
-# inside an app context) since nothing else in this file's import order
-# guarantees the DB is reachable earlier than this point.
-with app.app_context():
-    try:
-        cfg.load_default_shift()
-        cfg.load_salary_rules()
-    except Exception as exc:
-        # Falls back to cfg's hardcoded defaults, silently -- worth logging
-        # since a DB that isn't reachable yet at this exact import-time
-        # point means shift/salary config stays wrong until the next
-        # successful load, not just this one startup.
-        app_log.warning("Startup load of default shift/salary config failed: %s", exc, exc_info=True)
+# Shift timings and deduction rates are read per company, per request, by
+# utils/config.py (shift_rules() / salary_rules()) -- there is no startup
+# load any more (QA BUG-01).
 
 # ── PII Encryption ────────────────────────────────────────────────
 # Consolidated onto utils/helpers.py (see import block near the top of this
@@ -2240,8 +2229,6 @@ if __name__ == "__main__":
     init_master_db()
     init_db()
     _run_migrations_for_all_tenants()
-    cfg.load_default_shift()
-    cfg.load_salary_rules()
     # wsgi.py wraps app.wsgi_app with this at import time -- running app.py
     # directly (`python app.py`) never goes through wsgi.py, so without this
     # every path-based tenant link (/<company-slug>/...) 404s: nothing ever

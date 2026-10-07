@@ -181,6 +181,7 @@ def admin():
 
     cursor.close()
     db.close()
+    shift = cfg.shift_rules()
 
     return render_template("admin.html",
                            total=total,
@@ -191,8 +192,8 @@ def admin():
                            active_nav="dashboard",
                            today_rows=today_rows,
                            all_employees=all_employees,
-                           shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
-                           shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
+                           shift_start=shift.start.strftime("%I:%M %p"),
+                           shift_end=shift.end.strftime("%I:%M %p"),
                            pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,
                            pending_ot=pending_ot,
@@ -698,9 +699,10 @@ def settings_page():
             return v.strftime("%H:%M")
         return str(v)[:5]
 
-    _co_shift_start = _td_str(fr.get("shift_start")) or cfg.SHIFT_START.strftime("%H:%M")
-    _co_shift_half = _td_str(fr.get("shift_half")) or cfg.SHIFT_HALF.strftime("%H:%M")
-    _co_shift_end = _td_str(fr.get("shift_end")) or cfg.SHIFT_END.strftime("%H:%M")
+    _default_shift = cfg.shift_rules()
+    _co_shift_start = _td_str(fr.get("shift_start")) or _default_shift.start.strftime("%H:%M")
+    _co_shift_half = _td_str(fr.get("shift_half")) or _default_shift.half.strftime("%H:%M")
+    _co_shift_end = _td_str(fr.get("shift_end")) or _default_shift.end.strftime("%H:%M")
 
     cursor.execute(
         "SELECT r.id, r.year, r.month, r.status, r.total_amount, r.employee_count, "
@@ -1096,8 +1098,7 @@ def save_salary_rules():
         db.commit()
         cursor.close()
         db.close()
-        cfg.load_salary_rules()
-        cfg.load_default_shift()
+        invalidate_settings_cache()
     flash("Salary rules saved.", "success")
     return redirect(tpath("/settings?tab=salary"))
 
@@ -1439,7 +1440,7 @@ def api_settings_save_salary_rules():
     db.commit()
     cursor.close()
     db.close()
-    cfg.load_salary_rules()
+    invalidate_settings_cache()
     return jsonify({"ok": True, "msg": "Salary rules saved."})
 
 

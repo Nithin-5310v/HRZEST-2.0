@@ -236,19 +236,20 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
     if leave_dates is None:
         leave_dates = set()
 
+    rules = cfg.salary_rules()
     emp_att = att_map.get(emp_id, {})
     full_days = half_days = late_days = absent_days = 0
     holiday_days = leave_days_count = 0
 
     for d in billable_past:
         if d in holidays_set:
-            if cfg.HOLIDAY_PAY == 'paid':
+            if rules.holiday_pay == 'paid':
                 full_days += 1
             else:
                 absent_days += 1   # unpaid holiday = counts as absent deduction
             holiday_days += 1
         elif d in leave_dates:
-            if cfg.LEAVE_PAY == 'absent':
+            if rules.leave_pay == 'absent':
                 absent_days += 1   # count approved leave as absent
             else:
                 leave_days_count += 1  # exclude from working days, no pay/no deduction
@@ -272,8 +273,8 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
 
     spd_f = float(spd)
     full_earn = round(full_days * spd_f, 2)
-    late_earn = round(late_days * spd_f * (1 - cfg.LATE_DEDUCTION_RATE), 2)
-    half_earn = round(half_days * spd_f * (1 - cfg.HALF_DAY_RATE), 2)
+    late_earn = round(late_days * spd_f * (1 - rules.late_deduction_rate), 2)
+    half_earn = round(half_days * spd_f * (1 - rules.half_day_rate), 2)
     net = round(full_earn + late_earn + half_earn, 2)
     gross = round(spd_f * effective_billable, 2)
     deduction = round(gross - net, 2)
@@ -294,8 +295,8 @@ def compute_salary_entry(emp_id, name, spd, att_map, billable_past,
         "half_earn": half_earn,
         "gross": gross,
         "absent_ded": round(absent_days * spd_f, 2),
-        "half_ded": round(half_days * spd_f * cfg.HALF_DAY_RATE, 2),
-        "late_ded": round(late_days * spd_f * cfg.LATE_DEDUCTION_RATE, 2),
+        "half_ded": round(half_days * spd_f * rules.half_day_rate, 2),
+        "late_ded": round(late_days * spd_f * rules.late_deduction_rate, 2),
         "deduction": deduction,
         "net": net,
     }

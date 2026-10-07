@@ -101,7 +101,8 @@ def get_employee_shift(emp_id, cursor):
     row = cursor.fetchone()
     if row:
         return _td_to_time(row[0]), _td_to_time(row[1]), _td_to_time(row[2]), row[3]
-    return cfg.SHIFT_START, cfg.SHIFT_HALF, cfg.SHIFT_END, "Default"
+    default = cfg.shift_rules()
+    return default.start, default.half, default.end, "Default"
 
 
 def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
@@ -135,7 +136,7 @@ def detect_overtime(employee_id, date, logout_time):
             (employee_id,)
         )
         row = cursor.fetchone()
-        shift_end = _td_to_time(row[0]) if row else cfg.SHIFT_END
+        shift_end = _td_to_time(row[0]) if row else cfg.shift_rules().end
         logout_t = _td_to_time(logout_time) if not isinstance(logout_time, datetime.time) else logout_time
         if logout_t is None or shift_end is None:
             cursor.close()
