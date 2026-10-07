@@ -45,7 +45,8 @@ class TestGetEmployeeShift:
         cur = db_engine.cursor()
         start, half, end, name = au.get_employee_shift(seed_employee["employee_id"], cur)
         cur.close()
-        assert (start, half, end, name) == (cfg.SHIFT_START, cfg.SHIFT_HALF, cfg.SHIFT_END, "Default")
+        default = cfg.shift_rules()
+        assert (start, half, end, name) == (default.start, default.half, default.end, "Default")
 
 
 class TestInferTypeLegacy:

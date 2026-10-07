@@ -1305,7 +1305,7 @@ def api_employee_request_overtime():
 
     cursor.execute("SELECT s.end_time FROM shifts s JOIN employees e ON e.shift_id=s.id WHERE e.employee_id=%s", (emp_id,))
     shift_row = cursor.fetchone()
-    shift_end = shift_row[0] if shift_row else cfg.SHIFT_END
+    shift_end = shift_row[0] if shift_row else cfg.shift_rules().end
 
     cursor.execute("""
         INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay,

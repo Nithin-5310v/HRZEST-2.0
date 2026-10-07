@@ -945,6 +945,10 @@ def get_company_settings():
                 "paid_employee_slots": row_dict.get("paid_employee_slots"),
                 "contact_phone": row_dict.get("contact_phone") or "",
                 "address": row_dict.get("address") or "",
+                # Per-company shift and payroll rules, read via utils/config.py's
+                # shift_rules()/salary_rules(). Stored as plain JSON-safe values
+                # (times as "HH:MM:SS") so the Redis cache path can hold them.
+                **_rule_settings(row_dict),
             }
             _cache_set(_co_cache, "settings_co", result, _CO_CACHE_TTL)
             return dict(result)
@@ -956,7 +960,32 @@ def get_company_settings():
     return {"company_name": "My Company", "company_tagline": "HRzest.com",
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
             "setup_done": False, "company_code": "", "session_timeout": 30, "logo_url": "", "plan": "basic",
-            "email_domain": "", "paid_employee_slots": None, "contact_phone": "", "address": ""}
+            "email_domain": "", "paid_employee_slots": None, "contact_phone": "", "address": "",
+            **_rule_settings({})}
+
+
+def _rule_settings(row_dict):
+    """The company's shift/payroll rule columns as JSON-safe values (see
+    utils/config.py); company_settings column defaults where unset."""
+    import utils.config as cfg
+
+    def _t(key, default):
+        return cfg.as_time(row_dict.get(key), default).strftime("%H:%M:%S")
+
+    def _num(key, default):
+        v = row_dict.get(key)
+        return float(v) if v is not None else default
+    grace = row_dict.get("grace_minutes")
+    return {
+        "shift_start": _t("shift_start", cfg.DEFAULT_SHIFT_START),
+        "shift_half": _t("shift_half", cfg.DEFAULT_SHIFT_HALF),
+        "shift_end": _t("shift_end", cfg.DEFAULT_SHIFT_END),
+        "grace_minutes": int(grace) if grace is not None else cfg.DEFAULT_GRACE_MINUTES,
+        "late_deduction_pct": _num("late_deduction_pct", cfg.DEFAULT_LATE_DEDUCTION_PCT),
+        "half_day_deduction_pct": _num("half_day_deduction_pct", cfg.DEFAULT_HALF_DAY_DEDUCTION_PCT),
+        "holiday_pay": row_dict.get("holiday_pay") or cfg.DEFAULT_HOLIDAY_PAY,
+        "leave_pay": row_dict.get("leave_pay") or cfg.DEFAULT_LEAVE_PAY,
+    }
 
 
 def _company_tzinfo():

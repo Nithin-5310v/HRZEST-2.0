@@ -9,6 +9,15 @@ import time as _time_stdlib
 
 import pytest
 
+import utils.config as _cfg
+
+_REAL_SHIFT_RULES = _cfg.shift_rules
+
+
+def _patch_shift_rules(mocker, **changes):
+    """Override fields of the current company's shift rules for one test."""
+    mocker.patch.object(_cfg, "shift_rules", lambda: _REAL_SHIFT_RULES()._replace(**changes))
+
 
 # ── Session / token helpers ──────────────────────────────────────────────────
 
@@ -637,7 +646,6 @@ class TestBulkMarkAttendanceCoverage:
 class TestKioskLoginStatus:
 
     def _login_fresh(self, client, seed_employee, db_engine, mocker, s_start, s_half, grace, signed_qr):
-        import blueprints.attendance as att
         today = datetime.date.today()
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
@@ -650,7 +658,7 @@ class TestKioskLoginStatus:
         })
         mocker.patch("blueprints.attendance.get_employee_shift",
                      return_value=(s_start, s_half, datetime.time(18, 0), "Test Shift"))
-        mocker.patch.object(att.cfg, "GRACE_MINUTES", grace)
+        _patch_shift_rules(mocker, grace_minutes=grace)
         rv = client.post("/attendance", json={
             "employee_id": signed_qr(seed_employee["employee_id"]),
             "auth_combo":  "qr_only",
@@ -810,25 +818,19 @@ class TestKioskWfhGeoFence:
 
 class TestApiCheckinStatusBranches:
 
-    def _patch_shifts(self, att, s_start, s_half, s_end, grace=0):
-        att.cfg.SHIFT_START = s_start
-        att.cfg.SHIFT_HALF = s_half
-        att.cfg.SHIFT_END = s_end
-        att.cfg.GRACE_MINUTES = grace
+    def _patch_shifts(self, s_start, s_half, s_end, grace=0):
+        rules = _cfg.ShiftRules(s_start, s_half, s_end, grace)
+        _cfg.shift_rules = lambda: rules
 
-    def _restore_shifts(self, att):
-        att.cfg.SHIFT_START = datetime.time(9, 0)
-        att.cfg.SHIFT_HALF = datetime.time(13, 0)
-        att.cfg.SHIFT_END = datetime.time(18, 0)
-        att.cfg.GRACE_MINUTES = 15
+    def _restore_shifts(self):
+        _cfg.shift_rules = _REAL_SHIFT_RULES
 
     def test_late_login(self, client, seed_admin, seed_employee, db_engine):
-        import blueprints.attendance as att
         today = datetime.date.today()
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
         cur.close()
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59), grace=0)
+        self._patch_shifts(datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59), grace=0)
         try:
             token = _admin_token(client, seed_admin)
             rv = client.post("/api/attendance/checkin", json={
@@ -838,18 +840,17 @@ class TestApiCheckinStatusBranches:
             assert data["ok"] is True, data
             assert data["status"] == "Late Login"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
             cur = db_engine.cursor()
             cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
             cur.close()
 
     def test_half_day_login(self, client, seed_admin, seed_employee, db_engine):
-        import blueprints.attendance as att
         today = datetime.date.today()
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
         cur.close()
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59), grace=0)
+        self._patch_shifts(datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59), grace=0)
         try:
             token = _admin_token(client, seed_admin)
             rv = client.post("/api/attendance/checkin", json={
@@ -859,15 +860,14 @@ class TestApiCheckinStatusBranches:
             assert data["ok"] is True, data
             assert data["status"] == "Half Day Login"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
             cur = db_engine.cursor()
             cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
             cur.close()
 
     def test_half_day_logout(self, client, seed_admin, seed_employee, att_login_only, db_engine):
-        import blueprints.attendance as att
         # current_time < SHIFT_HALF → Half Day Logout
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59))
+        self._patch_shifts(datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59))
         try:
             token = _admin_token(client, seed_admin)
             rv = client.post("/api/attendance/checkin", json={
@@ -877,12 +877,11 @@ class TestApiCheckinStatusBranches:
             assert data["ok"] is True, data
             assert data["status"] == "Half Day Logout"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
 
     def test_early_logout(self, client, seed_admin, seed_employee, att_login_only, db_engine):
-        import blueprints.attendance as att
         # SHIFT_HALF past → SHIFT_END not reached → Early Logout
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59))
+        self._patch_shifts(datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59))
         try:
             token = _admin_token(client, seed_admin)
             rv = client.post("/api/attendance/checkin", json={
@@ -892,7 +891,7 @@ class TestApiCheckinStatusBranches:
             assert data["ok"] is True, data
             assert data["status"] == "Early Logout"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
 
     def test_wfh_employee_outside_home_rejected(self, client, seed_admin, seed_employee, db_engine):
         """Lines 1355-1358: WFH employee with home coords, user outside → rejected."""
@@ -927,17 +926,12 @@ class TestApiCheckinStatusBranches:
 
 class TestApiEmployeeCheckinCoverage:
 
-    def _patch_shifts(self, att, s_start, s_half, s_end, grace=0):
-        att.cfg.SHIFT_START = s_start
-        att.cfg.SHIFT_HALF = s_half
-        att.cfg.SHIFT_END = s_end
-        att.cfg.GRACE_MINUTES = grace
+    def _patch_shifts(self, s_start, s_half, s_end, grace=0):
+        rules = _cfg.ShiftRules(s_start, s_half, s_end, grace)
+        _cfg.shift_rules = lambda: rules
 
-    def _restore_shifts(self, att):
-        att.cfg.SHIFT_START = datetime.time(9, 0)
-        att.cfg.SHIFT_HALF = datetime.time(13, 0)
-        att.cfg.SHIFT_END = datetime.time(18, 0)
-        att.cfg.GRACE_MINUTES = 15
+    def _restore_shifts(self):
+        _cfg.shift_rules = _REAL_SHIFT_RULES
 
     def test_invalid_punched_at_silently_uses_now(self, client, seed_employee, db_engine):
         """Lines 1474-1475: malformed punched_at string → ValueError → pass, use now."""
@@ -983,12 +977,11 @@ class TestApiEmployeeCheckinCoverage:
 
     def test_late_login(self, client, seed_employee, db_engine):
         """Line 1497: current_time > grace → Late Login."""
-        import blueprints.attendance as att
         today = datetime.date.today()
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
         cur.close()
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59), grace=0)
+        self._patch_shifts(datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59), grace=0)
         try:
             token = _emp_token(client, seed_employee)
             rv = client.post("/api/employee/checkin", json={},
@@ -997,19 +990,18 @@ class TestApiEmployeeCheckinCoverage:
             assert data["ok"] is True, data
             assert data["status"] == "Late Login"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
             cur = db_engine.cursor()
             cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
             cur.close()
 
     def test_half_day_login(self, client, seed_employee, db_engine):
         """Line 1499: current_time > s_half → Half Day Login."""
-        import blueprints.attendance as att
         today = datetime.date.today()
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
         cur.close()
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59), grace=0)
+        self._patch_shifts(datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59), grace=0)
         try:
             token = _emp_token(client, seed_employee)
             rv = client.post("/api/employee/checkin", json={},
@@ -1018,15 +1010,14 @@ class TestApiEmployeeCheckinCoverage:
             assert data["ok"] is True, data
             assert data["status"] == "Half Day Login"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
             cur = db_engine.cursor()
             cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
             cur.close()
 
     def test_half_day_logout(self, client, seed_employee, att_login_only, db_engine):
         """Line 1516: current_time < s_half → Half Day Logout."""
-        import blueprints.attendance as att
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59))
+        self._patch_shifts(datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59))
         try:
             token = _emp_token(client, seed_employee)
             rv = client.post("/api/employee/checkin", json={},
@@ -1036,12 +1027,11 @@ class TestApiEmployeeCheckinCoverage:
             assert data["action"] == "logout"
             assert data["status"] == "Half Day Logout"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
 
     def test_early_logout(self, client, seed_employee, att_login_only, db_engine):
         """Line 1518: s_half <= current_time < s_end → Early Logout."""
-        import blueprints.attendance as att
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59))
+        self._patch_shifts(datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59))
         try:
             token = _emp_token(client, seed_employee)
             rv = client.post("/api/employee/checkin", json={},
@@ -1051,13 +1041,12 @@ class TestApiEmployeeCheckinCoverage:
             assert data["action"] == "logout"
             assert data["status"] == "Early Logout"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
 
     def test_relogin_second_logout_uses_last_relogin(self, client, seed_employee, att_post_relogin, db_engine):
         """Line 1510: session_start = last_relogin_stored (not login_time)."""
-        import blueprints.attendance as att
         # att_post_relogin: login SET, logout NULL, last_relogin SET → second logout
-        self._patch_shifts(att, datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59))
+        self._patch_shifts(datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59))
         try:
             token = _emp_token(client, seed_employee)
             rv = client.post("/api/employee/checkin", json={},
@@ -1066,7 +1055,7 @@ class TestApiEmployeeCheckinCoverage:
             assert data["ok"] is True, data
             assert data["action"] == "logout"
         finally:
-            self._restore_shifts(att)
+            self._restore_shifts()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1128,11 +1117,7 @@ class TestQrFaceCheckinCoverage:
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
-        import blueprints.employee_portal as att
-        mocker.patch.object(att.cfg, "GRACE_MINUTES", 0)
-        mocker.patch.object(att.cfg, "SHIFT_START", datetime.time(0, 0))
-        mocker.patch.object(att.cfg, "SHIFT_HALF", datetime.time(23, 59))
-        mocker.patch.object(att.cfg, "SHIFT_END", datetime.time(23, 59))
+        _patch_shift_rules(mocker, grace_minutes=0, start=datetime.time(0, 0), half=datetime.time(23, 59), end=datetime.time(23, 59))
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
             "auth_combo":  "qr_fingerprint",  # needs fp not face
@@ -1189,11 +1174,7 @@ class TestQrFaceCheckinCoverage:
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
-        import blueprints.employee_portal as att
-        mocker.patch.object(att.cfg, "GRACE_MINUTES", 0)
-        mocker.patch.object(att.cfg, "SHIFT_START", datetime.time(0, 0))
-        mocker.patch.object(att.cfg, "SHIFT_HALF", datetime.time(23, 59))
-        mocker.patch.object(att.cfg, "SHIFT_END", datetime.time(23, 59))
+        _patch_shift_rules(mocker, grace_minutes=0, start=datetime.time(0, 0), half=datetime.time(23, 59), end=datetime.time(23, 59))
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
             "auth_combo":  "qr_fingerprint",
@@ -1217,11 +1198,7 @@ class TestQrFaceCheckinCoverage:
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
-        import blueprints.employee_portal as att
-        mocker.patch.object(att.cfg, "GRACE_MINUTES", 0)
-        mocker.patch.object(att.cfg, "SHIFT_START", datetime.time(0, 0))
-        mocker.patch.object(att.cfg, "SHIFT_HALF", datetime.time(0, 1))
-        mocker.patch.object(att.cfg, "SHIFT_END", datetime.time(23, 59))
+        _patch_shift_rules(mocker, grace_minutes=0, start=datetime.time(0, 0), half=datetime.time(0, 1), end=datetime.time(23, 59))
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
             "auth_combo":  "qr_fingerprint",
@@ -1241,9 +1218,7 @@ class TestQrFaceCheckinCoverage:
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
-        import blueprints.employee_portal as att
-        mocker.patch.object(att.cfg, "SHIFT_HALF", datetime.time(23, 59))
-        mocker.patch.object(att.cfg, "SHIFT_END", datetime.time(23, 59))
+        _patch_shift_rules(mocker, half=datetime.time(23, 59), end=datetime.time(23, 59))
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
             "auth_combo":  "qr_fingerprint",
@@ -1260,9 +1235,7 @@ class TestQrFaceCheckinCoverage:
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
-        import blueprints.employee_portal as att
-        mocker.patch.object(att.cfg, "SHIFT_HALF", datetime.time(0, 1))
-        mocker.patch.object(att.cfg, "SHIFT_END", datetime.time(23, 59))
+        _patch_shift_rules(mocker, half=datetime.time(0, 1), end=datetime.time(23, 59))
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
             "auth_combo":  "qr_fingerprint",

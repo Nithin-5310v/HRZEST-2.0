@@ -21,7 +21,7 @@ from utils.auth import admin_required, api_required, resolve_bearer_identity_any
 from utils.helpers import (
     tpath, get_auth_config, allowed_checkin_combos, get_company_settings, _safe_redirect, _safe_referrer_redirect,
     co_scope_column, hr_scope_column, hr_scope_denied, decrypt_pii, get_pending_action_counts,
-    company_today, company_now,
+    company_today, company_now, invalidate_settings_cache,
 )
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import (
@@ -235,9 +235,6 @@ def bulk_assign_shift():
 @attendance_bp.route("/update_default_shift", methods=["POST"])
 @admin_required
 def update_default_shift():
-    # No `global` needed -- cfg.SHIFT_START/HALF/END live in utils.config now;
-    # cfg.load_default_shift() below mutates that module's own globals via
-    # its own correctly-scoped `global` statement, not this function's.
     start = request.form.get("shift_start", "").strip()
     half = request.form.get("shift_half", "").strip()
     end = request.form.get("shift_end", "").strip()
@@ -252,7 +249,7 @@ def update_default_shift():
     db.commit()
     cursor.close()
     db.close()
-    cfg.load_default_shift()
+    invalidate_settings_cache()
     return redirect(tpath("/shifts?default_saved=1"))
 
 
@@ -1291,7 +1288,7 @@ def attendance():
     s_start, s_half, s_end, shift_name = get_employee_shift(emp_id, cursor)
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
+        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
         if current_time <= grace_time:
             login_status = "Full Day Login"
         elif current_time <= s_half:
@@ -1390,11 +1387,11 @@ def process_punch(cursor, db, emp_id, employee_name, punch_dt=None):
     worked_mins_stored = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) +
-                      datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
+        grace_time = (datetime.datetime.combine(today, cfg.shift_rules().start) +
+                      datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
         if current_time <= grace_time:
             login_status = "Full Day Login"
-        elif current_time <= cfg.SHIFT_HALF:
+        elif current_time <= cfg.shift_rules().half:
             login_status = "Late Login"
         else:
             login_status = "Half Day Login"
@@ -1407,13 +1404,13 @@ def process_punch(cursor, db, emp_id, employee_name, punch_dt=None):
                 "status": login_status, "time": current_time.strftime("%H:%M:%S")}
     elif not logout_time:
         total_m = compute_session_worked_minutes(current_time, today, login_time, last_relogin_stored, worked_mins_stored)
-        if current_time < cfg.SHIFT_HALF:
+        if current_time < cfg.shift_rules().half:
             logout_status = "Half Day Logout"
-        elif current_time < cfg.SHIFT_END:
+        elif current_time < cfg.shift_rules().end:
             logout_status = "Early Logout"
         else:
             logout_status = "Completed"
-        att_type = classify_by_worked_minutes(login_status_stored, total_m, cfg.SHIFT_START, cfg.SHIFT_END)
+        att_type = classify_by_worked_minutes(login_status_stored, total_m, cfg.shift_rules().start, cfg.shift_rules().end)
         cursor.execute(
             "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
