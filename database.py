@@ -534,11 +534,23 @@ def _ensure_pg_schema(raw_conn):
         _log.warning("PostgreSQL schema migration note: %s", e)
 
 
+class DatabaseUnavailable(RuntimeError):
+    """PostgreSQL can't be reached. Raised instead of switching to the local
+    SQLite fallback anywhere but APP_ENV=development; app.py turns it into a
+    503 so the outage is loud, and the next request retries Postgres."""
+
+
+def _sqlite_fallback_allowed():
+    # Exact match, read per call: staging, unset or mistyped environments fail closed.
+    return os.environ.get("APP_ENV", "production") == "development"
+
+
 def _create_pool(retries=1, delay=0.1):
     global _pool
     for attempt in range(1, retries + 1):
+        candidate = None
         try:
-            _pool = psycopg2.pool.ThreadedConnectionPool(
+            candidate = psycopg2.pool.ThreadedConnectionPool(
                 # psycopg2's pool only *keeps* up to `minconn` idle connections on
                 # putconn() -- anything returned past that count is closed outright
                 # (see psycopg2.pool.AbstractConnectionPool._putconn), so minconn
@@ -556,14 +568,30 @@ def _create_pool(retries=1, delay=0.1):
                 **_DB_CONFIG,
             )
             _log.info('"Connected to PostgreSQL (attempt %d)"', attempt)
-            conn = _pool.getconn()
+            conn = candidate.getconn()
             _ensure_pg_schema(conn)
-            _pool.putconn(conn)
+            candidate.putconn(conn)
+            _pool = candidate  # only a pool that actually works is ever installed
             return
         except (psycopg2.Error, Exception) as e:
             _log.warning('"PostgreSQL not ready (attempt %d/%d): %s"', attempt, retries, e)
+            if candidate is not None:
+                try:
+                    candidate.closeall()
+                except Exception as close_exc:
+                    _log.debug("closeall() on a failed pool failed: %s", close_exc)
             if attempt < retries:
                 time.sleep(delay)
+    if not _sqlite_fallback_allowed():
+        # Never serve production traffic from a per-instance SQLite file:
+        # writes would be lost and every tenant would look empty. Fail
+        # loudly instead and retry Postgres on the next request.
+        _pool = None
+        _log.critical(
+            "PostgreSQL unavailable after %d attempt(s) -- refusing to fall back to SQLite "
+            "outside APP_ENV=development", retries,
+        )
+        raise DatabaseUnavailable("PostgreSQL is unavailable")
     _log.error(
         "PostgreSQL unavailable -- falling back to local SQLite (%s). "
         "This is fine for local/demo use, but if this happens in production, "
