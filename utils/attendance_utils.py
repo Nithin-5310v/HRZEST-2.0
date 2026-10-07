@@ -105,6 +105,29 @@ def get_employee_shift(emp_id, cursor):
     return default.start, default.half, default.end, "Default"
 
 
+def classify_login(punch_time, s_start, s_half):
+    """Status of the first punch of the day against the employee's shift
+    (get_employee_shift) and the company's grace minutes. Shared by every
+    check-in path so the same punch is classified the same way whichever
+    device it came from (QA BUG-30)."""
+    grace_end = (datetime.datetime.combine(datetime.date(2000, 1, 1), s_start) +
+                 datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
+    if punch_time <= grace_end:
+        return "Full Day Login"
+    if punch_time <= s_half:
+        return "Late Login"
+    return "Half Day Login"
+
+
+def classify_logout(punch_time, s_half, s_end):
+    """Status of a logout punch against the employee's shift (see classify_login)."""
+    if punch_time < s_half:
+        return "Half Day Logout"
+    if punch_time < s_end:
+        return "Early Logout"
+    return "Completed"
+
+
 def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
     today_d = datetime.date.today()
     shift_mins = max(1, int((
