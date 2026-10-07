@@ -486,6 +486,9 @@ def _resolve_tenant():
     # reuse its lookup instead of querying the master DB a second time.
     if url_slug and url_tenant_db:
         _g.tenant_db = url_tenant_db
+        # Set only by utils/tenant_routing.py's middleware; request headers
+        # reach environ as HTTP_* keys, so a client can't supply this one.
+        # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
         _g.billing_locked = bool(request.environ.get("hrz.billing_locked"))
         session["tenant_db"] = url_tenant_db
         session["tenant_slug"] = url_slug

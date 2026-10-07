@@ -1404,6 +1404,7 @@ def api_settings_toggle_feature():
         return jsonify({"ok": False, "msg": "Unknown feature."}), 400
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    # nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string
     cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))  # nosec B608 -- feature is allowlist-checked above, never interpolated from an unchecked value  # noqa: E501
     db.commit()
     cursor.close()

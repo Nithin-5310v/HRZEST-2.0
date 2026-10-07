@@ -1061,6 +1061,7 @@ def platform_admin_view_document(application_id, doc_kind):
         return redirect(f"/super_admin/applications/{application_id}")
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
+    # nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string
     cur.execute(f"SELECT doc_{doc_kind} FROM tenant_applications WHERE id=%s", (application_id,))  # nosec B608 -- doc_kind is allowlist-checked against _APPLICATION_DOC_KINDS above, never interpolated from an unchecked value  # noqa: E501
     row = cur.fetchone()
     cur.close()
