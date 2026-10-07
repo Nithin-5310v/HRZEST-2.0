@@ -1,0 +1,4 @@
+# Regenerable, bulky audit artefacts (see qa_audit/tools/):
+baseline/template_js/
+baseline/jscpd/
+__pycache__/

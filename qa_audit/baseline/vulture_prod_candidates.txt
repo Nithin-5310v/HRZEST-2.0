@@ -1,0 +1,5 @@
+utils\ai_resume_parser.py:41: parse_resume
+utils\ai_resume_parser.py:97: match_candidate_job
+utils\helpers.py:865: invalidate_pending_counts_cache
+utils\razorpay_utils.py:75: webhook_configured
+utils\totp.py:68: clear_totp_cache_for_tests

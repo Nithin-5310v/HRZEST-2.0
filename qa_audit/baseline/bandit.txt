@@ -1,0 +1,516 @@
+Run started:2026-10-06 10:21:42.894806+00:00
+
+Test results:
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'employee_password_auth'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: blueprints\admin_views.py:67:4
+66	    "location": "location_enabled",
+67	    "password": "employee_password_auth",
+68	}
+69	_TOGGLE_LABEL_MAP = {
+70	    "fingerprint": "Fingerprint / Biometric",
+71	    "qr": "QR Code",
+72	    "face": "Face Recognition",
+73	    "location": "Location Verification",
+74	    "password": "Password Login",
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'Password Login'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: blueprints\admin_views.py:74:4
+73	    "location": "Location Verification",
+74	    "password": "Password Login",
+75	}
+76	
+77	
+78	@admin_views_bp.route("/admin")
+79	@admin_required
+80	def admin():
+81	    db = get_db_connection()
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: blueprints\admin_views.py:96:12
+95	    cursor.execute(  # nosec B608
+96	        f"""
+97	        SELECT
+98	            (SELECT COUNT(*) FROM employees e WHERE 1=1 {_co_filter}),
+99	            (SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND login_time IS NOT NULL {_co_sub}),
+100	            (SELECT COUNT(DISTINCT employee_id) FROM attendance WHERE date=%s AND status='Late Login' {_co_sub}),
+101	            (SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}),
+102	            (SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}),
+103	            (SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub})
+104	        """,
+105	        _co_args + (today,) + _co_args + (today,) + _co_args + _co_args + _co_args + _co_args
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'True'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: blueprints\admin_views.py:807:31
+806	                               "location_enabled": fr["geo_enabled"],
+807	                               "employee_password_auth": True,
+808	                           },
+809	                           features=features,
+810	                           )
+811	
+812	
+813	# ── Email Settings 2FA gate ────────────────────────────────────────────────────
+814	# The SMTP form used to be rendered server-side with the (encrypted) password
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '********'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: blueprints\admin_views.py:997:32
+996	    # the "new" password on every unrelated edit, corrupting it.
+997	    if password and password != "********":
+998	        encrypted_password = encrypt_pii(password)
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'None'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: blueprints\admin_views.py:1118:16
+1117	    _cfs_map = {"face_enabled": "face_auth_enabled", "location_enabled": "geo_enabled",
+1118	                "employee_password_auth": None}  # password auth stays global
+1119	    cfs_col = _cfs_map.get(column, column)
+1120	    if active_cid and cfs_col:
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: blueprints\attendance.py:853:16
+852	            cursor.execute(
+853	                "INSERT INTO attendance (employee_id, date, login_time, logout_time, "
+854	                f"attendance_type, status, logout_status) VALUES {placeholders} "
+855	                "ON CONFLICT (employee_id, date) DO UPDATE SET "
+856	                "login_time=EXCLUDED.login_time, logout_time=EXCLUDED.logout_time, "
+857	                "attendance_type=EXCLUDED.attendance_type, status='Manual', logout_status='Manual'",
+858	                params
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: blueprints\attendance.py:927:10
+926	    cursor.execute(  # nosec B608
+927	        f"SELECT employee_id, name FROM employees WHERE 1=1 {_co} {_hr} ORDER BY name",
+928	        _co_args + _hr_args)
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: blueprints\auth.py:732:10
+731	    cursor.execute(
+732	        f"SELECT {id_column} FROM {table} WHERE reset_token=%s AND reset_token_expiry > %s",
+733	        (token_hash, datetime.datetime.utcnow())
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: blueprints\employees.py:639:25
+638	        _assignee_sub = "employee_id IN (SELECT employee_id FROM employees WHERE assigned_hr_username=%s)"
+639	        cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' AND {_assignee_sub}",
+640	                       (current_hr_username,))  # nosec B608 -- _assignee_sub is a hardcoded literal, not user input
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: blueprints\employees.py:642:25
+641	        pending_leaves = cursor.fetchone()[0]
+642	        cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' AND {_assignee_sub}",
+643	                       (current_hr_username,))  # nosec B608
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: blueprints\employees.py:645:25
+644	        pending_resignations = cursor.fetchone()[0]
+645	        cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') AND {_assignee_sub}",
+646	                       (current_hr_username,))  # nosec B608
+
+--------------------------------------------------
+>> Issue: [B107:hardcoded_password_default] Possible hardcoded password: ''
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b107_hardcoded_password_default.html
+   Location: blueprints\org.py:299:0
+298	
+299	def send_portal_ready_email(admin_email, company_name, admin_username, portal_url, admin_password="", checkin_url=None):
+300	    """Welcome email with the tenant's dedicated portal link and login credentials.
+301	
+302	    checkin_url is the company's own public attendance-scanner page
+303	    (blueprints/core.py's checkin_page()) -- included so whoever registered
+304	    the company can immediately hand it to employees / post it at the
+305	    office without first finding it themselves in Settings."""
+306	    try:
+307	        email_cfg = get_email_config()
+308	        if not email_cfg:
+309	            return False
+310	
+311	        creds_block = ""
+312	        if admin_password:
+313	            creds_block = f"""
+314	            <div style="background:#f1f5f9;border-left:4px solid #3b82f6;padding:14px;border-radius:6px;margin:18px 0;font-size:14px;color:#334155;">
+315	              <div style="font-weight:700;margin-bottom:6px;color:#1e293b;">🔑 Login Credentials</div>
+316	              <div><strong>Username:</strong> {admin_username}</div>
+317	              <div><strong>Password:</strong> {admin_password}</div>
+318	            </div>
+319	            """
+320	        else:
+321	            creds_block = f"""
+322	            <div style="background:#f1f5f9;border-left:4px solid #3b82f6;padding:14px;border-radius:6px;margin:18px 0;font-size:14px;color:#334155;">
+323	              <div><strong>Admin Username:</strong> {admin_username}</div>
+324	            </div>
+325	            """
+326	
+327	        checkin_block = ""
+328	        if checkin_url:
+329	            checkin_block = f"""
+330	            <div style="background:#f0fdf4;border-left:4px solid #16a34a;padding:14px;border-radius:6px;margin:18px 0;font-size:13px;color:#166534;">
+331	              <div style="font-weight:700;margin-bottom:6px;">&#128205; Employee Check-In Page</div>
+332	              <div>Share this link with your employees, or post it as a QR code at the office -- no login required to mark attendance:</div>
+333	              <div style="margin-top:8px;"><a href="{checkin_url}" style="color:#15803d;font-weight:700;">{checkin_url}</a></div>
+334	            </div>
+335	            """
+336	
+337	        html_body = f"""
+338	<div style="font-family:Segoe UI,sans-serif;max-width:540px;margin:auto;background:#ffffff;border-radius:16px;
+339	     overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+340	  <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);padding:28px;color:white;text-align:center;">
+341	    <div style="font-size:24px;font-weight:800;">🏢 {company_name}</div>
+342	    <div style="font-size:14px;opacity:0.85;margin-top:6px;">Your Dedicated HRzest.com Portal is Ready</div>
+343	  </div>
+344	  <div style="padding:28px;">
+345	    <p style="font-size:15px;color:#334155;margin-bottom:16px;line-height:1.6;">
+346	      Welcome to HRzest.com! Your company workspace has been fully configured and set up by our onboarding team.
+347	    </p>
+348	
+349	    {creds_block}
+350	
+351	    <a href="{portal_url}" style="display:block;text-align:center;padding:16px 28px;
+352	       background:linear-gradient(135deg,#0284c7,#2563eb);color:white;border-radius:12px;text-decoration:none;
+353	       font-size:16px;font-weight:700;margin:24px 0;box-shadow:0 6px 20px rgba(37,99,235,0.35);">
+354	      🚀 Launch Your Branded Dashboard
+355	    </a>
+356	
+357	    <p style="font-size:12px;color:#94a3b8;text-align:center;">Or copy this link to your browser:
+358	      <br><a href="{portal_url}" style="color:#2563eb;">{portal_url}</a></p>
+359	
+360	    {checkin_block}
+361	  </div>
+362	</div>"""
+363	        send_email_async(admin_email, f"Your HRzest.com Portal is Ready -- {company_name}", html_body, email_cfg)
+364	        return True
+365	    except Exception as exc:
+366	        app_log.error("send_portal_ready_email failed: %s", exc)
+367	        return False
+368	
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: '********'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: blueprints\payroll.py:412:32
+411	    # would silently corrupt the real password into unusable garbage.
+412	    if password and password != "********":
+413	        encrypted_password = encrypt_pii(password)
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: blueprints\payroll.py:1458:10
+1457	    cursor.execute(  # nosec B608
+1458	        f"SELECT employee_id, name, role, COALESCE(phone,''), COALESCE(email,'') FROM employees WHERE 1=1 {_hr} ORDER BY name",
+1459	        _hr_args)
+
+--------------------------------------------------
+>> Issue: [B406:blacklist] Using escape to parse untrusted XML data is known to be vulnerable to XML attacks. Replace escape with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b406-import-xml-sax
+   Location: blueprints\seo.py:17:0
+16	import os
+17	from xml.sax.saxutils import escape
+18	
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\attendance_utils.py:65:21
+64	    cols = "name, work_mode, work_lat, work_lon, face_image" if include_face else "name, work_mode, work_lat, work_lon"
+65	    cursor.execute(f"SELECT {cols} FROM employees WHERE employee_id=%s", (emp_id,))
+66	    return cursor.fetchone()
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\auth.py:79:21
+78	    cursor = db.cursor(buffered=True)
+79	    cursor.execute(f"SELECT password FROM {table} WHERE {id_column}=%s", (id_value,))
+80	    row = cursor.fetchone()
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\auth.py:86:10
+85	    cursor.execute(
+86	        f"UPDATE {table} SET password=%s WHERE {id_column}=%s",
+87	        (generate_password_hash(new_pw), id_value)
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'NOT EXISTS (SELECT 1 FROM admin_users pa WHERE pa.username=t.identity AND pa.password_changed_at > t.created_at) AND NOT EXISTS (SELECT 1 FROM employees pe WHERE pe.employee_id=t.identity AND pe.password_changed_at > t.created_at)'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: utils\auth.py:652:4
+651	_TOKEN_NOT_STALE_SQL = (
+652	    "NOT EXISTS (SELECT 1 FROM admin_users pa WHERE pa.username=t.identity "
+653	    "AND pa.password_changed_at > t.created_at) "
+654	    "AND NOT EXISTS (SELECT 1 FROM employees pe WHERE pe.employee_id=t.identity "
+655	    "AND pe.password_changed_at > t.created_at)"
+656	)
+657	
+658	
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html
+   Location: utils\helpers.py:1138:12
+1137	                db.close()
+1138	            except Exception:
+1139	                pass
+1140	
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'True'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: utils\helpers.py:1226:30
+1225	    "fingerprint_enabled": False, "qr_enabled": True, "face_enabled": True,
+1226	    "location_enabled": True, "employee_password_auth": True,
+1227	    "geo_radius": 100, "office_lat": None, "office_lon": None,
+1228	}
+1229	
+1230	
+1231	def get_auth_config():
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'https://oauth2.googleapis.com/token'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: utils\oauth_client.py:51:8
+50	        "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+51	        "token_url": "https://oauth2.googleapis.com/token",
+52	        "userinfo_url": "https://openidconnect.googleapis.com/v1/userinfo",
+53	        "scope": "openid email profile",
+54	        "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
+55	        "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
+56	    },
+57	    "microsoft": {
+58	        # MS_OAUTH_TENANT (.env) selects which Microsoft accounts can sign
+59	        # in: "common" (default) = personal + work/school accounts,
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'GOOGLE_OAUTH_CLIENT_SECRET'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: utils\oauth_client.py:55:8
+54	        "client_id_env": "GOOGLE_OAUTH_CLIENT_ID",
+55	        "client_secret_env": "GOOGLE_OAUTH_CLIENT_SECRET",
+56	    },
+57	    "microsoft": {
+58	        # MS_OAUTH_TENANT (.env) selects which Microsoft accounts can sign
+59	        # in: "common" (default) = personal + work/school accounts,
+60	        # "organizations" = work/school only, "consumers" = personal only,
+61	        # or a specific Azure AD tenant ID/domain to restrict to one org.
+62	        "authorize_url": "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize",
+63	        "token_url": "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: utils\oauth_client.py:63:8
+62	        "authorize_url": "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize",
+63	        "token_url": "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+64	        "userinfo_url": "https://graph.microsoft.com/oidc/userinfo",
+65	        "scope": "openid email profile",
+66	        "client_id_env": "MICROSOFT_OAUTH_CLIENT_ID",
+67	        "client_secret_env": "MICROSOFT_OAUTH_CLIENT_SECRET",
+68	    },
+69	}
+70	
+71	
+72	class OAuthError(Exception):
+73	    """User-facing OAuth failure -- str(exc) is safe to flash() as-is."""
+74	
+75	
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'MICROSOFT_OAUTH_CLIENT_SECRET'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html
+   Location: utils\oauth_client.py:67:8
+66	        "client_id_env": "MICROSOFT_OAUTH_CLIENT_ID",
+67	        "client_secret_env": "MICROSOFT_OAUTH_CLIENT_SECRET",
+68	    },
+69	}
+70	
+71	
+72	class OAuthError(Exception):
+73	    """User-facing OAuth failure -- str(exc) is safe to flash() as-is."""
+74	
+75	
+76	def provider_configured(provider):
+77	    cfg = PROVIDERS.get(provider)
+78	    if not cfg:
+79	        return False
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\payment_history.py:84:16
+83	            cur.execute(
+84	                "SELECT id, company_name, subdomain, employee_count, amount_paise, status, "
+85	                "razorpay_order_id, razorpay_payment_id, created_at, paid_at, "
+86	                "admin_username, admin_email "
+87	                "FROM payment_orders WHERE tenant_id=%s" + date_clause + " ORDER BY created_at DESC" + cap_clause,
+88	                (tenant_id, *date_params, *cap_param)
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\payment_history.py:92:16
+91	            cur.execute(
+92	                "SELECT id, company_name, subdomain, employee_count, amount_paise, status, "
+93	                "razorpay_order_id, razorpay_payment_id, created_at, paid_at, "
+94	                "admin_username, admin_email "
+95	                "FROM payment_orders WHERE 1=1" + date_clause + " ORDER BY created_at DESC" + cap_clause,
+96	                tuple(date_params) + cap_param
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\payment_history.py:116:16
+115	            cur.execute(
+116	                "SELECT s.id, t.company_name, t.subdomain, s.seats_purchased, s.amount_paise, s.status, "
+117	                "s.razorpay_order_id, s.razorpay_payment_id, s.created_at, s.paid_at, s.requested_by, "
+118	                "s.company_name AS fallback_company_name "
+119	                "FROM seat_topup_orders s LEFT JOIN tenants t ON t.db_name = s.tenant_schema "
+120	                "WHERE s.tenant_schema=%s" + date_clause.replace("created_at", "s.created_at") +
+121	                " ORDER BY s.created_at DESC" + cap_clause,
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\payment_history.py:126:16
+125	            cur.execute(
+126	                "SELECT s.id, t.company_name, t.subdomain, s.seats_purchased, s.amount_paise, s.status, "
+127	                "s.razorpay_order_id, s.razorpay_payment_id, s.created_at, s.paid_at, s.requested_by, "
+128	                "s.company_name AS fallback_company_name "
+129	                "FROM seat_topup_orders s LEFT JOIN tenants t ON t.db_name = s.tenant_schema "
+130	                "WHERE 1=1" + date_clause.replace("created_at", "s.created_at") + " ORDER BY s.created_at DESC" + cap_clause,
+131	                tuple(date_params) + cap_param
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\payment_history.py:151:16
+150	            cur.execute(
+151	                "SELECT m.id, t.company_name, t.subdomain, m.employee_count, m.amount_paise, m.status, "
+152	                "m.razorpay_subscription_id, m.razorpay_payment_id, m.created_at, m.company_name AS fallback_company_name "
+153	                "FROM monthly_invoices m LEFT JOIN tenants t ON t.db_name = m.tenant_schema "
+154	                "WHERE m.tenant_schema=%s" + date_clause.replace("created_at", "m.created_at") +
+155	                " ORDER BY m.created_at DESC" + cap_clause,
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\payment_history.py:160:16
+159	            cur.execute(
+160	                "SELECT m.id, t.company_name, t.subdomain, m.employee_count, m.amount_paise, m.status, "
+161	                "m.razorpay_subscription_id, m.razorpay_payment_id, m.created_at, m.company_name AS fallback_company_name "
+162	                "FROM monthly_invoices m LEFT JOIN tenants t ON t.db_name = m.tenant_schema "
+163	                "WHERE 1=1" + date_clause.replace("created_at", "m.created_at") + " ORDER BY m.created_at DESC" + cap_clause,
+164	                tuple(date_params) + cap_param
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html
+   Location: utils\plan_limits.py:95:22
+94	        cur = conn.cursor(buffered=True)
+95	        cur.execute(f"SELECT {column} FROM platform_costs WHERE id=1")
+96	        row = cur.fetchone()
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 29217
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 113
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 15
+		Medium: 18
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 31
+		High: 2
+Files skipped (0):

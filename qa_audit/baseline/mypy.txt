@@ -1,0 +1,46 @@
+database.py:675: error: Item "None" of "Any | None" has no attribute "getconn"  [union-attr]
+database.py:683: error: Item "None" of "Any | None" has no attribute "putconn"  [union-attr]
+utils\login_otp.py:52: error: Argument 1 to "new" has incompatible type "bytes | None"; expected "bytes | bytearray"  [arg-type]
+extensions.py:85: error: Incompatible types in assignment (expression has type "None", variable has type "str")  [assignment]
+utils\helpers.py:88: error: Need type annotation for "_STATIC_ASSET_CACHE" (hint: "_STATIC_ASSET_CACHE: dict[<type>, <type>] = ...")  [var-annotated]
+utils\helpers.py:652: error: Need type annotation for "_co_cache" (hint: "_co_cache: dict[<type>, <type>] = ...")  [var-annotated]
+utils\helpers.py:653: error: Need type annotation for "_auth_cache" (hint: "_auth_cache: dict[<type>, <type>] = ...")  [var-annotated]
+utils\helpers.py:859: error: Need type annotation for "_pending_counts_cache" (hint: "_pending_counts_cache: dict[<type>, <type>] = ...")  [var-annotated]
+utils\helpers.py:1016: error: Incompatible return value type (got "None", expected "str")  [return-value]
+utils\helpers.py:1028: error: Incompatible return value type (got "None", expected "str")  [return-value]
+utils\helpers.py:1034: error: Incompatible return value type (got "None", expected "str")  [return-value]
+utils\helpers.py:1112: error: Incompatible return value type (got "None", expected "str")  [return-value]
+utils\helpers.py:1132: error: Incompatible return value type (got "None", expected "str")  [return-value]
+utils\helpers.py:1137: error: Item "None" of "Any | None" has no attribute "close"  [union-attr]
+utils\helpers.py:1151: error: Incompatible return value type (got "None", expected "str")  [return-value]
+utils\helpers.py:1163: error: Need type annotation for "_companies_cache" (hint: "_companies_cache: dict[<type>, <type>] = ...")  [var-annotated]
+utils\helpers.py:1164: error: Need type annotation for "_onboarding_cache" (hint: "_onboarding_cache: dict[<type>, <type>] = ...")  [var-annotated]
+utils\alerts.py:225: error: Need type annotation for "_email_last_sent" (hint: "_email_last_sent: dict[<type>, <type>] = ...")  [var-annotated]
+utils\push_utils.py:34: error: Incompatible default for parameter "platform" (default has type "None", parameter has type "str")  [assignment]
+utils\push_utils.py:34: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+utils\push_utils.py:34: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+utils\webauthn_utils.py:42: error: Incompatible types in assignment (expression has type "None", variable has type Module)  [assignment]
+utils\waf.py:237: error: Need type annotation for "_breach_log"  [var-annotated]
+utils\totp.py:28: error: Need type annotation for "_totp_enabled_cache" (hint: "_totp_enabled_cache: dict[<type>, <type>] = ...")  [var-annotated]
+utils\razorpay_utils.py:90: error: Incompatible default for parameter "body" (default has type "None", parameter has type "dict[Any, Any]")  [assignment]
+utils\razorpay_utils.py:90: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+utils\razorpay_utils.py:90: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+utils\plan_limits.py:55: error: Unsupported operand types for - ("float" and "None")  [operator]
+utils\plan_limits.py:55: note: Right operand is of type "float | None"
+utils\plan_limits.py:56: error: Incompatible return value type (got "float", expected "int")  [return-value]
+utils\plan_limits.py:89: error: Unsupported operand types for - ("float" and "None")  [operator]
+utils\plan_limits.py:89: note: Right operand is of type "float | None"
+utils\plan_limits.py:90: error: Incompatible return value type (got "float", expected "int")  [return-value]
+utils\ai_assistant.py:434: error: Incompatible default for parameter "history" (default has type "None", parameter has type "list[Any]")  [assignment]
+utils\ai_assistant.py:434: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+utils\ai_assistant.py:434: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+utils\ai_assistant.py:434: error: Incompatible default for parameter "emp_id" (default has type "None", parameter has type "str")  [assignment]
+blueprints\webhooks.py:34: error: Need type annotation for "_HANDLERS" (hint: "_HANDLERS: dict[<type>, <type>] = ...")  [var-annotated]
+blueprints\platform_admin.py:50: error: Need type annotation for "_employee_count_cache" (hint: "_employee_count_cache: dict[<type>, <type>] = ...")  [var-annotated]
+app.py:9: error: Item "TextIO" of "TextIO | Any" has no attribute "reconfigure"  [union-attr]
+app.py:10: error: Item "TextIO" of "TextIO | Any" has no attribute "reconfigure"  [union-attr]
+app.py:1012: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+app.py:1032: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+app.py:1276: error: Need type annotation for "_error_alert_cache" (hint: "_error_alert_cache: dict[<type>, <type>] = ...")  [var-annotated]
+app.py:2229: error: Cannot assign to a method  [method-assign]
+app.py:2242: error: Cannot assign to a method  [method-assign]
