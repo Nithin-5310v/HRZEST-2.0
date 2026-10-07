@@ -12,9 +12,10 @@ real att_master.tenants row (via tenant_id), which doesn't exist for
 each test that needs it, following the exact pattern tests/test_platform_admin.py's
 TestCompanyProfile.crm_tenant fixture already uses for its own tenant.
 """
+import os
 import pytest
 
-TENANT_SCHEMA = "att_test"
+TENANT_SCHEMA = os.environ["DB_NAME"]  # the suite's default tenant schema (see conftest)
 
 
 def _admin_session(client, username, role="admin"):
