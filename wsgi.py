@@ -102,6 +102,14 @@ def _with_heartbeat(job_id, fn):
     return _wrapped
 
 
+def _scheduled_job(job_id, fn):
+    # Every gunicorn worker runs this scheduler; once_per_fire makes only
+    # one of them actually run each nightly job (QA SCALE-01). It wraps the
+    # heartbeat, so only the worker that ran the job pings.
+    from utils.job_runs import once_per_fire
+    return once_per_fire(job_id, _with_heartbeat(job_id, fn))
+
+
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
 except ImportError:
@@ -130,49 +138,49 @@ else:
         try:
             _scheduler = BackgroundScheduler(daemon=True)
             _scheduler.add_job(
-                func=_with_heartbeat("daily_attendance_report", generate_and_send_daily_report),
+                func=_scheduled_job("daily_attendance_report", generate_and_send_daily_report),
                 trigger="cron",
                 hour=23, minute=59,
                 id="daily_attendance_report",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("auto_debit_sync_and_bill", sync_and_bill_auto_debit),
+                func=_scheduled_job("auto_debit_sync_and_bill", sync_and_bill_auto_debit),
                 trigger="cron",
                 hour=2, minute=0,
                 id="auto_debit_sync_and_bill",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("reconcile_billing_records", reconcile_billing_records),
+                func=_scheduled_job("reconcile_billing_records", reconcile_billing_records),
                 trigger="cron",
                 hour=2, minute=30,
                 id="reconcile_billing_records",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("tenant_billing_dunning_check", check_tenant_billing),
+                func=_scheduled_job("tenant_billing_dunning_check", check_tenant_billing),
                 trigger="cron",
                 hour=3, minute=0,
                 id="tenant_billing_dunning_check",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("salary_disbursement_prep", prepare_pending_disbursements),
+                func=_scheduled_job("salary_disbursement_prep", prepare_pending_disbursements),
                 trigger="cron",
                 hour=4, minute=0,
                 id="salary_disbursement_prep",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("trial_expiration_check", check_trial_expirations),
+                func=_scheduled_job("trial_expiration_check", check_trial_expirations),
                 trigger="cron",
                 hour=1, minute=0,
                 id="trial_expiration_check",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("trial_ending_soon_check", check_trial_ending_soon),
+                func=_scheduled_job("trial_ending_soon_check", check_trial_ending_soon),
                 trigger="cron",
                 hour=0, minute=30,
                 id="trial_ending_soon_check",
