@@ -1,7 +1,7 @@
 # HRZEST — QA & Architecture Audit
 
 Branch: `qa-audit-fixes` · Started 2026-10-06 · Status: **Phase 4 in progress.** On 2026-10-07 qa-audit-fixes was fast-forwarded onto `security-fixes` (c689aae; that session's final run: 2,680 passed / 0 failed / 7 skipped). The previous uncommitted working tree is kept as `stash@{0}`, byte-identical to commit 31d8f4f.
-The coverage baseline is **pending**. The local test database (`att_test`) is shared with another session, which has it until about 19:00. Coverage numbers will be added here when that run finishes.
+Coverage baseline (2026-10-07, at 0d08d81, 4 xdist workers on isolated databases): **82%** line coverage; full suite 2,688 passed / 0 failed / 7 skipped in 47 min.
 
 ## 0. Owner decisions (2026-10-06)
 
@@ -36,7 +36,7 @@ Raw tool output is in `qa_audit/baseline/`. The helper scripts I wrote for this 
 | Tool | Result (before) | Output |
 |---|---|---|
 | pytest (last full run, 2026-10-06) | 2,668 collected; **2,645 passed / 16 failed / 7 skipped**. 14 of the failures come from real Razorpay calls (TEST-01); 2 were caused by my own test fixture and were fixed and re-verified (405/405 re-run) | `tests/` |
-| Coverage % | **pending** (shared DB busy; see header) | — |
+| Coverage % (pytest-cov, full suite at 0d08d81, `-n 4`) | **82%** (19,702 statements, 3,541 missed); 2,688 passed / 0 failed / 7 skipped in 47 min. Lowest: task_queue 0%, ai_client 36%, razorpay_utils 42%, document_verification 49%, database.py 56% (see TEST-04) | `coverage_report.txt`, `pytest_cov.txt` (`coverage.json` is regenerable and not committed) |
 | ruff (0.16.10 defaults; no project config) | 1,134 findings (390 auto-fixable) | `ruff.txt`, `ruff_stats.txt` |
 | pylint blueprints utils | 2,597 messages, **score 8.45/10** | `pylint.txt` |
 | mypy blueprints utils (`--ignore-missing-imports`) | 46 lines: 20 real type errors, 26 annotation notes | `mypy.txt` |
@@ -76,6 +76,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | SCALE-06 | Scalability / correctness | High | utils/email_utils.py:218-260 (`_drain_queue_for_schema`), started per worker in wsgi.py | Every gunicorn worker runs the email-queue drainer. It SELECTs 10 pending rows with no lock and marks each `sending` only just before sending it; the UPDATE has no `AND status='pending'` | **Duplicate emails** (payslips, blasts, reports, codes) whenever two workers overlap during a batch; rows stranded in `sending` after a crash are never retried | Claim atomically: `UPDATE … SET status='sending' WHERE id IN (SELECT id … FOR UPDATE SKIP LOCKED LIMIT 10) RETURNING …`; requeue `sending` rows older than N minutes | S | Open |
 | SCALE-01 | Scalability | High | wsgi.py:134-190, gunicorn.conf.py:9 | APScheduler starts in **every** gunicorn worker (up to 8, no `preload_app`, no lock) | Every nightly job runs N times: daily report emailed N×; trial reminders and dunning race (check-then-act). Disbursement runs and invoices are protected only by DB unique constraints, which make the extra runs error out | Elect one scheduler with `pg_try_advisory_lock`, or a `RUN_SCHEDULER` flag in a single process | M | Open |
 | SCALE-02 | Scalability | High | wsgi.py:46-58, gunicorn.conf.py:20 | Every worker boot runs `init_master_db` + `init_db` + migrations for **every tenant schema**, including recycles every ~1,000 requests (`max_requests`) | Boot time grows with tenant count. `ALTER TABLE … ADD COLUMN IF NOT EXISTS` takes an ACCESS EXCLUSIVE lock even when the column exists, on live tables during traffic (lock impact measured in NV-02) | Run migrations once per deploy (entrypoint step) behind an advisory lock with a schema-version check; workers skip | M | Open |
+| SCALE-09 | Scalability / resilience | High | database.py:617-628 (`_borrow_connection`) | Any `getconn()` failure, including `PoolError: connection pool exhausted` when all `DB_POOL_MAX_CONN` (20) connections are legitimately in use, rebuilds the **whole pool** (5+ new connections) and never closes the old one; its checked-out connections still return to it | A load spike multiplies the connection count instead of queueing; repeated rebuilds reach Postgres `max_connections` ("too many clients"), and since BUG-02 that is a 503 for every request on that worker. Measured in the load test | Rebuild only on a broken pool (`OperationalError`/`InterfaceError`); on exhaustion wait briefly for a free connection, then return 503; close the replaced pool's idle connections | S | Open |
 | BUG-30 | Correctness / duplication | High | blueprints/attendance.py:1290 (`/attendance`), :1393 (`process_punch` ← `/api/attendance/checkin`); blueprints/employee_portal.py:1027 (`/api/employee/checkin`), :1160 (`/api/employee/sync_punches`), :1363 (`/api/employee/qr-face-checkin`) | Late/half-day/logout classification is copy-pasted in 5 places; only the web kiosk honours the employee's **assigned shift**, and the other 4 use the company default | The same employee is stored as "Late" or "Full Day" depending on which device they checked in from; feeds payroll | One shared, per-company, shift-aware classifier used by all 5 endpoints (fixed together with BUG-01) | M | **Fixed** (test: tests/test_qa_shift_aware_checkin.py): `classify_login`/`classify_logout` in utils/attendance_utils.py, fed by `get_employee_shift`, used by all 5 paths. Full-suite confirmation pending |
 | SEC-07 | Security (tenant isolation) | High | database.py:107 (`SET search_path TO "<tenant>", public`) | A table missing from a tenant schema **silently resolves to the shared `public` table**, which holds the default/original company's data and is the target of slug-less requests | Cross-company reads/writes for any tenant lacking a table (the code itself notes older tenants missed tables added only to core_tables). Whether it happened is NV-16 | Option A: at startup and provisioning, verify every tenant has every table and refuse to route otherwise. Option B: drop `public` from the tenant `search_path` (needs a check that no shared function/extension lives in `public`). **Risky, so options to be confirmed with the owner before fixing** | M | Owner input |
 | BUG-01 | Correctness (multi-tenant) | High | utils/config.py:15-60 (45 uses: employee_portal 18, attendance 8, salary_utils 6, admin_views 5, payroll 2, attendance_utils 2, leave 1) | Shift times and payroll rules (`SHIFT_*`, `GRACE_MINUTES`, `LATE_DEDUCTION_RATE`, `HALF_DAY_RATE`, `HOLIDAY_PAY`, `LEAVE_PAY`) are **process-wide globals**, loaded from the default schema at import and overwritten by whichever tenant last saved settings (`admin_views.py:1099,1442`, `attendance.py:255`) | One tenant's shift and deduction rates decide another tenant's late/half-day marks and salary deductions; different workers disagree | Per-tenant cached accessors (reuse `_cache_get`/`_tenant_cache_key` like `get_company_settings`); replace the `cfg.*` reads; remove the globals | L | **Fixed** (test: tests/test_qa_tenant_rules.py): `cfg.shift_rules()`/`cfg.salary_rules()` read the current company's cached settings; saves invalidate the cache; startup loads removed. Full-suite confirmation pending |
@@ -103,6 +104,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-05 | Correctness / duplication | Medium | blueprints/employee_portal.py:659-711 | The portal's "last 3 months payslip" summary re-implements payroll: late days paid in full, half day fixed at 50%, paid holidays counted absent, approved leave requests ignored | Employees see a net pay that differs from their real payslip; 9 extra queries per load | Reuse `compute_salary_entry()` (the payslip's own function) | M | Open |
 | BUG-07 | Correctness | Medium | blueprints/leave.py (request_leave) | Leave rows are inserted for Sundays and holidays, and nothing checks for duplicates or overlaps | Leave day counts include non-working days; the same date can be requested twice (balance effect: NV-05) | Skip non-working days; reject overlaps (unique `(employee_id, leave_date)` or a pre-check) | M | Open |
 | TEST-02 | Tests | Medium | tests/conftest.py:17 | The test DB name is hard-coded (`att_test`), so runs can't be parallel or isolated per session; the full suite takes ~100 min | Slow feedback; two sessions collided today | Read the name from an env var; per-worker DBs with pytest-xdist | M | **Fixed** in 0d08d81 (test: tests/test_test_infrastructure.py); full-suite confirmation pending |
+| TEST-04 | Tests | Medium | qa_audit/baseline/coverage_report.txt | Coverage is 82% overall, but the riskiest modules are the least covered: `database.py` 56% (pool rebuild/failover), `utils/razorpay_utils.py` 42%, `utils/document_verification.py` 49% (claim worker), `utils/task_queue.py` 0%, `utils/email_utils.py` 72% (queue drainer), `blueprints/disbursement.py` 73% | Regressions in payments, payouts, background workers and DB failover go unnoticed | Add tests alongside the fixes for SCALE-06/07/09 and BUG-02; payment/payout paths in demo mode | M | Open |
 | CONFIG-03 | Config | Medium | requirements.txt, Containerfile:40-41 | All Python dependencies are `>=` floors with no lock file; the runtime stage runs an unpinned `pip install --upgrade wheel jaraco.context` | Non-reproducible builds; a new release can break production | pip-tools lock (`requirements.lock`) used by Containerfile and CI | M | Open |
 | SCALE-07 | Scalability / correctness | Medium | utils/document_verification.py:294-307 (`_document_verification_worker`) | Same claim race as SCALE-06 for KYC verification jobs (`verification_job_status`) | The same application is verified by several workers at once: duplicate AI/OCR calls (cost) and duplicate applicant emails; stuck `processing` rows | Same `FOR UPDATE SKIP LOCKED` claim plus stale-claim recovery | S | Open |
 | SCALE-04 | Scalability | Medium | utils/helpers.py:652-653, 859, 1163-1164; utils/totp.py:28; blueprints/platform_admin.py:50 | In-memory caches are per worker; only settings/auth use Redis, and only when it's configured | Settings changes and badges take up to the TTL to reach other workers; behaviour differs by worker | Route the remaining caches through the existing `_cache_get`/Redis path | M | Open |
@@ -206,7 +208,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | NV-09 | Security | Medium | SEC-01 | Are production images ever built from a working copy rather than a clean clone? | Your input / `deploy.sh` check |
 | NV-10 | Correctness | Low | utils/salary_utils.py:263-299 | Money computed in `float` with `round(…, 2)`; what is the payroll rounding policy (paise vs rupee)? | Your input |
 | NV-11 | Correctness | Medium | utils/salary_utils.py:269, employee_portal.py:684 | `"Present"` attendance type is paid as a **half day**; intended? | Your input |
-| NV-12 | Tests | — | coverage | Untested critical paths | Coverage run (pending shared DB) |
+| NV-12 | Tests | — | coverage | Untested critical paths | **Done** (coverage run 2026-10-07) → confirmed as TEST-04 |
 | NV-13 | Frontend | — | templates | JS console errors and broken links | Headless browser crawl (`tests_e2e`/Playwright) |
 | NV-14 | Dependencies | Medium | mobile (Expo/Jest/Metro chains, ~60 advisories) | No non-breaking fix available (npm suggests downgrades) | Track upstream releases; upgrade Expo SDK when fixed |
 | NV-15 | Security | Medium | BUG-02 | Can the setup wizard be completed on a worker that has fallen back to SQLite? | Test after the BUG-02 fix (should become impossible) |
@@ -219,8 +221,8 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | Category | High | Medium | Low | Total |
 |---|---|---|---|---|
 | BUG (correctness) | 3 | 13 | 17 | 33 |
-| SCALE | 4 | 3 | 0 | 7 |
-| TEST | 1 | 2 | 0 | 3 |
+| SCALE | 5 | 3 | 0 | 8 |
+| TEST | 1 | 3 | 0 | 4 |
 | PERF | 0 | 2 | 5 | 7 |
 | SEC | 1 | 4 | 4 | 9 |
 | CONFIG | 0 | 2 | 3 | 5 |
@@ -233,7 +235,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | JS / MOB (frontend & mobile lint) | 0 | 0 | 4 | 4 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **9** | **28** | **83** | **120** |
+| **Total** | **10** | **29** | **83** | **122** |
 
 Plus 18 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 
@@ -245,9 +247,9 @@ Starts only after `security-fixes` is finished and `qa-audit-fixes` is rebased o
 |---|---|
 | 1 · Hotfixes | **BUG-02** (no SQLite fallback outside development; fail loudly) → **BUG-01 + BUG-30** (per-company, shift-aware classification and payroll rules) |
 | 2 · Test infrastructure | **TEST-02** (configurable/parallel test DB) → TEST-01 (non-Razorpay external keys) → TEST-03 (cache resets) |
-| 3 · Remaining High | SCALE-08 (SSE thread hold) → SCALE-06 (email-queue claim race) → SCALE-01 (single scheduler) → SCALE-02 (migrations once per deploy) → SEC-07 (after the owner picks option A/B) |
+| 3 · Remaining High | SCALE-08 (SSE thread hold) → SCALE-09 (pool rebuild on exhaustion) → SCALE-06 (email-queue claim race) → SCALE-01 (single scheduler) → SCALE-02 (migrations once per deploy) → SEC-07 (after the owner picks option A/B) |
 | 4 · Prioritised Medium | BUG-03, BUG-04 (attendance %) → BUG-05 (+PERF-03) (payslip summary) → BUG-17, 18, 19, 20, 23 (IST dates) → ERR-01 (JSON API errors) → DEP-01 (axios) |
-| 5 · Other Medium | SCALE-07, SEC-08, SEC-09, BUG-06, BUG-07, BUG-31, BUG-32, BUG-28, PERF-01, PERF-02, CONFIG-01, SEC-01, CONFIG-03, SCALE-04 |
+| 5 · Other Medium | TEST-04 (tests land with the fixes they cover), SCALE-07, SEC-08, SEC-09, BUG-06, BUG-07, BUG-31, BUG-32, BUG-28, PERF-01, PERF-02, CONFIG-01, SEC-01, CONFIG-03, SCALE-04 |
 | 6 · Low | Low S items, then Low M items (skipping the Phase 6 rows) |
 
 Left to the `security-fixes` session: SEC-04, SEC-05, SEC-06, the bandit part of CONFIG-02, and the Razorpay part of TEST-01.
