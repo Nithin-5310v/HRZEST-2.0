@@ -98,6 +98,9 @@ def _run_column_migrations(cursor, db):
     # Migrations for existing installs
     for sql in [
         "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS logout_status VARCHAR(50) DEFAULT NULL",
+        # When a drainer claimed the row; lets rows stranded in 'sending' by
+        # a crashed worker go back to the queue (QA SCALE-06).
+        "ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP DEFAULT NULL",
         "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS attendance_type VARCHAR(50) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS email VARCHAR(150) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS role VARCHAR(100) DEFAULT NULL",
