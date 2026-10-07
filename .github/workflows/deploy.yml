@@ -257,7 +257,9 @@ jobs:
     name: Pytest
     runs-on: ubuntu-latest
     needs: [lint, security, sast, secrets-scan]
-    timeout-minutes: 20
+    # The suite alone takes ~21 min on a hosted runner (ci-cd.yml's
+    # uncovered run, 2026-10-07), before dependency install and coverage.
+    timeout-minutes: 45
 
     services:
       postgres:
