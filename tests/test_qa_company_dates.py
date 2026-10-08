@@ -104,3 +104,18 @@ def test_bulk_mark_without_a_date_marks_the_companys_today(client, db_engine, se
     cur.execute("SELECT date FROM attendance WHERE employee_id=%s AND status='Manual'", (seed_employee["employee_id"],))
     assert [r[0] for r in cur.fetchall()] == [company_date]
     cur.close()
+
+
+# ── BUG-20: leave & overtime ─────────────────────────────────────────────────
+
+def test_overtime_request_without_a_date_is_for_the_companys_today(client, db_engine, seed_employee, company_date):
+    token = client.post("/api/employee/login", json={"employee_id": seed_employee["employee_id"],
+                                                     "password": seed_employee["password"]}).get_json()["token"]
+    resp = client.post("/api/employee/request_overtime", json={"reason": "QA release night"},
+                       headers={"Authorization": f"Bearer {token}"})
+    assert resp.get_json()["ok"] is True, resp.get_json()
+    cur = db_engine.cursor()
+    cur.execute("SELECT date FROM overtime_records WHERE employee_id=%s AND requested_by_employee=1",
+                (seed_employee["employee_id"],))
+    assert [r[0] for r in cur.fetchall()] == [company_date]
+    cur.close()

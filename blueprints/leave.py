@@ -71,7 +71,7 @@ def add_holiday():
 @leave_bp.route("/import_indian_holidays", methods=["POST"])
 @admin_required
 def import_indian_holidays():
-    year = int(request.form.get("year", datetime.date.today().year))
+    year = int(request.form.get("year", company_today().year))
     holidays_list = get_indian_holidays(year)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -92,7 +92,7 @@ def import_indian_holidays():
 @leave_bp.route("/delete_holiday/<int:hid>", methods=["POST"])
 @admin_required
 def delete_holiday(hid):
-    year = request.form.get("year", datetime.date.today().year)
+    year = request.form.get("year", company_today().year)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM holidays WHERE id=%s", (hid,))
@@ -214,7 +214,7 @@ def request_leave():
 def leave_balance():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    year = int(request.args.get("year", datetime.date.today().year))
+    year = int(request.args.get("year", company_today().year))
 
     co = get_company_settings()
     pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
@@ -289,7 +289,7 @@ def set_leave_balance():
     emp_id = request.form.get("employee_id")
     lt_id = int(request.form.get("leave_type_id"))
     total = int(request.form.get("total_days", 0))
-    year = int(request.form.get("year", datetime.date.today().year))
+    year = int(request.form.get("year", company_today().year))
     if hr_scope_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath(f"/leave_balance?year={year}"))
@@ -327,8 +327,8 @@ def resignation_requests_redirect():
 @admin_required
 def leave_holidays():
     tab = request.args.get("tab", "leaves")
-    year = int(request.args.get("year", datetime.date.today().year))
-    today = datetime.date.today()
+    year = int(request.args.get("year", company_today().year))
+    today = company_today()
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -488,7 +488,7 @@ def leave_action(lid):
         # Deduct leave balance
         deduction = 0.5 if is_half else 1
         if leave_type_id:
-            year = leave_date.year if hasattr(leave_date, 'year') else datetime.date.today().year
+            year = leave_date.year if hasattr(leave_date, 'year') else company_today().year
             cursor.execute("""
                 INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
                 VALUES (%s, %s, %s,
@@ -580,7 +580,7 @@ def leave_action(lid):
 def leave_calendar():
     import calendar as cal_mod
     from collections import defaultdict
-    today = datetime.date.today()
+    today = company_today()
     year = int(request.args.get("year", today.year))
     month = int(request.args.get("month", today.month))
     if month < 1:
@@ -1284,7 +1284,7 @@ def cancel_leave_web(lid):
 def api_employee_request_overtime():
     emp_id = g.api_emp_id
     data = request.get_json() or {}
-    ot_date = data.get("date", str(datetime.date.today()))
+    ot_date = data.get("date", str(company_today()))
     reason = (data.get("reason") or "").strip()
     if not reason:
         return jsonify({"ok": False, "msg": "Reason is required."}), 400
@@ -1521,7 +1521,7 @@ def overtime():
     co = get_company_settings()
     pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
 
-    today = datetime.date.today()
+    today = company_today()
     month = int(request.args.get('month', today.month))
     year = int(request.args.get('year', today.year))
     active_tab = request.args.get('tab', 'ot')
