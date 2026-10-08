@@ -123,7 +123,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-14 | Correctness | Low | blueprints/employee_portal.py:362, 363, 552 | Same | Same | Same | S | Open |
 | BUG-15 | Correctness | Low | blueprints/employees.py:2175, 2176 | Same | Same | Same | S | Open |
 | BUG-16 | Correctness | Low | blueprints/admin_views.py:2131 | Same | Same | Same | S | Open |
-| BUG-21 | Correctness (timezone) | Low | blueprints/payroll.py:193-194, 212, 347-360, 807-808, 900, 925, 1001, 1095, 1173-1174, 1231-1232, 1268-1269, 1467 | Default payroll period from the server clock | Wrong default month on the 1st before 05:30 IST | `company_today()` | S | Open |
+| BUG-21 | Correctness (timezone) | Low | blueprints/payroll.py:193-194, 212, 347-360, 807-808, 900, 925, 1001, 1095, 1173-1174, 1231-1232, 1268-1269, 1467 | Default payroll period from the server clock | Wrong default month on the 1st before 05:30 IST | `company_today()` | S | **Fixed** (test: tests/test_qa_no_server_clock.py) |
 | BUG-22 | Correctness (timezone) | Low | blueprints/employee_portal.py:1310, 1336, 1421-1422, 1491-1492 | Same (default period, file timestamps) | Same | Same | S | Open |
 | BUG-24 | Correctness (timezone) | Low | blueprints/performance.py:220, 324, 677 | Same | Same | Same | S | Open |
 | BUG-25 | Correctness (timezone) | Low | blueprints/employees.py:232, 1187, 1191 | Same | Same | Same | S | Open |
