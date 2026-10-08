@@ -1217,7 +1217,7 @@ def api_employee_qr_face_checkin():
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
             os.makedirs(face_dir, exist_ok=True)
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
@@ -1243,7 +1243,7 @@ def api_employee_qr_face_checkin():
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
             os.makedirs(face_dir, exist_ok=True)
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
@@ -1317,8 +1317,8 @@ def api_employee_salary():
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
-        year = int(request.args.get("year", datetime.date.today().year))
-        month = int(request.args.get("month", datetime.date.today().month))
+        year = int(request.args.get("year", company_today().year))
+        month = int(request.args.get("month", company_today().month))
     except ValueError:
         return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
     db = get_db_connection()
@@ -1387,8 +1387,8 @@ def api_employee_attendance():
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
-        year = int(request.args.get("year", datetime.date.today().year))
-        month = int(request.args.get("month", datetime.date.today().month))
+        year = int(request.args.get("year", company_today().year))
+        month = int(request.args.get("month", company_today().month))
     except ValueError:
         return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
     db = get_db_connection()
