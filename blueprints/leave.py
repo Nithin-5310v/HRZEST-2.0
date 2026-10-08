@@ -120,6 +120,28 @@ def api_delete_holiday(hid):
     return jsonify({"ok": True, "msg": "Holiday removed."})
 
 
+def _leave_working_days(cursor, emp_id, days):
+    """(working_days, error, http_status) for a leave request over `days`. Only working
+    days (not Sunday, not a holiday -- the same rule payroll uses) get a
+    row, and a day the employee already has Pending or Approved is refused
+    rather than requested twice (QA BUG-07)."""
+    cursor.execute("SELECT date FROM holidays WHERE date BETWEEN %s AND %s", (days[0], days[-1]))
+    holidays = {r[0] for r in cursor.fetchall()}
+    working = [d for d in days if d.weekday() != 6 and d not in holidays]
+    if not working:
+        return [], "The selected dates are Sundays or holidays -- no leave is needed.", 400
+    cursor.execute(
+        "SELECT leave_date FROM leave_requests WHERE employee_id=%s AND leave_date = ANY(%s) "
+        "AND status IN ('Pending', 'Approved') ORDER BY leave_date",
+        (emp_id, working),
+    )
+    taken = [r[0] for r in cursor.fetchall()]
+    if taken:
+        shown = ", ".join(d.strftime("%d %b") for d in taken[:5]) + (" ..." if len(taken) > 5 else "")
+        return [], f"You already have leave requested for {shown}.", 409
+    return working, None, 200
+
+
 # Longest single leave request, in calendar days.
 _MAX_LEAVE_REQUEST_DAYS = 60
 
@@ -155,15 +177,19 @@ def request_leave():
     if num_days > _MAX_LEAVE_REQUEST_DAYS:
         flash(f"A leave request can cover at most {_MAX_LEAVE_REQUEST_DAYS} days.", "error")
         return redirect(tpath("/employee_portal#apply-leave"))
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    days, error, _status = _leave_working_days(cursor, emp_id, [start_dt + datetime.timedelta(days=i) for i in range(num_days)])
+    if error:
+        cursor.close()
+        db.close()
+        flash(error, "error")
+        return redirect(tpath("/employee_portal#apply-leave"))
     if is_half_day:
         date_label = f"{leave_start} (Half Day – {half_day_session})"
     else:
         date_label = (leave_start if num_days == 1
-                      else f"{leave_start} – {leave_end} ({num_days} days)")
-
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    days = [start_dt + datetime.timedelta(days=i) for i in range(num_days)]
+                      else f"{leave_start} – {leave_end} ({len(days)} working days)")
     cursor.executemany(
         "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id, is_half_day, half_day_session) "
         "VALUES (%s,%s,%s,%s,%s,%s)",
@@ -1148,11 +1174,20 @@ def api_employee_leave_request():
     reason = data.get("reason", "").strip()
     if not leave_date or not reason:
         return jsonify({"ok": False, "msg": "leave_date and reason required"}), 400
+    try:
+        day = datetime.date.fromisoformat(leave_date)
+    except ValueError:
+        return jsonify({"ok": False, "msg": "leave_date must be YYYY-MM-DD"}), 400
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    _days, error, status = _leave_working_days(cursor, emp_id, [day])
+    if error:
+        cursor.close()
+        db.close()
+        return jsonify({"ok": False, "msg": error}), status
     cursor.execute(
         "INSERT INTO leave_requests (employee_id, leave_date, reason) VALUES (%s,%s,%s)",
-        (emp_id, leave_date, reason)
+        (emp_id, day, reason)
     )
     db.commit()
     cursor.close()

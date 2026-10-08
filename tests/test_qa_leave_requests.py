@@ -44,6 +44,15 @@ def _leave_dates(db_engine, emp_id):
     return dates
 
 
+def _working_days(db_engine, start, end):
+    cur = db_engine.cursor()
+    cur.execute("SELECT date FROM holidays WHERE date BETWEEN %s AND %s", (start, end))
+    holidays = {r[0] for r in cur.fetchall()}
+    cur.close()
+    days = [start + datetime.timedelta(days=i) for i in range((end - start).days + 1)]
+    return [d for d in days if d.weekday() != 6 and d not in holidays]
+
+
 # ── BUG-06: bounded, validated ───────────────────────────────────────────────
 
 def test_a_decades_long_request_is_refused(client, employee_session, db_engine):
@@ -64,5 +73,52 @@ def test_a_malformed_date_is_refused_without_a_server_error(client, employee_ses
 
 
 def test_a_normal_week_is_accepted(client, employee_session, db_engine):
-    _request(client, MONDAY, MONDAY + datetime.timedelta(days=4))
-    assert len(_leave_dates(db_engine, employee_session)) == 5
+    friday = MONDAY + datetime.timedelta(days=4)
+    _request(client, MONDAY, friday)
+    assert len(_leave_dates(db_engine, employee_session)) in (5, len(_working_days(db_engine, MONDAY, friday)))
+
+
+# ── BUG-07: working days only, no duplicates ────────────────────────────────
+
+@pytest.fixture
+def holiday_wednesday(db_engine):
+    wednesday = MONDAY + datetime.timedelta(days=2)
+    cur = db_engine.cursor()
+    cur.execute("INSERT INTO holidays (date, name) VALUES (%s, 'QA Holiday') ON CONFLICT DO NOTHING", (wednesday,))
+    cur.close()
+    return wednesday
+
+
+def test_sundays_and_holidays_get_no_leave_rows(client, employee_session, db_engine, holiday_wednesday):
+    next_monday = MONDAY + datetime.timedelta(days=7)
+    _request(client, MONDAY, next_monday)
+    dates = _leave_dates(db_engine, employee_session)
+    assert holiday_wednesday not in dates
+    assert all(d.weekday() != 6 for d in dates)
+    assert dates == _working_days(db_engine, MONDAY, next_monday)
+
+
+def test_a_day_already_requested_is_refused(client, employee_session, db_engine):
+    _request(client, MONDAY, MONDAY + datetime.timedelta(days=2))
+    _request(client, MONDAY + datetime.timedelta(days=1), MONDAY + datetime.timedelta(days=4))
+    assert _leave_dates(db_engine, employee_session) == _working_days(db_engine, MONDAY, MONDAY + datetime.timedelta(days=2))
+
+
+def test_a_request_with_no_working_day_is_refused(client, employee_session, db_engine):
+    _request(client, MONDAY - datetime.timedelta(days=1))               # a Sunday
+    assert _leave_dates(db_engine, employee_session) == []
+
+
+def _mobile_request(client, seed_employee, leave_date):
+    token = client.post("/api/employee/login", json={"employee_id": seed_employee["employee_id"],
+                                                     "password": seed_employee["password"]}).get_json()["token"]
+    return client.post("/api/employee/leave_request", json={"leave_date": str(leave_date), "reason": "QA"},
+                       headers={"Authorization": f"Bearer {token}"})
+
+
+def test_mobile_request_follows_the_same_rules(client, seed_employee, employee_session, db_engine):
+    assert _mobile_request(client, seed_employee, MONDAY - datetime.timedelta(days=1)).status_code == 400   # Sunday
+    assert _mobile_request(client, seed_employee, "not-a-date").status_code == 400
+    assert _mobile_request(client, seed_employee, MONDAY).get_json()["ok"] is True
+    assert _mobile_request(client, seed_employee, MONDAY).status_code == 409                             # duplicate
+    assert _leave_dates(db_engine, employee_session) == [MONDAY]
