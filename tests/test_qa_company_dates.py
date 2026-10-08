@@ -119,3 +119,17 @@ def test_overtime_request_without_a_date_is_for_the_companys_today(client, db_en
                 (seed_employee["employee_id"],))
     assert [r[0] for r in cur.fetchall()] == [company_date]
     cur.close()
+
+
+# ── BUG-23: onboarding ───────────────────────────────────────────────────────
+
+def test_onboarding_is_assigned_on_the_companys_today(client, db_engine, seed_admin, seed_employee, company_date):
+    cur = db_engine.cursor()
+    cur.execute("INSERT INTO onboarding_templates (name) VALUES ('QA template') RETURNING id")
+    template_id = cur.fetchone()[0]
+    _admin(client, seed_admin)
+    client.post("/onboarding_assign", data={"employee_id": seed_employee["employee_id"], "template_id": template_id})
+    cur.execute("SELECT assigned_date FROM employee_onboarding WHERE employee_id=%s AND template_id=%s",
+                (seed_employee["employee_id"], template_id))
+    assert [r[0] for r in cur.fetchall()] == [company_date]
+    cur.close()
