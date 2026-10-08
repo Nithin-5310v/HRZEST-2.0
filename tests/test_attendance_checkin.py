@@ -17,6 +17,12 @@ import datetime
 import io
 import pytest
 
+import utils.config as _cfg
+
+# Location enforcement is on by default (QA SEC-08): live and offline check-ins
+# need coordinates -- these are the office's own.
+OFFICE = {"lat": _cfg.OFFICE_LAT, "lon": _cfg.OFFICE_LON}
+
 
 # ── Session / token helpers ──────────────────────────────────────────────────
 
@@ -455,7 +461,7 @@ class TestApiEmployeeCheckin:
         cur.close()
 
         token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin", json={},
+        rv = client.post("/api/employee/checkin", json=OFFICE,
                          headers={"Authorization": f"Bearer {token}"})
         data = rv.get_json()
         assert data["ok"] is True
@@ -469,7 +475,7 @@ class TestApiEmployeeCheckin:
 
     def test_logout_updates_existing_login(self, client, seed_employee, attendance_today):
         token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin", json={},
+        rv = client.post("/api/employee/checkin", json=OFFICE,
                          headers={"Authorization": f"Bearer {token}"})
         data = rv.get_json()
         assert data["ok"] is True
@@ -478,7 +484,7 @@ class TestApiEmployeeCheckin:
 
     def test_relogin_after_completed(self, client, seed_employee, attendance_completed):
         token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin", json={},
+        rv = client.post("/api/employee/checkin", json=OFFICE,
                          headers={"Authorization": f"Bearer {token}"})
         data = rv.get_json()
         assert data["ok"] is True
@@ -494,7 +500,7 @@ class TestApiEmployeeCheckin:
         two_hours_ago = datetime.datetime.now() - datetime.timedelta(hours=2)
         token = _emp_token(client, seed_employee)
         rv = client.post("/api/employee/checkin",
-                         json={"punched_at": two_hours_ago.isoformat()},
+                         json={**OFFICE, "punched_at": two_hours_ago.isoformat()},
                          headers={"Authorization": f"Bearer {token}"})
         data = rv.get_json()
         assert data["ok"] is True
@@ -515,7 +521,7 @@ class TestApiEmployeeCheckin:
         two_days_ago = datetime.datetime.now() - datetime.timedelta(days=2)
         token = _emp_token(client, seed_employee)
         rv = client.post("/api/employee/checkin",
-                         json={"punched_at": two_days_ago.isoformat()},
+                         json={**OFFICE, "punched_at": two_days_ago.isoformat()},
                          headers={"Authorization": f"Bearer {token}"})
         assert rv.status_code == 400
         data = rv.get_json()

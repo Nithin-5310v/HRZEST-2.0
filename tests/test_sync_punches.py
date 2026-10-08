@@ -83,9 +83,10 @@ class TestSyncPunchesGeofence:
         assert len(results) == 1
         assert results[0]["ok"] is True
 
-    def test_punch_without_coordinates_not_geofenced(self, client, seed_employee, db_engine):
-        """No lat/lon sent at all — matches the live check-in route's
-        behavior of only checking when coordinates are actually present."""
+    def test_punch_without_coordinates_refused_when_location_enforced(self, client, seed_employee, db_engine):
+        """No lat/lon sent at all while location is enforced (this class's
+        fixture sets location_enabled=1) -- refused, like the live check-in
+        route. It used to skip the geofence instead (QA SEC-08)."""
         auth = _login(client, seed_employee)
         r = client.post("/api/employee/sync_punches", headers=auth, json={
             "punches": [{"id": "1", "punched_at": _now_str()}]
@@ -93,7 +94,7 @@ class TestSyncPunchesGeofence:
         assert r.status_code == 200
         results = r.get_json()["results"]
         assert len(results) == 1
-        assert results[0]["ok"] is True
+        assert results[0]["ok"] is False
 
     def test_wfh_employee_outside_home_location_rejected(self, client, seed_employee, db_engine):
         cur = db_engine.cursor()

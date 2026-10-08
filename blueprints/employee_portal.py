@@ -900,6 +900,14 @@ def api_employee_checkin():
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     employee_name, work_mode, work_lat, work_lon = result
 
+    # Same rule as the kiosk (/attendance): with location enforced, a request
+    # that leaves the coordinates out is refused rather than skipping the
+    # geofence (QA SEC-08).
+    location_enforced = get_auth_config().get("location_enabled", True)
+    if location_enforced and not (lat and lon):
+        cursor.close()
+        db.close()
+        return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."}), 400
     if lat and lon:
         try:
             lat_f = float(lat)
@@ -1029,6 +1037,7 @@ def api_employee_sync_punches():
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     _work_mode, _work_lat, _work_lon = _emp_row[1], _emp_row[2], _emp_row[3]
     s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cur2)
+    location_enforced = get_auth_config().get("location_enabled", True)
 
     results = []
     for punch in punches:
@@ -1036,10 +1045,14 @@ def api_employee_sync_punches():
         # Same geo-fence check as the live check-in route (is_within_range
         # against work_lat/work_lon for wfh, else is_within_office_range) --
         # previously captured but never enforced here, unlike the live
-        # route. Only checked when the client actually sent coordinates,
-        # matching the live route's "if lat and lon:" gate.
+        # route. With location enforced, a punch without coordinates is
+        # refused, exactly like the live route.
         lat = punch.get("lat")
         lon = punch.get("lon")
+        if location_enforced and not (lat and lon):          # QA SEC-08, as on the live endpoint
+            results.append({"id": punch.get("id"), "ok": False,
+                            "msg": "Location not captured. Please allow location access."})
+            continue
         if lat and lon:
             try:
                 lat_f = float(lat)

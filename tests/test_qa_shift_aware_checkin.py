@@ -18,7 +18,10 @@ import time
 import pytest
 import pytz
 
+import utils.config as _cfg
+
 EMP = "TST001"
+OFFICE = {"lat": _cfg.OFFICE_LAT, "lon": _cfg.OFFICE_LON}   # location is enforced by default (SEC-08)
 TODAY = datetime.date.today()
 AUTH_QR_FP = {"qr_enabled": True, "face_enabled": False,
               "fingerprint_enabled": True, "location_enabled": False}
@@ -76,7 +79,7 @@ def _admin_token(client, seed_admin):
 def _employee_checkin(client, seed_employee, mocker, hour, minute):
     _at(mocker, "blueprints.employee_portal", hour, minute)
     token = _emp_token(client, seed_employee)
-    return client.post("/api/employee/checkin", json={},
+    return client.post("/api/employee/checkin", json=OFFICE,
                        headers={"Authorization": f"Bearer {token}"}).get_json()
 
 
@@ -84,7 +87,7 @@ def _offline_sync(client, seed_employee, mocker, hour, minute):
     _at(mocker, "blueprints.employee_portal", hour, minute + 5)
     token = _emp_token(client, seed_employee)
     data = client.post("/api/employee/sync_punches", json={"punches": [
-        {"id": "p1", "punched_at": _ist(hour, minute).isoformat()},
+        {"id": "p1", "punched_at": _ist(hour, minute).isoformat(), **OFFICE},
     ]}, headers={"Authorization": f"Bearer {token}"}).get_json()
     assert data["ok"] is True, data
     return data["results"][0]

@@ -13,6 +13,10 @@ import utils.config as _cfg
 
 _REAL_SHIFT_RULES = _cfg.shift_rules
 
+# Location enforcement is on by default (QA SEC-08): live and offline check-ins
+# need coordinates -- these are the office's own.
+OFFICE = {"lat": _cfg.OFFICE_LAT, "lon": _cfg.OFFICE_LON}
+
 
 def _patch_shift_rules(mocker, **changes):
     """Override fields of the current company's shift rules for one test."""
@@ -941,7 +945,7 @@ class TestApiEmployeeCheckinCoverage:
         cur.close()
         token = _emp_token(client, seed_employee)
         rv = client.post("/api/employee/checkin", json={
-            "punched_at": "not-an-iso-string",
+            **OFFICE, "punched_at": "not-an-iso-string",
         }, headers={"Authorization": f"Bearer {token}"})
         data = rv.get_json()
         assert data["ok"] is True, data
@@ -984,7 +988,7 @@ class TestApiEmployeeCheckinCoverage:
         self._patch_shifts(datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59), grace=0)
         try:
             token = _emp_token(client, seed_employee)
-            rv = client.post("/api/employee/checkin", json={},
+            rv = client.post("/api/employee/checkin", json=OFFICE,
                              headers={"Authorization": f"Bearer {token}"})
             data = rv.get_json()
             assert data["ok"] is True, data
@@ -1004,7 +1008,7 @@ class TestApiEmployeeCheckinCoverage:
         self._patch_shifts(datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59), grace=0)
         try:
             token = _emp_token(client, seed_employee)
-            rv = client.post("/api/employee/checkin", json={},
+            rv = client.post("/api/employee/checkin", json=OFFICE,
                              headers={"Authorization": f"Bearer {token}"})
             data = rv.get_json()
             assert data["ok"] is True, data
@@ -1020,7 +1024,7 @@ class TestApiEmployeeCheckinCoverage:
         self._patch_shifts(datetime.time(0, 0), datetime.time(23, 59), datetime.time(23, 59))
         try:
             token = _emp_token(client, seed_employee)
-            rv = client.post("/api/employee/checkin", json={},
+            rv = client.post("/api/employee/checkin", json=OFFICE,
                              headers={"Authorization": f"Bearer {token}"})
             data = rv.get_json()
             assert data["ok"] is True, data
@@ -1034,7 +1038,7 @@ class TestApiEmployeeCheckinCoverage:
         self._patch_shifts(datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59))
         try:
             token = _emp_token(client, seed_employee)
-            rv = client.post("/api/employee/checkin", json={},
+            rv = client.post("/api/employee/checkin", json=OFFICE,
                              headers={"Authorization": f"Bearer {token}"})
             data = rv.get_json()
             assert data["ok"] is True, data
@@ -1049,7 +1053,7 @@ class TestApiEmployeeCheckinCoverage:
         self._patch_shifts(datetime.time(0, 0), datetime.time(0, 1), datetime.time(23, 59))
         try:
             token = _emp_token(client, seed_employee)
-            rv = client.post("/api/employee/checkin", json={},
+            rv = client.post("/api/employee/checkin", json=OFFICE,
                              headers={"Authorization": f"Bearer {token}"})
             data = rv.get_json()
             assert data["ok"] is True, data
