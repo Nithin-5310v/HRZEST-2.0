@@ -374,6 +374,7 @@ def _run_index_migrations(cursor, db):
     _run_index_migrations_v2(cursor, db)
     _run_index_migrations_v3(cursor, db)
     _run_index_migrations_v4(cursor, db)
+    _run_index_migrations_v5(cursor, db)
 
 
 def _run_index_migrations_v1(cursor, db):
@@ -490,6 +491,24 @@ def _run_index_migrations_v4(cursor, db):
             db.commit()
     except Exception as exc:
         app_log.warning("Migration 'oauth_indexes_v4' failed: %s", exc, exc_info=True)
+
+
+def _run_index_migrations_v5(cursor, db):
+    """api_tokens.expires_at -- the periodic expired-token purge
+    (utils/auth.py's _purge_expired_tokens) scanned the whole table
+    without it (QA PERF-01)."""
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='api_token_expiry_index_v5'")
+        if not cursor.fetchone():
+            try:
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_expires ON api_tokens (expires_at)")
+                db.commit()
+            except Exception:
+                db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('api_token_expiry_index_v5')")
+            db.commit()
+    except Exception as exc:
+        app_log.warning("Migration 'api_token_expiry_index_v5' failed: %s", exc, exc_info=True)
 
 
 def _run_data_integrity_migrations(cursor, db):
