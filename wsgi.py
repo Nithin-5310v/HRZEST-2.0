@@ -141,6 +141,10 @@ else:
                 func=_scheduled_job("daily_attendance_report", generate_and_send_daily_report),
                 trigger="cron",
                 hour=23, minute=59,
+                # End of the company's day, not the server's: the container
+                # runs UTC, which fired this at 05:29 IST (QA BUG-26).
+                # Asia/Kolkata is the company-timezone default.
+                timezone="Asia/Kolkata",
                 id="daily_attendance_report",
                 replace_existing=True,
             )

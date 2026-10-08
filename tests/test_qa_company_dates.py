@@ -133,3 +133,24 @@ def test_onboarding_is_assigned_on_the_companys_today(client, db_engine, seed_ad
                 (seed_employee["employee_id"], template_id))
     assert [r[0] for r in cur.fetchall()] == [company_date]
     cur.close()
+
+
+# ── BUG-26: the nightly attendance report ───────────────────────────────────
+
+def test_daily_report_covers_the_companys_day(monkeypatch, company_date):
+    import blueprints.daily_report as dr
+    sent = []
+    monkeypatch.setattr(dr, "get_admin_emails", lambda: ["admin@test.local"])
+    monkeypatch.setattr(dr, "get_email_config", lambda: {"host": "smtp.invalid"})
+    monkeypatch.setattr(dr, "send_email_async", lambda to, subject, html, cfg: sent.append(subject))
+    dr.generate_and_send_daily_report()
+    assert sent and company_date.strftime("%d %B %Y") in sent[0]
+
+
+def test_daily_report_is_scheduled_at_2359_in_the_company_timezone():
+    import ast
+    import pathlib
+    tree = ast.parse(pathlib.Path(__file__).resolve().parents[1].joinpath("wsgi.py").read_text(encoding="utf-8"))
+    job = next(n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "add_job"
+               and any(k.arg == "id" and getattr(k.value, "value", "") == "daily_attendance_report" for k in n.keywords))
+    assert any(k.arg == "timezone" for k in job.keywords)
