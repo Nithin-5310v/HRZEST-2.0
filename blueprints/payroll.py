@@ -504,7 +504,7 @@ def _payslip_email(emp_id, year, month):
 
 
 @payroll_bp.route("/send_salary_email", methods=["POST"])
-@admin_required
+@role_required("admin")   # admin only, like the salary report it belongs to (QA SEC-10)
 def send_salary_email():
     emp_id = request.form["emp_id"]
     year = int(request.form["year"])
@@ -1254,6 +1254,7 @@ def api_salary_report():
 
 @payroll_bp.route("/api/send_salary_email", methods=["POST"])
 @api_required
+@api_role_required("admin")   # QA SEC-10
 def api_send_salary_email():
     data = request.get_json() or {}
     emp_id = data.get("emp_id")
