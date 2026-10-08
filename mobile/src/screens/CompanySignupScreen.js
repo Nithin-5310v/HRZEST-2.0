@@ -31,7 +31,7 @@ export default function CompanySignupScreen({ navigation }) {
 
   const handleCompanyNameChange = (value) => {
     setCompanyName(value);
-    setSubdomain((prev) => (prev ? prev : value.toLowerCase().replace(/[^a-z0-9\-]/g, "")));
+    setSubdomain((prev) => (prev ? prev : value.toLowerCase().replace(/[^a-z0-9-]/g, "")));
   };
 
   // Mirrors blueprints/org.py's _GST_RE -- checked here only so a typo is
@@ -40,7 +40,7 @@ export default function CompanySignupScreen({ navigation }) {
   const GST_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
   const handleSubmit = async () => {
-    const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9\-]/g, "");
+    const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
     const trimmedEmail = adminEmail.trim();
     const trimmedPassword = adminPassword.trim();
     const cleanGst = gstNumber.trim().toUpperCase().replace(/\s+/g, "");
@@ -63,7 +63,7 @@ export default function CompanySignupScreen({ navigation }) {
       return;
     }
 
-    const adminUsername = trimmedEmail.slice(0, atIndex).toLowerCase().replace(/[^a-z0-9_.\-]/g, "");
+    const adminUsername = trimmedEmail.slice(0, atIndex).toLowerCase().replace(/[^a-z0-9_.-]/g, "");
     const emailDomain = trimmedEmail.slice(atIndex + 1).toLowerCase();
 
     setLoading(true);
@@ -132,7 +132,7 @@ export default function CompanySignupScreen({ navigation }) {
                 placeholder="acme"
                 placeholderTextColor={colors.textLight}
                 value={subdomain}
-                onChangeText={(v) => setSubdomain(v.toLowerCase().replace(/[^a-z0-9\-]/g, ""))}
+                onChangeText={(v) => setSubdomain(v.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                 autoCapitalize="none"
               />
             </View>

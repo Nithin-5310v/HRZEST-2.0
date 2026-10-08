@@ -166,7 +166,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | JS-02 | Frontend | Low | template JS (9 `no-inner-declarations`, 6 `no-useless-escape`) | Style issues that can confuse | — | Fix | S | Open |
 | JS-03 | Frontend | Low | templates/settings.html (`crumbData`) | The tab metadata object defines `company` twice; the last one silently wins, so the first entry is dead and the two disagree about the tab's title (the 1 real ESLint `no-dupe-keys` finding in the baseline) | Confusing to maintain; an edit to the first entry would have no effect | Remove the dead entry (keeps today's visible title) | S | **Fixed** (test: tests/test_qa_template_js.py) |
 | MOB-01 | Mobile | Low | mobile/src (23 `no-empty`) | Swallowed errors in the app | Silent failures | Handle/log | S | Open |
-| MOB-02 | Mobile | Low | mobile/src (4 `no-useless-escape`) | Style | — | Fix | S | Open |
+| MOB-02 | Mobile | Low | mobile/src (4 `no-useless-escape`) | Style | — | Fix | S | **Fixed**: the 4 `\-` at the end of character classes in CompanySignupScreen.js (ESLint 4 → 0; old and new regexes give identical results on all 128 ASCII characters) |
 | A11Y-03 | Accessibility | Low | templates/offer_letter.html (11) | Unlabelled form controls | Screen-reader users | `for=`/`aria-label` | S | Open |
 | A11Y-04 | Accessibility | Low | templates/performance.html (10) | Same | Same | Same | S | Open |
 | A11Y-05 | Accessibility | Low | templates/leave_holidays.html (10) | Same | Same | Same | S | Open |
