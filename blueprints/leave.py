@@ -120,6 +120,10 @@ def api_delete_holiday(hid):
     return jsonify({"ok": True, "msg": "Holiday removed."})
 
 
+# Longest single leave request, in calendar days.
+_MAX_LEAVE_REQUEST_DAYS = 60
+
+
 @leave_bp.route("/request_leave", methods=["POST"])
 @employee_required
 def request_leave():
@@ -135,16 +139,22 @@ def request_leave():
     if not reason or not leave_start:
         return redirect(tpath("/employee_portal"))
 
-    start_dt = datetime.date.fromisoformat(leave_start)
-    # Half-day is always a single date; ignore end date
-    if is_half_day:
-        end_dt = start_dt
-    else:
+    try:
+        start_dt = datetime.date.fromisoformat(leave_start)
         end_dt = datetime.date.fromisoformat(leave_end) if leave_end else start_dt
-        if end_dt < start_dt:
-            end_dt = start_dt
+    except ValueError:
+        flash("Please choose valid leave dates.", "error")
+        return redirect(tpath("/employee_portal#apply-leave"))
+    # Half-day is always a single date; ignore end date
+    if is_half_day or end_dt < start_dt:
+        end_dt = start_dt
 
     num_days = (end_dt - start_dt).days + 1
+    # One row per day, so an unbounded range (e.g. 2026-2099) inserted tens
+    # of thousands of rows (QA BUG-06).
+    if num_days > _MAX_LEAVE_REQUEST_DAYS:
+        flash(f"A leave request can cover at most {_MAX_LEAVE_REQUEST_DAYS} days.", "error")
+        return redirect(tpath("/employee_portal#apply-leave"))
     if is_half_day:
         date_label = f"{leave_start} (Half Day – {half_day_session})"
     else:
@@ -153,14 +163,12 @@ def request_leave():
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cur = start_dt
-    while cur <= end_dt:
-        cursor.execute(
-            "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id, is_half_day, half_day_session) "
-            "VALUES (%s,%s,%s,%s,%s,%s)",
-            (emp_id, cur, reason, leave_type_id, is_half_day, half_day_session)
-        )
-        cur += datetime.timedelta(days=1)
+    days = [start_dt + datetime.timedelta(days=i) for i in range(num_days)]
+    cursor.executemany(
+        "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id, is_half_day, half_day_session) "
+        "VALUES (%s,%s,%s,%s,%s,%s)",
+        [(emp_id, d, reason, leave_type_id, is_half_day, half_day_session) for d in days]
+    )
     db.commit()
     cursor.close()
     db.close()
