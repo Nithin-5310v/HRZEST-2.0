@@ -828,7 +828,9 @@ def bulk_leave_action():
         if not row:
             continue
         emp_id, leave_date, reason, emp_name, emp_email, email_alerts_enabled = row
-        if hr_scope_denied(emp_id) or manager_scope_denied(emp_id):
+        # Same guards as a single approval, including no self-approval for
+        # HR/manager sessions, which the bulk path used to skip (QA SEC-11).
+        if hr_scope_denied(emp_id) or manager_scope_denied(emp_id) or _approving_own_record(emp_id):
             continue
         # Same decision path as a single approval: deducts the balance and
         # handles half days, which the bulk path used to skip (QA BUG-36).

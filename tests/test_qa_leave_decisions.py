@@ -150,3 +150,18 @@ def test_bulk_approval_deducts_the_balance(client, db_engine, seed_admin, seed_e
     client.post("/bulk_leave_action", data={"action": "Approved", "leave_ids": [str(full), str(half)]})
     assert _used_days(db_engine, emp, leave_type) == 1.5
     assert _attendance_type(db_engine, emp, LEAVE_DAY + datetime.timedelta(days=1)) == "Half Day"
+
+
+# ── SEC-11: no self-approval through bulk approve ───────────────────────────
+
+def test_hr_user_cannot_bulk_approve_their_own_leave(client, db_engine, seed_hr_admin, request_leave):
+    from utils.auth import HR_ROLE
+    own_id = seed_hr_admin["username"]
+    cur = db_engine.cursor()
+    cur.execute("INSERT INTO employees (employee_id, name, force_pin_change, assigned_hr_username) "
+                "VALUES (%s, 'HR Self', 0, %s) ON CONFLICT (employee_id) DO NOTHING", (own_id, own_id))
+    cur.close()
+    lid = request_leave(own_id)
+    _admin_session(client, own_id, role=HR_ROLE)
+    client.post("/bulk_leave_action", data={"action": "Approved", "leave_ids": [str(lid)]})
+    assert _status(db_engine, lid) == "Pending"

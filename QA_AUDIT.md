@@ -99,6 +99,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | SEC-01 | Security / config | Medium | .containerignore | Doesn't exclude `private_uploads/`, `backups/`, `pg_data/`, `.venv_test/`, `qa_audit/` | An image built from a working copy can contain employee documents, DB dumps and raw DB files (see NV-09) | Add those paths; build from a clean clone in CI | S | **Fixed** (test: tests/test_qa_container_ignore.py): adds `**/.env*` (keeping `.env.example`), uploads, backups, `pg_data/`, `instance/`, SQL dumps, virtualenvs, `qa_audit/` and coverage/pytest caches. Building from a clean clone in CI is still recommended (NV-09) |
 | SEC-08 | Security (attendance integrity) | Medium | blueprints/employee_portal.py:958 (`/api/employee/checkin`) | The geofence runs only `if lat and lon:`; a request **without coordinates is accepted**, even when the company has location enforcement on (the kiosk route requires location in that case) | An employee can mark attendance from anywhere by omitting GPS | When `location_enabled`, require lat/lon (400 if missing), same as `/attendance` | S | **Fixed** (test: tests/test_qa_checkin_location.py): live check-in answers 400 and offline sync refuses the punch when coordinates are missing and location is enforced |
 | SEC-09 | Security (attendance integrity) | Medium | blueprints/employee_portal.py:978-1000 (`punched_at`), :1080 (`/api/employee/sync_punches`) | The client-supplied `punched_at` is accepted anywhere in the **last 24 h** on the live check-in endpoint (meant for offline sync) | Backdating: arrive at 11:00, submit 08:55, avoid late/half-day deductions | Ignore `punched_at` on the live endpoint; for offline sync cap the window, never move a punch earlier than the last server-seen activity, and flag synced punches for admin review | M | Open |
+| SEC-11 | Security (separation of duties) | Medium | blueprints/leave.py (`bulk_leave_action`) | The bulk approval skipped `_approving_own_record()`, the self-approval guard every single approval route has. `hr_scope_denied()`/`manager_scope_denied()` deliberately exempt the user's own record, so an HR user or manager could approve **their own** leave by bulk-approving it | Self-approved leave, bypassing the approval control | Apply the same guard in the bulk loop | S | **Fixed** (test: tests/test_qa_leave_decisions.py::test_hr_user_cannot_bulk_approve_their_own_leave) |
 | SEC-05 | Security | Medium | blueprints/employees.py:124 | Admin "reset password" sets the employee's password to their employee ID | Trivially guessable credentials until changed | Random one-time password plus forced change | S | **Fixed on security-fixes (37a2eac)** |
 | DEP-01 | Dependencies | Medium | mobile/package.json:27 (axios) + lockfile | axios < 1.19.1 (High advisory, ships in the app); moment, http-cache-semantics, source-map-js, brace-expansion, braces, micromatch advisories | Known-vulnerable runtime library | `npm audit fix` (non-breaking) + jest run | S | Open |
 | TEST-03 | Tests | Medium | tests/conftest.py (`_reset_db_after_test`) | The per-test DB restore doesn't clear in-process caches (settings/auth/pending counts/companies); with pytest-randomly the order changes every run | Order-dependent flakiness (seen in practice: stale `face_enabled`) | Call `invalidate_settings_cache()` and `invalidate_pending_counts_cache()` in teardown | S | **Fixed** (test: tests/test_test_infrastructure.py): teardown clears settings/auth, pending-counts, companies, onboarding, plan-rate, extra-cost, platform employee-count and TOTP caches; full suite green at 2fac33b (2,723 passed) |
@@ -230,7 +231,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | SCALE | 5 | 3 | 0 | 8 |
 | TEST | 1 | 4 | 0 | 5 |
 | PERF | 0 | 2 | 5 | 7 |
-| SEC | 1 | 4 | 5 | 10 |
+| SEC | 1 | 5 | 5 | 11 |
 | CONFIG | 0 | 2 | 3 | 5 |
 | ERR | 0 | 1 | 0 | 1 |
 | DEP | 0 | 1 | 0 | 1 |
@@ -241,7 +242,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | JS / MOB (frontend & mobile lint) | 0 | 0 | 5 | 5 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **10** | **32** | **85** | **127** |
+| **Total** | **10** | **33** | **85** | **128** |
 
 Plus 19 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 
