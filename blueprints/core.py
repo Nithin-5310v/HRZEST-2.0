@@ -6,7 +6,6 @@ last routes drained out of app.py, which now holds only shared setup
 (init_db, error handlers, before/after_request hooks, template filters)."""
 import time
 import secrets
-import datetime
 from flask import Blueprint, request, session, jsonify, render_template, redirect, Response, g, current_app
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
@@ -20,7 +19,7 @@ from utils.totp import send_mfa_login_email
 from utils.helpers import (
     _db, get_auth_config, validate_employee_email_domain,
     employee_login_url, get_pending_counts, tpath, add_employee_seat_cap_check,
-    get_company_settings, _safe_app_url,
+    get_company_settings, _safe_app_url, company_today,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
 from utils.email_utils import get_email_config, send_email_smtp
@@ -327,7 +326,7 @@ def api_logout():
 def api_dashboard():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
 
     cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]

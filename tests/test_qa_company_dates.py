@@ -154,3 +154,13 @@ def test_daily_report_is_scheduled_at_2359_in_the_company_timezone():
     job = next(n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "add_job"
                and any(k.arg == "id" and getattr(k.value, "value", "") == "daily_attendance_report" for k in n.keywords))
     assert any(k.arg == "timezone" for k in job.keywords)
+
+
+# ── BUG-39: mobile admin dashboard ──────────────────────────────────────────
+
+def test_mobile_dashboard_counts_the_companys_today(client, seed_admin, seed_employee, checked_in_on_company_date):
+    token = client.post("/api/login", json={"username": seed_admin["username"],
+                                            "password": seed_admin["password"]}).get_json()["token"]
+    data = client.get("/api/dashboard", headers={"Authorization": f"Bearer {token}"}).get_json()
+    assert data["today"] == checked_in_on_company_date.strftime("%d %b %Y")
+    assert data["present"] >= 1

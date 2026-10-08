@@ -129,6 +129,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-25 | Correctness (timezone) | Low | blueprints/employees.py:232, 1187, 1191 | Same | Same | Same | S | **Fixed** (test: tests/test_qa_no_server_clock.py) |
 | BUG-26 | Correctness (timezone) | Low | blueprints/daily_report.py:126, 157 | The report day comes from the server date; the job runs at 23:59 server time (05:29 IST) | The report covers an unexpected day/time for IST tenants | Per-tenant `company_today()` and schedule in the tenant TZ | S | **Fixed** (test: tests/test_qa_company_dates.py): report day from `company_today()`; the 23:59 job runs in Asia/Kolkata (the company-timezone default). Note: the job only reports on the default tenant -- other companies get no daily report (pre-existing limitation, see daily_report.py's docstring) |
 | BUG-27 | Correctness (timezone) | Low | blueprints/billing_dunning.py:57, 101, 242, 244; blueprints/auto_debit.py:423, 611, 618 | Platform billing periods use the server-local date | Month boundary at UTC midnight, not IST | Use one explicit platform TZ (IST) | S | **Fixed** (test: tests/test_qa_no_server_clock.py): billing periods from `platform_today()` (Asia/Kolkata); timestamp comparisons against stored values left as they are |
+| BUG-39 | Correctness (timezone) | Low | blueprints/core.py (`/api/dashboard`), blueprints/disbursement.py (`prepare_pending_disbursements`) | Same as BUG-17: the mobile admin dashboard's "today" and the salary-payout scheduling used the server date (found while fixing BUG-17…27) | The mobile dashboard showed yesterday after midnight IST; payout preparation could run a day off | `company_today()` | S | **Fixed** (test: tests/test_qa_company_dates.py) |
 | BUG-29 | Correctness (UI) | Low | templates/settings.html (~line 2215, `crumbData`) | Duplicate `company` key in an object literal | The Companies breadcrumb shows the wrong title/subtitle | Remove the stale duplicate | S | **Fixed** in 2b737cf (registered again as JS-03 before this row was noticed; same bug) |
 | BUG-33 | Correctness | Low | blueprints/leave.py:984 | The mobile leave decline writes `'Declined'` (the **resignation** vocabulary) where leaves use `'Rejected'` | Mobile-declined leaves are missing from the 'rejected' counts (leave.py:1209) and badges (leave_holidays.html:376, employee_portal.html:1044) | Write `'Rejected'`; migrate existing leave rows from 'Declined' to 'Rejected' | S | **Fixed** (test: tests/test_qa_leave_decisions.py): mobile decline stores 'Rejected'; tracked, re-runnable migration converts existing 'Declined' leave rows in every tenant |
 | BUG-37 | Correctness | Low | blueprints/onboarding.py (`onboarding_assign`) | The "Onboarding Started" in-app notification was inserted into an `employee_notifications` table that doesn't exist; it always failed and only a warning was logged | New joiners never got the in-app notice | Use `_create_notification()` (the `notifications` table every other notice uses) | S | **Fixed** (test: tests/test_qa_onboarding_notification.py) |
@@ -230,7 +231,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 
 | Category | High | Medium | Low | Total |
 |---|---|---|---|---|
-| BUG (correctness) | 3 | 15 | 19 | 37 |
+| BUG (correctness) | 3 | 15 | 20 | 38 |
 | SCALE | 5 | 3 | 0 | 8 |
 | TEST | 1 | 4 | 1 | 6 |
 | PERF | 0 | 2 | 5 | 7 |
@@ -245,7 +246,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | JS / MOB (frontend & mobile lint) | 0 | 0 | 4 | 4 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **10** | **33** | **87** | **130** |
+| **Total** | **10** | **33** | **88** | **131** |
 
 Plus 19 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 
