@@ -24,7 +24,7 @@ from utils.auth import (
 from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
     hr_scope_subquery, hr_scope_column, hr_scope_denied, get_pending_counts, company_today,
-    get_employee_sidebar_info, coerce_datetime,
+    get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache,
     manager_scope_subquery, manager_scope_column, manager_scope_denied,
 )
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
@@ -196,6 +196,7 @@ def request_leave():
         [(emp_id, d, reason, leave_type_id, is_half_day, half_day_session) for d in days]
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
 
@@ -567,6 +568,7 @@ def leave_action(lid):
         return redirect(tpath("/leave_holidays?tab=leaves"))
 
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     if leave_row:
@@ -719,6 +721,7 @@ def request_resignation():
         (emp_id, last_working_day, reason)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
 
@@ -783,6 +786,7 @@ def resignation_action(rid):
         return "Forbidden", 403
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     if resign_row:
@@ -890,6 +894,7 @@ def bulk_leave_action():
             send_email_async(emp_email, f"Leave {action} -- {date_str}", html_body, cfg_row)
 
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     flash(f"Bulk action: {action} applied to {done} leave request(s).", "success")
@@ -1049,6 +1054,7 @@ def api_leave_action(lid):
     # and approving deducts the balance and marks the day.
     decided = _decide_leave(cursor, db, lid, action) if row else None
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     if not row:
@@ -1115,6 +1121,7 @@ def api_resignation_action(rid):
         return jsonify({"ok": False, "msg": "Resignation request not found."}), 404
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     if not resign_row:
@@ -1190,6 +1197,7 @@ def api_employee_leave_request():
         (emp_id, day, reason)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     _create_notification(
@@ -1226,6 +1234,7 @@ def api_employee_resign():
         (emp_id, last_working_day, reason)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     _create_notification(
         'admin',
         "📤 New Resignation Request",
@@ -1314,6 +1323,7 @@ def api_employee_cancel_leave(lid):
         (lid,)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     _audit("cancel_leave", "leave_requests", str(lid), f"Employee {emp_id} cancelled leave for {row[1]}")
@@ -1339,6 +1349,7 @@ def cancel_leave_web(lid):
             "UPDATE leave_requests SET status='Cancelled', cancelled_at=NOW() WHERE id=%s", (lid,)
         )
         db.commit()
+        invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
         flash("Leave request cancelled successfully.", "success")
         _audit("cancel_leave", "leave_requests", str(lid), f"Employee {emp_id} cancelled leave for {row[1]}")
     cursor.close()
