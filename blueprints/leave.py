@@ -830,13 +830,10 @@ def bulk_leave_action():
         emp_id, leave_date, reason, emp_name, emp_email, email_alerts_enabled = row
         if hr_scope_denied(emp_id) or manager_scope_denied(emp_id):
             continue
-        cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
-        if action == "Approved":
-            cursor.execute("""
-                INSERT INTO attendance (employee_id, date, attendance_type)
-                VALUES (%s, %s, 'Approved Leave')
-                ON CONFLICT (employee_id, date) DO UPDATE SET attendance_type='Approved Leave'
-            """, (emp_id, leave_date))
+        # Same decision path as a single approval: deducts the balance and
+        # handles half days, which the bulk path used to skip (QA BUG-36).
+        if not _decide_leave(cursor, db, lid, action):
+            continue
         done += 1
         if emp_email and cfg_row and email_alerts_enabled:
             color = "#16a34a" if action == "Approved" else "#dc2626"

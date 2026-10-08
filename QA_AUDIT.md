@@ -85,6 +85,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-06 | Correctness / DoS | Medium | blueprints/leave.py (request_leave, ~146-160) | No upper bound on the leave date range; one INSERT per day in a loop | One request (2026→2099) inserts about 27k rows | Cap the range (e.g. 60 days), validate dates, batch insert | S | Open |
 | BUG-31 | Correctness | Medium | blueprints/leave.py:450-500 (`leave_action`) | Approve/reject doesn't check the current status (the bulk path does: `status='Pending'`) | Re-approving deducts the balance **again**; rejecting an approved leave never refunds the balance or clears the 'Approved Leave' attendance mark | Only transition from `Pending` (`UPDATE … WHERE id=%s AND status='Pending' RETURNING`), as `bulk_leave_action` does | S | **Fixed** (test: tests/test_qa_leave_decisions.py): shared `_decide_leave()` moves a request out of Pending in the same statement that checks it |
 | BUG-32 | Correctness / duplication | Medium | blueprints/leave.py:974-1004 (`api_leave_action`, mobile) | The mobile approve/decline only updates `status`; unlike the web `leave_action` it doesn't deduct `leave_balances`, mark the day 'Approved Leave' in attendance, or check `Pending` | Leave approved from the phone **never reduces the balance**; attendance shows the day as absent | Share one approval service between the web and API twins (also fixes BUG-31 for both) | M | **Fixed** (test: tests/test_qa_leave_decisions.py): `api_leave_action` uses `_decide_leave()`; a decided request answers 409, an unknown one 404 |
+| BUG-36 | Correctness (leave) | Medium | blueprints/leave.py (`bulk_leave_action`) | The bulk approval marked the day 'Approved Leave' but never deducted `leave_balances` (or comp-off minutes) and treated half days as full days | Leave approved in bulk didn't reduce the balance; a half day was marked as a full day's leave | Use the shared `_decide_leave()` | S | **Fixed** (test: tests/test_qa_leave_decisions.py) |
 | BUG-17 | Correctness (timezone) | Medium | blueprints/admin_views.py:83, 290, 356, 793-794, 2166, 2663 | "Today" comes from the server clock (`date.today()`, UTC in the container) while check-ins are stored with `company_today()` | Dashboard today/late/absent counts show **yesterday** between 00:00 and 05:30 IST, and are wrong for non-IST tenants | Use `company_today()` / `company_now()` | S | **Fixed** (test: tests/test_qa_company_dates.py) |
 | BUG-18 | Correctness (timezone) | Medium | blueprints/hr_dashboard.py:214, 256, 289, 382, 407, 489 | Same as BUG-17 | Same | Same | S | **Fixed** (test: tests/test_qa_company_dates.py) |
 | BUG-19 | Correctness (timezone) | Medium | blueprints/attendance.py:400-401, 475, 580, 660, 816, 918-919 | Same (today views, bulk-mark default, default period) | Same | Same | S | **Fixed** (test: tests/test_qa_company_dates.py) |
@@ -225,7 +226,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 
 | Category | High | Medium | Low | Total |
 |---|---|---|---|---|
-| BUG (correctness) | 3 | 14 | 17 | 34 |
+| BUG (correctness) | 3 | 15 | 17 | 35 |
 | SCALE | 5 | 3 | 0 | 8 |
 | TEST | 1 | 4 | 0 | 5 |
 | PERF | 0 | 2 | 5 | 7 |
@@ -240,7 +241,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | JS / MOB (frontend & mobile lint) | 0 | 0 | 5 | 5 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **10** | **31** | **85** | **126** |
+| **Total** | **10** | **32** | **85** | **127** |
 
 Plus 19 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 

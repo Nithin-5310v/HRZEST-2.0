@@ -138,3 +138,15 @@ def test_existing_declined_leaves_are_migrated_to_rejected(db_engine, seed_emplo
     _run_leave_declined_to_rejected(cur, db_engine)          # re-runnable
     cur.close()
     assert _status(db_engine, lid) == "Rejected"
+
+
+# ── BUG-36: the bulk approval deducts the balance too ───────────────────────
+
+def test_bulk_approval_deducts_the_balance(client, db_engine, seed_admin, seed_employee, leave_type, request_leave):
+    emp = seed_employee["employee_id"]
+    full = request_leave(emp)
+    half = request_leave(emp, day=LEAVE_DAY + datetime.timedelta(days=1), half=True)
+    _admin_session(client, seed_admin["username"])
+    client.post("/bulk_leave_action", data={"action": "Approved", "leave_ids": [str(full), str(half)]})
+    assert _used_days(db_engine, emp, leave_type) == 1.5
+    assert _attendance_type(db_engine, emp, LEAVE_DAY + datetime.timedelta(days=1)) == "Half Day"
