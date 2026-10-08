@@ -125,7 +125,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-16 | Correctness | Low | blueprints/admin_views.py:2131 | Same | Same | Same | S | Open |
 | BUG-21 | Correctness (timezone) | Low | blueprints/payroll.py:193-194, 212, 347-360, 807-808, 900, 925, 1001, 1095, 1173-1174, 1231-1232, 1268-1269, 1467 | Default payroll period from the server clock | Wrong default month on the 1st before 05:30 IST | `company_today()` | S | **Fixed** (test: tests/test_qa_no_server_clock.py) |
 | BUG-22 | Correctness (timezone) | Low | blueprints/employee_portal.py:1310, 1336, 1421-1422, 1491-1492 | Same (default period, file timestamps) | Same | Same | S | **Fixed** (test: tests/test_qa_no_server_clock.py) |
-| BUG-24 | Correctness (timezone) | Low | blueprints/performance.py:220, 324, 677 | Same | Same | Same | S | Open |
+| BUG-24 | Correctness (timezone) | Low | blueprints/performance.py:220, 324, 677 | Same | Same | Same | S | **Fixed** (test: tests/test_qa_no_server_clock.py) |
 | BUG-25 | Correctness (timezone) | Low | blueprints/employees.py:232, 1187, 1191 | Same | Same | Same | S | Open |
 | BUG-26 | Correctness (timezone) | Low | blueprints/daily_report.py:126, 157 | The report day comes from the server date; the job runs at 23:59 server time (05:29 IST) | The report covers an unexpected day/time for IST tenants | Per-tenant `company_today()` and schedule in the tenant TZ | S | Open |
 | BUG-27 | Correctness (timezone) | Low | blueprints/billing_dunning.py:57, 101, 242, 244; blueprints/auto_debit.py:423, 611, 618 | Platform billing periods use the server-local date | Month boundary at UTC midnight, not IST | Use one explicit platform TZ (IST) | S | Open |

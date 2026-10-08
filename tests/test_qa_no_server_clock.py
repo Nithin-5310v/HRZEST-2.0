@@ -19,6 +19,7 @@ SERVER_CLOCK = re.compile(r"datetime\.date\.today\(\)|datetime\.datetime\.now\(\
 @pytest.mark.parametrize("path", [
     "blueprints/payroll.py",            # BUG-21
     "blueprints/employee_portal.py",    # BUG-22
+    "blueprints/performance.py",        # BUG-24
 ])
 def test_blueprint_does_not_read_the_server_clock(path):
     hits = [f"{path}:{n}" for n, line in enumerate((ROOT / path).read_text(encoding="utf-8").splitlines(), 1)

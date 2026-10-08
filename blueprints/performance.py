@@ -6,12 +6,14 @@ Bandit B608 audit note: the nosec-marked queries below interpolate
 literal chosen by a bool (`dept`/`active_cid`) -- never user input. Actual
 values are always %s-bound params.
 """
-import datetime
 from functools import wraps
 from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, g
 from database import get_db_connection
 from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE, session_account_ok
-from utils.helpers import tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings, get_employee_sidebar_info
+from utils.helpers import (
+    tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings,
+    get_employee_sidebar_info, company_today,
+)
 from extensions import limiter, log_security_event
 
 performance_bp = Blueprint("performance", __name__)
@@ -217,7 +219,7 @@ def api_submit_performance_review():
 @performance_bp.route("/performance")
 @admin_required
 def performance():
-    today = datetime.date.today()
+    today = company_today()
     q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
     yr = int(request.args.get("year", today.year))
     dept = request.args.get("dept", "")
@@ -321,7 +323,7 @@ def performance_review(emp_id):
     if hr_scope_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
-    today = datetime.date.today()
+    today = company_today()
     q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
     yr = int(request.args.get("year", today.year))
 
@@ -674,7 +676,7 @@ def performance_export():
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 
-    today = datetime.date.today()
+    today = company_today()
     q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
     yr = int(request.args.get("year", today.year))
 
