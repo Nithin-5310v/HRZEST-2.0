@@ -92,3 +92,27 @@ def test_a_decided_leave_cannot_be_flipped(client, db_engine, seed_admin, seed_e
     client.post(f"/leave_action/{lid}", data={"action": "Rejected"})
     assert _status(db_engine, lid) == "Approved"
     assert _used_days(db_engine, emp, leave_type) == 1.0
+
+
+# ── BUG-32: the mobile approval does what the web approval does ─────────────
+
+def test_mobile_approval_deducts_the_balance_and_marks_the_day(client, db_engine, seed_admin, seed_employee, leave_type, request_leave):
+    emp = seed_employee["employee_id"]
+    lid = request_leave(emp)
+    token = _admin_token(client, seed_admin)
+    resp = client.post(f"/api/leave_requests/{lid}/action", json={"action": "Approved"},
+                       headers={"Authorization": f"Bearer {token}"})
+    assert resp.get_json()["ok"] is True
+    assert _used_days(db_engine, emp, leave_type) == 1.0
+    assert _attendance_type(db_engine, emp) == "Approved Leave"
+
+
+def test_mobile_approval_of_a_decided_leave_is_refused(client, db_engine, seed_admin, seed_employee, leave_type, request_leave):
+    emp = seed_employee["employee_id"]
+    lid = request_leave(emp)
+    token = _admin_token(client, seed_admin)
+    headers = {"Authorization": f"Bearer {token}"}
+    client.post(f"/api/leave_requests/{lid}/action", json={"action": "Approved"}, headers=headers)
+    resp = client.post(f"/api/leave_requests/{lid}/action", json={"action": "Approved"}, headers=headers)
+    assert resp.status_code == 409
+    assert _used_days(db_engine, emp, leave_type) == 1.0

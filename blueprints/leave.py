@@ -1010,18 +1010,23 @@ def api_leave_action(lid):
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Leave request not found."}), 404
-    cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
+    # Same decision path as the web approval (QA BUG-32): only from Pending,
+    # and approving deducts the balance and marks the day.
+    decided = _decide_leave(cursor, db, lid, action) if row else None
     db.commit()
     cursor.close()
     db.close()
-    if row:
-        icon = "✅" if action == "Approved" else "❌"
-        _create_notification(
-            'employee',
-            f"{icon} Leave Request {action}",
-            f"Your leave request for {row[1]} has been {action.lower()}.",
-            row[0]
-        )
+    if not row:
+        return jsonify({"ok": False, "msg": "Leave request not found."}), 404
+    if not decided:
+        return jsonify({"ok": False, "msg": "This leave request was already processed."}), 409
+    icon = "✅" if action == "Approved" else "❌"
+    _create_notification(
+        'employee',
+        f"{icon} Leave Request {action}",
+        f"Your leave request for {row[1]} has been {action.lower()}.",
+        row[0]
+    )
     return jsonify({"ok": True, "status": action})
 
 
