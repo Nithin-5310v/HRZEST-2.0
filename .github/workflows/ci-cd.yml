@@ -25,6 +25,10 @@ jobs:
   security-and-test:
     name: Code Quality & Security Scanning
     runs-on: ubuntu-latest
+    env:
+      # Only a true/false flag at job level, so the token itself stays
+      # scoped to the Snyk step (a step's own env isn't visible to its if:).
+      HAS_SNYK_TOKEN: ${{ secrets.SNYK_TOKEN != '' }}
     services:
       postgres:
         image: postgres:16
@@ -87,9 +91,16 @@ jobs:
         with:
           config: "p/default"
 
+      # Optional: runs only once a SNYK_TOKEN repository secret exists.
+      # pip-audit above and Trivy in deploy.yml cover dependency CVEs meanwhile.
       - name: Dependency Scan (Snyk)
+        if: env.HAS_SNYK_TOKEN == 'true'
         uses: snyk/actions/python-3.10@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
+
+      - name: Warn that Snyk was skipped
+        if: env.HAS_SNYK_TOKEN != 'true'
+        run: echo "::warning title=Snyk skipped::SNYK_TOKEN repository secret is not set, so the Snyk dependency scan did not run."
