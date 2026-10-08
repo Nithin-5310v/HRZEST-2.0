@@ -393,8 +393,8 @@ def delete_break(bid):
 @attendance_bp.route("/monthly_report")
 @admin_required
 def monthly_report():
-    year = int(request.args.get("year", datetime.date.today().year))
-    month = int(request.args.get("month", datetime.date.today().month))
+    year = int(request.args.get("year", company_today().year))
+    month = int(request.args.get("month", company_today().month))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -468,7 +468,7 @@ def monthly_report():
     db.close()
 
     months = [(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)]
-    years = list(range(datetime.date.today().year - 2, datetime.date.today().year + 1))
+    years = list(range(company_today().year - 2, company_today().year + 1))
 
     return render_template("monthly_report.html",
                            report=report,
@@ -573,7 +573,7 @@ def employee_attendance_detail(emp_id, year, month):
     db.close()
 
     months = [(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)]
-    years = list(range(datetime.date.today().year - 2, datetime.date.today().year + 1))
+    years = list(range(company_today().year - 2, company_today().year + 1))
 
     return render_template("employee_attendance_detail.html",
                            emp=emp,
@@ -653,7 +653,7 @@ def correct_attendance():
 @attendance_bp.route("/bulk_mark_attendance", methods=["GET", "POST"])
 @admin_required
 def bulk_mark_attendance():
-    today = datetime.date.today()
+    today = company_today()
 
     if request.method == "POST":
         date_str = request.form.get("date", "").strip()
@@ -809,7 +809,7 @@ def _api_hr_username():
 @attendance_bp.route("/api/bulk_mark_attendance", methods=["GET", "POST"])
 @api_required
 def api_bulk_mark_attendance():
-    today = datetime.date.today()
+    today = company_today()
     if request.method == "POST":
         data = request.get_json() or {}
         date_str = data.get("date", "").strip() or today.isoformat()
@@ -911,8 +911,8 @@ def api_bulk_mark_attendance():
 @limiter.limit("10 per minute")
 def monthly_report_export():
     from flask import send_file
-    year = int(request.args.get("year", datetime.date.today().year))
-    month = int(request.args.get("month", datetime.date.today().month))
+    year = int(request.args.get("year", company_today().year))
+    month = int(request.args.get("month", company_today().month))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

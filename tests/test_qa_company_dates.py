@@ -88,3 +88,19 @@ def test_hr_onboarding_overdue_flag_uses_the_companys_today(client, db_engine, s
     rows = client.get("/api/hr_dashboard/onboarding").get_json()["rows"]
     row = next(r for r in rows if r["id"] == onboarding_id)
     assert row["is_overdue"] is (due < company_date)
+
+
+# ── BUG-19: attendance ───────────────────────────────────────────────────────
+
+def test_bulk_mark_without_a_date_marks_the_companys_today(client, db_engine, seed_admin, seed_employee, company_date):
+    token = client.post("/api/login", json={"username": seed_admin["username"],
+                                            "password": seed_admin["password"]}).get_json()["token"]
+    resp = client.post("/api/bulk_mark_attendance", json={"records": [
+        {"employee_id": seed_employee["employee_id"], "attendance_type": "Full Day",
+         "login_time": "09:00", "logout_time": "18:00"},
+    ]}, headers={"Authorization": f"Bearer {token}"})
+    assert resp.get_json()["saved"] == 1
+    cur = db_engine.cursor()
+    cur.execute("SELECT date FROM attendance WHERE employee_id=%s AND status='Manual'", (seed_employee["employee_id"],))
+    assert [r[0] for r in cur.fetchall()] == [company_date]
+    cur.close()
