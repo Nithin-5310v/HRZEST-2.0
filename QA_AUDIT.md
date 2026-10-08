@@ -164,6 +164,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | QUAL-09 | Code quality | Low | utils/oauth_client.py:204, 207, 217 | `raise … from` missing | Lost exception context | `from exc` | S | Open |
 | JS-01 | Frontend | Low | template/static JS (14 `no-empty`) | Empty `catch {}` blocks | Silent failures | Log, or handle | S | Open |
 | JS-02 | Frontend | Low | template JS (9 `no-inner-declarations`, 6 `no-useless-escape`) | Style issues that can confuse | — | Fix | S | Open |
+| JS-03 | Frontend | Low | templates/settings.html (`crumbData`) | The tab metadata object defines `company` twice; the last one silently wins, so the first entry is dead and the two disagree about the tab's title (the 1 real ESLint `no-dupe-keys` finding in the baseline) | Confusing to maintain; an edit to the first entry would have no effect | Remove the dead entry (keeps today's visible title) | S | **Fixed** (test: tests/test_qa_template_js.py) |
 | MOB-01 | Mobile | Low | mobile/src (23 `no-empty`) | Swallowed errors in the app | Silent failures | Handle/log | S | Open |
 | MOB-02 | Mobile | Low | mobile/src (4 `no-useless-escape`) | Style | — | Fix | S | Open |
 | A11Y-03 | Accessibility | Low | templates/offer_letter.html (11) | Unlabelled form controls | Screen-reader users | `for=`/`aria-label` | S | Open |
@@ -235,10 +236,10 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | DEAD | 0 | 0 | 7 | 7 |
 | QUAL (incl. complexity, types) | 0 | 0 | 19 | 19 |
 | MISP | 0 | 0 | 2 | 2 |
-| JS / MOB (frontend & mobile lint) | 0 | 0 | 4 | 4 |
+| JS / MOB (frontend & mobile lint) | 0 | 0 | 5 | 5 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **10** | **30** | **84** | **124** |
+| **Total** | **10** | **30** | **85** | **125** |
 
 Plus 19 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 
