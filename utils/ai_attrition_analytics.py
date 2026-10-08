@@ -133,9 +133,25 @@ def compute_attrition_and_burnout_analytics(company_id=None):
         },
         "flagged_burnout_risks": [e for e in employee_risk_list if e["risk_level"] in ("High", "Medium")],
         "all_employee_analytics": employee_risk_list[:20],
-        "ai_insights_summary": [
-            "Attendance patterns indicate elevated workload stress in IT & Operations departments.",
-            "3 employees flagged for potential burnout due to consecutive late arrivals and high leave usage.",
-            "Recommended Action: Schedule 1-on-1 check-ins and review workload distribution."
-        ]
+        "ai_insights_summary": _insights(employee_risk_list, len(employees)),
     }
+
+
+def _insights(employee_risk_list, total):
+    """Plain statements about this result. It used to be three fixed
+    sentences ("3 employees flagged ...", "IT & Operations ...") returned
+    whatever the data said (QA BUG-38)."""
+    flagged = [e for e in employee_risk_list if e["risk_level"] in ("High", "Medium")]
+    if not flagged:
+        return [f"0 of {total} employees are flagged for burnout risk in the last 30 days."]
+    by_dept = {}
+    for e in flagged:
+        by_dept[e["department"]] = by_dept.get(e["department"], 0) + 1
+    top_dept, top_n = max(by_dept.items(), key=lambda kv: kv[1])
+    high = sum(1 for e in flagged if e["risk_level"] == "High")
+    return [
+        f"{len(flagged)} of {total} employees are flagged for burnout risk ({high} high, {len(flagged) - high} medium), "
+        "based on late check-ins and missed working days in the last 30 days and approved leave in the last 60.",
+        f"Most flagged employees are in {top_dept} ({top_n}).",
+        "Recommended action: schedule 1-on-1 check-ins with the flagged employees and review their workload.",
+    ]

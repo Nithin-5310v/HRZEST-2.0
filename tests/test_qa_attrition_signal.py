@@ -89,3 +89,15 @@ def test_query_count_does_not_grow_with_headcount(db_engine, seed_employee, monk
     log.clear()
     _analytics()
     assert len(log) == few
+
+
+# ── BUG-38: the "insights" describe the actual result ───────────────────────
+
+def test_insights_are_derived_from_the_data(irregular_employee):
+    result = _analytics()
+    flagged = result["flagged_burnout_risks"]
+    text = " ".join(result["ai_insights_summary"])
+    assert "IT & Operations" not in text and "3 employees flagged" not in text
+    assert f"{len(flagged)} of {result['summary']['total_evaluated']}" in text
+    top_dept = max({e["department"] for e in flagged}, key=lambda d: sum(e["department"] == d for e in flagged))
+    assert top_dept in text
