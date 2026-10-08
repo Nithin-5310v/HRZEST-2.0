@@ -445,6 +445,61 @@ def leave_holidays():
                            )
 
 
+def _decide_leave(cursor, db, lid, action):
+    """Approve or reject one Pending leave request -- the single path for the
+    web, bulk and mobile approvals (QA BUG-31/32/33, BUG-36). The request
+    leaves Pending in the same statement that checks it, so approving twice
+    can't deduct the balance twice, and a decided request can't be flipped.
+    On approval the day is marked 'Approved Leave' (or 'Half Day') and the
+    leave balance -- and comp-off minutes for a Comp-off leave -- deducted.
+    Returns (employee_id, leave_date) or None if the request isn't Pending.
+    The caller commits."""
+    cursor.execute(
+        "UPDATE leave_requests SET status=%s WHERE id=%s AND status='Pending' "
+        "RETURNING employee_id, leave_date, COALESCE(is_half_day, 0), leave_type_id",
+        (action, lid),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return None
+    emp_id, leave_date, is_half, leave_type_id = row
+    if action != "Approved":
+        return emp_id, leave_date
+    att_type = 'Half Day' if is_half else 'Approved Leave'
+    cursor.execute("""
+        INSERT INTO attendance (employee_id, date, attendance_type)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (employee_id, date) DO UPDATE SET attendance_type=%s
+    """, (emp_id, leave_date, att_type, att_type))
+    deduction = 0.5 if is_half else 1
+    if leave_type_id:
+        year = leave_date.year if hasattr(leave_date, 'year') else company_today().year
+        cursor.execute("""
+            INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
+            VALUES (%s, %s, %s,
+                (SELECT annual_quota FROM leave_types WHERE id=%s),
+                %s)
+            ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET
+                used_days = leave_balances.used_days + %s
+        """, (emp_id, leave_type_id, year, leave_type_id, deduction, deduction))
+        cursor.execute("SELECT name FROM leave_types WHERE id=%s", (leave_type_id,))
+        lt_name_row = cursor.fetchone()
+        if lt_name_row and lt_name_row[0] == 'Comp-off':
+            cfg_cur = db.cursor(buffered=True)
+            cfg_cur.execute("SELECT COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
+            mpd_row = cfg_cur.fetchone()
+            cfg_cur.close()
+            mpd = int(mpd_row[0]) if mpd_row else 480
+            deduct_minutes = int(deduction * mpd)
+            cursor.execute("""
+                INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
+                VALUES (%s, 0, %s)
+                ON CONFLICT (employee_id) DO UPDATE SET
+                    used_minutes = compoff_balance.used_minutes + %s
+            """, (emp_id, deduct_minutes, deduct_minutes))
+    return emp_id, leave_date
+
+
 @leave_bp.route("/leave_action/<int:lid>", methods=["POST"])
 @role_required(*_LEAVE_APPROVER_ROLES)
 def leave_action(lid):
@@ -470,49 +525,12 @@ def leave_action(lid):
         db.close()
         return "Forbidden", 403
 
-    # Fetch leave_type_id before updating
-    cursor.execute("SELECT leave_type_id FROM leave_requests WHERE id=%s", (lid,))
-    lt_row = cursor.fetchone()
-    leave_type_id = lt_row[0] if lt_row else None
-
-    cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
-
-    if action == "Approved" and leave_row:
-        emp_id, leave_date, _, _, _, is_half, _ = leave_row
-        att_type = 'Half Day' if is_half else 'Approved Leave'
-        cursor.execute("""
-            INSERT INTO attendance (employee_id, date, attendance_type)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (employee_id, date) DO UPDATE SET attendance_type=%s
-        """, (emp_id, leave_date, att_type, att_type))
-        # Deduct leave balance
-        deduction = 0.5 if is_half else 1
-        if leave_type_id:
-            year = leave_date.year if hasattr(leave_date, 'year') else company_today().year
-            cursor.execute("""
-                INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
-                VALUES (%s, %s, %s,
-                    (SELECT annual_quota FROM leave_types WHERE id=%s),
-                    %s)
-                ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET
-                    used_days = leave_balances.used_days + %s
-            """, (emp_id, leave_type_id, year, leave_type_id, deduction, deduction))
-            # Deduct comp-off balance if this is a Comp-off leave type
-            cursor.execute("SELECT name FROM leave_types WHERE id=%s", (leave_type_id,))
-            lt_name_row = cursor.fetchone()
-            if lt_name_row and lt_name_row[0] == 'Comp-off':
-                cfg_cur = db.cursor(buffered=True)
-                cfg_cur.execute("SELECT COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
-                mpd_row = cfg_cur.fetchone()
-                cfg_cur.close()
-                mpd = int(mpd_row[0]) if mpd_row else 480
-                deduct_minutes = int(deduction * mpd)
-                cursor.execute("""
-                    INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
-                    VALUES (%s, 0, %s)
-                    ON CONFLICT (employee_id) DO UPDATE SET
-                        used_minutes = compoff_balance.used_minutes + %s
-                """, (emp_id, deduct_minutes, deduct_minutes))
+    decided = _decide_leave(cursor, db, lid, action) if leave_row else None
+    if not decided:
+        cursor.close()
+        db.close()
+        flash("This leave request was already processed." if leave_row else "Leave request not found.", "warning")
+        return redirect(tpath("/leave_holidays?tab=leaves"))
 
     db.commit()
     cursor.close()
