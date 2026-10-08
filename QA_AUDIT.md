@@ -106,6 +106,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-07 | Correctness | Medium | blueprints/leave.py (request_leave) | Leave rows are inserted for Sundays and holidays, and nothing checks for duplicates or overlaps | Leave day counts include non-working days; the same date can be requested twice (balance effect: NV-05) | Skip non-working days; reject overlaps (unique `(employee_id, leave_date)` or a pre-check) | M | Open |
 | TEST-02 | Tests | Medium | tests/conftest.py:17 | The test DB name is hard-coded (`att_test`), so runs can't be parallel or isolated per session; the full suite takes ~100 min | Slow feedback; two sessions collided today | Read the name from an env var; per-worker DBs with pytest-xdist | M | **Fixed** in 0d08d81 (test: tests/test_test_infrastructure.py); full suite green at 2fac33b (2,723 passed) |
 | TEST-04 | Tests | Medium | qa_audit/baseline/coverage_report.txt | Coverage is 82% overall, but the riskiest modules are the least covered: `database.py` 56% (pool rebuild/failover), `utils/razorpay_utils.py` 42%, `utils/document_verification.py` 49% (claim worker), `utils/task_queue.py` 0%, `utils/email_utils.py` 72% (queue drainer), `blueprints/disbursement.py` 73% | Regressions in payments, payouts, background workers and DB failover go unnoticed | Add tests alongside the fixes for SCALE-06/07/09 and BUG-02; payment/payout paths in demo mode | M | Open |
+| TEST-05 | Tests | Medium | tests/conftest.py (`_restore_snapshot`) | The per-test reset used `TRUNCATE … RESTART IDENTITY CASCADE` on every table in `public` and `att_master`; TRUNCATE gives each table and index a new data file and deletes the old one -- over a million file creates/deletes per run. Checkpoints spent ~1 h fsyncing ~570k files, and on 2026-10-07 a checkpoint fsync racing a delete PANICked the local Postgres 16 on Windows (`could not fsync file …: Invalid argument`) into a crash recovery that took ~1 h of redo (plus a lost overnight attempt) | Local test runs can take down the developer's whole Postgres, dev DB included | Empty tables with DELETE under `session_replication_role = replica` (keeps the files), sequences already reset with setval | S | **Fixed** (test: tests/test_test_infrastructure.py::test_reset_does_not_rewrite_table_files) |
 | CONFIG-03 | Config | Medium | requirements.txt, Containerfile:40-41 | All Python dependencies are `>=` floors with no lock file; the runtime stage runs an unpinned `pip install --upgrade wheel jaraco.context` | Non-reproducible builds; a new release can break production | pip-tools lock (`requirements.lock`) used by Containerfile and CI | M | Open |
 | SCALE-07 | Scalability / correctness | Medium | utils/document_verification.py:294-307 (`_document_verification_worker`) | Same claim race as SCALE-06 for KYC verification jobs (`verification_job_status`) | The same application is verified by several workers at once: duplicate AI/OCR calls (cost) and duplicate applicant emails; stuck `processing` rows | Same `FOR UPDATE SKIP LOCKED` claim plus stale-claim recovery | S | Open |
 | SCALE-04 | Scalability | Medium | utils/helpers.py:652-653, 859, 1163-1164; utils/totp.py:28; blueprints/platform_admin.py:50 | In-memory caches are per worker; only settings/auth use Redis, and only when it's configured | Settings changes and badges take up to the TTL to reach other workers; behaviour differs by worker | Route the remaining caches through the existing `_cache_get`/Redis path | M | Open |
@@ -226,7 +227,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 |---|---|---|---|---|
 | BUG (correctness) | 3 | 14 | 17 | 34 |
 | SCALE | 5 | 3 | 0 | 8 |
-| TEST | 1 | 3 | 0 | 4 |
+| TEST | 1 | 4 | 0 | 5 |
 | PERF | 0 | 2 | 5 | 7 |
 | SEC | 1 | 4 | 5 | 10 |
 | CONFIG | 0 | 2 | 3 | 5 |
@@ -239,7 +240,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | JS / MOB (frontend & mobile lint) | 0 | 0 | 5 | 5 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **10** | **30** | **85** | **125** |
+| **Total** | **10** | **31** | **85** | **126** |
 
 Plus 19 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 

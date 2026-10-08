@@ -397,36 +397,50 @@ def _snapshot_schema(cur, schema):
 
 
 def _restore_snapshot(cur, schema_snapshots, extra_schemas):
-    """Truncate every table across the snapshotted schemas in one statement
-    (Postgres resolves FK ordering for a multi-table TRUNCATE + CASCADE on
-    its own -- no manual dependency sort needed), re-insert exactly the
-    rows captured in schema_snapshots, then re-sync every serial column's
-    sequence in one combined round trip (see _target_setvals() above --
-    with ~80+ serial columns across the schema, one setval() per column
-    was the dominant per-test cost; a single statement chaining all of them
-    cut this fixture's per-test overhead by roughly 3x). Drops any schema
-    created mid-test that wasn't part of the baseline."""
+    """Empty every table across the snapshotted schemas, re-insert exactly
+    the rows captured in schema_snapshots, then re-sync every serial
+    column's sequence in one combined round trip (see _target_setvals()
+    above -- one setval() per column was the dominant per-test cost; a
+    single statement chaining all of them cut this fixture's per-test
+    overhead by roughly 3x). Drops any schema created mid-test that wasn't
+    part of the baseline.
+
+    Tables are emptied with DELETE, not TRUNCATE (QA TEST-05): TRUNCATE
+    gives every table and index a brand-new data file and deletes the old
+    one, which across ~2,700 tests meant over a million file creates and
+    deletes per run -- checkpoints spent an hour fsyncing them, and on
+    Windows one such fsync racing a delete PANICked the local Postgres into
+    a recovery lasting many hours. DELETE keeps the files. FK checks and
+    triggers are off (session_replication_role=replica) only while the
+    tables are emptied and refilled, so the order doesn't matter; the
+    setval() calls below take the place of RESTART IDENTITY."""
     for schema in extra_schemas:
         cur.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')  # nosec B608 -- schema name sourced from information_schema, not external input
 
-    all_tables = [
-        f'"{schema}"."{table}"'
-        for schema, snap in schema_snapshots.items()
-        for table in snap
-    ]
-    if all_tables:
-        cur.execute(f'TRUNCATE {", ".join(all_tables)} RESTART IDENTITY CASCADE')  # nosec B608 -- table list built entirely from information_schema, never external input  # noqa: E501
+    cur.execute("SET session_replication_role = replica")
+    try:
+        deletes = "; ".join(
+            f'DELETE FROM "{schema}"."{table}"'
+            for schema, snap in schema_snapshots.items()
+            for table in snap
+        )
+        if deletes:
+            cur.execute(deletes)  # nosec B608 -- table list built entirely from information_schema, never external input
+        for schema, snap in schema_snapshots.items():
+            for table, (cols, rows, _serial_cols) in snap.items():
+                if rows:
+                    col_list = ", ".join(f'"{c}"' for c in cols)
+                    placeholders = ", ".join(["%s"] * len(cols))
+                    insert_sql = (
+                        f'INSERT INTO "{schema}"."{table}" ({col_list}) VALUES ({placeholders})'
+                    )  # nosec B608 -- schema/table/columns sourced from information_schema; row values are fully parameterized
+                    cur.executemany(insert_sql, rows)
+    finally:
+        cur.execute("SET session_replication_role = DEFAULT")
 
     setval_args = []
     for schema, snap in schema_snapshots.items():
         for table, (cols, rows, serial_cols) in snap.items():
-            if rows:
-                col_list = ", ".join(f'"{c}"' for c in cols)
-                placeholders = ", ".join(["%s"] * len(cols))
-                insert_sql = (
-                    f'INSERT INTO "{schema}"."{table}" ({col_list}) VALUES ({placeholders})'
-                )  # nosec B608 -- schema/table/columns sourced from information_schema; row values are fully parameterized
-                cur.executemany(insert_sql, rows)
             setval_args.extend(_target_setvals(cols, rows, serial_cols))
 
     if setval_args:
