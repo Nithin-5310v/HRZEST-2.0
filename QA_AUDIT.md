@@ -131,6 +131,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-27 | Correctness (timezone) | Low | blueprints/billing_dunning.py:57, 101, 242, 244; blueprints/auto_debit.py:423, 611, 618 | Platform billing periods use the server-local date | Month boundary at UTC midnight, not IST | Use one explicit platform TZ (IST) | S | Open |
 | BUG-29 | Correctness (UI) | Low | templates/settings.html (~line 2215, `crumbData`) | Duplicate `company` key in an object literal | The Companies breadcrumb shows the wrong title/subtitle | Remove the stale duplicate | S | Open |
 | BUG-33 | Correctness | Low | blueprints/leave.py:984 | The mobile leave decline writes `'Declined'` (the **resignation** vocabulary) where leaves use `'Rejected'` | Mobile-declined leaves are missing from the 'rejected' counts (leave.py:1209) and badges (leave_holidays.html:376, employee_portal.html:1044) | Write `'Rejected'`; migrate existing leave rows from 'Declined' to 'Rejected' | S | **Fixed** (test: tests/test_qa_leave_decisions.py): mobile decline stores 'Rejected'; tracked, re-runnable migration converts existing 'Declined' leave rows in every tenant |
+| BUG-37 | Correctness | Low | blueprints/onboarding.py (`onboarding_assign`) | The "Onboarding Started" in-app notification was inserted into an `employee_notifications` table that doesn't exist; it always failed and only a warning was logged | New joiners never got the in-app notice | Use `_create_notification()` (the `notifications` table every other notice uses) | S | **Fixed** (test: tests/test_qa_onboarding_notification.py) |
 | SEC-02 | Security | Low | templates/my_onboarding.html:223, 269 | Task title placed in `onclick` with hand-rolled quote escaping (backslash not escaped), then into `innerHTML` | DOM/HTML injection from an admin-authored title (CSP blocks script execution) | `|tojson` plus `textContent` | S | Open |
 | SEC-03 | Security | Low | templates/index.html:754 | `showError()` writes the server message with `innerHTML` | HTML injection if a message ever contains user data | `textContent` | S | Open |
 | SEC-04 | Security | Low | blueprints/admin_views.py:2685, blueprints/platform_admin.py:940 | Raw exception text shown (admin-only screens) | Internal detail disclosure to admins | Generic message; details in logs | S | **Fixed on security-fixes (37a2eac/b27c5be)** |
@@ -228,7 +229,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 
 | Category | High | Medium | Low | Total |
 |---|---|---|---|---|
-| BUG (correctness) | 3 | 15 | 17 | 35 |
+| BUG (correctness) | 3 | 15 | 18 | 36 |
 | SCALE | 5 | 3 | 0 | 8 |
 | TEST | 1 | 4 | 1 | 6 |
 | PERF | 0 | 2 | 5 | 7 |
@@ -243,7 +244,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | JS / MOB (frontend & mobile lint) | 0 | 0 | 5 | 5 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **10** | **33** | **86** | **129** |
+| **Total** | **10** | **33** | **87** | **130** |
 
 Plus 19 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 

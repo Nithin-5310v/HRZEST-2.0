@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required
 from utils.helpers import (
     tpath, get_company_settings, _safe_app_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
-    company_today, company_now,
+    company_today, company_now, _create_notification,
 )
 from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
@@ -574,10 +574,11 @@ def onboarding_assign():
     try:
         cursor.execute("SELECT name FROM onboarding_templates WHERE id=%s", (tid,))
         tname = cursor.fetchone()[0]
-        cursor.execute("""INSERT INTO employee_notifications (employee_id, title, message, notif_type)
-                          VALUES (%s, 'Onboarding Started', %s, 'info')""",
-                       (emp_id, f"Your onboarding checklist '{tname}' has been assigned. Please complete all tasks."))
-        db.commit()
+        # The app's notifications table (an employee_notifications table was
+        # targeted here that doesn't exist, so this always failed -- QA BUG-37).
+        _create_notification('employee', 'Onboarding Started',
+                             f"Your onboarding checklist '{tname}' has been assigned. Please complete all tasks.",
+                             emp_id)
     except Exception as exc:
         app_log.warning("In-app onboarding-started notification failed for %s: %s", emp_id, exc, exc_info=True)
 
