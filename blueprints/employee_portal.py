@@ -928,38 +928,12 @@ def api_employee_checkin():
                 db.close()
                 return jsonify({"ok": False, "msg": "You are outside the office premises."})
 
-    punched_at_str = data.get("punched_at")
+    # The punch time is always the server's: a client-supplied punched_at
+    # was accepted here up to 24 h back, so an employee arriving at 11:00
+    # could submit 08:55 and avoid the late/half-day mark (QA SEC-09). The
+    # app never sends it here; queued offline punches go through
+    # /api/employee/sync_punches.
     now = company_now()
-    if punched_at_str:
-        try:
-            _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
-            if _pt.tzinfo is not None:
-                # Mobile sends Date.toISOString() (always UTC, "...Z") --
-                # convert to the tenant's configured timezone before using
-                # it as a wall-clock "now". Previously this just discarded
-                # the offset (.replace(tzinfo=None)) and treated the raw
-                # UTC digits as if they were already local, which shifted
-                # every offline check-in's date/time by the UTC offset
-                # (e.g. a 9am IST check-in landing as 3:30am).
-                _pt = _pt.astimezone(now.tzinfo)
-            else:
-                # No offset info on the string (e.g. this app's own test
-                # suite posts a naive isoformat()) -- assume it already
-                # represents company-local wall-clock time, same as before.
-                _pt = now.tzinfo.localize(_pt)
-            if (now - _pt).total_seconds() <= 86400:
-                now = _pt
-            else:
-                cursor.close()
-                db.close()
-                return jsonify({"ok": False, "msg": "Offline punch too old (>24 h). Rejected."}), 400
-        except (ValueError, TypeError) as exc:
-            # Deliberate fallback, not a bug being hidden: an unparseable
-            # client-supplied offline-punch timestamp just means `now`
-            # (already set above) is used instead -- still worth a trace
-            # for diagnosing a client that's persistently sending malformed
-            # timestamps.
-            app_log.debug("Unparseable offline-punch punched_at=%r: %s", punched_at_str, exc)
 
     today = now.date()
     current_time = now.time()

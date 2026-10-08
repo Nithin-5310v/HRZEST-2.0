@@ -490,43 +490,30 @@ class TestApiEmployeeCheckin:
         assert data["ok"] is True
         assert data["action"] == "relogin"
 
-    def test_offline_punch_within_24h_accepted(self, client, seed_employee, db_engine):
+    def test_client_punch_time_is_ignored(self, client, seed_employee, db_engine):
+        """A punched_at sent to the live endpoint is ignored -- the punch is
+        recorded at the server's time (QA SEC-09: it used to be accepted up to
+        24 h back, which allowed backdating). Offline punches go through
+        /api/employee/sync_punches."""
         today = datetime.date.today()
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
                     (seed_employee["employee_id"], today))
         cur.close()
 
-        two_hours_ago = datetime.datetime.now() - datetime.timedelta(hours=2)
         token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin",
-                         json={**OFFICE, "punched_at": two_hours_ago.isoformat()},
-                         headers={"Authorization": f"Bearer {token}"})
-        data = rv.get_json()
-        assert data["ok"] is True
-        assert data["action"] == "login"
+        for hours_back in (2, 48):
+            punched_at = datetime.datetime.now() - datetime.timedelta(hours=hours_back)
+            rv = client.post("/api/employee/checkin",
+                             json={**OFFICE, "punched_at": punched_at.isoformat()},
+                             headers={"Authorization": f"Bearer {token}"})
+            data = rv.get_json()
+            assert rv.status_code == 200 and data["ok"] is True   # never "too old" -- it isn't used
 
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
                     (seed_employee["employee_id"], today))
         cur.close()
-
-    def test_offline_punch_over_24h_rejected(self, client, seed_employee, db_engine):
-        today = datetime.date.today()
-        cur = db_engine.cursor()
-        cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                    (seed_employee["employee_id"], today))
-        cur.close()
-
-        two_days_ago = datetime.datetime.now() - datetime.timedelta(days=2)
-        token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin",
-                         json={**OFFICE, "punched_at": two_days_ago.isoformat()},
-                         headers={"Authorization": f"Bearer {token}"})
-        assert rv.status_code == 400
-        data = rv.get_json()
-        assert data["ok"] is False
-        assert "24" in data["msg"]
 
     def test_invalid_lat_lon_returns_400(self, client, seed_employee, db_engine):
         today = datetime.date.today()
