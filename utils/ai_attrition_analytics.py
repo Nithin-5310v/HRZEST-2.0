@@ -4,7 +4,57 @@
 Parses employee attendance logs, overtime metrics, and performance scores
 to calculate burnout risk indicators and predict turnover trends.
 """
+import datetime
+
 from database import get_db_connection
+from utils.helpers import company_today
+
+# Look-back windows for the two risk signals.
+_ATTENDANCE_WINDOW_DAYS = 30
+_LEAVE_WINDOW_DAYS = 60
+
+
+def _late_and_absent_counts(cursor, employees, today):
+    """{employee_id: late logins + missed working days} over the last 30 days
+    (today excluded -- it isn't over yet). A missed day is a working day
+    (not Sunday, not a holiday, on or after the joining date) with no
+    check-in and no approved leave. Absences have no attendance row at all,
+    and late check-ins are stored as 'Late Login', so the old
+    status IN ('Late','Absent') count was always 0 (QA BUG-28). Three
+    grouped queries for the whole company instead of two per employee
+    (QA PERF-02)."""
+    start = today - datetime.timedelta(days=_ATTENDANCE_WINDOW_DAYS)
+    cursor.execute("SELECT date FROM holidays WHERE date >= %s AND date < %s", (start, today))
+    holidays = {r[0] for r in cursor.fetchall()}
+    window = [start + datetime.timedelta(days=i) for i in range(_ATTENDANCE_WINDOW_DAYS)]
+    working = [d for d in window if d.weekday() != 6 and d not in holidays]
+
+    cursor.execute(
+        "SELECT employee_id, date, status FROM attendance "
+        "WHERE date >= %s AND date < %s AND login_time IS NOT NULL",
+        (start, today),
+    )
+    attended, late = {}, {}
+    for emp_id, day, status in cursor.fetchall():
+        attended.setdefault(emp_id, set()).add(day)
+        if status == "Late Login":
+            late[emp_id] = late.get(emp_id, 0) + 1
+
+    cursor.execute(
+        "SELECT employee_id, leave_date FROM leave_requests "
+        "WHERE status='Approved' AND leave_date >= %s AND leave_date < %s",
+        (start, today),
+    )
+    on_leave = {}
+    for emp_id, day in cursor.fetchall():
+        on_leave.setdefault(emp_id, set()).add(day)
+
+    counts = {}
+    for emp_id, _name, _dept, _desig, joined in employees:
+        present = attended.get(emp_id, set()) | on_leave.get(emp_id, set())
+        absent = sum(1 for d in working if (joined is None or d >= joined) and d not in present)
+        counts[emp_id] = late.get(emp_id, 0) + absent
+    return counts
 
 
 def compute_attrition_and_burnout_analytics(company_id=None):
@@ -16,7 +66,7 @@ def compute_attrition_and_burnout_analytics(company_id=None):
     where_clause = "WHERE company_id = %s" if company_id else ""
     params = (company_id,) if company_id else ()
 
-    cursor.execute(f"SELECT employee_id, name, department, designation FROM employees {where_clause}", params)  # nosec B608 -- where_clause is one of two fixed literal strings above, company_id itself is always passed as a %s param, never interpolated  # noqa: E501
+    cursor.execute(f"SELECT employee_id, name, department, designation, date_of_joining FROM employees {where_clause}", params)  # nosec B608 -- where_clause is one of two fixed literal strings above, company_id itself is always passed as a %s param, never interpolated  # noqa: E501
     employees = cursor.fetchall()
 
     high_risk_count = 0
@@ -25,22 +75,20 @@ def compute_attrition_and_burnout_analytics(company_id=None):
 
     employee_risk_list = []
 
-    for emp in employees:
-        emp_id, name, dept, desig = emp
+    # 1. Attendance anomalies: late check-ins and missed working days, last 30 days
+    late_absent = _late_and_absent_counts(cursor, employees, company_today())
 
-        # 1. Check attendance anomalies (late check-ins or absences in past 30 days)
-        cursor.execute(
-            "SELECT COUNT(*) FROM attendance WHERE employee_id=%s AND status IN ('Late', 'Absent') AND date >= NOW() - INTERVAL '30 days'",
-            (emp_id,)
-        )
-        late_absent_count = cursor.fetchone()[0] or 0
+    # 2. Approved leave requests made in the last 60 days
+    cursor.execute(
+        "SELECT employee_id, COUNT(*) FROM leave_requests "
+        "WHERE status='Approved' AND created_at >= NOW() - make_interval(days => %s) GROUP BY employee_id",
+        (_LEAVE_WINDOW_DAYS,)
+    )
+    leave_counts = dict(cursor.fetchall())
 
-        # 2. Check pending leaves or excessive leave requests
-        cursor.execute(
-            "SELECT COUNT(*) FROM leave_requests WHERE employee_id=%s AND status='Approved' AND created_at >= NOW() - INTERVAL '60 days'",
-            (emp_id,)
-        )
-        leave_count = cursor.fetchone()[0] or 0
+    for emp_id, name, dept, desig, _joined in employees:
+        late_absent_count = late_absent.get(emp_id, 0)
+        leave_count = leave_counts.get(emp_id, 0)
 
         # 3. Calculate risk score (0 - 100)
         risk_score = min(92, max(8, (late_absent_count * 15) + (leave_count * 8) + 12))
