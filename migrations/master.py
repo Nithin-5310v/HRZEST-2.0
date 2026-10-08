@@ -304,6 +304,9 @@ def init_master_db():
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_job_status VARCHAR(20) DEFAULT NULL")
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_attempts INT NOT NULL DEFAULT 0")
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_error TEXT DEFAULT NULL")
+        # When a worker claimed the job; lets jobs stranded in 'processing' by a
+        # crashed worker go back to the queue (QA SCALE-07).
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_claimed_at TIMESTAMP DEFAULT NULL")
         # Raw structured extraction result (gst_number/pan/cin/company_name/
         # address plus per-field legibility) -- kept even for an
         # inconclusive/manual-fallback outcome so a human reviewer in
