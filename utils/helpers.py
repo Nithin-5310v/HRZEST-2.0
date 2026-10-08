@@ -868,6 +868,7 @@ def invalidate_pending_counts_cache():
     # not silently invalidate the wrong key).
     with _settings_lock:
         _pending_counts_cache.clear()
+    _redis_clear_prefix("settings_pending")
 
 
 def get_pending_counts():
@@ -884,9 +885,11 @@ def get_pending_counts():
     NOT for routes that scope these counts by active_company_id (multi-
     tenant) -- those need a live per-request query via co_scope_subquery,
     not this shared unscoped cache."""
-    with _settings_lock:
-        if not _co_expired(_pending_counts_cache):
-            return tuple(_pending_counts_cache[_tenant_cache_key()]["data"])
+    # Through Redis when configured, so every worker shows the same badges
+    # and an invalidation reaches all of them (QA SCALE-04).
+    cached = _cache_get(_pending_counts_cache, "settings_pending")
+    if cached is not _CACHE_MISS:
+        return tuple(cached)
     try:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -897,11 +900,7 @@ def get_pending_counts():
         result = tuple(get_pending_action_counts(cursor))
         cursor.close()
         db.close()
-        with _settings_lock:
-            _pending_counts_cache[_tenant_cache_key()] = {
-                "data": result,
-                "expires": datetime.datetime.now() + datetime.timedelta(seconds=_PENDING_COUNTS_CACHE_TTL),
-            }
+        _cache_set(_pending_counts_cache, "settings_pending", list(result), _PENDING_COUNTS_CACHE_TTL)
         return result
     except Exception:
         return (0, 0, 0)
