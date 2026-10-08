@@ -38,3 +38,12 @@ def test_onboarding_task_title_is_not_interpolated_into_onclick_or_innerhtml():
     assert 'data-title="{{ t[1] }}"' in html          # it travels as an auto-escaped attribute
     body = _function_body(html, "openDoneModal")
     assert "+ title" not in body and "createTextNode(title)" in body
+
+
+# ── SEC-03: the kiosk's error box shows text ─────────────────────────────────
+
+def test_kiosk_error_messages_are_shown_as_text():
+    html = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+    start = html.index("function showError(")
+    body = html[start:html.index("}", start)]
+    assert "innerHTML" not in body and "textContent" in body
