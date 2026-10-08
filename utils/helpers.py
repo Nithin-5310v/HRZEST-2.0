@@ -11,7 +11,7 @@ from contextlib import contextmanager
 
 import pytz
 from cryptography.fernet import Fernet, InvalidToken as _FernetInvalid
-from flask import session, request
+from flask import session, request, jsonify
 from database import get_db_connection
 from extensions import app_log, log_security_event, redis_client
 
@@ -1628,7 +1628,22 @@ def get_pending_action_counts(cursor, active_cid=None, tickets_open_only=False):
 # styling, no template dependency) rather than fixing the missing
 # template, since that's what every real error page has actually looked
 # like in production.
+def wants_json_response():
+    """True for API, AJAX and JSON-accepting requests -- they get a JSON error
+    body instead of the HTML error page."""
+    return (
+        request.path.startswith("/api/")
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
+
+
 def _error_page(code, icon, title, subtitle, hint):
+    # API clients (the mobile app, the pages' fetch() calls) can't parse an
+    # HTML page; same {"ok": False, "msg": ...} shape as every API error
+    # (QA ERR-01). Only the generic title goes out -- never exception details.
+    if wants_json_response():
+        return jsonify({"ok": False, "msg": title}), code
     back_admin = session.get("admin_logged_in")
     back_emp = session.get("employee_id")
     back_link = "/admin" if back_admin else ("/employee_portal" if back_emp else "/")

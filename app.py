@@ -82,7 +82,7 @@ from utils.email_utils import (
 # file. Consolidated onto one implementation; see utils/auth.py.
 from utils.auth import HR_ROLE
 from utils.helpers import (
-    _error_page, invalidate_settings_cache, get_company_settings,
+    _error_page, wants_json_response, invalidate_settings_cache, get_company_settings,
     get_companies_list, get_overdue_onboarding_count, coerce_datetime,
     tpath as _tpath, static_url as _static_url,
 )
@@ -1321,12 +1321,7 @@ def rate_limit_exceeded(e):
     waf.record_breach_and_maybe_ban(request.remote_addr, "Repeated rate-limit breaches")
     log_security_event("ratelimit.exceeded", f"Rate limit exceeded: {getattr(e, 'description', '')}",
                        level="WARNING")
-    is_ajax = (
-        request.path.startswith("/api/")
-        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
-        or request.accept_mimetypes.best == "application/json"
-    )
-    if is_ajax:
+    if wants_json_response():
         return jsonify({"ok": False, "msg": "Too many requests. Please slow down and try again shortly."}), 429
     return _error_page(429, "⏳", "Too Many Requests",
                        "You've made too many requests in a short period.",
@@ -1340,12 +1335,7 @@ def database_unavailable(e):
     APP_ENV=development). Answer 503 so the outage is visible and retryable,
     and alert (CRITICAL security events go to the alert webhook)."""
     log_security_event("db.unavailable", "PostgreSQL unavailable -- request answered 503", level="CRITICAL")
-    is_ajax = (
-        request.path.startswith("/api/")
-        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
-        or request.accept_mimetypes.best == "application/json"
-    )
-    if is_ajax:
+    if wants_json_response():
         resp = jsonify({"ok": False, "msg": "Service temporarily unavailable. Please try again shortly."})
     else:
         resp = _error_page(503, "🛠️", "Service Temporarily Unavailable",
