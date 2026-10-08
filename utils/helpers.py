@@ -1017,6 +1017,17 @@ def company_today():
     return company_now().date()
 
 
+# Platform-wide dates -- billing periods, dunning -- belong to no one
+# company, so they use the platform's own timezone rather than the
+# container's clock (UTC), which moved month boundaries to 05:30 IST
+# (QA BUG-27).
+PLATFORM_TZ = pytz.timezone("Asia/Kolkata")
+
+
+def platform_today():
+    return datetime.datetime.now(PLATFORM_TZ).date()
+
+
 # ── Company email domain (employee-registration gate) ────────────────────────
 _DOMAIN_RE = re.compile(r'^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$')
 

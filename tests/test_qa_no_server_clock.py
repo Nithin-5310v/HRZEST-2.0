@@ -26,3 +26,20 @@ def test_blueprint_does_not_read_the_server_clock(path):
     hits = [f"{path}:{n}" for n, line in enumerate((ROOT / path).read_text(encoding="utf-8").splitlines(), 1)
             if SERVER_CLOCK.search(line)]
     assert hits == []
+
+
+# ── BUG-27: platform billing periods are on the platform's clock (IST) ─────
+
+@pytest.mark.parametrize("path", ["blueprints/billing_dunning.py", "blueprints/auto_debit.py"])
+def test_billing_periods_use_the_platform_date(path):
+    source = (ROOT / path).read_text(encoding="utf-8")
+    assert "datetime.date.today()" not in source
+    assert "platform_today()" in source
+
+
+def test_platform_today_is_the_ist_date():
+    import datetime as _dt
+
+    import pytz
+    from utils.helpers import platform_today
+    assert platform_today() == _dt.datetime.now(pytz.timezone("Asia/Kolkata")).date()

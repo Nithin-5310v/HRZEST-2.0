@@ -32,7 +32,7 @@ from flask import Blueprint, request, session, jsonify, g
 from extensions import app_log, limiter, log_security_event
 from database import get_db_connection, get_master_db
 from utils.auth import admin_required
-from utils.helpers import get_company_settings, coerce_datetime
+from utils.helpers import get_company_settings, coerce_datetime, platform_today
 from utils.plan_limits import get_per_employee_paise, calculate_price, format_price_inr, get_tenant_employee_count
 from utils.razorpay_utils import (
     create_plan, create_customer, create_subscription, update_subscription_quantity,
@@ -420,7 +420,7 @@ def _record_charge(subscription_id, amount_paise, payment_id, status, failure_re
         return
     tenant_schema, company_name = row
     employee_count = get_tenant_employee_count(tenant_schema)
-    billing_period = datetime.date.today().replace(day=1)
+    billing_period = platform_today().replace(day=1)
     rate_paise = get_per_employee_paise()
     # Razorpay explicitly redelivers webhooks on timeout/non-2xx/network
     # retry -- idx_monthly_invoices_payment_id (app.py) is a real DB-level
@@ -615,7 +615,7 @@ def _maybe_simulate_demo_charge(tenant_schema, company_name, subscription_id, em
         return
 
     amount_paise = calculate_price(employee_count)
-    billing_period = datetime.date.today().replace(day=1)
+    billing_period = platform_today().replace(day=1)
     # Each simulated demo charge needs its own unique payment id -- a fixed
     # literal here would collide with idx_monthly_invoices_payment_id
     # (app.py) the very next time ANY tenant's demo subscription renews.
