@@ -999,7 +999,9 @@ def api_leave_action(lid):
     if raw_action in ("approved", "approve"):
         action = "Approved"
     elif raw_action in ("declined", "decline", "rejected", "reject"):
-        action = "Declined"
+        # Leaves use 'Rejected' everywhere ('Declined' is the resignation
+        # vocabulary); the app's "Decline" maps to it (QA BUG-33).
+        action = "Rejected"
     else:
         return jsonify({"ok": False, "msg": "action must be Approved or Declined"}), 400
     db = get_db_connection()

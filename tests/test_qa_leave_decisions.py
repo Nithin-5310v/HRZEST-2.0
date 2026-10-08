@@ -116,3 +116,25 @@ def test_mobile_approval_of_a_decided_leave_is_refused(client, db_engine, seed_a
     resp = client.post(f"/api/leave_requests/{lid}/action", json={"action": "Approved"}, headers=headers)
     assert resp.status_code == 409
     assert _used_days(db_engine, emp, leave_type) == 1.0
+
+
+# ── BUG-33: a mobile decline is a 'Rejected' leave ──────────────────────────
+
+def test_mobile_decline_stores_rejected(client, db_engine, seed_admin, seed_employee, request_leave):
+    lid = request_leave(seed_employee["employee_id"])
+    token = _admin_token(client, seed_admin)
+    resp = client.post(f"/api/leave_requests/{lid}/action", json={"action": "Declined"},
+                       headers={"Authorization": f"Bearer {token}"})
+    assert resp.get_json()["ok"] is True
+    assert _status(db_engine, lid) == "Rejected"
+
+
+def test_existing_declined_leaves_are_migrated_to_rejected(db_engine, seed_employee, request_leave):
+    from migrations.column_migrations import _run_leave_declined_to_rejected
+    lid = request_leave(seed_employee["employee_id"], status="Declined")
+    cur = db_engine.cursor()
+    cur.execute("DELETE FROM _applied_migrations WHERE name='leave_declined_to_rejected_v1'")
+    _run_leave_declined_to_rejected(cur, db_engine)
+    _run_leave_declined_to_rejected(cur, db_engine)          # re-runnable
+    cur.close()
+    assert _status(db_engine, lid) == "Rejected"

@@ -20,6 +20,23 @@ def _run_schema_migrations(cursor, db):
     _run_company_policies_seed_v2(cursor, db)
     _run_push_tokens_table_migration(cursor, db)
     _run_auth_hardening_migration(cursor, db)
+    _run_leave_declined_to_rejected(cursor, db)
+
+
+def _run_leave_declined_to_rejected(cursor, db):
+    """The mobile leave decline used to store 'Declined' (the resignation
+    vocabulary) where every other leave path stores 'Rejected', so those
+    leaves were missing from rejected counts and badges (QA BUG-33).
+    One-time, tracked in _applied_migrations, per tenant."""
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='leave_declined_to_rejected_v1'")
+        if not cursor.fetchone():
+            cursor.execute("UPDATE leave_requests SET status='Rejected' WHERE status='Declined'")
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('leave_declined_to_rejected_v1')")
+            db.commit()
+    except Exception as exc:
+        db.rollback()
+        app_log.warning("Migration 'leave_declined_to_rejected_v1' failed: %s", exc, exc_info=True)
 
 
 def _run_auth_hardening_migration(cursor, db):
