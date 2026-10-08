@@ -64,3 +64,27 @@ def test_attendance_chart_ends_on_the_companys_today(client, seed_admin, seed_em
     data = client.get("/api/attendance_chart_data").get_json()
     assert data["trend"]["labels"][-1] == checked_in_on_company_date.strftime("%d %b")
     assert data["trend"]["present"][-1] >= 1
+
+
+# ── BUG-18: HR dashboard ─────────────────────────────────────────────────────
+
+def test_hr_onboarding_overdue_flag_uses_the_companys_today(client, db_engine, seed_hr_admin, seed_assigned_employee, company_date):
+    from utils.auth import HR_ROLE
+    server_today = datetime.date.today()
+    # The one date the two calendars disagree about: overdue for one, not the other.
+    due = server_today if company_date > server_today else company_date
+    cur = db_engine.cursor()
+    cur.execute("INSERT INTO onboarding_templates (name) VALUES ('QA template') RETURNING id")
+    template_id = cur.fetchone()[0]
+    cur.execute("INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status) "
+                "VALUES (%s,%s,%s,%s,'In Progress') RETURNING id",
+                (seed_assigned_employee["employee_id"], template_id, due - datetime.timedelta(days=7), due))
+    onboarding_id = cur.fetchone()[0]
+    cur.close()
+    with client.session_transaction() as sess:
+        sess["admin_logged_in"] = True
+        sess["admin_username"] = seed_hr_admin["username"]
+        sess["admin_role"] = HR_ROLE
+    rows = client.get("/api/hr_dashboard/onboarding").get_json()["rows"]
+    row = next(r for r in rows if r["id"] == onboarding_id)
+    assert row["is_overdue"] is (due < company_date)
