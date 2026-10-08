@@ -129,7 +129,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-25 | Correctness (timezone) | Low | blueprints/employees.py:232, 1187, 1191 | Same | Same | Same | S | Open |
 | BUG-26 | Correctness (timezone) | Low | blueprints/daily_report.py:126, 157 | The report day comes from the server date; the job runs at 23:59 server time (05:29 IST) | The report covers an unexpected day/time for IST tenants | Per-tenant `company_today()` and schedule in the tenant TZ | S | Open |
 | BUG-27 | Correctness (timezone) | Low | blueprints/billing_dunning.py:57, 101, 242, 244; blueprints/auto_debit.py:423, 611, 618 | Platform billing periods use the server-local date | Month boundary at UTC midnight, not IST | Use one explicit platform TZ (IST) | S | Open |
-| BUG-29 | Correctness (UI) | Low | templates/settings.html (~line 2215, `crumbData`) | Duplicate `company` key in an object literal | The Companies breadcrumb shows the wrong title/subtitle | Remove the stale duplicate | S | Open |
+| BUG-29 | Correctness (UI) | Low | templates/settings.html (~line 2215, `crumbData`) | Duplicate `company` key in an object literal | The Companies breadcrumb shows the wrong title/subtitle | Remove the stale duplicate | S | **Fixed** in 2b737cf (registered again as JS-03 before this row was noticed; same bug) |
 | BUG-33 | Correctness | Low | blueprints/leave.py:984 | The mobile leave decline writes `'Declined'` (the **resignation** vocabulary) where leaves use `'Rejected'` | Mobile-declined leaves are missing from the 'rejected' counts (leave.py:1209) and badges (leave_holidays.html:376, employee_portal.html:1044) | Write `'Rejected'`; migrate existing leave rows from 'Declined' to 'Rejected' | S | **Fixed** (test: tests/test_qa_leave_decisions.py): mobile decline stores 'Rejected'; tracked, re-runnable migration converts existing 'Declined' leave rows in every tenant |
 | BUG-37 | Correctness | Low | blueprints/onboarding.py (`onboarding_assign`) | The "Onboarding Started" in-app notification was inserted into an `employee_notifications` table that doesn't exist; it always failed and only a warning was logged | New joiners never got the in-app notice | Use `_create_notification()` (the `notifications` table every other notice uses) | S | **Fixed** (test: tests/test_qa_onboarding_notification.py) |
 | BUG-38 | Correctness (misleading output) | Low | utils/ai_attrition_analytics.py (`ai_insights_summary`) | `/api/ai/attrition-analytics` returned three fixed sentences ("3 employees flagged …", "elevated workload stress in IT & Operations") whatever the data said; no screen shows them today | API consumers receive invented numbers presented as analysis | Build the lines from the result | S | **Fixed** (test: tests/test_qa_attrition_signal.py::test_insights_are_derived_from_the_data) |
@@ -170,7 +170,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | QUAL-09 | Code quality | Low | utils/oauth_client.py:204, 207, 217 | `raise … from` missing | Lost exception context | `from exc` | S | Open |
 | JS-01 | Frontend | Low | template/static JS (14 `no-empty`) | Empty `catch {}` blocks | Silent failures | Log, or handle | S | Open |
 | JS-02 | Frontend | Low | template JS (9 `no-inner-declarations`, 6 `no-useless-escape`) | Style issues that can confuse | — | Fix | S | Open |
-| JS-03 | Frontend | Low | templates/settings.html (`crumbData`) | The tab metadata object defines `company` twice; the last one silently wins, so the first entry is dead and the two disagree about the tab's title (the 1 real ESLint `no-dupe-keys` finding in the baseline) | Confusing to maintain; an edit to the first entry would have no effect | Remove the dead entry (keeps today's visible title) | S | **Fixed** (test: tests/test_qa_template_js.py) |
+| JS-03 | Frontend | Low (duplicate of BUG-29) | templates/settings.html (`crumbData`) | The tab metadata object defines `company` twice; the last one silently wins, so the first entry is dead and the two disagree about the tab's title (the 1 real ESLint `no-dupe-keys` finding in the baseline) | Confusing to maintain; an edit to the first entry would have no effect | Remove the dead entry (keeps today's visible title) | S | **Fixed** (test: tests/test_qa_template_js.py) |
 | MOB-01 | Mobile | Low | mobile/src (23 `no-empty`) | Swallowed errors in the app | Silent failures | Handle/log | S | Open |
 | MOB-02 | Mobile | Low | mobile/src (4 `no-useless-escape`) | Style | — | Fix | S | **Fixed**: the 4 `\-` at the end of character classes in CompanySignupScreen.js (ESLint 4 → 0; old and new regexes give identical results on all 128 ASCII characters) |
 | A11Y-03 | Accessibility | Low | templates/offer_letter.html (11) | Unlabelled form controls | Screen-reader users | `for=`/`aria-label` | S | Open |
@@ -242,10 +242,10 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | DEAD | 0 | 0 | 7 | 7 |
 | QUAL (incl. complexity, types) | 0 | 0 | 19 | 19 |
 | MISP | 0 | 0 | 2 | 2 |
-| JS / MOB (frontend & mobile lint) | 0 | 0 | 5 | 5 |
+| JS / MOB (frontend & mobile lint) | 0 | 0 | 4 | 4 |
 | A11Y | 0 | 0 | 6 | 6 |
 | UX / CONN | 0 | 0 | 2 | 2 |
-| **Total** | **10** | **33** | **88** | **131** |
+| **Total** | **10** | **33** | **87** | **130** |
 
 Plus 19 "Needs verification" items. 12 rows are deferred to Phase 6 (§6). **4 rows** are being handled on `security-fixes` by the other session (SEC-04, SEC-05, SEC-06, part of CONFIG-02), and the Razorpay part of TEST-01 too.
 
