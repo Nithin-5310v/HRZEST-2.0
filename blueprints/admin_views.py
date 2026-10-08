@@ -42,7 +42,7 @@ from utils.helpers import (
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
     encrypt_pii, decrypt_pii, invalidate_companies_cache,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
-    post_announcement, _validate_upload,
+    post_announcement, _validate_upload, company_today, company_now,
 )
 from utils.storage import save_private, open_private, delete_private
 from utils.email_utils import get_email_config, send_email_smtp
@@ -79,7 +79,7 @@ _TOGGLE_LABEL_MAP = {
 def admin():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
     _co_sub, _ = co_scope_subquery(active_cid)
@@ -287,7 +287,7 @@ def dashboard_live():
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
     _co_sub, _ = co_scope_subquery(active_cid)
@@ -353,7 +353,7 @@ def dashboard_live():
 def attendance_chart_data():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
 
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
@@ -791,8 +791,8 @@ def settings_page():
                            default_start=_co_shift_start,
                            default_half=_co_shift_half,
                            default_end=_co_shift_end,
-                           now_month=datetime.date.today().month,
-                           now_year=datetime.date.today().year,
+                           now_month=company_today().month,
+                           now_year=company_today().year,
                            default_onboarding_tpl=default_onboarding_tpl,
                            onboarding_templates=onboarding_templates,
                            late_deduction_pct=round(fr["late_deduction_pct"], 1),
@@ -2164,7 +2164,7 @@ def analytics():
 
     co = get_company_settings()
 
-    today = datetime.date.today()
+    today = company_today()
     _doj_start = today.replace(day=1)
     _doj_end = datetime.date(today.year + 1, 1, 1) if today.month == 12 else today.replace(month=today.month + 1, day=1)
 
@@ -2628,7 +2628,7 @@ def api_test_email():
         return jsonify({"ok": False, "msg": "No SMTP configuration found in system. Please configure SMTP first."}), 400
 
     subject = "⚡ SMTP Connection Test -- HRzest.com"
-    now_str = datetime.datetime.now().strftime("%d %b %Y, %I:%M %p")
+    now_str = company_now().strftime("%d %b %Y, %I:%M %p")
     html_body = f"""
     <div style="font-family: Arial, sans-serif; padding: 24px; background: #f8fafc; border-radius: 12px;">
       <h2 style="color: #16a34a; margin-top: 0;">✅ SMTP Connection Test Successful!</h2>
