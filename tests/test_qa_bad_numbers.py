@@ -49,3 +49,9 @@ def test_performance_with_a_bad_quarter_is_a_400(admin):
 
 def test_leave_balance_with_a_bad_year_is_a_400(admin):
     assert admin.get("/leave_balance?year=abc").status_code == 400
+
+
+# ── BUG-11 attendance ────────────────────────────────────────────────────────
+
+def test_monthly_report_with_a_bad_month_is_a_400(admin):
+    assert admin.get("/monthly_report?year=2026&month=xx").status_code == 400
