@@ -66,3 +66,10 @@ def test_hr_payroll_report_with_a_bad_year_is_a_400(client, seed_hr_admin, handl
         sess["admin_username"] = seed_hr_admin["username"]
         sess["admin_role"] = HR_ROLE
     assert client.get("/api/hr_dashboard/payroll/report?year=abc").status_code == 400
+
+
+# ── BUG-13 onboarding ────────────────────────────────────────────────────────
+
+def test_onboarding_task_with_a_bad_due_days_is_a_400(admin):
+    resp = admin.post("/onboarding_task_save", data={"template_id": "1", "task_title": "QA", "due_days": "soon"})
+    assert resp.status_code == 400

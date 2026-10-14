@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required
 from utils.helpers import (
     tpath, get_company_settings, _safe_app_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
-    company_today, company_now, _create_notification,
+    company_today, company_now, _create_notification, int_param,
 )
 from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
@@ -471,8 +471,8 @@ def onboarding_task_save():
     title = request.form.get("task_title", "").strip()
     desc = request.form.get("task_description", "").strip()
     req_doc = 1 if request.form.get("requires_document") else 0
-    due_days = int(request.form.get("due_days", 7))
-    sort_order = int(request.form.get("sort_order", 0))
+    due_days = int_param(request.form.get("due_days", 7))
+    sort_order = int_param(request.form.get("sort_order", 0))
     if not title:
         flash("Task title is required.", "error")
         return redirect(tpath(f"/onboarding_template_detail/{tid}"))
@@ -739,10 +739,10 @@ def offer_letter_save():
     monthly_ctc = request.form.get("monthly_ctc", 0) or 0
     joining_date = request.form.get("joining_date") or None
     valid_until = request.form.get("offer_valid_until") or None
-    probation = int(request.form.get("probation_months", 6))
+    probation = int_param(request.form.get("probation_months", 6))
     reporting_to = request.form.get("reporting_to", "")
     notes = request.form.get("additional_notes", "")
-    notice_days = int(request.form.get("notice_period_days", 30))
+    notice_days = int_param(request.form.get("notice_period_days", 30))
     candidate_addr = request.form.get("candidate_address", "")
     db = get_db_connection()
     cursor = db.cursor()
