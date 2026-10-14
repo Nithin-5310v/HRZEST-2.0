@@ -150,7 +150,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | PERF-07 | Performance | Low | admin_views.py:1309, leave.py:396, onboarding.py:713, helpers.py:917 | `SELECT *` | Over-fetching; fragile to schema changes | Explicit columns | S | Open |
 | DEAD-01 | Dead code | Low | utils/razorpay_utils.py:75 | `webhook_configured()` is never referenced | Noise | Remove | S | **Fixed** (removed; no callers anywhere in the repo) |
 | DEAD-02 | Dead code | Low | utils/config.py:15-17 | `OFFICE_LAT/OFFICE_LON/OFFICE_RADIUS_M` (hard-coded coordinates) unused | Misleading config | Remove | S | Open |
-| DEAD-03 | Dead code | Low | static/faces | Empty 0-byte tracked file | Noise | Remove | S | Open |
+| DEAD-03 | Dead code | Low | static/faces | Empty 0-byte tracked file | Noise | Remove | S | **Fixed** (removed; no references) |
 | DEAD-04 | Dead code | Low | blueprints/admin_views.py:2678-2680 | `if err:` branch unreachable (`send_email_smtp` returns None; it raises on failure) | Misleading | Remove the branch | S | Open |
 | DEAD-05 | Dead code | Low | mobile/src (49 locations, `eslint_mobile.txt`) | Unused variables and imports | Bundle noise | Remove | S | Open |
 | DEAD-08 | Dead code | Low | app.py (242 lines like `# home migrated to blueprints/core.py`) | Leftover migration stub comments | Size and noise in the main module | Remove | S | Open |
