@@ -1,6 +1,6 @@
 # HRZEST — QA & Architecture Audit
 
-Branch: `qa-audit-fixes` · Started 2026-10-06 · Status: **Phase 4 in progress.** On 2026-10-07 qa-audit-fixes was fast-forwarded onto `security-fixes` (c689aae; that session's final run: 2,680 passed / 0 failed / 7 skipped). The previous uncommitted working tree is kept as `stash@{0}`, byte-identical to commit 31d8f4f.
+Branch: `qa-audit-fixes` · Started 2026-10-06 · Status: **Phases 1–5 complete (2026-10-14); see §8 for the final report.** Rebased onto security-fixes c983530. On 2026-10-07 qa-audit-fixes was fast-forwarded onto `security-fixes` (c689aae; that session's final run: 2,680 passed / 0 failed / 7 skipped). The previous uncommitted working tree is kept as `stash@{0}`, byte-identical to commit 31d8f4f.
 Coverage baseline (2026-10-07, at 0d08d81, 4 xdist workers on isolated databases): **82%** line coverage; full suite 2,688 passed / 0 failed / 7 skipped in 47 min.
 
 ## 0. Owner decisions (2026-10-06)
@@ -304,3 +304,70 @@ The script opens its connection with `default_transaction_read_only=on`, so it c
 Mismatches are leads, not proof. A company that changed its shift times, or rows corrected by hand, can differ legitimately.
 
 **If mismatches appear in months already paid:** re-run the payroll comparison for those months after the BUG-01/BUG-30 fix, and decide with HR whether to correct the stored rows (a one-off script I can write, run only with your approval) and settle any differences in the next payroll.
+
+## 8. Phase 5 — final verification and report (2026-10-14)
+
+Branch `qa-audit-fixes`, rebased onto `security-fixes` c983530, one issue per commit (`fix(ID): …`), each with a test that failed before the fix. Full suite at the end: **2,849 passed / 0 failed / 7 skipped**.
+
+### 8.1 Before / after
+
+| Metric | Before | After |
+|---|---|---|
+| Test suite | 2,645 passed / **16 failed** / 7 skipped (2026-10-06, serial, ~100 min) | **2,849 passed / 0 failed** / 7 skipped |
+| Full-suite time (4 xdist workers) | 68 min (2,723 tests) | **5½–7½ min** (TEST-05: no more per-test TRUNCATE) |
+| Line coverage | 82.0% | 82.7% — database.py 56→76%, email_utils 72→85%, attrition analytics 50→89%, payroll 78→84% |
+| flake8 (CI gate) | 0 | 0 |
+| bandit, CI flags (`-ll -iii`) | 0 | 0 |
+| bandit, all severities, blueprints + utils | 33 | 13 (all Low) |
+| pip-audit | 0 known vulnerabilities | 0 |
+| npm audit (mobile) | 71 (55 high, 16 moderate; axios High) | 64 (49 high, 15 moderate; axios fixed) — the rest need major Expo/RN/Jest upgrades (NV-14) |
+| ruff, same rule set, application code | 992 | 901 |
+| Server-clock dates in blueprints (ruff DTZ005/011) | 92 | 6 (deliberate: receipt ids, comparisons with stored timestamps) |
+| Unguarded `int()` on request input (`unguarded_int.py`) | 80 | **0** |
+
+Raw output: `qa_audit/baseline/` (before) and `qa_audit/baseline/pytest_cov_after.txt` (after).
+
+### 8.2 Load test
+
+locust, 3 minutes per run, against `att_test` only, the app served by one waitress process (32 threads) on the developer laptop. **Before** = the pre-fix code (baseline worktree, 0d08d81); **after** = c0a9075. Same seed (1 admin, 200 employees), same users: admins browse the dashboard and download payslips; employees log in (API and web), check in and download their payslip. Rate limiting stays **on** (no env switch exists); each simulated user has its own `X-Forwarded-For` address. MFA was disabled only through environment variables of the server process; afterwards no tracked config file had changed, `.env` was untouched (last modified 2026-09-16), and every load-test row and WAF ban was removed from `att_test`.
+
+| Users | Version | Requests | Failures | p50 | p95 | req/s |
+|---|---|---|---|---|---|---|
+| 50 | before | 851 | 0 | 7.6 s | 15 s | 4.8 |
+| 50 | after | 922 | 0 | 7.3 s | 14 s | 5.2 |
+| 200 | before | 874 | 0 | 37 s | 50 s | 4.9 |
+| 200 | after | 966 | 0 | 34 s | 43 s | 5.4 |
+
+One CPU-bound Python process saturates at about 5 req/s, so the absolute latencies say more about this laptop than about production (8 gunicorn workers × 4 threads). The comparison is the useful part: **+8–10 % throughput and −7–14 % p95** on the same hardware, with no errors in either version. The fixes that matter most for production concurrency don't show up in a single process: SCALE-08 (each open tab held a worker thread for 20 s), SCALE-09 (pool exhaustion rebuilt the pool), SCALE-01/02 (8× schedulers and migrations on every worker boot). Per-run CSVs: `qa_audit/loadtest/`. The harness itself had two bugs, fixed in da09d27 (waitress dropped the per-user IP; cleanup missed WAF bans).
+
+### 8.3 What changed
+
+Of the 130 confirmed issues: **76 fixed**, 1 partly fixed, 1 resolved by design, 4 waiting on owner decisions, 12 in Phase 6 (sign-off), 36 Low items still open (§8.4).
+
+- **High (10):** 9 fixed — BUG-01, BUG-02, BUG-30, SCALE-01, SCALE-02, SCALE-06, SCALE-08, SCALE-09, TEST-01. SEC-07 waits on the owner (option A/B).
+- **Medium (33):** 28 fixed, among them the owner's priorities: attendance % (BUG-03/04), the payslip mismatch on the mobile API (BUG-34; the portal side is BUG-05/NV-19), IST dates (BUG-17…23, 39), JSON API errors (ERR-01), the axios advisory (DEP-01); plus leave decisions (BUG-31/32/36, SEC-11), leave requests (BUG-06/07), check-in integrity (SEC-08, SEC-09 live endpoint), SCALE-04/07, PERF-01/02/03, SEC-01, CONFIG-01, TEST-02/03/05.
+- **Low:** 39 fixed, among them all 9 unvalidated-number rows (BUG-08…16), the remaining timezone rows (BUG-21…27), SEC-02/03/10, UX-01, CONN-01, CONFIG-02/04, PERF-04/05, DEAD-01…04, JS-03 (= BUG-29), MOB-02, TEST-06, BUG-37/38.
+
+Found during Phase 4 and added to the register: SCALE-09, BUG-34, BUG-36, BUG-37, BUG-38, BUG-39, SEC-10, SEC-11, TEST-04, TEST-05, TEST-06, JS-03, NV-19.
+
+### 8.4 Still open
+
+**Owner decisions**
+- **SEC-07** (High): option A (verify every tenant has every table; refuse to route otherwise) or B (drop `public` from the tenant `search_path`).
+- **BUG-05 / NV-19**: which net-pay calculation is authoritative — the disbursed amount or the payslip document. Every other screen should then use it.
+- **SEC-09** (rest): how old a queued offline punch may be (now 24 h) and whether synced punches get a review flag.
+- **CONFIG-03**: a dependency lock file must be resolved and the image built on Linux; proposal in the row.
+
+**Medium, open:** TEST-04 — `razorpay_utils` 42 %, `task_queue` 0 %, `document_verification` 56 % coverage.
+
+**Low, open (36):** maintainability rather than behaviour — DUP-01…14 (duplicated templates and code), QUAL-02…10 (imports, encoding headers, f-string logging, `raise … from`, type errors), MISP-01/02, DEAD-05/08, PERF-06/07, JS-01/02 and MOB-01 (empty `catch` blocks need a decision each), A11Y-01…06 (form labels). Suggested order: one mechanical `ruff --fix` PR for QUAL-02/03/05/07; an accessibility pass over the templates; empty catch blocks case by case.
+
+**Phase 6** (§6, 12 rows): large refactors, not started, awaiting sign-off.
+
+### 8.5 Deploying this branch
+
+- **Schema changes**, all idempotent and applied by the startup migrations (once per deploy since SCALE-02): `email_queue.claimed_at`, `tenant_applications.verification_claimed_at`, `att_master.scheduler_job_runs`, `att_master.schema_migrations`, index `idx_api_tokens_expires`, and a one-time data fix converting leave rows from 'Declined' to 'Rejected'.
+- **Behaviour users will notice:** app check-ins need location when the company enforces it (SEC-08); the live check-in ignores a client time (SEC-09); leave requests skip Sundays/holidays, refuse duplicates and cap at 60 days (BUG-06/07); a decided leave can't be re-decided (BUG-31); mobile approvals now deduct the balance (BUG-32); payslip emails are admin-only (SEC-10); a compromised tab is told within ~15 s instead of ~2 s (SCALE-08); API errors are JSON (ERR-01); the daily report runs at 23:59 IST (BUG-26).
+- **New/changed settings:** `DB_POOL_WAIT_SECONDS` (default 5), `MIGRATIONS_FORCE=1`, `GUNICORN_WORKERS`/`GUNICORN_THREADS` are now read, `DB_CONNECT_TIMEOUT` defaults to 10 s, `OFFICE_LAT`/`OFFICE_LON` are no longer used (office location is per company).
+- **Existing data:** check BUG-01/BUG-30 impact with `qa_audit/tools/bug01_impact_check.py` (§7).
+- **Local environment:** on 2026-10-07 the suite's file churn crashed the local Postgres into a long recovery (fixed by TEST-05). The SMTP password in `.env`/`tests/.env` was printed in a test failure during this audit and should be rotated.
