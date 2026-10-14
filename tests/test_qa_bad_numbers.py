@@ -89,3 +89,9 @@ def test_employee_portal_with_a_bad_month_is_a_400(client, seed_employee, handle
 def test_employees_api_with_a_bad_page_is_a_400(client, seed_admin, handled_errors):
     resp = client.get("/api/employees?page=two", headers={"Authorization": f"Bearer {_admin_token(client, seed_admin)}"})
     assert resp.status_code == 400 and resp.get_json()["ok"] is False
+
+
+# ── BUG-16 admin views ───────────────────────────────────────────────────────
+
+def test_expiring_documents_with_bad_days_is_a_400(admin):
+    assert admin.get("/api/admin/expiring_documents?days=month").status_code == 400

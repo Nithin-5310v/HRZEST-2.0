@@ -42,7 +42,7 @@ from utils.helpers import (
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
     encrypt_pii, decrypt_pii, invalidate_companies_cache,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
-    post_announcement, _validate_upload, company_today, company_now,
+    post_announcement, _validate_upload, company_today, company_now, int_param,
 )
 from utils.storage import save_private, open_private, delete_private
 from utils.email_utils import get_email_config, send_email_smtp
@@ -2129,7 +2129,7 @@ def test_email():
 @admin_views_bp.route("/api/admin/expiring_documents", methods=["GET"])
 @admin_required
 def api_expiring_documents():
-    days = int(request.args.get("days", 30))
+    days = int_param(request.args.get("days", 30))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
