@@ -29,7 +29,7 @@ openpyxl>=3.1.5
 # generator (_generate_offer_letter_pdf, blueprints/onboarding.py) directly,
 # unmocked — passing there across many full-suite runs is the actual smoke
 # test this comment used to say was still needed.
-reportlab>=5.0.0,<6.0.0
+reportlab>=5.0.1,<6.0.0
 
 # ── Cryptography & auth ───────────────────────────────────────────────────────
 cryptography>=50.0.1
