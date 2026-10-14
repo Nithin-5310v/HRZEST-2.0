@@ -11,7 +11,7 @@ from contextlib import contextmanager
 
 import pytz
 from cryptography.fernet import Fernet, InvalidToken as _FernetInvalid
-from flask import session, request, jsonify
+from flask import session, request, jsonify, abort
 from database import get_db_connection
 from extensions import app_log, log_security_event, redis_client
 
@@ -1638,6 +1638,17 @@ def get_pending_action_counts(cursor, active_cid=None, tickets_open_only=False):
 # styling, no template dependency) rather than fixing the missing
 # template, since that's what every real error page has actually looked
 # like in production.
+def int_param(value):
+    """int() for a value taken from the request (query string, form, JSON).
+    Malformed input answers 400 Bad Request -- JSON for API calls, see
+    _error_page() -- instead of an unhandled ValueError: a 500 with a logged
+    traceback and an error alert (QA BUG-08..16)."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        abort(400, description="A number in the request is invalid.")
+
+
 def wants_json_response():
     """True for API, AJAX and JSON-accepting requests -- they get a JSON error
     body instead of the HTML error page."""

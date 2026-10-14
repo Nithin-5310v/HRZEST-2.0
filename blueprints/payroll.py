@@ -28,7 +28,10 @@ from utils.auth import (
     admin_required, employee_required, api_required, enforce_ownership, role_required, api_role_required,
     email_settings_step_up_valid, any_user_required,
 )
-from utils.helpers import tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime, hr_scope_column
+from utils.helpers import (
+    tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime,
+    hr_scope_column, int_param,
+)
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
 from utils.attendance_utils import (
     get_working_days, fetch_holidays_set, get_billable_past_days, infer_type_legacy,
@@ -190,8 +193,8 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
 @role_required("admin")
 @limiter.limit("10 per minute")
 def salary_report():
-    year = int(request.args.get("year", company_today().year))
-    month = int(request.args.get("month", company_today().month))
+    year = int_param(request.args.get("year", company_today().year))
+    month = int_param(request.args.get("month", company_today().month))
 
     active_cid = session.get("active_company_id")
     salary_data = compute_salary_data_for_month(year, month, active_cid)
@@ -345,8 +348,8 @@ _SALARY_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml
 @limiter.limit("10 per minute")
 def salary_report_export():
     from flask import send_file
-    year = int(request.args.get("year", company_today().year))
-    month = int(request.args.get("month", company_today().month))
+    year = int_param(request.args.get("year", company_today().year))
+    month = int_param(request.args.get("month", company_today().month))
     buf, filename = _build_salary_report_workbook(year, month, session.get("active_company_id"))
     return send_file(buf, as_attachment=True, download_name=filename, mimetype=_SALARY_XLSX_MIME)
 
@@ -357,8 +360,8 @@ def salary_report_export():
 @limiter.limit("10 per minute")
 def api_salary_report_export():
     import base64 as _base64
-    year = int(request.args.get("year", company_today().year))
-    month = int(request.args.get("month", company_today().month))
+    year = int_param(request.args.get("year", company_today().year))
+    month = int_param(request.args.get("month", company_today().month))
     buf, filename = _build_salary_report_workbook(year, month)
     content_b64 = _base64.b64encode(buf.read()).decode("ascii")
     return jsonify({"ok": True, "filename": filename, "mime_type": _SALARY_XLSX_MIME,
@@ -400,7 +403,7 @@ def email_config():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     host = request.form["smtp_host"].strip()
-    port = int(request.form["smtp_port"])
+    port = int_param(request.form["smtp_port"])
     user = request.form["smtp_user"].strip()
     password = request.form.get("smtp_pass", "").strip()
     from_name = request.form.get("from_name", "HRzest.com").strip()
@@ -507,8 +510,8 @@ def _payslip_email(emp_id, year, month):
 @role_required("admin")   # admin only, like the salary report it belongs to (QA SEC-10)
 def send_salary_email():
     emp_id = request.form["emp_id"]
-    year = int(request.form["year"])
-    month = int(request.form["month"])
+    year = int_param(request.form["year"])
+    month = int_param(request.form["month"])
 
     config = get_email_config()
     if not config:
@@ -533,8 +536,8 @@ def send_salary_email():
 @role_required("admin")
 @limiter.limit("5 per minute")
 def send_all_salary_emails():
-    year = int(request.form["year"])
-    month = int(request.form["month"])
+    year = int_param(request.form["year"])
+    month = int_param(request.form["month"])
 
     config = get_email_config()
     if not config:
@@ -626,8 +629,8 @@ def send_all_salary_emails():
 @payroll_bp.route("/lock_payroll", methods=["POST"])
 @admin_required
 def lock_payroll():
-    year = int(request.form["year"])
-    month = int(request.form["month"])
+    year = int_param(request.form["year"])
+    month = int_param(request.form["month"])
     actor = session.get("admin_username", "admin")
     db = get_db_connection()
     cursor = db.cursor()
@@ -646,8 +649,8 @@ def lock_payroll():
 @payroll_bp.route("/unlock_payroll", methods=["POST"])
 @admin_required
 def unlock_payroll():
-    year = int(request.form["year"])
-    month = int(request.form["month"])
+    year = int_param(request.form["year"])
+    month = int_param(request.form["month"])
     actor = session.get("admin_username", "admin")
     db = get_db_connection()
     cursor = db.cursor()
@@ -819,8 +822,8 @@ def my_payslip_summary(year, month):
 @employee_required
 def my_attendance_pdf():
     emp_id = session["employee_id"]
-    year = int(request.args.get("year", company_today().year))
-    month = int(request.args.get("month", company_today().month))
+    year = int_param(request.args.get("year", company_today().year))
+    month = int_param(request.args.get("month", company_today().month))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -936,8 +939,8 @@ def my_attendance_pdf():
 @role_required("admin")
 @limiter.limit("10 per minute")
 def apply_hike():
-    q = int(request.form.get("quarter", 1))
-    yr = int(request.form.get("year", company_today().year))
+    q = int_param(request.form.get("quarter", 1))
+    yr = int_param(request.form.get("year", company_today().year))
     emp_ids = request.form.getlist("emp_ids")
     if not emp_ids:
         flash("No employees selected.", "error")
@@ -1012,8 +1015,8 @@ def apply_hike():
 @role_required("admin")
 @limiter.limit("10 per minute")
 def award_performance_bonus():
-    q = int(request.form.get("quarter", 1))
-    yr = int(request.form.get("year", company_today().year))
+    q = int_param(request.form.get("quarter", 1))
+    yr = int_param(request.form.get("year", company_today().year))
     emp_ids = request.form.getlist("emp_ids")
     if not emp_ids:
         flash("No employees selected.", "error")
@@ -1185,8 +1188,8 @@ def api_salary_config_post():
 @payroll_bp.route("/api/monthly_report", methods=["GET"])
 @api_required
 def api_monthly_report():
-    year = int(request.args.get("year", company_today().year))
-    month = int(request.args.get("month", company_today().month))
+    year = int_param(request.args.get("year", company_today().year))
+    month = int_param(request.args.get("month", company_today().month))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
@@ -1243,8 +1246,8 @@ def api_monthly_report():
 @api_role_required("admin")
 @limiter.limit("10 per minute")
 def api_salary_report():
-    year = int(request.args.get("year", company_today().year))
-    month = int(request.args.get("month", company_today().month))
+    year = int_param(request.args.get("year", company_today().year))
+    month = int_param(request.args.get("month", company_today().month))
     # Same computation as the web salary report and disbursement (QA BUG-34).
     salary_data = compute_salary_data_for_month(year, month)
     return jsonify({"ok": True, "salary_data": salary_data,
@@ -1258,8 +1261,8 @@ def api_salary_report():
 def api_send_salary_email():
     data = request.get_json() or {}
     emp_id = data.get("emp_id")
-    year = int(data.get("year", company_today().year))
-    month = int(data.get("month", company_today().month))
+    year = int_param(data.get("year", company_today().year))
+    month = int_param(data.get("month", company_today().month))
     config = get_email_config()
     if not config:
         return jsonify({"ok": False, "msg": "Email not configured."})
