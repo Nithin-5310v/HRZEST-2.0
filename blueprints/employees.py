@@ -24,6 +24,7 @@ from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
     add_employee_seat_cap_check, _safe_app_url, hr_scope_denied as _hr_scope_denied, company_today,
+    int_param,
 )
 from utils.dlp import has_pii_clearance, mask_tail
 from utils.email_utils import get_email_config, send_email_smtp, _mask_email
@@ -2181,8 +2182,8 @@ def api_employee_id_card(emp_id):
 @api_role_required("admin")
 @limiter.limit("10 per minute")
 def api_employees():
-    page = max(1, int(request.args.get("page", 1)))
-    per_page = min(100, max(1, int(request.args.get("per_page", 50))))
+    page = max(1, int_param(request.args.get("page", 1)))
+    per_page = min(100, max(1, int_param(request.args.get("per_page", 50))))
     offset = (page - 1) * per_page
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

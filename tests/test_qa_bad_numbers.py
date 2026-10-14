@@ -82,3 +82,10 @@ def test_employee_portal_with_a_bad_month_is_a_400(client, seed_employee, handle
         sess["employee_id"] = seed_employee["employee_id"]
         sess["employee_name"] = seed_employee["name"]
     assert client.get("/employee_portal?year=2026&month=xx").status_code == 400
+
+
+# ── BUG-15 employees ─────────────────────────────────────────────────────────
+
+def test_employees_api_with_a_bad_page_is_a_400(client, seed_admin, handled_errors):
+    resp = client.get("/api/employees?page=two", headers={"Authorization": f"Bearer {_admin_token(client, seed_admin)}"})
+    assert resp.status_code == 400 and resp.get_json()["ok"] is False
