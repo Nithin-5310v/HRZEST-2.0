@@ -292,8 +292,6 @@ def onboarding():
 @onboarding_bp.route("/onboarding_template_save", methods=["POST"])
 @admin_required
 def onboarding_template_save():
-    db = get_db_connection()
-    cursor = db.cursor()
     tid = request.form.get("template_id")
     name = request.form.get("name", "").strip()
     desc = request.form.get("description", "").strip()
@@ -301,6 +299,9 @@ def onboarding_template_save():
     if not name:
         flash("Template name is required.", "error")
         return redirect(tpath("/onboarding?tab=templates"))
+    # Borrowed only after validation, so the early return never holds one (QA CONN-01).
+    db = get_db_connection()
+    cursor = db.cursor()
     if tid:
         cursor.execute("UPDATE onboarding_templates SET name=%s, description=%s, role=%s WHERE id=%s",
                        (name, desc, role, tid))
@@ -465,8 +466,6 @@ def onboarding_template_delete():
 @onboarding_bp.route("/onboarding_task_save", methods=["POST"])
 @admin_required
 def onboarding_task_save():
-    db = get_db_connection()
-    cursor = db.cursor()
     task_id = request.form.get("task_id")
     tid = request.form.get("template_id")
     title = request.form.get("task_title", "").strip()
@@ -477,6 +476,9 @@ def onboarding_task_save():
     if not title:
         flash("Task title is required.", "error")
         return redirect(tpath(f"/onboarding_template_detail/{tid}"))
+    # Borrowed only after validation, so the early return never holds one (QA CONN-01).
+    db = get_db_connection()
+    cursor = db.cursor()
     if task_id:
         cursor.execute("""UPDATE onboarding_template_tasks
                           SET task_title=%s, task_description=%s, requires_document=%s,

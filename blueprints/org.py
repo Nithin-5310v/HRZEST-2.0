@@ -1270,6 +1270,9 @@ def create_org():
         app_log.warning("create_org: APP_ENV=development -- OTP screen skipped entirely for application %s",
                         application_id)
         _mark_application_otp_verified(application_id, mconn, mcur)
+        mconn.commit()
+        mcur.close()
+        mconn.close()          # QA CONN-01: this early return used to keep the connection
         return redirect(f"/create_org/upload_documents?application_id={application_id}")
 
     mconn.commit()
