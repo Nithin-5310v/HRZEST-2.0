@@ -66,7 +66,7 @@ setuptools>=84.0.0
 #   - clamd 1.0.2 only reads its own version through pkg_resources inside a
 #     try/except, so it imports and scans normally without it.
 # Covered by tests/test_auth_hardening.py::TestDependencyCompat.
-typing-extensions>=4.7.0
+typing-extensions>=4.16.0
 # Used by blueprints/admin_views.py's save_company_info() to validate the
 # selected timezone against pytz.all_timezones_set -- not a transitive dep
 # of anything else here, so it 500s if missing from a clean install.
