@@ -2643,9 +2643,7 @@ def api_test_email():
     """
 
     try:
-        err = send_email_smtp(target_email, subject, html_body, cfg)
-        if err:
-            return jsonify({"ok": False, "msg": f"SMTP delivery error: {err}"}), 500
+        send_email_smtp(target_email, subject, html_body, cfg)   # raises on failure; returns nothing
         return jsonify({"ok": True, "msg": f"Test email successfully delivered to {target_email}!"})
     except Exception:
         app_log.exception("api_test_email: SMTP delivery exception")

@@ -151,7 +151,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | DEAD-01 | Dead code | Low | utils/razorpay_utils.py:75 | `webhook_configured()` is never referenced | Noise | Remove | S | **Fixed** (removed; no callers anywhere in the repo) |
 | DEAD-02 | Dead code | Low | utils/config.py:15-17 | `OFFICE_LAT/OFFICE_LON/OFFICE_RADIUS_M` (hard-coded coordinates) unused | Misleading config | Remove | S | Open |
 | DEAD-03 | Dead code | Low | static/faces | Empty 0-byte tracked file | Noise | Remove | S | **Fixed** (removed; no references) |
-| DEAD-04 | Dead code | Low | blueprints/admin_views.py:2678-2680 | `if err:` branch unreachable (`send_email_smtp` returns None; it raises on failure) | Misleading | Remove the branch | S | Open |
+| DEAD-04 | Dead code | Low | blueprints/admin_views.py:2678-2680 | `if err:` branch unreachable (`send_email_smtp` returns None; it raises on failure) | Misleading | Remove the branch | S | **Fixed** (removed; send_email_smtp() raises on failure and has no return value) |
 | DEAD-05 | Dead code | Low | mobile/src (49 locations, `eslint_mobile.txt`) | Unused variables and imports | Bundle noise | Remove | S | Open |
 | DEAD-08 | Dead code | Low | app.py (242 lines like `# home migrated to blueprints/core.py`) | Leftover migration stub comments | Size and noise in the main module | Remove | S | Open |
 | DUP-05 | Duplication | Low | utils/auth.py:482-498 vs 609-625 | AJAX-detection block copied in `admin_required`/`role_required` | Drift risk | Use the existing `_is_ajax_request()` | S | Open |
