@@ -15,11 +15,11 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash, g,
 )
-from extensions import limiter, app_log
+from extensions import limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import admin_required, api_required, resolve_bearer_identity_any, HR_ROLE
 from utils.helpers import (
-    tpath, get_auth_config, get_company_settings, _safe_redirect, _safe_referrer_redirect,
+    tpath, get_auth_config, allowed_checkin_combos, get_company_settings, _safe_redirect, _safe_referrer_redirect,
     co_scope_column, hr_scope_column, hr_scope_denied, decrypt_pii, get_pending_action_counts,
     company_today, company_now,
 )
@@ -850,7 +850,7 @@ def api_bulk_mark_attendance():
             placeholders = ",".join(["(%s,%s,%s,%s,%s,'Manual','Manual')"] * len(rows))
             params = [v for row in rows for v in row]
             cursor.execute(
-                "INSERT INTO attendance (employee_id, date, login_time, logout_time, "
+                "INSERT INTO attendance (employee_id, date, login_time, logout_time, "  # nosec B608
                 f"attendance_type, status, logout_status) VALUES {placeholders} "
                 "ON CONFLICT (employee_id, date) DO UPDATE SET "
                 "login_time=EXCLUDED.login_time, logout_time=EXCLUDED.logout_time, "
@@ -923,8 +923,8 @@ def monthly_report_export():
     active_cid = session.get("active_company_id")
     _co, _co_args = co_scope_column(active_cid)
     _hr, _hr_args = hr_scope_column()
-    cursor.execute(  # nosec B608
-        f"SELECT employee_id, name FROM employees WHERE 1=1 {_co} {_hr} ORDER BY name",
+    cursor.execute(
+        f"SELECT employee_id, name FROM employees WHERE 1=1 {_co} {_hr} ORDER BY name",  # nosec B608 -- fixed scope fragments
         _co_args + _hr_args)
     employees = cursor.fetchall()
 
@@ -1137,6 +1137,16 @@ def attendance():
         err_msg = "Employee ID is required." if auth_combo == "fingerprint_only" else "No QR code data received."
         return jsonify({"ok": False, "msg": err_msg})
 
+    # auth_combo comes from the client, so which checks run must be decided
+    # here from the organisation's settings -- otherwise a client could
+    # simply ask for "qr_only" and skip face verification. Runs before any
+    # QR verification, lockout lookup or employee lookup.
+    auth_cfg = get_auth_config()
+    if auth_combo not in allowed_checkin_combos(auth_cfg):
+        log_security_event("attendance.combo_rejected", "Check-in method not permitted by settings",
+                           level="WARNING", auth_combo=auth_combo)
+        return jsonify({"ok": False, "msg": "This check-in method is not enabled for your organisation."}), 403
+
     # For every combo that involves scanning a QR code, the posted
     # "employee_id" is really whatever text the QR encodes -- which must be
     # this employee's signed "<id>.<hmac>" value (see qr_generator.py), not
@@ -1164,8 +1174,6 @@ def attendance():
     _locked, _lock_msg = check_attendance_lockout(emp_id, _today)
     if _locked:
         return jsonify({"ok": False, "msg": _lock_msg}), 403
-
-    auth_cfg = get_auth_config()
 
     if auth_combo in ("qr_fingerprint", "fingerprint_only"):
         if not auth_cfg["fingerprint_enabled"]:

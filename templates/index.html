@@ -490,8 +490,9 @@
 
         <!-- Method cards: shown only when admin enables the corresponding auth option -->
         {% set show_qr_face = auth_cfg.qr_enabled and auth_cfg.face_enabled %}
-        {% set show_qr_only = auth_cfg.qr_enabled %}
-        {% set show_fp      = auth_cfg.fingerprint_enabled %}
+        {# Face enabled => every method must include face (server-enforced: allowed_checkin_combos) #}
+        {% set show_qr_only = auth_cfg.qr_enabled and not auth_cfg.face_enabled %}
+        {% set show_fp      = auth_cfg.fingerprint_enabled and not auth_cfg.face_enabled %}
         {% set first_method = 'qr_face' if show_qr_face else ('qr_only' if show_qr_only else ('fingerprint_only' if show_fp else '')) %}
         {% if show_qr_face or show_qr_only or show_fp %}
         <div class="att-methods">
@@ -737,8 +738,10 @@
       function buildCombos() {
         const c = [];
         if (authCfg.qr_enabled !== false && authCfg.face_enabled !== false) c.push("qr_face");
-        if (authCfg.qr_enabled !== false && authCfg.fingerprint_enabled)    c.push("qr_fingerprint");
-        if (authCfg.fingerprint_enabled)                                      c.push("fingerprint_only");
+        // Face enabled => only face-inclusive methods (server-enforced too).
+        const faceOn = authCfg.face_enabled !== false;
+        if (!faceOn && authCfg.qr_enabled !== false && authCfg.fingerprint_enabled) c.push("qr_fingerprint");
+        if (!faceOn && authCfg.fingerprint_enabled)                                 c.push("fingerprint_only");
         return c;
       }
 

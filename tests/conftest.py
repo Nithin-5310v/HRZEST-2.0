@@ -44,6 +44,7 @@ from blueprints.tickets import tickets_bp
 from blueprints.performance import performance_bp
 from blueprints.documents import documents_bp
 from blueprints.org import org_bp
+from blueprints.oauth_signup import oauth_signup_bp
 from blueprints.onboarding import onboarding_bp
 from blueprints.employee_portal import employee_portal_bp
 from blueprints.core import core_bp
@@ -74,6 +75,7 @@ flask_app.register_blueprint(tickets_bp)
 flask_app.register_blueprint(performance_bp)
 flask_app.register_blueprint(documents_bp)
 flask_app.register_blueprint(org_bp)
+flask_app.register_blueprint(oauth_signup_bp)
 flask_app.register_blueprint(onboarding_bp)
 flask_app.register_blueprint(employee_portal_bp)
 flask_app.register_blueprint(core_bp)
@@ -419,6 +421,21 @@ def _reset_db_after_test(db_engine, _db_baseline_snapshot):
     # regardless of what admin_users now actually says.
     from utils.totp import clear_totp_cache_for_tests
     clear_totp_cache_for_tests()
+
+
+@pytest.fixture
+def razorpay_demo_mode(monkeypatch):
+    """No Razorpay keys for this test, whatever the developer's local .env
+    holds. CI has none, and the billing/seats/auto-debit/dunning tests are
+    written for that demo branch -- with a real rzp_test_ key loaded they
+    stop taking it (and would call the Razorpay sandbox). utils/
+    razorpay_utils.py reads its keys once at import, so its module copies
+    are what get blanked; tests that need the live branch still monkeypatch
+    razorpay_configured on top of this. Production code is untouched."""
+    import utils.razorpay_utils as rz
+    monkeypatch.setattr(rz, "_KEY_ID", "")
+    monkeypatch.setattr(rz, "_KEY_SECRET", "")
+    monkeypatch.setattr(rz, "_WEBHOOK_SECRET", "")
 
 
 @pytest.fixture

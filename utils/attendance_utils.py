@@ -62,7 +62,7 @@ def fetch_employee_work_location(cursor, emp_id, include_face=False):
     the caller, since each route handles that differently). Returns the row
     tuple, or None if emp_id doesn't exist."""
     cols = "name, work_mode, work_lat, work_lon, face_image" if include_face else "name, work_mode, work_lat, work_lon"
-    cursor.execute(f"SELECT {cols} FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute(f"SELECT {cols} FROM employees WHERE employee_id=%s", (emp_id,))  # nosec B608 -- cols is one of two literals
     return cursor.fetchone()
 
 

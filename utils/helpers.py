@@ -133,7 +133,7 @@ def static_url(filename: str) -> str:
             if cached is None or cached[0] != mtime:
                 try:
                     with open(path, "rb") as f:
-                        digest = hashlib.md5(f.read()).hexdigest()[:10]
+                        digest = hashlib.md5(f.read(), usedforsecurity=False).hexdigest()[:10]  # cache-busting fingerprint, not security
                 except OSError:
                     return f"/static/{filename}"
                 cached = (mtime, digest)
@@ -1135,7 +1135,7 @@ def add_employee_seat_cap_check(cursor=None) -> str:
             try:
                 cursor.close()
                 db.close()
-            except Exception:
+            except Exception:  # nosec B110 -- best-effort close; must not mask the result
                 pass
 
     if is_trialing and current >= TRIAL_EMPLOYEE_CAP:
@@ -1257,6 +1257,32 @@ def get_auth_config():
     except Exception as exc:
         app_log.warning("get_auth_config failed, using defaults: %s", exc, exc_info=True)
     return dict(_AUTH_CONFIG_DEFAULTS)
+
+
+def allowed_checkin_combos(auth_cfg):
+    """The attendance check-in methods this organisation's settings permit,
+    decided on the server -- a client-supplied auth_combo outside this set
+    must be rejected. Whenever face recognition is enabled, every allowed
+    method includes the face check (so QR-only / fingerprint-only can't be
+    used to skip it); otherwise QR and fingerprint methods are offered as
+    enabled."""
+    qr = bool(auth_cfg.get("qr_enabled"))
+    face = bool(auth_cfg.get("face_enabled"))
+    fingerprint = bool(auth_cfg.get("fingerprint_enabled"))
+    allowed = set()
+    if face:
+        if qr:
+            allowed.add("qr_face")
+        if fingerprint:
+            allowed.add("face_fingerprint")
+    else:
+        if qr:
+            allowed.add("qr_only")
+        if qr and fingerprint:
+            allowed.add("qr_fingerprint")
+        if fingerprint:
+            allowed.add("fingerprint_only")
+    return allowed
 
 
 def _read_global_features():

@@ -30,7 +30,7 @@ from werkzeug.utils import secure_filename
 from database import get_db_connection, transaction
 from extensions import app, app_log, log_security_event, limiter
 from utils.auth import (
-    admin_required, role_required, require_email_2fa, EMAIL_2FA_WINDOW_SEC,
+    admin_required, role_required, require_email_2fa, EMAIL_2FA_WINDOW_SEC, any_user_required,
     email_settings_step_up_refresh, email_settings_step_up_clear,
     security_settings_step_up_clear,
     check_password_hash, HR_ROLE,
@@ -92,7 +92,7 @@ def admin():
     # deployments predating the overtime_records table; folding it in here
     # would make the whole dashboard 500 on that case instead of just
     # showing 0 OT pending.
-    cursor.execute(  # nosec B608
+    cursor.execute(
         f"""
         SELECT
             (SELECT COUNT(*) FROM employees e WHERE 1=1 {_co_filter}),
@@ -101,7 +101,7 @@ def admin():
             (SELECT COUNT(*) FROM leave_requests WHERE status='Pending' {_co_sub}),
             (SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' {_co_sub}),
             (SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') {_co_sub})
-        """,
+        """,  # nosec B608 -- _co_filter/_co_sub are fixed scope fragments, values bound
         _co_args + (today,) + _co_args + (today,) + _co_args + _co_args + _co_args + _co_args
     )
     (total, present, late,
@@ -1404,6 +1404,7 @@ def api_settings_toggle_feature():
         return jsonify({"ok": False, "msg": "Unknown feature."}), 400
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    # nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string
     cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))  # nosec B608 -- feature is allowlist-checked above, never interpolated from an unchecked value  # noqa: E501
     db.commit()
     cursor.close()
@@ -1904,7 +1905,7 @@ def id_card_template_editor(cid):
         "id_card_template_editor.html",
         cid=cid, company_name=company_name,
         front_image=front_image, back_image=back_image,
-        fields_json=json.dumps(fields),
+        fields=fields,
         active_nav="settings",
     )
 
@@ -2071,11 +2072,10 @@ def announcements_admin():
 
 
 @admin_views_bp.route("/download_announcement/<int:aid>")
+@any_user_required
 def download_announcement(aid):
     is_admin = session.get("admin_logged_in")
     emp_id = session.get("employee_id")
-    if not is_admin and not emp_id:
-        return redirect(tpath("/login"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -2680,9 +2680,10 @@ def api_test_email():
         if err:
             return jsonify({"ok": False, "msg": f"SMTP delivery error: {err}"}), 500
         return jsonify({"ok": True, "msg": f"Test email successfully delivered to {target_email}!"})
-    except Exception as exc:
+    except Exception:
         app_log.exception("api_test_email: SMTP delivery exception")
-        return jsonify({"ok": False, "msg": f"SMTP test failed: {exc}"}), 500
+        return jsonify({"ok": False,
+                        "msg": "SMTP test failed. Check the SMTP host, port and credentials, then try again."}), 500
 
 
 # 'admin' or HR_ROLE for whichever role this admin session actually has --

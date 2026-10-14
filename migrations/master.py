@@ -1,4 +1,4 @@
-from database import get_db_connection
+from database import get_db_connection, get_master_db
 from extensions import app_log
 
 from .core_tables import _UPDATED_AT_TRIGGER_FN, _attach_updated_at_trigger
@@ -90,6 +90,48 @@ def init_master_db():
         # every tenant provisioned before this existed.
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS pan VARCHAR(20) DEFAULT NULL")
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS cin VARCHAR(30) DEFAULT NULL")
+        # OAuth self-serve signup (blueprints/oauth_signup.py) -- the email
+        # domain of the Google/Microsoft-verified admin who created this
+        # tenant. Written by provision_tenant() whenever a caller passes
+        # email_domain (every caller may; only the OAuth signup path relies
+        # on it being here, since app-schema company_settings.email_domain
+        # already held a per-tenant copy but wasn't queryable across
+        # tenants, which "one trial per company domain" needs). The
+        # partial unique index below is the actual enforcement (a
+        # pre-check in oauth_signup.py just makes the common case return a
+        # friendly message instead of a raw constraint-violation error);
+        # it deliberately excludes utils/oauth_client.PERSONAL_EMAIL_DOMAINS
+        # -- a domain-uniqueness rule would let only the first Gmail user
+        # on Earth ever get a trial otherwise. Personal-domain signups are
+        # still deduped per full email address via the existing
+        # check_duplicate_admin_email().
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS email_domain VARCHAR(255) DEFAULT NULL")
+        from utils.oauth_client import PERSONAL_EMAIL_DOMAINS
+        _personal_domains_sql = ",".join("'" + d.replace("'", "''") + "'" for d in sorted(PERSONAL_EMAIL_DOMAINS))
+        cur.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_email_domain_unique ON tenants (email_domain) "
+            f"WHERE email_domain IS NOT NULL AND email_domain NOT IN ({_personal_domains_sql})"
+        )
+        # Server-side CSRF-state + PKCE-verifier store for
+        # utils/oauth_client.py's Google/Microsoft sign-up-and-sign-in
+        # flow. Not the Flask session: SESSION_COOKIE_SAMESITE="Strict"
+        # (extensions.py) means the session cookie is NOT sent on the
+        # top-level cross-site GET that brings the browser back from the
+        # provider's consent screen, so a session-held state would fail
+        # verification on effectively every real attempt. Rows are
+        # single-use (DELETE ... RETURNING on consume) and opportunistically
+        # swept of anything older than 15 minutes on every insert -- no
+        # separate scheduled job needed for a table this small/self-limiting.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS oauth_signup_states (
+                state VARCHAR(64) PRIMARY KEY,
+                provider VARCHAR(20) NOT NULL,
+                mode VARCHAR(10) NOT NULL,
+                code_verifier VARCHAR(128) NOT NULL,
+                tenant_db VARCHAR(100) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         # Platform-operator identity (blueprints/platform_admin.py) --
         # lives in att_master, not any tenant schema, since tenant
         # admin_users rows only exist inside their own schema and this
@@ -561,3 +603,31 @@ def init_master_db():
         db.close()
     except Exception as _e:
         app_log.warning("init_master_db failed (non-fatal for single-tenant mode): %s", _e)
+    _init_master_auth_hardening()
+
+
+def _init_master_auth_hardening():
+    """att_master objects for the login/billing hardening fixes, kept in
+    their own try block so a failure here can't roll back the registry
+    setup above. Idempotent (IF NOT EXISTS-guarded).
+
+    - login_otp_challenges: platform-admin emailed-login-code store
+      (utils/login_otp.py), purged of expired rows on every boot.
+    - tenant_applications.pending_subscription_id: the one Razorpay
+      subscription a trial applicant's confirm step may complete
+      (blueprints/org.py)."""
+    from utils.login_otp import CREATE_TABLE_SQL, CREATE_INDEX_SQL, PURGE_EXPIRED_SQL
+    try:
+        db = get_master_db()
+        cur = db.cursor()
+        cur.execute(CREATE_TABLE_SQL)
+        cur.execute(CREATE_INDEX_SQL)
+        cur.execute(PURGE_EXPIRED_SQL)
+        cur.execute(
+            "ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS pending_subscription_id VARCHAR(64) DEFAULT NULL"
+        )
+        db.commit()
+        cur.close()
+        db.close()
+    except Exception as _e:
+        app_log.warning("init_master_db auth hardening failed: %s", _e, exc_info=True)

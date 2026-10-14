@@ -16,6 +16,8 @@ import base64
 import datetime
 import io
 
+import pytest
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -55,8 +57,24 @@ def _cleanup_employee(db_engine, employee_id):
 # Check-in geofencing — regression coverage for the cfg-shadowing bug
 # ===========================================================================
 
+@pytest.fixture
+def face_off(db_engine):
+    """Non-face check-in methods (qr_only here) are only permitted while face
+    recognition is off (utils/helpers.py allowed_checkin_combos). The DB row
+    is restored by conftest's per-test snapshot; the settings cache is
+    cleared again on teardown so the NEXT test can't read this test's
+    cached face_enabled=0 after that restore."""
+    from utils.helpers import invalidate_settings_cache
+    cur = db_engine.cursor()
+    cur.execute("UPDATE company_settings SET face_enabled=0")
+    cur.close()
+    invalidate_settings_cache()
+    yield
+    invalidate_settings_cache()
+
+
 class TestCheckinGeofencing:
-    def test_checkin_office_employee_outside_radius_returns_json_not_500(self, client, db_engine, signed_qr):
+    def test_checkin_office_employee_outside_radius_returns_json_not_500(self, client, db_engine, signed_qr, face_off):
         """The exact bug: auth_cfg = get_auth_config() used to be named `cfg`,
         shadowing `import utils.config as cfg` for the whole function. Once
         an office employee with valid lat/lon hit the geofence-distance
@@ -93,7 +111,7 @@ class TestCheckinGeofencing:
             cur.close()
             invalidate_settings_cache()
 
-    def test_checkin_unknown_employee_returns_not_found(self, client, signed_qr):
+    def test_checkin_unknown_employee_returns_not_found(self, client, signed_qr, db_engine, face_off):
         resp = client.post("/attendance", json={
             "employee_id": signed_qr("NO_SUCH_EMP"),
             "auth_combo": "qr_only",
@@ -201,7 +219,7 @@ class TestCheckinStateMachine:
         cur.close()
         return employee_id
 
-    def test_first_checkin_of_day_creates_login_record(self, client, db_engine, signed_qr):
+    def test_first_checkin_of_day_creates_login_record(self, client, db_engine, signed_qr, face_off):
         emp_id = self._make_wfh_employee(db_engine)
         try:
             resp = client.post("/attendance", json={
@@ -218,7 +236,7 @@ class TestCheckinStateMachine:
         finally:
             _cleanup_employee(db_engine, emp_id)
 
-    def test_second_checkin_same_day_is_logout(self, client, db_engine, signed_qr):
+    def test_second_checkin_same_day_is_logout(self, client, db_engine, signed_qr, face_off):
         emp_id = self._make_wfh_employee(db_engine, "ATT_WFH02")
         try:
             payload = {"employee_id": signed_qr(emp_id), "auth_combo": "qr_only", "lat": "12.9716", "lon": "77.5946"}
@@ -232,7 +250,7 @@ class TestCheckinStateMachine:
         finally:
             _cleanup_employee(db_engine, emp_id)
 
-    def test_third_checkin_same_day_reopens_session(self, client, db_engine, signed_qr):
+    def test_third_checkin_same_day_reopens_session(self, client, db_engine, signed_qr, face_off):
         emp_id = self._make_wfh_employee(db_engine, "ATT_WFH03")
         try:
             payload = {"employee_id": signed_qr(emp_id), "auth_combo": "qr_only", "lat": "12.9716", "lon": "77.5946"}

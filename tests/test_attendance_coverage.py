@@ -643,9 +643,10 @@ class TestKioskLoginStatus:
         cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
                     (seed_employee["employee_id"], today))
         cur.close()
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         mocker.patch("blueprints.attendance.get_employee_shift",
                      return_value=(s_start, s_half, datetime.time(18, 0), "Test Shift"))
@@ -704,9 +705,10 @@ class TestKioskLogoutStatus:
             (seed_employee["employee_id"], today),
         )
         cur.close()
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         mocker.patch("blueprints.attendance.get_employee_shift",
                      return_value=(datetime.time(9, 0), s_half, s_end, "Test Shift"))
@@ -747,9 +749,10 @@ class TestKioskLogoutStatus:
     def test_second_logout_uses_last_relogin(self, client, seed_employee, att_post_relogin, db_engine, mocker, signed_qr):
         """Line 1135: session_start = last_relogin_stored (not login_time) for second logout."""
         # att_post_relogin: login_time SET, logout_time NULL, last_relogin='12:30:00'
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         mocker.patch("blueprints.attendance.get_employee_shift",
                      return_value=(datetime.time(8, 0), datetime.time(0, 1), datetime.time(23, 59), "Test Shift"))
@@ -777,9 +780,10 @@ class TestKioskWfhGeoFence:
             "WHERE employee_id='TST001'"
         )
         cur.close()
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": True,
+            "face_enabled": False, "location_enabled": True,
         })
         try:
             rv = client.post("/attendance", json={
@@ -1119,8 +1123,9 @@ class TestQrFaceCheckinCoverage:
         with client.session_transaction() as sess:
             sess["wa_fp_verified_emp_id"] = emp_id
             sess["wa_fp_verified_at"] = _time_stdlib.time()
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         import blueprints.employee_portal as att
@@ -1179,8 +1184,9 @@ class TestQrFaceCheckinCoverage:
         cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
         cur.close()
         self._qr_fp_session(client, seed_employee["employee_id"])
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         import blueprints.employee_portal as att
@@ -1206,8 +1212,9 @@ class TestQrFaceCheckinCoverage:
         cur.execute("DELETE FROM attendance WHERE employee_id='TST001' AND date=%s", (today,))
         cur.close()
         self._qr_fp_session(client, seed_employee["employee_id"])
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         import blueprints.employee_portal as att
@@ -1229,8 +1236,9 @@ class TestQrFaceCheckinCoverage:
     def test_half_day_logout_qrface(self, client, seed_employee, att_login_only, db_engine, mocker, signed_qr):
         """Line 1687: current_time < s_half → Half Day Logout."""
         self._qr_fp_session(client, seed_employee["employee_id"])
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         import blueprints.employee_portal as att
@@ -1247,8 +1255,9 @@ class TestQrFaceCheckinCoverage:
     def test_early_logout_qrface(self, client, seed_employee, att_login_only, db_engine, mocker, signed_qr):
         """Line 1689: s_half < current_time < s_end → Early Logout."""
         self._qr_fp_session(client, seed_employee["employee_id"])
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         import blueprints.employee_portal as att
@@ -1265,8 +1274,9 @@ class TestQrFaceCheckinCoverage:
     def test_relogin_qrface(self, client, seed_employee, att_completed_basic, db_engine, mocker, signed_qr):
         """Lines 1704-1711: relogin after a completed session."""
         self._qr_fp_session(client, seed_employee["employee_id"])
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         rv = client.post("/api/employee/qr-face-checkin", data={
@@ -1345,9 +1355,10 @@ class TestFingerprintRecentlyVerifiedViaRoute:
         with client.session_transaction() as sess:
             sess["wa_fp_verified_emp_id"] = emp_id
             sess["wa_fp_verified_at"] = _time_stdlib.time()
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": True, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         rv = client.post("/attendance", json={
             "employee_id": seed_employee["employee_id"],

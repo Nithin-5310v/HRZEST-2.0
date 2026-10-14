@@ -268,6 +268,13 @@ def cancel_subscription(subscription_id: str, cancel_at_cycle_end: bool = False)
     return True, None
 
 
+def demo_mode_allowed() -> bool:
+    """Demo (no-charge) payment ids are only ever honoured on a local
+    development box. Read per call, not at import, and keyed on an exact
+    APP_ENV match so staging/unset/typo'd environments fail closed."""
+    return os.environ.get("APP_ENV", "production") == "development"
+
+
 def create_id_or_demo(demo_prefix: str, create_fn):
     """Shared "demo vs. live" branch for minting a Razorpay object id.
     blueprints/billing.py (Orders), blueprints/seats.py (Orders), and
@@ -285,6 +292,9 @@ def create_id_or_demo(demo_prefix: str, create_fn):
     isn't configured.
     Returns (id, is_demo, error) -- error is None on success."""
     if not razorpay_configured():
+        if not demo_mode_allowed():
+            app_log.error("Razorpay keys are not configured outside development -- refusing demo payment id")
+            return None, False, "Payments are temporarily unavailable. Please contact support."
         return demo_prefix + secrets.token_hex(12), True, None
     real_id, error = create_fn()
     if error:
@@ -304,7 +314,7 @@ def verify_or_demo(id_value: str, demo_prefix: str, payment_id: str, signature: 
     Returns (ok, is_demo, error_msg) -- error_msg is None when ok is True."""
     is_demo = (id_value or "").startswith(demo_prefix)
     if is_demo:
-        if razorpay_configured():
+        if razorpay_configured() or not demo_mode_allowed():
             return False, True, "This was created in demo/test mode. Please start again."
         return True, True, None
     if not verify_fn(id_value, payment_id, signature):

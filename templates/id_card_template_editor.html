@@ -137,7 +137,7 @@
       work_mode:                  {side: 'back',  label: 'Work Mode',        color: '#0369a1'},
       company_phone:              {side: 'back',  label: 'Toll-Free Number', color: '#0d9488'}
     };
-    var savedFields = {{ fields_json|safe }};
+    var savedFields = {{ fields | tojson }};
     var hasBack = {{ 'true' if back_image else 'false' }};
     var boxes = {};
     var TEXT_FIELDS = [

@@ -445,9 +445,13 @@ class TestServeDataset:
 
 
 class TestMyPhoto:
-    def test_not_logged_in_returns_403(self, client):
-        resp = client.get("/my_photo")
-        assert resp.status_code == 403
+    def test_not_logged_in_is_sent_to_login(self, client):
+        # /my_photo is @any_user_required now (kill switch + account checks),
+        # so an anonymous request gets the same login redirect as every
+        # other signed-in-only route instead of a bare 403.
+        resp = client.get("/my_photo", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "login" in resp.headers.get("Location", "")
 
     def test_no_photo_on_file_returns_404(self, client, seed_employee):
         with client.session_transaction() as sess:

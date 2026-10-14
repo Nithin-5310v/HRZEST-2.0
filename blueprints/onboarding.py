@@ -10,7 +10,7 @@ from io import BytesIO
 from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, send_file
 from database import get_db_connection
 from werkzeug.utils import secure_filename
-from utils.auth import admin_required, employee_required, api_required, employee_api_required
+from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required
 from utils.helpers import tpath, get_company_settings, _safe_app_url, _db, hr_scope_column, hr_scope_denied, _validate_upload
 from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
@@ -53,6 +53,7 @@ def _save_onboarding_task_document(f, emp_id, task_id):
 
 
 @onboarding_bp.route("/onboarding_document/<int:task_id>")
+@any_user_required
 def download_onboarding_document(task_id):
     """Serves a completed onboarding task's attached document -- the only
     sanctioned way to read one back (templates/my_onboarding.html and
@@ -66,8 +67,6 @@ def download_onboarding_document(task_id):
     only ever reach its own task's document."""
     is_admin = session.get("admin_logged_in")
     emp_session = session.get("employee_id")
-    if not is_admin and not emp_session:
-        return redirect(tpath("/login"))
 
     with _db() as (cursor, _conn):
         cursor.execute(

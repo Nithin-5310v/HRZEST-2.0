@@ -17,7 +17,7 @@ A full-featured, self-hosted employee management and attendance platform built w
 | **Documents** | Employee document upload and management |
 | **Tickets** | Internal support ticket system |
 | **Notifications** | In-app notification feed (admin and employee) |
-| **Org chart** | Multi-tenant org provisioning |
+| **Org chart** | Multi-tenant org provisioning -- instant, via "Sign up with Google/Microsoft" (`/create_org`), auto-approved onto a 2-day free trial, no documents or payment upfront (see `GOOGLE_OAUTH_CLIENT_ID`/`MICROSOFT_OAUTH_CLIENT_ID` in `.env.example`) |
 | **Employee portal** | Self-service: attendance, payslips, leaves, profile, QR code |
 | **Mobile app** | React Native app for employee check-in/out |
 

@@ -117,7 +117,7 @@ class TestAdminAuth:
             "identifier": seed_admin["username"],
             "password": seed_admin["password"],
         })
-        resp = client.get("/logout", follow_redirects=False)
+        resp = client.post("/logout", follow_redirects=False)
         assert resp.status_code in (302, 200)
         # After logout, /admin should redirect again
         resp2 = client.get("/admin", follow_redirects=False)

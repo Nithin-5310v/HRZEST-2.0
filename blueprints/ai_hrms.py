@@ -5,7 +5,7 @@ from flask import Blueprint, request, jsonify, session
 from utils.ai_helpdesk import process_helpdesk_query
 from utils.ai_interview_evaluator import evaluate_interview_notes
 from utils.ai_attrition_analytics import compute_attrition_and_burnout_analytics
-from utils.auth import resolve_admin_identity, resolve_bearer_identity_any
+from utils.auth import resolve_admin_identity, resolve_bearer_identity_any, session_account_ok
 
 ai_hrms_bp = Blueprint("ai_hrms", __name__)
 
@@ -24,7 +24,8 @@ _resolve_bearer_identity = resolve_bearer_identity_any
 @ai_hrms_bp.route("/api/ai/hr-helpdesk", methods=["POST"])
 def api_hr_helpdesk():
     """API Endpoint: Conversational HR Helpdesk Q&A with automatic ticket escalation."""
-    emp_id = session.get("employee_id") or session.get("admin_username") or _resolve_bearer_identity()
+    session_identity = (session.get("employee_id") or session.get("admin_username")) if session_account_ok() else None
+    emp_id = session_identity or _resolve_bearer_identity()
     if not emp_id:
         return jsonify({"ok": False, "msg": "Login required."}), 401
 

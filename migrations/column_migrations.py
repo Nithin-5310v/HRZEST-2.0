@@ -19,6 +19,43 @@ def _run_schema_migrations(cursor, db):
     _run_company_policies_seed(cursor, db)
     _run_company_policies_seed_v2(cursor, db)
     _run_push_tokens_table_migration(cursor, db)
+    _run_auth_hardening_migration(cursor, db)
+
+
+def _run_auth_hardening_migration(cursor, db):
+    """Per-tenant objects for the login-hardening fixes. Lives here (not
+    core_tables.py) for the same reason as the push_tokens backfill below:
+    this function is what _run_migrations_for_all_tenants() re-applies to
+    every already-provisioned tenant schema on boot. Every statement is
+    IF NOT EXISTS-guarded, so re-running is safe.
+
+    - login_otp_challenges: server-side emailed-login-code store
+      (utils/login_otp.py) -- replaces keeping the code in the cookie
+      session. Expired rows are purged here on every boot and on every
+      new challenge.
+    - password_changed_at: lets every password reset/change revoke
+      sessions and API tokens issued before it (utils/auth.py).
+    - api_tokens.mfa_verified: only tokens issued after the emailed-code
+      step may be bridged into a web session (blueprints/core.py).
+      Existing tokens default to 0, i.e. not bridgeable until re-login.
+    - employees.must_change_password: set by an admin password reset
+      (blueprints/employees.py); the employee must replace the temporary
+      password at next login, web or mobile. Separate from
+      force_pin_change, which every new employee starts with and which
+      only the web login enforces."""
+    from utils.login_otp import CREATE_TABLE_SQL, CREATE_INDEX_SQL, PURGE_EXPIRED_SQL
+    try:
+        cursor.execute(CREATE_TABLE_SQL)
+        cursor.execute(CREATE_INDEX_SQL)
+        cursor.execute(PURGE_EXPIRED_SQL)
+        cursor.execute("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NULL")
+        cursor.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NULL")
+        cursor.execute("ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS mfa_verified SMALLINT NOT NULL DEFAULT 0")
+        cursor.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS must_change_password SMALLINT NOT NULL DEFAULT 0")
+        db.commit()
+    except psycopg2.Error as exc:
+        db.rollback()
+        app_log.warning("Migration 'auth hardening' failed: %s", exc, exc_info=True)
 
 
 def _run_push_tokens_table_migration(cursor, db):
@@ -206,6 +243,16 @@ def _run_column_migrations(cursor, db):
         # for every login path until something explicitly sets it to 0.
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS is_active SMALLINT NOT NULL DEFAULT 1",
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+        # OAuth self-serve signup/login (blueprints/oauth_signup.py). A row
+        # with oauth_provider set has an unusable random `password` (see
+        # provision_tenant() caller in oauth_signup.py) -- password login
+        # is disabled for it until/unless the admin sets a real password
+        # via the existing forgot-password flow. oauth_subject is the
+        # provider's stable account id ('sub' claim) -- see the unique
+        # index in _run_index_migrations_v4, which is what a returning
+        # OAuth login looks the account up by.
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS oauth_provider VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS oauth_subject VARCHAR(255) DEFAULT NULL",
         # Employee document verification (Company Onboarding -> Trial ->
         # Document Verification -> Subscription Activation): doc_kind
         # ('id_proof'|'address_proof', see blueprints/documents.py's
@@ -323,6 +370,7 @@ def _run_index_migrations(cursor, db):
     _run_index_migrations_v1(cursor, db)
     _run_index_migrations_v2(cursor, db)
     _run_index_migrations_v3(cursor, db)
+    _run_index_migrations_v4(cursor, db)
 
 
 def _run_index_migrations_v1(cursor, db):
@@ -415,6 +463,30 @@ def _run_index_migrations_v3(cursor, db):
             db.commit()
     except Exception as exc:
         app_log.warning("Migration 'perf_indexes_v3' failed: %s", exc, exc_info=True)
+
+
+def _run_index_migrations_v4(cursor, db):
+    """OAuth signup/login (blueprints/oauth_signup.py) -- a returning
+    admin's OAuth callback looks their admin_users row up by
+    (oauth_provider, oauth_subject); this is what makes that lookup real
+    (and prevents two provider identities ever mapping to the same
+    tenant's login, which app-level code alone can't guarantee under
+    concurrent signups)."""
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='oauth_indexes_v4'")
+        if not cursor.fetchone():
+            try:
+                cursor.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_users_oauth ON admin_users (oauth_provider, oauth_subject) "
+                    "WHERE oauth_provider IS NOT NULL"
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('oauth_indexes_v4')")
+            db.commit()
+    except Exception as exc:
+        app_log.warning("Migration 'oauth_indexes_v4' failed: %s", exc, exc_info=True)
 
 
 def _run_data_integrity_migrations(cursor, db):

@@ -6,7 +6,10 @@ from flask import Blueprint, request, session, redirect, flash, send_file, jsoni
 from extensions import app, app_log
 from database import get_db_connection, transaction
 from werkzeug.utils import secure_filename
-from utils.auth import admin_required, employee_required, enforce_ownership, api_required, api_role_required, employee_api_required
+from utils.auth import (
+    admin_required, employee_required, enforce_ownership, api_required, api_role_required, employee_api_required,
+    any_user_required,
+)
 from utils.helpers import (
     tpath, _audit, _validate_upload, _safe_referrer_redirect, hr_scope_denied, _create_notification, validate_emp_id,
 )
@@ -93,11 +96,9 @@ def delete_document(did):
 
 
 @documents_bp.route("/download_document/<int:did>")
+@any_user_required
 def download_document(did):
     is_admin = session.get("admin_logged_in")
-    emp_session = session.get("employee_id")
-    if not is_admin and not emp_session:
-        return redirect(tpath("/login"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, original_name, stored_name FROM employee_documents WHERE id=%s", (did,))
@@ -124,6 +125,7 @@ def download_document(did):
 
 
 @documents_bp.route("/upload_my_document", methods=["POST"])
+@any_user_required
 def upload_my_document():
     emp_id = session.get("employee_id")
     if not emp_id:

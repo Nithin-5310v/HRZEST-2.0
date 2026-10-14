@@ -10,7 +10,7 @@ import datetime
 from functools import wraps
 from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, g
 from database import get_db_connection
-from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE
+from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE, session_account_ok
 from utils.helpers import tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings, get_employee_sidebar_info
 from extensions import limiter, log_security_event
 
@@ -43,6 +43,11 @@ def _admin_session_or_api_role_required(*allowed_roles):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if session.get("admin_logged_in"):
+                # Same per-request checks as the utils/auth.py decorators:
+                # kill switch, account still active, password unchanged.
+                if not session_account_ok():
+                    session.clear()
+                    return jsonify({"ok": False, "msg": "Session expired. Please log in again."}), 401
                 user_role = session.get("admin_role", "admin")
                 if user_role not in allowed_roles and user_role != "superadmin":
                     log_security_event(
@@ -55,13 +60,14 @@ def _admin_session_or_api_role_required(*allowed_roles):
             auth = request.headers.get("Authorization", "")
             if not auth.startswith("Bearer "):
                 return jsonify({"ok": False, "msg": "Unauthorized"}), 401
-            from utils.auth import _hash_token
+            from utils.auth import _hash_token, _TOKEN_NOT_STALE_SQL
             token_hash = _hash_token(auth[7:])
             with _db() as (cursor, _conn):
                 cursor.execute(
                     "SELECT t.identity, COALESCE(u.is_active, 1), COALESCE(u.role, 'admin') "
                     "FROM api_tokens t LEFT JOIN admin_users u ON u.username = t.identity "
-                    "WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW()",
+                    "WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW() "
+                    f"AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
                     (token_hash,)
                 )
                 row = cursor.fetchone()
@@ -84,6 +90,7 @@ def _admin_session_or_api_role_required(*allowed_roles):
             g.api_user = identity
             g.api_role = actual_role
             return f(*args, **kwargs)
+        wrapper._hrz_auth_guard = "admin_session_or_api_role"  # read by tests/test_route_auth_guards.py
         return wrapper
     return decorator
 

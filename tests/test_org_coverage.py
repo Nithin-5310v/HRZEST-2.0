@@ -21,7 +21,7 @@ class TestCreateOrgPage:
     def test_get_shows_form(self, client):
         rv = client.get("/create_org")
         assert rv.status_code == 200
-        assert b"Register Your Organisation" in rv.data
+        assert b"Start Your Organisation" in rv.data
 
     def test_post_missing_fields_returns_error(self, client):
         rv = client.post("/create_org", data={

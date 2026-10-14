@@ -1,0 +1,82 @@
+# Runs on the standalone log-analysis EC2 instance -- never on the HRMS app
+# server, so a log storm or a Grafana query never competes with the app for
+# CPU/memory/disk I/O. Deploy: copy this whole observability/log-server/
+# directory to the log server, fill in .env (see .env.example next to this
+# file), then:
+#
+#   docker compose up -d
+#
+# Only two ports are ever exposed, and only within the VPC -- see
+# terraform/observability.tf's security group:
+#   3100 (Loki push API)  -- reachable ONLY from the app server's own SG
+#   3000 (Grafana UI)     -- reachable ONLY from trusted_admin_cidrs
+services:
+  loki:
+    image: docker.io/grafana/loki:3.3.2
+    restart: always
+    user: "10001:10001" # matches the loki image's built-in non-root user
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    environment:
+      LOKI_S3_BUCKET: ${LOKI_S3_BUCKET}
+      AWS_REGION: ${AWS_REGION}
+    command: -config.file=/etc/loki/local-config.yaml
+    # No AWS access/secret keys passed here -- the instance's IAM role
+    # (terraform/observability.tf's log_server_role) grants S3 access, the
+    # AWS SDK inside the loki image picks that up automatically via the
+    # EC2 instance metadata service. Nothing to rotate, nothing to leak.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1gb
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  grafana:
+    image: docker.io/grafana/grafana:11.4.0
+    restart: always
+    user: "472:472" # grafana image's built-in non-root user
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
+    environment:
+      # Set a real password in .env before first boot -- never leave this
+      # at Grafana's own default (admin/admin). This dashboard has visibility
+      # into HR system logs, which is itself sensitive.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      # Anonymous access and self-signup are both off by default in Grafana
+      # OSS -- left unset here deliberately so they stay off rather than
+      # accidentally re-enabled by a copy-pasted "quickstart" env block.
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    depends_on:
+      loki:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1gb
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  loki_data:
+  grafana_data:

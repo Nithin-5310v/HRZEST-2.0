@@ -754,13 +754,15 @@ class TestOnboardingDocumentDownload:
             "task_id": task_row_ids[0], "ob_id": ob_id,
             "document": (io.BytesIO(b"%PDF-1.4 fake pdf content"), "certificate.pdf"),
         }, content_type="multipart/form-data")
-        client.get("/logout")
+        client.post("/logout")
         return task_row_ids[0]
 
     def test_requires_login(self, client, completed_task_with_doc):
         resp = client.get(f"/onboarding_document/{completed_task_with_doc}", follow_redirects=False)
         assert resp.status_code in (302, 401)
-        assert "/login" in resp.headers.get("Location", "")
+        # @any_user_required redirects to the login endpoint like every other
+        # auth decorator (url_for("auth.admin_login") -> /admin-login).
+        assert "login" in resp.headers.get("Location", "")
 
     def test_owning_employee_can_download(self, client, seed_employee, completed_task_with_doc):
         _employee_session(client, seed_employee)

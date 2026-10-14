@@ -16,7 +16,10 @@ from extensions import app, app_log, limiter, log_security_event
 from database import get_db_connection, transaction
 from qr_generator import generate_qr
 from utils.storage import open_private
-from utils.auth import admin_required, generate_password_hash, api_required, role_required, api_role_required, HR_ROLE
+from utils.auth import (
+    admin_required, generate_password_hash, api_required, role_required, api_role_required, HR_ROLE,
+    record_password_change, any_user_required, session_account_ok,
+)
 from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
@@ -120,13 +123,22 @@ def admin_action():
         if not row:
             flash(f"Employee ID '{emp_id}' not found.", "error")
         else:
+            # Random one-time password, shown to this admin once (the flash
+            # below) and never stored or emailed in plaintext.
+            # must_change_password makes the employee replace it at their
+            # next login: /force_change_pin on the web, and
+            # /api/employee/login refuses to issue a token until then.
+            temp_password = secrets.token_urlsafe(9)
             cursor.execute(
-                "UPDATE employees SET password=%s WHERE employee_id=%s",
-                (generate_password_hash(emp_id), emp_id)
+                "UPDATE employees SET password=%s, must_change_password=1 WHERE employee_id=%s",
+                (generate_password_hash(temp_password), emp_id)
             )
+            record_password_change(cursor, "employees", emp_id)
             db.commit()
             flash(
-                f"Password reset for '{row[0]}' ({emp_id}). They can now login using their Employee ID as the password.", "success")
+                f"Password reset for '{row[0]}' ({emp_id}). Temporary password: {temp_password} -- shown only "
+                "once, so share it with the employee privately now. They must set a new password at their next "
+                "sign-in.", "success")
 
     elif action == "holiday":
         cursor.execute(
@@ -632,14 +644,15 @@ def view_employees():
         # caller that wants the real company-wide count. This runs its own
         # always-fresh, assignment-scoped queries instead.
         _assignee_sub = "employee_id IN (SELECT employee_id FROM employees WHERE assigned_hr_username=%s)"
-        cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' AND {_assignee_sub}",
-                       (current_hr_username,))  # nosec B608 -- _assignee_sub is a hardcoded literal, not user input
+        # nosec B608 below: _assignee_sub is a hardcoded literal, not user input.
+        cursor.execute(f"SELECT COUNT(*) FROM leave_requests WHERE status='Pending' AND {_assignee_sub}",  # nosec B608
+                       (current_hr_username,))
         pending_leaves = cursor.fetchone()[0]
-        cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' AND {_assignee_sub}",
-                       (current_hr_username,))  # nosec B608
+        cursor.execute(f"SELECT COUNT(*) FROM resignation_requests WHERE status='Pending' AND {_assignee_sub}",  # nosec B608
+                       (current_hr_username,))
         pending_resignations = cursor.fetchone()[0]
-        cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') AND {_assignee_sub}",
-                       (current_hr_username,))  # nosec B608
+        cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status IN ('Open','In Progress') AND {_assignee_sub}",  # nosec B608
+                       (current_hr_username,))
         pending_tickets = cursor.fetchone()[0]
     else:
         pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
@@ -1314,6 +1327,7 @@ def serve_dataset(filename):
 
 
 @employees_bp.route("/my_photo")
+@any_user_required
 def my_photo():
     from flask import send_from_directory
     emp_id = session.get("employee_id")
@@ -1327,7 +1341,7 @@ def my_photo():
 
 @employees_bp.route("/api/generate_emp_id")
 def generate_emp_id():
-    if not session.get("admin_logged_in"):
+    if not session.get("admin_logged_in") or not session_account_ok():
         return jsonify({"error": "not logged in"}), 401
     company_id_raw = request.args.get("company_id", "").strip()
     db = get_db_connection()
