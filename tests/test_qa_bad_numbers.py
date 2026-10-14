@@ -43,3 +43,9 @@ def test_salary_report_with_a_bad_year_is_a_400(admin):
 
 def test_performance_with_a_bad_quarter_is_a_400(admin):
     assert admin.get("/performance?quarter=x").status_code == 400
+
+
+# ── BUG-10 leave ─────────────────────────────────────────────────────────────
+
+def test_leave_balance_with_a_bad_year_is_a_400(admin):
+    assert admin.get("/leave_balance?year=abc").status_code == 400

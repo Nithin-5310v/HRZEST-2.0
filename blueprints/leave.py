@@ -24,7 +24,7 @@ from utils.auth import (
 from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
     hr_scope_subquery, hr_scope_column, hr_scope_denied, get_pending_counts, company_today,
-    get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache,
+    get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache, int_param,
     manager_scope_subquery, manager_scope_column, manager_scope_denied,
 )
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
@@ -71,7 +71,7 @@ def add_holiday():
 @leave_bp.route("/import_indian_holidays", methods=["POST"])
 @admin_required
 def import_indian_holidays():
-    year = int(request.form.get("year", company_today().year))
+    year = int_param(request.form.get("year", company_today().year))
     holidays_list = get_indian_holidays(year)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -249,7 +249,7 @@ def request_leave():
 def leave_balance():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    year = int(request.args.get("year", company_today().year))
+    year = int_param(request.args.get("year", company_today().year))
 
     co = get_company_settings()
     pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
@@ -322,9 +322,9 @@ def leave_balance():
 @admin_required
 def set_leave_balance():
     emp_id = request.form.get("employee_id")
-    lt_id = int(request.form.get("leave_type_id"))
-    total = int(request.form.get("total_days", 0))
-    year = int(request.form.get("year", company_today().year))
+    lt_id = int_param(request.form.get("leave_type_id"))
+    total = int_param(request.form.get("total_days", 0))
+    year = int_param(request.form.get("year", company_today().year))
     if hr_scope_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath(f"/leave_balance?year={year}"))
@@ -362,7 +362,7 @@ def resignation_requests_redirect():
 @admin_required
 def leave_holidays():
     tab = request.args.get("tab", "leaves")
-    year = int(request.args.get("year", company_today().year))
+    year = int_param(request.args.get("year", company_today().year))
     today = company_today()
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -635,8 +635,8 @@ def leave_calendar():
     import calendar as cal_mod
     from collections import defaultdict
     today = company_today()
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
     if month < 1:
         month = 12
         year -= 1
@@ -1600,8 +1600,8 @@ def overtime():
     pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
 
     today = company_today()
-    month = int(request.args.get('month', today.month))
-    year = int(request.args.get('year', today.year))
+    month = int_param(request.args.get('month', today.month))
+    year = int_param(request.args.get('year', today.year))
     active_tab = request.args.get('tab', 'ot')
 
     # OT records
@@ -1745,8 +1745,8 @@ def compoff():
 @leave_bp.route("/compoff_settings", methods=["POST"])
 @admin_required
 def compoff_settings():
-    min_ot = int(request.form.get("min_ot_minutes", 120))
-    mpd = int(request.form.get("minutes_per_day", 480))
+    min_ot = int_param(request.form.get("min_ot_minutes", 120))
+    mpd = int_param(request.form.get("minutes_per_day", 480))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
