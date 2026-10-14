@@ -56,6 +56,8 @@ def seed(n):
     for schema, table in id_tables(cur):
         cur.execute(f'SELECT COALESCE(MAX(id), 0) FROM "{schema}"."{table}"')  # nosec B608 -- names from information_schema
         mark[f"{schema}.{table}"] = cur.fetchone()[0]
+    cur.execute("SELECT NOW()::timestamp::text")
+    mark["seeded_at"] = cur.fetchone()[0]
     with open(MARK_FILE, "w", encoding="utf-8") as fh:
         json.dump(mark, fh)
     pw_hash = bcrypt.hashpw(_env.LT_PASSWORD.encode(), bcrypt.gensalt(rounds=12)).decode()
@@ -80,6 +82,13 @@ def cleanup():
             mark = json.load(fh)
     except FileNotFoundError:
         sys.exit("No watermark file -- run `seed` first (nothing to clean).")
+    # WAF auto-bans made during the run (banned_ips has no integer id): a
+    # banned 127.0.0.1 would otherwise block the pytest client next session.
+    removed_bans = 0
+    seeded_at = mark.pop("seeded_at", None)
+    if seeded_at:
+        cur.execute("DELETE FROM banned_ips WHERE banned_by='system:auto' AND banned_at >= %s", (seeded_at,))
+        removed_bans = cur.rowcount
     # Name-keyed rows in tables without an integer id.
     for sql in ("DELETE FROM api_tokens WHERE identity LIKE 'LT\\_%%' OR identity=%s",
                 "DELETE FROM mobile_bridge_tokens WHERE admin_username=%s",
@@ -109,7 +118,7 @@ def cleanup():
         if cur.fetchone()[0]:
             leftovers.append(table)
     os.remove(MARK_FILE)
-    print(f"removed {removed} row(s) added during the load test"
+    print(f"removed {removed} row(s) and {removed_bans} WAF ban(s) added during the load test"
           + (f"; LEFTOVERS in {leftovers}" if leftovers else "; no load-test rows remain"))
     conn.close()
 
