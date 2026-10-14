@@ -148,7 +148,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | PERF-04 | Performance | Low | blueprints/email_blast.py:108-114 | One INSERT per recipient in a loop | Slow blasts to large companies | `execute_values` batch insert | S | **Fixed** (test: tests/test_qa_email_blast_batch.py; psycopg2 execute_values, 1 statement per 100 recipients) |
 | PERF-05 | Performance | Low | blueprints/hr_dashboard.py:338 | Headcount query per month (6) | 6 round trips | One grouped query | S | **Fixed** (test: tests/test_qa_hr_headcount.py; 1 query, was 6) |
 | PERF-07 | Performance | Low | admin_views.py:1309, leave.py:396, onboarding.py:713, helpers.py:917 | `SELECT *` | Over-fetching; fragile to schema changes | Explicit columns | S | Open |
-| DEAD-01 | Dead code | Low | utils/razorpay_utils.py:75 | `webhook_configured()` is never referenced | Noise | Remove | S | Open |
+| DEAD-01 | Dead code | Low | utils/razorpay_utils.py:75 | `webhook_configured()` is never referenced | Noise | Remove | S | **Fixed** (removed; no callers anywhere in the repo) |
 | DEAD-02 | Dead code | Low | utils/config.py:15-17 | `OFFICE_LAT/OFFICE_LON/OFFICE_RADIUS_M` (hard-coded coordinates) unused | Misleading config | Remove | S | Open |
 | DEAD-03 | Dead code | Low | static/faces | Empty 0-byte tracked file | Noise | Remove | S | Open |
 | DEAD-04 | Dead code | Low | blueprints/admin_views.py:2678-2680 | `if err:` branch unreachable (`send_email_smtp` returns None; it raises on failure) | Misleading | Remove the branch | S | Open |
