@@ -23,7 +23,9 @@ import datetime
 from flask import Blueprint, jsonify, render_template, request
 from database import get_db_connection
 from utils.auth import role_required, HR_ROLE
-from utils.helpers import tpath, hr_scope_column, hr_scope_subquery, hr_scope_denied, get_company_settings, company_today
+from utils.helpers import (
+    tpath, hr_scope_column, hr_scope_subquery, hr_scope_denied, get_company_settings, company_today, int_param,
+)
 from utils.attendance_utils import attendance_pct_series
 
 hr_dashboard_bp = Blueprint("hr_dashboard", __name__)
@@ -213,8 +215,8 @@ def api_hr_dashboard_payroll_report():
     second, potentially-drifting reimplementation of the same computation."""
     from blueprints.payroll import compute_salary_data_for_month
     today = company_today()
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -255,8 +257,8 @@ def api_hr_dashboard_payslip(emp_id, year, month):
 @role_required(HR_ROLE)
 def api_hr_dashboard_overtime():
     today = company_today()
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     _hr, _hr_args = hr_scope_column(alias="e")
@@ -385,8 +387,8 @@ def api_hr_dashboard_performance():
     employees -- same scoped query shape as blueprints/performance.py's
     own performance() (hardened in this session's earlier pass)."""
     today = company_today()
-    q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
-    yr = int(request.args.get("year", today.year))
+    q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int_param(request.args.get("year", today.year))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     _hr, _hr_args = hr_scope_column(alias="e")

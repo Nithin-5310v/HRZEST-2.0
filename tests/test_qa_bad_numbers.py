@@ -55,3 +55,14 @@ def test_leave_balance_with_a_bad_year_is_a_400(admin):
 
 def test_monthly_report_with_a_bad_month_is_a_400(admin):
     assert admin.get("/monthly_report?year=2026&month=xx").status_code == 400
+
+
+# ── BUG-12 HR dashboard ──────────────────────────────────────────────────────
+
+def test_hr_payroll_report_with_a_bad_year_is_a_400(client, seed_hr_admin, handled_errors):
+    from utils.auth import HR_ROLE
+    with client.session_transaction() as sess:
+        sess["admin_logged_in"] = True
+        sess["admin_username"] = seed_hr_admin["username"]
+        sess["admin_role"] = HR_ROLE
+    assert client.get("/api/hr_dashboard/payroll/report?year=abc").status_code == 400

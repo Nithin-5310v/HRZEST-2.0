@@ -118,7 +118,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-09 | Correctness | Low | blueprints/performance.py: 19 calls (221 … 679) | Same | Same | Same | S | **Fixed** (test: tests/test_qa_bad_numbers.py; 19 calls switched to int_param()) |
 | BUG-10 | Correctness | Low | blueprints/leave.py: 12 calls (74 … 1671) + `fromisoformat` in request_leave | Same | Same | Same | S | **Fixed** (test: tests/test_qa_bad_numbers.py; 12 calls switched to int_param(); the request_leave fromisoformat was fixed by BUG-06) |
 | BUG-11 | Correctness | Low | blueprints/attendance.py:324, 356, 400, 401, 918, 919 | Same | Same | Same | S | **Fixed** (test: tests/test_qa_bad_numbers.py; 6 calls switched to int_param()) |
-| BUG-12 | Correctness | Low | blueprints/hr_dashboard.py:215, 216, 257, 258, 408, 409 | Same | Same | Same | S | Open |
+| BUG-12 | Correctness | Low | blueprints/hr_dashboard.py:215, 216, 257, 258, 408, 409 | Same | Same | Same | S | **Fixed** (test: tests/test_qa_bad_numbers.py; 6 calls switched to int_param()) |
 | BUG-13 | Correctness | Low | blueprints/onboarding.py:472, 473, 736, 739 | Same | Same | Same | S | Open |
 | BUG-14 | Correctness | Low | blueprints/employee_portal.py:362, 363, 552 | Same | Same | Same | S | Open |
 | BUG-15 | Correctness | Low | blueprints/employees.py:2175, 2176 | Same | Same | Same | S | Open |
