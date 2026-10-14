@@ -13,7 +13,7 @@ from utils.auth import employee_required, employee_api_required, validate_new_pa
 from utils.helpers import (
     tpath,
     _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
-    company_today, company_now, coerce_datetime,
+    company_today, company_now, coerce_datetime, int_param,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
 from utils.session_risk import ensure_session_id, evaluate_session_risk
@@ -359,8 +359,8 @@ def employee_portal():
     )
     today_att = cursor.fetchone()
 
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
         SELECT date, login_time, logout_time, status, logout_status, attendance_type
@@ -549,7 +549,7 @@ def employee_portal():
     leave_holidays = cursor.fetchall()
 
     # Holiday list data for employee view
-    hol_year = int(request.args.get("hol_year", today.year))
+    hol_year = int_param(request.args.get("hol_year", today.year))
     cursor.execute("SELECT id, date, name FROM holidays WHERE EXTRACT(YEAR FROM date)=%s ORDER BY date", (hol_year,))
     hol_rows = cursor.fetchall()
 

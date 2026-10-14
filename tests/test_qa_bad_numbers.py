@@ -73,3 +73,12 @@ def test_hr_payroll_report_with_a_bad_year_is_a_400(client, seed_hr_admin, handl
 def test_onboarding_task_with_a_bad_due_days_is_a_400(admin):
     resp = admin.post("/onboarding_task_save", data={"template_id": "1", "task_title": "QA", "due_days": "soon"})
     assert resp.status_code == 400
+
+
+# ── BUG-14 employee portal ───────────────────────────────────────────────────
+
+def test_employee_portal_with_a_bad_month_is_a_400(client, seed_employee, handled_errors):
+    with client.session_transaction() as sess:
+        sess["employee_id"] = seed_employee["employee_id"]
+        sess["employee_name"] = seed_employee["name"]
+    assert client.get("/employee_portal?year=2026&month=xx").status_code == 400

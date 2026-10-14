@@ -120,7 +120,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | BUG-11 | Correctness | Low | blueprints/attendance.py:324, 356, 400, 401, 918, 919 | Same | Same | Same | S | **Fixed** (test: tests/test_qa_bad_numbers.py; 6 calls switched to int_param()) |
 | BUG-12 | Correctness | Low | blueprints/hr_dashboard.py:215, 216, 257, 258, 408, 409 | Same | Same | Same | S | **Fixed** (test: tests/test_qa_bad_numbers.py; 6 calls switched to int_param()) |
 | BUG-13 | Correctness | Low | blueprints/onboarding.py:472, 473, 736, 739 | Same | Same | Same | S | **Fixed** (test: tests/test_qa_bad_numbers.py; 4 calls switched to int_param()) |
-| BUG-14 | Correctness | Low | blueprints/employee_portal.py:362, 363, 552 | Same | Same | Same | S | Open |
+| BUG-14 | Correctness | Low | blueprints/employee_portal.py:362, 363, 552 | Same | Same | Same | S | **Fixed** (test: tests/test_qa_bad_numbers.py; 3 calls switched to int_param()) |
 | BUG-15 | Correctness | Low | blueprints/employees.py:2175, 2176 | Same | Same | Same | S | Open |
 | BUG-16 | Correctness | Low | blueprints/admin_views.py:2131 | Same | Same | Same | S | Open |
 | BUG-21 | Correctness (timezone) | Low | blueprints/payroll.py:193-194, 212, 347-360, 807-808, 900, 925, 1001, 1095, 1173-1174, 1231-1232, 1268-1269, 1467 | Default payroll period from the server clock | Wrong default month on the 1st before 05:30 IST | `company_today()` | S | **Fixed** (test: tests/test_qa_no_server_clock.py) |
