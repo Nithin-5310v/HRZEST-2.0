@@ -342,11 +342,11 @@ One CPU-bound Python process saturates at about 5 req/s, so the absolute latenci
 
 ### 8.3 What changed
 
-Of the 130 confirmed issues: **76 fixed**, 1 partly fixed, 1 resolved by design, 4 waiting on owner decisions, 12 in Phase 6 (sign-off), 36 Low items still open (§8.4).
+Of the **131** confirmed issues: **75 fixed**, 1 partly fixed (SEC-09), 1 resolved by design (CONFIG-05), 3 waiting on owner decisions (SEC-07, BUG-05, CONFIG-03), 12 in Phase 6 (sign-off), and 39 still open (TEST-04 and 38 Low; §8.4).
 
-- **High (10):** 9 fixed — BUG-01, BUG-02, BUG-30, SCALE-01, SCALE-02, SCALE-06, SCALE-08, SCALE-09, TEST-01. SEC-07 waits on the owner (option A/B).
-- **Medium (33):** 28 fixed, among them the owner's priorities: attendance % (BUG-03/04), the payslip mismatch on the mobile API (BUG-34; the portal side is BUG-05/NV-19), IST dates (BUG-17…23, 39), JSON API errors (ERR-01), the axios advisory (DEP-01); plus leave decisions (BUG-31/32/36, SEC-11), leave requests (BUG-06/07), check-in integrity (SEC-08, SEC-09 live endpoint), SCALE-04/07, PERF-01/02/03, SEC-01, CONFIG-01, TEST-02/03/05.
-- **Low:** 39 fixed, among them all 9 unvalidated-number rows (BUG-08…16), the remaining timezone rows (BUG-21…27), SEC-02/03/10, UX-01, CONN-01, CONFIG-02/04, PERF-04/05, DEAD-01…04, JS-03 (= BUG-29), MOB-02, TEST-06, BUG-37/38.
+- **High — 9 of 10 fixed:** BUG-01, BUG-02, BUG-30, SCALE-01, SCALE-02, SCALE-06, SCALE-08, SCALE-09, TEST-01. SEC-07 waits on the owner (option A/B).
+- **Medium — 28 of 33 fixed:** the owner's priorities — attendance % (BUG-03/04), the payslip mismatch on the mobile API (BUG-34; the portal side is BUG-05/NV-19), IST dates (BUG-17…20, 23), JSON API errors (ERR-01), the axios advisory (DEP-01) — plus leave decisions and requests (BUG-06/07/31/32/36, SEC-11), check-in integrity (SEC-08; SEC-09 live endpoint), BUG-28, SCALE-04/07, PERF-01/02, SEC-01, CONFIG-01, TEST-02/03/05; SEC-05 on security-fixes.
+- **Low — 38 of 88 fixed:** BUG-08…16 (malformed numbers), BUG-21/22/24…27/39 (timezone), BUG-29 (also registered as JS-03), BUG-33/37/38, SEC-02/03/10, UX-01, CONN-01, CONFIG-02/04, PERF-03/04/05, DEAD-01…04, MOB-02, TEST-06; SEC-04/06 on security-fixes.
 
 Found during Phase 4 and added to the register: SCALE-09, BUG-34, BUG-36, BUG-37, BUG-38, BUG-39, SEC-10, SEC-11, TEST-04, TEST-05, TEST-06, JS-03, NV-19.
 
@@ -360,7 +360,7 @@ Found during Phase 4 and added to the register: SCALE-09, BUG-34, BUG-36, BUG-37
 
 **Medium, open:** TEST-04 — `razorpay_utils` 42 %, `task_queue` 0 %, `document_verification` 56 % coverage.
 
-**Low, open (36):** maintainability rather than behaviour — DUP-01…14 (duplicated templates and code), QUAL-02…10 (imports, encoding headers, f-string logging, `raise … from`, type errors), MISP-01/02, DEAD-05/08, PERF-06/07, JS-01/02 and MOB-01 (empty `catch` blocks need a decision each), A11Y-01…06 (form labels). Suggested order: one mechanical `ruff --fix` PR for QUAL-02/03/05/07; an accessibility pass over the templates; empty catch blocks case by case.
+**Low, open (38):** maintainability rather than behaviour — DUP-01…14 (duplicated templates and code), QUAL-02…10 (imports, encoding headers, f-string logging, `raise … from`, type errors), MISP-01/02, DEAD-05/08, PERF-06/07, JS-01/02 and MOB-01 (empty `catch` blocks need a decision each), A11Y-01…06 (form labels). Suggested order: one mechanical `ruff --fix` PR for QUAL-02/03/05/07; an accessibility pass over the templates; empty catch blocks case by case.
 
 **Phase 6** (§6, 12 rows): large refactors, not started, awaiting sign-off.
 
