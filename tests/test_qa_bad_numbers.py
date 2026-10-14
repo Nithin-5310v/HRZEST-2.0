@@ -37,3 +37,9 @@ def _admin_token(client, seed_admin):
 
 def test_salary_report_with_a_bad_year_is_a_400(admin):
     assert admin.get("/salary_report?year=abc").status_code == 400
+
+
+# ── BUG-09 performance ───────────────────────────────────────────────────────
+
+def test_performance_with_a_bad_quarter_is_a_400(admin):
+    assert admin.get("/performance?quarter=x").status_code == 400

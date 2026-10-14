@@ -12,7 +12,7 @@ from database import get_db_connection
 from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE, session_account_ok
 from utils.helpers import (
     tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings,
-    get_employee_sidebar_info, company_today,
+    get_employee_sidebar_info, company_today, int_param,
 )
 from extensions import limiter, log_security_event
 
@@ -220,8 +220,8 @@ def api_submit_performance_review():
 @admin_required
 def performance():
     today = company_today()
-    q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
-    yr = int(request.args.get("year", today.year))
+    q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int_param(request.args.get("year", today.year))
     dept = request.args.get("dept", "")
     active_tab = request.args.get("tab", "performance")
 
@@ -324,8 +324,8 @@ def performance_review(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
     today = company_today()
-    q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
-    yr = int(request.args.get("year", today.year))
+    q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int_param(request.args.get("year", today.year))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -383,8 +383,8 @@ def performance_review(emp_id):
 @admin_required
 def performance_save_review():
     emp_id = request.form["employee_id"]
-    q = int(request.form["quarter"])
-    yr = int(request.form["year"])
+    q = int_param(request.form["quarter"])
+    yr = int_param(request.form["year"])
     feedback = request.form.get("reviewer_feedback", "").strip()
     status = request.form.get("status", "Draft")
 
@@ -426,12 +426,12 @@ def performance_save_review():
 @admin_required
 def performance_add_kpi():
     emp_id = request.form["employee_id"]
-    q = int(request.form["quarter"])
-    yr = int(request.form["year"])
+    q = int_param(request.form["quarter"])
+    yr = int_param(request.form["year"])
     title = request.form.get("kpi_title", "").strip()
     desc = request.form.get("description", "").strip()
     target = request.form.get("target", "").strip()
-    weight = int(request.form.get("weight", 20))
+    weight = int_param(request.form.get("weight", 20))
 
     if not title:
         flash("KPI title is required.", "error")
@@ -469,11 +469,11 @@ def performance_add_kpi():
 @performance_bp.route("/performance_rate_kpi", methods=["POST"])
 @admin_required
 def performance_rate_kpi():
-    kpi_id = int(request.form["kpi_id"])
+    kpi_id = int_param(request.form["kpi_id"])
     emp_id = request.form["employee_id"]
-    q = int(request.form["quarter"])
-    yr = int(request.form["year"])
-    rating = int(request.form.get("rating", 0))
+    q = int_param(request.form["quarter"])
+    yr = int_param(request.form["year"])
+    rating = int_param(request.form.get("rating", 0))
     achievement = request.form.get("achievement", "").strip()
     comments = request.form.get("comments", "").strip()
 
@@ -516,10 +516,10 @@ def performance_rate_kpi():
 @performance_bp.route("/performance_delete_kpi", methods=["POST"])
 @admin_required
 def performance_delete_kpi():
-    kpi_id = int(request.form["kpi_id"])
+    kpi_id = int_param(request.form["kpi_id"])
     emp_id = request.form["employee_id"]
-    q = int(request.form["quarter"])
-    yr = int(request.form["year"])
+    q = int_param(request.form["quarter"])
+    yr = int_param(request.form["year"])
     if _hr_write_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
@@ -578,7 +578,7 @@ def my_performance():
 @performance_bp.route("/performance_employee_comment", methods=["POST"])
 @employee_required
 def performance_employee_comment():
-    rev_id = int(request.form["review_id"])
+    rev_id = int_param(request.form["review_id"])
     comment = request.form.get("comment", "").strip()
     emp_id = session["employee_id"]
     db = get_db_connection()
@@ -677,8 +677,8 @@ def performance_export():
     from openpyxl.utils import get_column_letter
 
     today = company_today()
-    q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
-    yr = int(request.args.get("year", today.year))
+    q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int_param(request.args.get("year", today.year))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
