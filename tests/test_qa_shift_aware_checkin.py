@@ -18,10 +18,10 @@ import time
 import pytest
 import pytz
 
-import utils.config as _cfg
+from tests.conftest import TEST_OFFICE
 
 EMP = "TST001"
-OFFICE = {"lat": _cfg.OFFICE_LAT, "lon": _cfg.OFFICE_LON}   # location is enforced by default (SEC-08)
+OFFICE = TEST_OFFICE   # location is enforced by default (SEC-08)
 TODAY = datetime.date.today()
 AUTH_QR_FP = {"qr_enabled": True, "face_enabled": False,
               "fingerprint_enabled": True, "location_enabled": False}

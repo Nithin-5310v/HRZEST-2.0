@@ -17,11 +17,11 @@ import datetime
 import io
 import pytest
 
-import utils.config as _cfg
+from tests.conftest import TEST_OFFICE
 
 # Location enforcement is on by default (QA SEC-08): live and offline check-ins
 # need coordinates -- these are the office's own.
-OFFICE = {"lat": _cfg.OFFICE_LAT, "lon": _cfg.OFFICE_LON}
+OFFICE = TEST_OFFICE
 
 
 # ── Session / token helpers ──────────────────────────────────────────────────

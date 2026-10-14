@@ -10,12 +10,13 @@ import time as _time_stdlib
 import pytest
 
 import utils.config as _cfg
+from tests.conftest import TEST_OFFICE
 
 _REAL_SHIFT_RULES = _cfg.shift_rules
 
 # Location enforcement is on by default (QA SEC-08): live and offline check-ins
 # need coordinates -- these are the office's own.
-OFFICE = {"lat": _cfg.OFFICE_LAT, "lon": _cfg.OFFICE_LON}
+OFFICE = TEST_OFFICE
 
 
 def _patch_shift_rules(mocker, **changes):

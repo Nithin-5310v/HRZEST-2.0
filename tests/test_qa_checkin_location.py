@@ -10,10 +10,10 @@ import datetime
 import pytest
 
 import blueprints.employee_portal as ep
-import utils.config as cfg
+from tests.conftest import TEST_OFFICE
 from utils.helpers import get_auth_config
 
-OFFICE = {"lat": cfg.OFFICE_LAT, "lon": cfg.OFFICE_LON}
+OFFICE = TEST_OFFICE
 
 
 @pytest.fixture

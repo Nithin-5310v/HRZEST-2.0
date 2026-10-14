@@ -10,9 +10,9 @@ import pytest
 import pytz
 
 import blueprints.employee_portal as ep
-import utils.config as cfg
+from tests.conftest import TEST_OFFICE
 
-OFFICE = {"lat": cfg.OFFICE_LAT, "lon": cfg.OFFICE_LON}
+OFFICE = TEST_OFFICE
 
 
 def _ist(hour, minute):

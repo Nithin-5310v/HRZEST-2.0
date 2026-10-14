@@ -500,6 +500,12 @@ def _clear_process_caches():
     clear_totp_cache_for_tests()
 
 
+# A fixed "at the office" coordinate for check-in tests. Offices are per
+# company (company_settings.office_lat/lon); tests that enforce the geofence
+# set the company's office to this point.
+TEST_OFFICE = {"lat": 17.494664737165042, "lon": 78.40496618113566}
+
+
 @pytest.fixture
 def razorpay_demo_mode(monkeypatch):
     """No Razorpay keys for this test, whatever the developer's local .env

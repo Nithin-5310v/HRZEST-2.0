@@ -149,7 +149,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | PERF-05 | Performance | Low | blueprints/hr_dashboard.py:338 | Headcount query per month (6) | 6 round trips | One grouped query | S | **Fixed** (test: tests/test_qa_hr_headcount.py; 1 query, was 6) |
 | PERF-07 | Performance | Low | admin_views.py:1309, leave.py:396, onboarding.py:713, helpers.py:917 | `SELECT *` | Over-fetching; fragile to schema changes | Explicit columns | S | Open |
 | DEAD-01 | Dead code | Low | utils/razorpay_utils.py:75 | `webhook_configured()` is never referenced | Noise | Remove | S | **Fixed** (removed; no callers anywhere in the repo) |
-| DEAD-02 | Dead code | Low | utils/config.py:15-17 | `OFFICE_LAT/OFFICE_LON/OFFICE_RADIUS_M` (hard-coded coordinates) unused | Misleading config | Remove | S | Open |
+| DEAD-02 | Dead code | Low | utils/config.py:15-17 | `OFFICE_LAT/OFFICE_LON/OFFICE_RADIUS_M` (hard-coded coordinates) unused | Misleading config | Remove | S | **Fixed** (removed OFFICE_LAT/LON (office location is per company); OFFICE_RADIUS_M kept, it is the default radius; .env.example, deploy.sh and setup_env.py no longer ask for them; tests use a shared TEST_OFFICE point) |
 | DEAD-03 | Dead code | Low | static/faces | Empty 0-byte tracked file | Noise | Remove | S | **Fixed** (removed; no references) |
 | DEAD-04 | Dead code | Low | blueprints/admin_views.py:2678-2680 | `if err:` branch unreachable (`send_email_smtp` returns None; it raises on failure) | Misleading | Remove the branch | S | **Fixed** (removed; send_email_smtp() raises on failure and has no return value) |
 | DEAD-05 | Dead code | Low | mobile/src (49 locations, `eslint_mobile.txt`) | Unused variables and imports | Bundle noise | Remove | S | Open |
