@@ -4,7 +4,7 @@ from flask import Blueprint, request, session, redirect, jsonify, flash
 from database import get_db_connection
 from utils.auth import admin_required, employee_required, api_required, employee_api_required, api_role_required
 from utils.email_utils import get_email_config, send_email_async
-from utils.helpers import tpath, _create_notification, hr_scope_denied
+from utils.helpers import tpath, _create_notification, hr_scope_denied, invalidate_pending_counts_cache
 
 # Roles allowed to read or act on company-wide support tickets via the
 # Bearer-token API below (/api/tickets, /api/tickets/<id>/action) -- the
@@ -37,6 +37,7 @@ def raise_ticket():
         (emp_id, category, subject, description, priority)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     _create_notification('admin', "🎫 New Support Ticket",
@@ -86,6 +87,7 @@ def ticket_action(tid):
         (new_status, admin_response or None, tid)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
 
@@ -187,6 +189,7 @@ def api_employee_raise_ticket():
         (emp_id, category, subject, description, priority)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     _create_notification('admin', "🎫 New Support Ticket",
@@ -239,6 +242,7 @@ def api_ticket_action(tid):
         (new_status, admin_response or None, tid)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     if row:

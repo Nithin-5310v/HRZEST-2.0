@@ -20,6 +20,23 @@ def _run_schema_migrations(cursor, db):
     _run_company_policies_seed_v2(cursor, db)
     _run_push_tokens_table_migration(cursor, db)
     _run_auth_hardening_migration(cursor, db)
+    _run_leave_declined_to_rejected(cursor, db)
+
+
+def _run_leave_declined_to_rejected(cursor, db):
+    """The mobile leave decline used to store 'Declined' (the resignation
+    vocabulary) where every other leave path stores 'Rejected', so those
+    leaves were missing from rejected counts and badges (QA BUG-33).
+    One-time, tracked in _applied_migrations, per tenant."""
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='leave_declined_to_rejected_v1'")
+        if not cursor.fetchone():
+            cursor.execute("UPDATE leave_requests SET status='Rejected' WHERE status='Declined'")
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('leave_declined_to_rejected_v1')")
+            db.commit()
+    except Exception as exc:
+        db.rollback()
+        app_log.warning("Migration 'leave_declined_to_rejected_v1' failed: %s", exc, exc_info=True)
 
 
 def _run_auth_hardening_migration(cursor, db):
@@ -204,6 +221,9 @@ def _run_column_migrations(cursor, db):
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS face_enabled SMALLINT DEFAULT 1",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS location_enabled SMALLINT DEFAULT 1",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS employee_password_auth SMALLINT DEFAULT 1",
+        # Location-only app check-in (/api/employee/checkin): NULL = follow
+        # the check-in policy, 1/0 = the admin's explicit choice (QA NV-18).
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS app_gps_checkin SMALLINT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_credential_id VARCHAR(512) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_public_key TEXT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_sign_count INT DEFAULT 0",
@@ -374,6 +394,7 @@ def _run_index_migrations(cursor, db):
     _run_index_migrations_v2(cursor, db)
     _run_index_migrations_v3(cursor, db)
     _run_index_migrations_v4(cursor, db)
+    _run_index_migrations_v5(cursor, db)
 
 
 def _run_index_migrations_v1(cursor, db):
@@ -490,6 +511,24 @@ def _run_index_migrations_v4(cursor, db):
             db.commit()
     except Exception as exc:
         app_log.warning("Migration 'oauth_indexes_v4' failed: %s", exc, exc_info=True)
+
+
+def _run_index_migrations_v5(cursor, db):
+    """api_tokens.expires_at -- the periodic expired-token purge
+    (utils/auth.py's _purge_expired_tokens) scanned the whole table
+    without it (QA PERF-01)."""
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='api_token_expiry_index_v5'")
+        if not cursor.fetchone():
+            try:
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_expires ON api_tokens (expires_at)")
+                db.commit()
+            except Exception:
+                db.rollback()
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('api_token_expiry_index_v5')")
+            db.commit()
+    except Exception as exc:
+        app_log.warning("Migration 'api_token_expiry_index_v5' failed: %s", exc, exc_info=True)
 
 
 def _run_data_integrity_migrations(cursor, db):

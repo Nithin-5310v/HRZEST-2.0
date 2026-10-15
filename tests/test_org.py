@@ -248,6 +248,27 @@ class TestSignupValidation:
         assert resp.headers.get("Location") == "/create_org"
 
 
+class TestDevModeSignupSkipsOtp:
+    """conftest forces APP_ENV=development, where create_org() skips the
+    OTP screen. _mark_application_otp_verified() commits and closes the
+    connection itself; closing it a second time 500'd every local signup."""
+
+    def test_valid_signup_goes_straight_to_document_upload(self, client, db_engine):
+        gst = _random_gst()
+        resp = client.post("/create_org", data={
+            "company_name": "Dev Mode Signup Co", "subdomain": "dev-mode-signup-co",
+            "admin_username": "dm_admin", "admin_password": "password123",
+            "admin_email": "dm@devmodesignup.test", "email_domain": "devmodesignup.test",
+            "gst_number": gst,
+        }, follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["Location"].startswith("/create_org/upload_documents?application_id=")
+        cur = db_engine.cursor()
+        cur.execute("SELECT status FROM att_master.tenant_applications WHERE gst_number=%s", (gst,))
+        assert cur.fetchone()[0] == "otp_verified"
+        cur.close()
+
+
 # ===========================================================================
 # Full provisioning — real schema creation, one end-to-end test
 # ===========================================================================

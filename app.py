@@ -82,7 +82,7 @@ from utils.email_utils import (
 # file. Consolidated onto one implementation; see utils/auth.py.
 from utils.auth import HR_ROLE
 from utils.helpers import (
-    _error_page, invalidate_settings_cache, get_company_settings,
+    _error_page, wants_json_response, invalidate_settings_cache, get_company_settings,
     get_companies_list, get_overdue_onboarding_count, coerce_datetime,
     tpath as _tpath, static_url as _static_url,
 )
@@ -419,6 +419,12 @@ def _resolve_tenant():
     url_slug = request.environ.get("hrz.tenant_slug")
     url_tenant_db = request.environ.get("hrz.tenant_db")
 
+    # A company whose schema lacks a table would read the shared public
+    # table -- another company's data -- so refuse it outright (QA SEC-07;
+    # flagged by the deploy-time migrations, read by TenantPrefixMiddleware).
+    if request.environ.get("hrz.tenant_incomplete"):
+        return _tenant_schema_incomplete(url_tenant_db)
+
     # 0. Cross-tenant session isolation. Subdomains used to give this for
     # free (a host-only cookie for acme.hrzest.com is never sent to
     # beta.hrzest.com by the browser itself). Now every tenant shares one
@@ -461,7 +467,8 @@ def _resolve_tenant():
         try:
             conn = get_master_db()
             cur = conn.cursor()
-            cur.execute("SELECT status, billing_state FROM tenants WHERE db_name=%s", (session["tenant_db"],))
+            cur.execute("SELECT status, billing_state, schema_missing_tables FROM tenants WHERE db_name=%s",
+                        (session["tenant_db"],))
             row = cur.fetchone()
             cur.close()
             conn.close()
@@ -470,6 +477,9 @@ def _resolve_tenant():
             app_log.warning(
                 "tenant.status_recheck_failed: tenant_db=%s", session.get("tenant_db"), exc_info=True
             )
+        if row is not None and row[0] == "active" and row[2]:
+            # Not re-stamped, so every request rechecks until it's repaired (QA SEC-07).
+            return _tenant_schema_incomplete(session["tenant_db"])
         if row is None or row[0] == "active":
             session["_tenant_status_checked_at"] = time.time()
             # billing_state='locked' does NOT block resolution/login here --
@@ -1046,9 +1056,10 @@ def _security_headers(response):
             _style_hashes = set()
         _style_unsafe_hashes = " 'unsafe-hashes'" if _style_hashes else ""
         _style_hash_src = (" " + " ".join(sorted(_style_hashes))) if _style_hashes else ""
-        # Cloudflare Turnstile (admin_login CAPTCHA) and employee portal
-        # loopback agent get path-scoped exceptions only.
-        _is_turnstile_page = request.path in ("/admin_login", "/login")
+        # Cloudflare Turnstile (admin_login CAPTCHA; the home page's company
+        # registration form, which POST /create_org checks it for) and the
+        # employee portal loopback agent get path-scoped exceptions only.
+        _is_turnstile_page = request.path in ("/admin_login", "/login", "/")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
         # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
         # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
@@ -1321,12 +1332,7 @@ def rate_limit_exceeded(e):
     waf.record_breach_and_maybe_ban(request.remote_addr, "Repeated rate-limit breaches")
     log_security_event("ratelimit.exceeded", f"Rate limit exceeded: {getattr(e, 'description', '')}",
                        level="WARNING")
-    is_ajax = (
-        request.path.startswith("/api/")
-        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
-        or request.accept_mimetypes.best == "application/json"
-    )
-    if is_ajax:
+    if wants_json_response():
         return jsonify({"ok": False, "msg": "Too many requests. Please slow down and try again shortly."}), 429
     return _error_page(429, "⏳", "Too Many Requests",
                        "You've made too many requests in a short period.",
@@ -1346,6 +1352,7 @@ def database_unavailable(e):
         or request.accept_mimetypes.best == "application/json"
     )
     if is_ajax:
+    if wants_json_response():
         resp = jsonify({"ok": False, "msg": "Service temporarily unavailable. Please try again shortly."})
     else:
         resp = _error_page(503, "🛠️", "Service Temporarily Unavailable",
@@ -1354,6 +1361,24 @@ def database_unavailable(e):
     resp = make_response(resp)
     resp.status_code = 503
     resp.headers["Retry-After"] = "30"
+    return resp
+
+
+def _tenant_schema_incomplete(tenant_db):
+    """503 for a company whose schema lacks a table the migrations create
+    (att_master.tenants.schema_missing_tables): its queries would otherwise
+    read and write the shared public table, i.e. another company's data
+    (QA SEC-07). The deploy-time migrations log which tables are missing."""
+    app_log.warning("tenant.schema_incomplete: tenant_db=%s -- request answered 503", tenant_db)
+    if wants_json_response():
+        resp = jsonify({"ok": False, "msg": "This organisation is temporarily unavailable. Please try again later."})
+    else:
+        resp = _error_page(503, "🛠️", "Temporarily Unavailable",
+                           "This organisation's workspace is temporarily unavailable.",
+                           "Please try again later or contact support.")
+    resp = make_response(resp)
+    resp.status_code = 503
+    resp.headers["Retry-After"] = "300"
     return resp
 
 

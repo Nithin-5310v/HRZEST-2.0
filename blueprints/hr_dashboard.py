@@ -24,6 +24,9 @@ from flask import Blueprint, jsonify, render_template, request
 from database import get_db_connection
 from utils.auth import role_required, HR_ROLE
 from utils.helpers import tpath, hr_scope_column, hr_scope_subquery, hr_scope_denied, get_company_settings, company_today
+from utils.helpers import (
+    tpath, hr_scope_column, hr_scope_subquery, hr_scope_denied, get_company_settings, company_today, int_param,
+)
 from utils.attendance_utils import attendance_pct_series
 
 hr_dashboard_bp = Blueprint("hr_dashboard", __name__)
@@ -212,9 +215,9 @@ def api_hr_dashboard_payroll_report():
     (its employee_ids= param was added specifically for this) rather than a
     second, potentially-drifting reimplementation of the same computation."""
     from blueprints.payroll import compute_salary_data_for_month
-    today = datetime.date.today()
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    today = company_today()
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -254,9 +257,9 @@ def api_hr_dashboard_payslip(emp_id, year, month):
 @hr_dashboard_bp.route("/api/hr_dashboard/payroll/overtime")
 @role_required(HR_ROLE)
 def api_hr_dashboard_overtime():
-    today = datetime.date.today()
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    today = company_today()
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     _hr, _hr_args = hr_scope_column(alias="e")
@@ -286,7 +289,7 @@ def api_hr_dashboard_reports():
     unscoped/company-wide for 'admin' exactly as before."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
     _hr, _hr_args = hr_scope_column(alias="e")
     _hr_sub, _ = hr_scope_subquery()
 
@@ -317,6 +320,14 @@ def api_hr_dashboard_reports():
     for _y, _m, month_start, month_end in _month_bounds:
         cursor.execute(f"SELECT COUNT(*) FROM employees e WHERE e.date_of_joining < %s {_hr}", (month_end,) + _hr_args)  # nosec B608
         headcount_trend.append({"month_label": month_start.strftime("%b %Y"), "count": cursor.fetchone()[0]})
+    # One query for the joining dates, counted per month here -- it was one
+    # COUNT(*) per month (QA PERF-05). NULL joining dates never count, as in SQL.
+    cursor.execute(f"SELECT e.date_of_joining FROM employees e WHERE e.date_of_joining IS NOT NULL {_hr}", _hr_args)  # nosec B608
+    joined = [r[0] for r in cursor.fetchall()]
+    headcount_trend = [
+        {"month_label": month_start.strftime("%b %Y"), "count": sum(1 for d in joined if d < month_end)}
+        for _y, _m, month_start, month_end in _month_bounds
+    ]
 
     cursor.execute(f"""
         SELECT COALESCE(e.department, 'Unassigned'), COUNT(*) FROM employees e
@@ -359,7 +370,7 @@ def api_hr_dashboard_onboarding():
         GROUP BY eo.id, e.employee_id, e.name, ot.name, eo.assigned_date, eo.due_date, eo.status
         ORDER BY eo.assigned_date DESC
     """, _hr_args)  # nosec B608
-    today = datetime.date.today()
+    today = company_today()
     rows = []
     for ob_id, eid, name, tname, assigned, due, status, total_tasks, done_tasks in cursor.fetchall():
         total_tasks = total_tasks or 0
@@ -384,9 +395,9 @@ def api_hr_dashboard_performance():
     """Current-quarter review status for this HR session's assigned
     employees -- same scoped query shape as blueprints/performance.py's
     own performance() (hardened in this session's earlier pass)."""
-    today = datetime.date.today()
-    q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
-    yr = int(request.args.get("year", today.year))
+    today = company_today()
+    q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int_param(request.args.get("year", today.year))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     _hr, _hr_args = hr_scope_column(alias="e")
@@ -466,7 +477,7 @@ def api_hr_dashboard_holidays():
     and already correct with no scoping gap (confirmed in this session's
     Phase 1 audit), so this tab only needs a read endpoint; its forms post
     straight to those existing routes."""
-    today = datetime.date.today()
+    today = company_today()
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT id, date, name FROM holidays WHERE date >= %s ORDER BY date", (today.replace(month=1, day=1),))

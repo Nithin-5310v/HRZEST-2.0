@@ -20,10 +20,13 @@ if os.path.exists(_cert) and os.path.exists(_key):
 
 # ── Workers ──────────────────────────────────────────────────────────────────
 # gthread: multi-threaded workers — ideal for I/O-bound face recognition
-# Rule of thumb: (2 × CPU cores) + 1, capped at 8 for a 4 GB VPS
-workers = min((multiprocessing.cpu_count() * 2) + 1, 8)
+# Rule of thumb: (2 × CPU cores) + 1, capped at 8 for a 4 GB VPS.
+# GUNICORN_WORKERS / GUNICORN_THREADS override both -- compose.lowmem.yaml
+# sets them (each worker loads its own face_recognition/dlib/OpenCV), and
+# they used to be ignored (QA CONFIG-01).
+workers = int(os.environ.get("GUNICORN_WORKERS") or min((multiprocessing.cpu_count() * 2) + 1, 8))
 worker_class = "gthread"
-threads = 4          # threads per worker
+threads = int(os.environ.get("GUNICORN_THREADS") or 4)   # threads per worker
 worker_connections = 1000
 
 # ── Timeouts ─────────────────────────────────────────────────────────────────

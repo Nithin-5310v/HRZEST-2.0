@@ -17,9 +17,9 @@ import datetime
 import os
 from collections import namedtuple
 
-# Office geo-fence (overridable via .env)
-OFFICE_LAT = float(os.environ.get("OFFICE_LAT", "17.494664737165042"))
-OFFICE_LON = float(os.environ.get("OFFICE_LON", "78.40496618113566"))
+# Default geofence radius. The office location itself is per company
+# (company_settings.office_lat/office_lon, set in Settings); the old
+# process-wide OFFICE_LAT/OFFICE_LON were no longer read (QA DEAD-02).
 OFFICE_RADIUS_M = 300
 
 # Defaults for a company that hasn't configured its own values (these match

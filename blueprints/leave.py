@@ -24,7 +24,7 @@ from utils.auth import (
 from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
     hr_scope_subquery, hr_scope_column, hr_scope_denied, get_pending_counts, company_today,
-    get_employee_sidebar_info, coerce_datetime,
+    get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache, int_param,
     manager_scope_subquery, manager_scope_column, manager_scope_denied,
 )
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
@@ -71,7 +71,7 @@ def add_holiday():
 @leave_bp.route("/import_indian_holidays", methods=["POST"])
 @admin_required
 def import_indian_holidays():
-    year = int(request.form.get("year", datetime.date.today().year))
+    year = int_param(request.form.get("year", company_today().year))
     holidays_list = get_indian_holidays(year)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -92,7 +92,7 @@ def import_indian_holidays():
 @leave_bp.route("/delete_holiday/<int:hid>", methods=["POST"])
 @admin_required
 def delete_holiday(hid):
-    year = request.form.get("year", datetime.date.today().year)
+    year = request.form.get("year", company_today().year)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM holidays WHERE id=%s", (hid,))
@@ -120,6 +120,32 @@ def api_delete_holiday(hid):
     return jsonify({"ok": True, "msg": "Holiday removed."})
 
 
+def _leave_working_days(cursor, emp_id, days):
+    """(working_days, error, http_status) for a leave request over `days`. Only working
+    days (not Sunday, not a holiday -- the same rule payroll uses) get a
+    row, and a day the employee already has Pending or Approved is refused
+    rather than requested twice (QA BUG-07)."""
+    cursor.execute("SELECT date FROM holidays WHERE date BETWEEN %s AND %s", (days[0], days[-1]))
+    holidays = {r[0] for r in cursor.fetchall()}
+    working = [d for d in days if d.weekday() != 6 and d not in holidays]
+    if not working:
+        return [], "The selected dates are Sundays or holidays -- no leave is needed.", 400
+    cursor.execute(
+        "SELECT leave_date FROM leave_requests WHERE employee_id=%s AND leave_date = ANY(%s) "
+        "AND status IN ('Pending', 'Approved') ORDER BY leave_date",
+        (emp_id, working),
+    )
+    taken = [r[0] for r in cursor.fetchall()]
+    if taken:
+        shown = ", ".join(d.strftime("%d %b") for d in taken[:5]) + (" ..." if len(taken) > 5 else "")
+        return [], f"You already have leave requested for {shown}.", 409
+    return working, None, 200
+
+
+# Longest single leave request, in calendar days.
+_MAX_LEAVE_REQUEST_DAYS = 60
+
+
 @leave_bp.route("/request_leave", methods=["POST"])
 @employee_required
 def request_leave():
@@ -135,33 +161,42 @@ def request_leave():
     if not reason or not leave_start:
         return redirect(tpath("/employee_portal"))
 
-    start_dt = datetime.date.fromisoformat(leave_start)
-    # Half-day is always a single date; ignore end date
-    if is_half_day:
-        end_dt = start_dt
-    else:
+    try:
+        start_dt = datetime.date.fromisoformat(leave_start)
         end_dt = datetime.date.fromisoformat(leave_end) if leave_end else start_dt
-        if end_dt < start_dt:
-            end_dt = start_dt
+    except ValueError:
+        flash("Please choose valid leave dates.", "error")
+        return redirect(tpath("/employee_portal#apply-leave"))
+    # Half-day is always a single date; ignore end date
+    if is_half_day or end_dt < start_dt:
+        end_dt = start_dt
 
     num_days = (end_dt - start_dt).days + 1
+    # One row per day, so an unbounded range (e.g. 2026-2099) inserted tens
+    # of thousands of rows (QA BUG-06).
+    if num_days > _MAX_LEAVE_REQUEST_DAYS:
+        flash(f"A leave request can cover at most {_MAX_LEAVE_REQUEST_DAYS} days.", "error")
+        return redirect(tpath("/employee_portal#apply-leave"))
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    days, error, _status = _leave_working_days(cursor, emp_id, [start_dt + datetime.timedelta(days=i) for i in range(num_days)])
+    if error:
+        cursor.close()
+        db.close()
+        flash(error, "error")
+        return redirect(tpath("/employee_portal#apply-leave"))
     if is_half_day:
         date_label = f"{leave_start} (Half Day – {half_day_session})"
     else:
         date_label = (leave_start if num_days == 1
-                      else f"{leave_start} – {leave_end} ({num_days} days)")
-
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cur = start_dt
-    while cur <= end_dt:
-        cursor.execute(
-            "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id, is_half_day, half_day_session) "
-            "VALUES (%s,%s,%s,%s,%s,%s)",
-            (emp_id, cur, reason, leave_type_id, is_half_day, half_day_session)
-        )
-        cur += datetime.timedelta(days=1)
+                      else f"{leave_start} – {leave_end} ({len(days)} working days)")
+    cursor.executemany(
+        "INSERT INTO leave_requests (employee_id, leave_date, reason, leave_type_id, is_half_day, half_day_session) "
+        "VALUES (%s,%s,%s,%s,%s,%s)",
+        [(emp_id, d, reason, leave_type_id, is_half_day, half_day_session) for d in days]
+    )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
 
@@ -214,7 +249,7 @@ def request_leave():
 def leave_balance():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    year = int(request.args.get("year", datetime.date.today().year))
+    year = int_param(request.args.get("year", company_today().year))
 
     co = get_company_settings()
     pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
@@ -287,9 +322,9 @@ def leave_balance():
 @admin_required
 def set_leave_balance():
     emp_id = request.form.get("employee_id")
-    lt_id = int(request.form.get("leave_type_id"))
-    total = int(request.form.get("total_days", 0))
-    year = int(request.form.get("year", datetime.date.today().year))
+    lt_id = int_param(request.form.get("leave_type_id"))
+    total = int_param(request.form.get("total_days", 0))
+    year = int_param(request.form.get("year", company_today().year))
     if hr_scope_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath(f"/leave_balance?year={year}"))
@@ -327,8 +362,8 @@ def resignation_requests_redirect():
 @admin_required
 def leave_holidays():
     tab = request.args.get("tab", "leaves")
-    year = int(request.args.get("year", datetime.date.today().year))
-    today = datetime.date.today()
+    year = int_param(request.args.get("year", company_today().year))
+    today = company_today()
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -445,6 +480,61 @@ def leave_holidays():
                            )
 
 
+def _decide_leave(cursor, db, lid, action):
+    """Approve or reject one Pending leave request -- the single path for the
+    web, bulk and mobile approvals (QA BUG-31/32/33, BUG-36). The request
+    leaves Pending in the same statement that checks it, so approving twice
+    can't deduct the balance twice, and a decided request can't be flipped.
+    On approval the day is marked 'Approved Leave' (or 'Half Day') and the
+    leave balance -- and comp-off minutes for a Comp-off leave -- deducted.
+    Returns (employee_id, leave_date) or None if the request isn't Pending.
+    The caller commits."""
+    cursor.execute(
+        "UPDATE leave_requests SET status=%s WHERE id=%s AND status='Pending' "
+        "RETURNING employee_id, leave_date, COALESCE(is_half_day, 0), leave_type_id",
+        (action, lid),
+    )
+    row = cursor.fetchone()
+    if not row:
+        return None
+    emp_id, leave_date, is_half, leave_type_id = row
+    if action != "Approved":
+        return emp_id, leave_date
+    att_type = 'Half Day' if is_half else 'Approved Leave'
+    cursor.execute("""
+        INSERT INTO attendance (employee_id, date, attendance_type)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (employee_id, date) DO UPDATE SET attendance_type=%s
+    """, (emp_id, leave_date, att_type, att_type))
+    deduction = 0.5 if is_half else 1
+    if leave_type_id:
+        year = leave_date.year if hasattr(leave_date, 'year') else company_today().year
+        cursor.execute("""
+            INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
+            VALUES (%s, %s, %s,
+                (SELECT annual_quota FROM leave_types WHERE id=%s),
+                %s)
+            ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET
+                used_days = leave_balances.used_days + %s
+        """, (emp_id, leave_type_id, year, leave_type_id, deduction, deduction))
+        cursor.execute("SELECT name FROM leave_types WHERE id=%s", (leave_type_id,))
+        lt_name_row = cursor.fetchone()
+        if lt_name_row and lt_name_row[0] == 'Comp-off':
+            cfg_cur = db.cursor(buffered=True)
+            cfg_cur.execute("SELECT COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
+            mpd_row = cfg_cur.fetchone()
+            cfg_cur.close()
+            mpd = int(mpd_row[0]) if mpd_row else 480
+            deduct_minutes = int(deduction * mpd)
+            cursor.execute("""
+                INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
+                VALUES (%s, 0, %s)
+                ON CONFLICT (employee_id) DO UPDATE SET
+                    used_minutes = compoff_balance.used_minutes + %s
+            """, (emp_id, deduct_minutes, deduct_minutes))
+    return emp_id, leave_date
+
+
 @leave_bp.route("/leave_action/<int:lid>", methods=["POST"])
 @role_required(*_LEAVE_APPROVER_ROLES)
 def leave_action(lid):
@@ -470,51 +560,15 @@ def leave_action(lid):
         db.close()
         return "Forbidden", 403
 
-    # Fetch leave_type_id before updating
-    cursor.execute("SELECT leave_type_id FROM leave_requests WHERE id=%s", (lid,))
-    lt_row = cursor.fetchone()
-    leave_type_id = lt_row[0] if lt_row else None
-
-    cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
-
-    if action == "Approved" and leave_row:
-        emp_id, leave_date, _, _, _, is_half, _ = leave_row
-        att_type = 'Half Day' if is_half else 'Approved Leave'
-        cursor.execute("""
-            INSERT INTO attendance (employee_id, date, attendance_type)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (employee_id, date) DO UPDATE SET attendance_type=%s
-        """, (emp_id, leave_date, att_type, att_type))
-        # Deduct leave balance
-        deduction = 0.5 if is_half else 1
-        if leave_type_id:
-            year = leave_date.year if hasattr(leave_date, 'year') else datetime.date.today().year
-            cursor.execute("""
-                INSERT INTO leave_balances (employee_id, leave_type_id, year, total_days, used_days)
-                VALUES (%s, %s, %s,
-                    (SELECT annual_quota FROM leave_types WHERE id=%s),
-                    %s)
-                ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET
-                    used_days = leave_balances.used_days + %s
-            """, (emp_id, leave_type_id, year, leave_type_id, deduction, deduction))
-            # Deduct comp-off balance if this is a Comp-off leave type
-            cursor.execute("SELECT name FROM leave_types WHERE id=%s", (leave_type_id,))
-            lt_name_row = cursor.fetchone()
-            if lt_name_row and lt_name_row[0] == 'Comp-off':
-                cfg_cur = db.cursor(buffered=True)
-                cfg_cur.execute("SELECT COALESCE(compoff_minutes_per_day,480) FROM company_settings LIMIT 1")
-                mpd_row = cfg_cur.fetchone()
-                cfg_cur.close()
-                mpd = int(mpd_row[0]) if mpd_row else 480
-                deduct_minutes = int(deduction * mpd)
-                cursor.execute("""
-                    INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes)
-                    VALUES (%s, 0, %s)
-                    ON CONFLICT (employee_id) DO UPDATE SET
-                        used_minutes = compoff_balance.used_minutes + %s
-                """, (emp_id, deduct_minutes, deduct_minutes))
+    decided = _decide_leave(cursor, db, lid, action) if leave_row else None
+    if not decided:
+        cursor.close()
+        db.close()
+        flash("This leave request was already processed." if leave_row else "Leave request not found.", "warning")
+        return redirect(tpath("/leave_holidays?tab=leaves"))
 
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     if leave_row:
@@ -580,9 +634,9 @@ def leave_action(lid):
 def leave_calendar():
     import calendar as cal_mod
     from collections import defaultdict
-    today = datetime.date.today()
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    today = company_today()
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
     if month < 1:
         month = 12
         year -= 1
@@ -667,6 +721,7 @@ def request_resignation():
         (emp_id, last_working_day, reason)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
 
@@ -731,6 +786,7 @@ def resignation_action(rid):
         return "Forbidden", 403
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     if resign_row:
@@ -810,15 +866,14 @@ def bulk_leave_action():
         if not row:
             continue
         emp_id, leave_date, reason, emp_name, emp_email, email_alerts_enabled = row
-        if hr_scope_denied(emp_id) or manager_scope_denied(emp_id):
+        # Same guards as a single approval, including no self-approval for
+        # HR/manager sessions, which the bulk path used to skip (QA SEC-11).
+        if hr_scope_denied(emp_id) or manager_scope_denied(emp_id) or _approving_own_record(emp_id):
             continue
-        cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
-        if action == "Approved":
-            cursor.execute("""
-                INSERT INTO attendance (employee_id, date, attendance_type)
-                VALUES (%s, %s, 'Approved Leave')
-                ON CONFLICT (employee_id, date) DO UPDATE SET attendance_type='Approved Leave'
-            """, (emp_id, leave_date))
+        # Same decision path as a single approval: deducts the balance and
+        # handles half days, which the bulk path used to skip (QA BUG-36).
+        if not _decide_leave(cursor, db, lid, action):
+            continue
         done += 1
         if emp_email and cfg_row and email_alerts_enabled:
             color = "#16a34a" if action == "Approved" else "#dc2626"
@@ -839,6 +894,7 @@ def bulk_leave_action():
             send_email_async(emp_email, f"Leave {action} -- {date_str}", html_body, cfg_row)
 
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     flash(f"Bulk action: {action} applied to {done} leave request(s).", "success")
@@ -981,7 +1037,9 @@ def api_leave_action(lid):
     if raw_action in ("approved", "approve"):
         action = "Approved"
     elif raw_action in ("declined", "decline", "rejected", "reject"):
-        action = "Declined"
+        # Leaves use 'Rejected' everywhere ('Declined' is the resignation
+        # vocabulary); the app's "Decline" maps to it (QA BUG-33).
+        action = "Rejected"
     else:
         return jsonify({"ok": False, "msg": "action must be Approved or Declined"}), 400
     db = get_db_connection()
@@ -992,18 +1050,24 @@ def api_leave_action(lid):
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Leave request not found."}), 404
-    cursor.execute("UPDATE leave_requests SET status=%s WHERE id=%s", (action, lid))
+    # Same decision path as the web approval (QA BUG-32): only from Pending,
+    # and approving deducts the balance and marks the day.
+    decided = _decide_leave(cursor, db, lid, action) if row else None
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
-    if row:
-        icon = "✅" if action == "Approved" else "❌"
-        _create_notification(
-            'employee',
-            f"{icon} Leave Request {action}",
-            f"Your leave request for {row[1]} has been {action.lower()}.",
-            row[0]
-        )
+    if not row:
+        return jsonify({"ok": False, "msg": "Leave request not found."}), 404
+    if not decided:
+        return jsonify({"ok": False, "msg": "This leave request was already processed."}), 409
+    icon = "✅" if action == "Approved" else "❌"
+    _create_notification(
+        'employee',
+        f"{icon} Leave Request {action}",
+        f"Your leave request for {row[1]} has been {action.lower()}.",
+        row[0]
+    )
     return jsonify({"ok": True, "status": action})
 
 
@@ -1057,6 +1121,7 @@ def api_resignation_action(rid):
         return jsonify({"ok": False, "msg": "Resignation request not found."}), 404
     cursor.execute("UPDATE resignation_requests SET status=%s WHERE id=%s", (action, rid))
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     if not resign_row:
@@ -1116,13 +1181,23 @@ def api_employee_leave_request():
     reason = data.get("reason", "").strip()
     if not leave_date or not reason:
         return jsonify({"ok": False, "msg": "leave_date and reason required"}), 400
+    try:
+        day = datetime.date.fromisoformat(leave_date)
+    except ValueError:
+        return jsonify({"ok": False, "msg": "leave_date must be YYYY-MM-DD"}), 400
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    _days, error, status = _leave_working_days(cursor, emp_id, [day])
+    if error:
+        cursor.close()
+        db.close()
+        return jsonify({"ok": False, "msg": error}), status
     cursor.execute(
         "INSERT INTO leave_requests (employee_id, leave_date, reason) VALUES (%s,%s,%s)",
-        (emp_id, leave_date, reason)
+        (emp_id, day, reason)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     _create_notification(
@@ -1159,6 +1234,7 @@ def api_employee_resign():
         (emp_id, last_working_day, reason)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     _create_notification(
         'admin',
         "📤 New Resignation Request",
@@ -1247,6 +1323,7 @@ def api_employee_cancel_leave(lid):
         (lid,)
     )
     db.commit()
+    invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
     cursor.close()
     db.close()
     _audit("cancel_leave", "leave_requests", str(lid), f"Employee {emp_id} cancelled leave for {row[1]}")
@@ -1272,6 +1349,7 @@ def cancel_leave_web(lid):
             "UPDATE leave_requests SET status='Cancelled', cancelled_at=NOW() WHERE id=%s", (lid,)
         )
         db.commit()
+        invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
         flash("Leave request cancelled successfully.", "success")
         _audit("cancel_leave", "leave_requests", str(lid), f"Employee {emp_id} cancelled leave for {row[1]}")
     cursor.close()
@@ -1284,7 +1362,7 @@ def cancel_leave_web(lid):
 def api_employee_request_overtime():
     emp_id = g.api_emp_id
     data = request.get_json() or {}
-    ot_date = data.get("date", str(datetime.date.today()))
+    ot_date = data.get("date", str(company_today()))
     reason = (data.get("reason") or "").strip()
     if not reason:
         return jsonify({"ok": False, "msg": "Reason is required."}), 400
@@ -1521,9 +1599,9 @@ def overtime():
     co = get_company_settings()
     pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
 
-    today = datetime.date.today()
-    month = int(request.args.get('month', today.month))
-    year = int(request.args.get('year', today.year))
+    today = company_today()
+    month = int_param(request.args.get('month', today.month))
+    year = int_param(request.args.get('year', today.year))
     active_tab = request.args.get('tab', 'ot')
 
     # OT records
@@ -1667,8 +1745,8 @@ def compoff():
 @leave_bp.route("/compoff_settings", methods=["POST"])
 @admin_required
 def compoff_settings():
-    min_ot = int(request.form.get("min_ot_minutes", 120))
-    mpd = int(request.form.get("minutes_per_day", 480))
+    min_ot = int_param(request.form.get("min_ot_minutes", 120))
+    mpd = int_param(request.form.get("minutes_per_day", 480))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""

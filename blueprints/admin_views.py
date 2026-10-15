@@ -42,7 +42,8 @@ from utils.helpers import (
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
     encrypt_pii, decrypt_pii, invalidate_companies_cache,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
-    post_announcement, _validate_upload,
+    post_announcement, _validate_upload, company_today, company_now, int_param,
+    get_auth_config, app_gps_checkin_allowed,
 )
 from utils.storage import save_private, open_private, delete_private
 from utils.email_utils import get_email_config, send_email_smtp
@@ -64,6 +65,7 @@ _TOGGLE_COLUMN_MAP = {
     "face": "face_enabled",
     "location": "location_enabled",
     "password": "employee_password_auth",
+    "app_gps": "app_gps_checkin",
 }
 _TOGGLE_LABEL_MAP = {
     "fingerprint": "Fingerprint / Biometric",
@@ -71,6 +73,7 @@ _TOGGLE_LABEL_MAP = {
     "face": "Face Recognition",
     "location": "Location Verification",
     "password": "Password Login",
+    "app_gps": "Location-only App Check-in",
 }
 
 
@@ -79,7 +82,7 @@ _TOGGLE_LABEL_MAP = {
 def admin():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
     _co_sub, _ = co_scope_subquery(active_cid)
@@ -287,7 +290,7 @@ def dashboard_live():
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
     _co_sub, _ = co_scope_subquery(active_cid)
@@ -353,7 +356,7 @@ def dashboard_live():
 def attendance_chart_data():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
 
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
@@ -791,8 +794,8 @@ def settings_page():
                            default_start=_co_shift_start,
                            default_half=_co_shift_half,
                            default_end=_co_shift_end,
-                           now_month=datetime.date.today().month,
-                           now_year=datetime.date.today().year,
+                           now_month=company_today().month,
+                           now_year=company_today().year,
                            default_onboarding_tpl=default_onboarding_tpl,
                            onboarding_templates=onboarding_templates,
                            late_deduction_pct=round(fr["late_deduction_pct"], 1),
@@ -806,6 +809,7 @@ def settings_page():
                                "fingerprint_enabled": fr["fingerprint_enabled"],
                                "location_enabled": fr["geo_enabled"],
                                "employee_password_auth": True,
+                               "app_gps_checkin": app_gps_checkin_allowed(get_auth_config()),
                            },
                            features=features,
                            )
@@ -1115,7 +1119,8 @@ def toggle_auth_method():
     active_cid = session.get("active_company_id")
     # Map old column names to company_feature_settings column names
     _cfs_map = {"face_enabled": "face_auth_enabled", "location_enabled": "geo_enabled",
-                "employee_password_auth": None}  # password auth stays global
+                "employee_password_auth": None,  # password auth stays global
+                "app_gps_checkin": None}  # read by /api/employee/checkin via get_auth_config()
     cfs_col = _cfs_map.get(column, column)
     if active_cid and cfs_col:
         _upsert_co_feature(active_cid, cfs_col, 1 if enabled else 0)
@@ -1130,6 +1135,9 @@ def toggle_auth_method():
         db.commit()
         cursor.close()
         db.close()
+    # The check-in endpoints read these through the cached auth config;
+    # without this a change only applied once the cache expired.
+    invalidate_settings_cache()
     state = "enabled" if enabled else "disabled"
     flash(f"{label} {state}.", "success")
     return redirect(tpath("/settings?tab=attendance"))
@@ -2129,7 +2137,7 @@ def test_email():
 @admin_views_bp.route("/api/admin/expiring_documents", methods=["GET"])
 @admin_required
 def api_expiring_documents():
-    days = int(request.args.get("days", 30))
+    days = int_param(request.args.get("days", 30))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
@@ -2164,7 +2172,7 @@ def analytics():
 
     co = get_company_settings()
 
-    today = datetime.date.today()
+    today = company_today()
     _doj_start = today.replace(day=1)
     _doj_end = datetime.date(today.year + 1, 1, 1) if today.month == 12 else today.replace(month=today.month + 1, day=1)
 
@@ -2628,7 +2636,7 @@ def api_test_email():
         return jsonify({"ok": False, "msg": "No SMTP configuration found in system. Please configure SMTP first."}), 400
 
     subject = "⚡ SMTP Connection Test -- HRzest.com"
-    now_str = datetime.datetime.now().strftime("%d %b %Y, %I:%M %p")
+    now_str = company_now().strftime("%d %b %Y, %I:%M %p")
     html_body = f"""
     <div style="font-family: Arial, sans-serif; padding: 24px; background: #f8fafc; border-radius: 12px;">
       <h2 style="color: #16a34a; margin-top: 0;">✅ SMTP Connection Test Successful!</h2>
@@ -2643,9 +2651,7 @@ def api_test_email():
     """
 
     try:
-        err = send_email_smtp(target_email, subject, html_body, cfg)
-        if err:
-            return jsonify({"ok": False, "msg": f"SMTP delivery error: {err}"}), 500
+        send_email_smtp(target_email, subject, html_body, cfg)   # raises on failure; returns nothing
         return jsonify({"ok": True, "msg": f"Test email successfully delivered to {target_email}!"})
     except Exception:
         app_log.exception("api_test_email: SMTP delivery exception")

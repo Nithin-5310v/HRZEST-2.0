@@ -37,7 +37,7 @@ _DB_CONFIG = dict(
     password=os.environ.get("DB_PASS", ""),
     dbname=os.environ.get("DB_NAME", "employee_attendance"),
     sslmode=os.environ.get("DB_SSLMODE", "prefer"),
-    connect_timeout=int(os.environ.get("DB_CONNECT_TIMEOUT", "1")),
+    connect_timeout=int(os.environ.get("DB_CONNECT_TIMEOUT", "10")),
     options=f"-c statement_timeout={int(os.environ.get('DB_STATEMENT_TIMEOUT_MS', '30000'))}",
 )
 if os.environ.get("DB_SSLROOTCERT"):

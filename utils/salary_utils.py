@@ -16,6 +16,23 @@ import utils.config as cfg
 from utils.attendance_utils import infer_type_legacy
 from utils.dlp import mask_tail
 
+PAYROLL_CONFIG_SQL = ("SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap "
+                      "FROM payroll_config LIMIT 1")
+PAYROLL_CONFIG_DEFAULTS = {"pf_employee_pct": 12.0, "pf_employer_pct": 12.0, "professional_tax": 200.0,
+                           "tds_annual_pct": 0.0, "pf_basic_cap": 15000.0}
+
+
+def payroll_config_from_row(row):
+    """The payroll_config row (PAYROLL_CONFIG_SQL) as a dict. Only a NULL
+    column falls back to its default: a configured 0 stays 0 -- a company
+    not registered for PF, or in a state without professional tax, sets
+    them to 0, and `float(value or 12)` used to turn that back into 12% PF
+    and Rs.200 PT on every payslip (QA BUG-40)."""
+    if not row:
+        return dict(PAYROLL_CONFIG_DEFAULTS)
+    return {key: float(PAYROLL_CONFIG_DEFAULTS[key] if value is None else value)
+            for key, value in zip(PAYROLL_CONFIG_DEFAULTS, row)}
+
 
 def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data,
                            company_name="", emp_designation="", emp_dept="",

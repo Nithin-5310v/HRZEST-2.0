@@ -11,6 +11,7 @@ returning an immediate HTTP 202 Queue Confirmation response (<50ms).
 """
 import html
 from flask import Blueprint, request, jsonify
+from psycopg2.extras import execute_values
 from database import get_db_connection, transaction
 from utils.email_utils import get_email_config
 from utils.auth import resolve_admin_identity
@@ -105,12 +106,15 @@ def api_email_blast():
             )
             cur.fetchone()
 
-            for email, name in recipients:
-                cur.execute(
-                    "INSERT INTO email_queue (to_email, subject, html_body, attempts, status) VALUES (%s, %s, %s, 0, 'pending')",
-                    (email, clean_subject, formatted_html)
-                )
-                queued_count += 1
+            # One batched INSERT (100 rows per statement) instead of one
+            # round trip per recipient (QA PERF-04).
+            rows = [(email, clean_subject, formatted_html) for email, _name in recipients]
+            insert_sql = "INSERT INTO email_queue (to_email, subject, html_body, attempts, status) VALUES %s"
+            if hasattr(cur, "mogrify"):
+                execute_values(cur, insert_sql, rows, template="(%s, %s, %s, 0, 'pending')")
+            else:   # the dev-only SQLite fallback cursor
+                cur.executemany(insert_sql.replace("VALUES %s", "VALUES (%s, %s, %s, 0, 'pending')"), rows)
+            queued_count = len(rows)
             cur.close()
     except Exception as exc:
         app_log.error("Failed to enqueue broadcast emails: %s", exc)

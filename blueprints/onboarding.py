@@ -11,7 +11,10 @@ from flask import Blueprint, request, session, redirect, render_template, flash,
 from database import get_db_connection
 from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required
-from utils.helpers import tpath, get_company_settings, _safe_app_url, _db, hr_scope_column, hr_scope_denied, _validate_upload
+from utils.helpers import (
+    tpath, get_company_settings, _safe_app_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
+    company_today, company_now, _create_notification, int_param,
+)
 from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
 from extensions import limiter, app_log, app, log_security_event
@@ -191,7 +194,7 @@ def api_onboarding_task_update(task_id):
             return jsonify({"ok": False, "msg": "Task not found."}), 404
         ob_id = row[0]
 
-        completed = datetime.datetime.now() if new_status == "Done" else None
+        completed = company_now().replace(tzinfo=None) if new_status == "Done" else None
         cursor.execute(
             "UPDATE employee_onboarding_tasks SET status=%s, completed_at=%s, admin_notes=%s WHERE id=%s",
             (new_status, completed, notes, task_id)
@@ -256,7 +259,7 @@ def onboarding():
     cursor.execute("SELECT DISTINCT role FROM employees WHERE role IS NOT NULL AND role != '' ORDER BY role")
     employee_roles = [r[0] for r in cursor.fetchall()]
 
-    today = datetime.date.today()
+    today = company_today()
     total_active = sum(1 for o in active_onboardings if o[8] != 'Completed')
     total_completed = sum(1 for o in active_onboardings if o[8] == 'Completed')
     total_overdue = sum(1 for o in active_onboardings if o[7] and o[7] < today and o[8] != 'Completed')
@@ -289,8 +292,6 @@ def onboarding():
 @onboarding_bp.route("/onboarding_template_save", methods=["POST"])
 @admin_required
 def onboarding_template_save():
-    db = get_db_connection()
-    cursor = db.cursor()
     tid = request.form.get("template_id")
     name = request.form.get("name", "").strip()
     desc = request.form.get("description", "").strip()
@@ -298,6 +299,9 @@ def onboarding_template_save():
     if not name:
         flash("Template name is required.", "error")
         return redirect(tpath("/onboarding?tab=templates"))
+    # Borrowed only after validation, so the early return never holds one (QA CONN-01).
+    db = get_db_connection()
+    cursor = db.cursor()
     if tid:
         cursor.execute("UPDATE onboarding_templates SET name=%s, description=%s, role=%s WHERE id=%s",
                        (name, desc, role, tid))
@@ -318,7 +322,7 @@ def bulk_assign_onboarding():
     cursor = db.cursor()
     tid = request.form.get("template_id")
     emp_ids = request.form.getlist("employee_ids")
-    today = datetime.date.today()
+    today = company_today()
     due_date = (today + datetime.timedelta(days=30)).isoformat()
     assigned = 0
     # Fetched once outside the loop -- tid is fixed for the whole bulk
@@ -405,7 +409,7 @@ def export_onboarding_csv():
     output.seek(0)
     from flask import Response
     return Response(output.getvalue(), mimetype="text/csv",
-                    headers={"Content-Disposition": f"attachment;filename=onboarding_export_{datetime.date.today()}.csv"})
+                    headers={"Content-Disposition": f"attachment;filename=onboarding_export_{company_today()}.csv"})
 
 
 @onboarding_bp.route("/onboarding_template_duplicate", methods=["POST"])
@@ -462,18 +466,19 @@ def onboarding_template_delete():
 @onboarding_bp.route("/onboarding_task_save", methods=["POST"])
 @admin_required
 def onboarding_task_save():
-    db = get_db_connection()
-    cursor = db.cursor()
     task_id = request.form.get("task_id")
     tid = request.form.get("template_id")
     title = request.form.get("task_title", "").strip()
     desc = request.form.get("task_description", "").strip()
     req_doc = 1 if request.form.get("requires_document") else 0
-    due_days = int(request.form.get("due_days", 7))
-    sort_order = int(request.form.get("sort_order", 0))
+    due_days = int_param(request.form.get("due_days", 7))
+    sort_order = int_param(request.form.get("sort_order", 0))
     if not title:
         flash("Task title is required.", "error")
         return redirect(tpath(f"/onboarding_template_detail/{tid}"))
+    # Borrowed only after validation, so the early return never holds one (QA CONN-01).
+    db = get_db_connection()
+    cursor = db.cursor()
     if task_id:
         cursor.execute("""UPDATE onboarding_template_tasks
                           SET task_title=%s, task_description=%s, requires_document=%s,
@@ -536,7 +541,7 @@ def onboarding_assign():
     emp_id = request.form.get("employee_id")
     tid = request.form.get("template_id")
     due_date = request.form.get("due_date") or None
-    today = datetime.date.today()
+    today = company_today()
 
     if hr_scope_denied(emp_id):
         cursor.close()
@@ -571,10 +576,11 @@ def onboarding_assign():
     try:
         cursor.execute("SELECT name FROM onboarding_templates WHERE id=%s", (tid,))
         tname = cursor.fetchone()[0]
-        cursor.execute("""INSERT INTO employee_notifications (employee_id, title, message, notif_type)
-                          VALUES (%s, 'Onboarding Started', %s, 'info')""",
-                       (emp_id, f"Your onboarding checklist '{tname}' has been assigned. Please complete all tasks."))
-        db.commit()
+        # The app's notifications table (an employee_notifications table was
+        # targeted here that doesn't exist, so this always failed -- QA BUG-37).
+        _create_notification('employee', 'Onboarding Started',
+                             f"Your onboarding checklist '{tname}' has been assigned. Please complete all tasks.",
+                             emp_id)
     except Exception as exc:
         app_log.warning("In-app onboarding-started notification failed for %s: %s", emp_id, exc, exc_info=True)
 
@@ -631,7 +637,7 @@ def onboarding_detail(ob_id):
     db.close()
     return render_template("onboarding_detail.html",
                            ob=ob, tasks=tasks, co=co,
-                           today=datetime.date.today(),
+                           today=company_today(),
                            pending_leaves=0, pending_resignations=0, pending_tickets=0,
                            active_nav="onboarding",
                            )
@@ -652,7 +658,7 @@ def onboarding_admin_task_update():
         cursor.close()
         db.close()
         return "Onboarding record not found", 404
-    completed = datetime.datetime.now() if new_status == "Done" else None
+    completed = company_now().replace(tzinfo=None) if new_status == "Done" else None
     cursor.execute("""UPDATE employee_onboarding_tasks
                       SET status=%s, completed_at=%s, admin_notes=%s WHERE id=%s""",
                    (new_status, completed, notes, task_id))
@@ -733,10 +739,10 @@ def offer_letter_save():
     monthly_ctc = request.form.get("monthly_ctc", 0) or 0
     joining_date = request.form.get("joining_date") or None
     valid_until = request.form.get("offer_valid_until") or None
-    probation = int(request.form.get("probation_months", 6))
+    probation = int_param(request.form.get("probation_months", 6))
     reporting_to = request.form.get("reporting_to", "")
     notes = request.form.get("additional_notes", "")
-    notice_days = int(request.form.get("notice_period_days", 30))
+    notice_days = int_param(request.form.get("notice_period_days", 30))
     candidate_addr = request.form.get("candidate_address", "")
     db = get_db_connection()
     cursor = db.cursor()
@@ -1496,7 +1502,7 @@ def my_onboarding():
     return render_template("my_onboarding.html",
                            emp=emp, emp_id=emp_id, onboardings=onboardings, tasks=tasks,
                            selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None,
-                           today=datetime.date.today(),
+                           today=company_today(),
                            )
 
 
@@ -1531,10 +1537,10 @@ def my_onboarding_task_done():
 
     if doc_path:
         cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, document_path=%s, employee_note=%s WHERE id=%s",
-                       (datetime.datetime.now(), doc_path, employee_note or None, task_id))
+                       (company_now().replace(tzinfo=None), doc_path, employee_note or None, task_id))
     else:
         cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, employee_note=%s WHERE id=%s",
-                       (datetime.datetime.now(), employee_note or None, task_id))
+                       (company_now().replace(tzinfo=None), employee_note or None, task_id))
 
     # Auto-complete if all done
     cursor.execute("SELECT COUNT(*) FROM employee_onboarding_tasks WHERE onboarding_id=%s AND status!='Done'", (ob_id,))
@@ -1667,10 +1673,10 @@ def api_my_onboarding_task_done(task_id):
 
     if doc_path:
         cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, document_path=%s, employee_note=%s WHERE id=%s",
-                       (datetime.datetime.now(), doc_path, employee_note or None, task_id))
+                       (company_now().replace(tzinfo=None), doc_path, employee_note or None, task_id))
     else:
         cursor.execute("UPDATE employee_onboarding_tasks SET status='Done', completed_at=%s, employee_note=%s WHERE id=%s",
-                       (datetime.datetime.now(), employee_note or None, task_id))
+                       (company_now().replace(tzinfo=None), employee_note or None, task_id))
 
     cursor.execute("SELECT COUNT(*) FROM employee_onboarding_tasks WHERE onboarding_id=%s AND status!='Done'", (ob_id,))
     remaining = cursor.fetchone()[0]

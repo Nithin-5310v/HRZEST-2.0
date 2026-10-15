@@ -125,16 +125,18 @@ class TestRequestLeave:
         cur.close()
         _wait_for_async_writes()
 
-    def test_multi_day_leave_creates_one_row_per_day(self, client, seed_employee, db_engine):
+    def test_multi_day_leave_creates_one_row_per_working_day(self, client, seed_employee, db_engine):
+        # Sat 5 - Mon 7 Sep 2026: the Sunday gets no row (QA BUG-07).
         _employee_session(client, seed_employee)
         client.post("/request_leave", data={
             "leave_date_start": "2026-09-05", "leave_date_end": "2026-09-07", "reason": "Trip",
         })
         cur = db_engine.cursor()
         cur.execute(
-            "SELECT COUNT(*) FROM leave_requests WHERE employee_id=%s AND leave_date BETWEEN '2026-09-05' AND '2026-09-07'",
+            "SELECT leave_date FROM leave_requests WHERE employee_id=%s AND leave_date BETWEEN '2026-09-05' AND '2026-09-07' "
+            "ORDER BY leave_date",
             (seed_employee["employee_id"],))
-        assert cur.fetchone()[0] == 3
+        assert [str(r[0]) for r in cur.fetchall()] == ["2026-09-05", "2026-09-07"]
         cur.execute("DELETE FROM leave_requests WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.close()
         _wait_for_async_writes()

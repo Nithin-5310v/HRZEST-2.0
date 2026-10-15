@@ -28,7 +28,7 @@ from utils.auth import (
     payout_settings_step_up_clear,
 )
 from utils.totp import verify_totp_code, mark_totp_enabled
-from utils.helpers import tpath, _audit, encrypt_pii, decrypt_pii
+from utils.helpers import tpath, _audit, encrypt_pii, decrypt_pii, company_today
 from utils.email_utils import send_email_async
 from utils.salary_utils import build_salary_slip_html
 from utils.payout_utils import (
@@ -451,7 +451,10 @@ def prepare_pending_disbursements():
 def _run_disbursement_prep():
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    cur.execute("SELECT id, company_name, subdomain, db_name FROM tenants WHERE status='active'")
+    # A company whose schema lacks tables would read another company's
+    # salary data through public -- skipped until repaired (QA SEC-07).
+    cur.execute("SELECT id, company_name, subdomain, db_name FROM tenants "
+                "WHERE status='active' AND schema_missing_tables IS NULL")
     rows = cur.fetchall()
     cur.close()
     conn.close()
@@ -474,7 +477,7 @@ def _prepare_one_tenant(tenant_schema):
         if not cfg or not cfg["enabled"]:
             return
 
-        today = datetime.date.today()
+        today = company_today()
         # Prepare for THIS month if today is within approval_lead_days of
         # the scheduled day, else it's not time yet.
         target_day = min(cfg["disbursement_day_of_month"], calendar.monthrange(today.year, today.month)[1])

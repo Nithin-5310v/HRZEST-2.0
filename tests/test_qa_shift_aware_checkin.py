@@ -19,6 +19,10 @@ import pytest
 import pytz
 
 EMP = "TST001"
+from tests.conftest import TEST_OFFICE
+
+EMP = "TST001"
+OFFICE = TEST_OFFICE   # location is enforced by default (SEC-08)
 TODAY = datetime.date.today()
 AUTH_QR_FP = {"qr_enabled": True, "face_enabled": False,
               "fingerprint_enabled": True, "location_enabled": False}
@@ -77,6 +81,7 @@ def _employee_checkin(client, seed_employee, mocker, hour, minute):
     _at(mocker, "blueprints.employee_portal", hour, minute)
     token = _emp_token(client, seed_employee)
     return client.post("/api/employee/checkin", json={},
+    return client.post("/api/employee/checkin", json=OFFICE,
                        headers={"Authorization": f"Bearer {token}"}).get_json()
 
 
@@ -85,6 +90,7 @@ def _offline_sync(client, seed_employee, mocker, hour, minute):
     token = _emp_token(client, seed_employee)
     data = client.post("/api/employee/sync_punches", json={"punches": [
         {"id": "p1", "punched_at": _ist(hour, minute).isoformat()},
+        {"id": "p1", "punched_at": _ist(hour, minute).isoformat(), **OFFICE},
     ]}, headers={"Authorization": f"Bearer {token}"}).get_json()
     assert data["ok"] is True, data
     return data["results"][0]
@@ -118,6 +124,7 @@ def _kiosk_checkin(client, mocker, hour, minute, signed_qr):
 
 # ── login at 08:00 ───────────────────────────────────────────────────────────
 
+@pytest.mark.usefixtures("app_gps_checkin_on")  # exercises the location-only app check-in (QA NV-18)
 def test_employee_app_login_uses_assigned_shift(client, seed_employee, early_shift, mocker):
     assert _employee_checkin(client, seed_employee, mocker, 8, 0)["status"] == "Half Day Login"
 
@@ -140,6 +147,7 @@ def test_kiosk_login_uses_assigned_shift(client, seed_employee, early_shift, moc
 
 # ── logout at 15:30 after logging in at 06:00 ────────────────────────────────
 
+@pytest.mark.usefixtures("app_gps_checkin_on")  # exercises the location-only app check-in (QA NV-18)
 def test_employee_app_logout_uses_assigned_shift(client, seed_employee, logged_in_at_six, mocker):
     data = _employee_checkin(client, seed_employee, mocker, 15, 30)
     assert (data["action"], data["status"]) == ("logout", "Completed")
