@@ -195,6 +195,31 @@ def detect_overtime(employee_id, date, logout_time):
         app_log.warning("Overtime record failed for %s on %s: %s", employee_id, date, exc, exc_info=True)
 
 
+def attendance_pct_series(month_bounds, present_by_day, holidays, today, headcount):
+    """Monthly attendance % for the analytics charts: employee-days present
+    divided by (working days so far x headcount). present_by_day maps a date
+    to the number of distinct employees who logged in that day. Only working
+    days (not Sunday, not a holiday) up to `today` count, on both sides, so a
+    Sunday check-in can't push the figure past 100%. It used to divide the
+    number of distinct employees seen in the whole month, which put a fully
+    present team at ~4% (QA BUG-03/BUG-04)."""
+    series = []
+    for y, m, month_start, _month_end in month_bounds:
+        _, last_day = calendar.monthrange(y, m)
+        days = [datetime.date(y, m, d) for d in range(1, last_day + 1)]
+        working = [d for d in days if d.weekday() != 6 and d not in holidays and d <= today]
+        expected = len(working) * (headcount or 1)
+        present = min(sum(present_by_day.get(d, 0) for d in working), expected)
+        series.append({
+            "month_label": month_start.strftime("%b %Y"),
+            "total_days": len(working),
+            "present_days": present,
+            "absent_days": max(0, expected - present),
+            "att_pct": round(present / expected * 100, 1) if expected else 0,
+        })
+    return series
+
+
 def get_working_days(year, month):
     _, last_day = calendar.monthrange(year, month)
     return [

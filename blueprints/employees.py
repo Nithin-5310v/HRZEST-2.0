@@ -23,7 +23,8 @@ from utils.auth import (
 from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
-    add_employee_seat_cap_check, _safe_app_url, hr_scope_denied as _hr_scope_denied,
+    add_employee_seat_cap_check, _safe_app_url, hr_scope_denied as _hr_scope_denied, company_today,
+    int_param,
 )
 from utils.dlp import has_pii_clearance, mask_tail
 from utils.email_utils import get_email_config, send_email_smtp, _mask_email
@@ -237,7 +238,7 @@ def edit_employee_page(emp_id):
 def employee_profile(emp_id):
     if _hr_scope_denied(emp_id):
         return "Employee not found", 404
-    today = datetime.date.today()
+    today = company_today()
     with _db() as (cursor, db):
         cursor.execute("""
             SELECT employee_id, name, email, role, phone, gender, dob, blood_group,
@@ -1193,11 +1194,11 @@ def add_employee_page():
                     WHERE employee_id=%s AND template_id=%s
                 """, (emp_id, _default_tpl))
                 if not cursor.fetchone():
-                    _due = (datetime.date.today() + datetime.timedelta(days=30)).isoformat()
+                    _due = (company_today() + datetime.timedelta(days=30)).isoformat()
                     cursor.execute("""
                         INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status)
                         VALUES (%s, %s, %s, %s, 'In Progress') RETURNING id
-                    """, (emp_id, _default_tpl, datetime.date.today().isoformat(), _due))
+                    """, (emp_id, _default_tpl, company_today().isoformat(), _due))
                     _ob_id = cursor.fetchone()[0]
                     db.commit()
                     cursor.execute("""
@@ -2181,8 +2182,8 @@ def api_employee_id_card(emp_id):
 @api_role_required("admin")
 @limiter.limit("10 per minute")
 def api_employees():
-    page = max(1, int(request.args.get("page", 1)))
-    per_page = min(100, max(1, int(request.args.get("per_page", 50))))
+    page = max(1, int_param(request.args.get("page", 1)))
+    per_page = min(100, max(1, int_param(request.args.get("per_page", 50))))
     offset = (page - 1) * per_page
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

@@ -31,6 +31,7 @@ blueprints/platform_admin.py's human-reviewer routes call:
     there.
 """
 import base64
+import datetime
 import json
 import os
 import re
@@ -277,6 +278,47 @@ def run_automated_verification(application_id):
     return f"auto-approved: {msg}" if ok else f"auto-approve failed: {msg}"
 
 
+# A job still 'processing' this long after its claim belongs to a worker that died.
+_STALE_CLAIM = datetime.timedelta(minutes=30)
+
+
+def _claim_verification_jobs():
+    """Claim up to 5 pending jobs for this worker and return their ids.
+
+    Every gunicorn worker runs this queue, so the claim is one atomic
+    statement (SKIP LOCKED: a job another worker is claiming is left to
+    it) -- selecting first and marking jobs in later statements let two
+    workers verify the same application, with duplicate AI/OCR calls and
+    applicant emails (QA SCALE-07). Jobs a crashed worker left in
+    'processing' go back to pending first; attempts still cap retries."""
+    from database import get_master_db
+    now_utc = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    stale_before = now_utc - _STALE_CLAIM
+    conn = get_master_db()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE tenant_applications SET verification_job_status='pending' "
+            "WHERE verification_job_status='processing' AND (verification_claimed_at < %s "
+            "OR (verification_claimed_at IS NULL AND documents_submitted_at < %s))",
+            (stale_before, stale_before),
+        )
+        cur.execute(
+            "UPDATE tenant_applications SET verification_job_status='processing', "
+            "verification_attempts=verification_attempts+1, verification_claimed_at=%s "
+            "WHERE id IN (SELECT id FROM tenant_applications WHERE verification_job_status='pending' "
+            "AND verification_attempts < %s ORDER BY documents_submitted_at LIMIT 5 FOR UPDATE SKIP LOCKED) "
+            "RETURNING id",
+            (now_utc, _MAX_ATTEMPTS),
+        )
+        job_ids = [r[0] for r in cur.fetchall()]
+        conn.commit()
+        cur.close()
+        return job_ids
+    finally:
+        conn.close()
+
+
 def _document_verification_worker():
     """Background thread, started once in wsgi.py alongside the existing
     email-queue-worker thread -- polls tenant_applications for jobs
@@ -289,23 +331,7 @@ def _document_verification_worker():
     while True:
         try:
             with app.app_context():
-                conn = get_master_db()
-                cur = conn.cursor(buffered=True)
-                cur.execute(
-                    "SELECT id FROM tenant_applications WHERE verification_job_status='pending' "
-                    "AND verification_attempts < %s ORDER BY documents_submitted_at LIMIT 5",
-                    (_MAX_ATTEMPTS,)
-                )
-                job_ids = [r[0] for r in cur.fetchall()]
-                for app_id in job_ids:
-                    cur.execute(
-                        "UPDATE tenant_applications SET verification_job_status='processing', "
-                        "verification_attempts=verification_attempts+1 WHERE id=%s",
-                        (app_id,)
-                    )
-                conn.commit()
-                cur.close()
-                conn.close()
+                job_ids = _claim_verification_jobs()
 
                 for app_id in job_ids:
                     try:

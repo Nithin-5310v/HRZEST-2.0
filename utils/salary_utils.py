@@ -16,6 +16,23 @@ import utils.config as cfg
 from utils.attendance_utils import infer_type_legacy
 from utils.dlp import mask_tail
 
+PAYROLL_CONFIG_SQL = ("SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap "
+                      "FROM payroll_config LIMIT 1")
+PAYROLL_CONFIG_DEFAULTS = {"pf_employee_pct": 12.0, "pf_employer_pct": 12.0, "professional_tax": 200.0,
+                           "tds_annual_pct": 0.0, "pf_basic_cap": 15000.0}
+
+
+def payroll_config_from_row(row):
+    """The payroll_config row (PAYROLL_CONFIG_SQL) as a dict. Only a NULL
+    column falls back to its default: a configured 0 stays 0 -- a company
+    not registered for PF, or in a state without professional tax, sets
+    them to 0, and `float(value or 12)` used to turn that back into 12% PF
+    and Rs.200 PT on every payslip (QA BUG-40)."""
+    if not row:
+        return dict(PAYROLL_CONFIG_DEFAULTS)
+    return {key: float(PAYROLL_CONFIG_DEFAULTS[key] if value is None else value)
+            for key, value in zip(PAYROLL_CONFIG_DEFAULTS, row)}
+
 
 def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data,
                            company_name="", emp_designation="", emp_dept="",
@@ -111,15 +128,18 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
   .att-cell .lbl{{font-size:10px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.3px}}
   .body{{padding:24px 32px}}
   .two-col{{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px}}
-  .sec-title{{font-size:12px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;padding-bottom:7px;border-bottom:2px solid #dbeafe;margin-bottom:10px}}
+  .sec-title{{font-size:12px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;
+    padding-bottom:7px;border-bottom:2px solid #dbeafe;margin-bottom:10px}}
   table.pay-tbl{{width:100%;border-collapse:collapse;font-size:13px}}
   table.pay-tbl td{{padding:7px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}}
   table.pay-tbl td:last-child{{text-align:right;font-weight:600;white-space:nowrap}}
   table.pay-tbl tr.tot td{{background:#f8fafc;font-weight:800;border-top:2px solid #dbeafe;border-bottom:2px solid #dbeafe;font-size:14px}}
-  .net-box{{background:linear-gradient(135deg,#0f2460,#1e3a8a);color:#fff;border-radius:12px;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;margin-top:16px}}
+  .net-box{{background:linear-gradient(135deg,#0f2460,#1e3a8a);color:#fff;border-radius:12px;padding:18px 24px;
+    display:flex;justify-content:space-between;align-items:center;margin-top:16px}}
   .net-box .lbl{{font-size:13px;opacity:.8}}
   .net-box .amt{{font-size:28px;font-weight:900}}
-  .footer{{background:#f8fafc;padding:14px 32px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}}
+  .footer{{background:#f8fafc;padding:14px 32px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;
+    display:flex;justify-content:space-between;align-items:center}}
   .print-btn{{display:flex;gap:10px;margin:18px 32px 4px;justify-content:flex-end}}
   .btn{{padding:9px 20px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer}}
   .btn-print{{background:#0f2460;color:#fff}}

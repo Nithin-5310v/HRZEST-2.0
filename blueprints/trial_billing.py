@@ -52,6 +52,7 @@ def _run_trial_reminder_check():
     cur.execute(
         "SELECT id, company_name, db_name FROM tenants "
         "WHERE subscription_status='trialing' AND trial_reminder_sent_at IS NULL "
+        "AND schema_missing_tables IS NULL "  # its admins would be read from public (QA SEC-07)
         "AND trial_end_date IS NOT NULL AND trial_end_date <= NOW() + (%s * INTERVAL '1 hour')",
         (TRIAL_REMINDER_WINDOW_HOURS,)
     )

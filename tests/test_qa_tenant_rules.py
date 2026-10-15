@@ -30,6 +30,8 @@ def tenants(db_engine, client):
     cur = db_engine.cursor()
     cur.execute(f'INSERT INTO "{b[1]}".employees (employee_id, name, email, password, force_pin_change) '  # nosec B608
                 "VALUES (%s,%s,%s,%s,0)", ("RB001", "Rule B", "rb001@test.local", generate_password_hash(EMP_PW)))
+    # RB001 checks in through the location-only app check-in (QA NV-18).
+    cur.execute(f'UPDATE "{b[1]}".company_settings SET app_gps_checkin=1')  # nosec B608
     cur.close()
     yield a, b
     from utils.helpers import invalidate_settings_cache

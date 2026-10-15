@@ -17,3 +17,24 @@ mobile/
 .vscode/
 *.db
 .secret_key
+
+# Never ship private data, secrets or local tooling in the image (QA SEC-01):
+# the Containerfile does `COPY . .`, so a build from a working copy would
+# otherwise pick these up.
+**/.env
+**/.env.*
+!**/.env.example
+private_uploads/
+backups/
+pg_data/
+instance/
+*.sql
+*.sql.gz
+*.dump
+.venv/
+.venv_test/
+venv/
+qa_audit/
+.pytest_cache/
+htmlcov/
+.coverage

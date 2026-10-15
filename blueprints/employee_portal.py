@@ -13,7 +13,7 @@ from utils.auth import employee_required, employee_api_required, validate_new_pa
 from utils.helpers import (
     tpath,
     _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
-    company_today, company_now, coerce_datetime,
+    company_today, company_now, coerce_datetime, int_param, app_gps_checkin_allowed,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
 from utils.session_risk import ensure_session_id, evaluate_session_risk
@@ -359,8 +359,8 @@ def employee_portal():
     )
     today_att = cursor.fetchone()
 
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
         SELECT date, login_time, logout_time, status, logout_status, attendance_type
@@ -549,7 +549,7 @@ def employee_portal():
     leave_holidays = cursor.fetchall()
 
     # Holiday list data for employee view
-    hol_year = int(request.args.get("hol_year", today.year))
+    hol_year = int_param(request.args.get("hol_year", today.year))
     cursor.execute("SELECT id, date, name FROM holidays WHERE EXTRACT(YEAR FROM date)=%s ORDER BY date", (hol_year,))
     hol_rows = cursor.fetchall()
 
@@ -656,60 +656,6 @@ def employee_portal():
         compoff_earned_days = 0
         compoff_avail_days = 0
 
-    # Last 3 months payslip summaries
-    recent_payslips = []
-    py2, pm2 = today.year, today.month
-    for _ in range(3):
-        pm2 -= 1
-        if pm2 == 0:
-            pm2 = 12
-            py2 -= 1
-        _, ld = calendar.monthrange(py2, pm2)
-        cursor.execute("""
-            SELECT date, login_time, logout_time, status, logout_status, attendance_type
-            FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
-        """, (emp_id, datetime.date(py2, pm2, 1), datetime.date(py2, pm2, ld)))
-        p_att = cursor.fetchall()
-        p_billable = get_billable_past_days(py2, pm2)
-        p_att_map = {r[0]: r for r in p_att}
-        p_full = p_late = p_half = p_absent = 0
-        for d in p_billable:
-            row = p_att_map.get(d)
-            if row:
-                _, lt, lot, st, _ls, at = row
-                final = at if at else infer_type_legacy(st, lt, lot)
-                if final in ("Full Day", "Approved Leave"):
-                    p_full += 1
-                elif final == "Late - Full Day":
-                    p_late += 1
-                elif final in ("Half Day", "Present"):
-                    p_half += 1
-                else:
-                    p_absent += 1
-            else:
-                p_absent += 1
-        p_gross = (p_full + p_late) * salary_per_day + p_half * salary_per_day * 0.5
-        try:
-            cursor.execute(
-                "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s", (emp_id, pm2, py2))
-            p_inc = float(cursor.fetchone()[0])
-        except Exception:
-            p_inc = 0.0
-        try:
-            cursor.execute(
-                "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s "
-                "AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'",
-                (emp_id, pm2, py2))
-            p_ot = float(cursor.fetchone()[0] or 0)
-        except Exception:
-            p_ot = 0.0
-        recent_payslips.append({
-            'month': calendar.month_name[pm2], 'year': py2,
-            'gross': p_gross, 'incentives': p_inc, 'ot_pay': p_ot,
-            'net': p_gross + p_inc + p_ot,
-            'present': p_full + p_late + p_half, 'absent': p_absent,
-        })
-
     cursor.close()
     db.close()
 
@@ -795,7 +741,6 @@ def employee_portal():
                            incentives_this_month=incentives_this_month,
                            ot_pay_this_month=ot_pay_this_month,
                            net_this_month=net_this_month,
-                           recent_payslips=recent_payslips,
                            fp_enrolled=fp_enrolled,
                            fp_enabled=get_auth_config().get("fingerprint_enabled", False),
                            attendance_auth_cfg=get_auth_config(),
@@ -946,6 +891,14 @@ def api_employee_checkin():
     lat = data.get("lat")
     lon = data.get("lon")
 
+    # Login token + GPS only: allowed when the company's check-in policy
+    # permits it, not as a way around the QR or face check it requires
+    # (QA NV-18). The app's check-in buttons use /api/employee/qr-face-checkin.
+    auth_cfg = get_auth_config()
+    if not app_gps_checkin_allowed(auth_cfg):
+        return jsonify({"ok": False, "msg": "Please check in with QR or face verification. "
+                                            "Location-only check-in is turned off for your organisation."}), 403
+
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     result = fetch_employee_work_location(cursor, emp_id)
@@ -955,6 +908,14 @@ def api_employee_checkin():
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     employee_name, work_mode, work_lat, work_lon = result
 
+    # Same rule as the kiosk (/attendance): with location enforced, a request
+    # that leaves the coordinates out is refused rather than skipping the
+    # geofence (QA SEC-08).
+    location_enforced = auth_cfg.get("location_enabled", True)
+    if location_enforced and not (lat and lon):
+        cursor.close()
+        db.close()
+        return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."}), 400
     if lat and lon:
         try:
             lat_f = float(lat)
@@ -975,38 +936,12 @@ def api_employee_checkin():
                 db.close()
                 return jsonify({"ok": False, "msg": "You are outside the office premises."})
 
-    punched_at_str = data.get("punched_at")
+    # The punch time is always the server's: a client-supplied punched_at
+    # was accepted here up to 24 h back, so an employee arriving at 11:00
+    # could submit 08:55 and avoid the late/half-day mark (QA SEC-09). The
+    # app never sends it here; queued offline punches go through
+    # /api/employee/sync_punches.
     now = company_now()
-    if punched_at_str:
-        try:
-            _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
-            if _pt.tzinfo is not None:
-                # Mobile sends Date.toISOString() (always UTC, "...Z") --
-                # convert to the tenant's configured timezone before using
-                # it as a wall-clock "now". Previously this just discarded
-                # the offset (.replace(tzinfo=None)) and treated the raw
-                # UTC digits as if they were already local, which shifted
-                # every offline check-in's date/time by the UTC offset
-                # (e.g. a 9am IST check-in landing as 3:30am).
-                _pt = _pt.astimezone(now.tzinfo)
-            else:
-                # No offset info on the string (e.g. this app's own test
-                # suite posts a naive isoformat()) -- assume it already
-                # represents company-local wall-clock time, same as before.
-                _pt = now.tzinfo.localize(_pt)
-            if (now - _pt).total_seconds() <= 86400:
-                now = _pt
-            else:
-                cursor.close()
-                db.close()
-                return jsonify({"ok": False, "msg": "Offline punch too old (>24 h). Rejected."}), 400
-        except (ValueError, TypeError) as exc:
-            # Deliberate fallback, not a bug being hidden: an unparseable
-            # client-supplied offline-punch timestamp just means `now`
-            # (already set above) is used instead -- still worth a trace
-            # for diagnosing a client that's persistently sending malformed
-            # timestamps.
-            app_log.debug("Unparseable offline-punch punched_at=%r: %s", punched_at_str, exc)
 
     today = now.date()
     current_time = now.time()
@@ -1084,6 +1019,7 @@ def api_employee_sync_punches():
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     _work_mode, _work_lat, _work_lon = _emp_row[1], _emp_row[2], _emp_row[3]
     s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cur2)
+    location_enforced = get_auth_config().get("location_enabled", True)
 
     results = []
     for punch in punches:
@@ -1091,10 +1027,14 @@ def api_employee_sync_punches():
         # Same geo-fence check as the live check-in route (is_within_range
         # against work_lat/work_lon for wfh, else is_within_office_range) --
         # previously captured but never enforced here, unlike the live
-        # route. Only checked when the client actually sent coordinates,
-        # matching the live route's "if lat and lon:" gate.
+        # route. With location enforced, a punch without coordinates is
+        # refused, exactly like the live route.
         lat = punch.get("lat")
         lon = punch.get("lon")
+        if location_enforced and not (lat and lon):          # QA SEC-08, as on the live endpoint
+            results.append({"id": punch.get("id"), "ok": False,
+                            "msg": "Location not captured. Please allow location access."})
+            continue
         if lat and lon:
             try:
                 lat_f = float(lat)
@@ -1285,7 +1225,7 @@ def api_employee_qr_face_checkin():
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
             os.makedirs(face_dir, exist_ok=True)
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
@@ -1311,7 +1251,7 @@ def api_employee_qr_face_checkin():
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
             os.makedirs(face_dir, exist_ok=True)
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
@@ -1385,8 +1325,8 @@ def api_employee_salary():
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
-        year = int(request.args.get("year", datetime.date.today().year))
-        month = int(request.args.get("month", datetime.date.today().month))
+        year = int(request.args.get("year", company_today().year))
+        month = int(request.args.get("month", company_today().month))
     except ValueError:
         return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
     db = get_db_connection()
@@ -1455,8 +1395,8 @@ def api_employee_attendance():
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
-        year = int(request.args.get("year", datetime.date.today().year))
-        month = int(request.args.get("month", datetime.date.today().month))
+        year = int(request.args.get("year", company_today().year))
+        month = int(request.args.get("month", company_today().month))
     except ValueError:
         return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
     db = get_db_connection()

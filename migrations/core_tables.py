@@ -599,7 +599,8 @@ def _init_core_tables(cursor, db):
             attempts     SMALLINT DEFAULT 0,
             last_error   TEXT DEFAULT NULL,
             created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            sent_at      TIMESTAMP DEFAULT NULL
+            sent_at      TIMESTAMP DEFAULT NULL,
+            claimed_at   TIMESTAMP DEFAULT NULL
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_eq_status ON email_queue (status)")

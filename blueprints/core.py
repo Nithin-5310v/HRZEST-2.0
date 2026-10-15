@@ -6,7 +6,6 @@ last routes drained out of app.py, which now holds only shared setup
 (init_db, error handlers, before/after_request hooks, template filters)."""
 import time
 import secrets
-import datetime
 from flask import Blueprint, request, session, jsonify, render_template, redirect, Response, g, current_app
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
@@ -14,13 +13,14 @@ from utils.auth import (
     api_required, check_password_hash, generate_password_hash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
+    turnstile_enabled, _TURNSTILE_SITE_KEY,
 )
 from utils.login_otp import issue_challenge, verify_challenge
 from utils.totp import send_mfa_login_email
 from utils.helpers import (
     _db, get_auth_config, validate_employee_email_domain,
     employee_login_url, get_pending_counts, tpath, add_employee_seat_cap_check,
-    get_company_settings, _safe_app_url,
+    get_company_settings, _safe_app_url, company_today,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
 from utils.email_utils import get_email_config, send_email_smtp
@@ -152,7 +152,21 @@ def home():
     from utils.analytics import track_page_view
     from utils.plan_limits import get_per_employee_paise
     track_page_view("/")
-    return render_template("landing.html", per_employee_paise=get_per_employee_paise())
+    # The page's company-registration form (POST /create_org) comes back
+    # here with ?registration=failed when its submission is rejected. Only
+    # then does this page show flashes, and only "error" ones -- same rule
+    # as org.py's create_org_page(): every other flash queued in this
+    # cookie belongs to some other page and is left for it.
+    registration_failed = request.args.get("registration") == "failed"
+    if registration_failed and session.get("_flashes"):
+        session["_flashes"] = [f for f in session["_flashes"] if f[0] == "error"]
+    return render_template(
+        "landing.html",
+        per_employee_paise=get_per_employee_paise(),
+        registration_failed=registration_failed,
+        show_captcha=turnstile_enabled(),
+        turnstile_site_key=_TURNSTILE_SITE_KEY,
+    )
 
 
 @core_bp.route("/checkin")
@@ -327,7 +341,7 @@ def api_logout():
 def api_dashboard():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
 
     cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]

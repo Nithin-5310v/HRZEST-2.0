@@ -13,7 +13,6 @@ this to loop over att_master.tenants and call get_tenant_db(schema) per
 company -- tracked as separate follow-up work, not done here.
 """
 import os
-import datetime
 import threading
 from flask import Blueprint, g as _g, jsonify
 
@@ -21,7 +20,7 @@ from database import get_db_connection
 from extensions import app, app_log
 from utils.auth import admin_required
 from utils.email_utils import get_email_config, send_email_async, get_admin_emails
-from utils.helpers import get_pending_counts
+from utils.helpers import get_pending_counts, company_today
 
 daily_report_bp = Blueprint("daily_report", __name__)
 
@@ -123,7 +122,7 @@ def _build_email_html(date_str: str, stats: dict) -> str:
     <div style="padding:20px 24px;background:#F8FAFC;border-top:1px solid #E2E8F0;text-align:center;">
       <p style="color:#94A3B8;font-size:12px;margin:0;">
         This is an automated daily report from HRzest.com.<br>
-        © {datetime.date.today().year} HRzest.com
+        © {company_today().year} HRzest.com
       </p>
     </div>
   </div>
@@ -154,7 +153,7 @@ def generate_and_send_daily_report():
 
 
 def _run_report():
-    today = datetime.date.today()
+    today = company_today()
     date_str = today.strftime("%A, %d %B %Y")
     app_log.info(f"daily_report: generating report for {date_str}")
 

@@ -75,3 +75,38 @@ def test_modules_that_read_credentials_at_import_got_blank_ones():
     import utils.auth as auth
     import_time_values_blank = not (alerts._WEBHOOK_URL or alerts._SIGNING_SECRET or auth._TURNSTILE_SECRET_KEY)
     assert import_time_values_blank is True
+
+
+def _relfilenodes(cur):
+    cur.execute(
+        "SELECT c.oid, c.relfilenode FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE n.nspname IN ('public', 'att_master') AND c.relkind IN ('r', 'i', 't')"
+    )
+    return dict(cur.fetchall())
+
+
+def test_reset_does_not_rewrite_table_files(db_engine, _db_baseline_snapshot):
+    """TEST-05: the per-test reset used TRUNCATE, which gives every table and
+    index a new data file and deletes the old one -- over a million file
+    creates/deletes per run. On Windows a checkpoint fsync racing those
+    deletes PANICked the local Postgres ("could not fsync file ...: Invalid
+    argument") into a recovery of many hours. The reset must leave the
+    files alone and still restore the baseline rows and sequences."""
+    from tests.conftest import _restore_snapshot
+    snap, _baseline_schemas = _db_baseline_snapshot
+    cur = db_engine.cursor()
+    cur.execute("INSERT INTO holidays (date, name) VALUES ('2099-01-01', 'QA reset check')")
+    cur.execute("SELECT COUNT(*) FROM admin_users")
+    admins = cur.fetchone()[0]
+    before = _relfilenodes(cur)
+
+    _restore_snapshot(cur, snap, set())
+
+    assert _relfilenodes(cur) == before
+    cur.execute("SELECT COUNT(*) FROM holidays WHERE name = 'QA reset check'")
+    assert cur.fetchone()[0] == 0
+    cur.execute("SELECT COUNT(*) FROM admin_users")
+    assert cur.fetchone()[0] == admins
+    cur.execute("SHOW session_replication_role")
+    assert cur.fetchone()[0] == "origin"            # FK checks are back on for the tests' own SQL
+    cur.close()

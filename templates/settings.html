@@ -2022,7 +2022,8 @@
           ("face",        "🤳", "Face Recognition",          "face_enabled",           "Camera captures employee face for liveness and identity verification."),
           ("fingerprint", "👆", "Fingerprint / Biometric",   "fingerprint_enabled",    "Device fingerprint or face-ID used as a second factor (optional)."),
           ("location",    "📍", "Location Verification",     "location_enabled",       "GPS must place the employee within the allowed office radius."),
-          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password.")
+          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password."),
+          ("app_gps",     "🛰️", "Location-only App Check-in", "app_gps_checkin",      "Employees can check in from the mobile app with GPS alone, without QR or face. Off unless you turn it on while QR, face or fingerprint is enabled.")
         ] %}
 
         {% for key, icon, label, cfg_key, desc in methods %}
@@ -2214,7 +2215,6 @@
     var groupMap  = { company:'sys', attendance:'org',payroll:'fin',salary:'fin',disbursement:'fin',billing:'fin',email:'sys',appearance:'sys' };
     var firstSub  = { org:'attendance', fin:'payroll', sys:'company' };
     var crumbData = {
-      company:    { icon:'<i class="ti ti-building u-c-1e3a8a"></i>',    bg:'#eff6ff', title:'Companies',      sub:'Profiles, branches and branding' },
       appearance: { icon:'<i class="ti ti-palette u-c-7c3aed"></i>',     bg:'#f5f3ff', title:'Appearance',     sub:'Theme and display' },
       attendance: { icon:'<i class="ti ti-fingerprint u-c-16a34a"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
       company:    { icon:'<i class="ti ti-building u-c-1e3a8a"></i>',    bg:'#eff6ff', title:'Company',        sub:'Company management' },

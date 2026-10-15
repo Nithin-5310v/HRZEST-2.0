@@ -3,3 +3,6 @@ baseline/template_js/
 baseline/jscpd/
 __pycache__/
 baseline/coverage.json
+loadtest/*_stats_history.csv
+loadtest/*_exceptions.csv
+baseline/coverage_after.json

@@ -26,3 +26,9 @@ if __name__ == "__main__":
     print(f"QA load-test server on http://127.0.0.1:{port} (DB_NAME={os.environ['DB_NAME']})")
     serve(application, host="127.0.0.1", port=port, threads=int(os.environ.get("LT_THREADS", "32")),
           connection_limit=1000, channel_timeout=120)
+    # clear_untrusted_proxy_headers=False: waitress otherwise strips the
+    # per-user X-Forwarded-For the locustfile sends, every request arrives as
+    # 127.0.0.1, the shared IP trips the per-IP rate limits and the WAF bans it.
+    # wsgi.py's ProxyFix(x_for=1) then applies the header, as nginx would.
+    serve(application, host="127.0.0.1", port=port, threads=int(os.environ.get("LT_THREADS", "32")),
+          connection_limit=1000, channel_timeout=120, clear_untrusted_proxy_headers=False)
