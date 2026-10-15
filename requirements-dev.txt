@@ -9,7 +9,7 @@ pytest-mock>=3.16.0
 # reproducible with `pytest -p randomly --randomly-seed=<seed>`) -- added
 # alongside tests/conftest.py's per-test DB snapshot/restore specifically so
 # order-dependence can't silently creep back in unnoticed.
-pytest-randomly>=3.15.0
+pytest-randomly>=5.0.0
 
 # ── Code quality ──────────────────────────────────────────────────────────────
 flake8>=7.4.1
