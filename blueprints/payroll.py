@@ -36,7 +36,9 @@ from utils.email_utils import get_email_config, send_email_async, send_email_smt
 from utils.attendance_utils import (
     get_working_days, fetch_holidays_set, get_billable_past_days, infer_type_legacy,
 )
-from utils.salary_utils import build_salary_slip_html, compute_salary_entry
+from utils.salary_utils import (
+    build_salary_slip_html, compute_salary_entry, PAYROLL_CONFIG_SQL, payroll_config_from_row,
+)
 import utils.config as cfg
 
 payroll_bp = Blueprint("payroll", __name__)
@@ -482,11 +484,8 @@ def _payslip_email(emp_id, year, month):
     # Fetch payroll config
     db2 = get_db_connection()
     cur2 = db2.cursor(buffered=True)
-    cur2.execute("SELECT pf_employee_pct,pf_employer_pct,professional_tax,tds_annual_pct,pf_basic_cap FROM payroll_config LIMIT 1")
-    pc_row = cur2.fetchone()
-    payroll_cfg = {"pf_employee_pct": float(pc_row[0] or 12), "pf_employer_pct": float(pc_row[1] or 12),
-                   "professional_tax": float(pc_row[2] or 200), "tds_annual_pct": float(pc_row[3] or 0),
-                   "pf_basic_cap": float(pc_row[4] or 15000)} if pc_row else {}
+    cur2.execute(PAYROLL_CONFIG_SQL)
+    payroll_cfg = payroll_config_from_row(cur2.fetchone())
     cur2.close()
     db2.close()
     cursor.close()
@@ -1331,18 +1330,8 @@ def _render_payslip_html(emp_id, year, month):
     bank_nm = decrypt_pii(bank_nm)
 
     # Payroll config
-    cursor.execute(
-        "SELECT pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, pf_basic_cap FROM payroll_config LIMIT 1")
-    pc_row = cursor.fetchone()
-    payroll_cfg = {}
-    if pc_row:
-        payroll_cfg = {
-            "pf_employee_pct": float(pc_row[0] or 12),
-            "pf_employer_pct": float(pc_row[1] or 12),
-            "professional_tax": float(pc_row[2] or 200),
-            "tds_annual_pct": float(pc_row[3] or 0),
-            "pf_basic_cap": float(pc_row[4] or 15000),
-        }
+    cursor.execute(PAYROLL_CONFIG_SQL)
+    payroll_cfg = payroll_config_from_row(cursor.fetchone())
 
     cursor.execute("SELECT COALESCE(company_name,'') FROM company_settings LIMIT 1")
     co_row = cursor.fetchone()
