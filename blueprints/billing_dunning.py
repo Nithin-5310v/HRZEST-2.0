@@ -60,7 +60,8 @@ def _run_billing_check():
     cur.execute(
         "SELECT id, company_name, subdomain, db_name, payment_option, billing_state, "
         "grace_period_ends_at, created_at FROM tenants "
-        "WHERE status='active' AND payment_option IN ('online', 'manual')"
+        "WHERE status='active' AND payment_option IN ('online', 'manual') "
+        "AND schema_missing_tables IS NULL"  # its admins would be read from public (QA SEC-07)
     )
     rows = cur.fetchall()
     cur.close()

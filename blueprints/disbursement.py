@@ -451,7 +451,10 @@ def prepare_pending_disbursements():
 def _run_disbursement_prep():
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    cur.execute("SELECT id, company_name, subdomain, db_name FROM tenants WHERE status='active'")
+    # A company whose schema lacks tables would read another company's
+    # salary data through public -- skipped until repaired (QA SEC-07).
+    cur.execute("SELECT id, company_name, subdomain, db_name FROM tenants "
+                "WHERE status='active' AND schema_missing_tables IS NULL")
     rows = cur.fetchall()
     cur.close()
     conn.close()

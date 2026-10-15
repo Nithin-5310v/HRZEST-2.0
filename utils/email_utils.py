@@ -205,7 +205,9 @@ def _active_tenant_schemas():
     try:
         conn = get_master_db()
         cur = conn.cursor(buffered=True)
-        cur.execute("SELECT db_name FROM tenants WHERE status='active'")
+        # Skips a company whose schema lacks tables: it would drain the
+        # shared public queue instead of its own (QA SEC-07).
+        cur.execute("SELECT db_name FROM tenants WHERE status='active' AND schema_missing_tables IS NULL")
         schemas = [r[0] for r in cur.fetchall()]
         cur.close()
         conn.close()

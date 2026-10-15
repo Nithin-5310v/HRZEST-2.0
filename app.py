@@ -419,6 +419,12 @@ def _resolve_tenant():
     url_slug = request.environ.get("hrz.tenant_slug")
     url_tenant_db = request.environ.get("hrz.tenant_db")
 
+    # A company whose schema lacks a table would read the shared public
+    # table -- another company's data -- so refuse it outright (QA SEC-07;
+    # flagged by the deploy-time migrations, read by TenantPrefixMiddleware).
+    if request.environ.get("hrz.tenant_incomplete"):
+        return _tenant_schema_incomplete(url_tenant_db)
+
     # 0. Cross-tenant session isolation. Subdomains used to give this for
     # free (a host-only cookie for acme.hrzest.com is never sent to
     # beta.hrzest.com by the browser itself). Now every tenant shares one
@@ -461,7 +467,8 @@ def _resolve_tenant():
         try:
             conn = get_master_db()
             cur = conn.cursor()
-            cur.execute("SELECT status, billing_state FROM tenants WHERE db_name=%s", (session["tenant_db"],))
+            cur.execute("SELECT status, billing_state, schema_missing_tables FROM tenants WHERE db_name=%s",
+                        (session["tenant_db"],))
             row = cur.fetchone()
             cur.close()
             conn.close()
@@ -470,6 +477,9 @@ def _resolve_tenant():
             app_log.warning(
                 "tenant.status_recheck_failed: tenant_db=%s", session.get("tenant_db"), exc_info=True
             )
+        if row is not None and row[0] == "active" and row[2]:
+            # Not re-stamped, so every request rechecks until it's repaired (QA SEC-07).
+            return _tenant_schema_incomplete(session["tenant_db"])
         if row is None or row[0] == "active":
             session["_tenant_status_checked_at"] = time.time()
             # billing_state='locked' does NOT block resolution/login here --
@@ -1344,6 +1354,24 @@ def database_unavailable(e):
     resp = make_response(resp)
     resp.status_code = 503
     resp.headers["Retry-After"] = "30"
+    return resp
+
+
+def _tenant_schema_incomplete(tenant_db):
+    """503 for a company whose schema lacks a table the migrations create
+    (att_master.tenants.schema_missing_tables): its queries would otherwise
+    read and write the shared public table, i.e. another company's data
+    (QA SEC-07). The deploy-time migrations log which tables are missing."""
+    app_log.warning("tenant.schema_incomplete: tenant_db=%s -- request answered 503", tenant_db)
+    if wants_json_response():
+        resp = jsonify({"ok": False, "msg": "This organisation is temporarily unavailable. Please try again later."})
+    else:
+        resp = _error_page(503, "🛠️", "Temporarily Unavailable",
+                           "This organisation's workspace is temporarily unavailable.",
+                           "Please try again later or contact support.")
+    resp = make_response(resp)
+    resp.status_code = 503
+    resp.headers["Retry-After"] = "300"
     return resp
 
 
