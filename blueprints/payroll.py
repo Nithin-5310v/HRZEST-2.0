@@ -506,11 +506,6 @@ def _payslip_email(emp_id, year, month):
 
 
 @payroll_bp.route("/send_salary_email", methods=["POST"])
-@admin_required
-def send_salary_email():
-    emp_id = request.form["emp_id"]
-    year = int(request.form["year"])
-    month = int(request.form["month"])
 @role_required("admin")   # admin only, like the salary report it belongs to (QA SEC-10)
 def send_salary_email():
     emp_id = request.form["emp_id"]
@@ -1250,8 +1245,6 @@ def api_monthly_report():
 @api_role_required("admin")
 @limiter.limit("10 per minute")
 def api_salary_report():
-    year = int(request.args.get("year", datetime.date.today().year))
-    month = int(request.args.get("month", datetime.date.today().month))
     year = int_param(request.args.get("year", company_today().year))
     month = int_param(request.args.get("month", company_today().month))
     # Same computation as the web salary report and disbursement (QA BUG-34).

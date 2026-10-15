@@ -24,8 +24,6 @@ from wsgi import application  # noqa: E402
 if __name__ == "__main__":
     port = int(os.environ.get("LT_PORT", "5050"))
     print(f"QA load-test server on http://127.0.0.1:{port} (DB_NAME={os.environ['DB_NAME']})")
-    serve(application, host="127.0.0.1", port=port, threads=int(os.environ.get("LT_THREADS", "32")),
-          connection_limit=1000, channel_timeout=120)
     # clear_untrusted_proxy_headers=False: waitress otherwise strips the
     # per-user X-Forwarded-For the locustfile sends, every request arrives as
     # 127.0.0.1, the shared IP trips the per-IP rate limits and the WAF bans it.

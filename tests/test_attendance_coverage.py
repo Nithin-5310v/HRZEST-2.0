@@ -10,9 +10,6 @@ import time as _time_stdlib
 import pytest
 
 import utils.config as _cfg
-
-_REAL_SHIFT_RULES = _cfg.shift_rules
-
 from tests.conftest import TEST_OFFICE
 
 _REAL_SHIFT_RULES = _cfg.shift_rules

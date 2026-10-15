@@ -1346,12 +1346,6 @@ def database_unavailable(e):
     APP_ENV=development). Answer 503 so the outage is visible and retryable,
     and alert (CRITICAL security events go to the alert webhook)."""
     log_security_event("db.unavailable", "PostgreSQL unavailable -- request answered 503", level="CRITICAL")
-    is_ajax = (
-        request.path.startswith("/api/")
-        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
-        or request.accept_mimetypes.best == "application/json"
-    )
-    if is_ajax:
     if wants_json_response():
         resp = jsonify({"ok": False, "msg": "Service temporarily unavailable. Please try again shortly."})
     else:
