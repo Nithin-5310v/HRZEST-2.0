@@ -13,9 +13,9 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -86,9 +86,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -132,9 +132,9 @@ jobs:
       security-events: write   # required by github/codeql-action/upload-sarif below
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # TruffleHog needs full history to scan past commits, not just the current tree
 
@@ -205,7 +205,7 @@ jobs:
         # extra_args, so including it here duplicates the flag; v3.95.9's
         # parser rejects that outright ("flag 'fail' cannot be repeated"),
         # which is what was actually failing this job, not a real secret.
-        uses: trufflesecurity/trufflehog@v3.95.9
+        uses: trufflesecurity/trufflehog@v3.99.2
         with:
           extra_args: --only-verified --exclude-paths=.github/trufflehog-exclude.txt
 
@@ -277,9 +277,9 @@ jobs:
           --health-retries=10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -303,7 +303,12 @@ jobs:
           DB_NAME: att_test
           SECRET_KEY: ci-test-secret-key-not-used-in-prod
           FLASK_ENV: testing
-        run: python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=40
+        # -n auto: one pytest-xdist worker per runner CPU. tests/conftest.py
+        # gives each worker its own database (att_test_gw0, att_test_gw1,
+        # ...), created on first use by the postgres superuser above, so
+        # workers never reset each other's data. If a parallel-only failure
+        # ever shows up, drop "-n auto" here to get the serial run back.
+        run: python -m pytest tests/ -n auto -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=40
 
   podman:
     name: Podman build
@@ -311,7 +316,7 @@ jobs:
     needs: test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build Podman image
         run: podman build -t attendance-app:ci .
@@ -379,7 +384,7 @@ jobs:
         # rootless Podman and owns /opt/employee-attendance directly, so no
         # sudo is needed (and it has none). Add the CI key to
         # /home/attendance/.ssh/authorized_keys on the instance.
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}

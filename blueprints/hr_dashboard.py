@@ -23,6 +23,7 @@ import datetime
 from flask import Blueprint, jsonify, render_template, request
 from database import get_db_connection
 from utils.auth import role_required, HR_ROLE
+from utils.helpers import tpath, hr_scope_column, hr_scope_subquery, hr_scope_denied, get_company_settings, company_today
 from utils.helpers import (
     tpath, hr_scope_column, hr_scope_subquery, hr_scope_denied, get_company_settings, company_today, int_param,
 )
@@ -315,6 +316,10 @@ def api_hr_dashboard_reports():
     present_by_day = {r[0]: r[1] for r in cursor.fetchall()}
     attendance_trend = attendance_pct_series(_month_bounds, present_by_day, all_holidays, today, total_employees)
 
+    headcount_trend = []
+    for _y, _m, month_start, month_end in _month_bounds:
+        cursor.execute(f"SELECT COUNT(*) FROM employees e WHERE e.date_of_joining < %s {_hr}", (month_end,) + _hr_args)  # nosec B608
+        headcount_trend.append({"month_label": month_start.strftime("%b %Y"), "count": cursor.fetchone()[0]})
     # One query for the joining dates, counted per month here -- it was one
     # COUNT(*) per month (QA PERF-05). NULL joining dates never count, as in SQL.
     cursor.execute(f"SELECT e.date_of_joining FROM employees e WHERE e.date_of_joining IS NOT NULL {_hr}", _hr_args)  # nosec B608
