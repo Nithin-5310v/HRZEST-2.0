@@ -1046,9 +1046,10 @@ def _security_headers(response):
             _style_hashes = set()
         _style_unsafe_hashes = " 'unsafe-hashes'" if _style_hashes else ""
         _style_hash_src = (" " + " ".join(sorted(_style_hashes))) if _style_hashes else ""
-        # Cloudflare Turnstile (admin_login CAPTCHA) and employee portal
-        # loopback agent get path-scoped exceptions only.
-        _is_turnstile_page = request.path in ("/admin_login", "/login")
+        # Cloudflare Turnstile (admin_login CAPTCHA; the home page's company
+        # registration form, which POST /create_org checks it for) and the
+        # employee portal loopback agent get path-scoped exceptions only.
+        _is_turnstile_page = request.path in ("/admin_login", "/login", "/")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
         # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
         # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
