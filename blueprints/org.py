@@ -1269,10 +1269,10 @@ def create_org():
         # "production") always goes through the real verify_otp step.
         app_log.warning("create_org: APP_ENV=development -- OTP screen skipped entirely for application %s",
                         application_id)
+        # Commits and closes mconn/mcur itself (QA CONN-01's leak is covered
+        # there) -- closing them again here raised AttributeError on the
+        # already-returned pooled connection.
         _mark_application_otp_verified(application_id, mconn, mcur)
-        mconn.commit()
-        mcur.close()
-        mconn.close()          # QA CONN-01: this early return used to keep the connection
         return redirect(f"/create_org/upload_documents?application_id={application_id}")
 
     mconn.commit()
