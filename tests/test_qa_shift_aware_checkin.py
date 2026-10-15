@@ -18,6 +18,7 @@ import time
 import pytest
 import pytz
 
+EMP = "TST001"
 from tests.conftest import TEST_OFFICE
 
 EMP = "TST001"
@@ -79,6 +80,7 @@ def _admin_token(client, seed_admin):
 def _employee_checkin(client, seed_employee, mocker, hour, minute):
     _at(mocker, "blueprints.employee_portal", hour, minute)
     token = _emp_token(client, seed_employee)
+    return client.post("/api/employee/checkin", json={},
     return client.post("/api/employee/checkin", json=OFFICE,
                        headers={"Authorization": f"Bearer {token}"}).get_json()
 
@@ -87,6 +89,7 @@ def _offline_sync(client, seed_employee, mocker, hour, minute):
     _at(mocker, "blueprints.employee_portal", hour, minute + 5)
     token = _emp_token(client, seed_employee)
     data = client.post("/api/employee/sync_punches", json={"punches": [
+        {"id": "p1", "punched_at": _ist(hour, minute).isoformat()},
         {"id": "p1", "punched_at": _ist(hour, minute).isoformat(), **OFFICE},
     ]}, headers={"Authorization": f"Bearer {token}"}).get_json()
     assert data["ok"] is True, data

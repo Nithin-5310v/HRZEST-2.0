@@ -118,6 +118,7 @@ def cleanup():
         if cur.fetchone()[0]:
             leftovers.append(table)
     os.remove(MARK_FILE)
+    print(f"removed {removed} row(s) added during the load test"
     print(f"removed {removed} row(s) and {removed_bans} WAF ban(s) added during the load test"
           + (f"; LEFTOVERS in {leftovers}" if leftovers else "; no load-test rows remain"))
     conn.close()
