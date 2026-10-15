@@ -216,16 +216,21 @@ class TestBuildSalarySlipHtml:
         # monthly_ctc = 2000 * 26 = 52,000.00
         assert "Rs. 52,000.00" in html
 
-    def test_gross_never_exceeds_ctc_conveyance_capped(self):
-        """conveyance = min(1600, max(0, ctc - basic - hra)) — with a very
-        low CTC, conveyance and special_allowance must not push gross above
-        monthly_ctc."""
+    def test_net_is_attendance_earnings_minus_pf_pt_tds(self):
+        """The payslip shows the one net-pay calculation (QA BUG-05): what
+        the attendance earned under the company's rules, plus incentives,
+        minus PF/PT/TDS -- the amount disbursed. It used to build a CTC
+        structure and deduct loss of pay on a 26-day basis instead."""
         html = build_salary_slip_html(
             "Jane Doe", "EMP001", "jane@test.local", "January", 2026, 1,
-            self._base_salary_data(monthly_ctc=1000, basic_pct=50),
+            self._base_salary_data(spd=1000, monthly_ctc=26000, basic_pct=50, full_earn=20000,
+                                   late_earn=1800, half_earn=500, incentive=0),
+            payroll_cfg={"pf_employee_pct": 12, "professional_tax": 200, "tds_annual_pct": 0},
         )
-        # basic=500, hra=200, remaining for conveyance+special = 300 (< 1600 cap)
-        assert "Rs. 1,000.00" in html  # gross salary line
+        assert "Rs. 22,300.00" in html   # gross earned
+        assert "Rs. 1,560.00" in html    # PF: 12% of basic 13,000
+        assert "Rs. 20,540.00" in html   # net = 22,300 - 1,560 - 200
+        assert "Loss of Pay" not in html
 
     def test_statutory_deductions_capped_when_exceeding_gross_earned(self):
         """stat_ded > gross_earned triggers a proportional scale-down so

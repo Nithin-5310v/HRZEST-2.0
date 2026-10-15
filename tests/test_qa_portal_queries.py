@@ -45,8 +45,16 @@ def test_portal_runs_no_queries_for_the_hidden_payslip_summary(client, seed_empl
         if "FROM attendance" in sql and params
         and any(isinstance(p, datetime.date) and p < first_of_month for p in params)
     ]
+    previous_months, d = set(), first_of_month
+    for _ in range(3):
+        d = (d - datetime.timedelta(days=1)).replace(day=1)
+        previous_months.add((d.month, d.year))
+
+    def _names_a_previous_month(params):
+        ints = [p for p in params if isinstance(p, int) and not isinstance(p, bool)]
+        return any(m in ints and y in ints for m, y in previous_months)
+
     per_month_extras = [sql for sql, params in log
                         if ("employee_incentives" in sql or "overtime_records" in sql)
-                        and params and len(params) == 3
-                        and (params[1], params[2]) != (first_of_month.month, first_of_month.year)]
+                        and params and _names_a_previous_month(params)]
     assert previous_month_attendance == [] and per_month_extras == []

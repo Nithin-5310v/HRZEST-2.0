@@ -38,6 +38,7 @@ from utils.attendance_utils import (
 )
 from utils.salary_utils import (
     build_salary_slip_html, compute_salary_entry, PAYROLL_CONFIG_SQL, payroll_config_from_row,
+    apply_statutory_deductions,
 )
 import utils.config as cfg
 
@@ -109,7 +110,10 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
     payout preparation, so disbursement amounts are guaranteed identical
     to what the salary report shows rather than a second, potentially
     drifting reimplementation. Returns a list of compute_salary_entry()
-    dicts, each additionally carrying 'email'/'role'/'phone'.
+    dicts with apply_statutory_deductions() applied -- the one net-pay
+    calculation (QA BUG-05): 'net' is what is paid and what every payslip
+    and screen shows -- each additionally carrying 'email'/'role'/'phone'/
+    'department'.
 
     employee_ids (optional): restrict to just this list of employee_ids --
     added for blueprints/hr_dashboard.py's HR-scoped payroll report, which
@@ -129,7 +133,8 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
         _params.append(list(employee_ids))
     cursor.execute(f"""
         SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
-               COALESCE(e.role,''), COALESCE(e.phone,'')
+               COALESCE(e.role,''), COALESCE(e.phone,''),
+               COALESCE(s.monthly_ctc, 0), COALESCE(s.basic_pct, 50), COALESCE(e.department,'')
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         {_where}
@@ -138,24 +143,30 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
     employees = cursor.fetchall()
 
     _, last_day = calendar.monthrange(year, month)
-    cursor.execute("""
+    # One employee's payslip or portal card calls this too (QA BUG-05), so
+    # read only the requested employees' rows rather than the whole company's.
+    _only = " AND employee_id = ANY(%s)" if employee_ids is not None else ""
+    _only_args = (list(employee_ids),) if employee_ids is not None else ()
+    cursor.execute(f"""
         SELECT employee_id, date, login_time, logout_time, status, logout_status, attendance_type
         FROM attendance
-        WHERE date BETWEEN %s AND %s
-    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+        WHERE date BETWEEN %s AND %s{_only}
+    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)) + _only_args)  # nosec B608 -- _only is a fixed literal
 
     att_map = {}
     for row in cursor.fetchall():
         att_map.setdefault(row[0], {})[row[1]] = row
 
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT employee_id, leave_date FROM leave_requests
-        WHERE status = 'Approved' AND leave_date BETWEEN %s AND %s
-    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
+        WHERE status = 'Approved' AND leave_date BETWEEN %s AND %s{_only}
+    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)) + _only_args)  # nosec B608 -- fixed literal
     leave_map = {}
     for eid, ld in cursor.fetchall():
         leave_map.setdefault(eid, set()).add(ld)
 
+    cursor.execute(PAYROLL_CONFIG_SQL)
+    payroll_cfg = payroll_config_from_row(cursor.fetchone())
     cursor.close()
     db.close()
 
@@ -167,8 +178,9 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
         db2 = get_db_connection()
         cursor2 = db2.cursor(buffered=True)
         cursor2.execute(
-            "SELECT employee_id, COALESCE(SUM(amount),0) FROM employee_incentives WHERE year=%s AND month=%s GROUP BY employee_id",
-            (year, month)
+            "SELECT employee_id, COALESCE(SUM(amount),0) FROM employee_incentives "
+            f"WHERE year=%s AND month=%s{_only} GROUP BY employee_id",  # nosec B608 -- fixed literal
+            (year, month) + _only_args
         )
         incentive_map = {r[0]: float(r[1]) for r in cursor2.fetchall()}
         cursor2.close()
@@ -177,16 +189,18 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
         incentive_map = {}
 
     salary_data = []
-    for emp_id, name, email, spd, role, phone in employees:
+    for emp_id, name, email, spd, role, phone, monthly_ctc, basic_pct, dept in employees:
         entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                                      holidays_set=holidays_set,
                                      leave_dates=leave_map.get(emp_id, set()))
-        inc = incentive_map.get(emp_id, 0.0)
-        entry["incentive"] = inc
-        entry["net"] = round(entry["net"] + inc, 2)
+        entry["incentive"] = incentive_map.get(emp_id, 0.0)
+        entry["monthly_ctc"] = float(monthly_ctc)
+        entry["basic_pct"] = float(basic_pct)
+        apply_statutory_deductions(entry, payroll_cfg)
         entry["email"] = email
         entry["role"] = role
         entry["phone"] = phone
+        entry["department"] = dept
         salary_data.append(entry)
     return salary_data
 
@@ -238,56 +252,9 @@ def _build_salary_report_workbook(year, month, active_cid=None):
     when a company is active) and the Bearer /api/payroll/salary_report_export
     (mobile, always schema-wide -- no company switcher there). Returns
     (BytesIO positioned at 0, filename)."""
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    if active_cid:
-        cursor.execute("""
-            SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
-                   COALESCE(e.role,''), COALESCE(e.department,'')
-            FROM employees e
-            LEFT JOIN salary_config s ON e.employee_id = s.employee_id
-            WHERE e.company_id = %s
-            ORDER BY e.name
-        """, (active_cid,))
-    else:
-        cursor.execute("""
-            SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
-                   COALESCE(e.role,''), COALESCE(e.department,'')
-            FROM employees e
-            LEFT JOIN salary_config s ON e.employee_id = s.employee_id
-            ORDER BY e.name
-        """)
-    employees = cursor.fetchall()
-
-    _, last_day = calendar.monthrange(year, month)
-    cursor.execute("""
-        SELECT employee_id, date, login_time, logout_time, status, logout_status, attendance_type
-        FROM attendance WHERE date BETWEEN %s AND %s
-    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
-    att_map = {}
-    for row in cursor.fetchall():
-        att_map.setdefault(row[0], {})[row[1]] = row
-
-    cursor.execute("""
-        SELECT employee_id, leave_date FROM leave_requests
-        WHERE status='Approved' AND leave_date BETWEEN %s AND %s
-    """, (datetime.date(year, month, 1), datetime.date(year, month, last_day)))
-    leave_map = {}
-    for eid, ld in cursor.fetchall():
-        leave_map.setdefault(eid, set()).add(ld)
-
-    cursor2 = db.cursor(buffered=True)
-    cursor2.execute(
-        "SELECT employee_id, COALESCE(SUM(amount),0) FROM employee_incentives WHERE year=%s AND month=%s GROUP BY employee_id",
-        (year, month)
-    )
-    incentive_map = {r[0]: float(r[1]) for r in cursor2.fetchall()}
-    cursor.close()
-    cursor2.close()
-    db.close()
-
-    holidays_set = fetch_holidays_set(year, month)
-    billable_past = get_billable_past_days(year, month)
+    # Same figures as the salary report, the payslips and the disbursement
+    # (QA BUG-05) -- this used to be its own copy of the calculation.
+    salary_data = compute_salary_data_for_month(year, month, active_cid)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -303,7 +270,7 @@ def _build_salary_report_workbook(year, month, active_cid=None):
 
     headers = ["#", "Employee ID", "Name", "Role", "Department",
                "Salary/Day", "Billable Days", "Present", "Absent",
-               "Deduction", "Incentive", "Net Salary"]
+               "Deduction", "Incentive", "PF/PT/TDS", "Net Salary"]
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
         cell.fill = hdr_fill
@@ -311,21 +278,16 @@ def _build_salary_report_workbook(year, month, active_cid=None):
         cell.alignment = center
         cell.border = thin_border
 
-    col_widths = [5, 16, 22, 16, 16, 12, 14, 10, 10, 12, 12, 14]
+    col_widths = [5, 16, 22, 16, 16, 12, 14, 10, 10, 12, 12, 12, 14]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
-    for idx, (emp_id, name, email, spd, role, dept) in enumerate(employees, 1):
-        entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
-                                     holidays_set=holidays_set,
-                                     leave_dates=leave_map.get(emp_id, set()))
-        inc = incentive_map.get(emp_id, 0.0)
-        net = round(entry["net"] + inc, 2)
+    for idx, entry in enumerate(salary_data, 1):
         present_days = entry["full_days"] + entry["half_days"] + entry["late_days"]
         row_data = [
-            idx, emp_id, name, role, dept,
-            float(spd), entry["billable"], present_days,
-            entry["absent"], entry["deduction"], inc, net
+            idx, entry["emp_id"], entry["name"], entry["role"], entry["department"],
+            entry["spd"], entry["billable"], present_days,
+            entry["absent"], entry["attendance_ded"], entry["incentive"], entry["statutory"], entry["net"]
         ]
         fill = alt_fill if idx % 2 == 0 else None
         for col, val in enumerate(row_data, 1):
@@ -457,46 +419,16 @@ def _payslip_email(emp_id, year, month):
         db.close()
         return "Employee not found.", None
 
-    name, email, spd, monthly_ctc, basic_pct, designation, dept = emp
-    if not email:
-        cursor.close()
-        db.close()
-        return f"No email address set for {name}.", None
-
-    _, last_day = calendar.monthrange(year, month)
-    cursor.execute("""
-        SELECT employee_id, date, login_time, logout_time, status, logout_status, attendance_type
-        FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
-    """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
-
-    att_map = {}
-    for row in cursor.fetchall():
-        att_map.setdefault(row[0], {})[row[1]] = row
-
-    _, last_day2 = calendar.monthrange(year, month)
-    cursor.execute(
-        "SELECT leave_date FROM leave_requests "
-        "WHERE status='Approved' AND employee_id=%s AND leave_date BETWEEN %s AND %s",
-        (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day2))
-    )
-    leave_dates = {row[0] for row in cursor.fetchall()}
-
-    # Fetch payroll config
-    db2 = get_db_connection()
-    cur2 = db2.cursor(buffered=True)
-    cur2.execute(PAYROLL_CONFIG_SQL)
-    payroll_cfg = payroll_config_from_row(cur2.fetchone())
-    cur2.close()
-    db2.close()
+    name, email, _spd, _ctc, _bpct, designation, dept = emp
+    cursor.execute(PAYROLL_CONFIG_SQL)
+    payroll_cfg = payroll_config_from_row(cursor.fetchone())
     cursor.close()
     db.close()
+    if not email:
+        return f"No email address set for {name}.", None
 
-    holidays_set = fetch_holidays_set(year, month)
-    billable_past = get_billable_past_days(year, month)
-    entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
-                                 holidays_set=holidays_set, leave_dates=leave_dates)
-    entry["monthly_ctc"] = float(monthly_ctc) if float(monthly_ctc) > 0 else float(spd) * 26
-    entry["basic_pct"] = int(basic_pct)
+    # The one net-pay calculation, as paid (QA BUG-05).
+    entry = compute_salary_data_for_month(year, month, employee_ids=[emp_id])[0]
     month_name = datetime.date(year, month, 1).strftime("%B %Y")
     html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry,
                                        emp_designation=designation, emp_dept=dept,
@@ -745,24 +677,7 @@ def my_payslip_summary(year, month):
     emp_id = session["employee_id"]
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s", (emp_id,))
-    row = cursor.fetchone()
-    spd = float(row[0]) if row else 0.0
-
-    _, last_day = calendar.monthrange(year, month)
-    cursor.execute("""
-        SELECT date, login_time, logout_time, status, logout_status, attendance_type
-        FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
-    """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
-    att_rows = cursor.fetchall()
-
-    # Incentive total for this employee/month
     try:
-        cursor.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND year=%s AND month=%s",
-            (emp_id, year, month)
-        )
-        incentive = float(cursor.fetchone()[0])
         cursor.execute("""
             SELECT ig.title, ei.amount, ei.notes
             FROM employee_incentives ei
@@ -771,7 +686,6 @@ def my_payslip_summary(year, month):
         """, (emp_id, year, month))
         incentive_details = [{"title": r[0], "amount": float(r[1]), "notes": r[2] or ""} for r in cursor.fetchall()]
     except Exception:
-        incentive = 0.0
         incentive_details = []
 
     try:
@@ -787,33 +701,21 @@ def my_payslip_summary(year, month):
     cursor.close()
     db.close()
 
-    att_map = {r[0]: r for r in att_rows}
-    billable = get_billable_past_days(year, month)
-    full = late = half = 0
-    for d in billable:
-        r = att_map.get(d)
-        if r:
-            final = r[5] if r[5] else infer_type_legacy(r[3], r[1], r[2])
-            if final == "Full Day":
-                full += 1
-            elif final == "Late - Full Day":
-                late += 1
-            elif final in ("Half Day", "Present"):
-                half += 1
-
-    full_earn = round(full * spd, 2)
-    late_earn = round(late * spd, 2)
-    half_earn = round(half * spd * 0.5, 2)
-    gross = full_earn + late_earn + half_earn
-    pf = round(gross * 0.12, 2)
-    net = round(gross - pf + incentive + ot_pay, 2)
+    # The one net-pay calculation, as paid (QA BUG-05). This used to pay
+    # late days in full, fix half days at 50%, ignore holidays and leave,
+    # deduct a flat 12% "PF" and add overtime. Approved overtime is still
+    # reported (ot_pay) but, like the disbursement, not added to net (NV-20).
+    rows = compute_salary_data_for_month(year, month, employee_ids=[emp_id])
+    e = rows[0] if rows else apply_statutory_deductions({"spd": 0})
 
     return _json.dumps({
-        "salary_per_day": spd,
-        "full_days": full, "late_days": late, "half_days": half,
-        "full_earn": full_earn, "late_earn": late_earn, "half_earn": half_earn,
-        "gross": gross, "pf": pf, "incentive": incentive,
-        "incentive_details": incentive_details, "ot_pay": ot_pay, "net": net
+        "salary_per_day": e.get("spd", 0.0),
+        "full_days": e.get("full_days", 0), "late_days": e.get("late_days", 0), "half_days": e.get("half_days", 0),
+        "full_earn": e.get("full_earn", 0.0), "late_earn": e.get("late_earn", 0.0),
+        "half_earn": e.get("half_earn", 0.0),
+        "gross": e["attendance_earned"], "pf": e["pf"], "pt": e["pt"], "tds": e["tds"],
+        "statutory": e["statutory"], "incentive": e.get("incentive", 0.0),
+        "incentive_details": incentive_details, "ot_pay": ot_pay, "net": e["net"]
     }), 200, {"Content-Type": "application/json"}
 
 
@@ -1323,7 +1225,7 @@ def _render_payslip_html(emp_id, year, month):
         cursor.close()
         db.close()
         return "Employee not found", 404
-    name, email, spd, monthly_ctc, basic_pct, designation, dept, pan, uan, bank_acct, bank_nm = row
+    name, email, _spd, _ctc, _bpct, designation, dept, pan, uan, bank_acct, bank_nm = row
     pan = decrypt_pii(pan)
     uan = decrypt_pii(uan)
     bank_acct = decrypt_pii(bank_acct)
@@ -1336,32 +1238,11 @@ def _render_payslip_html(emp_id, year, month):
     cursor.execute("SELECT COALESCE(company_name,'') FROM company_settings LIMIT 1")
     co_row = cursor.fetchone()
     company_name = co_row[0] if co_row else ""
-
-    _, last_day = calendar.monthrange(year, month)
-    cursor.execute("""
-        SELECT date, employee_id, login_time, logout_time, status, logout_status, attendance_type
-        FROM attendance
-        WHERE employee_id=%s AND date BETWEEN %s AND %s
-    """, (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day)))
-    att_map = {}
-    for r in cursor.fetchall():
-        att_map.setdefault(r[1], {})[r[0]] = r
-
-    cursor.execute(
-        "SELECT leave_date FROM leave_requests "
-        "WHERE status='Approved' AND employee_id=%s AND leave_date BETWEEN %s AND %s",
-        (emp_id, datetime.date(year, month, 1), datetime.date(year, month, last_day))
-    )
-    leave_dates = {r[0] for r in cursor.fetchall()}
     cursor.close()
     db.close()
 
-    holidays_set = fetch_holidays_set(year, month)
-    billable_past = get_billable_past_days(year, month)
-    entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
-                                 holidays_set=holidays_set, leave_dates=leave_dates)
-    entry["monthly_ctc"] = float(monthly_ctc) if float(monthly_ctc) > 0 else float(spd) * 26
-    entry["basic_pct"] = int(basic_pct)
+    # The one net-pay calculation, as paid (QA BUG-05).
+    entry = compute_salary_data_for_month(year, month, employee_ids=[emp_id])[0]
 
     month_name = calendar.month_name[month] + f" {year}"
     return build_salary_slip_html(

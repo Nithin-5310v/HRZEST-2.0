@@ -4,19 +4,19 @@
 # ── Testing ───────────────────────────────────────────────────────────────────
 pytest>=9.1.1
 pytest-cov>=7.1.0
-pytest-mock>=3.14.0
+pytest-mock>=3.16.0
 # Randomizes test order each run (seeded + printed, so a failure is
 # reproducible with `pytest -p randomly --randomly-seed=<seed>`) -- added
 # alongside tests/conftest.py's per-test DB snapshot/restore specifically so
 # order-dependence can't silently creep back in unnoticed.
-pytest-randomly>=3.15.0
+pytest-randomly>=5.0.0
 
 # ── Code quality ──────────────────────────────────────────────────────────────
-flake8>=7.1.0
+flake8>=7.4.1
 
 # ── Static asset minification (see minify_static.py) ───────────────────────────
 rcssmin>=1.2.2
-rjsmin>=1.2.5
+rjsmin>=1.3.0
 
 # ── End-to-end browser tests (see tests_e2e/README.md) ──────────────────────────
 # Separate from the main pytest suite (pytest.ini's testpaths = tests excludes
