@@ -906,7 +906,10 @@ def platform_admin_delete_tenant(tenant_id):
     rather than a live foreign key to tenants (see _recent_payments()'s
     docstring), specifically so the Payments feed keeps showing a
     deleted company's transaction history correctly after this runs."""
-    conn = get_master_db()
+    # Owner role: DROP SCHEMA is DDL the runtime role deliberately lacks
+    # (database.owner_privileges; same connection when no split is configured).
+    from database import get_owner_master_db
+    conn = get_owner_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute("SELECT company_name, subdomain, db_name FROM tenants WHERE id=%s", (tenant_id,))
     row = cur.fetchone()

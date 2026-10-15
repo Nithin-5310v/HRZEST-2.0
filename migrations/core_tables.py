@@ -540,36 +540,16 @@ def _init_core_tables(cursor, db):
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events (created_at DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events (event_type)")
 
-    # Immutable audit trail: audit_logs (data/config changes) and
-    # security_events (auth/access events) must be append-only -- a plain
-    # table is only as tamper-resistant as every future line of code that
-    # touches it, which isn't a guarantee. This trigger makes tampering
-    # (or an attacker who reaches DB access) unable to alter or erase
-    # history no matter what app code does, short of dropping the trigger
-    # itself (a superuser-only DDL action, not something an app-level bug
-    # or compromised web-tier credential can do).
-    cursor.execute("""
-        CREATE OR REPLACE FUNCTION _reject_audit_mutation() RETURNS TRIGGER AS $$
-        BEGIN
-            -- Deliberate, narrow escape hatch for test-fixture cleanup only:
-            -- the app itself never issues `SET audit.bypass`, so this
-            -- doesn't weaken production immutability -- a session has to
-            -- explicitly opt in via raw SQL the app never sends.
-            IF current_setting('audit.bypass', true) = 'on' THEN
-                RETURN COALESCE(NEW, OLD);
-            END IF;
-            RAISE EXCEPTION 'audit tables are append-only: % on % is not permitted', TG_OP, TG_TABLE_NAME;
-        END;
-        $$ LANGUAGE plpgsql;
-    """)
-    for _tbl in ("audit_logs", "security_events"):
-        cursor.execute(f'DROP TRIGGER IF EXISTS trg_{_tbl}_immutable ON {_tbl}')
-        cursor.execute(f"""
-            CREATE TRIGGER trg_{_tbl}_immutable
-            BEFORE UPDATE OR DELETE ON {_tbl}
-            FOR EACH ROW EXECUTE FUNCTION _reject_audit_mutation()
-        """)
-    db.commit()
+    # Immutable + tamper-evident audit trail: audit_logs (data/config
+    # changes) and security_events (auth/access events) are append-only
+    # (trigger rejects UPDATE/DELETE) AND hash-chained (BEFORE INSERT
+    # trigger) so that rewriting history -- including by someone who can
+    # drop the trigger or recompute rows in the DB -- is detectable
+    # against the off-box head anchors. See migrations/audit_integrity.py
+    # for the threat model and why the `audit.bypass` escape hatch is only
+    # compiled in for development/testing.
+    from .audit_integrity import init_audit_integrity
+    init_audit_integrity(cursor, db)
 
     # Application-layer IP ban list -- the SOC dashboard's "one-click ban"
     # tactical mitigation. Not a substitute for a real edge/WAF ban (e.g.

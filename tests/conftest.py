@@ -115,6 +115,7 @@ from blueprints.hr_dashboard import hr_dashboard_bp
 from blueprints.policies import policies_bp
 from blueprints.company_profile import company_profile_bp
 from blueprints.seo import seo_bp
+from blueprints.privacy import privacy_bp
 flask_app.register_blueprint(health_bp)
 flask_app.register_blueprint(notifications_bp)
 flask_app.register_blueprint(payroll_bp)
@@ -146,6 +147,7 @@ flask_app.register_blueprint(hr_dashboard_bp)
 flask_app.register_blueprint(policies_bp)
 flask_app.register_blueprint(company_profile_bp)
 flask_app.register_blueprint(seo_bp)
+flask_app.register_blueprint(privacy_bp)
 
 # Mirror wsgi.py's WSGI-level tenant-prefix stripping so tests exercise the
 # real path-based tenant resolution (www.hrzest.com/<slug>/...), not just
@@ -207,11 +209,16 @@ set_synchronous_mode(True)
 def db_engine():
     """Return a raw psycopg2 connection to the test database for fixture setup."""
     import psycopg2
+    # Fixture setup/teardown (per-test TRUNCATE, seeding, audit.bypass
+    # cleanup) is privileged work. When the DB_OWNER_USER split is configured
+    # the application under test runs as the restricted runtime role (DB_USER)
+    # -- that is the point -- so the harness itself connects as the owner.
+    owner = os.environ.get("DB_OWNER_USER", "").strip()
     conn = psycopg2.connect(
         host=os.environ["DB_HOST"],
         port=int(os.environ.get("DB_PORT", "5432")),
-        user=os.environ["DB_USER"],
-        password=os.environ.get("DB_PASS", ""),
+        user=owner or os.environ["DB_USER"],
+        password=(os.environ.get("DB_OWNER_PASS", "") if owner else os.environ.get("DB_PASS", "")),
         dbname=os.environ["DB_NAME"],
     )
     conn.autocommit = True

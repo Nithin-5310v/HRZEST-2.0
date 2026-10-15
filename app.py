@@ -95,6 +95,7 @@ from utils.helpers import (
 # (QA BUG-01): read them with cfg.shift_rules() / cfg.salary_rules().
 import utils.config as cfg
 import utils.waf as waf
+from utils.client_ip import is_protected_ip, warn_if_client_ip_collapsed, apply_proxy_fix
 
 # ── Trusted base URL for email links (avoids Host-header injection) ───────────
 # Set APP_URL=https://yourdomain.com in .env for production.
@@ -602,13 +603,36 @@ def _enforce_ip_ban():
     ip = request.remote_addr
     if not ip:
         return
+    if is_protected_ip(ip):
+        # A non-routable/shared source address (container gateway, LAN,
+        # allow-listed probe) can't identify one client, so a ban row for
+        # it -- including one written before this guard existed -- would
+        # lock out every visitor behind it. See utils/client_ip.py.
+        warn_if_client_ip_collapsed(ip)
+        return
     db = get_db_connection()
     cursor = db.cursor()
     try:
-        cursor.execute(
-            "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())",
-            (ip,),
-        )
+        # banned_ips exists once per tenant schema AND in public, and the
+        # search_path puts the tenant's copy first -- so a plain
+        # `FROM banned_ips` only ever sees that tenant's own bans. Automated
+        # bans (utils/waf.ban_ip) are written to public.banned_ips so an
+        # attacker can't hop to another tenant's URL to shake them off;
+        # check both. With no tenant active the two names are one table.
+        try:
+            cursor.execute(
+                "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW()) "
+                "UNION ALL "
+                "SELECT reason FROM public.banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW()) "
+                "LIMIT 1",
+                (ip, ip),
+            )
+        except Exception:
+            # Schema-qualified name unsupported (SQLite dev fallback).
+            cursor.execute(
+                "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())",
+                (ip,),
+            )
         row = cursor.fetchone()
     finally:
         cursor.close()
@@ -2218,12 +2242,13 @@ if "core.home" not in app.view_functions:
     from blueprints.policies import policies_bp
     from blueprints.company_profile import company_profile_bp
     from blueprints.seo import seo_bp
+    from blueprints.privacy import privacy_bp
     for _bp in (health_bp, notifications_bp, payroll_bp, leave_bp, admin_views_bp,
                 auth_bp, employees_bp, attendance_bp, tickets_bp, performance_bp,
                 documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp,
                 ai_hrms_bp, email_blast_bp, daily_report_bp, billing_bp, webhooks_bp, seats_bp, auto_debit_bp,
                 billing_dunning_bp, platform_admin_bp, honeypot_bp, disbursement_bp, hr_dashboard_bp, policies_bp,
-                company_profile_bp, seo_bp, oauth_signup_bp):
+                company_profile_bp, seo_bp, oauth_signup_bp, privacy_bp):
         app.register_blueprint(_bp)
 
 
@@ -2272,7 +2297,7 @@ if __name__ == "__main__":
     # sends the header at all.
     from werkzeug.middleware.proxy_fix import ProxyFix
     if not isinstance(app.wsgi_app, ProxyFix):
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+        app.wsgi_app = apply_proxy_fix(app.wsgi_app)
     # Only started here -- when app.py is run directly (`python app.py`,
     # local dev). wsgi.py (the real production entrypoint) already starts
     # this exact worker itself before importing app.py; starting it again

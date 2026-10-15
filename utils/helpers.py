@@ -10,8 +10,8 @@ import threading
 from contextlib import contextmanager
 
 import pytz
-from cryptography.fernet import Fernet, InvalidToken as _FernetInvalid
-from flask import session, request, jsonify, abort
+from cryptography.fernet import Fernet, MultiFernet, InvalidToken as _FernetInvalid
+from flask import session, request
 from database import get_db_connection
 from extensions import app_log, log_security_event, redis_client
 
@@ -232,7 +232,14 @@ if not _ENCRYPTION_KEY:
     )
     raise RuntimeError("ENCRYPTION_KEY is not set -- refusing to start (fail-secure).")
 try:
-    _fernet = Fernet(_ENCRYPTION_KEY.encode())
+    # Key rotation: ENCRYPTION_KEY always encrypts. ENCRYPTION_KEY_PREVIOUS
+    # (comma-separated, newest first) is accepted for DECRYPTION only, so a
+    # rotation is: set the new ENCRYPTION_KEY, move the old one into
+    # ENCRYPTION_KEY_PREVIOUS, deploy, run scripts/rotate_encryption_key.py
+    # to re-encrypt stored values, then drop the old key. With no previous
+    # keys this behaves exactly like a single Fernet.
+    _previous_keys = [k.strip() for k in os.environ.get("ENCRYPTION_KEY_PREVIOUS", "").split(",") if k.strip()]
+    _fernet = MultiFernet([Fernet(k.encode()) for k in [_ENCRYPTION_KEY] + _previous_keys])
 except Exception as _key_err:
     app_log.critical(
         "FATAL: ENCRYPTION_KEY is set but malformed (%s) -- refusing to start "

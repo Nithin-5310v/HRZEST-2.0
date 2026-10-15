@@ -44,6 +44,15 @@ _SIGNATURE_VERIFIERS = {
 }
 
 
+def register_signature_verifier(provider: str, verifier):
+    """Registers `verifier(raw_body: bytes, request) -> bool` for a provider
+    whose callbacks this app should accept at /webhooks/<provider>. Same
+    import-time registration model as register_webhook_handler(); a
+    provider with no verifier 404s, so nothing here is reachable until a
+    feature explicitly opts in with a real signature check."""
+    _SIGNATURE_VERIFIERS[provider] = verifier
+
+
 def register_webhook_handler(provider: str, event: str, handler):
     """Registers `handler(payload: dict)` to run when POST /webhooks/<provider>
     receives an `event`-named event, after signature verification passes.

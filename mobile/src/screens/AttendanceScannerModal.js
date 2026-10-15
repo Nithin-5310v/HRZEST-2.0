@@ -8,7 +8,9 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
 import {
   attendanceCheckin, getAuthConfig, getMobileBiometricNonce, attestMobileBiometric,
+  getAttendanceChallenge,
 } from '../api/client';
+import { getDeviceId } from '../utils/deviceId';
 import { queuePunch } from '../utils/offlineQueue';
 import { useAuth } from '../store/AuthContext';
 
@@ -48,6 +50,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   const [facing, setFacing]       = useState('back');
   const [scanned, setScanned]     = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [livenessPrompt, setLivenessPrompt] = useState('');
 
   const [employeeId, setEmployeeId] = useState(null);
   const [coords, setCoords]         = useState(null);
@@ -137,7 +140,9 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
               new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
             ]).catch(() => null);
             if (loc?.coords) {
-              setCoords({ lat: loc.coords.latitude, lon: loc.coords.longitude });
+              // `mocked` is reported by Android when the fix came from a
+              // mock-location provider; the server refuses such punches.
+              setCoords({ lat: loc.coords.latitude, lon: loc.coords.longitude, mocked: !!loc.mocked });
             }
           }
         } catch (_) {}
@@ -158,7 +163,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   };
 
   // ── Submit ───────────────────────────────────────────────────────────────────
-  const submitAttendance = async ({ face, combo, empId }) => {
+  const submitAttendance = async ({ face, combo, empId, liveness }) => {
     setProcessing(true);
     const targetId = empId || scannedEmpIdRef.current || employeeId || user?.employeeId || user?.employee_id || user?.emp_id || "EMP-1001";
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -169,9 +174,20 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
       if (coords) {
         formData.append('lat', String(coords.lat));
         formData.append('lon', String(coords.lon));
+        formData.append('mocked', coords.mocked ? 'true' : 'false');
       }
+      formData.append('channel', 'mobile');
+      const deviceId = await getDeviceId();
+      if (deviceId) formData.append('device_id', deviceId);
       if (face?.uri) {
         formData.append('face_photo', { uri: face.uri, name: 'face.jpg', type: 'image/jpeg' });
+      }
+      if (liveness?.challenge) {
+        formData.append('challenge_id', liveness.challenge.challenge_id);
+        formData.append('challenge_nonce', liveness.challenge.nonce);
+        liveness.frames.forEach((f, i) => {
+          formData.append('liveness_frames', { uri: f.uri, name: `live${i}.jpg`, type: 'image/jpeg' });
+        });
       }
 
       const res = await attendanceCheckin(formData);
@@ -240,6 +256,37 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
     }
   };
 
+  // ── Liveness burst ───────────────────────────────────────────────────────────
+  // Server-chosen action (blink / turn head / smile) + a short burst of small
+  // frames; verified server-side (utils/liveness.py). Returns null when the
+  // server has no challenge endpoint or too few frames were captured, in which
+  // case the single photo is submitted alone and the server's LIVENESS_MODE
+  // decides whether that is acceptable.
+  const captureLivenessBurst = async (empId) => {
+    let challenge = null;
+    try {
+      const res = await getAttendanceChallenge(empId);
+      if (res?.data?.ok) challenge = res.data;
+    } catch (_) { /* older server: single-photo fallback */ }
+    if (!challenge) return null;
+    setLivenessPrompt(challenge.instruction);
+    await new Promise((r) => setTimeout(r, 1200));
+    const frames = [];
+    const total = Math.min(10, challenge.max_frames || 10);
+    for (let i = 0; i < total; i += 1) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const f = await cameraRef.current.takePictureAsync({
+          quality: 0.35, skipProcessing: true, shutterSound: false,
+        });
+        if (f?.uri) frames.push(f);
+      } catch (_) { /* skip a failed frame */ }
+    }
+    setLivenessPrompt('');
+    if (frames.length < (challenge.min_frames || 5)) return null;
+    return { challenge, frames };
+  };
+
   // ── Face capture ─────────────────────────────────────────────────────────────
   const handleCaptureFace = async () => {
     if (processing || !cameraRef.current) return;
@@ -265,13 +312,18 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
     }
 
     if (authMethod === COMBO_QR_FACE) {
-      await submitAttendance({ face: photo, empId: scannedEmpIdRef.current || employeeId });
+      const qrEmpId = scannedEmpIdRef.current || employeeId;
+      const liveness = await captureLivenessBurst(qrEmpId);
+      await submitAttendance({ face: photo, empId: qrEmpId, liveness });
     } else {
       // Face + Fingerprint: fingerprint already attested, submit now
+      const fpEmpId = user?.employeeId || user?.employee_id || user?.emp_id;
+      const liveness = await captureLivenessBurst(fpEmpId);
       await submitAttendance({
         face: photo,
-        empId: user?.employeeId || user?.employee_id || user?.emp_id,
+        empId: fpEmpId,
         combo: COMBO_FACE_FP,
+        liveness,
       });
     }
     setProcessing(false);
@@ -636,7 +688,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
 
           <View style={styles.faceMiddle}>
             <View style={styles.faceGuide} />
-            <Text style={styles.faceHintTxt}>Align your face inside the circle</Text>
+            <Text style={styles.faceHintTxt}>{livenessPrompt || 'Align your face inside the circle'}</Text>
             {isFaceFP ? (
               <View style={styles.empIdBadge}>
                 <Ionicons name="finger-print" size={14} color="#a5b4fc" />

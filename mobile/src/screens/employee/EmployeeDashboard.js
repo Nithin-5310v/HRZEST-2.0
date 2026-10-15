@@ -23,6 +23,7 @@ import {
   fetchEmployeeLeaves,
 } from "../../api/client";
 import { queuePunch, getPendingPunches, clearQueue } from "../../utils/offlineQueue";
+import { getDeviceId } from "../../utils/deviceId";
 
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "../../store/ThemeContext";
@@ -163,7 +164,7 @@ export default function EmployeeDashboard({ navigation }) {
     if (punches.length === 0) return;
     setSyncing(true);
     try {
-      const res = await syncOfflinePunches(punches);
+      const res = await syncOfflinePunches(punches, await getDeviceId());
       if (res.data.ok) {
         await clearQueue();
         setPendingCount(0);
@@ -192,6 +193,7 @@ export default function EmployeeDashboard({ navigation }) {
     setChecking(true);
     let lat = null;
     let lon = null;
+    let mocked = false;
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === "granted") {
@@ -201,11 +203,12 @@ export default function EmployeeDashboard({ navigation }) {
         ]);
         lat = loc.coords.latitude;
         lon = loc.coords.longitude;
+        mocked = !!loc.mocked;
       }
     } catch (_) {}
 
     try {
-      const res = await employeeCheckin(lat, lon);
+      const res = await employeeCheckin(lat, lon, { mocked, device_id: await getDeviceId() });
       if (res.data.ok) {
         const timeStr = res.data.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         Alert.alert(
@@ -230,8 +233,12 @@ export default function EmployeeDashboard({ navigation }) {
           "Your login session has expired. Please sign in again to continue.",
           [{ text: "Sign In", onPress: () => signOut() }]
         );
+      } else if (e.response) {
+        // The server answered and refused (mock location, outside the geofence, ...):
+        // do not park it in the offline queue to be retried later.
+        Alert.alert("Notice", e.response?.data?.msg || "Could not mark attendance.");
       } else {
-        await queuePunch(lat, lon);
+        await queuePunch(lat, lon, { mocked });
         const q = await getPendingPunches();
         setPendingCount(q.length);
         const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

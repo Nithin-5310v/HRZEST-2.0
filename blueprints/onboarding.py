@@ -5,7 +5,6 @@ import hashlib
 import html as _html
 import secrets
 import uuid
-import psycopg2
 from io import BytesIO
 from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, send_file
 from database import get_db_connection
@@ -746,17 +745,8 @@ def offer_letter_save():
     candidate_addr = request.form.get("candidate_address", "")
     db = get_db_connection()
     cursor = db.cursor()
-    # add new columns if they don't exist yet (migration)
-    try:
-        cursor.execute("ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS notice_period_days INT DEFAULT 30")
-        db.commit()
-    except psycopg2.Error:
-        db.rollback()
-    try:
-        cursor.execute("ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_address TEXT")
-        db.commit()
-    except psycopg2.Error:
-        db.rollback()
+    # notice_period_days / candidate_address are created by the boot-time
+    # migrations (migrations/column_migrations.py) -- no DDL in a request.
     cursor.execute("SELECT id FROM offer_letters WHERE onboarding_id=%s", (ob_id,))
     existing = cursor.fetchone()
     if existing:

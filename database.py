@@ -527,6 +527,107 @@ _pool_lock = threading.Lock()
 # in use, before giving up with a 503 (see _wait_for_free_connection).
 _POOL_WAIT_SECONDS = float(os.environ.get("DB_POOL_WAIT_SECONDS", "5"))
 
+# ── Optional privileged "owner" role ────────────────────────────────────────
+# By default the app connects as ONE role that owns every table (and, in the
+# shipped .env.example / compose.yaml, is the Postgres superuser). That makes
+# every other database control advisory: whoever holds the web tier's
+# credentials -- via SQL injection, a leaked .env, a compromised container --
+# can DROP TRIGGER on the audit tables, ALTER anything, DROP SCHEMA.
+#
+# Setting DB_OWNER_USER / DB_OWNER_PASS splits that in two:
+#   * DB_USER (runtime)  -- DML only; no DDL, no ownership, no UPDATE/DELETE
+#                           on the audit tables, no access to the chain head.
+#   * DB_OWNER_USER      -- used ONLY inside `owner_privileges()` blocks:
+#                           boot-time migrations, tenant provisioning, tenant
+#                           deletion, and the audit-chain verifier.
+# Unset (the default) keeps today's single-role behaviour exactly, so the
+# split is opt-in and reversible. See scripts/provision_db_roles.py.
+_OWNER_USER = os.environ.get("DB_OWNER_USER", "").strip()
+_OWNER_PASS = os.environ.get("DB_OWNER_PASS", "")
+_owner_pool = None
+_owner_pool_lock = threading.Lock()
+_owner_ctx = threading.local()
+
+
+def owner_role_configured() -> bool:
+    return bool(_OWNER_USER) and _OWNER_USER != _DB_CONFIG["user"]
+
+
+@contextmanager
+def owner_privileges():
+    """Every connection this thread borrows inside the block comes from the
+    owner pool (when one is configured; otherwise a no-op). Re-entrant. Use
+    for DDL/provisioning only -- never wrap request handling in it."""
+    depth = getattr(_owner_ctx, "depth", 0)
+    _owner_ctx.depth = depth + 1
+    try:
+        yield
+    finally:
+        _owner_ctx.depth = depth
+
+
+def _in_owner_context() -> bool:
+    return getattr(_owner_ctx, "depth", 0) > 0 and owner_role_configured()
+
+
+def _get_owner_pool():
+    global _owner_pool
+    if _owner_pool is None:
+        with _owner_pool_lock:
+            if _owner_pool is None:
+                cfg = dict(_DB_CONFIG, user=_OWNER_USER, password=_OWNER_PASS)
+                _owner_pool = psycopg2.pool.ThreadedConnectionPool(
+                    minconn=1, maxconn=int(os.environ.get("DB_OWNER_POOL_MAX_CONN", "4")), **cfg)
+    return _owner_pool
+
+
+_PG_IDENT_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def runtime_grant_statements(schema, app_role):
+    """Pure: the GRANT/REVOKE statements that give `app_role` what request
+    handling needs in `schema` and withhold what it must never have.
+    Returns [] for an unsafe identifier. Shared by grant_runtime_privileges()
+    (boot) and scripts/provision_db_roles.py (one-time provisioning)."""
+    if not (schema and app_role and _PG_IDENT_RE.match(schema) and _PG_IDENT_RE.match(app_role)):
+        return []
+    s, r = f'"{schema}"', f'"{app_role}"'
+    stmts = [
+        f"GRANT USAGE ON SCHEMA {s} TO {r}",
+        f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {s} TO {r}",
+        f"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA {s} TO {r}",
+        f"ALTER DEFAULT PRIVILEGES IN SCHEMA {s} GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {r}",
+        f"ALTER DEFAULT PRIVILEGES IN SCHEMA {s} GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {r}",
+    ]
+    # Append-only for the runtime role no matter what triggers say, and no
+    # access at all to the hash-chain head pointer (the chain trigger is
+    # SECURITY DEFINER, so it still works).
+    for tbl in ("audit_logs", "security_events"):
+        stmts.append(
+            f"DO $$ BEGIN IF to_regclass('{schema}.{tbl}') IS NOT NULL THEN "
+            f"REVOKE UPDATE, DELETE, TRUNCATE ON {s}.{tbl} FROM {r}; END IF; END $$")
+    stmts.append(
+        f"DO $$ BEGIN IF to_regclass('{schema}.audit_chain_head') IS NOT NULL THEN "
+        f"REVOKE ALL ON {s}.audit_chain_head FROM {r}; END IF; END $$")
+    return stmts
+
+
+def grant_runtime_privileges(cursor):
+    """Idempotent. Run on an OWNER connection after DDL, for the schema that
+    connection's search_path currently points at (public, att_master, or a
+    tenant schema). No-op without a configured owner role."""
+    if not owner_role_configured():
+        return
+    cursor.execute("SELECT current_schema()")
+    schema = cursor.fetchone()[0]
+    stmts = runtime_grant_statements(schema, _DB_CONFIG["user"])
+    if not stmts:
+        _log.warning("grant_runtime_privileges: skipping unsafe identifier schema=%r role=%r",
+                     schema, _DB_CONFIG["user"])
+        return
+    for stmt in stmts:
+        cursor.execute(stmt)
+
 
 def _ensure_pg_schema(raw_conn):
     try:
@@ -543,15 +644,11 @@ def _ensure_pg_schema(raw_conn):
         _log.warning("PostgreSQL schema migration note: %s", e)
 
 
-class DatabaseUnavailable(RuntimeError):
-    """PostgreSQL can't be reached. Raised instead of switching to the local
-    SQLite fallback anywhere but APP_ENV=development; app.py turns it into a
-    503 so the outage is loud, and the next request retries Postgres."""
-
-
 def _sqlite_fallback_allowed():
-    # Exact match, read per call: staging, unset or mistyped environments fail closed.
-    return os.environ.get("APP_ENV", "production") == "development"
+    """Local/demo convenience only: allowed in APP_ENV=development, or when an
+    operator opts in explicitly. Never implicit in production."""
+    return (os.environ.get("APP_ENV", "production") == "development"
+            or os.environ.get("ALLOW_SQLITE_FALLBACK", "").strip().lower() in ("1", "true", "yes"))
 
 
 def _create_pool(retries=1, delay=0.1):
@@ -577,7 +674,29 @@ def _create_pool(retries=1, delay=0.1):
                 **_DB_CONFIG,
             )
             _log.info('"Connected to PostgreSQL (attempt %d)"', attempt)
-            conn = candidate.getconn()
+            if owner_role_configured():
+                # The runtime role can't ALTER tables it doesn't own (that
+                # is the point of the split), so the column top-ups run on
+                # the owner role instead, then the runtime role is granted
+                # what it needs on `public`. A failure here must not tip the
+                # app into the SQLite fallback below -- the runtime pool
+                # itself connected fine.
+                try:
+                    opool = _get_owner_pool()
+                    oconn = opool.getconn()
+                    try:
+                        _ensure_pg_schema(oconn)
+                        ocur = oconn.cursor()
+                        ocur.execute("SET search_path TO public")
+                        grant_runtime_privileges(ocur)
+                        oconn.commit()
+                        ocur.close()
+                    finally:
+                        opool.putconn(oconn)
+                except Exception as _owner_exc:
+                    _log.warning("owner-role schema bootstrap failed: %s", _owner_exc)
+                return
+            conn = _pool.getconn()
             _ensure_pg_schema(conn)
             candidate.putconn(conn)
             _pool = candidate  # only a pool that actually works is ever installed
@@ -592,15 +711,18 @@ def _create_pool(retries=1, delay=0.1):
             if attempt < retries:
                 time.sleep(delay)
     if not _sqlite_fallback_allowed():
-        # Never serve production traffic from a per-instance SQLite file:
-        # writes would be lost and every tenant would look empty. Fail
-        # loudly instead and retry Postgres on the next request.
+        # Fail closed. This used to fall back to a per-process SQLite file
+        # after a single failed connect (connect_timeout defaults to 1s), so a
+        # transient database blip at boot left that worker silently writing HR,
+        # attendance and payroll data to an ephemeral local file for the rest of
+        # its life -- split-brain data that no other worker or the real
+        # database would ever see. Leaving _pool unset means the NEXT request
+        # retries the connection; callers see an error in the meantime, which
+        # is the honest outcome.
         _pool = None
-        _log.critical(
-            "PostgreSQL unavailable after %d attempt(s) -- refusing to fall back to SQLite "
-            "outside APP_ENV=development", retries,
-        )
-        raise DatabaseUnavailable("PostgreSQL is unavailable")
+        _log.error("PostgreSQL unavailable and the SQLite fallback is disabled outside "
+                   "development (set ALLOW_SQLITE_FALLBACK=true to override) -- failing the request.")
+        raise RuntimeError("PostgreSQL unavailable")
     _log.error(
         "PostgreSQL unavailable -- falling back to local SQLite (%s). "
         "This is fine for local/demo use, but if this happens in production, "
@@ -609,6 +731,18 @@ def _create_pool(retries=1, delay=0.1):
         _SQLITE_FALLBACK_PATH,
     )
     _pool = _SqlitePool()
+
+
+def _borrow():
+    """-> (pool, conn). Honours owner_privileges(): inside the block the
+    connection (and the pool it must be returned to) is the owner's."""
+    if _in_owner_context() and not isinstance(_pool, _SqlitePool):
+        pool = _get_owner_pool()
+        conn = pool.getconn()
+        conn.autocommit = True
+        return pool, conn
+    conn = _borrow_connection()
+    return _pool, conn
 
 
 def _borrow_connection():
@@ -680,9 +814,9 @@ def get_db_connection():
         # Outside of a Flask application context -- skip g lookup
         pass
 
-    conn = _borrow_connection()
+    pool, conn = _borrow()
     _set_search_path(conn, tenant_db or "public")
-    return _PooledConnection(_pool, conn)
+    return _PooledConnection(pool, conn)
 
 
 # ── Master DB (tenant registry) ──────────────────────────────────────────────
@@ -694,9 +828,23 @@ _MASTER_SCHEMA = "att_master"
 
 def get_master_db():
     """Return a connection scoped to the att_master tenant-registry schema."""
-    conn = _borrow_connection()
+    pool, conn = _borrow()
     _set_search_path(conn, _MASTER_SCHEMA)
-    return _PooledConnection(_pool, conn)
+    return _PooledConnection(pool, conn)
+
+
+def get_owner_db_connection():
+    """get_db_connection() on the owner role (== get_db_connection() when no
+    owner role is configured). For the rare runtime operation that is
+    genuinely DDL: nothing in request handling should need it."""
+    with owner_privileges():
+        return get_db_connection()
+
+
+def get_owner_master_db():
+    """get_master_db() on the owner role -- tenant deletion (DROP SCHEMA)."""
+    with owner_privileges():
+        return get_master_db()
 
 
 # ── Tenant DB helper ─────────────────────────────────────────────────────────
@@ -707,9 +855,9 @@ def get_tenant_db(schema_name: str):
     schema_name is validated against ^[a-zA-Z0-9_]+$ before use (in
     _set_search_path) to prevent injection via the SET search_path statement.
     """
-    conn = _borrow_connection()
+    pool, conn = _borrow()
     _set_search_path(conn, schema_name)
-    return _PooledConnection(_pool, conn)
+    return _PooledConnection(pool, conn)
 
 
 # ── Tenant schema provisioning ────────────────────────────────────────────────
@@ -724,19 +872,16 @@ def create_tenant_schema(schema_name: str):
     """
     if not re.match(r'^[a-zA-Z0-9_]+$', schema_name):
         raise ValueError(f"Invalid tenant schema name: {schema_name!r}")
-    if _pool is None:
-        with _pool_lock:
-            if _pool is None:
-                _create_pool()
-    conn = _pool.getconn()
-    try:
-        cur = conn.cursor()
-        cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
-        conn.commit()
-        cur.close()
-        _log.info('"Created tenant schema: %s"', schema_name)
-    finally:
-        _pool.putconn(conn)
+    with owner_privileges():
+        pool, conn = _borrow()
+        try:
+            cur = conn.cursor()
+            cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema_name}"')
+            conn.commit()
+            cur.close()
+            _log.info('"Created tenant schema: %s"', schema_name)
+        finally:
+            pool.putconn(conn)
 
 
 # Kept as an alias so any not-yet-updated call sites fail loudly and

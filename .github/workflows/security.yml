@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
   security_audit:
     name: Security & Code Quality Audit
@@ -13,10 +16,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v7
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.11"   # same as the image and the other workflows (QA CONFIG-02)
 
@@ -31,4 +34,10 @@ jobs:
 
       - name: Run Bandit Security Scanner
         run: |
-          bandit -r blueprints/ utils/ -s B101,B105
+          # Same floor as ci-cd.yml/deploy.yml (medium+ severity, high
+          # confidence). The old `-s B101,B105` skipped one test id and
+          # reported every LOW finding: all 15 B105 hits were false
+          # positives on variable names containing "password"/"token", so
+          # the skip was hiding nothing real -- but a gate that differs from
+          # the other two is how real findings slip between them.
+          bandit -r . -x ./tests,./venv,./.venv,./mobile,./node_modules -ll -iii

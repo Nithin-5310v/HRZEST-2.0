@@ -5,6 +5,13 @@ import { secureGetItem } from '../utils/secureStorage';
 const client = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
 
 client.interceptors.request.use(async (config) => {
+  // A release build whose API URL is not https (EXPO_PUBLIC_API_BASE_URL
+  // missing -> config.js falls back to a plain-http dev host) would send the
+  // Bearer token in clear text. Refuse to make the request at all rather than
+  // leak it; development builds (__DEV__) are unaffected.
+  if (!__DEV__ && !/^https:\/\//i.test(String(config.baseURL || API_BASE_URL))) {
+    throw new Error('Refusing to call an insecure (non-https) API URL in a release build');
+  }
   const token = await secureGetItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
@@ -170,11 +177,15 @@ export const employeeLogout = () => client.post('/api/employee/logout');
 
 export const fetchEmployeePortal = () => client.get('/api/employee/portal');
 
-export const employeeCheckin = (lat, lon) =>
-  client.post('/api/employee/checkin', { lat, lon });
+export const employeeCheckin = (lat, lon, extra = {}) =>
+  client.post('/api/employee/checkin', { lat, lon, ...extra });
 
-export const syncOfflinePunches = (punches) =>
-  client.post('/api/employee/sync_punches', { punches });
+// Single-use liveness challenge for a face check-in (server picks the action).
+export const getAttendanceChallenge = (employeeId) =>
+  client.post('/api/attendance/challenge', { employee_id: employeeId });
+
+export const syncOfflinePunches = (punches, device_id = null) =>
+  client.post('/api/employee/sync_punches', { punches, device_id });
 
 export const submitLeaveRequest = (leave_date, reason) =>
   client.post('/api/employee/leave_request', { leave_date, reason });

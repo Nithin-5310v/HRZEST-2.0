@@ -6,10 +6,17 @@ If you're reading this because production is down, skip to
 
 ## How backups work
 
-- `scripts/backup_db.sh` runs `pg_dump | gzip` and writes a timestamped copy
-  to `backups/` on the app server. This local copy does not survive losing
-  the host it's on — copy `backups/` offsite on whatever schedule/mechanism
-  you set up for that before relying on this in production.
+- `scripts/backup_db.sh` runs `pg_dump | gzip | gpg/age` and writes a
+  timestamped, **encrypted** copy to `backups/` (plus a `.sha256`). It is
+  encrypted to a *public* key, so the host can write backups but cannot read
+  them back — to restore you need the private key (`gpg --decrypt` /
+  `age -d -i <identity>`). With no `BACKUP_ENCRYPTION` configured the job
+  refuses to run. Set `BACKUP_REMOTE` (`s3://…` or `rclone:…`) so a copy
+  leaves the host; without it the script warns that the backup exists only
+  here. See `SECURITY_HARDENING.md` §5.
+- **Prove restorability on a schedule:** `scripts/restore_test.sh` (run on a
+  machine with the private key) decrypts, restores into a throw-away
+  database, checks table counts and recomputes the audit hash chain.
 - Scheduled daily at 02:15 server time via `scripts/hrzest-backup.service`
   + `scripts/hrzest-backup.timer` (systemd). Local copies older than 30
   days are pruned automatically.

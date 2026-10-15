@@ -22,13 +22,15 @@ from utils.attendance_utils import (
     infer_type_legacy,
     fetch_holidays_set, get_billable_past_days, is_within_range,
     is_within_office_range, geofence_check_error, compute_session_worked_minutes,
-    fetch_employee_work_location,
+    fetch_employee_work_location, record_attendance_failure,
 )
 from utils.leave_utils import assign_leave_balances_for_employee
 from utils.face_utils import face_recognition, _face_recognition_available, _get_known_face_encoding
 from utils.webauthn_utils import _wa_fingerprint_recently_verified, _mobile_biometric_recently_verified
 from qr_generator import generate_qr
 from utils.storage import open_private
+import utils.config as cfg
+from utils import punch_integrity as pi
 
 employee_portal_bp = Blueprint("employee_portal", __name__)
 
@@ -907,14 +909,34 @@ def api_employee_checkin():
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     employee_name, work_mode, work_lat, work_lon = result
 
-    # Same rule as the kiosk (/attendance): with location enforced, a request
-    # that leaves the coordinates out is refused rather than skipping the
-    # geofence (QA SEC-08).
-    location_enforced = auth_cfg.get("location_enabled", True)
-    if location_enforced and not (lat and lon):
+    ctx = pi.build_context(emp_id, "mobile", "mobile_checkin", request.remote_addr, data)
+
+    def _reject(decision):
+        pi.record_evidence(ctx, cursor, outcome="rejected")
         cursor.close()
         db.close()
-        return jsonify({"ok": False, "msg": "Location not captured. Please allow location access."}), 400
+        if decision.count_as_failure:
+            record_attendance_failure(emp_id, company_today(), decision.msg)
+        return jsonify({"ok": False, "msg": decision.msg, "code": decision.code}), decision.status
+
+    _d = pi.check_mock_location(ctx, log_security_event)
+    if not _d.allow:
+        return _reject(_d)
+    _d = pi.check_office_network(ctx, cursor, work_mode, log_security_event)
+    if not _d.allow:
+        return _reject(_d)
+    # This route used to run the geofence only `if lat and lon:` -- a client
+    # that simply omitted the coordinates skipped the location check
+    # entirely, whatever the company's location setting said. Enforce the
+    # setting the same way /attendance does. MOBILE_REQUIRE_LOCATION=false
+    # restores the old permissive behaviour for a deployment that must.
+    if (os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() not in ("false", "0", "no")
+            and get_auth_config().get("location_enabled") and not (lat and lon)):
+        ctx.flag("location_missing")
+        return _reject(pi.Decision(False, 400,
+                                   "Location not captured. Please allow location access and try again.",
+                                   "location_required"))
+
     if lat and lon:
         try:
             lat_f = float(lat)
@@ -941,6 +963,40 @@ def api_employee_checkin():
     # app never sends it here; queued offline punches go through
     # /api/employee/sync_punches.
     now = company_now()
+    if punched_at_str:
+        try:
+            _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
+            if _pt.tzinfo is not None:
+                # Mobile sends Date.toISOString() (always UTC, "...Z") --
+                # convert to the tenant's configured timezone before using
+                # it as a wall-clock "now". Previously this just discarded
+                # the offset (.replace(tzinfo=None)) and treated the raw
+                # UTC digits as if they were already local, which shifted
+                # every offline check-in's date/time by the UTC offset
+                # (e.g. a 9am IST check-in landing as 3:30am).
+                _pt = _pt.astimezone(now.tzinfo)
+            else:
+                # No offset info on the string (e.g. this app's own test
+                # suite posts a naive isoformat()) -- assume it already
+                # represents company-local wall-clock time, same as before.
+                _pt = now.tzinfo.localize(_pt)
+            if (now - _pt).total_seconds() <= 86400:
+                if (now - _pt).total_seconds() > 600:
+                    ctx.flag("offline_punch")      # client-chosen timestamp, flagged for HR review
+                now = _pt
+            else:
+                cursor.close()
+                db.close()
+                return jsonify({"ok": False, "msg": "Offline punch too old (>24 h). Rejected."}), 400
+        except (ValueError, TypeError) as exc:
+            # Deliberate fallback, not a bug being hidden: an unparseable
+            # client-supplied offline-punch timestamp just means `now`
+            # (already set above) is used instead -- still worth a trace
+            # for diagnosing a client that's persistently sending malformed
+            # timestamps.
+            app_log.debug("Unparseable offline-punch punched_at=%r: %s", punched_at_str, exc)
+
+    pi.record_evidence(ctx, cursor, outcome="accepted")
 
     today = now.date()
     current_time = now.time()
@@ -1017,12 +1073,28 @@ def api_employee_sync_punches():
         db2.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     _work_mode, _work_lat, _work_lon = _emp_row[1], _emp_row[2], _emp_row[3]
-    s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cur2)
-    location_enforced = get_auth_config().get("location_enabled", True)
+    _require_loc = (os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() not in ("false", "0", "no")
+                    and get_auth_config().get("location_enabled"))
+    _device_id = pi.sanitize_device_id(payload.get("device_id"))
 
     results = []
-    for punch in punches:
+    for punch in punches[:200]:     # a day of offline punches is a handful; cap abuse
         punched_at_str = punch.get("punched_at", "")
+        ctx = pi.build_context(emp_id, "mobile", "offline_sync", request.remote_addr, punch)
+        ctx.device_id = ctx.device_id or _device_id
+        _d = pi.check_mock_location(ctx, log_security_event)
+        if not _d.allow:
+            pi.record_evidence(ctx, cur2, outcome="rejected")
+            results.append({"id": punch.get("id"), "ok": False, "msg": _d.msg})
+            continue
+        if _require_loc and not (punch.get("lat") and punch.get("lon")):
+            ctx.flag("location_missing")
+            pi.record_evidence(ctx, cur2, outcome="rejected")
+            results.append({"id": punch.get("id"), "ok": False, "msg": "Location missing."})
+            continue
+        # "received", not "accepted": the geofence/timestamp checks below can
+        # still reject this punch after the integrity layer has seen it.
+        pi.record_evidence(ctx, cur2, outcome="received")
         # Same geo-fence check as the live check-in route (is_within_range
         # against work_lat/work_lon for wfh, else is_within_office_range) --
         # previously captured but never enforced here, unlike the live
@@ -1196,6 +1268,31 @@ def api_employee_qr_face_checkin():
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     employee_name, work_mode, work_lat, work_lon, registered_face = result
 
+    # Integrity layer (utils/punch_integrity.py). channel is informational
+    # evidence only; nothing below trusts it for a security decision.
+    _channel = request.form.get("channel") if request.form.get("channel") in ("kiosk", "portal", "mobile") else (
+        "mobile" if request.headers.get("Authorization", "").startswith("Bearer ") else "kiosk")
+    ctx = pi.build_context(employee_id, _channel, auth_combo, request.remote_addr, request.form)
+
+    def _reject(decision):
+        pi.record_evidence(ctx, cursor, outcome="rejected")
+        cursor.close()
+        db.close()
+        if decision.count_as_failure:
+            record_attendance_failure(employee_id, company_today(), decision.msg)
+        return jsonify({"ok": False, "msg": decision.msg, "code": decision.code}), decision.status
+
+    _d = pi.check_mock_location(ctx, log_security_event)
+    if not _d.allow:
+        return _reject(_d)
+    _d = pi.check_office_network(ctx, cursor, work_mode, log_security_event)
+    if not _d.allow:
+        return _reject(_d)
+    if auth_combo in ("qr_face", "face_fingerprint"):
+        _d = pi.check_biometric_consent(ctx, cursor, log_security_event)
+        if not _d.allow:
+            return _reject(_d)
+
     if lat and lon:
         try:
             geofence_err = geofence_check_error(work_mode, work_lat, work_lon, lat, lon)
@@ -1240,6 +1337,26 @@ def api_employee_qr_face_checkin():
                 cursor.close()
                 db.close()
                 return jsonify({"ok": False, "msg": "Face did not match. Please try again."}), 401
+
+            # Identity matched -- replay + liveness, same policy as /attendance.
+            face_photo.stream.seek(0)
+            _photo_bytes = face_photo.stream.read(pi.liveness.MAX_FRAME_BYTES * 4)
+            try:
+                ctx.photo_sha256, ctx.photo_dhash = pi.fingerprint_photo(_photo_bytes)
+            except Exception:
+                app_log.warning("photo fingerprint failed for %s", employee_id, exc_info=True)
+            _blobs = [f.read(pi.liveness.MAX_FRAME_BYTES + 1) for f in request.files.getlist("liveness_frames")]
+            _frames, _kept = pi.decode_frame_blobs(_blobs)
+            _d = pi.check_photo_replay(ctx, cursor, log_security_event)
+            if not _d.allow:
+                return _reject(_d)
+            _d = pi.check_liveness(
+                ctx, cursor, frames=_frames,
+                challenge_id=request.form.get("challenge_id"), nonce=request.form.get("challenge_nonce"),
+                known_encoding=known_enc, face_recognition_mod=face_recognition,
+                log_event=log_security_event)
+            if not _d.allow:
+                return _reject(_d)
         except Exception:
             app_log.error("Face verification error", exc_info=True)
             cursor.close()
@@ -1259,6 +1376,8 @@ def api_employee_qr_face_checkin():
             # marking, but silently missing the face-log photo is worth
             # knowing about.
             app_log.warning("Face-log photo save failed for %s: %s", employee_id, exc, exc_info=True)
+
+    pi.record_evidence(ctx, cursor, outcome="accepted")
 
     now = company_now()
     today = now.date()
