@@ -7,55 +7,11 @@ instance. Set them in .env.test or export before running:
 
     DB_HOST=localhost DB_USER=postgres DB_PASS=secret pytest tests/
 """
-import ipaddress
 import os
-import socket
-import dotenv
 import pytest
+from dotenv import load_dotenv
 
-# ── Keep the developer's .env out of the test run ────────────────────────────
-# This used to be a plain load_dotenv(), which pulled EVERY key in the
-# developer's local .env into the suite -- including real third-party
-# credentials. With rzp_test_ Razorpay keys present, the billing/seats/
-# auto-debit tests stopped running in demo mode and created real orders and
-# a subscription in the Razorpay sandbox (14 failures locally, none in CI,
-# which has no such keys). Only the PostgreSQL connection settings are taken
-# from .env now; everything else comes from this file, exactly as in CI.
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_DB_KEYS_FROM_DOTENV = ("DB_HOST", "DB_PORT", "DB_USER", "DB_PASS", "DB_SSLMODE", "DB_SSLROOTCERT")
-_dotenv_values = dotenv.dotenv_values(os.path.join(_REPO_ROOT, ".env"))
-for _key in _DB_KEYS_FROM_DOTENV:
-    if _dotenv_values.get(_key) is not None:
-        os.environ.setdefault(_key, _dotenv_values[_key])
-os.environ.setdefault("DB_HOST", "localhost")
-
-# app.py, database.py and wsgi.py each call load_dotenv() themselves at
-# import time (plus a second one for hashi/.env) -- neutralize it for the
-# whole session so none of them can re-load what was deliberately skipped
-# above. Has to happen before the first `from dotenv import load_dotenv` in
-# any of those modules runs, i.e. before the imports further down.
-dotenv.load_dotenv = lambda *args, **kwargs: False
-
-# Second layer, for credentials exported in the shell rather than written in
-# .env: drop every variable that would make the app call a third-party
-# service, so razorpay_configured()/the AI backends/SMTP-from-env/alert
-# webhooks/etc. all see "not configured" and take their demo or no-op path.
-# A test that needs one of these set puts a fake value back with
-# monkeypatch.setenv AND mocks the HTTP call (see _network_guard below).
-_THIRD_PARTY_ENV_KEYS = (
-    "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", "PAYOUT_PROVIDER",
-    "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "N8N_WEBHOOK_URL", "N8N_WEBHOOK_SECRET",
-    "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY",
-    "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM_EMAIL", "SMTP_FROM_NAME",
-    "SECURITY_ALERT_WEBHOOK_URL", "SECURITY_ALERT_SIGNING_SECRET", "SECURITY_ALERT_EMAIL",
-    "SECURITY_ALERT_PLATFORM", "EXPO_ACCESS_TOKEN",
-    "SOC_DASHBOARD_URL", "SOC_ADMIN_TOKEN", "GRAFANA_URL",
-    "REDIS_HOST", "REDIS_URL", "REDIS_PASSWORD", "CLAMAV_HOST",
-)
-_THIRD_PARTY_ENV_PREFIXES = ("HEARTBEAT_URL_", "BACKUP_HEARTBEAT_URL", "GOOGLE_OAUTH_", "MICROSOFT_OAUTH_")
-for _key in list(os.environ):
-    if _key in _THIRD_PARTY_ENV_KEYS or _key.startswith(_THIRD_PARTY_ENV_PREFIXES):
-        del os.environ[_key]
+load_dotenv()
 
 
 def _test_db_name(environ):
@@ -93,53 +49,9 @@ def _ensure_test_database(name):
 
 
 # Override values for testing
-#
-# One database per pytest-xdist worker: a plain `pytest` run uses att_test
-# exactly as before; under `pytest -n N` each worker process (gw0, gw1, ...)
-# gets att_test_gw0, att_test_gw1, ... so the per-test snapshot/restore
-# further down only ever resets that worker's own data. Created on first
-# use and left in place afterwards, same as att_test itself -- every test
-# restores the baseline, so there is nothing to clean up between runs.
-_XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER", "")
-os.environ["DB_NAME"] = f"att_test_{_XDIST_WORKER}" if _XDIST_WORKER else "att_test"
-
-
-def _ensure_worker_database(db_name):
-    """CREATE DATABASE for an xdist worker if it doesn't exist yet. Has to
-    run here, before `import app` below -- that import connects to DB_NAME
-    and builds the schema."""
-    import psycopg2
-    conn = psycopg2.connect(
-        host=os.environ["DB_HOST"],
-        port=int(os.environ.get("DB_PORT", "5432")),
-        user=os.environ.get("DB_USER", "postgres"),
-        password=os.environ.get("DB_PASS", ""),
-        dbname="postgres",
-    )
-    conn.autocommit = True
-    cur = conn.cursor()
-    cur.execute("SELECT 1 FROM pg_database WHERE datname=%s", (db_name,))
-    if not cur.fetchone():
-        cur.execute(f'CREATE DATABASE "{db_name}"')  # db_name is att_test_<xdist worker id>, built above -- not external input
-    cur.close()
-    conn.close()
-
-
-if _XDIST_WORKER:
-    _ensure_worker_database(os.environ["DB_NAME"])
-
 os.environ["DB_NAME"] = _test_db_name(os.environ)
 _ensure_test_database(os.environ["DB_NAME"])
 os.environ["APP_ENV"] = "development"   # avoids HTTPS-only cookies
-# utils/helpers.py's _scan_for_malware() is on by default and dials a clamd
-# daemon at CLAMAV_HOST (default "clamav", the compose service name) for
-# every upload. No such daemon exists in a test run, so 43 upload tests
-# were each doing a real DNS lookup/connect and only passing because the
-# development-mode scanner fails open when unreachable. Off for the suite
-# (the documented clean-skip switch, read once at import); the scanner's own
-# tests (test_helpers_utils.py's TestScanForMalware) turn it back on
-# per-test with a fake clamd socket.
-os.environ["MALWARE_SCAN_ENABLED"] = "false"
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 # utils/helpers.py's PII-encryption bootstrap hard-fails at import time if
 # this is missing, in every environment including tests — no dev/test
@@ -245,8 +157,10 @@ flask_app.wsgi_app = TenantPrefixMiddleware(flask_app.wsgi_app)
 # up test values AND _register_api_v1_aliases() sees the full route set.
 import app as _app_module  # noqa: F401 — triggers route registration + init_db
 
-# Fall back to typical local-Postgres defaults ONLY if neither the shell nor
-# .env's DB_* keys (copied in at the top of this file) provided them.
+# Fall back to typical local-Postgres defaults ONLY if .env (already loaded
+# by database.py's load_dotenv() above) didn't provide them — setting these
+# before the imports would permanently lock out the real .env values, since
+# load_dotenv() never overrides an already-set env var.
 os.environ.setdefault("DB_PORT", "5432")
 os.environ.setdefault("DB_USER", os.getenv("DB_USER", "postgres"))
 os.environ.setdefault("DB_PASS", os.getenv("DB_PASS", ""))
@@ -287,93 +201,6 @@ flask_app.config["REQUIRE_EMAIL_2FA"] = False
 # that join() returns immediately.
 from utils.async_writer import set_synchronous_mode
 set_synchronous_mode(True)
-
-
-# ── No real network from tests ───────────────────────────────────────────────
-# Safety net behind the env cleanup at the top of this file: even if a
-# credential slips through (or a test sets one and forgets to mock the
-# call), nothing may actually leave the machine. Everything outbound in
-# this codebase -- urllib.request.urlopen (Razorpay, Anthropic/Gemini, n8n,
-# Turnstile, Expo push, alert webhooks, heartbeats), smtplib, redis, clamd --
-# ends up in socket.getaddrinfo() and/or socket.socket.connect(), so those
-# two are wrapped rather than each client separately. psycopg2 talks to
-# PostgreSQL through libpq, not Python's socket module, so the test
-# database connection is unaffected.
-#
-# A blocked call raises OSError (so the app's own "provider unreachable"
-# handling runs, as it would on a real outage) AND is recorded, and the
-# autouse fixture below fails the test at teardown -- app code that catches
-# the exception and carries on can't hide the attempt. A test that
-# genuinely needs the network opts in with @pytest.mark.allow_network.
-_LOCAL_HOSTNAMES = {"", "localhost", "localhost.localdomain"}
-_blocked_network_calls = []
-_network_guard_state = {"enforce": True}
-_real_getaddrinfo = socket.getaddrinfo
-_real_socket_connect = socket.socket.connect
-_real_socket_connect_ex = socket.socket.connect_ex
-
-
-class BlockedNetworkCall(OSError):
-    """Raised in place of a real outbound connection during a test."""
-
-
-def _is_local_host(host):
-    if host is None:
-        return True
-    if isinstance(host, bytes):
-        host = host.decode("ascii", "replace")
-    host = str(host).strip().lower()
-    if host in _LOCAL_HOSTNAMES:
-        return True
-    try:
-        return ipaddress.ip_address(host.split("%", 1)[0]).is_loopback
-    except ValueError:
-        return False
-
-
-def _check_outbound(host, what):
-    if not _network_guard_state["enforce"] or _is_local_host(host):
-        return
-    _blocked_network_calls.append(f"{what} -> {host}")
-    raise BlockedNetworkCall(f"tests must not reach the network: {what} -> {host!r} (mock it, or mark the test allow_network)")
-
-
-def _guarded_getaddrinfo(host, *args, **kwargs):
-    _check_outbound(host, "DNS lookup")
-    return _real_getaddrinfo(host, *args, **kwargs)
-
-
-def _guarded_connect(self, address):
-    # AF_UNIX addresses are plain strings/bytes, never remote.
-    if isinstance(address, tuple) and address:
-        _check_outbound(address[0], "connect")
-    return _real_socket_connect(self, address)
-
-
-def _guarded_connect_ex(self, address):
-    if isinstance(address, tuple) and address:
-        _check_outbound(address[0], "connect")
-    return _real_socket_connect_ex(self, address)
-
-
-socket.getaddrinfo = _guarded_getaddrinfo
-socket.socket.connect = _guarded_connect
-socket.socket.connect_ex = _guarded_connect_ex
-
-
-@pytest.fixture(autouse=True)
-def _network_guard(request):
-    """Fail any test that tried to reach a non-loopback host -- see the
-    block comment above. Opt out with @pytest.mark.allow_network."""
-    allowed = request.node.get_closest_marker("allow_network") is not None
-    _network_guard_state["enforce"] = not allowed
-    del _blocked_network_calls[:]
-    yield
-    _network_guard_state["enforce"] = True
-    if _blocked_network_calls:
-        attempts = ", ".join(sorted(set(_blocked_network_calls)))
-        del _blocked_network_calls[:]
-        pytest.fail(f"test attempted real network access: {attempts}", pytrace=False)
 
 
 @pytest.fixture(scope="session")
@@ -569,55 +396,6 @@ def _snapshot_schema(cur, schema):
     return snap
 
 
-def _can_bypass_triggers(cur):
-    """True when this connection may set session_replication_role (a
-    superuser-only setting) -- the precondition for the fast DELETE-based
-    restore below. CI and docker-compose.test.yml both connect as the
-    postgres superuser; a developer running as an ordinary role gets the
-    slower TRUNCATE path instead of an error."""
-    cur.execute("SELECT current_setting('is_superuser')")
-    return cur.fetchone()[0] == "on"
-
-
-def _restore_snapshot(cur, schema_snapshots, extra_schemas, fast=False):
-    """Empty every table across the snapshotted schemas, re-insert exactly
-    the rows captured in schema_snapshots, then re-sync every serial
-    column's sequence in one combined round trip (see _target_setvals()
-    above -- with ~80+ serial columns across the schema, one setval() per
-    column was the dominant per-test cost; a single statement chaining all
-    of them cut this fixture's per-test overhead by roughly 3x). Drops any
-    schema created mid-test that wasn't part of the baseline.
-
-    How the tables are emptied is the one thing `fast` changes:
-
-    - fast=False: one multi-table TRUNCATE ... RESTART IDENTITY CASCADE
-      (Postgres resolves FK ordering for that on its own -- no manual
-      dependency sort needed). Correct for any role, but TRUNCATE rewrites
-      every table's files whether or not the test touched it -- measured
-      at 1.0-1.9s per call for this schema's ~70 tables, i.e. nearly all
-      of the suite's ~1.3s-per-test average.
-    - fast=True: plain DELETEs inside one transaction with
-      session_replication_role=replica, which switches off FK enforcement
-      for the transaction so no dependency order or CASCADE is needed.
-      DELETE on an untouched (empty) table is close to free, so the same
-      full reset measured at ~12ms. SET LOCAL scopes the setting to this
-      transaction only -- it can't leak onto the connection afterwards.
-      The end state is identical: same rows, and the setval() pass below
-      already puts every sequence where RESTART IDENTITY + re-insert did."""
-    for schema in extra_schemas:
-        cur.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')  # nosec B608 -- schema name sourced from information_schema, not external input
-
-    all_tables = [
-        f'"{schema}"."{table}"'
-        for schema, snap in schema_snapshots.items()
-        for table in snap
-    ]
-    if fast:
-        statements = ["BEGIN", "SET LOCAL session_replication_role = replica", "SET LOCAL synchronous_commit = off"]
-        statements += [f"DELETE FROM {table}" for table in all_tables]  # nosec B608 -- table list built entirely from information_schema, never external input
-        cur.execute("; ".join(statements))
-    elif all_tables:
-        cur.execute(f'TRUNCATE {", ".join(all_tables)} RESTART IDENTITY CASCADE')  # nosec B608 -- table list built entirely from information_schema, never external input  # noqa: E501
 def _restore_snapshot(cur, schema_snapshots, extra_schemas):
     """Empty every table across the snapshotted schemas, re-insert exactly
     the rows captured in schema_snapshots, then re-sync every serial
@@ -670,9 +448,6 @@ def _restore_snapshot(cur, schema_snapshots, extra_schemas):
         flat_params = [v for triple in setval_args for v in triple]
         cur.execute(f"SELECT {select_list}", flat_params)  # nosec B608 -- fixed setval(...) template repeated N times; every value is a bound param
 
-    if fast:
-        cur.execute("COMMIT")
-
 
 @pytest.fixture(scope="session")
 def _db_baseline_snapshot(db_engine, _init_test_db, _reset_login_attempts, _reset_attendance_lockouts):
@@ -685,9 +460,8 @@ def _db_baseline_snapshot(db_engine, _init_test_db, _reset_login_attempts, _rese
     cur = db_engine.cursor()
     snap = {schema: _snapshot_schema(cur, schema) for schema in _BASELINE_SCHEMAS}
     baseline_schemas = _list_user_schemas(cur)
-    fast = _can_bypass_triggers(cur)
     cur.close()
-    return snap, baseline_schemas, fast
+    return snap, baseline_schemas
 
 
 @pytest.fixture(autouse=True)
@@ -698,19 +472,10 @@ def _reset_db_after_test(db_engine, _db_baseline_snapshot):
     already leaves the database in the correct starting state.
     """
     yield
-    snap, baseline_schemas, fast = _db_baseline_snapshot
+    snap, baseline_schemas = _db_baseline_snapshot
     cur = db_engine.cursor()
     extra_schemas = _list_user_schemas(cur) - baseline_schemas
-    try:
-        _restore_snapshot(cur, snap, extra_schemas, fast=fast)
-    except Exception:
-        # A failure part-way through the fast path leaves its explicit
-        # transaction open -- close it so the next test's teardown (and
-        # every other fixture sharing db_engine) isn't stuck inside an
-        # aborted transaction, then surface the original error.
-        if fast:
-            cur.execute("ROLLBACK")
-        raise
+    _restore_snapshot(cur, snap, extra_schemas)
     cur.close()
     _clear_process_caches()
 

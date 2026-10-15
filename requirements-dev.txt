@@ -10,9 +10,6 @@ pytest-mock>=3.14.0
 # alongside tests/conftest.py's per-test DB snapshot/restore specifically so
 # order-dependence can't silently creep back in unnoticed.
 pytest-randomly>=3.15.0
-# Optional parallel runs: `pytest -n 4`. tests/conftest.py gives each worker
-# its own database (att_test_gw0, att_test_gw1, ...), created on first use.
-pytest-xdist>=3.6.0
 
 # ── Code quality ──────────────────────────────────────────────────────────────
 flake8>=7.1.0

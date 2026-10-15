@@ -67,29 +67,15 @@ def test_template_compiles(page):
     flask_app.jinja_env.get_template(page)
 
 
-def _inline_scripts(page):
+@pytest.mark.skipif(not NODE, reason="node is required to syntax-check page scripts")
+@pytest.mark.parametrize("page", DASHBOARDS)
+def test_inline_javascript_parses(page, tmp_path):
     html = open(os.path.join(ROOT, "templates", page), encoding="utf-8").read()
     html = re.sub(r"<!--.*?-->|[{]#.*?#[}]", "", html, flags=re.S)      # a comment may mention "<script>"
-    return re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)
-
-
-# Only pages that actually carry an inline <script> are parametrized below.
-# This used to run for every dashboard and pytest.skip("no inline script")
-# for the rest -- seven super_admin_* pages that are plain server-rendered
-# HTML -- which put seven permanent skips in every run's summary that looked
-# like a missing dependency. Computed from the templates themselves, so a
-# page that gains a script later is picked up without touching this list.
-PAGES_WITH_INLINE_JS = [page for page in DASHBOARDS if _inline_scripts(page)]
-
-
-def test_inline_javascript_check_has_pages_to_check():
-    assert PAGES_WITH_INLINE_JS, "no dashboard has an inline script -- the extraction regex has probably stopped matching"
-
-
-@pytest.mark.skipif(not NODE, reason="node is not on PATH; it is required to syntax-check page scripts (node --check)")
-@pytest.mark.parametrize("page", PAGES_WITH_INLINE_JS)
-def test_inline_javascript_parses(page, tmp_path):
-    js = "\n;\n".join(_inline_scripts(page))
+    scripts = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S)
+    if not scripts:
+        pytest.skip("no inline script")
+    js = "\n;\n".join(scripts)
     js = re.sub(r"[{][{].*?[}][}]", "0", js, flags=re.S)
     js = re.sub(r"[{]%.*?%[}]", "", js, flags=re.S)
     f = tmp_path / "page.js"

@@ -15,9 +15,6 @@ TestCompanyProfile.crm_tenant fixture already uses for its own tenant.
 import os
 import pytest
 
-# DB_NAME is "att_test" in a plain run and "att_test_<worker>" under
-# pytest-xdist (see tests/conftest.py) -- read it rather than hardcoding.
-TENANT_SCHEMA = os.environ["DB_NAME"]
 TENANT_SCHEMA = os.environ["DB_NAME"]  # the suite's default tenant schema (see conftest)
 
 
