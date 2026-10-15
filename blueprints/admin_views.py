@@ -19,7 +19,6 @@ import uuid
 import json
 import secrets
 import datetime
-import calendar
 from io import BytesIO
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash, abort, g,
@@ -43,7 +42,7 @@ from utils.helpers import (
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
     encrypt_pii, decrypt_pii, invalidate_companies_cache,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
-    post_announcement, _validate_upload,
+    post_announcement, _validate_upload, company_today, company_now, int_param,
 )
 from utils.storage import save_private, open_private, delete_private
 from utils.email_utils import get_email_config, send_email_smtp
@@ -52,7 +51,7 @@ from utils.totp import (
     get_or_create_admin_totp_secret, mark_totp_enabled, verify_totp_code, totp_qr_data_uri,
     reset_admin_totp_secret,
 )
-from utils.attendance_utils import _td_to_time
+from utils.attendance_utils import _td_to_time, attendance_pct_series
 import utils.config as cfg
 
 _ANN_ALLOWED_EXT = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'}
@@ -80,7 +79,7 @@ _TOGGLE_LABEL_MAP = {
 def admin():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
     _co_sub, _ = co_scope_subquery(active_cid)
@@ -181,6 +180,7 @@ def admin():
 
     cursor.close()
     db.close()
+    shift = cfg.shift_rules()
 
     return render_template("admin.html",
                            total=total,
@@ -191,8 +191,8 @@ def admin():
                            active_nav="dashboard",
                            today_rows=today_rows,
                            all_employees=all_employees,
-                           shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
-                           shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
+                           shift_start=shift.start.strftime("%I:%M %p"),
+                           shift_end=shift.end.strftime("%I:%M %p"),
                            pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,
                            pending_ot=pending_ot,
@@ -287,7 +287,7 @@ def dashboard_live():
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
     _co_sub, _ = co_scope_subquery(active_cid)
@@ -353,7 +353,7 @@ def dashboard_live():
 def attendance_chart_data():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    today = datetime.date.today()
+    today = company_today()
 
     active_cid = session.get("active_company_id")
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
@@ -698,9 +698,10 @@ def settings_page():
             return v.strftime("%H:%M")
         return str(v)[:5]
 
-    _co_shift_start = _td_str(fr.get("shift_start")) or cfg.SHIFT_START.strftime("%H:%M")
-    _co_shift_half = _td_str(fr.get("shift_half")) or cfg.SHIFT_HALF.strftime("%H:%M")
-    _co_shift_end = _td_str(fr.get("shift_end")) or cfg.SHIFT_END.strftime("%H:%M")
+    _default_shift = cfg.shift_rules()
+    _co_shift_start = _td_str(fr.get("shift_start")) or _default_shift.start.strftime("%H:%M")
+    _co_shift_half = _td_str(fr.get("shift_half")) or _default_shift.half.strftime("%H:%M")
+    _co_shift_end = _td_str(fr.get("shift_end")) or _default_shift.end.strftime("%H:%M")
 
     cursor.execute(
         "SELECT r.id, r.year, r.month, r.status, r.total_amount, r.employee_count, "
@@ -790,8 +791,8 @@ def settings_page():
                            default_start=_co_shift_start,
                            default_half=_co_shift_half,
                            default_end=_co_shift_end,
-                           now_month=datetime.date.today().month,
-                           now_year=datetime.date.today().year,
+                           now_month=company_today().month,
+                           now_year=company_today().year,
                            default_onboarding_tpl=default_onboarding_tpl,
                            onboarding_templates=onboarding_templates,
                            late_deduction_pct=round(fr["late_deduction_pct"], 1),
@@ -1096,8 +1097,7 @@ def save_salary_rules():
         db.commit()
         cursor.close()
         db.close()
-        cfg.load_salary_rules()
-        cfg.load_default_shift()
+        invalidate_settings_cache()
     flash("Salary rules saved.", "success")
     return redirect(tpath("/settings?tab=salary"))
 
@@ -1440,7 +1440,7 @@ def api_settings_save_salary_rules():
     db.commit()
     cursor.close()
     db.close()
-    cfg.load_salary_rules()
+    invalidate_settings_cache()
     return jsonify({"ok": True, "msg": "Salary rules saved."})
 
 
@@ -2129,7 +2129,7 @@ def test_email():
 @admin_views_bp.route("/api/admin/expiring_documents", methods=["GET"])
 @admin_required
 def api_expiring_documents():
-    days = int(request.args.get("days", 30))
+    days = int_param(request.args.get("days", 30))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
@@ -2164,7 +2164,7 @@ def analytics():
 
     co = get_company_settings()
 
-    today = datetime.date.today()
+    today = company_today()
     _doj_start = today.replace(day=1)
     _doj_end = datetime.date(today.year + 1, 1, 1) if today.month == 12 else today.replace(month=today.month + 1, day=1)
 
@@ -2187,19 +2187,9 @@ def analytics():
     cursor.execute("SELECT date FROM holidays")
     all_holidays = {r[0] for r in cursor.fetchall()}
 
-    def _working_days_in_month(y, m):
-        _, last_day = calendar.monthrange(y, m)
-        days = []
-        for d in range(1, last_day + 1):
-            dt = datetime.date(y, m, d)
-            if dt.weekday() != 6 and dt not in all_holidays:
-                days.append(dt)
-        return days
-
-    # Precompute all 6 month boundaries up front so their attendance counts
-    # can be pulled in a single grouped query below instead of one
-    # cursor.execute() per month -- this loop used to be the single biggest
-    # contributor to this route's sequential DB round-trips.
+    # Precompute all 6 month boundaries up front so their attendance can be
+    # pulled in a single grouped query below instead of one
+    # cursor.execute() per month.
     _month_bounds = []
     for i in range(5, -1, -1):
         ref = today.replace(day=1) - datetime.timedelta(days=1) * (i * 28)
@@ -2210,36 +2200,13 @@ def analytics():
         _month_bounds.append((y, m, month_start, month_end))
 
     cursor.execute("""
-        SELECT date_trunc('month', date)::date AS month_start, COUNT(DISTINCT employee_id)
-        FROM attendance
-        WHERE date >= %s AND date < %s AND login_time IS NOT NULL
-        GROUP BY date_trunc('month', date)
+        SELECT a.date, COUNT(DISTINCT a.employee_id)
+        FROM attendance a JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.date >= %s AND a.date < %s AND a.login_time IS NOT NULL
+        GROUP BY a.date
     """, (_month_bounds[0][2], _month_bounds[-1][3]))
-    _present_by_month = {r[0]: r[1] for r in cursor.fetchall()}
-
-    monthly_series = []
-    for y, m, month_start, month_end in _month_bounds:
-        working_days = _working_days_in_month(y, m)
-        if not working_days:
-            continue
-        past_days = [d for d in working_days if d <= today]
-        total_days = len(past_days)
-        if total_days == 0:
-            monthly_series.append({
-                'month_label': month_start.strftime("%b %Y"),
-                'total_days': 0, 'present_days': 0, 'absent_days': 0, 'att_pct': 0
-            })
-            continue
-        present_records = _present_by_month.get(month_start, 0)
-        expected = total_days * (total_employees or 1)
-        present_pct = round(present_records / expected * 100, 1) if expected else 0
-        monthly_series.append({
-            'month_label': month_start.strftime("%b %Y"),
-            'total_days': total_days,
-            'present_days': present_records,
-            'absent_days': max(0, expected - present_records),
-            'att_pct': present_pct
-        })
+    _present_by_day = {r[0]: r[1] for r in cursor.fetchall()}
+    monthly_series = attendance_pct_series(_month_bounds, _present_by_day, all_holidays, today, total_employees)
 
     # Current month is always the loop's last entry (i=0 above) -- reuse it
     # instead of re-running the identical query a second time.
@@ -2661,7 +2628,7 @@ def api_test_email():
         return jsonify({"ok": False, "msg": "No SMTP configuration found in system. Please configure SMTP first."}), 400
 
     subject = "⚡ SMTP Connection Test -- HRzest.com"
-    now_str = datetime.datetime.now().strftime("%d %b %Y, %I:%M %p")
+    now_str = company_now().strftime("%d %b %Y, %I:%M %p")
     html_body = f"""
     <div style="font-family: Arial, sans-serif; padding: 24px; background: #f8fafc; border-radius: 12px;">
       <h2 style="color: #16a34a; margin-top: 0;">✅ SMTP Connection Test Successful!</h2>
@@ -2676,9 +2643,7 @@ def api_test_email():
     """
 
     try:
-        err = send_email_smtp(target_email, subject, html_body, cfg)
-        if err:
-            return jsonify({"ok": False, "msg": f"SMTP delivery error: {err}"}), 500
+        send_email_smtp(target_email, subject, html_body, cfg)   # raises on failure; returns nothing
         return jsonify({"ok": True, "msg": f"Test email successfully delivered to {target_email}!"})
     except Exception:
         app_log.exception("api_test_email: SMTP delivery exception")

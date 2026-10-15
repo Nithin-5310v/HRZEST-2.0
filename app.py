@@ -44,10 +44,10 @@ load_dotenv()
 _HASHI_ENV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hashi", ".env")
 load_dotenv(_HASHI_ENV)
 
-from flask import request, session, jsonify, redirect, url_for, flash, current_app, abort, g as _g
+from flask import request, session, jsonify, redirect, url_for, flash, current_app, abort, make_response, g as _g
 import datetime
 import html as _html
-from database import get_db_connection, get_master_db
+from database import get_db_connection, get_master_db, DatabaseUnavailable
 
 # ── Startup: warn if critical env vars are missing ──
 _missing_env = [k for k in ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME") if not os.environ.get(k)]
@@ -82,7 +82,7 @@ from utils.email_utils import (
 # file. Consolidated onto one implementation; see utils/auth.py.
 from utils.auth import HR_ROLE
 from utils.helpers import (
-    _error_page, invalidate_settings_cache, get_company_settings,
+    _error_page, wants_json_response, invalidate_settings_cache, get_company_settings,
     get_companies_list, get_overdue_onboarding_count, coerce_datetime,
     tpath as _tpath, static_url as _static_url,
 )
@@ -91,8 +91,8 @@ from utils.helpers import (
 # globals, mutated by its own separate load_default_shift()/
 # load_salary_rules(). utils/config.py's docstring already stated the
 # intent ("blueprints should always access them through this module") --
-# app.py just never migrated. Now the single source both use, referenced
-# throughout this file as cfg.SHIFT_START etc.
+# app.py just never migrated. Shift and payroll rules are per company
+# (QA BUG-01): read them with cfg.shift_rules() / cfg.salary_rules().
 import utils.config as cfg
 import utils.waf as waf
 
@@ -108,9 +108,10 @@ import utils.waf as waf
 
 @app.context_processor
 def inject_common_vars():
+    shift = cfg.shift_rules()
     return dict(
-        shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
-        shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
+        shift_start=shift.start.strftime("%I:%M %p"),
+        shift_end=shift.end.strftime("%I:%M %p"),
         # templates/admin_base.html's sidebar "Dashboard" link reads this
         # (`tpath('/employees') if _is_hr else tpath('/admin')`) -- it was
         # referencing this exact name already, just never actually
@@ -1045,9 +1046,10 @@ def _security_headers(response):
             _style_hashes = set()
         _style_unsafe_hashes = " 'unsafe-hashes'" if _style_hashes else ""
         _style_hash_src = (" " + " ".join(sorted(_style_hashes))) if _style_hashes else ""
-        # Cloudflare Turnstile (admin_login CAPTCHA) and employee portal
-        # loopback agent get path-scoped exceptions only.
-        _is_turnstile_page = request.path in ("/admin_login", "/login")
+        # Cloudflare Turnstile (admin_login CAPTCHA; the home page's company
+        # registration form, which POST /create_org checks it for) and the
+        # employee portal loopback agent get path-scoped exceptions only.
+        _is_turnstile_page = request.path in ("/admin_login", "/login", "/")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
         # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
         # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
@@ -1202,21 +1204,9 @@ def inject_company():
     return {"co": get_company_settings()}
 
 
-# Office location, shift timings, and deduction rates now live solely in
-# utils/config.py -- see the `import utils.config as cfg` note above.
-# Startup load still happens here (same timing as before: once, at import,
-# inside an app context) since nothing else in this file's import order
-# guarantees the DB is reachable earlier than this point.
-with app.app_context():
-    try:
-        cfg.load_default_shift()
-        cfg.load_salary_rules()
-    except Exception as exc:
-        # Falls back to cfg's hardcoded defaults, silently -- worth logging
-        # since a DB that isn't reachable yet at this exact import-time
-        # point means shift/salary config stays wrong until the next
-        # successful load, not just this one startup.
-        app_log.warning("Startup load of default shift/salary config failed: %s", exc, exc_info=True)
+# Shift timings and deduction rates are read per company, per request, by
+# utils/config.py (shift_rules() / salary_rules()) -- there is no startup
+# load any more (QA BUG-01).
 
 # ── PII Encryption ────────────────────────────────────────────────
 # Consolidated onto utils/helpers.py (see import block near the top of this
@@ -1332,16 +1322,30 @@ def rate_limit_exceeded(e):
     waf.record_breach_and_maybe_ban(request.remote_addr, "Repeated rate-limit breaches")
     log_security_event("ratelimit.exceeded", f"Rate limit exceeded: {getattr(e, 'description', '')}",
                        level="WARNING")
-    is_ajax = (
-        request.path.startswith("/api/")
-        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
-        or request.accept_mimetypes.best == "application/json"
-    )
-    if is_ajax:
+    if wants_json_response():
         return jsonify({"ok": False, "msg": "Too many requests. Please slow down and try again shortly."}), 429
     return _error_page(429, "⏳", "Too Many Requests",
                        "You've made too many requests in a short period.",
                        "Please wait a moment before trying again.")
+
+
+@app.errorhandler(DatabaseUnavailable)
+def database_unavailable(e):
+    """database.py raises DatabaseUnavailable instead of silently switching
+    to a local SQLite file when PostgreSQL can't be reached (outside
+    APP_ENV=development). Answer 503 so the outage is visible and retryable,
+    and alert (CRITICAL security events go to the alert webhook)."""
+    log_security_event("db.unavailable", "PostgreSQL unavailable -- request answered 503", level="CRITICAL")
+    if wants_json_response():
+        resp = jsonify({"ok": False, "msg": "Service temporarily unavailable. Please try again shortly."})
+    else:
+        resp = _error_page(503, "🛠️", "Service Temporarily Unavailable",
+                           "We can't reach the database right now.",
+                           "Please try again in a minute.")
+    resp = make_response(resp)
+    resp.status_code = 503
+    resp.headers["Retry-After"] = "30"
+    return resp
 
 
 @app.errorhandler(404)
@@ -2219,8 +2223,6 @@ if __name__ == "__main__":
     init_master_db()
     init_db()
     _run_migrations_for_all_tenants()
-    cfg.load_default_shift()
-    cfg.load_salary_rules()
     # wsgi.py wraps app.wsgi_app with this at import time -- running app.py
     # directly (`python app.py`) never goes through wsgi.py, so without this
     # every path-based tenant link (/<company-slug>/...) 404s: nothing ever
@@ -2277,10 +2279,9 @@ if __name__ == "__main__":
     # making a local port collision with anything else already bound to
     # 5000 unfixable without editing source. Same env var, same default.
     _port = int(_os.environ.get("PORT", "5000"))
-    # threaded=True: /api/session/risk-stream (blueprints/core.py) holds an
-    # SSE connection open for ~20s, and Werkzeug's dev server is single-
-    # threaded by default -- without this, one open stream blocks every
-    # other request until it closes.
+    # threaded=True: Werkzeug's dev server is single-threaded by default,
+    # so one slow request (an upload, a report) would block every other
+    # request until it finished.
     if _os.path.exists(_cert) and _os.path.exists(_key):
         # app.run(..., ssl_context=(...)) wraps the *listening* socket
         # (Werkzeug's serving.py), so every TLS handshake runs synchronously

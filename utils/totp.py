@@ -12,6 +12,7 @@ import time
 import pyotp
 import qrcode
 from database import get_db_connection
+from extensions import app_log
 from utils.helpers import encrypt_pii, decrypt_pii
 
 _ISSUER = "HRzest.com"
@@ -38,18 +39,37 @@ def _totp_cache_key(admin_username):
     return (tenant, admin_username)
 
 
+def _redis():
+    import extensions  # read per call: the client is configured at startup (and patched in tests)
+    return extensions.redis_client
+
+
+def _redis_key(key):
+    return "totp_enabled:%s:%s" % key
+
+
 def is_totp_enabled_cached(admin_username: str) -> bool:
     """Cached read of admin_users.totp_enabled for the mandatory-MFA-
     enrollment gate. mark_totp_enabled()/reset_admin_totp_secret() below
-    invalidate this immediately on write, so the TTL window only ever
-    means "up to 60s stale in the direction of still requiring
-    enrollment" (annoying, never a security gap) -- a session can't use a
-    stale cache entry to skip a just-reset enrollment requirement."""
+    invalidate it on write. With Redis configured the cache is shared, so
+    that invalidation reaches every gunicorn worker; a per-worker cache let
+    another worker keep "enabled" for up to the TTL after an MFA reset and
+    skip the re-enrollment gate (QA SCALE-04). Without Redis (single
+    process, tests) the in-process dict is used."""
     key = _totp_cache_key(admin_username)
-    now = time.time()
-    entry = _totp_enabled_cache.get(key)
-    if entry is not None and now < entry[1]:
-        return entry[0]
+    client = _redis()
+    if client is not None:
+        try:
+            raw = client.get(_redis_key(key))
+            if raw is not None:
+                return raw in (b"1", "1")
+        except Exception as exc:
+            app_log.warning("totp cache: redis read failed, using in-memory fallback: %s", exc)
+            client = None
+    if client is None:
+        entry = _totp_enabled_cache.get(key)
+        if entry is not None and time.time() < entry[1]:
+            return entry[0]
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT COALESCE(totp_enabled, 0) FROM admin_users WHERE username=%s", (admin_username,))
@@ -57,12 +77,25 @@ def is_totp_enabled_cached(admin_username: str) -> bool:
     cursor.close()
     db.close()
     enabled = bool(row and row[0])
-    _totp_enabled_cache[key] = (enabled, now + _TOTP_ENABLED_CACHE_TTL)
+    if client is not None:
+        try:
+            client.setex(_redis_key(key), _TOTP_ENABLED_CACHE_TTL, "1" if enabled else "0")
+            return enabled
+        except Exception as exc:
+            app_log.warning("totp cache: redis write failed, using in-memory fallback: %s", exc)
+    _totp_enabled_cache[key] = (enabled, time.time() + _TOTP_ENABLED_CACHE_TTL)
     return enabled
 
 
 def _invalidate_totp_cache(admin_username: str):
-    _totp_enabled_cache.pop(_totp_cache_key(admin_username), None)
+    key = _totp_cache_key(admin_username)
+    _totp_enabled_cache.pop(key, None)
+    client = _redis()
+    if client is not None:
+        try:
+            client.delete(_redis_key(key))
+        except Exception as exc:
+            app_log.warning("totp cache: redis delete failed: %s", exc)
 
 
 def clear_totp_cache_for_tests():

@@ -1,0 +1,129 @@
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [  2%]
+........................................................................ [  5%]
+................................................s....................... [  7%]
+.........................s...............s...........s...............ss. [ 10%]
+...............s........................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+................................................                         [100%]{"time": "2026-10-14 11:45:56,785", "level": "WARNING", "module": "extensions", "message": "REDIS_HOST is not set (REQUIRE_REDIS=false) -- booting anyway. The WAF auto-ban breach counter and the rate limiter will both run in per-worker, in-memory-only mode: fine for a single gunicorn worker, but under multiple workers each enforces independently, multiplying the effective ban/rate threshold by the worker count."}
+
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.12.10-final-0 _______________
+
+Name                              Stmts   Miss  Cover
+-----------------------------------------------------
+app.py                              644    179    72%
+blueprints\admin_views.py          1489    275    82%
+blueprints\ai_hrms.py                38      2    95%
+blueprints\attendance.py            929     69    93%
+blueprints\auth.py                  852     80    91%
+blueprints\auto_debit.py            308     49    84%
+blueprints\billing.py               168     21    88%
+blueprints\billing_dunning.py       201     44    78%
+blueprints\company_profile.py       198     14    93%
+blueprints\core.py                  373     39    90%
+blueprints\disbursement.py          310     83    73%
+blueprints\documents.py             372    143    62%
+blueprints\email_blast.py            69     17    75%
+blueprints\employee_portal.py      1021    183    82%
+blueprints\employees.py            1400    267    81%
+blueprints\health.py                 26      4    85%
+blueprints\honeypot_routes.py        26     12    54%
+blueprints\hr_dashboard.py          222      2    99%
+blueprints\leave.py                 997    157    84%
+blueprints\notifications.py         116     28    76%
+blueprints\oauth_signup.py          196     37    81%
+blueprints\onboarding.py            867     95    89%
+blueprints\org.py                   931    309    67%
+blueprints\payroll.py               922    150    84%
+blueprints\performance.py           627    104    83%
+blueprints\platform_admin.py        969    178    82%
+blueprints\policies.py               88      4    95%
+blueprints\seats.py                  92      8    91%
+blueprints\tickets.py               140      8    94%
+blueprints\trial_billing.py         107     42    61%
+database.py                         274     67    76%
+extensions.py                       139     20    86%
+migrations\column_migrations.py     272     66    76%
+migrations\core_tables.py           117      6    95%
+migrations\master.py                104      4    96%
+migrations\orchestration.py          38     20    47%
+migrations\runner.py                 46      4    91%
+migrations\seed.py                   27      8    70%
+qr_generator.py                      32      3    91%
+utils\ai_assistant.py               230     70    70%
+utils\ai_attrition_analytics.py      72      8    89%
+utils\ai_client.py                   28     18    36%
+utils\ai_helpdesk.py                 74     10    86%
+utils\ai_interview_evaluator.py      35      8    77%
+utils\ai_resume_parser.py            60     17    72%
+utils\alerts.py                     133     20    85%
+utils\analytics.py                   34      5    85%
+utils\async_writer.py                34     15    56%
+utils\attendance_utils.py           174     12    93%
+utils\auth.py                       470     33    93%
+utils\chat_utils.py                  35      1    97%
+utils\config.py                      38      4    89%
+utils\dlp.py                         10      2    80%
+utils\document_verification.py      165     72    56%
+utils\email_utils.py                189     29    85%
+utils\face_utils.py                  64      9    86%
+utils\helpers.py                    749     75    90%
+utils\honeypot.py                    58      1    98%
+utils\job_runs.py                    30      1    97%
+utils\leave_utils.py                 24      4    83%
+utils\login_otp.py                   48      3    94%
+utils\oauth_client.py               100     19    81%
+utils\payment_history.py             79     21    73%
+utils\payout_utils.py                36      4    89%
+utils\plan_limits.py                 93      8    91%
+utils\push_utils.py                  78     11    86%
+utils\razorpay_utils.py             130     76    42%
+utils\salary_utils.py                99      1    99%
+utils\storage.py                     19      5    74%
+utils\task_queue.py                  31     31     0%
+utils\tenant_routing.py              45      7    84%
+utils\totp.py                       131     19    85%
+utils\waf.py                        130      6    95%
+utils\webauthn_utils.py             117     11    91%
+-----------------------------------------------------
+TOTAL                             19856   3437    83%
+
+11 files skipped due to complete coverage.
+Coverage JSON written to file qa_audit/baseline/coverage_after.json
+2849 passed, 7 skipped in 887.69s (0:14:47)

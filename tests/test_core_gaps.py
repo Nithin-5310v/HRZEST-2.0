@@ -46,12 +46,8 @@ class TestSessionRiskStream:
         with client.session_transaction() as sess:
             sess["admin_logged_in"] = True
             sess["_sid"] = "test-sid-12345"
-        # Deliberately not reading resp.data / resp.get_data() here -- the
-        # view returns a bounded (~20s) generator Response; the status line
-        # and headers are already finalized by the time Flask constructs
-        # the Response object, before the generator body is ever iterated,
-        # so checking those two is enough to prove the stream opened
-        # without actually running (and waiting out) the sleep loop.
+        # The body (an immediate answer plus `retry:`) is covered by
+        # tests/test_qa_session_risk_stream.py.
         resp = client.get("/api/session/risk-stream")
         assert resp.status_code == 200
         assert resp.mimetype == "text/event-stream"

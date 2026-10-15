@@ -44,15 +44,12 @@ from utils.tenant_routing import TenantPrefixMiddleware
 app.wsgi_app = TenantPrefixMiddleware(app.wsgi_app)
 
 # ── Startup DB init ───────────────────────────────────────────────────────────
+# Once per deploy, one worker at a time -- see migrations/runner.py (QA SCALE-02).
 with app.app_context():
     try:
         from app import init_master_db, init_db, _run_migrations_for_all_tenants
-        from utils.config import load_default_shift, load_salary_rules
-        init_master_db()
-        init_db()
-        _run_migrations_for_all_tenants()
-        load_default_shift()
-        load_salary_rules()
+        from migrations.runner import run_startup_migrations
+        run_startup_migrations(init_master_db, init_db, _run_migrations_for_all_tenants)
     except Exception as _e:
         app_log.warning("Startup init failed (non-fatal): %s", _e)
 
@@ -105,6 +102,14 @@ def _with_heartbeat(job_id, fn):
     return _wrapped
 
 
+def _scheduled_job(job_id, fn):
+    # Every gunicorn worker runs this scheduler; once_per_fire makes only
+    # one of them actually run each nightly job (QA SCALE-01). It wraps the
+    # heartbeat, so only the worker that ran the job pings.
+    from utils.job_runs import once_per_fire
+    return once_per_fire(job_id, _with_heartbeat(job_id, fn))
+
+
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
 except ImportError:
@@ -133,49 +138,53 @@ else:
         try:
             _scheduler = BackgroundScheduler(daemon=True)
             _scheduler.add_job(
-                func=_with_heartbeat("daily_attendance_report", generate_and_send_daily_report),
+                func=_scheduled_job("daily_attendance_report", generate_and_send_daily_report),
                 trigger="cron",
                 hour=23, minute=59,
+                # End of the company's day, not the server's: the container
+                # runs UTC, which fired this at 05:29 IST (QA BUG-26).
+                # Asia/Kolkata is the company-timezone default.
+                timezone="Asia/Kolkata",
                 id="daily_attendance_report",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("auto_debit_sync_and_bill", sync_and_bill_auto_debit),
+                func=_scheduled_job("auto_debit_sync_and_bill", sync_and_bill_auto_debit),
                 trigger="cron",
                 hour=2, minute=0,
                 id="auto_debit_sync_and_bill",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("reconcile_billing_records", reconcile_billing_records),
+                func=_scheduled_job("reconcile_billing_records", reconcile_billing_records),
                 trigger="cron",
                 hour=2, minute=30,
                 id="reconcile_billing_records",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("tenant_billing_dunning_check", check_tenant_billing),
+                func=_scheduled_job("tenant_billing_dunning_check", check_tenant_billing),
                 trigger="cron",
                 hour=3, minute=0,
                 id="tenant_billing_dunning_check",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("salary_disbursement_prep", prepare_pending_disbursements),
+                func=_scheduled_job("salary_disbursement_prep", prepare_pending_disbursements),
                 trigger="cron",
                 hour=4, minute=0,
                 id="salary_disbursement_prep",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("trial_expiration_check", check_trial_expirations),
+                func=_scheduled_job("trial_expiration_check", check_trial_expirations),
                 trigger="cron",
                 hour=1, minute=0,
                 id="trial_expiration_check",
                 replace_existing=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("trial_ending_soon_check", check_trial_ending_soon),
+                func=_scheduled_job("trial_ending_soon_check", check_trial_ending_soon),
                 trigger="cron",
                 hour=0, minute=30,
                 id="trial_ending_soon_check",
@@ -198,10 +207,9 @@ application = app   # gunicorn / uWSGI entry point
 if __name__ == "__main__":
     _cert = _os.environ.get("SSL_CERT_PATH") or _os.path.join(_os.path.dirname(__file__), "cert.pem")
     _key = _os.environ.get("SSL_KEY_PATH") or _os.path.join(_os.path.dirname(__file__), "key.pem")
-    # threaded=True: /api/session/risk-stream (blueprints/core.py) holds an
-    # SSE connection open for ~20s, and Werkzeug's dev server is single-
-    # threaded by default -- without this, one open stream blocks every
-    # other request until it closes.
+    # threaded=True: Werkzeug's dev server is single-threaded by default,
+    # so one slow request (an upload, a report) would block every other
+    # request until it finished.
     if _os.path.exists(_cert) and _os.path.exists(_key):
         print("SSL cert found -- starting on https://0.0.0.0:5000")
         app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False, threaded=True,  # nosec B104

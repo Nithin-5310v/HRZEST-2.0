@@ -561,6 +561,132 @@
     </div>
   </section>
 
+  <!-- Company Registration (manual). Posts to the gated signup flow in
+       blueprints/org.py's create_org(): email code, business documents,
+       then review by our team. Field behaviour: static/landing_register.js -->
+  <section class="contact-section" id="register">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag"><i class="ti ti-building-plus"></i> REGISTER YOUR COMPANY</span>
+        <h2 class="section-title" style="margin-bottom: 0.25rem;">Create your company account</h2>
+        <p class="section-subtitle">Fill in your company details. We'll verify your email, ask for a few business documents, and review your application before your portal goes live.</p>
+      </div>
+
+      <div class="contact-grid">
+        <div class="contact-info-card">
+          <h3 style="font-size: 1.5rem; margin-bottom: 1.5rem;">How registration works</h3>
+
+          <div class="contact-detail-item">
+            <div class="contact-icon cyan"><i class="ti ti-mail-check"></i></div>
+            <div>
+              <span class="contact-detail-label">Step 1</span>
+              <span class="contact-detail-value">Verify your admin email with a one-time code</span>
+            </div>
+          </div>
+
+          <div class="contact-detail-item">
+            <div class="contact-icon emerald"><i class="ti ti-file-certificate"></i></div>
+            <div>
+              <span class="contact-detail-label">Step 2</span>
+              <span class="contact-detail-value">Upload your registration certificate, address proof, visiting card and an office name-board photo</span>
+            </div>
+          </div>
+
+          <div class="contact-detail-item">
+            <div class="contact-icon purple"><i class="ti ti-shield-check"></i></div>
+            <div>
+              <span class="contact-detail-label">Step 3</span>
+              <span class="contact-detail-value">Our team reviews your application, then your portal goes live</span>
+            </div>
+          </div>
+
+          <p style="color: var(--text-muted); margin-top: 1.5rem;">Prefer to sign up with Google or Microsoft? <a href="/create_org" style="color:var(--accent-cyan); text-decoration:underline;">Use one-click sign-up</a></p>
+        </div>
+
+        <div class="contact-form-box">
+          <h3 style="font-size: 1.4rem; margin-bottom: 1.25rem;"><i class="ti ti-building" style="color:var(--accent-cyan)"></i> Company details</h3>
+
+          {% if registration_failed %}
+            {% for msg in get_flashed_messages(category_filter=["error"]) %}
+            <div class="form-error-banner" role="alert" style="margin-bottom: 1rem;"><i class="ti ti-circle-x"></i> {{ msg }}</div>
+            {% endfor %}
+          {% endif %}
+
+          <form id="homeRegisterForm" method="POST" action="/create_org" enctype="multipart/form-data" autocomplete="off">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="home">
+            <input type="hidden" name="email_domain" id="regEmailDomain">
+
+            <fieldset class="form-group" style="border: none; padding: 0; margin: 0 0 1.25rem;">
+              <legend style="margin-bottom: 0.5rem;">Plan <span class="req">*</span></legend>
+              <label style="display: block; margin-bottom: 0.4rem;">
+                <input type="radio" name="signup_plan" value="pay_now" checked> Pay now: your portal activates as soon as it's approved
+              </label>
+              <label style="display: block;">
+                <input type="radio" name="signup_plan" value="trial"> 2-day free trial: card required, billing starts when the trial ends unless you cancel
+              </label>
+            </fieldset>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="regCompanyName">Company Name <span class="req">*</span></label>
+                <input type="text" id="regCompanyName" name="company_name" class="form-control" placeholder="e.g. Acme Corporation" required>
+              </div>
+
+              <div class="form-group">
+                <label for="regGstNumber">GSTIN <span class="req">*</span></label>
+                <input type="text" id="regGstNumber" name="gst_number" class="form-control" placeholder="27AAAAA0000A1Z5" required
+                       maxlength="15" pattern="[0-9]{2}[A-Za-z]{5}[0-9]{4}[A-Za-z][1-9A-Za-z]Z[0-9A-Za-z]"
+                       title="15-character GSTIN, e.g. 27AAAAA0000A1Z5">
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label for="regSubdomain">Company URL <span class="req">*</span></label>
+              <input type="text" id="regSubdomain" name="subdomain" class="form-control" placeholder="acme" required
+                     pattern="[a-z0-9\-]+" title="Lowercase letters, digits and hyphens only">
+              <small style="color: var(--text-subtle);">Your team will sign in at <strong id="regUrlPreview">hrzest.com/your-company/login</strong></small>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="regAdminEmail">Admin Email <span class="req">*</span></label>
+                <input type="email" id="regAdminEmail" name="admin_email" class="form-control" placeholder="admin@acme.com" required autocomplete="email">
+              </div>
+
+              <div class="form-group">
+                <label for="regAdminUsername">Admin Username <span class="req">*</span></label>
+                <input type="text" id="regAdminUsername" name="admin_username" class="form-control" placeholder="e.g. john" required
+                       minlength="2" pattern="[a-zA-Z0-9_.\-]+" title="Letters, numbers, dots, hyphens and underscores only">
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label for="regAdminPassword">Admin Password <span class="req">*</span></label>
+              <input type="password" id="regAdminPassword" name="admin_password" class="form-control" placeholder="At least 8 characters" required
+                     minlength="8" autocomplete="new-password">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+              <label for="regLogo">Company Logo (optional)</label>
+              <input type="file" id="regLogo" name="logo" class="form-control" accept="image/jpeg,image/png,image/webp,image/bmp">
+              <small style="color: var(--text-subtle);">JPG, PNG, WEBP or BMP, up to 5&nbsp;MB. You can add it later.</small>
+            </div>
+
+            {% if show_captcha %}
+            <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom: 1.25rem;"></div>
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.9rem;">
+              <i class="ti ti-arrow-right"></i> Continue to Email Verification
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- FAQ Section -->
   <section class="chapter-section" id="faq" style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
     <div class="container">
@@ -864,5 +990,6 @@
 
   <!-- App JavaScript Logic -->
   <script src="{{ static_url('landing_v2.js') }}"></script>
+  <script src="{{ static_url('landing_register.js') }}"></script>
 </body>
 </html>

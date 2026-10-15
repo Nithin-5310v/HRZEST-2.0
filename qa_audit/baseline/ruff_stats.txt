@@ -1,0 +1,43 @@
+308	BLE001 	[ ] blind-except
+228	I001   	[*] unsorted-imports
+201	DTZ011 	[ ] call-date-today
+ 80	UP009  	[*] utf8-encoding-declaration
+ 79	RUF059 	[ ] unused-unpacked-variable
+ 69	DTZ005 	[ ] call-datetime-now-without-tzinfo
+ 25	RUF100 	[*] unused-noqa
+ 21	FURB167	[*] regex-flag-alias
+ 19	PLR0402	[*] manual-from-import
+ 15	DTZ003 	[ ] call-datetime-utcnow
+  9	ISC004 	[ ] implicit-string-concatenation-in-collection-literal
+  8	UP031  	[ ] printf-string-formatting
+  7	C408   	[ ] unnecessary-collection-call
+  5	DTZ007 	[ ] call-datetime-strptime-without-zone
+  5	S110   	[ ] try-except-pass
+  5	C402   	[ ] unnecessary-generator-dict
+  4	B023   	[ ] function-uses-loop-variable
+  4	RUF013 	[ ] implicit-optional
+  4	PLW1510	[ ] subprocess-run-without-check
+  4	RUF046 	[ ] unnecessary-cast-to-int
+  3	PIE810 	[ ] multiple-starts-ends-with
+  3	FURB188	[*] slice-to-remove-prefix-or-suffix
+  3	UP012  	[*] unnecessary-encode-utf8
+  2	SIM102 	[ ] collapsible-if
+  2	UP032  	[*] f-string
+  2	PLR1730	[*] if-stmt-min-max
+  2	SIM118 	[-] in-dict-keys
+  2	PLW1508	[ ] invalid-envvar-default
+  2	SIM115 	[ ] open-file-with-context-handler
+  2	C401   	[ ] unnecessary-generator-set
+  1	DTZ001 	[ ] call-datetime-without-tzinfo
+  1	DTZ901 	[ ] datetime-min-max
+  1	UP035  	[*] deprecated-import
+  1	SIM103 	[ ] needless-bool
+  1	PIE807 	[*] reimplemented-container-builtin
+  1	RUF015 	[ ] unnecessary-iterable-allocation-for-first-element
+  1	RUF057 	[*] unnecessary-round
+  1	RUF022 	[*] unsorted-dunder-all
+  1	RUF023 	[*] unsorted-dunder-slots
+  1	F401   	[*] unused-import
+  1	RUF034 	[ ] useless-if-else
+Found 1134 errors.
+[*] 390 fixable with the `--fix` option (115 hidden fixes can be enabled with the `--unsafe-fixes` option).

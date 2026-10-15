@@ -4,6 +4,7 @@ C1  -- emailed login codes are kept server-side (login_otp_challenges);
        the session cookie only ever carries an opaque challenge id.
 """
 import base64
+import hashlib
 import json
 import secrets
 import zlib
@@ -271,7 +272,8 @@ def _make_tenant(db_engine, slug):
 
 
 @pytest.fixture
-def two_tenants(db_engine):
+def two_tenants(db_engine, client):
+    # `client` sets TESTING=True (CSRF off) for the extra clients these tests create.
     suffix = secrets.token_hex(3)
     return _make_tenant(db_engine, f"isoa{suffix}"), _make_tenant(db_engine, f"isob{suffix}")
 
@@ -363,7 +365,10 @@ class TestMobileAdminLoginMfa:
         assert ok.status_code == 200 and ok.get_json()["token"]
         token = ok.get_json()["token"]
         cur = db_engine.cursor()
-        cur.execute("SELECT mfa_verified FROM api_tokens WHERE identity=%s", (seed_admin["username"],))
+        # The token just issued (by its hash), not whichever row for this
+        # admin comes first -- a run interrupted mid-test can leave other
+        # tokens in the worker DB's baseline (QA TEST-06).
+        cur.execute("SELECT mfa_verified FROM api_tokens WHERE token=%s", (hashlib.sha256(token.encode()).hexdigest(),))
         assert cur.fetchone()[0] == 1
         cur.close()
         assert client.get("/api/admin/profile", headers={"Authorization": f"Bearer {token}"}).status_code == 200
