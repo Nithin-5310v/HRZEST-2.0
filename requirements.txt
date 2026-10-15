@@ -35,7 +35,7 @@ reportlab>=5.0.0,<6.0.0
 cryptography>=46.0.7
 webauthn>=2.1.0
 bcrypt>=5.0.0
-pyotp>=2.9.0
+pyotp>=2.10.0
 
 # ── Cache / rate-limit backend ────────────────────────────────────────────────
 redis>=5.0.0
