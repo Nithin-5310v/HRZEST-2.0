@@ -205,7 +205,9 @@ def _active_tenant_schemas():
     try:
         conn = get_master_db()
         cur = conn.cursor(buffered=True)
-        cur.execute("SELECT db_name FROM tenants WHERE status='active'")
+        # Skips a company whose schema lacks tables: it would drain the
+        # shared public queue instead of its own (QA SEC-07).
+        cur.execute("SELECT db_name FROM tenants WHERE status='active' AND schema_missing_tables IS NULL")
         schemas = [r[0] for r in cur.fetchall()]
         cur.close()
         conn.close()
@@ -213,6 +215,10 @@ def _active_tenant_schemas():
     except Exception as exc:
         app_log.error("Email queue worker: failed to list active tenants: %s", exc)
         return []
+
+
+# A row still 'sending' after this long belongs to a drainer that died mid-send.
+_STALE_CLAIM = _dt.timedelta(minutes=15)
 
 
 def _drain_queue_for_schema(schema_name):
@@ -225,18 +231,30 @@ def _drain_queue_for_schema(schema_name):
             return
         db = get_db_connection()
         cur = db.cursor(buffered=True)
+        # Every gunicorn worker runs a drainer, so rows are claimed in one
+        # atomic statement (SKIP LOCKED: a row another drainer is claiming is
+        # left to it) -- selecting first and marking each row just before
+        # sending let two drainers send the same email (QA SCALE-06).
+        # claimed_at comes from this process's UTC clock on both sides of
+        # the comparison, so it doesn't depend on the DB session timezone.
+        now_utc = _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None)
+        stale_before = now_utc - _STALE_CLAIM
         cur.execute(
-            "SELECT id, to_email, subject, html_body, attachment_b64, attachment_filename "
-            "FROM email_queue WHERE status='pending' AND attempts < 3 "
-            "ORDER BY created_at LIMIT 10"
+            "UPDATE email_queue SET status='pending' WHERE status='sending' AND "
+            "(claimed_at < %s OR (claimed_at IS NULL AND created_at < %s))",
+            (stale_before, stale_before),
+        )
+        cur.execute(
+            "UPDATE email_queue SET status='sending', attempts=attempts+1, claimed_at=%s "
+            "WHERE id IN (SELECT id FROM email_queue WHERE status='pending' AND attempts < 3 "
+            "ORDER BY created_at LIMIT 10 FOR UPDATE SKIP LOCKED) "
+            "RETURNING id, to_email, subject, html_body, attachment_b64, attachment_filename",
+            (now_utc,),
         )
         rows = cur.fetchall()
+        db.commit()
         for row in rows:
             eid, to_email, subject, html_body, att_b64, att_name = row
-            cur.execute(
-                "UPDATE email_queue SET status='sending', attempts=attempts+1 WHERE id=%s", (eid,)
-            )
-            db.commit()
             try:
                 att_bytes = base64.b64decode(att_b64) if att_b64 else None
                 send_email_smtp(to_email, subject, html_body, cfg,

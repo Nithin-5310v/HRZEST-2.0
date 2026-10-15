@@ -101,7 +101,31 @@ def get_employee_shift(emp_id, cursor):
     row = cursor.fetchone()
     if row:
         return _td_to_time(row[0]), _td_to_time(row[1]), _td_to_time(row[2]), row[3]
-    return cfg.SHIFT_START, cfg.SHIFT_HALF, cfg.SHIFT_END, "Default"
+    default = cfg.shift_rules()
+    return default.start, default.half, default.end, "Default"
+
+
+def classify_login(punch_time, s_start, s_half):
+    """Status of the first punch of the day against the employee's shift
+    (get_employee_shift) and the company's grace minutes. Shared by every
+    check-in path so the same punch is classified the same way whichever
+    device it came from (QA BUG-30)."""
+    grace_end = (datetime.datetime.combine(datetime.date(2000, 1, 1), s_start) +
+                 datetime.timedelta(minutes=cfg.shift_rules().grace_minutes)).time()
+    if punch_time <= grace_end:
+        return "Full Day Login"
+    if punch_time <= s_half:
+        return "Late Login"
+    return "Half Day Login"
+
+
+def classify_logout(punch_time, s_half, s_end):
+    """Status of a logout punch against the employee's shift (see classify_login)."""
+    if punch_time < s_half:
+        return "Half Day Logout"
+    if punch_time < s_end:
+        return "Early Logout"
+    return "Completed"
 
 
 def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
@@ -135,7 +159,7 @@ def detect_overtime(employee_id, date, logout_time):
             (employee_id,)
         )
         row = cursor.fetchone()
-        shift_end = _td_to_time(row[0]) if row else cfg.SHIFT_END
+        shift_end = _td_to_time(row[0]) if row else cfg.shift_rules().end
         logout_t = _td_to_time(logout_time) if not isinstance(logout_time, datetime.time) else logout_time
         if logout_t is None or shift_end is None:
             cursor.close()
@@ -169,6 +193,31 @@ def detect_overtime(employee_id, date, logout_time):
         db.close()
     except Exception as exc:
         app_log.warning("Overtime record failed for %s on %s: %s", employee_id, date, exc, exc_info=True)
+
+
+def attendance_pct_series(month_bounds, present_by_day, holidays, today, headcount):
+    """Monthly attendance % for the analytics charts: employee-days present
+    divided by (working days so far x headcount). present_by_day maps a date
+    to the number of distinct employees who logged in that day. Only working
+    days (not Sunday, not a holiday) up to `today` count, on both sides, so a
+    Sunday check-in can't push the figure past 100%. It used to divide the
+    number of distinct employees seen in the whole month, which put a fully
+    present team at ~4% (QA BUG-03/BUG-04)."""
+    series = []
+    for y, m, month_start, _month_end in month_bounds:
+        _, last_day = calendar.monthrange(y, m)
+        days = [datetime.date(y, m, d) for d in range(1, last_day + 1)]
+        working = [d for d in days if d.weekday() != 6 and d not in holidays and d <= today]
+        expected = len(working) * (headcount or 1)
+        present = min(sum(present_by_day.get(d, 0) for d in working), expected)
+        series.append({
+            "month_label": month_start.strftime("%b %Y"),
+            "total_days": len(working),
+            "present_days": present,
+            "absent_days": max(0, expected - present),
+            "att_pct": round(present / expected * 100, 1) if expected else 0,
+        })
+    return series
 
 
 def get_working_days(year, month):

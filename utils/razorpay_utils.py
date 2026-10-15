@@ -72,10 +72,6 @@ def razorpay_configured() -> bool:
     return bool(_KEY_ID and _KEY_SECRET)
 
 
-def webhook_configured() -> bool:
-    return bool(_WEBHOOK_SECRET)
-
-
 def key_id() -> str:
     """Public key ID -- safe to hand to the frontend (Checkout needs it),
     unlike _KEY_SECRET which never leaves this module."""

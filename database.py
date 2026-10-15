@@ -37,7 +37,7 @@ _DB_CONFIG = dict(
     password=os.environ.get("DB_PASS", ""),
     dbname=os.environ.get("DB_NAME", "employee_attendance"),
     sslmode=os.environ.get("DB_SSLMODE", "prefer"),
-    connect_timeout=int(os.environ.get("DB_CONNECT_TIMEOUT", "1")),
+    connect_timeout=int(os.environ.get("DB_CONNECT_TIMEOUT", "10")),
     options=f"-c statement_timeout={int(os.environ.get('DB_STATEMENT_TIMEOUT_MS', '30000'))}",
 )
 if os.environ.get("DB_SSLROOTCERT"):
@@ -132,6 +132,7 @@ class _SqliteCursor:
         q = re.sub(r'\bILIKE\b', 'LIKE', q, flags=re.IGNORECASE)
         q = re.sub(r'\bTIMESTAMP WITH TIME ZONE\b', 'TEXT', q, flags=re.IGNORECASE)
         q = re.sub(r'\bNOW\(\)', 'CURRENT_TIMESTAMP', q, flags=re.IGNORECASE)
+        q = re.sub(r'\s+FOR UPDATE SKIP LOCKED\b', '', q, flags=re.IGNORECASE)  # single-writer SQLite
         with _sqlite_lock:
             try:
                 res = self._cur.execute(q, params)
@@ -435,9 +436,14 @@ def _seed_sqlite_db(raw_conn):
             attempts INTEGER DEFAULT 0,
             last_error TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            sent_at TEXT
+            sent_at TEXT,
+            claimed_at TEXT
         );
         ''')
+        try:
+            cur.execute("ALTER TABLE email_queue ADD COLUMN claimed_at TEXT")  # dev files created before SCALE-06
+        except sqlite3.OperationalError:
+            pass
         cur.execute('''
         CREATE TABLE IF NOT EXISTS companies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -517,6 +523,9 @@ _pool = None
 # is simply dropped, leaking its connections (never .closeall()'d) until
 # Postgres's own idle-connection reaping kicks in.
 _pool_lock = threading.Lock()
+# How long a request waits for a connection when every pooled connection is
+# in use, before giving up with a 503 (see _wait_for_free_connection).
+_POOL_WAIT_SECONDS = float(os.environ.get("DB_POOL_WAIT_SECONDS", "5"))
 
 # ── Optional privileged "owner" role ────────────────────────────────────────
 # By default the app connects as ONE role that owns every table (and, in the
@@ -635,9 +644,16 @@ def _ensure_pg_schema(raw_conn):
         _log.warning("PostgreSQL schema migration note: %s", e)
 
 
+class DatabaseUnavailable(RuntimeError):
+    """PostgreSQL can't be reached. Raised instead of switching to the local
+    SQLite fallback anywhere but APP_ENV=development; app.py turns it into a
+    503 so the outage is loud, and the next request retries Postgres."""
+
+
 def _sqlite_fallback_allowed():
-    """Local/demo convenience only: allowed in APP_ENV=development, or when an
-    operator opts in explicitly. Never implicit in production."""
+    """Local/demo convenience only: allowed in APP_ENV=development (exact
+    match, read per call), or when an operator opts in explicitly with
+    ALLOW_SQLITE_FALLBACK. Never implicit in staging or production."""
     return (os.environ.get("APP_ENV", "production") == "development"
             or os.environ.get("ALLOW_SQLITE_FALLBACK", "").strip().lower() in ("1", "true", "yes"))
 
@@ -645,8 +661,9 @@ def _sqlite_fallback_allowed():
 def _create_pool(retries=1, delay=0.1):
     global _pool
     for attempt in range(1, retries + 1):
+        candidate = None
         try:
-            _pool = psycopg2.pool.ThreadedConnectionPool(
+            candidate = psycopg2.pool.ThreadedConnectionPool(
                 # psycopg2's pool only *keeps* up to `minconn` idle connections on
                 # putconn() -- anything returned past that count is closed outright
                 # (see psycopg2.pool.AbstractConnectionPool._putconn), so minconn
@@ -685,28 +702,33 @@ def _create_pool(retries=1, delay=0.1):
                         opool.putconn(oconn)
                 except Exception as _owner_exc:
                     _log.warning("owner-role schema bootstrap failed: %s", _owner_exc)
+                _pool = candidate  # the runtime pool itself connected fine
                 return
-            conn = _pool.getconn()
+            conn = candidate.getconn()
             _ensure_pg_schema(conn)
-            _pool.putconn(conn)
+            candidate.putconn(conn)
+            _pool = candidate  # only a pool that actually works is ever installed
             return
         except (psycopg2.Error, Exception) as e:
             _log.warning('"PostgreSQL not ready (attempt %d/%d): %s"', attempt, retries, e)
+            if candidate is not None:
+                try:
+                    candidate.closeall()
+                except Exception as close_exc:
+                    _log.debug("closeall() on a failed pool failed: %s", close_exc)
             if attempt < retries:
                 time.sleep(delay)
     if not _sqlite_fallback_allowed():
-        # Fail closed. This used to fall back to a per-process SQLite file
-        # after a single failed connect (connect_timeout defaults to 1s), so a
-        # transient database blip at boot left that worker silently writing HR,
-        # attendance and payroll data to an ephemeral local file for the rest of
-        # its life -- split-brain data that no other worker or the real
-        # database would ever see. Leaving _pool unset means the NEXT request
-        # retries the connection; callers see an error in the meantime, which
-        # is the honest outcome.
+        # Fail closed. Never serve traffic from a per-process SQLite file:
+        # writes would be lost (split-brain data no other worker or the real
+        # database ever sees) and every tenant would look empty. Leaving
+        # _pool unset means the NEXT request retries Postgres.
         _pool = None
-        _log.error("PostgreSQL unavailable and the SQLite fallback is disabled outside "
-                   "development (set ALLOW_SQLITE_FALLBACK=true to override) -- failing the request.")
-        raise RuntimeError("PostgreSQL unavailable")
+        _log.critical(
+            "PostgreSQL unavailable after %d attempt(s) -- refusing to fall back to SQLite outside "
+            "APP_ENV=development (set ALLOW_SQLITE_FALLBACK=true to override)", retries,
+        )
+        raise DatabaseUnavailable("PostgreSQL is unavailable")
     _log.error(
         "PostgreSQL unavailable -- falling back to local SQLite (%s). "
         "This is fine for local/demo use, but if this happens in production, "
@@ -741,20 +763,39 @@ def _borrow_connection():
         with _pool_lock:
             if _pool is None:  # re-check: another thread may have built it while we waited
                 _create_pool()
+    pool = _pool
     try:
-        conn = _pool.getconn()
-    except Exception:
-        _failed_pool = _pool
-        if not isinstance(_failed_pool, _SqlitePool):
-            with _pool_lock:
-                # Only rebuild if _pool is still the same broken object we
-                # just failed against -- another thread may have already
-                # replaced it while we waited for the lock.
-                if _pool is _failed_pool:
-                    _create_pool(retries=1, delay=0.1)
-        conn = _pool.getconn()
+        conn = pool.getconn()
+    except Exception as exc:
+        if isinstance(exc, psycopg2.pool.PoolError) and not getattr(pool, "closed", False):
+            # Every connection is in use: the pool is busy, not broken.
+            # Building a second pool next to it (the old behaviour) only
+            # multiplied the connection count under load until Postgres
+            # refused new clients (QA SCALE-09).
+            conn = _wait_for_free_connection(pool)
+        else:
+            if not isinstance(pool, _SqlitePool):
+                with _pool_lock:
+                    # Only rebuild if _pool is still the same broken object we
+                    # just failed against -- another thread may have already
+                    # replaced it while we waited for the lock.
+                    if _pool is pool:
+                        _create_pool(retries=1, delay=0.1)
+            conn = _pool.getconn()
     conn.autocommit = True
     return conn
+
+
+def _wait_for_free_connection(pool):
+    deadline = time.monotonic() + _POOL_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(0.05)
+        try:
+            return pool.getconn()
+        except psycopg2.pool.PoolError:
+            continue
+    _log.error("Database connection pool exhausted for %.1fs -- returning 503", _POOL_WAIT_SECONDS)
+    raise DatabaseUnavailable("connection pool exhausted")
 
 
 def get_db_connection():

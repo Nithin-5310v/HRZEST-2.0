@@ -5,6 +5,7 @@ import json
 import time
 import datetime
 import hashlib
+import threading
 import urllib.request  # noqa: F401 -- module-level so tests can monkeypatch auth_module.urllib.request.urlopen
 import bcrypt as _bcrypt
 from functools import wraps
@@ -198,6 +199,26 @@ def _is_ajax_request() -> bool:
 # ── Token hashing ─────────────────────────────────────────────────────────────
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+# Expired tokens are already refused by every lookup's own expires_at > NOW()
+# check, so deleting them is housekeeping: at most once per tenant per process
+# every few minutes, not a write on every API request (QA PERF-01).
+_TOKEN_PURGE_INTERVAL_SEC = 300
+_last_token_purge = {}
+_token_purge_lock = threading.Lock()
+
+
+def _purge_expired_tokens(cursor, conn):
+    tenant = getattr(_flask_g, "tenant_db", None) or "public"
+    now = time.monotonic()
+    with _token_purge_lock:
+        last = _last_token_purge.get(tenant)
+        if last is not None and now - last < _TOKEN_PURGE_INTERVAL_SEC:
+            return
+        _last_token_purge[tenant] = now
+    cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
+    conn.commit()
 
 
 # ── Account lockout ───────────────────────────────────────────────────────────
@@ -669,8 +690,7 @@ def api_required(f):
         # something they could use to fingerprint or replay-correlate it.
         token_hash = _hash_token(auth[7:])
         with _db() as (cursor, _conn):
-            cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
-            _conn.commit()
+            _purge_expired_tokens(cursor, _conn)
             cursor.execute(
                 f"""
                 SELECT t.identity, COALESCE(u.is_active, 1), COALESCE(t.mfa_verified, 0)
@@ -741,8 +761,7 @@ def employee_api_required(f):
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
         token_hash = _hash_token(auth[7:])
         with _db() as (cursor, _conn):
-            cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
-            _conn.commit()
+            _purge_expired_tokens(cursor, _conn)
             cursor.execute(
                 "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type='employee' "
                 f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant

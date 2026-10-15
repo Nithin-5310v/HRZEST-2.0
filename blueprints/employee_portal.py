@@ -13,12 +13,13 @@ from utils.auth import employee_required, employee_api_required, validate_new_pa
 from utils.helpers import (
     tpath,
     _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
-    company_today, company_now, coerce_datetime,
+    company_today, company_now, coerce_datetime, int_param, app_gps_checkin_allowed,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
 from utils.session_risk import ensure_session_id, evaluate_session_risk
 from utils.attendance_utils import (
-    classify_by_worked_minutes, detect_overtime, infer_type_legacy,
+    classify_by_worked_minutes, classify_login, classify_logout, detect_overtime, get_employee_shift,
+    infer_type_legacy,
     fetch_holidays_set, get_billable_past_days, is_within_range,
     is_within_office_range, geofence_check_error, compute_session_worked_minutes,
     fetch_employee_work_location, record_attendance_failure,
@@ -28,7 +29,6 @@ from utils.face_utils import face_recognition, _face_recognition_available, _get
 from utils.webauthn_utils import _wa_fingerprint_recently_verified, _mobile_biometric_recently_verified
 from qr_generator import generate_qr
 from utils.storage import open_private
-import utils.config as cfg
 from utils import punch_integrity as pi
 
 employee_portal_bp = Blueprint("employee_portal", __name__)
@@ -360,8 +360,8 @@ def employee_portal():
     )
     today_att = cursor.fetchone()
 
-    year = int(request.args.get("year", today.year))
-    month = int(request.args.get("month", today.month))
+    year = int_param(request.args.get("year", today.year))
+    month = int_param(request.args.get("month", today.month))
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
         SELECT date, login_time, logout_time, status, logout_status, attendance_type
@@ -550,7 +550,7 @@ def employee_portal():
     leave_holidays = cursor.fetchall()
 
     # Holiday list data for employee view
-    hol_year = int(request.args.get("hol_year", today.year))
+    hol_year = int_param(request.args.get("hol_year", today.year))
     cursor.execute("SELECT id, date, name FROM holidays WHERE EXTRACT(YEAR FROM date)=%s ORDER BY date", (hol_year,))
     hol_rows = cursor.fetchall()
 
@@ -620,18 +620,17 @@ def employee_portal():
     except Exception:
         my_overtime = []
 
-    # Salary summary for Earnings tab
+    # Salary summary for Earnings tab: the one net-pay calculation, as it
+    # will be paid (QA BUG-05). This card used to pay late days in full, fix
+    # half days at 50%, ignore holidays, leave and PF/PT/TDS, and add overtime.
     salary_per_day = float(emp[6]) if emp[6] else 0.0
-    gross_this_month = (full_days + late_days) * salary_per_day + half_days * salary_per_day * 0.5
-    deduction_this_month = absent_days * salary_per_day + half_days * salary_per_day * 0.5
-    try:
-        cursor.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s",
-            (emp_id, today.month, today.year)
-        )
-        incentives_this_month = float(cursor.fetchone()[0])
-    except Exception:
-        incentives_this_month = 0.0
+    from blueprints.payroll import compute_salary_data_for_month
+    _pay = (compute_salary_data_for_month(today.year, today.month, employee_ids=[emp_id]) or [{}])[0]
+    gross_this_month = _pay.get("attendance_earned", 0.0)
+    deduction_this_month = _pay.get("deduction", 0.0)
+    incentives_this_month = _pay.get("incentive", 0.0)
+    statutory_this_month = _pay.get("statutory", 0.0)
+    net_this_month = _pay.get("net", 0.0)
     try:
         cursor.execute(
             "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s "
@@ -641,7 +640,6 @@ def employee_portal():
         ot_pay_this_month = float(cursor.fetchone()[0] or 0)
     except Exception:
         ot_pay_this_month = 0.0
-    net_this_month = gross_this_month + incentives_this_month + ot_pay_this_month
 
     # Comp-off balance
     try:
@@ -656,60 +654,6 @@ def employee_portal():
     except Exception:
         compoff_earned_days = 0
         compoff_avail_days = 0
-
-    # Last 3 months payslip summaries
-    recent_payslips = []
-    py2, pm2 = today.year, today.month
-    for _ in range(3):
-        pm2 -= 1
-        if pm2 == 0:
-            pm2 = 12
-            py2 -= 1
-        _, ld = calendar.monthrange(py2, pm2)
-        cursor.execute("""
-            SELECT date, login_time, logout_time, status, logout_status, attendance_type
-            FROM attendance WHERE employee_id=%s AND date BETWEEN %s AND %s
-        """, (emp_id, datetime.date(py2, pm2, 1), datetime.date(py2, pm2, ld)))
-        p_att = cursor.fetchall()
-        p_billable = get_billable_past_days(py2, pm2)
-        p_att_map = {r[0]: r for r in p_att}
-        p_full = p_late = p_half = p_absent = 0
-        for d in p_billable:
-            row = p_att_map.get(d)
-            if row:
-                _, lt, lot, st, _ls, at = row
-                final = at if at else infer_type_legacy(st, lt, lot)
-                if final in ("Full Day", "Approved Leave"):
-                    p_full += 1
-                elif final == "Late - Full Day":
-                    p_late += 1
-                elif final in ("Half Day", "Present"):
-                    p_half += 1
-                else:
-                    p_absent += 1
-            else:
-                p_absent += 1
-        p_gross = (p_full + p_late) * salary_per_day + p_half * salary_per_day * 0.5
-        try:
-            cursor.execute(
-                "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s", (emp_id, pm2, py2))
-            p_inc = float(cursor.fetchone()[0])
-        except Exception:
-            p_inc = 0.0
-        try:
-            cursor.execute(
-                "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s "
-                "AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'",
-                (emp_id, pm2, py2))
-            p_ot = float(cursor.fetchone()[0] or 0)
-        except Exception:
-            p_ot = 0.0
-        recent_payslips.append({
-            'month': calendar.month_name[pm2], 'year': py2,
-            'gross': p_gross, 'incentives': p_inc, 'ot_pay': p_ot,
-            'net': p_gross + p_inc + p_ot,
-            'present': p_full + p_late + p_half, 'absent': p_absent,
-        })
 
     cursor.close()
     db.close()
@@ -794,9 +738,9 @@ def employee_portal():
                            gross_this_month=gross_this_month,
                            deduction_this_month=deduction_this_month,
                            incentives_this_month=incentives_this_month,
+                           statutory_this_month=statutory_this_month,
                            ot_pay_this_month=ot_pay_this_month,
                            net_this_month=net_this_month,
-                           recent_payslips=recent_payslips,
                            fp_enrolled=fp_enrolled,
                            fp_enabled=get_auth_config().get("fingerprint_enabled", False),
                            attendance_auth_cfg=get_auth_config(),
@@ -938,6 +882,16 @@ def api_employee_portal():
     })
 
 
+def _mobile_location_enforced(auth_cfg):
+    """App check-ins (live and offline sync) must carry coordinates when the
+    company enforces location -- on unless the company turned it off (QA
+    SEC-08). MOBILE_REQUIRE_LOCATION=false is the deployment-wide opt-out
+    from the security-hardening work."""
+    if os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() in ("false", "0", "no"):
+        return False
+    return bool(auth_cfg.get("location_enabled", True))
+
+
 @employee_portal_bp.route("/api/employee/checkin", methods=["POST"])
 @employee_api_required
 def api_employee_checkin():
@@ -946,6 +900,14 @@ def api_employee_checkin():
     data = request.get_json() or {}
     lat = data.get("lat")
     lon = data.get("lon")
+
+    # Login token + GPS only: allowed when the company's check-in policy
+    # permits it, not as a way around the QR or face check it requires
+    # (QA NV-18). The app's check-in buttons use /api/employee/qr-face-checkin.
+    auth_cfg = get_auth_config()
+    if not app_gps_checkin_allowed(auth_cfg):
+        return jsonify({"ok": False, "msg": "Please check in with QR or face verification. "
+                                            "Location-only check-in is turned off for your organisation."}), 403
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -972,13 +934,10 @@ def api_employee_checkin():
     _d = pi.check_office_network(ctx, cursor, work_mode, log_security_event)
     if not _d.allow:
         return _reject(_d)
-    # This route used to run the geofence only `if lat and lon:` -- a client
-    # that simply omitted the coordinates skipped the location check
-    # entirely, whatever the company's location setting said. Enforce the
-    # setting the same way /attendance does. MOBILE_REQUIRE_LOCATION=false
-    # restores the old permissive behaviour for a deployment that must.
-    if (os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() not in ("false", "0", "no")
-            and get_auth_config().get("location_enabled") and not (lat and lon)):
+    # Same rule as the kiosk (/attendance): with location enforced, a request
+    # that leaves the coordinates out is refused rather than skipping the
+    # geofence (QA SEC-08).
+    if _mobile_location_enforced(auth_cfg) and not (lat and lon):
         ctx.flag("location_missing")
         return _reject(pi.Decision(False, 400,
                                    "Location not captured. Please allow location access and try again.",
@@ -1004,40 +963,24 @@ def api_employee_checkin():
                 db.close()
                 return jsonify({"ok": False, "msg": "You are outside the office premises."})
 
-    punched_at_str = data.get("punched_at")
+    # The punch time is always the server's: a client-supplied punched_at
+    # was accepted here up to 24 h back, so an employee arriving at 11:00
+    # could submit 08:55 and avoid the late/half-day mark (QA SEC-09). The
+    # app never sends it here; queued offline punches go through
+    # /api/employee/sync_punches.
     now = company_now()
+    # The client's punched_at never sets the time (above), but an old one
+    # still means the app queued this punch while offline -- flag it for HR
+    # review in the punch evidence.
+    punched_at_str = str(data.get("punched_at") or "")
     if punched_at_str:
         try:
             _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
-            if _pt.tzinfo is not None:
-                # Mobile sends Date.toISOString() (always UTC, "...Z") --
-                # convert to the tenant's configured timezone before using
-                # it as a wall-clock "now". Previously this just discarded
-                # the offset (.replace(tzinfo=None)) and treated the raw
-                # UTC digits as if they were already local, which shifted
-                # every offline check-in's date/time by the UTC offset
-                # (e.g. a 9am IST check-in landing as 3:30am).
-                _pt = _pt.astimezone(now.tzinfo)
-            else:
-                # No offset info on the string (e.g. this app's own test
-                # suite posts a naive isoformat()) -- assume it already
-                # represents company-local wall-clock time, same as before.
-                _pt = now.tzinfo.localize(_pt)
-            if (now - _pt).total_seconds() <= 86400:
-                if (now - _pt).total_seconds() > 600:
-                    ctx.flag("offline_punch")      # client-chosen timestamp, flagged for HR review
-                now = _pt
-            else:
-                cursor.close()
-                db.close()
-                return jsonify({"ok": False, "msg": "Offline punch too old (>24 h). Rejected."}), 400
+            _pt = _pt.astimezone(now.tzinfo) if _pt.tzinfo is not None else now.tzinfo.localize(_pt)
+            if (now - _pt).total_seconds() > 600:
+                ctx.flag("offline_punch")
         except (ValueError, TypeError) as exc:
-            # Deliberate fallback, not a bug being hidden: an unparseable
-            # client-supplied offline-punch timestamp just means `now`
-            # (already set above) is used instead -- still worth a trace
-            # for diagnosing a client that's persistently sending malformed
-            # timestamps.
-            app_log.debug("Unparseable offline-punch punched_at=%r: %s", punched_at_str, exc)
+            app_log.debug("Unparseable punched_at=%r: %s", punched_at_str, exc)
 
     pi.record_evidence(ctx, cursor, outcome="accepted")
 
@@ -1055,16 +998,10 @@ def api_employee_checkin():
     login_status = record[2] if record else None
     worked_mins_stored = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
+    s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cursor)
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) +
-                      datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
-        if current_time <= grace_time:
-            status = "Full Day Login"
-        elif current_time <= cfg.SHIFT_HALF:
-            status = "Late Login"
-        else:
-            status = "Half Day Login"
+        status = classify_login(current_time, s_start, s_half)
         cursor.execute(
             "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
             (emp_id, today, current_time, status)
@@ -1076,13 +1013,8 @@ def api_employee_checkin():
                         "status": status, "time": current_time.strftime("%H:%M:%S")})
     elif not logout_time:
         total_m = compute_session_worked_minutes(current_time, today, login_time, last_relogin_stored, worked_mins_stored)
-        if current_time < cfg.SHIFT_HALF:
-            out_status = "Half Day Logout"
-        elif current_time < cfg.SHIFT_END:
-            out_status = "Early Logout"
-        else:
-            out_status = "Completed"
-        att_type = classify_by_worked_minutes(login_status, total_m, cfg.SHIFT_START, cfg.SHIFT_END)
+        out_status = classify_logout(current_time, s_half, s_end)
+        att_type = classify_by_worked_minutes(login_status, total_m, s_start, s_end)
         cursor.execute(
             "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
@@ -1127,8 +1059,8 @@ def api_employee_sync_punches():
         db2.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     _work_mode, _work_lat, _work_lon = _emp_row[1], _emp_row[2], _emp_row[3]
-    _require_loc = (os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() not in ("false", "0", "no")
-                    and get_auth_config().get("location_enabled"))
+    s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cur2)
+    location_enforced = _mobile_location_enforced(get_auth_config())
     _device_id = pi.sanitize_device_id(payload.get("device_id"))
 
     results = []
@@ -1141,21 +1073,21 @@ def api_employee_sync_punches():
             pi.record_evidence(ctx, cur2, outcome="rejected")
             results.append({"id": punch.get("id"), "ok": False, "msg": _d.msg})
             continue
-        if _require_loc and not (punch.get("lat") and punch.get("lon")):
+        lat = punch.get("lat")
+        lon = punch.get("lon")
+        # With location enforced, a punch without coordinates is refused,
+        # exactly like the live route (QA SEC-08).
+        if location_enforced and not (lat and lon):
             ctx.flag("location_missing")
             pi.record_evidence(ctx, cur2, outcome="rejected")
-            results.append({"id": punch.get("id"), "ok": False, "msg": "Location missing."})
+            results.append({"id": punch.get("id"), "ok": False,
+                            "msg": "Location not captured. Please allow location access."})
             continue
         # "received", not "accepted": the geofence/timestamp checks below can
         # still reject this punch after the integrity layer has seen it.
         pi.record_evidence(ctx, cur2, outcome="received")
         # Same geo-fence check as the live check-in route (is_within_range
-        # against work_lat/work_lon for wfh, else is_within_office_range) --
-        # previously captured but never enforced here, unlike the live
-        # route. Only checked when the client actually sent coordinates,
-        # matching the live route's "if lat and lon:" gate.
-        lat = punch.get("lat")
-        lon = punch.get("lon")
+        # against work_lat/work_lon for wfh, else is_within_office_range).
         if lat and lon:
             try:
                 lat_f = float(lat)
@@ -1208,14 +1140,7 @@ def api_employee_sync_punches():
         last_relogin = rec[4] if rec else None
 
         if not login_time:
-            grace_time = (datetime.datetime.combine(punch_date, cfg.SHIFT_START) +
-                          datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
-            if punch_time <= grace_time:
-                status = "Full Day Login"
-            elif punch_time <= cfg.SHIFT_HALF:
-                status = "Late Login"
-            else:
-                status = "Half Day Login"
+            status = classify_login(punch_time, s_start, s_half)
             cur2.execute(
                 "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
                 (emp_id, punch_date, punch_time, status)
@@ -1224,13 +1149,8 @@ def api_employee_sync_punches():
             results.append({"id": punch.get("id"), "ok": True, "action": "login", "status": status})
         elif not logout_time:
             total_m = compute_session_worked_minutes(punch_time, punch_date, login_time, last_relogin, worked_mins)
-            if punch_time < cfg.SHIFT_HALF:
-                out_status = "Half Day Logout"
-            elif punch_time < cfg.SHIFT_END:
-                out_status = "Early Logout"
-            else:
-                out_status = "Completed"
-            att_type = classify_by_worked_minutes(login_status, total_m, cfg.SHIFT_START, cfg.SHIFT_END)
+            out_status = classify_logout(punch_time, s_half, s_end)
+            att_type = classify_by_worked_minutes(login_status, total_m, s_start, s_end)
             cur2.execute(
                 "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
                 "WHERE employee_id=%s AND date=%s",
@@ -1383,7 +1303,7 @@ def api_employee_qr_face_checkin():
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
             os.makedirs(face_dir, exist_ok=True)
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
@@ -1429,7 +1349,7 @@ def api_employee_qr_face_checkin():
             from PIL import Image as _PILImage
             face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
             os.makedirs(face_dir, exist_ok=True)
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
             img.save(face_path, "JPEG", quality=80)
@@ -1456,16 +1376,10 @@ def api_employee_qr_face_checkin():
     login_status = record[2] if record else None
     worked_mins_stored = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
+    s_start, s_half, s_end, _shift_name = get_employee_shift(employee_id, cursor)
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) +
-                      datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
-        if current_time <= grace_time:
-            status = "Full Day Login"
-        elif current_time <= cfg.SHIFT_HALF:
-            status = "Late Login"
-        else:
-            status = "Half Day Login"
+        status = classify_login(current_time, s_start, s_half)
         cursor.execute(
             "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
             (employee_id, today, current_time, status)
@@ -1477,13 +1391,8 @@ def api_employee_qr_face_checkin():
                         "status": status, "time": current_time.strftime("%H:%M:%S")})
     elif not logout_time:
         total_m = compute_session_worked_minutes(current_time, today, login_time, last_relogin_stored, worked_mins_stored)
-        if current_time < cfg.SHIFT_HALF:
-            out_status = "Half Day Logout"
-        elif current_time < cfg.SHIFT_END:
-            out_status = "Early Logout"
-        else:
-            out_status = "Completed"
-        att_type = classify_by_worked_minutes(login_status, total_m, cfg.SHIFT_START, cfg.SHIFT_END)
+        out_status = classify_logout(current_time, s_half, s_end)
+        att_type = classify_by_worked_minutes(login_status, total_m, s_start, s_end)
         cursor.execute(
             "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",
@@ -1512,12 +1421,11 @@ def api_employee_qr_face_checkin():
 @employee_portal_bp.route("/api/employee/salary", methods=["GET"])
 @employee_api_required
 def api_employee_salary():
-    import calendar as cal
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
-        year = int(request.args.get("year", datetime.date.today().year))
-        month = int(request.args.get("month", datetime.date.today().month))
+        year = int(request.args.get("year", company_today().year))
+        month = int(request.args.get("month", company_today().month))
     except ValueError:
         return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
     db = get_db_connection()
@@ -1528,54 +1436,25 @@ def api_employee_salary():
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
-    cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
-    spd_row = cursor.fetchone()
-    spd = float(spd_row[0]) if spd_row else 0.0
-    cursor.execute("SELECT date FROM holidays WHERE EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s", (month, year))
-    holiday_set = {r[0] for r in cursor.fetchall()}
-    _, days_in_month = cal.monthrange(year, month)
-    billable = sum(
-        1 for d in range(1, days_in_month + 1)
-        # weekday() != 6 excludes only Sunday, matching get_working_days() --
-        # the real payroll engine treats Saturday as a billable working day.
-        if datetime.date(year, month, d).weekday() != 6
-        and datetime.date(year, month, d) not in holiday_set
-    )
-    cursor.execute("""
-        SELECT attendance_type FROM attendance
-        WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
-    """, (emp_id, month, year))
-    att_rows = cursor.fetchall()
-    cursor.execute("""
-        SELECT COUNT(*) FROM leave_requests
-        WHERE employee_id=%s AND EXTRACT(MONTH FROM leave_date)=%s AND EXTRACT(YEAR FROM leave_date)=%s AND status='Approved'
-    """, (emp_id, month, year))
-    leave_days = cursor.fetchone()[0]
     cursor.close()
     db.close()
-    full_days = half_days = late_days = 0
-    for (att_type,) in att_rows:
-        if att_type == 'Full Day':
-            full_days += 1
-        elif att_type == 'Late - Full Day':
-            full_days += 1
-            late_days += 1
-        elif att_type in ('Half Day', 'Late - Half Day'):
-            half_days += 1
-    absent = max(0, billable - full_days - half_days - leave_days)
-    gross = spd * billable
-    deduction = spd * (absent + half_days * 0.5)
-    net = gross - deduction
+    # The one net-pay calculation, as paid (QA BUG-05). This endpoint used
+    # to count future days as billable, pay late days in full and ignore
+    # incentives and PF/PT/TDS. full_days no longer includes late days.
+    from blueprints.payroll import compute_salary_data_for_month
+    e = compute_salary_data_for_month(year, month, employee_ids=[emp_id])[0]
     return jsonify({
         "ok": True,
         "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
         "year": year, "month": month,
         "salary": {
             "emp_id": emp_id, "name": emp_row[0], "email": emp_row[1],
-            "spd": spd, "billable": billable,
-            "full_days": full_days, "half_days": half_days,
-            "late_days": late_days, "absent": absent, "leave_days": leave_days,
-            "gross": gross, "deduction": deduction, "net": net,
+            "spd": e["spd"], "billable": e["billable"],
+            "full_days": e["full_days"], "half_days": e["half_days"],
+            "late_days": e["late_days"], "absent": e["absent"], "leave_days": e["leave_days"],
+            "gross": e["gross"], "deduction": e["deduction"], "net": e["net"],
+            "incentive": e["incentive"], "pf": e["pf"], "pt": e["pt"], "tds": e["tds"],
+            "statutory": e["statutory"],
         }
     })
 
@@ -1586,8 +1465,8 @@ def api_employee_attendance():
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
-        year = int(request.args.get("year", datetime.date.today().year))
-        month = int(request.args.get("month", datetime.date.today().month))
+        year = int(request.args.get("year", company_today().year))
+        month = int(request.args.get("month", company_today().month))
     except ValueError:
         return jsonify({"ok": False, "msg": "Invalid year/month"}), 400
     db = get_db_connection()

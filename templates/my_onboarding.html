@@ -220,7 +220,7 @@
           </div>
         </div>
         {% if t[5] != 'Done' %}
-        <button class="btn-done" onclick="openDoneModal({{ t[0] }}, {{ selected_ob_id }}, {{ 1 if t[3] else 0 }}, '{{ t[1]|replace("'","\\'") }}')">
+        <button class="btn-done" data-title="{{ t[1] }}" onclick="openDoneModal({{ t[0] }}, {{ selected_ob_id }}, {{ 1 if t[3] else 0 }}, this.dataset.title)">
           <i class="ti ti-check"></i> Mark Done
         </button>
         {% endif %}
@@ -266,7 +266,10 @@ document.querySelectorAll('.modal').forEach(m=>{
 function openDoneModal(taskId, obId, reqDoc, title){
   document.getElementById('done_task_id').value  = taskId;
   document.getElementById('done_ob_id').value    = obId;
-  document.getElementById('done_modal_title').innerHTML = '<i class="ti ti-check"></i> ' + title;
+  // The title is admin-authored text: add it as text, never as HTML (QA SEC-02).
+  var heading = document.getElementById('done_modal_title');
+  heading.innerHTML = '<i class="ti ti-check"></i> ';
+  heading.appendChild(document.createTextNode(title));
   document.getElementById('doc_field').style.display = reqDoc ? 'block' : 'none';
   openModal('doneModal');
 }
