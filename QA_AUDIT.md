@@ -11,6 +11,17 @@ Coverage baseline (2026-10-07, at 0d08d81, 4 xdist workers on isolated databases
 4. **Load test:** against `att_test` only, run locally, with MFA and rate limiting disabled **only through environment variables of that one process**. No default or config change is committed, and I'll confirm afterwards that no config changed.
 5. **NV answers:** the reply arrived with the template placeholders unfilled, so the safe defaults apply until the owner answers. NV-03: blank all external keys in tests regardless. NV-07/NV-08: keep. NV-09: assume a working-copy build is possible (fix SEC-01). NV-10/NV-11: no change to rounding or to the "Present = half day" rule.
 
+### 0.1 Owner decisions (2026-10-14), follow-up work on branch `qa-followups`
+
+The owner asked for the remaining flaws to be fixed, Phase 6 included, and chose:
+
+1. **SEC-07:** option A. At startup and when a company is provisioned, run the migrations for any tenant missing tables; a tenant that is still incomplete gets a 503 instead of another company's data.
+2. **BUG-05 / NV-19:** one net-pay calculation everywhere: earnings from attendance with the company's late/half-day rules (today's disbursed amount) minus the PF/PT/TDS from Payroll settings, so the payslip net equals the amount paid.
+3. **SEC-09:** offline punches older than 12 hours are refused (a per-company setting), and every synced punch is flagged for admin review.
+4. **NV-18:** token-only app check-in follows the company's check-in policy: a per-company setting, off by default when the policy requires face or QR.
+
+NV-10/NV-11 keep the safe defaults above (no change to rounding or to "Present = half day").
+
 Raw tool output is in `qa_audit/baseline/`. The helper scripts I wrote for this audit are in `qa_audit/tools/`.
 
 ---
@@ -143,7 +154,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | CONFIG-04 | Config | Low | database.py:39 | `DB_CONNECT_TIMEOUT` defaults to 1 s in code (10 in `.env.example`) | Spurious connection failures under load or across a network, which then trigger BUG-02 | Default 10 s | S | **Fixed** (test: tests/test_qa_db_defaults.py) |
 | CONFIG-05 | Config | Low | Containerfile, compose*.yaml | No `TZ` set, so the container runs UTC | Exposes every server-clock bug above | Don't rely on it: fix BUG-17…27; optionally set `TZ` for logs | S | **Resolved by design**: business dates now come from the company's timezone (BUG-17…27, BUG-39) or the explicit platform timezone (BUG-27); `TZ` is deliberately left unset so a new server-clock mistake can't hide behind a container default |
 | UX-01 | Correctness (UX) | Low | utils/helpers.py:859-866 | `invalidate_pending_counts_cache()` is never called after an approval or rejection | Sidebar badges are stale for up to 30 s per worker | Call it from leave/resignation/ticket state changes | S | **Fixed** (test: tests/test_qa_pending_badges.py): invalidated after every leave/resignation/ticket creation, decision and cancellation (16 places, after the commit) |
-| CONN-01 | Reliability | Low | blueprints/onboarding.py:299-300, 474-476; blueprints/org.py:1273 | Early `return` before `db.close()` (no `with`/`finally`) | Mitigated by `_PooledConnection.__del__`, but relies on GC timing | Validate before borrowing, or `with`/`finally` | S | **Fixed** (test: tests/test_qa_connection_close.py): the onboarding saves borrow after validation; create_org's dev branch closes before redirecting |
+| CONN-01 | Reliability | Low | blueprints/onboarding.py:299-300, 474-476; blueprints/org.py:1273 | Early `return` before `db.close()` (no `with`/`finally`) | Mitigated by `_PooledConnection.__del__`, but relies on GC timing | Validate before borrowing, or `with`/`finally` | S | **Fixed** (test: tests/test_qa_connection_close.py): the onboarding saves borrow after validation; create_org's dev branch closes before redirecting. **Follow-up (5648afc):** that dev-branch close was a double close -- `_mark_application_otp_verified()` already commits and closes -- so every local-dev signup returned 500; the extra lines are removed (test: tests/test_org.py::TestDevModeSignupSkipsOtp) |
 | PERF-03 | Performance | Low | blueprints/employee_portal.py:661-705 | 9 queries in a loop on every portal load | Slower portal | Fixed by BUG-05 | S | **Fixed** (test: tests/test_qa_portal_queries.py): the summary was never displayed (`recent_payslips` is unused by every template), so the loop was removed rather than rewritten |
 | PERF-04 | Performance | Low | blueprints/email_blast.py:108-114 | One INSERT per recipient in a loop | Slow blasts to large companies | `execute_values` batch insert | S | **Fixed** (test: tests/test_qa_email_blast_batch.py; psycopg2 execute_values, 1 statement per 100 recipients) |
 | PERF-05 | Performance | Low | blueprints/hr_dashboard.py:338 | Headcount query per month (6) | 6 round trips | One grouped query | S | **Fixed** (test: tests/test_qa_hr_headcount.py; 1 query, was 6) |
