@@ -70,7 +70,7 @@ typing-extensions>=4.7.0
 # Used by blueprints/admin_views.py's save_company_info() to validate the
 # selected timezone against pytz.all_timezones_set -- not a transitive dep
 # of anything else here, so it 500s if missing from a clean install.
-pytz>=2025.2
+pytz>=2026.5
 
 
 # ── AI assistant (employee chat widget — see utils/ai_assistant.py) ────────────
