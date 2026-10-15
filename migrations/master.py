@@ -128,6 +128,12 @@ def _init_master_db_impl():
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_email_domain_unique ON tenants (email_domain) "
             f"WHERE email_domain IS NOT NULL AND email_domain NOT IN ({_personal_domains_sql})"
         )
+        # Tables the deploy-time migrations could not create in this
+        # tenant's schema (comma-separated; NULL = complete). Such a tenant
+        # would read the shared public table instead, so the router answers
+        # 503 for it and background jobs skip it (QA SEC-07; written by
+        # migrations/orchestration.py).
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS schema_missing_tables TEXT DEFAULT NULL")
         # Server-side CSRF-state + PKCE-verifier store for
         # utils/oauth_client.py's Google/Microsoft sign-up-and-sign-in
         # flow. Not the Flask session: SESSION_COOKIE_SAMESITE="Strict"
@@ -320,6 +326,9 @@ def _init_master_db_impl():
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_job_status VARCHAR(20) DEFAULT NULL")
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_attempts INT NOT NULL DEFAULT 0")
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_error TEXT DEFAULT NULL")
+        # When a worker claimed the job; lets jobs stranded in 'processing' by a
+        # crashed worker go back to the queue (QA SCALE-07).
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS verification_claimed_at TIMESTAMP DEFAULT NULL")
         # Raw structured extraction result (gst_number/pan/cin/company_name/
         # address plus per-field legibility) -- kept even for an
         # inconclusive/manual-fallback outcome so a human reviewer in
@@ -614,6 +623,18 @@ def _init_master_db_impl():
         cur.execute("ALTER TABLE tenant_support_tickets ADD COLUMN IF NOT EXISTS linked_ticket_id INT DEFAULT NULL")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_tickets_linked ON tenant_support_tickets (linked_ticket_id)")
         cur.execute("ALTER TABLE tenant_ticket_comments ADD COLUMN IF NOT EXISTS author_kind VARCHAR(20) NOT NULL DEFAULT 'platform_admin'")
+        # One row per scheduled-job run, claimed by whichever process gets
+        # there first -- every gunicorn worker runs the scheduler, and the
+        # primary key is what makes each nightly job run once (utils/
+        # job_runs.py, QA SCALE-01).
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS scheduler_job_runs (
+                job_id      VARCHAR(100) NOT NULL,
+                fire_minute TIMESTAMP    NOT NULL,
+                claimed_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (job_id, fire_minute)
+            )
+        """)
         db.commit()
         cur.close()
         db.close()

@@ -1169,6 +1169,17 @@ def _save_application_documents(application, files):
     return True, None
 
 
+def _back_to_signup_form():
+    """Where a rejected POST /create_org sends the visitor: back to the
+    form they filled in. The home page's registration form posts
+    return_to=home -- an allowlisted value, never a URL, so this can't be
+    used as an open redirect. Anything else keeps the original
+    /create_org."""
+    if request.form.get("return_to") == "home":
+        return redirect("/?registration=failed#register")
+    return redirect("/create_org")
+
+
 @org_bp.route("/create_org", methods=["POST"])
 @limiter.limit("10 per hour")
 def create_org():
@@ -1187,7 +1198,7 @@ def create_org():
         token = request.form.get("cf-turnstile-response", "")
         if not verify_turnstile(token, request.remote_addr):
             flash("Captcha verification failed. Please try again.", "error")
-            return redirect("/create_org")
+            return _back_to_signup_form()
 
     company_name = request.form.get("company_name", "").strip()
     subdomain = _clean_subdomain_slug(request.form.get("subdomain", ""), company_name)
@@ -1201,12 +1212,12 @@ def create_org():
                                         email_domain)
     if error:
         flash(error, "error")
-        return redirect("/create_org")
+        return _back_to_signup_form()
 
     gst_error = _validate_gst_number(gst_number)
     if gst_error:
         flash(gst_error, "error")
-        return redirect("/create_org")
+        return _back_to_signup_form()
 
     conflicting, match_type = check_duplicate_name(company_name)
     if not conflicting:
@@ -1216,7 +1227,7 @@ def create_org():
     if conflicting:
         _record_duplicate_alert(None, company_name, admin_email, conflicting, match_type=match_type)
         flash(_GENERIC_DUPLICATE_MSG, "error")
-        return redirect("/create_org")
+        return _back_to_signup_form()
 
     logo_path = None
     logo_file = request.files.get("logo")
@@ -1225,7 +1236,7 @@ def create_org():
         logo_path, logo_err = save_uploaded_logo(logo_file, subdomain)
         if logo_err:
             flash(f"Company logo: {logo_err}", "error")
-            return redirect("/create_org")
+            return _back_to_signup_form()
 
     from utils.razorpay_utils import razorpay_configured
     # "trial" is only ever chosen explicitly on the signup form (a "Start a
@@ -1269,6 +1280,9 @@ def create_org():
         # "production") always goes through the real verify_otp step.
         app_log.warning("create_org: APP_ENV=development -- OTP screen skipped entirely for application %s",
                         application_id)
+        # Commits and closes mconn/mcur itself (QA CONN-01's leak is covered
+        # there) -- closing them again here raised AttributeError on the
+        # already-returned pooled connection.
         _mark_application_otp_verified(application_id, mconn, mcur)
         return redirect(f"/create_org/upload_documents?application_id={application_id}")
 

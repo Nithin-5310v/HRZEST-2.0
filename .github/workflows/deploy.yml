@@ -427,6 +427,12 @@ jobs:
     # Only on a direct push to main, never on pull_request runs
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production   # requires approval from a repo admin before deploy runs
+    env:
+      # true/false only -- the SSH key itself stays on the deploy step. A
+      # copy of this repo without the server's SSH secrets (a fork, a new
+      # remote) skips the deploy with a warning instead of failing every
+      # push to main. A step's own env isn't visible to its if:, hence here.
+      HAS_DEPLOY_SECRETS: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
 
     steps:
       - name: Deploy the signed image by digest

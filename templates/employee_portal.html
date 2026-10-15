@@ -1321,8 +1321,8 @@
                 <div class="u-fs-18 u-fw-800 u-c-86efac">+₹{{ "%.2f"|format(incentives_this_month) }}</div>
               </div>
               <div class="u-bg-rgba255_255_255_d12 u-br-10 u-p-12">
-                <div class="u-fs-11 u-op-d7 u-mb-3">Overtime Pay</div>
-                <div class="u-fs-18 u-fw-800 u-c-fde68a">+₹{{ "%.2f"|format(ot_pay_this_month) }}</div>
+                <div class="u-fs-11 u-op-d7 u-mb-3">PF, PT &amp; TDS</div>
+                <div class="u-fs-18 u-fw-800 u-c-fecaca">−₹{{ "%.2f"|format(statutory_this_month) }}</div>
               </div>
             </div>
           </div>
@@ -2426,8 +2426,8 @@
                   <span class="u-ta-right u-c-1e3a8a u-fs-16">₹${d.gross.toFixed(2)}</span>
                 </div>
                 <div class="u-d-grid u-gtc-1fr-auto-auto u-p-14-18 u-fs-14 u-bdt-1-solid-e2e8f0 u-bg-fff5f5 u-ai-center">
-                  <span class="u-c-dc2626 u-fw-600">PF Deduction (12%)</span><span></span>
-                  <span class="u-ta-right u-c-dc2626">−₹${d.pf.toFixed(2)}</span>
+                  <span class="u-c-dc2626 u-fw-600">PF, PT &amp; TDS</span><span></span>
+                  <span class="u-ta-right u-c-dc2626">−₹${d.statutory.toFixed(2)}</span>
                 </div>
                 ${(d.incentive && d.incentive > 0) ? `
                 <div class="u-d-grid u-gtc-1fr-auto-auto u-p-14-18 u-fs-14 u-bdt-1-solid-e2e8f0 u-bg-f0fdf4 u-ai-center">
@@ -2838,16 +2838,16 @@
                     <span class="u-ta-right u-fs-15 u-fw-800 u-c-1e3a8a">₹${d.gross.toFixed(2)}</span>
                   </div>
                   <div class="u-p-12-0 u-d-grid u-gtc-1fr-80-110 u-ai-center u-bdb-1-solid-f1f5f9 u-bg-fff5f5">
-                    <span class="u-fs-13 u-c-dc2626 u-fw-600">PF Deduction (12%)</span><span></span>
-                    <span class="u-ta-right u-fs-13 u-c-dc2626">−₹${d.pf.toFixed(2)}</span>
+                    <span class="u-fs-13 u-c-dc2626 u-fw-600">PF, PT &amp; TDS</span><span></span>
+                    <span class="u-ta-right u-fs-13 u-c-dc2626">−₹${d.statutory.toFixed(2)}</span>
                   </div>
                   ${d.incentive > 0 ? `<div class="u-p-12-0 u-d-grid u-gtc-1fr-80-110 u-ai-center u-bdb-1-solid-f1f5f9 u-bg-f0fdf4">
                     <span class="u-fs-13 u-c-16a34a u-fw-700">🏆 Incentive Bonus</span><span></span>
                     <span class="u-ta-right u-fs-13 u-fw-700 u-c-16a34a">+₹${d.incentive.toFixed(2)}</span>
                   </div>` : ''}
                   ${d.ot_pay && d.ot_pay > 0 ? `<div class="u-p-12-0 u-d-grid u-gtc-1fr-80-110 u-ai-center u-bdb-1-solid-f1f5f9 u-bg-fefce8">
-                    <span class="u-fs-13 u-c-d97706 u-fw-700">⏰ Overtime Pay</span><span></span>
-                    <span class="u-ta-right u-fs-13 u-fw-700 u-c-d97706">+₹${d.ot_pay.toFixed(2)}</span>
+                    <span class="u-fs-13 u-c-d97706 u-fw-700">⏰ Approved Overtime <span class="u-fs-11 u-fw-600">(not included in payroll)</span></span><span></span>
+                    <span class="u-ta-right u-fs-13 u-fw-700 u-c-d97706">₹${d.ot_pay.toFixed(2)}</span>
                   </div>` : ''}
                   <div class="u-p-16-0 u-d-grid u-gtc-1fr-80-110 u-ai-center u-bg-linear-gradien16a897 u-bdt-2-solid-16a34a">
                     <span class="u-fs-16 u-fw-800 u-c-15803d">💰 Net Pay</span><span></span>

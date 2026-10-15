@@ -24,7 +24,7 @@ from flask import Blueprint, request, jsonify, redirect, render_template, sessio
 from extensions import app, app_log, log_security_event
 from database import get_master_db
 from utils.auth import admin_required
-from utils.helpers import tpath, coerce_datetime
+from utils.helpers import tpath, coerce_datetime, platform_today
 from utils.plan_limits import calculate_price, format_price_inr, get_tenant_employee_count
 from utils.email_utils import get_email_config, get_admin_emails, send_email_async
 from utils.razorpay_utils import (
@@ -54,13 +54,14 @@ def check_tenant_billing():
 
 
 def _run_billing_check():
-    period_start = datetime.date.today().replace(day=1)
+    period_start = platform_today().replace(day=1)
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
         "SELECT id, company_name, subdomain, db_name, payment_option, billing_state, "
         "grace_period_ends_at, created_at FROM tenants "
-        "WHERE status='active' AND payment_option IN ('online', 'manual')"
+        "WHERE status='active' AND payment_option IN ('online', 'manual') "
+        "AND schema_missing_tables IS NULL"  # its admins would be read from public (QA SEC-07)
     )
     rows = cur.fetchall()
     cur.close()
@@ -239,7 +240,7 @@ def create_overdue_order():
 
     employee_count = get_tenant_employee_count(tenant_db)
     amount_paise = calculate_price(employee_count)
-    period_start = datetime.date.today().replace(day=1)
+    period_start = platform_today().replace(day=1)
 
     receipt_id = f"dunning_{tenant_db}_{int(datetime.datetime.now().timestamp())}"
     order_id, is_demo, error = create_id_or_demo(

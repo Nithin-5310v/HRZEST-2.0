@@ -751,7 +751,7 @@
         $("statusMsg").textContent   = msg;
       }
       function showError(msg) {
-        $("errorBox").innerHTML      = "❌ " + msg;
+        $("errorBox").textContent    = "❌ " + msg;   // text, never HTML (QA SEC-03)
         $("errorBox").style.display  = "block";
         $("statusBar").style.display = "none";
       }

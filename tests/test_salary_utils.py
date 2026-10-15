@@ -3,10 +3,9 @@ utils/salary_utils.py tests — pure functions, no DB/Flask needed.
 
 This module computes actual pay and renders the payslip an employee sees,
 so these tests pin the exact arithmetic rather than just checking "it
-doesn't crash." cfg.HOLIDAY_PAY / cfg.LEAVE_PAY / cfg.LATE_DEDUCTION_RATE /
-cfg.HALF_DAY_RATE are module-level globals loaded from the DB at startup
-(utils/config.py) — monkeypatched here for deterministic assertions,
-same technique used elsewhere for other module-level config constants.
+doesn't crash." The payroll rules come from the current company's settings
+via cfg.salary_rules() (utils/config.py) — patched here for deterministic
+assertions.
 
 Run with:
     python -m pytest tests/test_salary_utils.py -v
@@ -17,12 +16,18 @@ import utils.config as cfg
 from utils.salary_utils import compute_salary_entry, build_salary_slip_html
 
 
+_DEFAULT_RULES = cfg.SalaryRules(late_deduction_rate=0.10, half_day_rate=0.50,
+                                 holiday_pay="paid", leave_pay="exclude")
+
+
+def _set_rules(monkeypatch, **changes):
+    rules = _DEFAULT_RULES._replace(**changes)
+    monkeypatch.setattr(cfg, "salary_rules", lambda: rules)
+
+
 @pytest.fixture(autouse=True)
 def deterministic_config(monkeypatch):
-    monkeypatch.setattr(cfg, "LATE_DEDUCTION_RATE", 0.10)
-    monkeypatch.setattr(cfg, "HALF_DAY_RATE", 0.50)
-    monkeypatch.setattr(cfg, "HOLIDAY_PAY", "paid")
-    monkeypatch.setattr(cfg, "LEAVE_PAY", "exclude")
+    _set_rules(monkeypatch)
 
 
 def _dates(n, start=datetime.date(2026, 1, 1)):
@@ -94,7 +99,7 @@ class TestComputeSalaryEntryBasics:
 
 class TestComputeSalaryEntryHolidaysAndLeave:
     def test_paid_holiday_counts_as_full_day(self, monkeypatch):
-        monkeypatch.setattr(cfg, "HOLIDAY_PAY", "paid")
+        _set_rules(monkeypatch, holiday_pay="paid")
         days = _dates(1)
         entry = compute_salary_entry("E1", "Emp One", 1000, {}, days, holidays_set={days[0]})
         assert entry["holiday_days"] == 1
@@ -103,7 +108,7 @@ class TestComputeSalaryEntryHolidaysAndLeave:
         assert entry["net"] == 1000.0
 
     def test_unpaid_holiday_counts_as_absent(self, monkeypatch):
-        monkeypatch.setattr(cfg, "HOLIDAY_PAY", "unpaid")
+        _set_rules(monkeypatch, holiday_pay="unpaid")
         days = _dates(1)
         entry = compute_salary_entry("E1", "Emp One", 1000, {}, days, holidays_set={days[0]})
         assert entry["holiday_days"] == 1
@@ -112,7 +117,7 @@ class TestComputeSalaryEntryHolidaysAndLeave:
         assert entry["net"] == 0.0
 
     def test_leave_excluded_from_billable_no_pay_no_deduction(self, monkeypatch):
-        monkeypatch.setattr(cfg, "LEAVE_PAY", "exclude")
+        _set_rules(monkeypatch, leave_pay="exclude")
         days = _dates(3)
         entry = compute_salary_entry("E1", "Emp One", 1000, {}, days, leave_dates={days[0]})
         assert entry["leave_days"] == 1
@@ -122,7 +127,7 @@ class TestComputeSalaryEntryHolidaysAndLeave:
         assert entry["gross"] == 2000.0  # leave day excluded from gross entirely
 
     def test_leave_as_absent_counts_as_absent_deduction(self, monkeypatch):
-        monkeypatch.setattr(cfg, "LEAVE_PAY", "absent")
+        _set_rules(monkeypatch, leave_pay="absent")
         days = _dates(1)
         entry = compute_salary_entry("E1", "Emp One", 1000, {}, days, leave_dates={days[0]})
         assert entry["leave_days"] == 0
@@ -211,16 +216,21 @@ class TestBuildSalarySlipHtml:
         # monthly_ctc = 2000 * 26 = 52,000.00
         assert "Rs. 52,000.00" in html
 
-    def test_gross_never_exceeds_ctc_conveyance_capped(self):
-        """conveyance = min(1600, max(0, ctc - basic - hra)) — with a very
-        low CTC, conveyance and special_allowance must not push gross above
-        monthly_ctc."""
+    def test_net_is_attendance_earnings_minus_pf_pt_tds(self):
+        """The payslip shows the one net-pay calculation (QA BUG-05): what
+        the attendance earned under the company's rules, plus incentives,
+        minus PF/PT/TDS -- the amount disbursed. It used to build a CTC
+        structure and deduct loss of pay on a 26-day basis instead."""
         html = build_salary_slip_html(
             "Jane Doe", "EMP001", "jane@test.local", "January", 2026, 1,
-            self._base_salary_data(monthly_ctc=1000, basic_pct=50),
+            self._base_salary_data(spd=1000, monthly_ctc=26000, basic_pct=50, full_earn=20000,
+                                   late_earn=1800, half_earn=500, incentive=0),
+            payroll_cfg={"pf_employee_pct": 12, "professional_tax": 200, "tds_annual_pct": 0},
         )
-        # basic=500, hra=200, remaining for conveyance+special = 300 (< 1600 cap)
-        assert "Rs. 1,000.00" in html  # gross salary line
+        assert "Rs. 22,300.00" in html   # gross earned
+        assert "Rs. 1,560.00" in html    # PF: 12% of basic 13,000
+        assert "Rs. 20,540.00" in html   # net = 22,300 - 1,560 - 200
+        assert "Loss of Pay" not in html
 
     def test_statutory_deductions_capped_when_exceeding_gross_earned(self):
         """stat_ded > gross_earned triggers a proportional scale-down so

@@ -330,12 +330,12 @@
                 <th rowspan="2">Daily Rate</th>
                 <th rowspan="2">Work Days</th>
                 <th colspan="4" class="group-head">Attendance Days</th>
-                <th colspan="5" class="group-head">Earnings (₹)</th>
+                <th colspan="6" class="group-head">Earnings (₹)</th>
                 <th rowspan="2">Action</th>
               </tr>
               <tr>
                 <th>Full</th><th>Late</th><th>Half</th><th>Absent</th>
-                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th class="u-c-16a34a">🏆 Incentive</th><th>Net Payable</th>
+                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th class="u-c-16a34a">🏆 Incentive</th><th class="u-c-dc2626">PF/PT/TDS</th><th>Net Payable</th>
               </tr>
             </thead>
             <tbody id="salaryTbody">
@@ -373,11 +373,11 @@
                   ₹{{ "%.2f" | format(e.full_earn) }}
                 </td>
                 <td class="amt-late"
-                  title="{{ e.late_days }} days × ₹{{ '%.2f'|format(e.spd) }} × 90%">
+                  title="{{ e.late_days }} days × ₹{{ '%.2f'|format(e.spd) }} × {{ 100 - late_rate }}%">
                   ₹{{ "%.2f" | format(e.late_earn) }}
                 </td>
                 <td class="amt-late"
-                  title="{{ e.half_days }} days × ₹{{ '%.2f'|format(e.spd) }} × 50%">
+                  title="{{ e.half_days }} days × ₹{{ '%.2f'|format(e.spd) }} × {{ 100 - half_rate }}%">
                   ₹{{ "%.2f" | format(e.half_earn) }}
                 </td>
                 {% if (e.incentive | default(0)) > 0 %}
@@ -385,6 +385,7 @@
                 {% else %}
                 <td class="u-c-94a3b8">—</td>
                 {% endif %}
+                <td class="u-c-dc2626" title="PF ₹{{ '%.2f'|format(e.pf) }} · PT ₹{{ '%.2f'|format(e.pt) }} · TDS ₹{{ '%.2f'|format(e.tds) }}">−₹{{ "%.2f" | format(e.statutory) }}</td>
                 <td class="amt-net">₹{{ "%.2f" | format(e.net) }}</td>
                 <td>
                   <div class="action-col">
@@ -419,7 +420,7 @@
               </tr>
               {% else %}
               <tr>
-                <td colspan="12" class="empty-cell">
+                <td colspan="13" class="empty-cell">
                   <i class="ti ti-mood-empty ec-icon"></i>
                   No employees found. Please set daily salary for employees.
                 </td>
@@ -431,6 +432,7 @@
             {% set total_late_earn  = salary_data | sum(attribute='late_earn') %}
             {% set total_half_earn  = salary_data | sum(attribute='half_earn') %}
             {% set total_incentive  = salary_data | map(attribute='incentive', default=0) | sum %}
+            {% set total_statutory  = salary_data | sum(attribute='statutory') %}
             <tfoot>
               <tr class="total-row">
                 <td colspan="7">TOTAL</td>
@@ -438,6 +440,7 @@
                 <td class="amt-late-total">₹{{ "%.2f" | format(total_late_earn) }}</td>
                 <td class="amt-late-total">₹{{ "%.2f" | format(total_half_earn) }}</td>
                 <td class="u-c-16a34a u-fw-700">{% if total_incentive > 0 %}+₹{{ "%.2f" | format(total_incentive) }}{% else %}—{% endif %}</td>
+                <td class="u-c-dc2626 u-fw-700">−₹{{ "%.2f" | format(total_statutory) }}</td>
                 <td class="amt-net">₹{{ "%.2f" | format(total_net) }}</td>
                 <td></td>
               </tr>
@@ -456,6 +459,7 @@
         ❌ <strong>Absent</strong> — No attendance record → 100% deduction (no pay)<br>
         🎉 <strong>Holiday</strong> — Public holiday → Paid as Full Day (no attendance required)<br>
         📋 <strong>Leave (Approved)</strong> — Approved leave day → Not counted as a working day (no pay, no deduction)<br>
+        🧾 <strong>PF, PT &amp; TDS</strong> — From Payroll Settings, deducted from the earnings above → Net Payable is what is paid and what the payslip shows<br>
         <em>Work Days column: 🎉 = holiday days included, 📋 = leave days excluded</em>
       </div>
 
