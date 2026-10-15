@@ -619,18 +619,17 @@ def employee_portal():
     except Exception:
         my_overtime = []
 
-    # Salary summary for Earnings tab
+    # Salary summary for Earnings tab: the one net-pay calculation, as it
+    # will be paid (QA BUG-05). This card used to pay late days in full, fix
+    # half days at 50%, ignore holidays, leave and PF/PT/TDS, and add overtime.
     salary_per_day = float(emp[6]) if emp[6] else 0.0
-    gross_this_month = (full_days + late_days) * salary_per_day + half_days * salary_per_day * 0.5
-    deduction_this_month = absent_days * salary_per_day + half_days * salary_per_day * 0.5
-    try:
-        cursor.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND month=%s AND year=%s",
-            (emp_id, today.month, today.year)
-        )
-        incentives_this_month = float(cursor.fetchone()[0])
-    except Exception:
-        incentives_this_month = 0.0
+    from blueprints.payroll import compute_salary_data_for_month
+    _pay = (compute_salary_data_for_month(today.year, today.month, employee_ids=[emp_id]) or [{}])[0]
+    gross_this_month = _pay.get("attendance_earned", 0.0)
+    deduction_this_month = _pay.get("deduction", 0.0)
+    incentives_this_month = _pay.get("incentive", 0.0)
+    statutory_this_month = _pay.get("statutory", 0.0)
+    net_this_month = _pay.get("net", 0.0)
     try:
         cursor.execute(
             "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s "
@@ -640,7 +639,6 @@ def employee_portal():
         ot_pay_this_month = float(cursor.fetchone()[0] or 0)
     except Exception:
         ot_pay_this_month = 0.0
-    net_this_month = gross_this_month + incentives_this_month + ot_pay_this_month
 
     # Comp-off balance
     try:
@@ -739,6 +737,7 @@ def employee_portal():
                            gross_this_month=gross_this_month,
                            deduction_this_month=deduction_this_month,
                            incentives_this_month=incentives_this_month,
+                           statutory_this_month=statutory_this_month,
                            ot_pay_this_month=ot_pay_this_month,
                            net_this_month=net_this_month,
                            fp_enrolled=fp_enrolled,
@@ -1321,7 +1320,6 @@ def api_employee_qr_face_checkin():
 @employee_portal_bp.route("/api/employee/salary", methods=["GET"])
 @employee_api_required
 def api_employee_salary():
-    import calendar as cal
     from flask import g as _g
     emp_id = _g.api_emp_id
     try:
@@ -1337,54 +1335,25 @@ def api_employee_salary():
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
-    cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
-    spd_row = cursor.fetchone()
-    spd = float(spd_row[0]) if spd_row else 0.0
-    cursor.execute("SELECT date FROM holidays WHERE EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s", (month, year))
-    holiday_set = {r[0] for r in cursor.fetchall()}
-    _, days_in_month = cal.monthrange(year, month)
-    billable = sum(
-        1 for d in range(1, days_in_month + 1)
-        # weekday() != 6 excludes only Sunday, matching get_working_days() --
-        # the real payroll engine treats Saturday as a billable working day.
-        if datetime.date(year, month, d).weekday() != 6
-        and datetime.date(year, month, d) not in holiday_set
-    )
-    cursor.execute("""
-        SELECT attendance_type FROM attendance
-        WHERE employee_id=%s AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s
-    """, (emp_id, month, year))
-    att_rows = cursor.fetchall()
-    cursor.execute("""
-        SELECT COUNT(*) FROM leave_requests
-        WHERE employee_id=%s AND EXTRACT(MONTH FROM leave_date)=%s AND EXTRACT(YEAR FROM leave_date)=%s AND status='Approved'
-    """, (emp_id, month, year))
-    leave_days = cursor.fetchone()[0]
     cursor.close()
     db.close()
-    full_days = half_days = late_days = 0
-    for (att_type,) in att_rows:
-        if att_type == 'Full Day':
-            full_days += 1
-        elif att_type == 'Late - Full Day':
-            full_days += 1
-            late_days += 1
-        elif att_type in ('Half Day', 'Late - Half Day'):
-            half_days += 1
-    absent = max(0, billable - full_days - half_days - leave_days)
-    gross = spd * billable
-    deduction = spd * (absent + half_days * 0.5)
-    net = gross - deduction
+    # The one net-pay calculation, as paid (QA BUG-05). This endpoint used
+    # to count future days as billable, pay late days in full and ignore
+    # incentives and PF/PT/TDS. full_days no longer includes late days.
+    from blueprints.payroll import compute_salary_data_for_month
+    e = compute_salary_data_for_month(year, month, employee_ids=[emp_id])[0]
     return jsonify({
         "ok": True,
         "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
         "year": year, "month": month,
         "salary": {
             "emp_id": emp_id, "name": emp_row[0], "email": emp_row[1],
-            "spd": spd, "billable": billable,
-            "full_days": full_days, "half_days": half_days,
-            "late_days": late_days, "absent": absent, "leave_days": leave_days,
-            "gross": gross, "deduction": deduction, "net": net,
+            "spd": e["spd"], "billable": e["billable"],
+            "full_days": e["full_days"], "half_days": e["half_days"],
+            "late_days": e["late_days"], "absent": e["absent"], "leave_days": e["leave_days"],
+            "gross": e["gross"], "deduction": e["deduction"], "net": e["net"],
+            "incentive": e["incentive"], "pf": e["pf"], "pt": e["pt"], "tds": e["tds"],
+            "statutory": e["statutory"],
         }
     })
 

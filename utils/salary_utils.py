@@ -34,56 +34,91 @@ def payroll_config_from_row(row):
             for key, value in zip(PAYROLL_CONFIG_DEFAULTS, row)}
 
 
+def apply_statutory_deductions(entry, payroll_cfg=None):
+    """The one net-pay calculation (owner decision NV-19, 2026-10-14; QA BUG-05).
+
+    Earnings are what the month's attendance earns under the company's late
+    and half-day rules (compute_salary_entry's full_earn + late_earn +
+    half_earn) plus incentives -- the amount disbursed until now. The PF, PT
+    and TDS from Payroll settings are deducted from that, computed as the
+    payslip always did: PF on min(Basic, cap) with Basic = monthly CTC x
+    basic %, PT a flat monthly amount, TDS = annual CTC x rate / 12. If they
+    would exceed the earnings they are scaled down together, so net pay is
+    never negative. The disbursement, the payslip and every screen use the
+    resulting `net`, so a payslip shows exactly what is paid.
+
+    Adds to `entry` (and returns it): monthly_ctc, basic_pct, basic,
+    attendance_earned, earned, pf, pf_employer, pt, tds, statutory,
+    attendance_ded (pay lost to absences, late and half days),
+    deduction (attendance_ded + statutory) and net."""
+    pc = dict(PAYROLL_CONFIG_DEFAULTS)
+    pc.update(payroll_cfg or {})
+    spd = float(entry.get("spd") or 0)
+    monthly_ctc = float(entry.get("monthly_ctc") or 0)
+    if monthly_ctc <= 0:
+        monthly_ctc = round(spd * 26, 2)
+    basic_pct = float(entry["basic_pct"]) if entry.get("basic_pct") is not None else 50.0
+    basic = round(monthly_ctc * basic_pct / 100, 2)
+
+    attendance_earned = round(float(entry.get("full_earn") or 0) + float(entry.get("late_earn") or 0)
+                              + float(entry.get("half_earn") or 0), 2)
+    earned = round(attendance_earned + float(entry.get("incentive") or 0), 2)
+
+    pf_base = min(basic, float(pc["pf_basic_cap"]))
+    pf = round(pf_base * float(pc["pf_employee_pct"]) / 100, 2)
+    pf_employer = round(pf_base * float(pc["pf_employer_pct"]) / 100, 2)
+    pt = round(float(pc["professional_tax"]), 2)
+    tds = round(monthly_ctc * 12 * float(pc["tds_annual_pct"]) / 100 / 12, 2)
+    statutory = pf + pt + tds
+    if statutory > earned:
+        ratio = earned / statutory if statutory > 0 else 0
+        pf, pt, tds = (round(v * ratio, 2) for v in (pf, pt, tds))
+    statutory = round(pf + pt + tds, 2)
+    net = max(0.0, round(earned - statutory, 2))
+
+    gross = float(entry.get("gross") if entry.get("gross") is not None else attendance_earned)
+    attendance_ded = round(max(0.0, gross - attendance_earned), 2)
+    entry.update({
+        "monthly_ctc": monthly_ctc, "basic_pct": basic_pct, "basic": basic,
+        "attendance_earned": attendance_earned, "earned": earned,
+        "pf": pf, "pf_employer": pf_employer, "pt": pt, "tds": tds, "statutory": statutory,
+        "attendance_ded": attendance_ded, "deduction": round(attendance_ded + statutory, 2),
+        "net": net,
+    })
+    return entry
+
+
 def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data,
                            company_name="", emp_designation="", emp_dept="",
                            pan="", uan="", bank_account="", bank_name="",
                            payroll_cfg=None):
-    e = salary_data
-    pc = payroll_cfg or {}
+    # Every figure comes from the one net-pay calculation (QA BUG-05):
+    # callers pass an entry from compute_salary_data_for_month(), which has
+    # already applied it; a bare dict (unit tests) gets it applied here.
+    e = salary_data if "statutory" in salary_data else apply_statutory_deductions(dict(salary_data), payroll_cfg)
+    pc = dict(PAYROLL_CONFIG_DEFAULTS)
+    pc.update(payroll_cfg or {})
+    pf_pct = float(pc["pf_employee_pct"])
+    pf_er_pct = float(pc["pf_employer_pct"])
+    tds_ann_pct = float(pc["tds_annual_pct"])
 
-    # ── Salary structure ──────────────────────────────────────────
-    monthly_ctc = float(e.get("monthly_ctc", 0))
-    basic_pct = int(e.get("basic_pct", 50))
-    if monthly_ctc <= 0 and float(e.get("spd", 0)) > 0:
-        monthly_ctc = round(float(e["spd"]) * 26, 2)
-
-    basic = round(monthly_ctc * basic_pct / 100, 2)
-    hra = round(monthly_ctc * 0.20, 2)
-    # Cap conveyance so gross never exceeds CTC
-    conveyance = round(min(1600.0, max(0, monthly_ctc - basic - hra)), 2)
-    special_all = round(max(0, monthly_ctc - basic - hra - conveyance), 2)
-    gross_salary = round(basic + hra + conveyance + special_all, 2)
-
-    # ── LOP: standard 26-day denominator (Indian payroll norm) ───
+    spd = float(e.get("spd") or 0)
+    monthly_ctc = float(e["monthly_ctc"])
+    basic = float(e["basic"])
     full_d = int(e.get("full_days", 0))
     late_d = int(e.get("late_days", 0))
     half_d = int(e.get("half_days", 0))
-    lop_days = float(e.get("absent", 0))
-    paid_days_display = full_d + late_d + half_d   # integer count for display
-    lop_ded = round(gross_salary / 26 * lop_days, 2)
-    gross_earned = round(gross_salary - lop_ded, 2)
-
-    # ── Statutory deductions ─────────────────────────────────────
-    pf_pct = float(pc.get("pf_employee_pct", 12))
-    pf_er_pct = float(pc.get("pf_employer_pct", 12))
-    pf_cap_basic = float(pc.get("pf_basic_cap", 15000))
-    pt_monthly = float(pc.get("professional_tax", 200))
-    tds_ann_pct = float(pc.get("tds_annual_pct", 0))
-
-    # PF on capped basic; TDS = annual taxable (CTC×12) × rate ÷ 12
-    pf_ded = round(min(basic, pf_cap_basic) * pf_pct / 100, 2)
-    pf_er_ded = round(min(basic, pf_cap_basic) * pf_er_pct / 100, 2)
-    annual_ctc = monthly_ctc * 12
-    tds_ded = round(annual_ctc * tds_ann_pct / 100 / 12, 2)
-    # Cap statutory deductions to gross earned (net cannot go below 0)
-    stat_ded = pf_ded + pt_monthly + tds_ded
-    if stat_ded > gross_earned:
-        ratio = gross_earned / stat_ded if stat_ded > 0 else 0
-        pf_ded = round(pf_ded * ratio, 2)
-        pt_monthly = round(pt_monthly * ratio, 2)
-        tds_ded = round(tds_ded * ratio, 2)
-    total_ded = round(lop_ded + pf_ded + pt_monthly + tds_ded, 2)
-    net_pay = max(0, round(gross_earned - pf_ded - pt_monthly - tds_ded, 2))
+    absent_d = int(e.get("absent", 0) or 0)
+    paid_days_display = full_d + late_d + half_d
+    billable = e.get("billable", paid_days_display + absent_d)
+    full_earn = float(e.get("full_earn") or 0)
+    late_earn = float(e.get("late_earn") or 0)
+    half_earn = float(e.get("half_earn") or 0)
+    earned = float(e["earned"])
+    pf_ded, pf_er_ded, pt_monthly, tds_ded = float(e["pf"]), float(e["pf_employer"]), float(e["pt"]), float(e["tds"])
+    total_ded = float(e["statutory"])
+    attendance_ded = float(e["attendance_ded"])
+    net_pay = float(e["net"])
 
     emp_row_extra = ""
     if emp_designation:
@@ -102,7 +137,7 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 
     incentive_row = ""
     if e.get("incentive", 0) > 0:
-        incentive_row = f'<tr><td>Incentive / Bonus</td><td class="green">+ Rs. {e["incentive"]:.2f}</td><td></td><td></td></tr>'
+        incentive_row = f'<tr><td>Incentive / Bonus</td><td class="green">+ Rs. {e["incentive"]:.2f}</td></tr>'
 
     return f"""<!DOCTYPE html>
 <html>
@@ -180,10 +215,11 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
     </table>
     <table>
       <tr><td>Pay Period</td><td>{month_name}</td></tr>
-      <tr><td>Working Days (Standard)</td><td>26</td></tr>
+      <tr><td>Working Days</td><td>{billable}</td></tr>
       <tr><td>Days Present</td><td>{paid_days_display}</td></tr>
-      <tr><td>LOP Days</td><td>{int(lop_days)}</td></tr>
+      <tr><td>Absent Days</td><td>{absent_d}</td></tr>
       <tr><td>Monthly CTC</td><td>Rs. {monthly_ctc:,.2f}</td></tr>
+      <tr><td>Basic (PF base)</td><td>Rs. {basic:,.2f}</td></tr>
     </table>
   </div>
 
@@ -191,7 +227,7 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
     <div class="att-cell"><div class="num green">{full_d}</div><div class="lbl">Full Days</div></div>
     <div class="att-cell"><div class="num yellow">{late_d}</div><div class="lbl">Late Days</div></div>
     <div class="att-cell"><div class="num yellow">{half_d}</div><div class="lbl">Half Days</div></div>
-    <div class="att-cell"><div class="num red">{int(lop_days)}</div><div class="lbl">LOP / Absent</div></div>
+    <div class="att-cell"><div class="num red">{absent_d}</div><div class="lbl">Absent</div></div>
     <div class="att-cell"><div class="num" style="color:#3b82f6">{e.get('holiday_days', 0)}</div><div class="lbl">Holidays</div></div>
     <div class="att-cell"><div class="num" style="color:#9333ea">{e.get('leave_days', 0)}</div><div class="lbl">Leave (Paid)</div></div>
   </div>
@@ -199,14 +235,13 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
   <div class="body">
     <div class="two-col">
       <div>
-        <div class="sec-title">Earnings (Monthly)</div>
+        <div class="sec-title">Earnings</div>
         <table class="pay-tbl">
-          <tr><td>Basic Salary ({basic_pct}% of CTC)</td><td>Rs. {basic:,.2f}</td></tr>
-          <tr><td>House Rent Allowance (HRA)</td><td>Rs. {hra:,.2f}</td></tr>
-          <tr><td>Conveyance Allowance</td><td>Rs. {conveyance:,.2f}</td></tr>
-          <tr><td>Special Allowance</td><td>Rs. {special_all:,.2f}</td></tr>
+          <tr><td>Full Days ({full_d} × Rs.{spd:,.2f})</td><td>Rs. {full_earn:,.2f}</td></tr>
+          <tr><td>Late Days ({late_d}, after late deduction)</td><td>Rs. {late_earn:,.2f}</td></tr>
+          <tr><td>Half Days ({half_d}, after half-day deduction)</td><td>Rs. {half_earn:,.2f}</td></tr>
           {incentive_row}
-          <tr class="tot"><td>Gross Salary</td><td>Rs. {gross_salary:,.2f}</td></tr>
+          <tr class="tot"><td>Gross Earned</td><td>Rs. {earned:,.2f}</td></tr>
         </table>
         <div style="margin-top:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;font-size:12px;color:#15803d;">
           <b>PF -- Employer Contribution ({pf_er_pct:.0f}%)</b>: Rs. {pf_er_ded:,.2f}
@@ -216,15 +251,14 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
       <div>
         <div class="sec-title">Deductions</div>
         <table class="pay-tbl">
-          <tr><td>Loss of Pay -- LOP ({int(lop_days)} days × Rs.{gross_salary/26:,.2f})</td><td class="red">Rs. {lop_ded:,.2f}</td></tr>
           <tr><td>PF -- Employee Contribution ({pf_pct:.0f}% of Basic)</td><td class="red">Rs. {pf_ded:,.2f}</td></tr>
           <tr><td>Professional Tax</td><td class="red">Rs. {pt_monthly:,.2f}</td></tr>
           {"<tr><td>TDS -- Income Tax (annual " + f"{tds_ann_pct:.1f}%" + ")</td><td class='red'>Rs. " + f"{tds_ded:,.2f}</td></tr>" if tds_ded > 0 else ""}
           <tr class="tot"><td>Total Deductions</td><td>Rs. {total_ded:,.2f}</td></tr>
         </table>
         <div style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;">
-          <b>Gross Earned</b> (after LOP): Rs. {gross_earned:,.2f}
-          <div style="color:#64748b;margin-top:2px;font-size:11px;">Gross Salary − LOP before other deductions</div>
+          <b>Pay lost to absences, late and half days</b>: Rs. {attendance_ded:,.2f}
+          <div style="color:#64748b;margin-top:2px;font-size:11px;">Already reflected in the earnings</div>
         </div>
       </div>
     </div>
@@ -233,7 +267,7 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
       <div>
         <div class="lbl">Net Take-Home Pay</div>
         <div style="font-size:11px;opacity:.65;margin-top:4px;">
-          Rs.{gross_salary:,.2f} − LOP Rs.{lop_ded:,.2f} − PF Rs.{pf_ded:,.2f} − PT Rs.{pt_monthly:,.2f}{f" − TDS Rs.{tds_ded:,.2f}" if tds_ded > 0 else ""}
+          Rs.{earned:,.2f} earned − PF Rs.{pf_ded:,.2f} − PT Rs.{pt_monthly:,.2f}{f" − TDS Rs.{tds_ded:,.2f}" if tds_ded > 0 else ""}
         </div>
       </div>
       <div class="amt">Rs. {net_pay:,.2f}</div>
