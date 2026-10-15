@@ -221,6 +221,9 @@ def _run_column_migrations(cursor, db):
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS face_enabled SMALLINT DEFAULT 1",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS location_enabled SMALLINT DEFAULT 1",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS employee_password_auth SMALLINT DEFAULT 1",
+        # Location-only app check-in (/api/employee/checkin): NULL = follow
+        # the check-in policy, 1/0 = the admin's explicit choice (QA NV-18).
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS app_gps_checkin SMALLINT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_credential_id VARCHAR(512) DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_public_key TEXT DEFAULT NULL",
         "ALTER TABLE employees ADD COLUMN IF NOT EXISTS fingerprint_sign_count INT DEFAULT 0",

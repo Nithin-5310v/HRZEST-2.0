@@ -121,6 +121,7 @@ def _kiosk_checkin(client, mocker, hour, minute, signed_qr):
 
 # ── login at 08:00 ───────────────────────────────────────────────────────────
 
+@pytest.mark.usefixtures("app_gps_checkin_on")  # exercises the location-only app check-in (QA NV-18)
 def test_employee_app_login_uses_assigned_shift(client, seed_employee, early_shift, mocker):
     assert _employee_checkin(client, seed_employee, mocker, 8, 0)["status"] == "Half Day Login"
 
@@ -143,6 +144,7 @@ def test_kiosk_login_uses_assigned_shift(client, seed_employee, early_shift, moc
 
 # ── logout at 15:30 after logging in at 06:00 ────────────────────────────────
 
+@pytest.mark.usefixtures("app_gps_checkin_on")  # exercises the location-only app check-in (QA NV-18)
 def test_employee_app_logout_uses_assigned_shift(client, seed_employee, logged_in_at_six, mocker):
     data = _employee_checkin(client, seed_employee, mocker, 15, 30)
     assert (data["action"], data["status"]) == ("logout", "Completed")

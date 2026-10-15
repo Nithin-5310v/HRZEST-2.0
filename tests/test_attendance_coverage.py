@@ -929,6 +929,7 @@ class TestApiCheckinStatusBranches:
 # /api/employee/checkin — invalid punched_at, WFH fence, login/logout status
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@pytest.mark.usefixtures("app_gps_checkin_on")  # exercises the location-only app check-in (QA NV-18)
 class TestApiEmployeeCheckinCoverage:
 
     def _patch_shifts(self, s_start, s_half, s_end, grace=0):

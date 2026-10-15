@@ -1264,6 +1264,7 @@ _AUTH_CONFIG_DEFAULTS = {
     "fingerprint_enabled": False, "qr_enabled": True, "face_enabled": True,
     "location_enabled": True, "employee_password_auth": True,
     "geo_radius": 100, "office_lat": None, "office_lon": None,
+    "app_gps_checkin": None,
 }
 
 
@@ -1278,7 +1279,7 @@ def get_auth_config():
             SELECT COALESCE(fingerprint_enabled,0), COALESCE(qr_enabled,1),
                    COALESCE(face_enabled,1), COALESCE(location_enabled,1),
                    COALESCE(employee_password_auth,1), COALESCE(geo_radius,100),
-                   office_lat, office_lon
+                   office_lat, office_lon, app_gps_checkin
             FROM company_settings LIMIT 1
         """)
         row = cursor.fetchone()
@@ -1290,6 +1291,7 @@ def get_auth_config():
                 "face_enabled": bool(row[2]), "location_enabled": bool(row[3]),
                 "employee_password_auth": bool(row[4]), "geo_radius": row[5],
                 "office_lat": row[6], "office_lon": row[7],
+                "app_gps_checkin": None if row[8] is None else bool(row[8]),
             }
             _cache_set(_auth_cache, "settings_auth", result, _CO_CACHE_TTL)
             return dict(result)
@@ -1322,6 +1324,18 @@ def allowed_checkin_combos(auth_cfg):
         if fingerprint:
             allowed.add("fingerprint_only")
     return allowed
+
+
+def app_gps_checkin_allowed(auth_cfg):
+    """Whether the mobile app's location-only check-in (/api/employee/checkin:
+    login token plus GPS, no QR, face or fingerprint) is allowed. The
+    admin's explicit setting decides; unset, it is allowed only when the
+    company has no verified check-in method enabled, so it can't be used to
+    skip the QR or face check the company requires (QA NV-18)."""
+    explicit = auth_cfg.get("app_gps_checkin")
+    if explicit is not None:
+        return bool(explicit)
+    return not allowed_checkin_combos(auth_cfg)
 
 
 def _read_global_features():

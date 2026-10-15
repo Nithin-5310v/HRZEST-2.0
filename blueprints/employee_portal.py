@@ -13,7 +13,7 @@ from utils.auth import employee_required, employee_api_required, validate_new_pa
 from utils.helpers import (
     tpath,
     _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
-    company_today, company_now, coerce_datetime, int_param,
+    company_today, company_now, coerce_datetime, int_param, app_gps_checkin_allowed,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
 from utils.session_risk import ensure_session_id, evaluate_session_risk
@@ -891,6 +891,14 @@ def api_employee_checkin():
     lat = data.get("lat")
     lon = data.get("lon")
 
+    # Login token + GPS only: allowed when the company's check-in policy
+    # permits it, not as a way around the QR or face check it requires
+    # (QA NV-18). The app's check-in buttons use /api/employee/qr-face-checkin.
+    auth_cfg = get_auth_config()
+    if not app_gps_checkin_allowed(auth_cfg):
+        return jsonify({"ok": False, "msg": "Please check in with QR or face verification. "
+                                            "Location-only check-in is turned off for your organisation."}), 403
+
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     result = fetch_employee_work_location(cursor, emp_id)
@@ -903,7 +911,7 @@ def api_employee_checkin():
     # Same rule as the kiosk (/attendance): with location enforced, a request
     # that leaves the coordinates out is refused rather than skipping the
     # geofence (QA SEC-08).
-    location_enforced = get_auth_config().get("location_enabled", True)
+    location_enforced = auth_cfg.get("location_enabled", True)
     if location_enforced and not (lat and lon):
         cursor.close()
         db.close()

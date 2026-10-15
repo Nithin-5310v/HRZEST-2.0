@@ -522,6 +522,20 @@ def razorpay_demo_mode(monkeypatch):
 
 
 @pytest.fixture
+def app_gps_checkin_on(db_engine):
+    """Turns on the mobile app's location-only check-in
+    (company_settings.app_gps_checkin). The default test company has QR
+    and face enabled, so /api/employee/checkin refuses it otherwise (QA
+    NV-18). For tests that exercise that endpoint itself; the per-test
+    snapshot restore puts the setting back."""
+    from utils.helpers import invalidate_settings_cache
+    cur = db_engine.cursor()
+    cur.execute("UPDATE company_settings SET app_gps_checkin=1")
+    cur.close()
+    invalidate_settings_cache()
+
+
+@pytest.fixture
 def client():
     flask_app.config["TESTING"] = True   # disables CSRF check + rate limits
     flask_app.config["WTF_CSRF_ENABLED"] = False

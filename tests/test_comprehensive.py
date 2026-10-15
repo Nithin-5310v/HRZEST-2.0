@@ -464,6 +464,7 @@ class TestEmployeePortalAPI:
 # 9. ATTENDANCE CHECK-IN API
 # ===========================================================================
 
+@pytest.mark.usefixtures("app_gps_checkin_on")  # exercises the location-only app check-in (QA NV-18)
 class TestCheckinAPI:
     def test_checkin_missing_fields_returns_error(self, client, seed_employee):
         # Missing lat/lon/type — endpoint may accept and default or return error

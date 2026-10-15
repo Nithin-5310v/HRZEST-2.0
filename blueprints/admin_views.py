@@ -43,6 +43,7 @@ from utils.helpers import (
     encrypt_pii, decrypt_pii, invalidate_companies_cache,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
     post_announcement, _validate_upload, company_today, company_now, int_param,
+    get_auth_config, app_gps_checkin_allowed,
 )
 from utils.storage import save_private, open_private, delete_private
 from utils.email_utils import get_email_config, send_email_smtp
@@ -64,6 +65,7 @@ _TOGGLE_COLUMN_MAP = {
     "face": "face_enabled",
     "location": "location_enabled",
     "password": "employee_password_auth",
+    "app_gps": "app_gps_checkin",
 }
 _TOGGLE_LABEL_MAP = {
     "fingerprint": "Fingerprint / Biometric",
@@ -71,6 +73,7 @@ _TOGGLE_LABEL_MAP = {
     "face": "Face Recognition",
     "location": "Location Verification",
     "password": "Password Login",
+    "app_gps": "Location-only App Check-in",
 }
 
 
@@ -806,6 +809,7 @@ def settings_page():
                                "fingerprint_enabled": fr["fingerprint_enabled"],
                                "location_enabled": fr["geo_enabled"],
                                "employee_password_auth": True,
+                               "app_gps_checkin": app_gps_checkin_allowed(get_auth_config()),
                            },
                            features=features,
                            )
@@ -1115,7 +1119,8 @@ def toggle_auth_method():
     active_cid = session.get("active_company_id")
     # Map old column names to company_feature_settings column names
     _cfs_map = {"face_enabled": "face_auth_enabled", "location_enabled": "geo_enabled",
-                "employee_password_auth": None}  # password auth stays global
+                "employee_password_auth": None,  # password auth stays global
+                "app_gps_checkin": None}  # read by /api/employee/checkin via get_auth_config()
     cfs_col = _cfs_map.get(column, column)
     if active_cid and cfs_col:
         _upsert_co_feature(active_cid, cfs_col, 1 if enabled else 0)
@@ -1130,6 +1135,9 @@ def toggle_auth_method():
         db.commit()
         cursor.close()
         db.close()
+    # The check-in endpoints read these through the cached auth config;
+    # without this a change only applied once the cache expired.
+    invalidate_settings_cache()
     state = "enabled" if enabled else "disabled"
     flash(f"{label} {state}.", "success")
     return redirect(tpath("/settings?tab=attendance"))

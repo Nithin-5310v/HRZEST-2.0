@@ -2022,7 +2022,8 @@
           ("face",        "🤳", "Face Recognition",          "face_enabled",           "Camera captures employee face for liveness and identity verification."),
           ("fingerprint", "👆", "Fingerprint / Biometric",   "fingerprint_enabled",    "Device fingerprint or face-ID used as a second factor (optional)."),
           ("location",    "📍", "Location Verification",     "location_enabled",       "GPS must place the employee within the allowed office radius."),
-          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password.")
+          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password."),
+          ("app_gps",     "🛰️", "Location-only App Check-in", "app_gps_checkin",      "Employees can check in from the mobile app with GPS alone, without QR or face. Off unless you turn it on while QR, face or fingerprint is enabled.")
         ] %}
 
         {% for key, icon, label, cfg_key, desc in methods %}

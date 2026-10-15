@@ -447,6 +447,7 @@ class TestApiAdminCheckin:
 # /api/employee/checkin (employee Bearer token, POST JSON)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@pytest.mark.usefixtures("app_gps_checkin_on")  # exercises the location-only app check-in (QA NV-18)
 class TestApiEmployeeCheckin:
 
     def test_requires_employee_token(self, client):

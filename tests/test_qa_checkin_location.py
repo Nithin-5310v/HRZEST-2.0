@@ -13,6 +13,9 @@ import blueprints.employee_portal as ep
 from tests.conftest import TEST_OFFICE
 from utils.helpers import get_auth_config
 
+# These tests exercise the location-only app check-in (QA NV-18).
+pytestmark = pytest.mark.usefixtures("app_gps_checkin_on")
+
 OFFICE = TEST_OFFICE
 
 
