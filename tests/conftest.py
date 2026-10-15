@@ -92,6 +92,41 @@ def _ensure_test_database(name):
         conn.close()
 
 
+
+def _test_db_name(environ):
+    """Test database for this process: HRZEST_TEST_DB (default "att_test"),
+    suffixed with the pytest-xdist worker id when running in parallel
+    (att_test_gw0, att_test_gw1, ...). Each worker -- and any other checkout
+    that sets its own HRZEST_TEST_DB -- then gets a database of its own
+    instead of every run sharing (and resetting under each other) one att_test."""
+    base = environ.get("HRZEST_TEST_DB", "att_test")
+    worker = environ.get("PYTEST_XDIST_WORKER", "")
+    name = f"{base}_{worker}" if worker else base
+    if not name.replace("_", "").isalnum() or not name.islower():
+        raise ValueError(f"Invalid test database name: {name!r}")
+    return name
+
+
+def _ensure_test_database(name):
+    """Create the test database on the local server if it doesn't exist yet
+    (each new xdist worker database starts empty; init_db() builds the schema)."""
+    import psycopg2
+    conn = psycopg2.connect(
+        host=os.environ.get("DB_HOST", "localhost"), port=int(os.environ.get("DB_PORT", "5432")),
+        user=os.environ.get("DB_USER", "postgres"), password=os.environ.get("DB_PASS", ""),
+        dbname="postgres",
+    )
+    conn.autocommit = True
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM pg_database WHERE datname=%s", (name,))
+        if not cur.fetchone():
+            cur.execute(f'CREATE DATABASE "{name}"')  # nosec B608 -- name validated by _test_db_name
+        cur.close()
+    finally:
+        conn.close()
+
+
 # Override values for testing
 #
 # One database per pytest-xdist worker: a plain `pytest` run uses att_test

@@ -1382,6 +1382,30 @@ def _tenant_schema_incomplete(tenant_db):
     return resp
 
 
+@app.errorhandler(DatabaseUnavailable)
+def database_unavailable(e):
+    """database.py raises DatabaseUnavailable instead of silently switching
+    to a local SQLite file when PostgreSQL can't be reached (outside
+    APP_ENV=development). Answer 503 so the outage is visible and retryable,
+    and alert (CRITICAL security events go to the alert webhook)."""
+    log_security_event("db.unavailable", "PostgreSQL unavailable -- request answered 503", level="CRITICAL")
+    is_ajax = (
+        request.path.startswith("/api/")
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
+    if is_ajax:
+        resp = jsonify({"ok": False, "msg": "Service temporarily unavailable. Please try again shortly."})
+    else:
+        resp = _error_page(503, "🛠️", "Service Temporarily Unavailable",
+                           "We can't reach the database right now.",
+                           "Please try again in a minute.")
+    resp = make_response(resp)
+    resp.status_code = 503
+    resp.headers["Retry-After"] = "30"
+    return resp
+
+
 @app.errorhandler(404)
 def not_found(e):
     return _error_page(404, "🔍", "Page Not Found",
