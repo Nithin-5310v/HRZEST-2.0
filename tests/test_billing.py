@@ -30,12 +30,17 @@ Run with:
 """
 import secrets
 
-from utils.auth import generate_password_hash
+import pytest
+
+from utils.auth import _hash_token, generate_password_hash
 from utils.plan_limits import calculate_price, format_price_inr
+
+pytestmark = pytest.mark.usefixtures("razorpay_demo_mode")
 
 
 def _insert_application(db_engine, status="approved_pending_payment", **overrides):
     suffix = secrets.token_hex(4)
+    access_token = secrets.token_urlsafe(32)
     fields = {
         "company_name": overrides.pop("company_name", f"Billing Test Co {suffix}"),
         "subdomain": overrides.pop("subdomain", f"billing-test-{suffix}"),
@@ -43,7 +48,8 @@ def _insert_application(db_engine, status="approved_pending_payment", **override
         "admin_email": overrides.pop("admin_email", f"billing-{suffix}@test.local"),
         "admin_password_hash": overrides.pop("admin_password_hash", generate_password_hash("Test@1234")),
         "email_domain": overrides.pop("email_domain", "test.local"),
-        "access_token_hash": overrides.pop("access_token_hash", secrets.token_hex(32)),
+        "access_token": access_token,
+        "access_token_hash": overrides.pop("access_token_hash", _hash_token(access_token)),
         "status": status,
     }
     cur = db_engine.cursor()
@@ -86,6 +92,73 @@ def _cleanup(db_engine, application_id=None, subdomain=None, order_ids=()):
     cur.close()
 
 
+def _prove_access(client, application_id, fields):
+    """What a real applicant does before checkout: open the emailed pay
+    link. The page checks the token and remembers only the application id
+    in the session, which is what create_order() then accepts."""
+    resp = client.get(f"/create_org/pay/{application_id}?token={fields['access_token']}")
+    assert resp.status_code == 302
+
+
+def _staged_order_count(db_engine, application_id):
+    cur = db_engine.cursor()
+    cur.execute("SELECT COUNT(*) FROM att_master.payment_orders WHERE application_id=%s", (application_id,))
+    count = cur.fetchone()[0]
+    cur.close()
+    return count
+
+
+class TestCreateOrderAccessToken:
+    """Same rule as the pay/trial pages (blueprints/org.py's
+    _verify_application_access): a sequential application_id alone must
+    not be enough to stage an order or learn an application's status."""
+
+    def test_no_proof_404s_and_stages_nothing(self, client, db_engine):
+        application_id, _fields = _insert_application(db_engine)
+        try:
+            resp = client.post("/api/billing/create_order", json={
+                "application_id": application_id, "employee_count": 5,
+            })
+            assert resp.status_code == 404
+            assert resp.get_json() == {"ok": False, "msg": "Application not found."}
+            assert _staged_order_count(db_engine, application_id) == 0
+        finally:
+            _cleanup(db_engine, application_id=application_id)
+
+    def test_wrong_token_404s(self, client, db_engine):
+        application_id, _fields = _insert_application(db_engine)
+        try:
+            resp = client.post("/api/billing/create_order?token=wrong-" + secrets.token_hex(8), json={
+                "application_id": application_id, "employee_count": 5,
+            })
+            assert resp.status_code == 404
+            assert _staged_order_count(db_engine, application_id) == 0
+        finally:
+            _cleanup(db_engine, application_id=application_id)
+
+    def test_status_not_revealed_without_proof(self, client, db_engine):
+        application_id, _fields = _insert_application(db_engine, status="pending_review")
+        try:
+            resp = client.post("/api/billing/create_order", json={
+                "application_id": application_id, "employee_count": 5,
+            })
+            assert resp.status_code == 404
+        finally:
+            _cleanup(db_engine, application_id=application_id)
+
+    def test_proof_for_another_application_does_not_carry_over(self, client, db_engine):
+        app_a, fields_a = _insert_application(db_engine)
+        app_b, _fields_b = _insert_application(db_engine)
+        try:
+            _prove_access(client, app_a, fields_a)
+            resp = client.post("/api/billing/create_order", json={"application_id": app_b, "employee_count": 5})
+            assert resp.status_code == 404
+            assert _staged_order_count(db_engine, app_b) == 0
+        finally:
+            _cleanup(db_engine, application_id=app_a)
+            _cleanup(db_engine, application_id=app_b)
+
+
 class TestCreateOrder:
     def test_missing_application_id_rejected(self, client):
         resp = client.post("/api/billing/create_order", json={})
@@ -103,6 +176,7 @@ class TestCreateOrder:
     def test_wrong_status_rejected(self, client, db_engine):
         application_id, fields = _insert_application(db_engine, status="pending_review")
         try:
+            _prove_access(client, application_id, fields)
             resp = client.post("/api/billing/create_order", json={
                 "application_id": application_id, "employee_count": 5,
             })
@@ -122,6 +196,7 @@ class TestCreateOrder:
         # the 400 a naive reading of the code would expect.
         application_id, fields = _insert_application(db_engine)
         try:
+            _prove_access(client, application_id, fields)
             resp = client.post("/api/billing/create_order", json={
                 "application_id": application_id, "employee_count": 0,
             })
@@ -133,6 +208,7 @@ class TestCreateOrder:
     def test_negative_employee_count_rejected(self, client, db_engine):
         application_id, fields = _insert_application(db_engine)
         try:
+            _prove_access(client, application_id, fields)
             resp = client.post("/api/billing/create_order", json={
                 "application_id": application_id, "employee_count": -3,
             })
@@ -143,6 +219,7 @@ class TestCreateOrder:
     def test_non_numeric_employee_count_rejected(self, client, db_engine):
         application_id, fields = _insert_application(db_engine)
         try:
+            _prove_access(client, application_id, fields)
             resp = client.post("/api/billing/create_order", json={
                 "application_id": application_id, "employee_count": "lots",
             })
@@ -153,6 +230,7 @@ class TestCreateOrder:
     def test_happy_path_stages_demo_order(self, client, db_engine):
         application_id, fields = _insert_application(db_engine)
         try:
+            _prove_access(client, application_id, fields)
             resp = client.post("/api/billing/create_order", json={
                 "application_id": application_id, "employee_count": 10,
             })

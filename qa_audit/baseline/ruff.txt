@@ -1,0 +1,1136 @@
+app.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+app.py:2:1: I001 [*] Import block is un-sorted or un-formatted
+app.py:11:1: S110 `try`-`except`-`pass` detected, consider logging the exception
+app.py:11:8: BLE001 Do not catch blind exception: `Exception`
+app.py:32:1: I001 [*] Import block is un-sorted or un-formatted
+app.py:47:1: I001 [*] Import block is un-sorted or un-formatted
+app.py:62:1: I001 [*] Import block is un-sorted or un-formatted
+app.py:97:8: PLR0402 [*] Use `from utils import waf` in lieu of alias
+app.py:111:12: C408 Unnecessary `dict()` call (rewrite as a literal)
+app.py:154:16: BLE001 Do not catch blind exception: `Exception`
+app.py:176:12: UP032 [*] Use f-string instead of `format` call
+app.py:247:12: BLE001 Do not catch blind exception: `Exception`
+app.py:259:12: BLE001 Do not catch blind exception: `Exception`
+app.py:315:12: BLE001 Do not catch blind exception: `Exception`
+app.py:351:12: BLE001 Do not catch blind exception: `Exception`
+app.py:467:16: BLE001 Do not catch blind exception: `Exception`
+app.py:1021:16: BLE001 Do not catch blind exception: `Exception`
+app.py:1041:16: BLE001 Do not catch blind exception: `Exception`
+app.py:1155:12: BLE001 Do not catch blind exception: `Exception`
+app.py:1211:12: BLE001 Do not catch blind exception: `Exception`
+app.py:1241:1: I001 [*] Import block is un-sorted or un-formatted
+app.py:1308:22: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+app.py:1317:12: BLE001 Do not catch blind exception: `Exception`
+app.py:2155:5: I001 [*] Import block is un-sorted or un-formatted
+app.py:2199:9: I001 [*] Import block is un-sorted or un-formatted
+app.py:2203:16: C408 Unnecessary `dict()` call (rewrite as a literal)
+app.py:2208:12: BLE001 Do not catch blind exception: `Exception`
+app.py:2209:16: C408 Unnecessary `dict()` call (rewrite as a literal)
+app.py:2254:5: I001 [*] Import block is un-sorted or un-formatted
+app.py:2296:9: I001 [*] Import block is un-sorted or un-formatted
+blueprints\__init__.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\admin_views.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\admin_views.py:16:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\admin_views.py:83:13: DTZ011 `datetime.date.today()` used
+blueprints\admin_views.py:129:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:157:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:178:25: UP031 Use format specifiers instead of percent format
+blueprints\admin_views.py:290:13: DTZ011 `datetime.date.today()` used
+blueprints\admin_views.py:356:13: DTZ011 `datetime.date.today()` used
+blueprints\admin_views.py:459:212: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\admin_views.py:541:24: UP031 Use format specifiers instead of percent format
+blueprints\admin_views.py:559:24: UP031 Use format specifiers instead of percent format
+blueprints\admin_views.py:577:23: UP031 Use format specifiers instead of percent format
+blueprints\admin_views.py:696:20: UP031 Use format specifiers instead of percent format
+blueprints\admin_views.py:730:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\admin_views.py:793:38: DTZ011 `datetime.date.today()` used
+blueprints\admin_views.py:794:37: DTZ011 `datetime.date.today()` used
+blueprints\admin_views.py:910:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:1129:188: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\admin_views.py:1238:174: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\admin_views.py:1407:172: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\admin_views.py:1607:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:1702:165: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\admin_views.py:1721:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:1739:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:1744:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:2062:24: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:2100:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:2123:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:2166:13: DTZ011 `datetime.date.today()` used
+blueprints\admin_views.py:2339:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\admin_views.py:2663:15: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\admin_views.py:2682:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\ai_hrms.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\ai_hrms.py:4:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\attendance.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\attendance.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\attendance.py:142:9: RUF034 Useless `if`-`else` condition
+blueprints\attendance.py:161:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\attendance.py:400:41: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:401:43: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:475:24: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:475:56: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:529:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\attendance.py:544:43: RUF059 Unpacked variable `logout_status` is never used
+blueprints\attendance.py:580:24: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:580:56: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:660:13: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:756:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\attendance.py:780:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\attendance.py:816:13: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:918:41: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:919:43: DTZ011 `datetime.date.today()` used
+blueprints\attendance.py:1114:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\attendance.py:1121:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\attendance.py:1197:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\attendance.py:1224:13: SIM102 Use a single `if` statement instead of nested `if` statements
+blueprints\attendance.py:1516:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\auth.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\auth.py:48:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\auth.py:102:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:509:32: RUF059 Unpacked variable `db` is never used
+blueprints\auth.py:584:40: RUF059 Unpacked variable `db` is never used
+blueprints\auth.py:721:14: DTZ003 `datetime.datetime.utcnow()` used
+blueprints\auth.py:733:22: DTZ003 `datetime.datetime.utcnow()` used
+blueprints\auth.py:787:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1105:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1140:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1149:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1221:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1225:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1245:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1277:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1307:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1363:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1397:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auth.py:1429:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auto_debit.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\auto_debit.py:28:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\auto_debit.py:330:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\auto_debit.py:359:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auto_debit.py:423:22: DTZ011 `datetime.date.today()` used
+blueprints\auto_debit.py:484:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\auto_debit.py:509:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\auto_debit.py:570:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\auto_debit.py:611:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\auto_debit.py:618:22: DTZ011 `datetime.date.today()` used
+blueprints\billing.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\billing.py:21:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\billing.py:86:44: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\billing.py:107:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\billing_dunning.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\billing_dunning.py:21:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\billing_dunning.py:52:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\billing_dunning.py:57:20: DTZ011 `datetime.date.today()` used
+blueprints\billing_dunning.py:70:55: RUF059 Unpacked variable `payment_option` is never used
+blueprints\billing_dunning.py:75:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\billing_dunning.py:101:11: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\billing_dunning.py:190:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\billing_dunning.py:238:5: RUF059 Unpacked variable `tenant_id` is never used
+blueprints\billing_dunning.py:242:20: DTZ011 `datetime.date.today()` used
+blueprints\billing_dunning.py:244:45: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\company_profile.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\company_profile.py:13:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\company_profile.py:113:57: DTZ003 `datetime.datetime.utcnow()` used
+blueprints\company_profile.py:130:16: DTZ007 Naive datetime constructed using `datetime.datetime.strptime()` without %z
+blueprints\core.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\core.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\core.py:110:24: B023 Function definition does not bind loop variable `body`
+blueprints\core.py:110:48: B023 Function definition does not bind loop variable `body`
+blueprints\core.py:110:58: B023 Function definition does not bind loop variable `body`
+blueprints\core.py:110:67: B023 Function definition does not bind loop variable `alias`
+blueprints\core.py:119:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\core.py:345:13: DTZ011 `datetime.date.today()` used
+blueprints\core.py:508:9: ISC004 Unparenthesized implicit string concatenation in collection
+blueprints\core.py:749:24: BLE001 Do not catch blind exception: `Exception`
+blueprints\core.py:756:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\core.py:761:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\core.py:766:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\daily_report.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\daily_report.py:15:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\daily_report.py:126:12: DTZ011 `datetime.date.today()` used
+blueprints\daily_report.py:152:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\daily_report.py:157:13: DTZ011 `datetime.date.today()` used
+blueprints\daily_report.py:275:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\disbursement.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\disbursement.py:20:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\disbursement.py:359:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\disbursement.py:447:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\disbursement.py:462:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\disbursement.py:467:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\disbursement.py:477:17: DTZ011 `datetime.date.today()` used
+blueprints\documents.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\documents.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\documents.py:85:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\documents.py:121:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\documents.py:173:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\documents.py:283:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\documents.py:355:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\documents.py:508:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\documents.py:511:9: I001 [*] Import block is un-sorted or un-formatted
+blueprints\documents.py:532:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\email_blast.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\email_blast.py:12:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\email_blast.py:82:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\email_blast.py:115:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\employee_portal.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employee_portal.py:44:12: UP032 [*] Use f-string instead of `format` call
+blueprints\employee_portal.py:188:9: RUF059 Unpacked variable `err` is never used
+blueprints\employee_portal.py:207:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:250:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employee_portal.py:260:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employee_portal.py:499:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:534:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:571:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:587:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:600:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:609:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:619:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:632:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:641:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:655:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:696:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:704:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:816:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employee_portal.py:833:13: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employee_portal.py:967:13: SIM102 Use a single `if` statement instead of nested `if` statements
+blueprints\employee_portal.py:1310:18: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\employee_portal.py:1326:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:1336:18: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\employee_portal.py:1340:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:1417:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employee_portal.py:1421:45: DTZ011 `datetime.date.today()` used
+blueprints\employee_portal.py:1422:47: DTZ011 `datetime.date.today()` used
+blueprints\employee_portal.py:1491:45: DTZ011 `datetime.date.today()` used
+blueprints\employee_portal.py:1492:47: DTZ011 `datetime.date.today()` used
+blueprints\employee_portal.py:1820:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employee_portal.py:1839:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employees.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\employees.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employees.py:60:14: DTZ003 `datetime.datetime.utcnow()` used
+blueprints\employees.py:191:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:232:13: DTZ011 `datetime.date.today()` used
+blueprints\employees.py:233:28: RUF059 Unpacked variable `db` is never used
+blueprints\employees.py:585:24: DTZ007 Naive datetime constructed using `datetime.datetime.strptime()` without %z
+blueprints\employees.py:620:24: UP031 Use format specifiers instead of percent format
+blueprints\employees.py:676:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:718:28: RUF059 Unpacked variable `conn` is never used
+blueprints\employees.py:891:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employees.py:1187:29: DTZ011 `datetime.date.today()` used
+blueprints\employees.py:1191:49: DTZ011 `datetime.date.today()` used
+blueprints\employees.py:1211:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:1533:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:1732:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:1811:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:1941:17: RUF046 Value being cast to `int` is already an integer
+blueprints\employees.py:1942:17: RUF046 Value being cast to `int` is already an integer
+blueprints\employees.py:1943:17: RUF046 Value being cast to `int` is already an integer
+blueprints\employees.py:1944:17: RUF046 Value being cast to `int` is already an integer
+blueprints\employees.py:1955:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:1978:24: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:1984:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:2069:13: FURB188 [*] Prefer `str.removeprefix()` over conditionally replacing with slice.
+blueprints\employees.py:2147:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\employees.py:2272:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:2283:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:2368:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\employees.py:2377:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\health.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\health.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\health.py:37:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\honeypot_routes.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\honeypot_routes.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\honeypot_routes.py:46:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\hr_dashboard.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\hr_dashboard.py:22:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\hr_dashboard.py:214:13: DTZ011 `datetime.date.today()` used
+blueprints\hr_dashboard.py:256:13: DTZ011 `datetime.date.today()` used
+blueprints\hr_dashboard.py:289:13: DTZ011 `datetime.date.today()` used
+blueprints\hr_dashboard.py:382:13: DTZ011 `datetime.date.today()` used
+blueprints\hr_dashboard.py:407:13: DTZ011 `datetime.date.today()` used
+blueprints\hr_dashboard.py:489:13: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\leave.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\leave.py:74:41: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:84:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\leave.py:95:37: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:144:9: PLR1730 [*] Replace `if` statement with `end_dt = max(end_dt, start_dt)`
+blueprints\leave.py:206:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\leave.py:217:41: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:292:41: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:330:41: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:331:13: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:491:72: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:583:13: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:655:15: DTZ007 Naive datetime constructed using `datetime.datetime.strptime()` without %z
+blueprints\leave.py:812:29: RUF059 Unpacked variable `reason` is never used
+blueprints\leave.py:862:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\leave.py:1146:15: DTZ007 Naive datetime constructed using `datetime.datetime.strptime()` without %z
+blueprints\leave.py:1287:36: DTZ011 `datetime.date.today()` used
+blueprints\leave.py:1524:13: DTZ011 `datetime.date.today()` used
+blueprints\notifications.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\notifications.py:15:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\oauth_signup.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\oauth_signup.py:41:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\oauth_signup.py:82:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\oauth_signup.py:166:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\onboarding.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\onboarding.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\onboarding.py:96:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\onboarding.py:111:28: RUF059 Unpacked variable `conn` is never used
+blueprints\onboarding.py:152:28: RUF059 Unpacked variable `conn` is never used
+blueprints\onboarding.py:194:21: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\onboarding.py:259:13: DTZ011 `datetime.date.today()` used
+blueprints\onboarding.py:321:13: DTZ011 `datetime.date.today()` used
+blueprints\onboarding.py:364:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\onboarding.py:408:94: DTZ011 `datetime.date.today()` used
+blueprints\onboarding.py:539:13: DTZ011 `datetime.date.today()` used
+blueprints\onboarding.py:578:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\onboarding.py:597:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\onboarding.py:634:34: DTZ011 `datetime.date.today()` used
+blueprints\onboarding.py:655:17: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\onboarding.py:807:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\onboarding.py:839:16: C408 Unnecessary `dict()` call (rewrite as a literal)
+blueprints\onboarding.py:968:9: ISC004 Unparenthesized implicit string concatenation in collection
+blueprints\onboarding.py:1353:24: DTZ003 `datetime.datetime.utcnow()` used
+blueprints\onboarding.py:1361:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\onboarding.py:1389:16: ISC004 Unparenthesized implicit string concatenation in collection
+blueprints\onboarding.py:1422:16: RUF059 Unpacked variable `emp_id` is never used
+blueprints\onboarding.py:1422:43: RUF059 Unpacked variable `status` is never used
+blueprints\onboarding.py:1499:34: DTZ011 `datetime.date.today()` used
+blueprints\onboarding.py:1534:25: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\onboarding.py:1537:25: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\onboarding.py:1564:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\onboarding.py:1670:25: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\onboarding.py:1673:25: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\onboarding.py:1698:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\org.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\org.py:44:9: FURB188 [*] Prefer `str.removesuffix()` over conditionally replacing with slice.
+blueprints\org.py:177:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:184:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:193:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:205:14: PIE810 Call `startswith` once with a `tuple`
+blueprints\org.py:224:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:275:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:365:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:391:19: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\org.py:433:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:631:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:712:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:753:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:1307:16: RUF059 Unpacked variable `portal_url` is never used
+blueprints\org.py:1307:28: RUF059 Unpacked variable `checkin_url` is never used
+blueprints\org.py:1575:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\org.py:1638:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\org.py:1812:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:1946:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\org.py:2005:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\payroll.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\payroll.py:13:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\payroll.py:171:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\payroll.py:193:41: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:194:43: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:212:24: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:212:56: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:347:41: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:348:43: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:359:41: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:360:43: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:510:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\payroll.py:580:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\payroll.py:600:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\payroll.py:756:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\payroll.py:767:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\payroll.py:807:41: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:808:43: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:900:33: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:925:39: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1001:39: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1095:39: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1173:41: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1174:43: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1231:41: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1232:43: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1268:33: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1269:35: DTZ011 `datetime.date.today()` used
+blueprints\payroll.py:1467:13: DTZ011 `datetime.date.today()` used
+blueprints\performance.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\performance.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\performance.py:63:13: I001 [*] Import block is un-sorted or un-formatted
+blueprints\performance.py:138:28: RUF059 Unpacked variable `conn` is never used
+blueprints\performance.py:220:13: DTZ011 `datetime.date.today()` used
+blueprints\performance.py:324:13: DTZ011 `datetime.date.today()` used
+blueprints\performance.py:672:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\performance.py:677:13: DTZ011 `datetime.date.today()` used
+blueprints\performance.py:855:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\performance.py:873:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\platform_admin.py:18:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\platform_admin.py:109:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:212:20: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:280:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:305:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:341:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:368:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:398:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:674:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\platform_admin.py:776:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\platform_admin.py:865:181: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\platform_admin.py:935:217: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\platform_admin.py:936:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:980:219: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\platform_admin.py:1004:166: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\platform_admin.py:1064:228: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\platform_admin.py:1071:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\platform_admin.py:1077:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\platform_admin.py:1088:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\platform_admin.py:1246:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\platform_admin.py:1343:215: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\platform_admin.py:1381:176: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+blueprints\platform_admin.py:1482:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\policies.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\policies.py:13:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\seats.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\seats.py:17:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\seats.py:71:45: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+blueprints\seats.py:91:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\seats.py:181:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\seo.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\tickets.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\tickets.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\tickets.py:102:43: RUF059 Unpacked variable `description` is never used
+blueprints\trial_billing.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\trial_billing.py:18:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\trial_billing.py:45:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\trial_billing.py:65:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\trial_billing.py:90:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\trial_billing.py:108:16: BLE001 Do not catch blind exception: `Exception`
+blueprints\trial_billing.py:185:5: I001 [*] Import block is un-sorted or un-formatted
+blueprints\trial_billing.py:232:12: BLE001 Do not catch blind exception: `Exception`
+blueprints\webhooks.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+blueprints\webhooks.py:20:1: I001 [*] Import block is un-sorted or un-formatted
+blueprints\webhooks.py:91:16: BLE001 Do not catch blind exception: `Exception`
+database.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+database.py:2:1: I001 [*] Import block is un-sorted or un-formatted
+database.py:33:14: C408 Unnecessary `dict()` call (rewrite as a literal)
+database.py:61:17: RUF023 [*] `_PooledConnection.__slots__` is not sorted
+database.py:88:16: BLE001 Do not catch blind exception: `Exception`
+database.py:140:20: BLE001 Do not catch blind exception: `Exception`
+database.py:151:20: BLE001 Do not catch blind exception: `Exception`
+database.py:158:16: BLE001 Do not catch blind exception: `Exception`
+database.py:164:16: BLE001 Do not catch blind exception: `Exception`
+database.py:177:16: BLE001 Do not catch blind exception: `Exception`
+database.py:211:16: BLE001 Do not catch blind exception: `Exception`
+database.py:507:12: BLE001 Do not catch blind exception: `Exception`
+database.py:533:12: BLE001 Do not catch blind exception: `Exception`
+database.py:563:33: BLE001 Do not catch blind exception: `Exception`
+database.py:591:12: BLE001 Do not catch blind exception: `Exception`
+desktop_agent\wifi_posture_agent.py:75:15: PLW1510 `subprocess.run` without explicit `check` argument
+desktop_agent\wifi_posture_agent.py:80:12: BLE001 Do not catch blind exception: `Exception`
+desktop_agent\wifi_posture_agent.py:115:17: UP031 Use format specifiers instead of percent format
+desktop_agent\wifi_posture_agent.py:171:12: BLE001 Do not catch blind exception: `Exception`
+desktop_agent\wifi_posture_agent.py:180:5: S110 `try`-`except`-`pass` detected, consider logging the exception
+desktop_agent\wifi_posture_agent.py:180:12: BLE001 Do not catch blind exception: `Exception`
+extensions.py:2:1: I001 [*] Import block is un-sorted or un-formatted
+extensions.py:84:12: BLE001 Do not catch blind exception: `Exception`
+extensions.py:146:12: BLE001 Do not catch blind exception: `Exception`
+extensions.py:278:16: BLE001 Do not catch blind exception: `Exception`
+extensions.py:468:12: BLE001 Do not catch blind exception: `Exception`
+generate_cert.py:27:8: BLE001 Do not catch blind exception: `Exception`
+generate_cert.py:48:23: DTZ003 `datetime.datetime.utcnow()` used
+generate_cert.py:49:22: DTZ003 `datetime.datetime.utcnow()` used
+migrations\__init__.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+migrations\__init__.py:12:11: RUF022 [*] `__all__` is not sorted
+migrations\column_migrations.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+migrations\column_migrations.py:41:5: I001 [*] Import block is un-sorted or un-formatted
+migrations\column_migrations.py:304:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:322:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:352:20: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:356:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:391:24: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:395:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:415:24: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:419:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:454:24: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:458:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:478:20: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:482:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:516:20: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:520:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:579:6: ISC004 Unparenthesized implicit string concatenation in collection
+migrations\column_migrations.py:628:6: ISC004 Unparenthesized implicit string concatenation in collection
+migrations\column_migrations.py:694:6: ISC004 Unparenthesized implicit string concatenation in collection
+migrations\column_migrations.py:751:6: ISC004 Unparenthesized implicit string concatenation in collection
+migrations\column_migrations.py:809:6: ISC004 Unparenthesized implicit string concatenation in collection
+migrations\column_migrations.py:883:6: ISC004 Unparenthesized implicit string concatenation in collection
+migrations\column_migrations.py:954:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:982:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:1016:24: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:1020:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:1056:24: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:1060:12: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:1113:24: BLE001 Do not catch blind exception: `Exception`
+migrations\column_migrations.py:1117:12: BLE001 Do not catch blind exception: `Exception`
+migrations\core_tables.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+migrations\core_tables.py:825:204: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+migrations\core_tables.py:827:16: BLE001 Do not catch blind exception: `Exception`
+migrations\master.py:604:12: BLE001 Do not catch blind exception: `Exception`
+migrations\master.py:619:5: I001 [*] Import block is un-sorted or un-formatted
+migrations\master.py:632:12: BLE001 Do not catch blind exception: `Exception`
+migrations\orchestration.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+migrations\orchestration.py:50:12: BLE001 Do not catch blind exception: `Exception`
+migrations\orchestration.py:61:16: BLE001 Do not catch blind exception: `Exception`
+minify_static.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+qr_generator.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+qr_generator.py:42:5: I001 [*] Import block is un-sorted or un-formatted
+run_dev.py:2:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+run_dev.py:9:1: S110 `try`-`except`-`pass` detected, consider logging the exception
+run_dev.py:9:8: BLE001 Do not catch blind exception: `Exception`
+run_dev.py:34:39: PLW1508 Invalid type for environment variable default; expected `str` or `None`
+run_dev.py:90:9: I001 [*] Import block is un-sorted or un-formatted
+scripts\migrate_onboarding_docs_to_private_storage.py:48:50: RUF100 [*] Unused `noqa` directive (non-enabled: `E402`)
+scripts\migrate_onboarding_docs_to_private_storage.py:50:52: RUF100 [*] Unused `noqa` directive (non-enabled: `E402`)
+scripts\migrate_onboarding_docs_to_private_storage.py:51:38: RUF100 [*] Unused `noqa` directive (non-enabled: `E402`)
+scripts\migrate_onboarding_docs_to_private_storage.py:52:46: RUF100 [*] Unused `noqa` directive (non-enabled: `E402`)
+scripts\migrate_onboarding_docs_to_private_storage.py:53:41: RUF100 [*] Unused `noqa` directive (non-enabled: `E402`)
+scripts\migrate_onboarding_docs_to_private_storage.py:134:16: BLE001 Do not catch blind exception: `Exception`
+setup_env.py:35:11: SIM115 Use a context manager for opening files
+tests\conftest.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests\conftest.py:34:1: I001 [*] Import block is un-sorted or un-formatted
+tests\conftest.py:101:1: I001 [*] Import block is un-sorted or un-formatted
+tests\conftest.py:106:28: RUF100 [*] Unused `noqa` directive (unused: `F401`)
+tests\conftest.py:150:1: I001 [*] Import block is un-sorted or un-formatted
+tests\conftest.py:294:12: C401 Unnecessary generator (rewrite as a set comprehension)
+tests\conftest.py:366:173: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+tests\conftest.py:513:5: I001 [*] Import block is un-sorted or un-formatted
+tests\conftest.py:554:5: I001 [*] Import block is un-sorted or un-formatted
+tests\dashboard_audit.py:31:42: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:31:49: FURB167 [*] Use of regular expression alias `re.S`
+tests\dashboard_audit.py:32:50: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:32:57: FURB167 [*] Use of regular expression alias `re.S`
+tests\dashboard_audit.py:35:100: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:39:60: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:39:67: FURB167 [*] Use of regular expression alias `re.S`
+tests\dashboard_audit.py:81:15: C402 Unnecessary generator (rewrite as a dict comprehension)
+tests\dashboard_audit.py:153:8: PIE810 Call `startswith` once with a `tuple`
+tests\dashboard_audit.py:160:12: BLE001 Do not catch blind exception: `Exception`
+tests\dashboard_audit.py:190:13: C402 Unnecessary generator (rewrite as a dict comprehension)
+tests\dashboard_audit.py:198:13: C402 Unnecessary generator (rewrite as a dict comprehension)
+tests\dashboard_audit.py:369:24: UP031 Use format specifiers instead of percent format
+tests\dashboard_audit.py:376:12: C402 Unnecessary generator (rewrite as a dict comprehension)
+tests\dashboard_audit.py:388:78: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:388:85: FURB167 [*] Use of regular expression alias `re.S`
+tests\dashboard_audit.py:396:50: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:397:45: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:399:89: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:400:94: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:400:101: FURB167 [*] Use of regular expression alias `re.S`
+tests\dashboard_audit.py:401:71: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:403:85: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:405:74: FURB167 [*] Use of regular expression alias `re.I`
+tests\dashboard_audit.py:421:19: C401 Unnecessary generator (rewrite as a set comprehension)
+tests\test_admin_search.py:84:44: DTZ011 `datetime.date.today()` used
+tests\test_admin_views_routes.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_ai_assistant.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_ai_assistant.py:10:8: PLR0402 [*] Use `from utils import ai_assistant` in lieu of alias
+tests\test_ai_hrms.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_alert_email.py:42:5: RUF059 Unpacked variable `to` is never used
+tests\test_alerts.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_attendance.py:15:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_attendance.py:136:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_attendance.py:389:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance.py:395:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:15:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_attendance_checkin.py:88:13: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:106:13: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:194:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:383:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:423:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:451:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:488:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:494:25: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_attendance_checkin.py:509:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:515:24: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_attendance_checkin.py:526:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:540:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:638:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:754:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_checkin.py:784:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_attendance_coverage.py:50:13: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:69:13: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:90:13: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:110:13: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:151:13: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:170:13: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:259:16: PLR0402 [*] Use `from utils import helpers` in lieu of alias
+tests\test_attendance_coverage.py:330:15: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_attendance_coverage.py:463:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:472:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:488:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:507:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:529:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:540:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:562:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:586:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:619:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:641:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:698:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:827:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:848:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:944:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:987:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:1008:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:1117:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:1182:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:1210:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_coverage.py:1349:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_attendance_routes.py:32:14: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_attendance_routes.py:283:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:316:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:322:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:342:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:358:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:397:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:419:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:471:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:486:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_routes.py:503:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_utils.py:5:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_attendance_utils.py:64:58: DTZ011 `datetime.date.today()` used
+tests\test_attendance_utils.py:80:17: DTZ011 `datetime.date.today()` used
+tests\test_attendance_utils.py:98:58: DTZ011 `datetime.date.today()` used
+tests\test_auth.py:2:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_auth_blueprint.py:212:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_auth_blueprint.py:217:18: DTZ003 `datetime.datetime.utcnow()` used
+tests\test_auth_blueprint.py:323:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_auth_blueprint.py:328:18: DTZ003 `datetime.datetime.utcnow()` used
+tests\test_auth_hardening.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_auth_hardening.py:101:41: RUF059 Unpacked variable `attempts` is never used
+tests\test_auth_hardening.py:455:18: DTZ003 `datetime.datetime.utcnow()` used
+tests\test_auth_hardening.py:815:15: PLW1510 `subprocess.run` without explicit `check` argument
+tests\test_auth_routes.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_auth_routes.py:518:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_auth_routes.py:523:18: DTZ003 `datetime.datetime.utcnow()` used
+tests\test_auth_routes.py:615:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_auth_routes.py:620:18: DTZ003 `datetime.datetime.utcnow()` used
+tests\test_auto_debit.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+tests\test_auto_debit.py:28:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_auto_debit.py:114:17: RUF059 Unpacked variable `customer_id` is never used
+tests\test_auto_debit.py:114:64: RUF059 Unpacked variable `activated_at` is never used
+tests\test_auto_debit.py:114:78: RUF059 Unpacked variable `cancelled_at` is never used
+tests\test_auto_debit.py:410:26: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:435:29: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:456:26: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:479:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:497:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:528:76: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:531:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:556:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:571:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:584:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:614:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:638:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_auto_debit.py:661:38: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+tests\test_billing.py:104:25: RUF059 Unpacked variable `fields` is never used
+tests\test_billing.py:123:25: RUF059 Unpacked variable `fields` is never used
+tests\test_billing.py:134:25: RUF059 Unpacked variable `fields` is never used
+tests\test_billing.py:144:25: RUF059 Unpacked variable `fields` is never used
+tests\test_billing_dunning.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+tests\test_billing_dunning.py:28:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_billing_dunning.py:99:40: DTZ011 `datetime.date.today()` used
+tests\test_billing_dunning.py:215:40: DTZ011 `datetime.date.today()` used
+tests\test_billing_dunning.py:261:26: DTZ011 `datetime.date.today()` used
+tests\test_billing_dunning.py:305:49: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:337:73: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:373:73: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:411:49: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:452:73: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:481:39: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:494:24: DTZ011 `datetime.date.today()` used
+tests\test_billing_dunning.py:514:24: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:531:34: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:533:24: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:548:73: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:549:64: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:550:66: DTZ011 `datetime.date.today()` used
+tests\test_billing_dunning.py:565:39: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:566:66: DTZ011 `datetime.date.today()` used
+tests\test_billing_dunning.py:582:39: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:600:39: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_billing_dunning.py:616:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_billing_dunning.py:619:39: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_bola_ownership.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:151:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:165:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:178:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:185:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:193:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:204:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:325:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:339:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:352:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:359:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:367:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_bola_ownership.py:375:13: I001 [*] Import block is un-sorted or un-formatted
+tests\test_company_profile_routes.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+tests\test_comprehensive.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_comprehensive.py:140:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_comprehensive.py:145:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_comprehensive.py:166:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_comprehensive.py:199:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_comprehensive.py:208:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_comprehensive.py:830:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_daily_report.py:127:17: DTZ011 `datetime.date.today()` used
+tests\test_daily_report.py:220:70: PIE807 [*] Prefer `list` over useless lambda
+tests\test_dashboard_wiring.py:73:12: SIM115 Use a context manager for opening files
+tests\test_dashboard_wiring.py:74:62: FURB167 [*] Use of regular expression alias `re.S`
+tests\test_dashboard_wiring.py:75:79: FURB167 [*] Use of regular expression alias `re.S`
+tests\test_dashboard_wiring.py:79:52: FURB167 [*] Use of regular expression alias `re.S`
+tests\test_dashboard_wiring.py:80:47: FURB167 [*] Use of regular expression alias `re.S`
+tests\test_dashboard_wiring.py:83:11: PLW1510 `subprocess.run` without explicit `check` argument
+tests\test_dashboard_wiring.py:118:11: PLW1510 `subprocess.run` without explicit `check` argument
+tests\test_database_coverage.py:12:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_database_coverage.py:24:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_device_risk.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_disbursement.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_disbursement.py:29:13: RUF059 Unpacked variable `err` is never used
+tests\test_disbursement.py:39:13: RUF059 Unpacked variable `err` is never used
+tests\test_disbursement.py:43:13: RUF059 Unpacked variable `err` is never used
+tests\test_disbursement.py:199:17: DTZ011 `datetime.date.today()` used
+tests\test_disbursement.py:253:17: DTZ011 `datetime.date.today()` used
+tests\test_disbursement.py:378:16: PLR0402 [*] Use `from blueprints import disbursement` in lieu of alias
+tests\test_disbursement.py:399:16: PLR0402 [*] Use `from blueprints import disbursement` in lieu of alias
+tests\test_dlp_pii_masking.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_document_verification.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_document_verification.py:243:28: RUF059 Unpacked variable `portal_url` is never used
+tests\test_document_verification.py:243:40: RUF059 Unpacked variable `checkin_url` is never used
+tests\test_document_verification.py:280:28: RUF059 Unpacked variable `portal_url` is never used
+tests\test_document_verification.py:280:40: RUF059 Unpacked variable `checkin_url` is never used
+tests\test_document_verification.py:319:28: RUF059 Unpacked variable `portal_url` is never used
+tests\test_document_verification.py:319:40: RUF059 Unpacked variable `checkin_url` is never used
+tests\test_documents_onboarding.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_documents_onboarding.py:160:17: DTZ011 `datetime.date.today()` used
+tests\test_documents_onboarding.py:212:16: PLR0402 [*] Use `from blueprints import documents` in lieu of alias
+tests\test_email_2fa.py:5:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_email_utils.py:7:8: PLR0402 [*] Use `from utils import email_utils` in lieu of alias
+tests\test_employee_document_verification.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_employee_email_domain.py:23:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_employee_email_domain.py:28:8: PLR0402 [*] Use `from utils import face_utils` in lieu of alias
+tests\test_employee_email_domain.py:61:28: DTZ011 `datetime.date.today()` used
+tests\test_employee_portal_coverage.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_employee_portal_coverage.py:29:14: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_employee_welcome_email.py:23:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_employee_welcome_email.py:27:8: PLR0402 [*] Use `from utils import face_utils` in lieu of alias
+tests\test_employee_welcome_email.py:102:17: RUF059 Unpacked variable `subject` is never used
+tests\test_employee_welcome_email.py:136:17: RUF059 Unpacked variable `subject` is never used
+tests\test_employee_welcome_email.py:160:17: RUF059 Unpacked variable `subject` is never used
+tests\test_employees_coverage.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_employees_coverage.py:22:14: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_employees_routes.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_employees_routes.py:14:8: PLR0402 [*] Use `from utils import face_utils` in lieu of alias
+tests\test_face_utils.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_face_utils.py:9:8: PLR0402 [*] Use `from utils import face_utils` in lieu of alias
+tests\test_helpers_utils.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_helpers_utils.py:12:8: PLR0402 [*] Use `from utils import helpers` in lieu of alias
+tests\test_helpers_utils.py:97:37: RUF059 Unpacked variable `conn` is never used
+tests\test_helpers_utils.py:151:16: RUF059 Unpacked variable `err` is never used
+tests\test_helpers_utils.py:174:16: RUF059 Unpacked variable `err` is never used
+tests\test_helpers_utils.py:189:16: RUF059 Unpacked variable `err` is never used
+tests\test_helpers_utils.py:202:16: RUF059 Unpacked variable `err` is never used
+tests\test_helpers_utils.py:212:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:223:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:236:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:242:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:248:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:303:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:311:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:324:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:329:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:334:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:339:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:344:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:350:13: RUF059 Unpacked variable `msg` is never used
+tests\test_helpers_utils.py:558:15: RUF059 Unpacked variable `params` is never used
+tests\test_helpers_utils.py:569:15: RUF059 Unpacked variable `params` is never used
+tests\test_helpers_utils.py:584:19: RUF059 Unpacked variable `code` is never used
+tests\test_helpers_utils.py:591:19: RUF059 Unpacked variable `code` is never used
+tests\test_honeypot.py:153:13: RUF059 Unpacked variable `reader` is never used
+tests\test_honeypot.py:276:13: RUF059 Unpacked variable `reader` is never used
+tests\test_id_card_templates.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_id_card_templates.py:349:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_id_card_templates.py:369:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_id_card_templates.py:473:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_id_card_templates.py:574:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_leave_attendance.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_leave_routes.py:183:16: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:220:16: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:257:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:271:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:299:19: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:313:17: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:337:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:351:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:364:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:470:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:501:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:568:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:586:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:652:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:666:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:698:19: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:717:17: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:744:18: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:766:24: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:779:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:791:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:803:18: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:829:21: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:841:80: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:847:20: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:854:21: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:869:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:879:16: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:903:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:922:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_routes.py:940:44: DTZ011 `datetime.date.today()` used
+tests\test_leave_utils.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_leave_utils.py:47:21: DTZ011 `datetime.date.today()` used
+tests\test_leave_utils.py:123:20: C402 Unnecessary generator (rewrite as a dict comprehension)
+tests\test_login_captcha.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_login_mfa.py:12:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_mandatory_admin_mfa.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_oauth_signup.py:14:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_oauth_signup.py:17:8: PLR0402 [*] Use `from utils import oauth_client` in lieu of alias
+tests\test_oauth_signup.py:18:8: PLR0402 [*] Use `from blueprints import oauth_signup` in lieu of alias
+tests\test_oauth_signup.py:307:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_oauth_signup.py:340:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_onboarding.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_onboarding.py:55:13: DTZ011 `datetime.date.today()` used
+tests\test_onboarding.py:185:14: RUF059 Unpacked variable `task_ids` is never used
+tests\test_onboarding.py:240:9: RUF059 Unpacked variable `tid` is never used
+tests\test_onboarding.py:284:14: RUF059 Unpacked variable `task_ids` is never used
+tests\test_onboarding.py:380:27: DTZ011 `datetime.date.today()` used
+tests\test_onboarding.py:410:33: DTZ011 `datetime.date.today()` used
+tests\test_onboarding.py:457:16: C408 Unnecessary `dict()` call (rewrite as a literal)
+tests\test_onboarding.py:460:26: DTZ011 `datetime.date.today()` used
+tests\test_onboarding.py:460:67: DTZ011 `datetime.date.today()` used
+tests\test_onboarding.py:462:26: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_onboarding.py:534:20: RUF059 Unpacked variable `ob_id` is never used
+tests\test_onboarding.py:541:26: DTZ003 `datetime.datetime.utcnow()` used
+tests\test_onboarding.py:570:14: DTZ003 `datetime.datetime.utcnow()` used
+tests\test_onboarding_coverage.py:33:31: DTZ011 `datetime.date.today()` used
+tests\test_onboarding_coverage.py:33:54: DTZ011 `datetime.date.today()` used
+tests\test_org.py:20:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_org.py:62:16: PLR0402 [*] Use `from utils import plan_limits` in lieu of alias
+tests\test_org.py:385:20: PLR0402 [*] Use `from utils import plan_limits` in lieu of alias
+tests\test_payroll.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_payroll.py:360:17: DTZ011 `datetime.date.today()` used
+tests\test_payroll_coverage.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_payroll_coverage.py:48:14: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_payroll_coverage.py:333:17: DTZ011 `datetime.date.today()` used
+tests\test_payroll_coverage.py:346:17: DTZ011 `datetime.date.today()` used
+tests\test_payroll_coverage.py:510:21: DTZ011 `datetime.date.today()` used
+tests\test_pending_work_apis.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_pending_work_apis.py:187:13: DTZ011 `datetime.date.today()` used
+tests\test_pending_work_apis.py:539:17: DTZ011 `datetime.date.today()` used
+tests\test_performance.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_performance.py:89:17: DTZ011 `datetime.date.today()` used
+tests\test_performance.py:116:17: DTZ011 `datetime.date.today()` used
+tests\test_performance.py:139:17: DTZ011 `datetime.date.today()` used
+tests\test_performance.py:296:17: DTZ011 `datetime.date.today()` used
+tests\test_performance.py:356:17: DTZ011 `datetime.date.today()` used
+tests\test_performance.py:366:17: DTZ011 `datetime.date.today()` used
+tests\test_performance.py:412:17: DTZ011 `datetime.date.today()` used
+tests\test_performance.py:475:17: DTZ011 `datetime.date.today()` used
+tests\test_pii_encryption.py:26:168: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+tests\test_plan_limits.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_plan_limits.py:10:8: PLR0402 [*] Use `from utils import plan_limits` in lieu of alias
+tests\test_platform_admin.py:27:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_platform_admin.py:655:20: RUF059 Unpacked variable `subdomain` is never used
+tests\test_platform_admin.py:685:31: RUF059 Unpacked variable `schema` is never used
+tests\test_platform_admin.py:705:31: RUF059 Unpacked variable `schema` is never used
+tests\test_production_safety_checks.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+tests\test_production_safety_checks.py:18:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_production_safety_checks.py:292:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_push_notifications.py:128:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_push_notifications.py:186:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_push_notifications.py:223:39: RUF059 Unpacked variable `body` is never used
+tests\test_push_notifications.py:270:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_rate_limit_defense.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_rate_limit_defense.py:82:29: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_redis_cache.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_redis_cache.py:125:9: RUF059 Unpacked variable `client` is never used
+tests\test_redis_cache.py:136:9: RUF059 Unpacked variable `client` is never used
+tests\test_redis_cache.py:172:29: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_redis_cache.py:237:24: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_route_auth_guards.py:11:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_salary.py:2:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_salary_utils.py:14:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_salary_utils.py:91:32: RUF057 [*] Value being rounded is already an integer
+tests\test_seats.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+tests\test_seats.py:25:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_seats.py:293:23: RUF015 Prefer `next(eid for eid in emp_ids if eid not in successes)` over single element slice
+tests\test_security_events_log.py:5:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_session_risk.py:5:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_session_risk.py:8:8: PLR0402 [*] Use `from utils import session_risk` in lieu of alias
+tests\test_sync_punches.py:11:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_sync_punches.py:59:12: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_tenant_path_isolation.py:17:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_tenant_path_isolation.py:47:5: I001 [*] Import block is un-sorted or un-formatted
+tests\test_tenant_path_isolation.py:165:35: RUF059 Unpacked variable `schema_b` is never used
+tests\test_tenant_path_isolation.py:190:17: RUF059 Unpacked variable `schema_a` is never used
+tests\test_tenant_path_isolation.py:232:27: RUF059 Unpacked variable `slug_b` is never used
+tests\test_tickets_coverage.py:4:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_tickets_coverage.py:27:14: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_tickets_coverage.py:46:14: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_trial_billing.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+tests\test_trial_billing.py:16:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_trial_billing.py:268:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_utils_auth_coverage.py:49:18: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_utils_auth_coverage.py:78:9: I001 [*] Import block is un-sorted or un-formatted
+tests\test_utils_auth_coverage.py:87:17: RUF059 Unpacked variable `until` is never used
+tests\test_utils_auth_coverage.py:96:18: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_waf.py:6:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_waf.py:225:29: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+tests\test_webauthn_enrollment_authz.py:12:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_webauthn_enrollment_authz.py:15:8: PLR0402 [*] Use `from utils import face_utils` in lieu of alias
+tests\test_webauthn_utils.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+tests\test_webauthn_utils.py:171:14: RUF059 Unpacked variable `err2` is never used
+tests\test_webhooks.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+tests_e2e\conftest.py:63:5: I001 [*] Import block is un-sorted or un-formatted
+tests_e2e\conftest.py:63:18: RUF100 [*] Unused `noqa` directive (unused: `F401`)
+utils\__init__.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\ai_assistant.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\ai_assistant.py:45:1: I001 [*] Import block is un-sorted or un-formatted
+utils\ai_assistant.py:148:13: DTZ011 `datetime.date.today()` used
+utils\ai_assistant.py:184:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:194:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:207:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:219:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:232:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:256:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:274:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:285:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:301:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:344:16: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:349:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:384:16: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:389:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:425:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_assistant.py:434:56: RUF013 PEP 484 prohibits implicit `Optional`
+utils\ai_assistant.py:434:77: RUF013 PEP 484 prohibits implicit `Optional`
+utils\ai_attrition_analytics.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\ai_attrition_analytics.py:19:255: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+utils\ai_helpdesk.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\ai_helpdesk.py:74:5: SIM103 Return the condition directly
+utils\ai_helpdesk.py:99:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_helpdesk.py:169:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_interview_evaluator.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\ai_interview_evaluator.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+utils\ai_interview_evaluator.py:67:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_resume_parser.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\ai_resume_parser.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+utils\ai_resume_parser.py:24:12: BLE001 Do not catch blind exception: `Exception`
+utils\ai_resume_parser.py:35:16: BLE001 Do not catch blind exception: `Exception`
+utils\ai_resume_parser.py:82:16: BLE001 Do not catch blind exception: `Exception`
+utils\alerts.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\alerts.py:17:1: I001 [*] Import block is un-sorted or un-formatted
+utils\alerts.py:266:9: I001 [*] Import block is un-sorted or un-formatted
+utils\alerts.py:274:12: BLE001 Do not catch blind exception: `Exception`
+utils\analytics.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\analytics.py:7:1: I001 [*] Import block is un-sorted or un-formatted
+utils\analytics.py:26:12: BLE001 Do not catch blind exception: `Exception`
+utils\analytics.py:39:17: DTZ011 `datetime.date.today()` used
+utils\analytics.py:67:12: BLE001 Do not catch blind exception: `Exception`
+utils\async_writer.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\async_writer.py:34:1: I001 [*] Import block is un-sorted or un-formatted
+utils\async_writer.py:84:16: BLE001 Do not catch blind exception: `Exception`
+utils\async_writer.py:113:16: BLE001 Do not catch blind exception: `Exception`
+utils\attendance_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\attendance_utils.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+utils\attendance_utils.py:108:15: DTZ011 `datetime.date.today()` used
+utils\attendance_utils.py:170:12: BLE001 Do not catch blind exception: `Exception`
+utils\attendance_utils.py:235:12: BLE001 Do not catch blind exception: `Exception`
+utils\attendance_utils.py:275:12: BLE001 Do not catch blind exception: `Exception`
+utils\attendance_utils.py:294:12: BLE001 Do not catch blind exception: `Exception`
+utils\auth.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\auth.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+utils\auth.py:28:8: PIE810 Call `startswith` once with a `tuple`
+utils\auth.py:31:16: BLE001 Do not catch blind exception: `Exception`
+utils\auth.py:134:12: BLE001 Do not catch blind exception: `Exception`
+utils\auth.py:260:12: BLE001 Do not catch blind exception: `Exception`
+utils\auth.py:283:12: BLE001 Do not catch blind exception: `Exception`
+utils\auth.py:296:40: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+utils\auth.py:298:12: BLE001 Do not catch blind exception: `Exception`
+utils\auth.py:348:33: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+utils\auth.py:359:12: BLE001 Do not catch blind exception: `Exception`
+utils\auth.py:389:12: BLE001 Do not catch blind exception: `Exception`
+utils\auth.py:434:207: RUF100 [*] Unused `noqa` directive (non-enabled: `E501`)
+utils\auth.py:439:12: BLE001 Do not catch blind exception: `Exception`
+utils\chat_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\config.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\config.py:9:1: I001 [*] Import block is un-sorted or un-formatted
+utils\config.py:52:12: BLE001 Do not catch blind exception: `Exception`
+utils\config.py:78:12: BLE001 Do not catch blind exception: `Exception`
+utils\csv_export.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+utils\dlp.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\document_verification.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\document_verification.py:129:16: BLE001 Do not catch blind exception: `Exception`
+utils\document_verification.py:142:12: BLE001 Do not catch blind exception: `Exception`
+utils\document_verification.py:150:12: BLE001 Do not catch blind exception: `Exception`
+utils\document_verification.py:161:5: I001 [*] Import block is un-sorted or un-formatted
+utils\document_verification.py:179:5: I001 [*] Import block is un-sorted or un-formatted
+utils\document_verification.py:287:5: I001 [*] Import block is un-sorted or un-formatted
+utils\document_verification.py:323:28: BLE001 Do not catch blind exception: `Exception`
+utils\document_verification.py:350:16: BLE001 Do not catch blind exception: `Exception`
+utils\email_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\email_utils.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+utils\email_utils.py:70:12: BLE001 Do not catch blind exception: `Exception`
+utils\email_utils.py:82:53: PLW1508 Invalid type for environment variable default; expected `str` or `None`
+utils\email_utils.py:168:12: BLE001 Do not catch blind exception: `Exception`
+utils\email_utils.py:199:16: BLE001 Do not catch blind exception: `Exception`
+utils\email_utils.py:213:12: BLE001 Do not catch blind exception: `Exception`
+utils\email_utils.py:247:20: BLE001 Do not catch blind exception: `Exception`
+utils\email_utils.py:261:12: BLE001 Do not catch blind exception: `Exception`
+utils\email_utils.py:347:12: BLE001 Do not catch blind exception: `Exception`
+utils\email_utils.py:359:26: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+utils\email_utils.py:362:12: BLE001 Do not catch blind exception: `Exception`
+utils\face_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\face_utils.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+utils\face_utils.py:49:8: BLE001 Do not catch blind exception: `Exception`
+utils\face_utils.py:89:14: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+utils\face_utils.py:102:12: BLE001 Do not catch blind exception: `Exception`
+utils\geo.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\helpers.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\helpers.py:3:1: I001 [*] Import block is un-sorted or un-formatted
+utils\helpers.py:48:16: DTZ001 `datetime.datetime()` called without a `tzinfo` argument
+utils\helpers.py:262:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:275:29: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:308:16: DTZ007 Naive datetime constructed using `datetime.datetime.strptime()` without %z
+utils\helpers.py:323:16: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:327:16: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:349:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:381:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:396:5: I001 [*] Import block is un-sorted or un-formatted
+utils\helpers.py:445:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:583:5: I001 [*] Import block is un-sorted or un-formatted
+utils\helpers.py:619:5: I001 [*] Import block is un-sorted or un-formatted
+utils\helpers.py:677:54: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+utils\helpers.py:692:16: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:711:16: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:714:52: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+utils\helpers.py:728:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:818:16: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:903:28: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+utils\helpers.py:906:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:922:51: SIM118 Use `key in dict` instead of `key in dict.keys()`
+utils\helpers.py:951:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:970:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1004:5: FURB188 [*] Prefer `str.removeprefix()` over conditionally replacing with slice.
+utils\helpers.py:1046:9: I001 [*] Import block is un-sorted or un-formatted
+utils\helpers.py:1055:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1131:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1138:13: S110 `try`-`except`-`pass` detected, consider logging the exception
+utils\helpers.py:1138:20: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1199:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1214:15: DTZ011 `datetime.date.today()` used
+utils\helpers.py:1220:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1257:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1320:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1362:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1400:12: BLE001 Do not catch blind exception: `Exception`
+utils\helpers.py:1419:53: SIM118 [*] Use `key in dict` instead of `key in dict.keys()`
+utils\helpers.py:1430:12: BLE001 Do not catch blind exception: `Exception`
+utils\honeypot.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\honeypot.py:65:17: DTZ003 `datetime.datetime.utcnow()` used
+utils\honeypot.py:117:16: BLE001 Do not catch blind exception: `Exception`
+utils\honeypot.py:123:12: BLE001 Do not catch blind exception: `Exception`
+utils\leave_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\leave_utils.py:11:1: I001 [*] Import block is un-sorted or un-formatted
+utils\login_otp.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\oauth_client.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\oauth_client.py:21:1: I001 [*] Import block is un-sorted or un-formatted
+utils\oauth_client.py:205:12: BLE001 Do not catch blind exception: `Exception`
+utils\oauth_client.py:215:12: BLE001 Do not catch blind exception: `Exception`
+utils\payment_history.py:15:1: I001 [*] Import block is un-sorted or un-formatted
+utils\payment_history.py:187:96: DTZ901 Use of `datetime.datetime.min` without timezone information
+utils\payment_history.py:196:12: BLE001 Do not catch blind exception: `Exception`
+utils\payment_history.py:248:12: BLE001 Do not catch blind exception: `Exception`
+utils\payout_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\payout_utils.py:52:12: BLE001 Do not catch blind exception: `Exception`
+utils\plan_limits.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\plan_limits.py:12:1: I001 [*] Import block is un-sorted or un-formatted
+utils\plan_limits.py:66:12: BLE001 Do not catch blind exception: `Exception`
+utils\plan_limits.py:100:12: BLE001 Do not catch blind exception: `Exception`
+utils\plan_limits.py:143:12: BLE001 Do not catch blind exception: `Exception`
+utils\plan_limits.py:157:5: PLR1730 [*] Replace `if` statement with `employee_count = max(employee_count, 0)`
+utils\plan_limits.py:222:12: BLE001 Do not catch blind exception: `Exception`
+utils\push_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\push_utils.py:18:1: I001 [*] Import block is un-sorted or un-formatted
+utils\push_utils.py:34:89: RUF013 PEP 484 prohibits implicit `Optional`
+utils\push_utils.py:86:16: BLE001 Do not catch blind exception: `Exception`
+utils\push_utils.py:127:12: BLE001 Do not catch blind exception: `Exception`
+utils\push_utils.py:159:12: BLE001 Do not catch blind exception: `Exception`
+utils\push_utils.py:183:12: BLE001 Do not catch blind exception: `Exception`
+utils\razorpay_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\razorpay_utils.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+utils\razorpay_utils.py:86:30: UP012 [*] Unnecessary UTF-8 `encoding` argument to `encode`
+utils\razorpay_utils.py:90:31: RUF013 PEP 484 prohibits implicit `Optional`
+utils\razorpay_utils.py:107:16: BLE001 Do not catch blind exception: `Exception`
+utils\razorpay_utils.py:112:12: BLE001 Do not catch blind exception: `Exception`
+utils\razorpay_utils.py:142:9: UP012 [*] Unnecessary UTF-8 `encoding` argument to `encode`
+utils\razorpay_utils.py:161:9: UP012 [*] Unnecessary UTF-8 `encoding` argument to `encode`
+utils\razorpay_utils.py:231:5: RUF059 Unpacked variable `data` is never used
+utils\razorpay_utils.py:263:5: RUF059 Unpacked variable `data` is never used
+utils\receipt_pdf.py:11:5: I001 [*] Import block is un-sorted or un-formatted
+utils\receipt_pdf.py:27:16: C408 Unnecessary `dict()` call (rewrite as a literal)
+utils\salary_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\salary_utils.py:13:1: I001 [*] Import block is un-sorted or un-formatted
+utils\salary_utils.py:225:25: DTZ011 `datetime.date.today()` used
+utils\session_risk.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\session_risk.py:20:1: I001 [*] Import block is un-sorted or un-formatted
+utils\session_risk.py:93:12: BLE001 Do not catch blind exception: `Exception`
+utils\session_risk.py:126:12: BLE001 Do not catch blind exception: `Exception`
+utils\storage.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\task_queue.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\task_queue.py:96:12: BLE001 Do not catch blind exception: `Exception`
+utils\tenant_routing.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\tenant_routing.py:65:16: BLE001 Do not catch blind exception: `Exception`
+utils\tenant_routing.py:111:16: BLE001 Do not catch blind exception: `Exception`
+utils\totp.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\totp.py:8:1: I001 [*] Import block is un-sorted or un-formatted
+utils\waf.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\waf.py:17:1: I001 [*] Import block is un-sorted or un-formatted
+utils\waf.py:260:16: BLE001 Do not catch blind exception: `Exception`
+utils\waf.py:301:18: DTZ005 `datetime.datetime.now()` called without a `tz` argument
+utils\waf.py:320:12: BLE001 Do not catch blind exception: `Exception`
+utils\webauthn_utils.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+utils\webauthn_utils.py:11:1: I001 [*] Import block is un-sorted or un-formatted
+utils\webauthn_utils.py:27:9: UP035 [*] Import from `typing` instead: `Literal`
+utils\webauthn_utils.py:29:5: I001 [*] Import block is un-sorted or un-formatted
+utils\webauthn_utils.py:41:8: BLE001 Do not catch blind exception: `Exception`
+utils\webauthn_utils.py:236:12: BLE001 Do not catch blind exception: `Exception`
+wsgi.py:1:1: UP009 [*] UTF-8 encoding declaration is unnecessary
+wsgi.py:16:8: F401 [*] `os` imported but unused
+wsgi.py:27:1: S110 `try`-`except`-`pass` detected, consider logging the exception
+wsgi.py:27:8: BLE001 Do not catch blind exception: `Exception`
+wsgi.py:30:1: I001 [*] Import block is un-sorted or un-formatted
+wsgi.py:35:1: I001 [*] Import block is un-sorted or un-formatted
+wsgi.py:35:38: RUF100 [*] Unused `noqa` directive (unused: `F401`)
+wsgi.py:43:1: I001 [*] Import block is un-sorted or un-formatted
+wsgi.py:49:9: I001 [*] Import block is un-sorted or un-formatted
+wsgi.py:56:12: BLE001 Do not catch blind exception: `Exception`
+wsgi.py:60:1: I001 [*] Import block is un-sorted or un-formatted
+wsgi.py:68:1: I001 [*] Import block is un-sorted or un-formatted
+wsgi.py:101:20: BLE001 Do not catch blind exception: `Exception`
+wsgi.py:114:9: I001 [*] Import block is un-sorted or un-formatted
+wsgi.py:192:16: BLE001 Do not catch blind exception: `Exception`
+Found 1134 errors.
+[*] 390 fixable with the `--fix` option (115 hidden fixes can be enabled with the `--unsafe-fixes` option).

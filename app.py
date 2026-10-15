@@ -44,10 +44,10 @@ load_dotenv()
 _HASHI_ENV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hashi", ".env")
 load_dotenv(_HASHI_ENV)
 
-from flask import request, session, jsonify, redirect, url_for, flash, current_app, abort, g as _g
+from flask import request, session, jsonify, redirect, url_for, flash, current_app, abort, make_response, g as _g
 import datetime
 import html as _html
-from database import get_db_connection, get_master_db
+from database import get_db_connection, get_master_db, DatabaseUnavailable
 
 # ── Startup: warn if critical env vars are missing ──
 _missing_env = [k for k in ("DB_HOST", "DB_USER", "DB_PASS", "DB_NAME") if not os.environ.get(k)]
@@ -82,7 +82,7 @@ from utils.email_utils import (
 # file. Consolidated onto one implementation; see utils/auth.py.
 from utils.auth import HR_ROLE
 from utils.helpers import (
-    _error_page, invalidate_settings_cache, get_company_settings,
+    _error_page, wants_json_response, invalidate_settings_cache, get_company_settings,
     get_companies_list, get_overdue_onboarding_count, coerce_datetime,
     tpath as _tpath, static_url as _static_url,
 )
@@ -91,8 +91,8 @@ from utils.helpers import (
 # globals, mutated by its own separate load_default_shift()/
 # load_salary_rules(). utils/config.py's docstring already stated the
 # intent ("blueprints should always access them through this module") --
-# app.py just never migrated. Now the single source both use, referenced
-# throughout this file as cfg.SHIFT_START etc.
+# app.py just never migrated. Shift and payroll rules are per company
+# (QA BUG-01): read them with cfg.shift_rules() / cfg.salary_rules().
 import utils.config as cfg
 import utils.waf as waf
 
@@ -108,9 +108,10 @@ import utils.waf as waf
 
 @app.context_processor
 def inject_common_vars():
+    shift = cfg.shift_rules()
     return dict(
-        shift_start=cfg.SHIFT_START.strftime("%I:%M %p"),
-        shift_end=cfg.SHIFT_END.strftime("%I:%M %p"),
+        shift_start=shift.start.strftime("%I:%M %p"),
+        shift_end=shift.end.strftime("%I:%M %p"),
         # templates/admin_base.html's sidebar "Dashboard" link reads this
         # (`tpath('/employees') if _is_hr else tpath('/admin')`) -- it was
         # referencing this exact name already, just never actually
@@ -404,13 +405,25 @@ def _resolve_tenant():
     just reads that, plus enforces session/URL tenant binding (see below)."""
     from flask import g as _g
 
-    # Skip for static files and special paths
-    skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin")
+    # Skip for static files and special paths. "/oauth/callback" is where
+    # Google/Microsoft redirect back to after OAuth login
+    # (blueprints/oauth_signup.py) -- a single fixed global URL with no
+    # tenant slug in it; that route resolves its own tenant from the
+    # server-side oauth_signup_states row instead. "/create_org" already
+    # covers the OAuth *signup* entry points (/create_org/<provider>[/callback]),
+    # since no tenant exists yet at that point.
+    skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin", "/oauth/callback")
     if any(request.path.startswith(p) for p in skip_prefixes):
         return
 
     url_slug = request.environ.get("hrz.tenant_slug")
     url_tenant_db = request.environ.get("hrz.tenant_db")
+
+    # A company whose schema lacks a table would read the shared public
+    # table -- another company's data -- so refuse it outright (QA SEC-07;
+    # flagged by the deploy-time migrations, read by TenantPrefixMiddleware).
+    if request.environ.get("hrz.tenant_incomplete"):
+        return _tenant_schema_incomplete(url_tenant_db)
 
     # 0. Cross-tenant session isolation. Subdomains used to give this for
     # free (a host-only cookie for acme.hrzest.com is never sent to
@@ -454,7 +467,8 @@ def _resolve_tenant():
         try:
             conn = get_master_db()
             cur = conn.cursor()
-            cur.execute("SELECT status, billing_state FROM tenants WHERE db_name=%s", (session["tenant_db"],))
+            cur.execute("SELECT status, billing_state, schema_missing_tables FROM tenants WHERE db_name=%s",
+                        (session["tenant_db"],))
             row = cur.fetchone()
             cur.close()
             conn.close()
@@ -463,6 +477,9 @@ def _resolve_tenant():
             app_log.warning(
                 "tenant.status_recheck_failed: tenant_db=%s", session.get("tenant_db"), exc_info=True
             )
+        if row is not None and row[0] == "active" and row[2]:
+            # Not re-stamped, so every request rechecks until it's repaired (QA SEC-07).
+            return _tenant_schema_incomplete(session["tenant_db"])
         if row is None or row[0] == "active":
             session["_tenant_status_checked_at"] = time.time()
             # billing_state='locked' does NOT block resolution/login here --
@@ -480,6 +497,9 @@ def _resolve_tenant():
     # reuse its lookup instead of querying the master DB a second time.
     if url_slug and url_tenant_db:
         _g.tenant_db = url_tenant_db
+        # Set only by utils/tenant_routing.py's middleware; request headers
+        # reach environ as HTTP_* keys, so a client can't supply this one.
+        # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
         _g.billing_locked = bool(request.environ.get("hrz.billing_locked"))
         session["tenant_db"] = url_tenant_db
         session["tenant_slug"] = url_slug
@@ -1036,9 +1056,10 @@ def _security_headers(response):
             _style_hashes = set()
         _style_unsafe_hashes = " 'unsafe-hashes'" if _style_hashes else ""
         _style_hash_src = (" " + " ".join(sorted(_style_hashes))) if _style_hashes else ""
-        # Cloudflare Turnstile (admin_login CAPTCHA) and employee portal
-        # loopback agent get path-scoped exceptions only.
-        _is_turnstile_page = request.path in ("/admin_login", "/login")
+        # Cloudflare Turnstile (admin_login CAPTCHA; the home page's company
+        # registration form, which POST /create_org checks it for) and the
+        # employee portal loopback agent get path-scoped exceptions only.
+        _is_turnstile_page = request.path in ("/admin_login", "/login", "/")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
         # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
         # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
@@ -1193,21 +1214,9 @@ def inject_company():
     return {"co": get_company_settings()}
 
 
-# Office location, shift timings, and deduction rates now live solely in
-# utils/config.py -- see the `import utils.config as cfg` note above.
-# Startup load still happens here (same timing as before: once, at import,
-# inside an app context) since nothing else in this file's import order
-# guarantees the DB is reachable earlier than this point.
-with app.app_context():
-    try:
-        cfg.load_default_shift()
-        cfg.load_salary_rules()
-    except Exception as exc:
-        # Falls back to cfg's hardcoded defaults, silently -- worth logging
-        # since a DB that isn't reachable yet at this exact import-time
-        # point means shift/salary config stays wrong until the next
-        # successful load, not just this one startup.
-        app_log.warning("Startup load of default shift/salary config failed: %s", exc, exc_info=True)
+# Shift timings and deduction rates are read per company, per request, by
+# utils/config.py (shift_rules() / salary_rules()) -- there is no startup
+# load any more (QA BUG-01).
 
 # ── PII Encryption ────────────────────────────────────────────────
 # Consolidated onto utils/helpers.py (see import block near the top of this
@@ -1323,16 +1332,54 @@ def rate_limit_exceeded(e):
     waf.record_breach_and_maybe_ban(request.remote_addr, "Repeated rate-limit breaches")
     log_security_event("ratelimit.exceeded", f"Rate limit exceeded: {getattr(e, 'description', '')}",
                        level="WARNING")
+    if wants_json_response():
+        return jsonify({"ok": False, "msg": "Too many requests. Please slow down and try again shortly."}), 429
+    return _error_page(429, "⏳", "Too Many Requests",
+                       "You've made too many requests in a short period.",
+                       "Please wait a moment before trying again.")
+
+
+@app.errorhandler(DatabaseUnavailable)
+def database_unavailable(e):
+    """database.py raises DatabaseUnavailable instead of silently switching
+    to a local SQLite file when PostgreSQL can't be reached (outside
+    APP_ENV=development). Answer 503 so the outage is visible and retryable,
+    and alert (CRITICAL security events go to the alert webhook)."""
+    log_security_event("db.unavailable", "PostgreSQL unavailable -- request answered 503", level="CRITICAL")
     is_ajax = (
         request.path.startswith("/api/")
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"
         or request.accept_mimetypes.best == "application/json"
     )
     if is_ajax:
-        return jsonify({"ok": False, "msg": "Too many requests. Please slow down and try again shortly."}), 429
-    return _error_page(429, "⏳", "Too Many Requests",
-                       "You've made too many requests in a short period.",
-                       "Please wait a moment before trying again.")
+    if wants_json_response():
+        resp = jsonify({"ok": False, "msg": "Service temporarily unavailable. Please try again shortly."})
+    else:
+        resp = _error_page(503, "🛠️", "Service Temporarily Unavailable",
+                           "We can't reach the database right now.",
+                           "Please try again in a minute.")
+    resp = make_response(resp)
+    resp.status_code = 503
+    resp.headers["Retry-After"] = "30"
+    return resp
+
+
+def _tenant_schema_incomplete(tenant_db):
+    """503 for a company whose schema lacks a table the migrations create
+    (att_master.tenants.schema_missing_tables): its queries would otherwise
+    read and write the shared public table, i.e. another company's data
+    (QA SEC-07). The deploy-time migrations log which tables are missing."""
+    app_log.warning("tenant.schema_incomplete: tenant_db=%s -- request answered 503", tenant_db)
+    if wants_json_response():
+        resp = jsonify({"ok": False, "msg": "This organisation is temporarily unavailable. Please try again later."})
+    else:
+        resp = _error_page(503, "🛠️", "Temporarily Unavailable",
+                           "This organisation's workspace is temporarily unavailable.",
+                           "Please try again later or contact support.")
+    resp = make_response(resp)
+    resp.status_code = 503
+    resp.headers["Retry-After"] = "300"
+    return resp
 
 
 @app.errorhandler(404)
@@ -2158,6 +2205,7 @@ if "core.home" not in app.view_functions:
     from blueprints.performance import performance_bp
     from blueprints.documents import documents_bp
     from blueprints.org import org_bp
+    from blueprints.oauth_signup import oauth_signup_bp
     from blueprints.onboarding import onboarding_bp
     from blueprints.employee_portal import employee_portal_bp
     from blueprints.core import core_bp
@@ -2181,7 +2229,7 @@ if "core.home" not in app.view_functions:
                 documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp,
                 ai_hrms_bp, email_blast_bp, daily_report_bp, billing_bp, webhooks_bp, seats_bp, auto_debit_bp,
                 billing_dunning_bp, platform_admin_bp, honeypot_bp, disbursement_bp, hr_dashboard_bp, policies_bp,
-                company_profile_bp, seo_bp):
+                company_profile_bp, seo_bp, oauth_signup_bp):
         app.register_blueprint(_bp)
 
 
@@ -2209,8 +2257,6 @@ if __name__ == "__main__":
     init_master_db()
     init_db()
     _run_migrations_for_all_tenants()
-    cfg.load_default_shift()
-    cfg.load_salary_rules()
     # wsgi.py wraps app.wsgi_app with this at import time -- running app.py
     # directly (`python app.py`) never goes through wsgi.py, so without this
     # every path-based tenant link (/<company-slug>/...) 404s: nothing ever
@@ -2267,10 +2313,9 @@ if __name__ == "__main__":
     # making a local port collision with anything else already bound to
     # 5000 unfixable without editing source. Same env var, same default.
     _port = int(_os.environ.get("PORT", "5000"))
-    # threaded=True: /api/session/risk-stream (blueprints/core.py) holds an
-    # SSE connection open for ~20s, and Werkzeug's dev server is single-
-    # threaded by default -- without this, one open stream blocks every
-    # other request until it closes.
+    # threaded=True: Werkzeug's dev server is single-threaded by default,
+    # so one slow request (an upload, a report) would block every other
+    # request until it finished.
     if _os.path.exists(_cert) and _os.path.exists(_key):
         # app.run(..., ssl_context=(...)) wraps the *listening* socket
         # (Werkzeug's serving.py), so every TLS handshake runs synchronously

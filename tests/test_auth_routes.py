@@ -162,7 +162,7 @@ class TestAdminLoginEdgeBranches:
                 # reaching credential checking (pre-existing behavior,
                 # unrelated to this change), so a fresh session is needed
                 # to actually re-exercise _finish_employee_login() each time.
-                client.get("/logout")
+                client.post("/logout")
                 resp = client.post("/login", data={
                     "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
                 }, follow_redirects=False)
@@ -255,7 +255,7 @@ class TestAdminLoginEdgeBranches:
         cur.execute("UPDATE employees SET role='manager' WHERE employee_id=%s", (seed_employee["employee_id"],))
         try:
             for _ in range(2):
-                client.get("/logout")
+                client.post("/logout")
                 resp = client.post("/login", data={
                     "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
                 }, follow_redirects=False)
@@ -317,7 +317,7 @@ class TestAdminLoginEdgeBranches:
 class TestLogout:
     def test_clears_session_and_redirects(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
-        resp = client.get("/logout", follow_redirects=False)
+        resp = client.post("/logout", follow_redirects=False)
         assert resp.status_code == 302
         with client.session_transaction() as sess:
             assert "admin_logged_in" not in sess
@@ -652,7 +652,7 @@ class TestEmployeeResetPassword:
 class TestEmployeeLogout:
     def test_clears_session_and_redirects(self, client, seed_employee):
         _employee_session(client, seed_employee["employee_id"])
-        resp = client.get("/employee_logout", follow_redirects=False)
+        resp = client.post("/employee_logout", follow_redirects=False)
         assert resp.status_code == 302
         with client.session_transaction() as sess:
             assert "employee_id" not in sess
@@ -1114,7 +1114,7 @@ class TestManagerRoleWebAccess:
 
     def test_manager_can_reach_logout(self, client, seed_admin):
         _admin_session(client, seed_admin["username"], role="manager")
-        resp = client.get("/logout", follow_redirects=False)
+        resp = client.post("/logout", follow_redirects=False)
         assert resp.status_code == 302
 
     def test_plain_admin_session_unaffected(self, client, seed_admin):

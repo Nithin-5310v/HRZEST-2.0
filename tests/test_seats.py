@@ -31,6 +31,8 @@ from extensions import app as flask_app
 from utils.plan_limits import calculate_price, format_price_inr
 from utils.helpers import get_company_settings, invalidate_settings_cache
 
+pytestmark = pytest.mark.usefixtures("razorpay_demo_mode")
+
 
 def _admin_session(client, username, role="admin"):
     with client.session_transaction() as sess:

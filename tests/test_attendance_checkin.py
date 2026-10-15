@@ -17,6 +17,12 @@ import datetime
 import io
 import pytest
 
+from tests.conftest import TEST_OFFICE
+
+# Location enforcement is on by default (QA SEC-08): live and offline check-ins
+# need coordinates -- these are the office's own.
+OFFICE = TEST_OFFICE
+
 
 # ── Session / token helpers ──────────────────────────────────────────────────
 
@@ -172,7 +178,12 @@ class TestKioskAttendance:
         assert data["ok"] is False
         assert "Employee ID is required" in data["msg"]
 
-    def test_unknown_employee(self, client, signed_qr):
+    def test_unknown_employee(self, client, signed_qr, mocker):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
+        mocker.patch("blueprints.attendance.get_auth_config", return_value={
+            "fingerprint_enabled": False, "qr_enabled": True,
+            "face_enabled": False, "location_enabled": False,
+        })
         rv = client.post("/attendance", json={
             "employee_id": signed_qr("GHOST99"), "auth_combo": "qr_only",
         })
@@ -181,9 +192,10 @@ class TestKioskAttendance:
         assert "not found" in data["msg"].lower()
 
     def test_qr_only_login_creates_attendance_record(self, client, seed_employee, db_engine, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         today = datetime.date.today()
         cur = db_engine.cursor()
@@ -213,9 +225,10 @@ class TestKioskAttendance:
         assert row[1] is None       # logout_time still NULL
 
     def test_qr_only_logout_sets_logout_time(self, client, seed_employee, attendance_today, db_engine, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         rv = client.post("/attendance", json={
             "employee_id": signed_qr(seed_employee["employee_id"]),
@@ -233,9 +246,10 @@ class TestKioskAttendance:
         cur.close()
 
     def test_qr_only_relogin_clears_logout_time(self, client, seed_employee, attendance_completed, db_engine, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": False, "qr_enabled": True,
-            "face_enabled": True, "location_enabled": False,
+            "face_enabled": False, "location_enabled": False,
         })
         rv = client.post("/attendance", json={
             "employee_id": signed_qr(seed_employee["employee_id"]),
@@ -304,9 +318,10 @@ class TestKioskAttendance:
         assert rv.get_json()["ok"] is False
 
     def test_fingerprint_not_verified_returns_401(self, client, seed_employee, mocker):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.attendance.get_auth_config", return_value={
             "fingerprint_enabled": True, "location_enabled": False,
-            "face_enabled": True, "qr_enabled": True,
+            "face_enabled": False, "qr_enabled": True,
         })
         mocker.patch("blueprints.attendance._wa_fingerprint_recently_verified", return_value=False)
         rv = client.post("/attendance", json={
@@ -432,6 +447,7 @@ class TestApiAdminCheckin:
 # /api/employee/checkin (employee Bearer token, POST JSON)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@pytest.mark.usefixtures("app_gps_checkin_on")  # exercises the location-only app check-in (QA NV-18)
 class TestApiEmployeeCheckin:
 
     def test_requires_employee_token(self, client):
@@ -446,7 +462,7 @@ class TestApiEmployeeCheckin:
         cur.close()
 
         token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin", json={},
+        rv = client.post("/api/employee/checkin", json=OFFICE,
                          headers={"Authorization": f"Bearer {token}"})
         data = rv.get_json()
         assert data["ok"] is True
@@ -460,7 +476,7 @@ class TestApiEmployeeCheckin:
 
     def test_logout_updates_existing_login(self, client, seed_employee, attendance_today):
         token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin", json={},
+        rv = client.post("/api/employee/checkin", json=OFFICE,
                          headers={"Authorization": f"Bearer {token}"})
         data = rv.get_json()
         assert data["ok"] is True
@@ -469,49 +485,36 @@ class TestApiEmployeeCheckin:
 
     def test_relogin_after_completed(self, client, seed_employee, attendance_completed):
         token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin", json={},
+        rv = client.post("/api/employee/checkin", json=OFFICE,
                          headers={"Authorization": f"Bearer {token}"})
         data = rv.get_json()
         assert data["ok"] is True
         assert data["action"] == "relogin"
 
-    def test_offline_punch_within_24h_accepted(self, client, seed_employee, db_engine):
+    def test_client_punch_time_is_ignored(self, client, seed_employee, db_engine):
+        """A punched_at sent to the live endpoint is ignored -- the punch is
+        recorded at the server's time (QA SEC-09: it used to be accepted up to
+        24 h back, which allowed backdating). Offline punches go through
+        /api/employee/sync_punches."""
         today = datetime.date.today()
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
                     (seed_employee["employee_id"], today))
         cur.close()
 
-        two_hours_ago = datetime.datetime.now() - datetime.timedelta(hours=2)
         token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin",
-                         json={"punched_at": two_hours_ago.isoformat()},
-                         headers={"Authorization": f"Bearer {token}"})
-        data = rv.get_json()
-        assert data["ok"] is True
-        assert data["action"] == "login"
+        for hours_back in (2, 48):
+            punched_at = datetime.datetime.now() - datetime.timedelta(hours=hours_back)
+            rv = client.post("/api/employee/checkin",
+                             json={**OFFICE, "punched_at": punched_at.isoformat()},
+                             headers={"Authorization": f"Bearer {token}"})
+            data = rv.get_json()
+            assert rv.status_code == 200 and data["ok"] is True   # never "too old" -- it isn't used
 
         cur = db_engine.cursor()
         cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
                     (seed_employee["employee_id"], today))
         cur.close()
-
-    def test_offline_punch_over_24h_rejected(self, client, seed_employee, db_engine):
-        today = datetime.date.today()
-        cur = db_engine.cursor()
-        cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date=%s",
-                    (seed_employee["employee_id"], today))
-        cur.close()
-
-        two_days_ago = datetime.datetime.now() - datetime.timedelta(days=2)
-        token = _emp_token(client, seed_employee)
-        rv = client.post("/api/employee/checkin",
-                         json={"punched_at": two_days_ago.isoformat()},
-                         headers={"Authorization": f"Bearer {token}"})
-        assert rv.status_code == 400
-        data = rv.get_json()
-        assert data["ok"] is False
-        assert "24" in data["msg"]
 
     def test_invalid_lat_lon_returns_400(self, client, seed_employee, db_engine):
         today = datetime.date.today()
@@ -599,8 +602,9 @@ class TestApiQrFaceCheckin:
         assert rv.status_code == 403
 
     def test_fingerprint_not_verified_returns_401(self, client, seed_employee, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=False)
@@ -631,8 +635,9 @@ class TestApiQrFaceCheckin:
                     (seed_employee["employee_id"], today))
         cur.close()
 
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=True)
@@ -684,8 +689,9 @@ class TestApiQrFaceCheckin:
 
     def test_qr_fingerprint_relogin_after_completed(
             self, client, seed_employee, attendance_completed, mocker, signed_qr):
+        # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
         mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
-            "qr_enabled": True, "face_enabled": True,
+            "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
         mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=True)
@@ -1230,14 +1236,11 @@ class TestUpdateDefaultShift:
         assert "error" in rv.headers["Location"]
 
     # The NameError bug this class used to regression-test (load_default_shift
-    # referenced without being imported) doesn't apply post-merge: HEAD's
-    # attendance.py uses module-qualified cfg.load_default_shift() throughout
-    # (import utils.config as cfg), so there's no bare name to go missing.
+    # referenced without being imported) can't recur: the shift is no longer
+    # loaded into module globals at all -- saving just invalidates the
+    # per-company settings cache (QA BUG-01).
 
-    def test_valid_fields_with_mocked_load_fn_redirects(self, client, seed_admin, mocker):
-        """When load_default_shift is mocked (bug fixed), the route redirects."""
-        import blueprints.attendance as att_mod
-        mocker.patch.object(att_mod, "load_default_shift", create=True, return_value=None)
+    def test_valid_fields_redirects(self, client, seed_admin):
         _admin_session(client, seed_admin)
         rv = client.post("/update_default_shift", data={
             "shift_start": "09:00",

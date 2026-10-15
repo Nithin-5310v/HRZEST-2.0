@@ -57,29 +57,15 @@ clamd>=1.0.2
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv>=1.2.2
 python-json-logger>=4.1.0
-setuptools>=78.1.1,<81
-# face_recognition_models (pulled in by face-recognition, above) still does
-# `from pkg_resources import resource_filename` at import time. setuptools
-# 82.0.0 dropped pkg_resources entirely, so import face_recognition_models
-# with setuptools>=82 raises ModuleNotFoundError: No module named 'pkg_resources'
-# -- verified directly against 81.0.0 (still ships pkg_resources), 82.0.1 and
-# 83.0.0 (both do not). Keep this ceiling until face_recognition_models (still
-# at its latest release, 0.3.0, as of this writing) drops the pkg_resources call.
-#
-# Security note: pip-audit flags every setuptools version this ceiling
-# allows (including 81.0.0) as vulnerable to PYSEC-2026-3447, fixed only in
-# 83.0.0+ -- verified there is no version that both ships pkg_resources and
-# includes that fix, so raising this ceiling to close the CVE is not
-# possible without dropping face recognition entirely or replacing this
-# dependency. Left at <81 rather than bumped to 83.0.0 as originally
-# recommended: setuptools vulnerabilities are exploited at package-install
-# time (a malicious package's build script), not at Flask request-handling
-# runtime, and this app's builds only ever install the pinned packages
-# listed in this file inside a controlled CI/Docker pipeline -- never an
-# arbitrary user-supplied package -- which bounds the practical exposure
-# here. Re-evaluate this trade-off if that install-time trust model ever
-# changes, or once face_recognition_models/face-recognition ship a release
-# that no longer imports pkg_resources.
+setuptools>=83.0.0
+# PYSEC-2026-3447 is fixed only in setuptools>=83, which no longer ships
+# pkg_resources. Its two importers here are handled without it:
+#   - face_recognition_models 0.3.0 (`from pkg_resources import
+#     resource_filename` at import): utils/face_utils.py provides just that
+#     function, via importlib.resources, for the duration of that one import.
+#   - clamd 1.0.2 only reads its own version through pkg_resources inside a
+#     try/except, so it imports and scans normally without it.
+# Covered by tests/test_auth_hardening.py::TestDependencyCompat.
 typing-extensions>=4.7.0
 # Used by blueprints/admin_views.py's save_company_info() to validate the
 # selected timezone against pytz.all_timezones_set -- not a transitive dep

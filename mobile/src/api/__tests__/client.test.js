@@ -216,6 +216,15 @@ describe('auth: admin + employee login/logout', () => {
     });
   });
 
+  it('verifyAdminLogin POSTs challenge_id/otp_code to /api/login/verify', async () => {
+    mockAxiosInstance.post.mockResolvedValue({ data: { token: 't' } });
+    await client.verifyAdminLogin('chal-1', '123456');
+    expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/login/verify', {
+      challenge_id: 'chal-1',
+      otp_code: '123456',
+    });
+  });
+
   it('adminLogout POSTs to /api/logout with no body', async () => {
     mockAxiosInstance.post.mockResolvedValue({ data: {} });
     await client.adminLogout();

@@ -1,79 +1,83 @@
 # -*- coding: utf-8 -*-
-"""Global runtime configuration -- shift times, deduction rates.
+"""Shift timings and payroll rules -- per company.
 
-These are loaded from the DB at startup via load_default_shift() and
-load_salary_rules(). Blueprints should always access them through
-this module (``import utils.config as cfg; cfg.SHIFT_START``) so
-they see the updated values after startup loading.
+Each company configures its own default shift (company_settings.shift_start/
+shift_half/shift_end), grace minutes and payroll rules (late/half-day
+deduction %, holiday pay, leave pay). Read them through shift_rules() /
+salary_rules(), which go through get_company_settings() -- already scoped to
+the current tenant (g.tenant_db) and cached per tenant, invalidated by
+invalidate_settings_cache() when settings are saved.
+
+These used to be module-level globals loaded once at startup from the
+default schema and overwritten by whichever company last saved its settings,
+so one company's rules were silently applied to another (QA BUG-01). Never
+reintroduce process-wide mutable state here.
 """
 import datetime
 import os
-from database import get_db_connection
-from extensions import app_log
+from collections import namedtuple
 
-# Office geo-fence (overridable via .env)
-OFFICE_LAT = float(os.environ.get("OFFICE_LAT", "17.494664737165042"))
-OFFICE_LON = float(os.environ.get("OFFICE_LON", "78.40496618113566"))
+# Default geofence radius. The office location itself is per company
+# (company_settings.office_lat/office_lon, set in Settings); the old
+# process-wide OFFICE_LAT/OFFICE_LON were no longer read (QA DEAD-02).
 OFFICE_RADIUS_M = 300
 
-# Shift timings -- updated by load_default_shift() at startup
-SHIFT_START = datetime.time(9, 0)
-SHIFT_HALF = datetime.time(13, 0)
-SHIFT_END = datetime.time(18, 0)
+# Defaults for a company that hasn't configured its own values (these match
+# the company_settings column defaults).
+DEFAULT_SHIFT_START = datetime.time(9, 0)
+DEFAULT_SHIFT_HALF = datetime.time(13, 0)
+DEFAULT_SHIFT_END = datetime.time(18, 0)
+DEFAULT_GRACE_MINUTES = 15
+DEFAULT_LATE_DEDUCTION_PCT = 10.0
+DEFAULT_HALF_DAY_DEDUCTION_PCT = 50.0
+DEFAULT_HOLIDAY_PAY = "paid"    # "paid" | "unpaid"
+DEFAULT_LEAVE_PAY = "exclude"   # "exclude" | "absent"
 
-# Deduction rates -- updated by load_salary_rules() at startup
-LATE_DEDUCTION_RATE = 0.10
-HALF_DAY_RATE = 0.50
-GRACE_MINUTES = 15
-HOLIDAY_PAY = "paid"    # "paid" | "unpaid"
-LEAVE_PAY = "exclude"  # "exclude" | "absent"
+ShiftRules = namedtuple("ShiftRules", "start half end grace_minutes")
+SalaryRules = namedtuple("SalaryRules", "late_deduction_rate half_day_rate holiday_pay leave_pay")
 
 
-def load_default_shift():
-    global SHIFT_START, SHIFT_HALF, SHIFT_END
+def as_time(value, default):
+    """company_settings TIME values arrive as time, timedelta or "HH:MM[:SS]"."""
+    if value is None or value == "":
+        return default
+    if isinstance(value, datetime.time):
+        return value
+    if isinstance(value, datetime.timedelta):
+        total = int(value.total_seconds())
+        return datetime.time((total // 3600) % 24, (total % 3600) // 60)
     try:
-        db = get_db_connection()
-        cur = db.cursor(buffered=True)
-        cur.execute("SELECT shift_start, shift_half, shift_end FROM company_settings LIMIT 1")
-        row = cur.fetchone()
-        cur.close()
-        db.close()
-        if row and row[0]:
-            def _to_time(v):
-                if isinstance(v, datetime.timedelta):
-                    total = int(v.total_seconds())
-                    return datetime.time(total // 3600, (total % 3600) // 60)
-                if isinstance(v, datetime.time):
-                    return v
-                return datetime.time(9, 0)
-            SHIFT_START = _to_time(row[0])
-            SHIFT_HALF = _to_time(row[1])
-            SHIFT_END = _to_time(row[2])
-    except Exception as exc:
-        # Module-level defaults (9:00/13:00/18:00) stay in effect for the
-        # whole app runtime until this is next called -- worth knowing
-        # about rather than silently running on stale/wrong shift times.
-        app_log.warning("load_default_shift failed, using existing defaults: %s", exc, exc_info=True)
+        parts = [int(p) for p in str(value).split(":")[:3]]
+        return datetime.time(*parts)
+    except (TypeError, ValueError):
+        return default
 
 
-def load_salary_rules():
-    global LATE_DEDUCTION_RATE, HALF_DAY_RATE, GRACE_MINUTES, HOLIDAY_PAY, LEAVE_PAY
-    try:
-        db = get_db_connection()
-        cursor = db.cursor(buffered=True)
-        cursor.execute(
-            "SELECT COALESCE(late_deduction_pct,10), COALESCE(half_day_deduction_pct,50), "
-            "       COALESCE(grace_minutes,15), COALESCE(holiday_pay,'paid'), COALESCE(leave_pay,'exclude') "
-            "FROM company_settings LIMIT 1"
-        )
-        row = cursor.fetchone()
-        cursor.close()
-        db.close()
-        if row:
-            LATE_DEDUCTION_RATE = float(row[0]) / 100.0
-            HALF_DAY_RATE = float(row[1]) / 100.0
-            GRACE_MINUTES = int(row[2])
-            HOLIDAY_PAY = str(row[3])
-            LEAVE_PAY = str(row[4])
-    except Exception as exc:
-        app_log.warning("load_salary_rules failed, using existing defaults: %s", exc, exc_info=True)
+def _settings():
+    from utils.helpers import get_company_settings  # local import: helpers imports far more than config
+    return get_company_settings()
+
+
+def shift_rules():
+    """The current company's default shift and grace minutes."""
+    co = _settings()
+    grace = co.get("grace_minutes")
+    return ShiftRules(
+        start=as_time(co.get("shift_start"), DEFAULT_SHIFT_START),
+        half=as_time(co.get("shift_half"), DEFAULT_SHIFT_HALF),
+        end=as_time(co.get("shift_end"), DEFAULT_SHIFT_END),
+        grace_minutes=int(grace) if grace is not None else DEFAULT_GRACE_MINUTES,
+    )
+
+
+def salary_rules():
+    """The current company's payroll rules (rates as fractions, e.g. 0.10)."""
+    co = _settings()
+    late = co.get("late_deduction_pct")
+    half = co.get("half_day_deduction_pct")
+    return SalaryRules(
+        late_deduction_rate=(float(late) if late is not None else DEFAULT_LATE_DEDUCTION_PCT) / 100.0,
+        half_day_rate=(float(half) if half is not None else DEFAULT_HALF_DAY_DEDUCTION_PCT) / 100.0,
+        holiday_pay=co.get("holiday_pay") or DEFAULT_HOLIDAY_PAY,
+        leave_pay=co.get("leave_pay") or DEFAULT_LEAVE_PAY,
+    )

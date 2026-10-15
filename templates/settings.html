@@ -1949,7 +1949,7 @@
                 <!-- Reset Employee Password -->
                 <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
                   <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-4"><i class="ti ti-key"></i> Reset Employee Password</div>
-                  <div class="u-fs-12 u-c-94a3b8 u-mb-18">Resets the employee's PIN back to their Employee ID</div>
+                  <div class="u-fs-12 u-c-94a3b8 u-mb-18">Sets a random temporary password, shown to you once. The employee must change it at their next sign-in.</div>
                   <form action="{{ tpath('/admin_action') }}" method="POST">
                     <input type="hidden" name="action" value="reset_password" />
                     <input type="hidden" name="next" value="settings" />
@@ -1958,7 +1958,7 @@
                       <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
                     </div>
                     <button type="submit" class="btn-submit"
-                      onclick="return confirm('Reset this employee\'s password to their Employee ID?')">
+                      onclick="return confirm('Reset this employee\'s password? Their current sessions will be signed out.')">
                       <i class="ti ti-key"></i> Reset Password
                     </button>
                   </form>
@@ -2022,7 +2022,8 @@
           ("face",        "🤳", "Face Recognition",          "face_enabled",           "Camera captures employee face for liveness and identity verification."),
           ("fingerprint", "👆", "Fingerprint / Biometric",   "fingerprint_enabled",    "Device fingerprint or face-ID used as a second factor (optional)."),
           ("location",    "📍", "Location Verification",     "location_enabled",       "GPS must place the employee within the allowed office radius."),
-          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password.")
+          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password."),
+          ("app_gps",     "🛰️", "Location-only App Check-in", "app_gps_checkin",      "Employees can check in from the mobile app with GPS alone, without QR or face. Off unless you turn it on while QR, face or fingerprint is enabled.")
         ] %}
 
         {% for key, icon, label, cfg_key, desc in methods %}
@@ -2214,7 +2215,6 @@
     var groupMap  = { company:'sys', attendance:'org',payroll:'fin',salary:'fin',disbursement:'fin',billing:'fin',email:'sys',appearance:'sys' };
     var firstSub  = { org:'attendance', fin:'payroll', sys:'company' };
     var crumbData = {
-      company:    { icon:'<i class="ti ti-building u-c-1e3a8a"></i>',    bg:'#eff6ff', title:'Companies',      sub:'Profiles, branches and branding' },
       appearance: { icon:'<i class="ti ti-palette u-c-7c3aed"></i>',     bg:'#f5f3ff', title:'Appearance',     sub:'Theme and display' },
       attendance: { icon:'<i class="ti ti-fingerprint u-c-16a34a"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
       company:    { icon:'<i class="ti ti-building u-c-1e3a8a"></i>',    bg:'#eff6ff', title:'Company',        sub:'Company management' },

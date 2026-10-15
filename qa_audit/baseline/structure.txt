@@ -1,0 +1,238 @@
+== Files over 800 lines (16)
+  2715  blueprints\admin_views.py
+  2451  blueprints\employees.py
+  2329  app.py
+  2010  blueprints\org.py
+  1937  blueprints\employee_portal.py
+  1790  blueprints\platform_admin.py
+  1738  blueprints\leave.py
+  1704  blueprints\onboarding.py
+  1669  utils\helpers.py
+  1641  blueprints\payroll.py
+  1557  blueprints\attendance.py
+  1488  blueprints\auth.py
+  1119  migrations\column_migrations.py
+  1047  blueprints\performance.py
+   990  utils\auth.py
+   829  migrations\core_tables.py
+
+== Functions over 50 lines (165); 'nodoc' = no docstring
+  805  migrations\core_tables.py:24  _init_core_tables
+  600  migrations\master.py:7  init_master_db
+  498  blueprints\employee_portal.py:305  employee_portal  nodoc
+  369  blueprints\admin_views.py:2160  analytics  nodoc
+  337  blueprints\onboarding.py:1029  offer_letter_send  nodoc
+  319  blueprints\admin_views.py:492  settings_page  nodoc
+  281  database.py:228  _seed_sqlite_db  nodoc
+  279  blueprints\employees.py:941  add_employee_page  nodoc
+  246  blueprints\attendance.py:1120  attendance  nodoc
+  220  blueprints\onboarding.py:805  _generate_offer_letter_pdf
+  214  blueprints\employees.py:498  view_employees  nodoc
+  212  blueprints\org.py:85  provision_tenant
+  210  utils\salary_utils.py:20  build_salary_slip_html  nodoc
+  205  blueprints\employee_portal.py:1207  api_employee_qr_face_checkin
+  193  blueprints\performance.py:854  performance_import  nodoc
+  190  blueprints\employees.py:738  employee_detail  nodoc
+  187  migrations\column_migrations.py:87  _run_column_migrations
+  179  blueprints\performance.py:671  performance_export  nodoc
+  164  utils\payment_history.py:36  get_payment_history
+  163  blueprints\billing.py:122  _finalize_signup_order
+  159  utils\ai_assistant.py:146  build_employee_context
+  154  blueprints\platform_admin.py:1087  platform_admin_approve_application  nodoc
+  139  blueprints\admin_views.py:1628  edit_company  nodoc
+  138  blueprints\attendance.py:659  bulk_mark_attendance  nodoc
+  137  blueprints\auth.py:403  admin_login  nodoc
+  134  blueprints\employee_portal.py:942  api_employee_checkin  nodoc
+  129  blueprints\attendance.py:916  monthly_report_export  nodoc
+  129  blueprints\admin_views.py:80  admin  nodoc
+  128  app.py:982  _security_headers  nodoc
+  126  blueprints\oauth_signup.py:139  oauth_signup_callback  nodoc
+  126  blueprints\leave.py:450  leave_action  nodoc
+  118  blueprints\leave.py:328  leave_holidays  nodoc
+  118  blueprints\employees.py:1702  _render_default_front
+  117  blueprints\employee_portal.py:1080  api_employee_sync_punches
+  116  blueprints\employees.py:229  employee_profile  nodoc
+  113  blueprints\payroll.py:805  my_attendance_pdf  nodoc
+  113  blueprints\employee_portal.py:825  api_employee_portal  nodoc
+  112  blueprints\email_blast.py:24  api_email_blast
+  112  app.py:389  _resolve_tenant
+  109  blueprints\org.py:1629  create_org_setup_trial_confirm
+  109  blueprints\auth.py:214  _finish_employee_login
+  107  utils\document_verification.py:171  run_automated_verification
+  107  blueprints\payroll.py:230  _build_salary_report_workbook
+  107  blueprints\org.py:1174  create_org
+  104  blueprints\attendance.py:490  employee_attendance_detail  nodoc
+  102  blueprints\employees.py:1899  _render_custom_side
+  101  blueprints\platform_admin.py:131  platform_admin_login
+  100  blueprints\auth.py:1155  webauthn_verify_challenge
+   99  blueprints\daily_report.py:33  _build_email_html  nodoc
+   98  blueprints\employees.py:2003  _build_id_card_buf
+   97  blueprints\performance.py:219  performance  nodoc
+   97  blueprints\core.py:672  api_employee_signup
+   96  blueprints\attendance.py:815  api_bulk_mark_attendance  nodoc
+   95  blueprints\payroll.py:1489  payroll_settings  nodoc
+   92  utils\helpers.py:1060  add_employee_seat_cap_check
+   92  blueprints\platform_admin.py:658  platform_admin_set_rate
+   90  blueprints\seats.py:110  verify_payment  nodoc
+   90  blueprints\payroll.py:999  award_performance_bonus  nodoc
+   89  blueprints\employees.py:349  edit_employee  nodoc
+   89  blueprints\disbursement.py:290  _process_disbursement_run
+   87  blueprints\payroll.py:520  send_all_salary_emails  nodoc
+   87  blueprints\attendance.py:399  monthly_report  nodoc
+   86  utils\ai_interview_evaluator.py:13  evaluate_interview_notes
+   86  blueprints\tickets.py:61  ticket_action  nodoc
+   86  blueprints\payroll.py:101  compute_salary_data_for_month
+   85  blueprints\org.py:1085  _save_application_documents
+   85  blueprints\leave.py:125  request_leave  nodoc
+   85  blueprints\employees.py:2201  api_register_employee  nodoc
+   84  utils\ai_attrition_analytics.py:10  compute_attrition_and_burnout_analytics
+   83  blueprints\payroll.py:1333  _render_payslip_html
+   82  blueprints\disbursement.py:466  _prepare_one_tenant  nodoc
+   82  blueprints\daily_report.py:156  _run_report  nodoc
+   82  blueprints\admin_views.py:1542  add_company  nodoc
+   80  blueprints\employees.py:83  admin_action  nodoc
+   80  blueprints\admin_views.py:1991  announcements_admin  nodoc
+   79  blueprints\payroll.py:434  send_salary_email  nodoc
+   78  blueprints\leave.py:1517  overtime  nodoc
+   77  blueprints\hr_dashboard.py:280  api_hr_dashboard_reports
+   75  extensions.py:348  check_production_safety
+   75  blueprints\payroll.py:726  my_payslip_summary  nodoc
+   74  blueprints\onboarding.py:213  onboarding  nodoc
+   73  utils\document_verification.py:280  _document_verification_worker
+   73  blueprints\org.py:1742  api_create_org
+   73  blueprints\documents.py:419  verify_employee_document  nodoc
+   73  blueprints\billing.py:47  create_order
+   72  blueprints\auth.py:547  mfa_verify
+   72  blueprints\admin_views.py:277  dashboard_live  nodoc
+   71  blueprints\payroll.py:923  apply_hike  nodoc
+   71  blueprints\leave.py:712  resignation_action  nodoc
+   70  utils\salary_utils.py:232  compute_salary_entry  nodoc
+   70  blueprints\onboarding.py:533  onboarding_assign  nodoc
+   70  blueprints\leave.py:214  leave_balance  nodoc
+   70  blueprints\hr_dashboard.py:33  hr_dashboard  nodoc
+   69  blueprints\performance.py:27  _admin_session_or_api_role_required
+   69  blueprints\org.py:299  send_portal_ready_email
+   69  blueprints\leave.py:1039  api_resignation_action  nodoc
+   68  utils\receipt_pdf.py:7  build_receipt_pdf
+   68  blueprints\platform_admin.py:495  platform_admin_dashboard  nodoc
+   68  blueprints\core.py:436  api_mobile_web_session_link
+   68  blueprints\attendance.py:1368  process_punch
+   68  blueprints\attendance.py:1049  send_absentee_report  nodoc
+   67  utils\leave_utils.py:36  get_indian_holidays
+   67  utils\helpers.py:1602  _error_page  nodoc
+   67  blueprints\employees.py:1822  _render_default_back
+   67  blueprints\employee_portal.py:1416  api_employee_salary  nodoc
+   66  blueprints\org.py:370  send_payment_confirmation_email
+   66  blueprints\onboarding.py:1505  my_onboarding_task_done  nodoc
+   66  blueprints\disbursement.py:189  approve_disbursement_run
+   65  blueprints\platform_admin.py:894  platform_admin_delete_tenant
+   64  blueprints\org.py:651  send_org_signup_otp_email
+   64  blueprints\onboarding.py:1640  api_my_onboarding_task_done
+   64  blueprints\employees.py:2387  api_org_chart
+   63  blueprints\org.py:1562  create_org_setup_trial_create_subscription
+   63  blueprints\admin_views.py:1812  id_card_template_upload  nodoc
+   62  blueprints\leave.py:646  request_resignation  nodoc
+   62  blueprints\leave.py:580  leave_calendar  nodoc
+   62  blueprints\billing_dunning.py:309  _mark_invoice_paid_and_unlock
+   61  blueprints\onboarding.py:1575  api_my_onboarding
+   60  blueprints\org.py:924  _provision_application_instantly
+   60  blueprints\leave.py:1599  overtime_action  nodoc
+   60  blueprints\auto_debit.py:106  enroll  nodoc
+   60  blueprints\admin_views.py:213  api_admin_search
+   59  blueprints\leave.py:787  bulk_leave_action  nodoc
+   59  blueprints\auto_debit.py:513  reconcile_billing_records
+   58  blueprints\trial_billing.py:112  _convert_one_trial  nodoc
+   58  blueprints\performance.py:320  performance_review  nodoc
+   57  utils\plan_limits.py:169  get_billing_snapshot
+   57  utils\oauth_client.py:180  complete_oauth
+   57  blueprints\attendance.py:598  correct_attendance  nodoc
+   57  blueprints\admin_views.py:431  activity_log_page
+   56  utils\helpers.py:464  _validate_upload  nodoc
+   56  utils\email_utils.py:33  get_email_config
+   56  blueprints\payroll.py:372  email_config  nodoc
+   56  blueprints\org.py:986  _approve_application_reviewed
+   56  blueprints\disbursement.py:66  api_save_payout_bank_config  nodoc
+   56  blueprints\auto_debit.py:455  sync_and_bill_auto_debit
+   56  blueprints\admin_views.py:353  attendance_chart_data  nodoc
+   55  migrations\seed.py:7  _seed_defaults_and_admin
+   55  migrations\column_migrations.py:1064  _run_fk_backstop_migration
+   55  extensions.py:69  log_security_event
+   55  extensions.py:184  check_redis_requirement
+   55  blueprints\trial_billing.py:181  _notify_trial_tenant
+   55  blueprints\onboarding.py:316  bulk_assign_onboarding  nodoc
+   55  blueprints\leave.py:1138  api_employee_resign  nodoc
+   55  blueprints\admin_views.py:2587  api_org_chart_data  nodoc
+   54  utils\session_risk.py:57  _evaluate_session_risk_db
+   54  utils\email_utils.py:310  notify_if_new_login_ip
+   54  utils\ai_resume_parser.py:41  parse_resume
+   54  app.py:802  _enforce_csrf  nodoc
+   53  blueprints\performance.py:42  decorator  nodoc
+   53  blueprints\admin_views.py:1914  id_card_template_save_positions  nodoc
+   53  app.py:264  inject_billing_lock_status
+   52  blueprints\webhooks.py:61  receive_webhook
+   52  blueprints\seats.py:53  create_order  nodoc
+   52  blueprints\payroll.py:1172  api_monthly_report  nodoc
+   52  blueprints\org.py:1958  submit_feedback
+   52  blueprints\leave.py:1686  my_compoff  nodoc
+   52  blueprints\employees.py:442  api_employee_info  nodoc
+   52  blueprints\core.py:228  api_login
+   52  blueprints\auth.py:740  admin_forgot_password  nodoc
+   51  utils\ai_helpdesk.py:79  process_helpdesk_query
+   51  blueprints\platform_admin.py:771  platform_admin_create_tenant
+   51  blueprints\oauth_signup.py:289  oauth_login_callback  nodoc
+   51  blueprints\core.py:342  api_dashboard  nodoc
+   51  blueprints\auth.py:1314  get_employee_webauthn_credential
+
+== DB execute() inside loops (47)
+blueprints\admin_views.py:1583  in add_company  (1 execute call(s) in loop body)
+blueprints\admin_views.py:1598  in add_company  (1 execute call(s) in loop body)
+blueprints\admin_views.py:1693  in edit_company  (1 execute call(s) in loop body)
+blueprints\admin_views.py:1708  in edit_company  (1 execute call(s) in loop body)
+blueprints\disbursement.py:310  in _process_disbursement_run  (1 execute call(s) in loop body)
+blueprints\disbursement.py:512  in _prepare_one_tenant  (2 execute call(s) in loop body)
+blueprints\email_blast.py:108  in api_email_blast  (1 execute call(s) in loop body)
+blueprints\employee_portal.py:1099  in api_employee_sync_punches  (3 execute call(s) in loop body)
+blueprints\employee_portal.py:662  in employee_portal  (3 execute call(s) in loop body)
+blueprints\employees.py:1083  in add_employee_page  (4 execute call(s) in loop body)
+blueprints\employees.py:1142  in add_employee_page  (1 execute call(s) in loop body)
+blueprints\employees.py:1198  in add_employee_page  (1 execute call(s) in loop body)
+blueprints\hr_dashboard.py:326  in api_hr_dashboard_reports  (1 execute call(s) in loop body)
+blueprints\leave.py:157  in request_leave  (1 execute call(s) in loop body)
+blueprints\leave.py:78  in import_indian_holidays  (1 execute call(s) in loop body)
+blueprints\leave.py:802  in bulk_leave_action  (3 execute call(s) in loop body)
+blueprints\oauth_signup.py:88  in _unique_subdomain  (1 execute call(s) in loop body)
+blueprints\onboarding.py:333  in bulk_assign_onboarding  (4 execute call(s) in loop body)
+blueprints\onboarding.py:433  in onboarding_template_duplicate  (1 execute call(s) in loop body)
+blueprints\onboarding.py:563  in onboarding_assign  (1 execute call(s) in loop body)
+blueprints\payroll.py:1050  in award_performance_bonus  (1 execute call(s) in loop body)
+blueprints\payroll.py:1110  in save_hike_config  (1 execute call(s) in loop body)
+blueprints\payroll.py:955  in apply_hike  (1 execute call(s) in loop body)
+blueprints\performance.py:1018  in performance_import  (1 execute call(s) in loop body)
+blueprints\performance.py:995  in performance_import  (6 execute call(s) in loop body)
+migrations\column_migrations.py:1012  in _run_pii_widen_migration_v1  (1 execute call(s) in loop body)
+migrations\column_migrations.py:1052  in _run_pii_widen_migration_v2  (1 execute call(s) in loop body)
+migrations\column_migrations.py:1104  in _run_fk_backstop_migration  (1 execute call(s) in loop body)
+migrations\column_migrations.py:283  in _run_password_migrations  (1 execute call(s) in loop body)
+migrations\column_migrations.py:317  in _run_password_migrations  (1 execute call(s) in loop body)
+migrations\column_migrations.py:348  in _run_qr_signing_migration  (1 execute call(s) in loop body)
+migrations\column_migrations.py:387  in _run_index_migrations_v1  (1 execute call(s) in loop body)
+migrations\column_migrations.py:411  in _run_index_migrations_v2  (1 execute call(s) in loop body)
+migrations\column_migrations.py:450  in _run_index_migrations_v3  (1 execute call(s) in loop body)
+migrations\column_migrations.py:93  in _run_column_migrations  (1 execute call(s) in loop body)
+migrations\column_migrations.py:946  in _run_company_policies_seed  (1 execute call(s) in loop body)
+migrations\column_migrations.py:972  in _run_company_policies_seed_v2  (1 execute call(s) in loop body)
+migrations\core_tables.py:338  in _init_core_tables  (1 execute call(s) in loop body)
+migrations\core_tables.py:433  in _init_core_tables  (1 execute call(s) in loop body)
+migrations\core_tables.py:565  in _init_core_tables  (2 execute call(s) in loop body)
+migrations\core_tables.py:823  in _init_core_tables  (1 execute call(s) in loop body)
+utils\ai_attrition_analytics.py:28  in compute_attrition_and_burnout_analytics  (2 execute call(s) in loop body)
+utils\document_verification.py:289  in _document_verification_worker  (5 execute call(s) in loop body)
+utils\document_verification.py:300  in _document_verification_worker  (1 execute call(s) in loop body)
+utils\document_verification.py:310  in _document_verification_worker  (2 execute call(s) in loop body)
+utils\email_utils.py:234  in _drain_queue_for_schema  (3 execute call(s) in loop body)
+utils\leave_utils.py:26  in assign_leave_balances_for_employee  (1 execute call(s) in loop body)
+
+== Possible connection leak: early return before first close(), no with/finally (3)
+blueprints\onboarding.py:291  onboarding_template_save  returns at [300]
+blueprints\onboarding.py:464  onboarding_task_save  returns at [476]
+blueprints\org.py:1174  create_org  returns at [1273]

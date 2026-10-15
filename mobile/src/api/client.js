@@ -45,8 +45,15 @@ client.interceptors.response.use(
 );
 
 // ── Admin API ──────────────────────────────────────────────────────
+// Step 1: password. When the server requires login MFA this returns
+// { ok, mfa_required: true, challenge_id } instead of a token, and the
+// one-time code is emailed to the account.
 export const adminLogin = (username, password) =>
   client.post('/api/login', { username, password });
+
+// Step 2: exchange the challenge_id + emailed code for the Bearer token.
+export const verifyAdminLogin = (challenge_id, otp_code) =>
+  client.post('/api/login/verify', { challenge_id, otp_code });
 
 export const adminLogout = () => client.post('/api/logout');
 

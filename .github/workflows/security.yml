@@ -15,10 +15,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.11"   # same as the image and the other workflows (QA CONFIG-02)
 
       - name: Install Audit Tools
         run: |
@@ -31,4 +31,4 @@ jobs:
 
       - name: Run Bandit Security Scanner
         run: |
-          bandit -r blueprints/ utils/ -s B101,B105 || true
+          bandit -r blueprints/ utils/ -s B101,B105

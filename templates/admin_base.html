@@ -194,9 +194,12 @@
     <span class="nav-icon"><i class="ti ti-id-badge-2"></i></span>Profile
   </a>
   {% endif %}
-  <a class="nav-item" href="{{ tpath('/logout') }}">
-    <span class="nav-icon"><i class="ti ti-logout"></i></span>Logout
-  </a>
+  <form action="{{ tpath('/logout') }}" method="POST" class="nav-item-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+    <button type="submit" class="nav-item nav-item-btn">
+      <span class="nav-icon"><i class="ti ti-logout"></i></span>Logout
+    </button>
+  </form>
 
   <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> <span class="sb-live-clock"></span></div>
 </div>

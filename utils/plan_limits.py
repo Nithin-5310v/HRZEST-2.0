@@ -92,7 +92,7 @@ def _get_extra_cost_paise(column: str) -> int:
         from database import get_master_db
         conn = get_master_db()
         cur = conn.cursor(buffered=True)
-        cur.execute(f"SELECT {column} FROM platform_costs WHERE id=1")
+        cur.execute(f"SELECT {column} FROM platform_costs WHERE id=1")  # nosec B608 -- column is a key of _extra_cost_cache
         row = cur.fetchone()
         cur.close()
         conn.close()

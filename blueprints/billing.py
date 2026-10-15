@@ -51,12 +51,21 @@ def create_order():
     at all (those were already validated, duplicate-checked, and OTP/KYC
     verified during the application). It only needs application_id
     (identifying an already-approved application) and employee_count
-    (the one thing genuinely decided at checkout time)."""
+    (the one thing genuinely decided at checkout time).
+
+    Requires proof of the application's access token, exactly like the
+    pay page that calls this (blueprints/org.py's
+    _verify_application_access -- the page's own check leaves that proof
+    in the session), so a sequential application_id alone can neither
+    stage an order nor reveal the application's status; 404 otherwise."""
+    from blueprints.org import _verify_application_access
     data = request.get_json(silent=True) or request.form
     try:
         application_id = int(data.get("application_id"))
     except (TypeError, ValueError):
         return jsonify({"ok": False, "msg": "Missing or invalid application_id."}), 400
+    if not _verify_application_access(application_id):
+        return jsonify({"ok": False, "msg": "Application not found."}), 404
 
     conn = get_master_db()
     cur = conn.cursor(buffered=True)

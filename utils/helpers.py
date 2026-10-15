@@ -11,7 +11,7 @@ from contextlib import contextmanager
 
 import pytz
 from cryptography.fernet import Fernet, InvalidToken as _FernetInvalid
-from flask import session, request
+from flask import session, request, jsonify, abort
 from database import get_db_connection
 from extensions import app_log, log_security_event, redis_client
 
@@ -133,7 +133,7 @@ def static_url(filename: str) -> str:
             if cached is None or cached[0] != mtime:
                 try:
                     with open(path, "rb") as f:
-                        digest = hashlib.md5(f.read()).hexdigest()[:10]
+                        digest = hashlib.md5(f.read(), usedforsecurity=False).hexdigest()[:10]  # cache-busting fingerprint, not security
                 except OSError:
                     return f"/static/{filename}"
                 cached = (mtime, digest)
@@ -868,6 +868,7 @@ def invalidate_pending_counts_cache():
     # not silently invalidate the wrong key).
     with _settings_lock:
         _pending_counts_cache.clear()
+    _redis_clear_prefix("settings_pending")
 
 
 def get_pending_counts():
@@ -884,9 +885,11 @@ def get_pending_counts():
     NOT for routes that scope these counts by active_company_id (multi-
     tenant) -- those need a live per-request query via co_scope_subquery,
     not this shared unscoped cache."""
-    with _settings_lock:
-        if not _co_expired(_pending_counts_cache):
-            return tuple(_pending_counts_cache[_tenant_cache_key()]["data"])
+    # Through Redis when configured, so every worker shows the same badges
+    # and an invalidation reaches all of them (QA SCALE-04).
+    cached = _cache_get(_pending_counts_cache, "settings_pending")
+    if cached is not _CACHE_MISS:
+        return tuple(cached)
     try:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -897,11 +900,7 @@ def get_pending_counts():
         result = tuple(get_pending_action_counts(cursor))
         cursor.close()
         db.close()
-        with _settings_lock:
-            _pending_counts_cache[_tenant_cache_key()] = {
-                "data": result,
-                "expires": datetime.datetime.now() + datetime.timedelta(seconds=_PENDING_COUNTS_CACHE_TTL),
-            }
+        _cache_set(_pending_counts_cache, "settings_pending", list(result), _PENDING_COUNTS_CACHE_TTL)
         return result
     except Exception:
         return (0, 0, 0)
@@ -945,6 +944,10 @@ def get_company_settings():
                 "paid_employee_slots": row_dict.get("paid_employee_slots"),
                 "contact_phone": row_dict.get("contact_phone") or "",
                 "address": row_dict.get("address") or "",
+                # Per-company shift and payroll rules, read via utils/config.py's
+                # shift_rules()/salary_rules(). Stored as plain JSON-safe values
+                # (times as "HH:MM:SS") so the Redis cache path can hold them.
+                **_rule_settings(row_dict),
             }
             _cache_set(_co_cache, "settings_co", result, _CO_CACHE_TTL)
             return dict(result)
@@ -956,7 +959,32 @@ def get_company_settings():
     return {"company_name": "My Company", "company_tagline": "HRzest.com",
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
             "setup_done": False, "company_code": "", "session_timeout": 30, "logo_url": "", "plan": "basic",
-            "email_domain": "", "paid_employee_slots": None, "contact_phone": "", "address": ""}
+            "email_domain": "", "paid_employee_slots": None, "contact_phone": "", "address": "",
+            **_rule_settings({})}
+
+
+def _rule_settings(row_dict):
+    """The company's shift/payroll rule columns as JSON-safe values (see
+    utils/config.py); company_settings column defaults where unset."""
+    import utils.config as cfg
+
+    def _t(key, default):
+        return cfg.as_time(row_dict.get(key), default).strftime("%H:%M:%S")
+
+    def _num(key, default):
+        v = row_dict.get(key)
+        return float(v) if v is not None else default
+    grace = row_dict.get("grace_minutes")
+    return {
+        "shift_start": _t("shift_start", cfg.DEFAULT_SHIFT_START),
+        "shift_half": _t("shift_half", cfg.DEFAULT_SHIFT_HALF),
+        "shift_end": _t("shift_end", cfg.DEFAULT_SHIFT_END),
+        "grace_minutes": int(grace) if grace is not None else cfg.DEFAULT_GRACE_MINUTES,
+        "late_deduction_pct": _num("late_deduction_pct", cfg.DEFAULT_LATE_DEDUCTION_PCT),
+        "half_day_deduction_pct": _num("half_day_deduction_pct", cfg.DEFAULT_HALF_DAY_DEDUCTION_PCT),
+        "holiday_pay": row_dict.get("holiday_pay") or cfg.DEFAULT_HOLIDAY_PAY,
+        "leave_pay": row_dict.get("leave_pay") or cfg.DEFAULT_LEAVE_PAY,
+    }
 
 
 def _company_tzinfo():
@@ -987,6 +1015,17 @@ def company_today():
     """Current calendar date in the current tenant's configured timezone. See
     company_now() -- this is just company_now().date()."""
     return company_now().date()
+
+
+# Platform-wide dates -- billing periods, dunning -- belong to no one
+# company, so they use the platform's own timezone rather than the
+# container's clock (UTC), which moved month boundaries to 05:30 IST
+# (QA BUG-27).
+PLATFORM_TZ = pytz.timezone("Asia/Kolkata")
+
+
+def platform_today():
+    return datetime.datetime.now(PLATFORM_TZ).date()
 
 
 # ── Company email domain (employee-registration gate) ────────────────────────
@@ -1135,7 +1174,7 @@ def add_employee_seat_cap_check(cursor=None) -> str:
             try:
                 cursor.close()
                 db.close()
-            except Exception:
+            except Exception:  # nosec B110 -- best-effort close; must not mask the result
                 pass
 
     if is_trialing and current >= TRIAL_EMPLOYEE_CAP:
@@ -1225,6 +1264,7 @@ _AUTH_CONFIG_DEFAULTS = {
     "fingerprint_enabled": False, "qr_enabled": True, "face_enabled": True,
     "location_enabled": True, "employee_password_auth": True,
     "geo_radius": 100, "office_lat": None, "office_lon": None,
+    "app_gps_checkin": None,
 }
 
 
@@ -1239,7 +1279,7 @@ def get_auth_config():
             SELECT COALESCE(fingerprint_enabled,0), COALESCE(qr_enabled,1),
                    COALESCE(face_enabled,1), COALESCE(location_enabled,1),
                    COALESCE(employee_password_auth,1), COALESCE(geo_radius,100),
-                   office_lat, office_lon
+                   office_lat, office_lon, app_gps_checkin
             FROM company_settings LIMIT 1
         """)
         row = cursor.fetchone()
@@ -1251,12 +1291,51 @@ def get_auth_config():
                 "face_enabled": bool(row[2]), "location_enabled": bool(row[3]),
                 "employee_password_auth": bool(row[4]), "geo_radius": row[5],
                 "office_lat": row[6], "office_lon": row[7],
+                "app_gps_checkin": None if row[8] is None else bool(row[8]),
             }
             _cache_set(_auth_cache, "settings_auth", result, _CO_CACHE_TTL)
             return dict(result)
     except Exception as exc:
         app_log.warning("get_auth_config failed, using defaults: %s", exc, exc_info=True)
     return dict(_AUTH_CONFIG_DEFAULTS)
+
+
+def allowed_checkin_combos(auth_cfg):
+    """The attendance check-in methods this organisation's settings permit,
+    decided on the server -- a client-supplied auth_combo outside this set
+    must be rejected. Whenever face recognition is enabled, every allowed
+    method includes the face check (so QR-only / fingerprint-only can't be
+    used to skip it); otherwise QR and fingerprint methods are offered as
+    enabled."""
+    qr = bool(auth_cfg.get("qr_enabled"))
+    face = bool(auth_cfg.get("face_enabled"))
+    fingerprint = bool(auth_cfg.get("fingerprint_enabled"))
+    allowed = set()
+    if face:
+        if qr:
+            allowed.add("qr_face")
+        if fingerprint:
+            allowed.add("face_fingerprint")
+    else:
+        if qr:
+            allowed.add("qr_only")
+        if qr and fingerprint:
+            allowed.add("qr_fingerprint")
+        if fingerprint:
+            allowed.add("fingerprint_only")
+    return allowed
+
+
+def app_gps_checkin_allowed(auth_cfg):
+    """Whether the mobile app's location-only check-in (/api/employee/checkin:
+    login token plus GPS, no QR, face or fingerprint) is allowed. The
+    admin's explicit setting decides; unset, it is allowed only when the
+    company has no verified check-in method enabled, so it can't be used to
+    skip the QR or face check the company requires (QA NV-18)."""
+    explicit = auth_cfg.get("app_gps_checkin")
+    if explicit is not None:
+        return bool(explicit)
+    return not allowed_checkin_combos(auth_cfg)
 
 
 def _read_global_features():
@@ -1573,7 +1652,33 @@ def get_pending_action_counts(cursor, active_cid=None, tickets_open_only=False):
 # styling, no template dependency) rather than fixing the missing
 # template, since that's what every real error page has actually looked
 # like in production.
+def int_param(value):
+    """int() for a value taken from the request (query string, form, JSON).
+    Malformed input answers 400 Bad Request -- JSON for API calls, see
+    _error_page() -- instead of an unhandled ValueError: a 500 with a logged
+    traceback and an error alert (QA BUG-08..16)."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        abort(400, description="A number in the request is invalid.")
+
+
+def wants_json_response():
+    """True for API, AJAX and JSON-accepting requests -- they get a JSON error
+    body instead of the HTML error page."""
+    return (
+        request.path.startswith("/api/")
+        or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
+
+
 def _error_page(code, icon, title, subtitle, hint):
+    # API clients (the mobile app, the pages' fetch() calls) can't parse an
+    # HTML page; same {"ok": False, "msg": ...} shape as every API error
+    # (QA ERR-01). Only the generic title goes out -- never exception details.
+    if wants_json_response():
+        return jsonify({"ok": False, "msg": title}), code
     back_admin = session.get("admin_logged_in")
     back_emp = session.get("employee_id")
     back_link = "/admin" if back_admin else ("/employee_portal" if back_emp else "/")

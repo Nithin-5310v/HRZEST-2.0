@@ -34,6 +34,13 @@ RESERVED_PATH_SEGMENTS = frozenset({
     # /webhooks/<provider>, dispatching to whichever feature registered
     # for that provider/event)
     "webhooks",
+    # OAuth login callback (blueprints/oauth_signup.py) -- Google/Microsoft
+    # redirect back to a single fixed global URL (/oauth/callback/<provider>)
+    # with no tenant slug in it; which tenant a login belongs to is carried
+    # in the server-side oauth_signup_states row instead, keyed by the
+    # `state` param. The signup entry points live under /create_org/...
+    # instead, already reserved above.
+    "oauth",
     # operator consoles (excluded from this migration entirely)
     "super_admin", "superadmin", "sp_admin",
     # legacy reserved words carried over from the subdomain era
@@ -65,6 +72,10 @@ class TenantPrefixMiddleware:
                 environ["hrz.tenant_slug"] = seg.lower()
                 environ["hrz.tenant_db"] = row[0]
                 environ["hrz.billing_locked"] = (row[1] == "locked")
+                # Tables the last migration couldn't create in this
+                # tenant's schema: app.py answers 503 rather than let its
+                # queries fall through to public (QA SEC-07).
+                environ["hrz.tenant_incomplete"] = bool(row[2])
 
         return self.wsgi_app(environ, start_response)
 
@@ -94,7 +105,8 @@ class TenantPrefixMiddleware:
             conn = get_master_db()
             cur = conn.cursor(buffered=True)
             cur.execute(
-                "SELECT db_name, billing_state FROM tenants WHERE subdomain=%s AND status='active'",
+                "SELECT db_name, billing_state, schema_missing_tables FROM tenants "
+                "WHERE subdomain=%s AND status='active'",
                 (slug,)
             )
             row = cur.fetchone()

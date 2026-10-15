@@ -1,0 +1,87 @@
+---
+# Loki server config — runs on the standalone log-analysis EC2 instance,
+# never on the HRMS app server. Uses the modern TSDB index (Loki 2.9+/3.x)
+# with S3 as the chunk/index object store — no Cassandra/BigTable/extra
+# database to run or pay for, just this one small EC2 host plus S3.
+#
+# Env vars referenced below (${...}) are read from log-server/.env by
+# compose.yml — see observability/README.md for the full list.
+
+auth_enabled: false
+# Single-tenant (fake auth) is fine here: this Loki instance exists only to
+# receive HRMS's own logs, reached only from inside the VPC (see the
+# security-group rule in terraform/observability.tf that allows port 3100
+# ONLY from the app server's own security group — nothing else, including
+# the internet, can reach it at all). If you ever add a second application
+# shipping logs to this same Loki, switch auth_enabled to true and give each
+# app its own X-Scope-OrgID tenant header instead of relying on network
+# isolation alone.
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+
+common:
+  path_prefix: /loki
+  replication_factor: 1
+  storage:
+    s3:
+      bucketnames: ${LOKI_S3_BUCKET}
+      region: ${AWS_REGION}
+      s3forcepathstyle: false
+      # No access/secret key here on purpose -- the log-server EC2 instance
+      # authenticates to S3 via its IAM instance profile (see
+      # terraform/observability.tf's aws_iam_role.log_server_role), the same
+      # pattern the app server already uses for its own S3 backups bucket
+      # (main.tf's ec2_app_role) rather than long-lived static credentials
+      # sitting in a config file.
+  ring:
+    kvstore:
+      store: inmemory
+    # inmemory is correct for a single Loki instance (replication_factor 1
+    # above). If you ever scale to multiple Loki replicas for HA, this needs
+    # to become a real KV store (memberlist/consul/etcd) -- out of scope for
+    # a single small internal log server.
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# Chunks are written to S3 immediately as they fill/flush -- this is just
+# the local staging area before upload, not the long-term store. Safe to
+# lose on instance replacement since anything already flushed is in S3.
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+
+# Retention -- HR data is sensitive, so keep logs only as long as you
+# actually need them for debugging/audit, not indefinitely. Adjust to match
+# your own compliance requirements; 90 days is a reasonable default that
+# still covers "why did last month's payroll run fail" investigations.
+limits_config:
+  retention_period: 2160h # 90 days
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  # Generous but bounded ingestion limits for a single small app's log
+  # volume -- raise these if Promtail starts logging 429s from Loki.
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+  per_stream_rate_limit: 5MB
+  per_stream_rate_limit_burst: 15MB
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: s3
+
+analytics:
+  reporting_enabled: false
+  # Loki phones home anonymous usage stats to Grafana Labs by default --
+  # disabled since this box only ever holds internal HR-adjacent log data.

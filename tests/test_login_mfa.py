@@ -20,8 +20,19 @@ def mandatory_login_mfa_enabled(client):
     client.application.config["MANDATORY_LOGIN_MFA"] = False
 
 
+@pytest.fixture
+def sent_codes(monkeypatch):
+    """Captures the emailed login code -- the only place the plaintext code
+    exists outside the server (it is never in the session cookie)."""
+    import blueprints.auth as auth_module
+    codes = []
+    monkeypatch.setattr(auth_module, "send_mfa_login_email",
+                        lambda to, user, role, secret, code: codes.append(code))
+    return codes
+
+
 class TestAdminLoginMfa:
-    def test_correct_password_does_not_grant_session_yet(self, client, seed_admin, mandatory_login_mfa_enabled):
+    def test_correct_password_does_not_grant_session_yet(self, client, sent_codes, seed_admin, mandatory_login_mfa_enabled):
         resp = client.post("/login", data={
             "identifier": seed_admin["username"], "password": seed_admin["password"],
         }, follow_redirects=False)
@@ -30,15 +41,14 @@ class TestAdminLoginMfa:
         with client.session_transaction() as sess:
             assert not sess.get("admin_logged_in")
             assert sess.get("mfa_pending") is True
-            assert sess.get("mfa_kind") == "admin_users"
+            assert sess.get("mfa_challenge_id")
             assert sess.get("mfa_user") == seed_admin["username"]
 
-    def test_correct_otp_completes_login(self, client, seed_admin, mandatory_login_mfa_enabled):
+    def test_correct_otp_completes_login(self, client, sent_codes, seed_admin, mandatory_login_mfa_enabled):
         client.post("/login", data={
             "identifier": seed_admin["username"], "password": seed_admin["password"],
         })
-        with client.session_transaction() as sess:
-            code = sess["mfa_otp_code"]
+        code = sent_codes[-1]
 
         resp = client.post("/mfa_verify", data={"otp_code": code}, follow_redirects=False)
         assert resp.status_code == 302
@@ -48,7 +58,7 @@ class TestAdminLoginMfa:
             assert sess.get("admin_username") == seed_admin["username"]
             assert not sess.get("mfa_pending")
 
-    def test_wrong_otp_rejected(self, client, seed_admin, mandatory_login_mfa_enabled):
+    def test_wrong_otp_rejected(self, client, sent_codes, seed_admin, mandatory_login_mfa_enabled):
         client.post("/login", data={
             "identifier": seed_admin["username"], "password": seed_admin["password"],
         })
@@ -58,19 +68,19 @@ class TestAdminLoginMfa:
         with client.session_transaction() as sess:
             assert not sess.get("admin_logged_in")
 
-    def test_expired_otp_rejected(self, client, seed_admin, mandatory_login_mfa_enabled):
+    def test_expired_otp_rejected(self, client, sent_codes, seed_admin, mandatory_login_mfa_enabled):
         client.post("/login", data={
             "identifier": seed_admin["username"], "password": seed_admin["password"],
         })
+        code = sent_codes[-1]
         with client.session_transaction() as sess:
-            code = sess["mfa_otp_code"]
             sess["mfa_issued_at"] = time.time() - 301
 
         resp = client.post("/mfa_verify", data={"otp_code": code})
         assert resp.status_code == 200
         assert b"expired" in resp.data.lower()
 
-    def test_hr_role_can_use_admin_login_and_completes_mfa(self, client, seed_admin, db_engine, mandatory_login_mfa_enabled):
+    def test_hr_role_can_use_admin_login_and_completes_mfa(self, client, sent_codes, seed_admin, db_engine, mandatory_login_mfa_enabled):
         """HR accounts (blueprints/admin_views.py's /hr_accounts management
         page) use the same general login as admin, and land on /hr_dashboard
         instead of /admin after MFA -- role_required("admin") elsewhere
@@ -81,8 +91,7 @@ class TestAdminLoginMfa:
             client.post("/login", data={
                 "identifier": seed_admin["username"], "password": seed_admin["password"],
             })
-            with client.session_transaction() as sess:
-                code = sess["mfa_otp_code"]
+            code = sent_codes[-1]
             resp = client.post("/mfa_verify", data={"otp_code": code}, follow_redirects=False)
             assert resp.status_code == 302
             assert resp.headers.get("Location") == "/hr_dashboard"
@@ -93,36 +102,28 @@ class TestAdminLoginMfa:
             db_engine.cursor().execute("UPDATE admin_users SET role='admin' WHERE username=%s", (seed_admin["username"],))
             db_engine.commit()
 
-    def test_nonexistent_identifier_gets_the_same_mfa_redirect(self, client, mandatory_login_mfa_enabled):
-        """Finding #10 (username enumeration): a real admin-role account
-        skips password verification entirely on this branch (OTP is its
-        sole credential) and always redirects to /mfa_verify -- before
-        the fix, a nonexistent identifier fell through to a plain 200
-        "Invalid credentials" render instead, trivially distinguishing
-        "real admin username" from "made up" without ever guessing a
-        password. Both must now produce the identical 302 redirect."""
-        resp = client.post("/login", data={
+    def test_nonexistent_identifier_gets_the_same_generic_error_as_wrong_password(
+            self, client, sent_codes, seed_admin, mandatory_login_mfa_enabled):
+        """Username enumeration: now that every account needs its password
+        before the emailed-code step, an unknown identifier and a real
+        admin with a wrong password must look identical (same status, same
+        generic error, no OTP step, no email)."""
+        unknown = client.post("/login", data={
             "identifier": "definitely_not_a_real_admin_98765", "password": "whatever",
         }, follow_redirects=False)
-        assert resp.status_code == 302
-        assert resp.headers.get("Location") == "/mfa_verify"
         with client.session_transaction() as sess:
-            assert sess.get("mfa_pending") is True
-            assert sess.get("mfa_kind") == "admin_users"
+            assert not sess.get("mfa_pending")
+        wrong_pw = client.post("/login", data={
+            "identifier": seed_admin["username"], "password": "whatever",
+        }, follow_redirects=False)
+        with client.session_transaction() as sess:
+            assert not sess.get("mfa_pending")
+        assert unknown.status_code == wrong_pw.status_code == 200
+        assert b"Invalid credentials" in unknown.data
+        assert b"Invalid credentials" in wrong_pw.data
+        assert sent_codes == []
 
-    def test_decoy_mfa_state_can_never_be_completed(self, client, mandatory_login_mfa_enabled):
-        client.post("/login", data={
-            "identifier": "definitely_not_a_real_admin_98765", "password": "whatever",
-        })
-        with client.session_transaction() as sess:
-            code = sess["mfa_otp_code"]
-        resp = client.post("/mfa_verify", data={"otp_code": code}, follow_redirects=False)
-        assert resp.status_code == 302
-        assert resp.headers.get("Location") == "/login"
-        with client.session_transaction() as sess:
-            assert not sess.get("admin_logged_in")
-
-    def test_real_employee_identifier_not_hijacked_into_admin_decoy(self, client, seed_employee, mandatory_login_mfa_enabled):
+    def test_real_employee_identifier_not_hijacked_into_admin_decoy(self, client, sent_codes, seed_employee, mandatory_login_mfa_enabled):
         """The enumeration-guard branch above only fires when `identifier`
         matches neither admin_users NOR employees -- a real employee_id
         (which also has no admin_users row) must still reach the normal
@@ -136,7 +137,7 @@ class TestAdminLoginMfa:
         with client.session_transaction() as sess:
             assert not sess.get("mfa_pending")
 
-    def test_admin_with_no_email_on_file_rejected_generically(self, client, db_engine, mandatory_login_mfa_enabled):
+    def test_admin_with_no_email_on_file_rejected_generically(self, client, sent_codes, db_engine, mandatory_login_mfa_enabled):
         from utils.auth import generate_password_hash
         cur = db_engine.cursor()
         cur.execute(
@@ -154,7 +155,7 @@ class TestAdminLoginMfa:
 
 
 class TestEmployeeLoginMfa:
-    def test_correct_password_does_not_grant_session_yet(self, client, seed_employee, mandatory_login_mfa_enabled):
+    def test_correct_password_does_not_grant_session_yet(self, client, sent_codes, seed_employee, mandatory_login_mfa_enabled):
         resp = client.post("/login", data={
             "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
         }, follow_redirects=False)
@@ -162,15 +163,14 @@ class TestEmployeeLoginMfa:
         assert resp.headers.get("Location") == "/mfa_verify"
         with client.session_transaction() as sess:
             assert not sess.get("employee_id")
-            assert sess.get("mfa_kind") == "employee"
+            assert sess.get("mfa_challenge_id")
             assert sess.get("mfa_user") == seed_employee["employee_id"]
 
-    def test_correct_otp_completes_login(self, client, seed_employee, mandatory_login_mfa_enabled):
+    def test_correct_otp_completes_login(self, client, sent_codes, seed_employee, mandatory_login_mfa_enabled):
         client.post("/login", data={
             "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
         })
-        with client.session_transaction() as sess:
-            code = sess["mfa_otp_code"]
+        code = sent_codes[-1]
 
         resp = client.post("/mfa_verify", data={"otp_code": code}, follow_redirects=False)
         assert resp.status_code == 302
@@ -178,12 +178,11 @@ class TestEmployeeLoginMfa:
         with client.session_transaction() as sess:
             assert sess.get("employee_id") == seed_employee["employee_id"]
 
-    def test_otp_never_leaks_into_page_html(self, client, seed_employee, mandatory_login_mfa_enabled):
+    def test_otp_never_leaks_into_page_html(self, client, sent_codes, seed_employee, mandatory_login_mfa_enabled):
         client.post("/login", data={
             "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
         })
-        with client.session_transaction() as sess:
-            code = sess["mfa_otp_code"]
+        code = sent_codes[-1]
         resp = client.get("/mfa_verify")
         assert code.encode() not in resp.data
 
@@ -205,7 +204,7 @@ class TestHrRoleEmployeeLoginMfa:
     right after."""
 
     def test_hr_employee_full_first_login_flow_reaches_employees_with_no_mfa_reenrollment_demand(
-        self, client, seed_employee, db_engine, mandatory_login_mfa_enabled, mandatory_admin_mfa_enabled,
+        self, client, sent_codes, seed_employee, db_engine, mandatory_login_mfa_enabled, mandatory_admin_mfa_enabled,
     ):
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET role='HR', force_pin_change=1 WHERE employee_id=%s",
@@ -217,8 +216,7 @@ class TestHrRoleEmployeeLoginMfa:
                 "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
             }, follow_redirects=False)
             assert resp.headers.get("Location") == "/mfa_verify"
-            with client.session_transaction() as sess:
-                code = sess["mfa_otp_code"]
+            code = sent_codes[-1]
 
             # 2. Correct OTP -> force_pin_change=1 wins over the HR check,
             # same as the non-MFA path already tested in test_auth_routes.py.
@@ -265,7 +263,7 @@ class TestHrRoleEmployeeLoginMfa:
 
 
 class TestGateDisabledByDefault:
-    def test_admin_login_completes_immediately_without_the_fixture(self, client, seed_admin):
+    def test_admin_login_completes_immediately_without_the_fixture(self, client, sent_codes, seed_admin):
         resp = client.post("/login", data={
             "identifier": seed_admin["username"], "password": seed_admin["password"],
         }, follow_redirects=False)

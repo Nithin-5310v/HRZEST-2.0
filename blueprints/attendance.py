@@ -15,17 +15,18 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash, g,
 )
-from extensions import limiter, app_log
+from extensions import limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import admin_required, api_required, resolve_bearer_identity_any, HR_ROLE
 from utils.helpers import (
-    tpath, get_auth_config, get_company_settings, _safe_redirect, _safe_referrer_redirect,
+    tpath, get_auth_config, allowed_checkin_combos, get_company_settings, _safe_redirect, _safe_referrer_redirect,
     co_scope_column, hr_scope_column, hr_scope_denied, decrypt_pii, get_pending_action_counts,
-    company_today, company_now,
+    company_today, company_now, invalidate_settings_cache,
+    company_today, company_now, invalidate_settings_cache, int_param,
 )
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import (
-    classify_by_worked_minutes, detect_overtime, get_working_days,
+    classify_by_worked_minutes, classify_login, classify_logout, detect_overtime, get_working_days,
     fetch_holidays_set, get_employee_shift, _td_to_time, infer_type_legacy,
     is_within_range, is_within_office_range,
     check_attendance_lockout, record_attendance_failure, clear_attendance_lockout,
@@ -33,7 +34,6 @@ from utils.attendance_utils import (
 )
 from utils.face_utils import face_recognition, _face_recognition_available, _get_known_face_encoding
 from utils.webauthn_utils import _wa_fingerprint_recently_verified
-import utils.config as cfg
 
 attendance_bp = Blueprint("attendance", __name__)
 
@@ -235,9 +235,6 @@ def bulk_assign_shift():
 @attendance_bp.route("/update_default_shift", methods=["POST"])
 @admin_required
 def update_default_shift():
-    # No `global` needed -- cfg.SHIFT_START/HALF/END live in utils.config now;
-    # cfg.load_default_shift() below mutates that module's own globals via
-    # its own correctly-scoped `global` statement, not this function's.
     start = request.form.get("shift_start", "").strip()
     half = request.form.get("shift_half", "").strip()
     end = request.form.get("shift_end", "").strip()
@@ -252,7 +249,7 @@ def update_default_shift():
     db.commit()
     cursor.close()
     db.close()
-    cfg.load_default_shift()
+    invalidate_settings_cache()
     return redirect(tpath("/shifts?default_saved=1"))
 
 
@@ -321,7 +318,7 @@ def view_break_config():
 def add_break():
     name = request.form.get("break_name", "").strip()
     btime = request.form.get("break_time", "").strip()
-    duration = int(request.form.get("duration_minutes", 10) or 10)
+    duration = int_param(request.form.get("duration_minutes", 10) or 10)
     dest = _safe_redirect(request.form.get("redirect", ""), _safe_referrer_redirect(
         request.referrer or "", "/employees?tab=schedule"))
     cid_raw = request.form.get("company_id", "").strip()
@@ -353,7 +350,7 @@ def add_break():
 def update_break(bid):
     name = request.form.get("break_name", "").strip()
     btime = request.form.get("break_time", "").strip()
-    duration = int(request.form.get("duration_minutes", 10) or 10)
+    duration = int_param(request.form.get("duration_minutes", 10) or 10)
     active = 1 if request.form.get("is_active") else 0
     dest = _safe_redirect(request.form.get("redirect", ""), _safe_referrer_redirect(
         request.referrer or "", "/employees?tab=schedule"))
@@ -397,8 +394,8 @@ def delete_break(bid):
 @attendance_bp.route("/monthly_report")
 @admin_required
 def monthly_report():
-    year = int(request.args.get("year", datetime.date.today().year))
-    month = int(request.args.get("month", datetime.date.today().month))
+    year = int_param(request.args.get("year", company_today().year))
+    month = int_param(request.args.get("month", company_today().month))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -472,7 +469,7 @@ def monthly_report():
     db.close()
 
     months = [(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)]
-    years = list(range(datetime.date.today().year - 2, datetime.date.today().year + 1))
+    years = list(range(company_today().year - 2, company_today().year + 1))
 
     return render_template("monthly_report.html",
                            report=report,
@@ -577,7 +574,7 @@ def employee_attendance_detail(emp_id, year, month):
     db.close()
 
     months = [(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)]
-    years = list(range(datetime.date.today().year - 2, datetime.date.today().year + 1))
+    years = list(range(company_today().year - 2, company_today().year + 1))
 
     return render_template("employee_attendance_detail.html",
                            emp=emp,
@@ -657,7 +654,7 @@ def correct_attendance():
 @attendance_bp.route("/bulk_mark_attendance", methods=["GET", "POST"])
 @admin_required
 def bulk_mark_attendance():
-    today = datetime.date.today()
+    today = company_today()
 
     if request.method == "POST":
         date_str = request.form.get("date", "").strip()
@@ -813,7 +810,7 @@ def _api_hr_username():
 @attendance_bp.route("/api/bulk_mark_attendance", methods=["GET", "POST"])
 @api_required
 def api_bulk_mark_attendance():
-    today = datetime.date.today()
+    today = company_today()
     if request.method == "POST":
         data = request.get_json() or {}
         date_str = data.get("date", "").strip() or today.isoformat()
@@ -850,7 +847,7 @@ def api_bulk_mark_attendance():
             placeholders = ",".join(["(%s,%s,%s,%s,%s,'Manual','Manual')"] * len(rows))
             params = [v for row in rows for v in row]
             cursor.execute(
-                "INSERT INTO attendance (employee_id, date, login_time, logout_time, "
+                "INSERT INTO attendance (employee_id, date, login_time, logout_time, "  # nosec B608
                 f"attendance_type, status, logout_status) VALUES {placeholders} "
                 "ON CONFLICT (employee_id, date) DO UPDATE SET "
                 "login_time=EXCLUDED.login_time, logout_time=EXCLUDED.logout_time, "
@@ -915,16 +912,16 @@ def api_bulk_mark_attendance():
 @limiter.limit("10 per minute")
 def monthly_report_export():
     from flask import send_file
-    year = int(request.args.get("year", datetime.date.today().year))
-    month = int(request.args.get("month", datetime.date.today().month))
+    year = int_param(request.args.get("year", company_today().year))
+    month = int_param(request.args.get("month", company_today().month))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     active_cid = session.get("active_company_id")
     _co, _co_args = co_scope_column(active_cid)
     _hr, _hr_args = hr_scope_column()
-    cursor.execute(  # nosec B608
-        f"SELECT employee_id, name FROM employees WHERE 1=1 {_co} {_hr} ORDER BY name",
+    cursor.execute(
+        f"SELECT employee_id, name FROM employees WHERE 1=1 {_co} {_hr} ORDER BY name",  # nosec B608 -- fixed scope fragments
         _co_args + _hr_args)
     employees = cursor.fetchall()
 
@@ -1137,6 +1134,16 @@ def attendance():
         err_msg = "Employee ID is required." if auth_combo == "fingerprint_only" else "No QR code data received."
         return jsonify({"ok": False, "msg": err_msg})
 
+    # auth_combo comes from the client, so which checks run must be decided
+    # here from the organisation's settings -- otherwise a client could
+    # simply ask for "qr_only" and skip face verification. Runs before any
+    # QR verification, lockout lookup or employee lookup.
+    auth_cfg = get_auth_config()
+    if auth_combo not in allowed_checkin_combos(auth_cfg):
+        log_security_event("attendance.combo_rejected", "Check-in method not permitted by settings",
+                           level="WARNING", auth_combo=auth_combo)
+        return jsonify({"ok": False, "msg": "This check-in method is not enabled for your organisation."}), 403
+
     # For every combo that involves scanning a QR code, the posted
     # "employee_id" is really whatever text the QR encodes -- which must be
     # this employee's signed "<id>.<hmac>" value (see qr_generator.py), not
@@ -1164,8 +1171,6 @@ def attendance():
     _locked, _lock_msg = check_attendance_lockout(emp_id, _today)
     if _locked:
         return jsonify({"ok": False, "msg": _lock_msg}), 403
-
-    auth_cfg = get_auth_config()
 
     if auth_combo in ("qr_fingerprint", "fingerprint_only"):
         if not auth_cfg["fingerprint_enabled"]:
@@ -1283,13 +1288,7 @@ def attendance():
     s_start, s_half, s_end, shift_name = get_employee_shift(emp_id, cursor)
 
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, s_start) + datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
-        if current_time <= grace_time:
-            login_status = "Full Day Login"
-        elif current_time <= s_half:
-            login_status = "Late Login"
-        else:
-            login_status = "Half Day Login"
+        login_status = classify_login(current_time, s_start, s_half)
         cursor.execute(
             "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
             (emp_id, today, current_time, login_status)
@@ -1312,12 +1311,7 @@ def attendance():
         session_m = max(0, int((cur_dt - start_dt).total_seconds() / 60))
         total_m = worked_mins_stored + session_m
 
-        if current_time < s_half:
-            logout_status = "Half Day Logout"
-        elif current_time < s_end:
-            logout_status = "Early Logout"
-        else:
-            logout_status = "Completed"
+        logout_status = classify_logout(current_time, s_half, s_end)
         # Overtime: minutes beyond shift end
         now_mins = current_time.hour * 60 + current_time.minute
         end_mins = s_end.hour * 60 + s_end.minute
@@ -1381,15 +1375,9 @@ def process_punch(cursor, db, emp_id, employee_name, punch_dt=None):
     login_status_stored = record[2] if record else None
     worked_mins_stored = (record[3] or 0) if record else 0
     last_relogin_stored = record[4] if record else None
+    s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cursor)
     if not login_time:
-        grace_time = (datetime.datetime.combine(today, cfg.SHIFT_START) +
-                      datetime.timedelta(minutes=cfg.GRACE_MINUTES)).time()
-        if current_time <= grace_time:
-            login_status = "Full Day Login"
-        elif current_time <= cfg.SHIFT_HALF:
-            login_status = "Late Login"
-        else:
-            login_status = "Half Day Login"
+        login_status = classify_login(current_time, s_start, s_half)
         cursor.execute(
             "INSERT INTO attendance (employee_id, date, login_time, status) VALUES (%s,%s,%s,%s)",
             (emp_id, today, current_time, login_status)
@@ -1399,13 +1387,8 @@ def process_punch(cursor, db, emp_id, employee_name, punch_dt=None):
                 "status": login_status, "time": current_time.strftime("%H:%M:%S")}
     elif not logout_time:
         total_m = compute_session_worked_minutes(current_time, today, login_time, last_relogin_stored, worked_mins_stored)
-        if current_time < cfg.SHIFT_HALF:
-            logout_status = "Half Day Logout"
-        elif current_time < cfg.SHIFT_END:
-            logout_status = "Early Logout"
-        else:
-            logout_status = "Completed"
-        att_type = classify_by_worked_minutes(login_status_stored, total_m, cfg.SHIFT_START, cfg.SHIFT_END)
+        logout_status = classify_logout(current_time, s_half, s_end)
+        att_type = classify_by_worked_minutes(login_status_stored, total_m, s_start, s_end)
         cursor.execute(
             "UPDATE attendance SET logout_time=%s, logout_status=%s, attendance_type=%s, worked_minutes=%s "
             "WHERE employee_id=%s AND date=%s",

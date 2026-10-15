@@ -49,7 +49,9 @@ class TestSignupPage:
     def test_get_page_renders(self, client):
         resp = client.get("/create_org")
         assert resp.status_code == 200
-        assert b"Register Your Organisation" in resp.data
+        assert b"Start Your Organisation" in resp.data
+        assert b"/create_org/google" in resp.data
+        assert b"/create_org/microsoft" in resp.data
 
     def test_page_shows_flat_per_employee_rate(self, client):
         """The flat per-employee rate used to be shown on /create_org itself
@@ -246,6 +248,27 @@ class TestSignupValidation:
         assert resp.headers.get("Location") == "/create_org"
 
 
+class TestDevModeSignupSkipsOtp:
+    """conftest forces APP_ENV=development, where create_org() skips the
+    OTP screen. _mark_application_otp_verified() commits and closes the
+    connection itself; closing it a second time 500'd every local signup."""
+
+    def test_valid_signup_goes_straight_to_document_upload(self, client, db_engine):
+        gst = _random_gst()
+        resp = client.post("/create_org", data={
+            "company_name": "Dev Mode Signup Co", "subdomain": "dev-mode-signup-co",
+            "admin_username": "dm_admin", "admin_password": "password123",
+            "admin_email": "dm@devmodesignup.test", "email_domain": "devmodesignup.test",
+            "gst_number": gst,
+        }, follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["Location"].startswith("/create_org/upload_documents?application_id=")
+        cur = db_engine.cursor()
+        cur.execute("SELECT status FROM att_master.tenant_applications WHERE gst_number=%s", (gst,))
+        assert cur.fetchone()[0] == "otp_verified"
+        cur.close()
+
+
 # ===========================================================================
 # Full provisioning — real schema creation, one end-to-end test
 # ===========================================================================
@@ -332,7 +355,10 @@ class TestGatedSignupFlow:
         """Start -> verify OTP (which now provisions the tenant instantly,
         see blueprints/org.py's _provision_application_instantly()) ->
         upload docs, leaving the application at status='provisioned',
-        doc_review_status='pending_review'. Returns application_id."""
+        doc_review_status='approved' -- documents are now auto-approved
+        the moment they're submitted (see _save_application_documents()'s
+        own call to _approve_application_reviewed() at the end), not left
+        pending a human/AI review. Returns application_id."""
         resp, otp = self._start_application(client, monkeypatch, **overrides)
         assert resp.status_code in (301, 302), resp.data
         application_id = self._application_id_from_redirect(resp)
@@ -395,13 +421,15 @@ class TestGatedSignupFlow:
             app_row = cur.fetchone()
             assert app_row[0] == "provisioned"
             assert app_row[1] is not None
-            # Documents were uploaded (inside _run_full_pipeline) but not
-            # yet reviewed -- KYC review is fully decoupled from provisioning now.
-            assert app_row[2] == "pending_review"
+            # Documents were uploaded (inside _run_full_pipeline) and
+            # auto-approved in that same call -- no human/AI review is
+            # awaited before login works.
+            assert app_row[2] == "approved"
 
-            # Platform-admin approval, for an already-provisioned
-            # application, is now a no-op confirmation of the KYC review --
-            # it must NOT attempt to re-provision or change tenants.status.
+            # A platform-admin "approve" click against an application
+            # that's already auto-approved is a harmless no-op (the
+            # underlying guard just declines to re-approve) -- it must
+            # NOT attempt to re-provision or change tenants.status.
             self._login_platform_admin(client)
             resp = client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
             assert resp.status_code in (301, 302)

@@ -20,8 +20,11 @@ from utils.auth import (
     admin_required, role_required, employee_required, employee_api_required,
     _get_failed_count, verify_turnstile, turnstile_enabled,
     CAPTCHA_AFTER_ATTEMPTS, _TURNSTILE_SITE_KEY, HR_ROLE, MANAGER_ROLE,
-    api_required, validate_new_password, verify_and_update_password,
+    api_required, validate_new_password, verify_and_update_password, _mask_identifier,
+    dummy_password_check, record_password_change, stamp_password_version, _TOKEN_NOT_STALE_SQL,
+    session_account_ok,
 )
+from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
 from utils.helpers import tpath, get_company_settings, _audit, _db, _safe_app_url
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async, notify_if_new_login_ip
 from utils.session_risk import ensure_session_id
@@ -60,31 +63,6 @@ _INJECTION_PATTERN_RE = re.compile(
 )
 
 _MFA_OTP_TTL_SEC = 300
-
-
-def _start_login_mfa_decoy(login_template):
-    """Enumeration-safe stand-in for _start_login_mfa(), used by
-    admin_login() (below) when `identifier` doesn't correspond to any
-    real account at all. Top-level admin accounts never check a password
-    on that branch -- the emailed OTP is their sole credential -- so
-    without this, "redirected to /mfa_verify" vs. the generic invalid-
-    credentials error trivially reveals whether a given username is a
-    real admin-role account, before an attacker ever has to guess a
-    password. Sets up the identical session-state shape and redirect
-    target as a genuine send, but with no email delivered anywhere
-    (there's no real account to deliver one to) and a random code that
-    can therefore never be entered correctly -- mfa_verify()'s own
-    admin_users re-lookup for a username that doesn't exist safely
-    no-ops (session.clear() + redirect to login) even in the
-    astronomical case someone guesses it."""
-    otp_code = f"{secrets.randbelow(900000) + 100000}"
-    session.clear()
-    session["mfa_pending"] = True
-    session["mfa_kind"] = "admin_users"
-    session["mfa_user"] = "__nonexistent__"
-    session["mfa_otp_code"] = otp_code
-    session["mfa_issued_at"] = time.time()
-    return redirect(tpath("/mfa_verify"))
 
 
 def _kyc_verification_blocks_login():
@@ -145,13 +123,16 @@ def _start_login_mfa(co, login_template, kind, identifier, email, role_label):
         _record_login_failure(identifier)
         return render_template(login_template, co=co, error="Invalid credentials. Check your ID and password.")
 
-    otp_code = f"{secrets.randbelow(900000) + 100000}"
+    # Only the opaque challenge id goes into the (client-readable) session
+    # cookie -- the code itself is kept server-side as an HMAC.
+    with _db() as (cursor, conn):
+        challenge_id, otp_code = issue_challenge(cursor, kind, identifier, _MFA_OTP_TTL_SEC)
+        conn.commit()
     send_mfa_login_email(email, identifier, role_label, "", otp_code)
     session.clear()
     session["mfa_pending"] = True
-    session["mfa_kind"] = kind
-    session["mfa_user"] = identifier
-    session["mfa_otp_code"] = otp_code
+    session["mfa_user"] = identifier  # display only -- never trusted for auth
+    session["mfa_challenge_id"] = challenge_id
     session["mfa_issued_at"] = time.time()
     return redirect(tpath("/mfa_verify"))
 
@@ -257,6 +238,7 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
         session["_fpc"] = True
         session.permanent = True
         ensure_session_id(session)
+        stamp_password_version("employees", employee_id)
         if email:
             notify_if_new_login_ip(employee_id, "employee", request.remote_addr, name, email)
         return redirect(tpath("/force_change_pin"))
@@ -287,6 +269,7 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
         session["_session_created"] = time.time()
         session.permanent = True
         ensure_session_id(session)
+        stamp_password_version("employees", employee_id)
         log_security_event(
             "auth.admin_login_success",
             f"Employee '{employee_id}' logged in via employee credentials, routed to HR admin panel (role='HR')",
@@ -308,6 +291,7 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
         session["_session_created"] = time.time()
         session.permanent = True
         ensure_session_id(session)
+        stamp_password_version("employees", employee_id)
         log_security_event(
             "auth.admin_login_success",
             f"Employee '{employee_id}' logged in via employee credentials, routed to manager approvals panel (role='Manager')",
@@ -332,6 +316,7 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
     # session.pop("_fpc", None) semantics precisely, not just a falsy value.
     session.permanent = True
     ensure_session_id(session)
+    stamp_password_version("employees", employee_id)
     if email:
         notify_if_new_login_ip(employee_id, "employee", request.remote_addr, name, email)
     return redirect(tpath("/employee_portal"))
@@ -467,49 +452,11 @@ def admin_login():
                 (identifier,)
             )
             admin_row = cursor.fetchone()
-        if app.config["MANDATORY_LOGIN_MFA"] and not admin_row:
-            # See _start_login_mfa_decoy()'s docstring -- closes the
-            # enumeration gap below by giving a genuinely nonexistent
-            # identifier the SAME redirect-to-MFA response, backed by an
-            # undeliverable decoy OTP. Guarded on "also not a real
-            # employee_id" so a legitimate employee login (which never
-            # has an admin_users row either) isn't hijacked into this
-            # decoy path before its own password is ever checked below.
-            with _db() as (_ec, _ed):
-                _ec.execute("SELECT 1 FROM employees WHERE employee_id=%s", (identifier,))
-                _is_employee = _ec.fetchone() is not None
-            if not _is_employee:
-                return _start_login_mfa_decoy("admin_login.html")
-        if admin_row and admin_row[1] == "admin" and app.config["MANDATORY_LOGIN_MFA"]:
-            # Top-level admin accounts (not HR/SOC-analyst admin_users rows,
-            # which keep password login below) no longer authenticate with a
-            # password at all -- the emailed one-time code is the sole
-            # credential from here on, same mechanism _start_login_mfa
-            # already uses as a second factor for everyone else. Gated on
-            # MANDATORY_LOGIN_MFA (like the two branches below) so the test
-            # suite's `flask_app.config["MANDATORY_LOGIN_MFA"] = False`
-            # override still gets a plain password-verified login for these
-            # accounts instead of falling through to the failed-credentials
-            # branch below.
-            if not admin_row[3]:
-                # Terminated account -- same generic error as a wrong
-                # password, so a probe can't distinguish "deactivated" from
-                # "doesn't exist"/"wrong password".
-                _record_login_failure(identifier)
-                log_security_event(
-                    "access.denied", "Login attempt against a terminated admin account",
-                    level="WARNING", identifier=identifier,
-                )
-                return render_template(
-                    "admin_login.html", co=co,
-                    error="Invalid credentials. Check your ID and password.",
-                    show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY,
-                )
-            _clear_login_failures(identifier)
-            if _kyc_verification_blocks_login():
-                return render_template("admin_login.html", co=co, error=_KYC_PENDING_LOGIN_MSG)
-            return _start_login_mfa(co, "admin_login.html", "admin_users", identifier, admin_row[2],
-                                    "Executive Administrator")
+        # Every account -- top-level admins included -- needs its password
+        # first; the emailed code is only ever a SECOND factor. (Admins used
+        # to skip the password entirely, which made a readable/guessable
+        # code the sole credential.) Unknown identifiers, wrong passwords
+        # and terminated accounts all get the same generic error below.
         if admin_row and check_password_hash(admin_row[0], password):
             if not admin_row[3]:
                 # Terminated account -- same generic error as a wrong
@@ -544,6 +491,7 @@ def admin_login():
             session["_session_created"] = time.time()
             session.permanent = True
             ensure_session_id(session)
+            stamp_password_version("admin_users", identifier)
             log_security_event(
                 "auth.admin_login_success", f"Admin login for '{identifier}' (role={admin_row[1]})",
                 level="INFO", identifier=identifier,
@@ -560,7 +508,8 @@ def admin_login():
         # Try employee credentials
         with _db() as (cursor, db):
             cursor.execute(
-                "SELECT employee_id, name, role, password, COALESCE(force_pin_change,0), email FROM employees WHERE employee_id=%s",
+                "SELECT employee_id, name, role, password, COALESCE(force_pin_change,0), email, "
+                "COALESCE(must_change_password,0) FROM employees WHERE employee_id=%s",
                 (identifier,)
             )
             emp_row = cursor.fetchone()
@@ -579,7 +528,13 @@ def admin_login():
                     _ud.commit()
             if app.config["MANDATORY_LOGIN_MFA"]:
                 return _start_login_mfa(co, "admin_login.html", "employee", emp_row[0], emp_row[5], "Employee")
-            return _finish_employee_login(emp_row[0], emp_row[1], emp_row[2], bool(emp_row[4]), emp_row[5])
+            return _finish_employee_login(emp_row[0], emp_row[1], emp_row[2], bool(emp_row[4] or emp_row[6]),
+                                          emp_row[5])
+        if not admin_row:
+            # Unknown identifier: spend the same bcrypt time a real
+            # wrong-password check would, so response timing can't reveal
+            # whether the account exists.
+            dummy_password_check(password)
         _record_login_failure(identifier)
         return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.",
                                show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
@@ -594,31 +549,39 @@ def admin_login():
 def mfa_verify():
     """Completion step for _start_login_mfa(): checks the emailed one-time
     code, then builds the real admin/HR/employee session."""
-    username = session.get("mfa_user")
-    kind = session.get("mfa_kind")
-    if not username or not session.get("mfa_pending") or kind not in ("admin_users", "employee"):
+    display_user = session.get("mfa_user")
+    challenge_id = session.get("mfa_challenge_id")
+    if not display_user or not challenge_id or not session.get("mfa_pending"):
         return redirect(tpath("/login"))
 
     issued_at = session.get("mfa_issued_at") or 0
     if (time.time() - issued_at) > _MFA_OTP_TTL_SEC:
+        with _db() as (cursor, conn):
+            discard_challenge(cursor, challenge_id)
+            conn.commit()
         session.clear()
         return render_template("mfa_verify.html", error="Your code expired. Please log in again.")
 
     if request.method == "POST":
         submitted = (request.form.get("otp_code") or "").strip()
-        expected = session.get("mfa_otp_code") or ""
-        if submitted and expected and secrets.compare_digest(submitted, expected):
+        # Who is logging in comes from the server-side challenge row, never
+        # from the session -- the session only carries the opaque id.
+        with _db() as (cursor, conn):
+            verified = verify_challenge(cursor, challenge_id, submitted, ("admin_users", "employee"))
+            conn.commit()
+        if verified:
+            kind, username = verified
             if kind == "employee":
                 with _db() as (cursor, db):
                     cursor.execute(
-                        "SELECT employee_id, name, role, COALESCE(force_pin_change,0), email "
-                        "FROM employees WHERE employee_id=%s", (username,)
+                        "SELECT employee_id, name, role, COALESCE(force_pin_change,0), email, "
+                        "COALESCE(must_change_password,0) FROM employees WHERE employee_id=%s", (username,)
                     )
                     row = cursor.fetchone()
                 if not row:
                     session.clear()
                     return redirect(tpath("/login"))
-                return _finish_employee_login(row[0], row[1], row[2], bool(row[3]), row[4])
+                return _finish_employee_login(row[0], row[1], row[2], bool(row[3] or row[5]), row[4])
             else:
                 with _db() as (cursor, db):
                     cursor.execute("SELECT role, email FROM admin_users WHERE username=%s", (username,))
@@ -639,6 +602,7 @@ def mfa_verify():
                 session["_session_created"] = time.time()
                 session.permanent = True
                 ensure_session_id(session)
+                stamp_password_version("admin_users", username)
                 if row[1]:
                     notify_if_new_login_ip(username, "admin", request.remote_addr, username, row[1])
                 if role == HR_ROLE:
@@ -649,14 +613,17 @@ def mfa_verify():
                     dest = redirect(tpath("/admin"))
                 return dest
 
-        log_security_event("auth.mfa_failure", "Invalid login MFA code", level="WARNING", identifier=username)
-        return render_template("mfa_verify.html", username=username, error="Invalid code. Please try again.")
+        log_security_event("auth.mfa_failure", "Invalid login MFA code", level="WARNING",
+                           identifier=_mask_identifier(display_user))
+        return render_template("mfa_verify.html", username=display_user, error="Invalid code. Please try again.")
 
-    return render_template("mfa_verify.html", username=username)
+    return render_template("mfa_verify.html", username=display_user)
 
 
-@auth_bp.route("/logout", methods=["GET", "POST"])
+@auth_bp.route("/logout", methods=["POST"])
 def logout():
+    # POST-only (CSRF-protected form) so another site can't log users out
+    # with an <img src="/logout">.
     session.clear()
     # "/" is the platform operator's own login (see blueprints/core.py's
     # home()), not somewhere a tenant admin logging out should land --
@@ -764,7 +731,7 @@ def _find_by_reset_token(cursor, table, id_column, token):
     "employee_id"), never request-controlled."""
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute(
-        f"SELECT {id_column} FROM {table} WHERE reset_token=%s AND reset_token_expiry > %s",
+        f"SELECT {id_column} FROM {table} WHERE reset_token=%s AND reset_token_expiry > %s",  # nosec B608 -- call-site literals
         (token_hash, datetime.datetime.utcnow())
     )
     return cursor.fetchone()
@@ -855,9 +822,13 @@ def admin_reset_password(token):
                                token=token, error="Passwords do not match.")
     admin_id = row[0]
     cursor.execute(
-        "UPDATE admin_users SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE id=%s",
+        "UPDATE admin_users SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE id=%s "
+        "RETURNING username",
         (generate_password_hash(new_pw), admin_id)
     )
+    _reset_row = cursor.fetchone()
+    if _reset_row:
+        record_password_change(cursor, "admin_users", _reset_row[0])
     db.commit()
     cursor.close()
     db.close()
@@ -944,8 +915,10 @@ def employee_reset_password(token):
         return render_template("employee_reset_password.html", valid=True, done=False,
                                token=token, error="Passwords do not match.")
     emp_id = row[0]
-    cursor.execute("UPDATE employees SET password=%s, reset_token=NULL, reset_token_expiry=NULL WHERE employee_id=%s",
+    cursor.execute("UPDATE employees SET password=%s, reset_token=NULL, reset_token_expiry=NULL, "
+                   "must_change_password=0 WHERE employee_id=%s",
                    (generate_password_hash(new_pw), emp_id))
+    record_password_change(cursor, "employees", emp_id)
     db.commit()
     cursor.close()
     db.close()
@@ -953,7 +926,7 @@ def employee_reset_password(token):
     return render_template("employee_reset_password.html", valid=True, done=True, token=token, error=None)
 
 
-@auth_bp.route("/employee_logout", methods=["GET", "POST"])
+@auth_bp.route("/employee_logout", methods=["POST"])
 def employee_logout():
     session.clear()
     return redirect(tpath("/login"))
@@ -995,9 +968,10 @@ def force_change_pin():
             db = get_db_connection()
             cursor = db.cursor(buffered=True)
             cursor.execute(
-                "UPDATE employees SET password=%s, force_pin_change=0 WHERE employee_id=%s",
+                "UPDATE employees SET password=%s, force_pin_change=0, must_change_password=0 WHERE employee_id=%s",
                 (generate_password_hash(new_pwd), emp_id)
             )
+            record_password_change(cursor, "employees", emp_id)
             db.commit()
             cursor.execute("SELECT employee_id, name, role, email FROM employees WHERE employee_id=%s", (emp_id,))
             row = cursor.fetchone()
@@ -1255,7 +1229,7 @@ def webauthn_verify_challenge():
             app_log.debug("WebAuthn auth failure cleanup (cursor/db close) also failed: %s", _close_exc)
         app_log.warning("WebAuthn authentication verification failed for emp_id=%s: %s",
                         emp_id or "(passkey mode)", e, exc_info=True)
-        return jsonify({"ok": False, "msg": f"Verification failed: {e}"}), 401
+        return jsonify({"ok": False, "msg": "Verification failed. Please try again."}), 401
 
     session.pop("wa_auth_challenge", None)
     session.pop("wa_auth_emp_id", None)
@@ -1344,6 +1318,8 @@ def get_employee_webauthn_credential(emp_id):
     """Return the stored WebAuthn credential_id -- requires an active admin or employee session."""
     is_admin = session.get("admin_logged_in")
     session_emp = session.get("employee_id")
+    if (is_admin or session_emp) and not session_account_ok():
+        is_admin = session_emp = None  # stale/flagged session -- fall through to Bearer check
     token_emp = None  # set below only for an employee-type Bearer token
     if not (is_admin or session_emp):
         # Also accept a valid Bearer token (kiosk uses admin token)
@@ -1352,7 +1328,8 @@ def get_employee_webauthn_credential(emp_id):
             token_hash = _hash_token(auth[7:])
             with _db() as (cursor, _):
                 cursor.execute(
-                    "SELECT identity, token_type FROM api_tokens WHERE token=%s AND expires_at > NOW()",
+                    "SELECT t.identity, t.token_type FROM api_tokens t WHERE t.token=%s AND t.expires_at > NOW() "
+                    f"AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
                     (token_hash,)
                 )
                 token_row = cursor.fetchone()
@@ -1422,7 +1399,7 @@ def webauthn_register_kiosk():
         db.close()
     except Exception as exc:
         app_log.error("WebAuthn kiosk registration unexpected error: %s", exc, exc_info=True)
-        return jsonify({"ok": False, "msg": f"Registration error: {exc}"}), 500
+        return jsonify({"ok": False, "msg": "Registration failed. Please try again."}), 500
     session.pop("wa_reg_challenge", None)
     session.pop("wa_reg_alg_ids", None)
     if not ok:

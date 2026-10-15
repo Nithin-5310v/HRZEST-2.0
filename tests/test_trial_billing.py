@@ -13,6 +13,7 @@ restores auto_debit_mandates.
 Run with:
     python -m pytest tests/test_trial_billing.py -v
 """
+import os
 import io
 import time
 import datetime
@@ -30,6 +31,7 @@ from utils.plan_limits import (
 # DB_NAME is "att_test" in a plain run and "att_test_<worker>" under
 # pytest-xdist (see tests/conftest.py) -- read it rather than hardcoding.
 TENANT_SCHEMA = os.environ["DB_NAME"]
+TENANT_SCHEMA = os.environ["DB_NAME"]  # the suite's default tenant schema (see conftest)
 
 
 def _drop_schema(db_engine, schema_name):

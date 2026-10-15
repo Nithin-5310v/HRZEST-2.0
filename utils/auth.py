@@ -5,6 +5,7 @@ import json
 import time
 import datetime
 import hashlib
+import threading
 import urllib.request  # noqa: F401 -- module-level so tests can monkeypatch auth_module.urllib.request.urlopen
 import bcrypt as _bcrypt
 from functools import wraps
@@ -31,6 +32,22 @@ def check_password_hash(pw_hash: str, pw: str) -> bool:
         except Exception:
             return False
     return _wz_check_pw(pw_hash, pw)
+
+
+_DUMMY_PASSWORD_HASH = None
+
+
+def dummy_password_check(pw: str) -> None:
+    """Spend one real bcrypt check on a throwaway hash -- call this when a
+    login identifier matches no account, so it costs the same time as a
+    real wrong-password check and response timing can't reveal whether
+    the account exists. The hash is of a random value built once per
+    process, so it can never match."""
+    global _DUMMY_PASSWORD_HASH
+    if _DUMMY_PASSWORD_HASH is None:
+        import secrets as _secrets
+        _DUMMY_PASSWORD_HASH = generate_password_hash(_secrets.token_urlsafe(32))
+    check_password_hash(_DUMMY_PASSWORD_HASH, pw or "")
 
 
 # Single source of truth for the "new password" minimum -- every set/change/
@@ -60,25 +77,148 @@ def verify_and_update_password(table, id_column, id_value, current_pw, new_pw):
     from database import get_db_connection
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute(f"SELECT password FROM {table} WHERE {id_column}=%s", (id_value,))
+    cursor.execute(f"SELECT password FROM {table} WHERE {id_column}=%s", (id_value,))  # nosec B608 -- call-site literals
     row = cursor.fetchone()
     if not row or not check_password_hash(row[0], current_pw):
         cursor.close()
         db.close()
         return False
     cursor.execute(
-        f"UPDATE {table} SET password=%s WHERE {id_column}=%s",
+        f"UPDATE {table} SET password=%s WHERE {id_column}=%s",  # nosec B608 -- call-site literals
         (generate_password_hash(new_pw), id_value)
     )
+    record_password_change(cursor, table, id_value)
     db.commit()
     cursor.close()
     db.close()
+    refresh_own_password_version(table, id_value)
     return True
+
+
+# ── Password-change revocation ────────────────────────────────────────────────
+# Sessions are signed cookies with no server-side store, so "log out every
+# other device" has to be done by comparison: each login stamps the
+# account's password_changed_at into the session (_pwv), and every
+# authenticated request re-reads it -- if it moved, the session predates a
+# password change/reset and is rejected. Compared as an opaque value read
+# from the same DB, never app-clock vs DB-clock, so clock skew between the
+# app and database hosts can't wrongly log anyone out.
+_PASSWORD_TABLES = {"admin_users": "username", "employees": "employee_id"}
+
+
+def record_password_change(cursor, table: str, id_value) -> None:
+    """Call in the SAME transaction as every password UPDATE (self-service
+    change, reset link, forced PIN change, admin reset). Moves
+    password_changed_at -- invalidating every older session -- and deletes
+    every API token and pending web-bridge link for the identity. Caller
+    commits. `table` must be a key of _PASSWORD_TABLES (call-site literal)."""
+    id_column = _PASSWORD_TABLES[table]
+    cursor.execute(f"UPDATE {table} SET password_changed_at=NOW() WHERE {id_column}=%s",  # nosec B608 -- whitelisted literals
+                   (id_value,))
+    cursor.execute("DELETE FROM api_tokens WHERE identity=%s", (id_value,))
+    cursor.execute("DELETE FROM mobile_bridge_tokens WHERE admin_username=%s", (id_value,))
+    log_security_event("auth.password_changed", "Password changed; older sessions and API tokens revoked",
+                       level="INFO", identifier=_mask_identifier(str(id_value)), account_type=table)
+
+
+def _read_password_version(table: str, id_value):
+    """'' when never changed (or no such row), the timestamp's isoformat
+    otherwise, None if the lookup itself failed."""
+    id_column = _PASSWORD_TABLES.get(table)
+    if not id_column:
+        return None
+    try:
+        with _db() as (cur, _conn):
+            cur.execute(f"SELECT password_changed_at FROM {table} WHERE {id_column}=%s",  # nosec B608 -- whitelisted literals
+                        (id_value,))
+            row = cur.fetchone()
+    except Exception as exc:
+        app_log.warning("password version lookup failed (%s): %s", table, type(exc).__name__)
+        return None
+    return row[0].isoformat() if row and row[0] else ""
+
+
+def stamp_password_version(table: str, id_value) -> None:
+    """Record, at login, which credential this session was established
+    with and its current password version. `table` is the table whose
+    password was actually checked -- e.g. "employees" for an HR employee
+    routed into the admin panel, since that's the password a reset would
+    change."""
+    version = _read_password_version(table, id_value)
+    session["_pwv"] = [table, id_value, version or ""]
+
+
+def refresh_own_password_version(table: str, id_value) -> None:
+    """After a user changes their OWN password, keep the session that did
+    it alive (every other session for that account still dies)."""
+    pwv = session.get("_pwv")
+    if pwv and pwv[0] == table and pwv[1] == id_value:
+        stamp_password_version(table, id_value)
+
+
+def _password_changed_since_login() -> bool:
+    """True if this session was stamped at login and the account's password
+    has been changed/reset since. Sessions without a stamp (created before
+    this check existed) pass -- rotating SECRET_KEY at deploy retires those.
+    Fails open on a DB error, same posture as the other per-request checks."""
+    pwv = session.get("_pwv")
+    if not pwv:
+        return False
+    try:
+        table, id_value, stamped = pwv
+    except (TypeError, ValueError):
+        return True
+    current = _read_password_version(table, id_value)
+    if current is None:
+        return table not in _PASSWORD_TABLES
+    return current != stamped
+
+
+def _reject_if_password_changed(login_endpoint: str):
+    if _password_changed_since_login():
+        log_security_event("session.rejected", "Session predates a password change/reset",
+                           level="WARNING", identifier=_mask_identifier(
+                               str(session.get("admin_username") or session.get("employee_id") or "")))
+        session.clear()
+        if _is_ajax_request():
+            return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
+                            "redirect": url_for(login_endpoint)}), 401
+        return redirect(url_for(login_endpoint, locked="1"))
+    return None
+
+
+def _is_ajax_request() -> bool:
+    return (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.headers.get("Accept", "").startswith("application/json")
+        or request.headers.get("Content-Type", "").startswith("application/json")
+        or request.is_json
+    )
 
 
 # ── Token hashing ─────────────────────────────────────────────────────────────
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+# Expired tokens are already refused by every lookup's own expires_at > NOW()
+# check, so deleting them is housekeeping: at most once per tenant per process
+# every few minutes, not a write on every API request (QA PERF-01).
+_TOKEN_PURGE_INTERVAL_SEC = 300
+_last_token_purge = {}
+_token_purge_lock = threading.Lock()
+
+
+def _purge_expired_tokens(cursor, conn):
+    tenant = getattr(_flask_g, "tenant_db", None) or "public"
+    now = time.monotonic()
+    with _token_purge_lock:
+        last = _last_token_purge.get(tenant)
+        if last is not None and now - last < _TOKEN_PURGE_INTERVAL_SEC:
+            return
+        _last_token_purge[tenant] = now
+    cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
+    conn.commit()
 
 
 # ── Account lockout ───────────────────────────────────────────────────────────
@@ -338,6 +478,9 @@ def _reject_if_account_deactivated(table: str, id_column: str, id_value, login_e
     return None
 
 
+# Every guard below tags its wrapper with _hrz_auth_guard; functools.wraps
+# copies it outward through limiter/other wrappers, so a test can verify
+# every registered route is guarded (tests/test_route_auth_guards.py).
 # ── Web session guards ────────────────────────────────────────────────────────
 def admin_required(f):
     @wraps(f)
@@ -370,7 +513,11 @@ def admin_required(f):
         _killed = _reject_if_account_deactivated("admin_users", "username", session.get("admin_username"), "auth.admin_login")
         if _killed:
             return _killed
+        _killed = _reject_if_password_changed("auth.admin_login")
+        if _killed:
+            return _killed
         return f(*args, **kwargs)
+    wrapper._hrz_auth_guard = "admin"  # read by tests/test_route_auth_guards.py
     return wrapper
 
 
@@ -397,12 +544,73 @@ def employee_required(f):
         _killed = _reject_if_account_deactivated("employees", "employee_id", session.get("employee_id"), "auth.admin_login")
         if _killed:
             return _killed
+        _killed = _reject_if_password_changed("auth.admin_login")
+        if _killed:
+            return _killed
         # Prevent bypassing forced password change by navigating directly to portal
         from flask import request as _req
         if session.get("_fpc") and _req.endpoint not in ("auth.force_change_pin", "force_change_pin"):
             return redirect("/force_change_pin")
         return f(*args, **kwargs)
+    wrapper._hrz_auth_guard = "employee"  # read by tests/test_route_auth_guards.py
     return wrapper
+
+
+def any_user_required(f):
+    """For routes open to BOTH an admin-side session and an employee
+    session (shared downloads, own-photo, payslips, ...) that previously
+    hand-rolled `if not admin and not employee: redirect` and so skipped
+    every per-request check the real decorators do. Applies the same
+    kill-switch, account-still-active and password-changed checks as
+    admin_required/employee_required; per-resource ownership is still the
+    route's job (enforce_ownership())."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        is_admin = bool(session.get("admin_logged_in"))
+        if not is_admin and not session.get("employee_id"):
+            log_security_event("access.denied", "Unauthenticated request to signed-in-only route",
+                               level="INFO", required="any_user")
+            if _is_ajax_request():
+                return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
+                                "redirect": url_for("auth.admin_login")}), 401
+            return redirect(url_for("auth.admin_login"))
+        _killed = _reject_if_compromised("auth.admin_login")
+        if _killed:
+            return _killed
+        if is_admin:
+            _killed = _reject_if_account_deactivated("admin_users", "username", session.get("admin_username"),
+                                                     "auth.admin_login")
+        else:
+            _killed = _reject_if_account_deactivated("employees", "employee_id", session.get("employee_id"),
+                                                     "auth.admin_login")
+        if _killed:
+            return _killed
+        _killed = _reject_if_password_changed("auth.admin_login")
+        if _killed:
+            return _killed
+        return f(*args, **kwargs)
+    wrapper._hrz_auth_guard = "any_user"  # read by tests/test_route_auth_guards.py
+    return wrapper
+
+
+def session_account_ok() -> bool:
+    """Non-redirecting form of any_user_required's checks, for JSON routes
+    that accept a session OR a Bearer token and so can't use a decorator.
+    True only for a signed-in session that isn't flagged compromised,
+    whose account is still active, and whose password hasn't changed
+    since login."""
+    sid = session.get("_sid")
+    if sid and is_session_compromised(sid):
+        return False
+    if session.get("admin_logged_in"):
+        if not _account_still_active("admin_users", "username", session.get("admin_username")):
+            return False
+    elif session.get("employee_id"):
+        if not _account_still_active("employees", "employee_id", session.get("employee_id")):
+            return False
+    else:
+        return False
+    return not _password_changed_since_login()
 
 
 def role_required(*allowed_roles):
@@ -432,6 +640,9 @@ def role_required(*allowed_roles):
             _killed = _reject_if_account_deactivated("admin_users", "username", session.get("admin_username"), "auth.admin_login")
             if _killed:
                 return _killed
+            _killed = _reject_if_password_changed("auth.admin_login")
+            if _killed:
+                return _killed
             user_role = session.get("admin_role", "admin")
             if user_role not in allowed_roles and user_role != "superadmin":
                 log_security_event("access.denied", "Insufficient role for restricted route",
@@ -447,11 +658,25 @@ def role_required(*allowed_roles):
                     )
                 return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
             return f(*args, **kwargs)
+        wrapper._hrz_auth_guard = "role"  # read by tests/test_route_auth_guards.py
         return wrapper
     return decorator
 
 
 # ── API Bearer token guards ───────────────────────────────────────────────────
+# A token minted before the account's last password change/reset is dead,
+# even if its row somehow survived the DELETE in record_password_change().
+# Expects api_tokens aliased `t`. Checks both account tables because an
+# HR/manager employee's admin-panel identity shares its id with the
+# employees row whose password it actually logs in with.
+_TOKEN_NOT_STALE_SQL = (
+    "NOT EXISTS (SELECT 1 FROM admin_users pa WHERE pa.username=t.identity "
+    "AND pa.password_changed_at > t.created_at) "
+    "AND NOT EXISTS (SELECT 1 FROM employees pe WHERE pe.employee_id=t.identity "
+    "AND pe.password_changed_at > t.created_at)"
+)
+
+
 def api_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -465,15 +690,15 @@ def api_required(f):
         # something they could use to fingerprint or replay-correlate it.
         token_hash = _hash_token(auth[7:])
         with _db() as (cursor, _conn):
-            cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
-            _conn.commit()
+            _purge_expired_tokens(cursor, _conn)
             cursor.execute(
-                """
-                SELECT t.identity, COALESCE(u.is_active, 1)
+                f"""
+                SELECT t.identity, COALESCE(u.is_active, 1), COALESCE(t.mfa_verified, 0)
                 FROM api_tokens t
                 LEFT JOIN admin_users u ON u.username = t.identity
                 WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW()
-                """,
+                  AND {_TOKEN_NOT_STALE_SQL}
+                """,  # nosec B608 -- _TOKEN_NOT_STALE_SQL is a fixed module constant
                 (token_hash,)
             )
             row = cursor.fetchone()
@@ -481,6 +706,7 @@ def api_required(f):
             log_security_event("access.denied", "API request with invalid or expired admin token",
                                level="WARNING", required="admin_api")
             return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
+        _flask_g.api_token_mfa_verified = bool(row[2])
         # Re-checked on every request (not just at login) so that
         # deactivating an account revokes its existing tokens immediately,
         # instead of leaving them valid until natural expiry.
@@ -490,6 +716,7 @@ def api_required(f):
             return jsonify({"ok": False, "msg": "This account has been deactivated. Contact your administrator."}), 403
         _flask_g.api_user = row[0]
         return f(*args, **kwargs)
+    wrapper._hrz_auth_guard = "admin_api"  # read by tests/test_route_auth_guards.py
     return wrapper
 
 
@@ -519,6 +746,7 @@ def api_role_required(*allowed_roles):
                 )
                 return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
             return f(*args, **kwargs)
+        wrapper._hrz_auth_guard = "admin_api_role"  # read by tests/test_route_auth_guards.py
         return wrapper
     return decorator
 
@@ -533,10 +761,10 @@ def employee_api_required(f):
             return jsonify({"ok": False, "msg": "Unauthorized"}), 401
         token_hash = _hash_token(auth[7:])
         with _db() as (cursor, _conn):
-            cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
-            _conn.commit()
+            _purge_expired_tokens(cursor, _conn)
             cursor.execute(
-                "SELECT identity FROM api_tokens WHERE token=%s AND token_type='employee' AND expires_at > NOW()",
+                "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type='employee' "
+                f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
                 (token_hash,)
             )
             row = cursor.fetchone()
@@ -546,6 +774,7 @@ def employee_api_required(f):
             return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
         _flask_g.api_emp_id = row[0]
         return f(*args, **kwargs)
+    wrapper._hrz_auth_guard = "employee_api"  # read by tests/test_route_auth_guards.py
     return wrapper
 
 
@@ -567,6 +796,8 @@ def resolve_admin_identity():
         sid = session.get("_sid")
         if sid and is_session_compromised(sid):
             return None
+        if _password_changed_since_login():
+            return None
         return session.get("admin_username", "admin")
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
@@ -574,12 +805,13 @@ def resolve_admin_identity():
     token_hash = _hash_token(auth[7:])
     with _db() as (cursor, _conn):
         cursor.execute(
-            """
+            f"""
             SELECT t.identity, COALESCE(u.is_active, 1)
             FROM api_tokens t
             LEFT JOIN admin_users u ON u.username = t.identity
             WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW()
-            """,
+              AND {_TOKEN_NOT_STALE_SQL}
+            """,  # nosec B608 -- fixed module constant
             (token_hash,)
         )
         row = cursor.fetchone()
@@ -611,7 +843,8 @@ def resolve_bearer_identity_any():
     token_hash = _hash_token(auth[7:])
     with _db() as (cursor, _conn):
         cursor.execute(
-            "SELECT identity FROM api_tokens WHERE token=%s AND token_type IN ('employee','admin') AND expires_at > NOW()",
+            "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type IN ('employee','admin') "
+            f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
             (token_hash,)
         )
         row = cursor.fetchone()

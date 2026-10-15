@@ -2927,7 +2927,8 @@
       var myEmpId     = {{ emp[0] | tojson }};
 
       function pickAuthCombo() {
-        if (attCfg.qr_enabled && attCfg.face_enabled) return "qr_face";
+        // Face enabled => only face-inclusive methods (server-enforced too).
+        if (attCfg.face_enabled) return attCfg.qr_enabled ? "qr_face" : null;
         if (attCfg.qr_enabled && attCfg.fingerprint_enabled) return "qr_fingerprint";
         if (attCfg.fingerprint_enabled) return "fingerprint_only";
         if (attCfg.qr_enabled) return "qr_only";

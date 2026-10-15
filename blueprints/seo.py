@@ -14,7 +14,7 @@ that is blocked from fetching a page never sees its noindex header, so the URL
 could still show up in results as a bare link.
 """
 import os
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape  # nosec B406 -- escapes sitemap output; nothing here parses XML
 
 from flask import Blueprint, Response, request
 

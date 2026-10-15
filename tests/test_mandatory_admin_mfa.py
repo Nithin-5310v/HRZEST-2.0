@@ -75,7 +75,7 @@ class TestMandatoryMfaGate:
 
     def test_logout_and_login_pages_exempt(self, client, seed_admin, mandatory_mfa_enabled):
         _admin_session(client, seed_admin["username"])
-        assert client.get("/logout", follow_redirects=False).headers.get("Location") != "/admin/mfa-required"
+        assert client.post("/logout", follow_redirects=False).headers.get("Location") != "/admin/mfa-required"
         assert client.get("/login", follow_redirects=False).status_code == 200
 
     def test_api_path_gets_json_403_not_redirect(self, client, seed_admin, mandatory_mfa_enabled):

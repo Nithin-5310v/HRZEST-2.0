@@ -74,7 +74,7 @@ class TestLogoutRoutes:
 
     def test_logout_clears_session_and_redirects(self, client, seed_admin):
         _admin_session(client, seed_admin)
-        rv = client.get("/logout")
+        rv = client.post("/logout")
         assert rv.status_code == 302
         with client.session_transaction() as sess:
             assert "admin_logged_in" not in sess

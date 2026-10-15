@@ -57,6 +57,41 @@ for _key in list(os.environ):
     if _key in _THIRD_PARTY_ENV_KEYS or _key.startswith(_THIRD_PARTY_ENV_PREFIXES):
         del os.environ[_key]
 
+
+def _test_db_name(environ):
+    """Test database for this process: HRZEST_TEST_DB (default "att_test"),
+    suffixed with the pytest-xdist worker id when running in parallel
+    (att_test_gw0, att_test_gw1, ...). Each worker -- and any other checkout
+    that sets its own HRZEST_TEST_DB -- then gets a database of its own
+    instead of every run sharing (and resetting under each other) one att_test."""
+    base = environ.get("HRZEST_TEST_DB", "att_test")
+    worker = environ.get("PYTEST_XDIST_WORKER", "")
+    name = f"{base}_{worker}" if worker else base
+    if not name.replace("_", "").isalnum() or not name.islower():
+        raise ValueError(f"Invalid test database name: {name!r}")
+    return name
+
+
+def _ensure_test_database(name):
+    """Create the test database on the local server if it doesn't exist yet
+    (each new xdist worker database starts empty; init_db() builds the schema)."""
+    import psycopg2
+    conn = psycopg2.connect(
+        host=os.environ.get("DB_HOST", "localhost"), port=int(os.environ.get("DB_PORT", "5432")),
+        user=os.environ.get("DB_USER", "postgres"), password=os.environ.get("DB_PASS", ""),
+        dbname="postgres",
+    )
+    conn.autocommit = True
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM pg_database WHERE datname=%s", (name,))
+        if not cur.fetchone():
+            cur.execute(f'CREATE DATABASE "{name}"')  # nosec B608 -- name validated by _test_db_name
+        cur.close()
+    finally:
+        conn.close()
+
+
 # Override values for testing
 #
 # One database per pytest-xdist worker: a plain `pytest` run uses att_test
@@ -93,6 +128,8 @@ def _ensure_worker_database(db_name):
 if _XDIST_WORKER:
     _ensure_worker_database(os.environ["DB_NAME"])
 
+os.environ["DB_NAME"] = _test_db_name(os.environ)
+_ensure_test_database(os.environ["DB_NAME"])
 os.environ["APP_ENV"] = "development"   # avoids HTTPS-only cookies
 # utils/helpers.py's _scan_for_malware() is on by default and dials a clamd
 # daemon at CLAMAV_HOST (default "clamav", the compose service name) for
@@ -109,6 +146,22 @@ os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 # exception, by design (see utils/helpers.py). Fixed test-only key, not a
 # real secret.
 os.environ["ENCRYPTION_KEY"] = "_jboJL8OrI9muPNyf0xCNrakSo_Iz5EbJSQ1KpDcAgY="
+
+# No external services from tests (QA TEST-01): whatever the developer's .env
+# holds, tests run with the same blank credentials as CI, so a local run can't
+# send real email, push notifications, security alerts or AI requests, or
+# share a Redis with the running app. Set to "" rather than removed so a later
+# load_dotenv() (app.py calls it again) can't bring them back. Razorpay is
+# handled per test by the razorpay_demo_mode fixture below.
+_EXTERNAL_SERVICE_VARS = (
+    "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "N8N_WEBHOOK_URL", "N8N_WEBHOOK_SECRET",
+    "EXPO_ACCESS_TOKEN", "SECURITY_ALERT_WEBHOOK_URL", "SECURITY_ALERT_SIGNING_SECRET",
+    "SECURITY_ALERT_EMAIL", "SMTP_HOST", "SMTP_USER", "SMTP_PASS",
+    "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY", "REDIS_URL", "REDIS_HOST", "REDIS_PASSWORD",
+    "SOC_ADMIN_TOKEN", "SOC_DASHBOARD_URL", "GRAFANA_URL",
+)
+for _name in _EXTERNAL_SERVICE_VARS + tuple(k for k in os.environ if k.startswith("HEARTBEAT_URL_")):
+    os.environ[_name] = ""
 
 # wsgi.py (the real production entrypoint) registers the migrated
 # blueprints on the shared `app` instance from extensions.py BEFORE
@@ -131,6 +184,7 @@ from blueprints.tickets import tickets_bp
 from blueprints.performance import performance_bp
 from blueprints.documents import documents_bp
 from blueprints.org import org_bp
+from blueprints.oauth_signup import oauth_signup_bp
 from blueprints.onboarding import onboarding_bp
 from blueprints.employee_portal import employee_portal_bp
 from blueprints.core import core_bp
@@ -161,6 +215,7 @@ flask_app.register_blueprint(tickets_bp)
 flask_app.register_blueprint(performance_bp)
 flask_app.register_blueprint(documents_bp)
 flask_app.register_blueprint(org_bp)
+flask_app.register_blueprint(oauth_signup_bp)
 flask_app.register_blueprint(onboarding_bp)
 flask_app.register_blueprint(employee_portal_bp)
 flask_app.register_blueprint(core_bp)
@@ -563,17 +618,51 @@ def _restore_snapshot(cur, schema_snapshots, extra_schemas, fast=False):
         cur.execute("; ".join(statements))
     elif all_tables:
         cur.execute(f'TRUNCATE {", ".join(all_tables)} RESTART IDENTITY CASCADE')  # nosec B608 -- table list built entirely from information_schema, never external input  # noqa: E501
+def _restore_snapshot(cur, schema_snapshots, extra_schemas):
+    """Empty every table across the snapshotted schemas, re-insert exactly
+    the rows captured in schema_snapshots, then re-sync every serial
+    column's sequence in one combined round trip (see _target_setvals()
+    above -- one setval() per column was the dominant per-test cost; a
+    single statement chaining all of them cut this fixture's per-test
+    overhead by roughly 3x). Drops any schema created mid-test that wasn't
+    part of the baseline.
+
+    Tables are emptied with DELETE, not TRUNCATE (QA TEST-05): TRUNCATE
+    gives every table and index a brand-new data file and deletes the old
+    one, which across ~2,700 tests meant over a million file creates and
+    deletes per run -- checkpoints spent an hour fsyncing them, and on
+    Windows one such fsync racing a delete PANICked the local Postgres into
+    a recovery lasting many hours. DELETE keeps the files. FK checks and
+    triggers are off (session_replication_role=replica) only while the
+    tables are emptied and refilled, so the order doesn't matter; the
+    setval() calls below take the place of RESTART IDENTITY."""
+    for schema in extra_schemas:
+        cur.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')  # nosec B608 -- schema name sourced from information_schema, not external input
+
+    cur.execute("SET session_replication_role = replica")
+    try:
+        deletes = "; ".join(
+            f'DELETE FROM "{schema}"."{table}"'
+            for schema, snap in schema_snapshots.items()
+            for table in snap
+        )
+        if deletes:
+            cur.execute(deletes)  # nosec B608 -- table list built entirely from information_schema, never external input
+        for schema, snap in schema_snapshots.items():
+            for table, (cols, rows, _serial_cols) in snap.items():
+                if rows:
+                    col_list = ", ".join(f'"{c}"' for c in cols)
+                    placeholders = ", ".join(["%s"] * len(cols))
+                    insert_sql = (
+                        f'INSERT INTO "{schema}"."{table}" ({col_list}) VALUES ({placeholders})'
+                    )  # nosec B608 -- schema/table/columns sourced from information_schema; row values are fully parameterized
+                    cur.executemany(insert_sql, rows)
+    finally:
+        cur.execute("SET session_replication_role = DEFAULT")
 
     setval_args = []
     for schema, snap in schema_snapshots.items():
         for table, (cols, rows, serial_cols) in snap.items():
-            if rows:
-                col_list = ", ".join(f'"{c}"' for c in cols)
-                placeholders = ", ".join(["%s"] * len(cols))
-                insert_sql = (
-                    f'INSERT INTO "{schema}"."{table}" ({col_list}) VALUES ({placeholders})'
-                )  # nosec B608 -- schema/table/columns sourced from information_schema; row values are fully parameterized
-                cur.executemany(insert_sql, rows)
             setval_args.extend(_target_setvals(cols, rows, serial_cols))
 
     if setval_args:
@@ -623,16 +712,62 @@ def _reset_db_after_test(db_engine, _db_baseline_snapshot):
             cur.execute("ROLLBACK")
         raise
     cur.close()
-    # utils/totp.py's is_totp_enabled_cached() caches admin_users.totp_enabled
-    # for 60s, invalidated only when mark_totp_enabled()/
-    # reset_admin_totp_secret() are the ones writing it -- but the restore
-    # above (and several fixtures like seed_admin, which reuse one fixed
-    # username across the whole suite) changes that row via raw SQL. Without
-    # this, a test enrolling MFA could leave a stale "enabled" cache entry
-    # that a LATER test using the same username reads within the TTL,
-    # regardless of what admin_users now actually says.
+    _clear_process_caches()
+
+
+def _clear_process_caches():
+    """The restore above (and fixtures that write with raw SQL) changes rows
+    behind the app's back, so anything the app cached in-process from those
+    rows is stale afterwards -- e.g. a test turning face check-in off would
+    leave `face_enabled` cached for whichever test pytest-randomly runs next
+    (QA TEST-03). Same reason for the TOTP cache: seed_admin reuses one
+    username across the suite, so a stale "MFA enabled" entry would leak."""
+    import blueprints.platform_admin as platform_admin
+    from utils import helpers, plan_limits
     from utils.totp import clear_totp_cache_for_tests
+    helpers.invalidate_settings_cache()
+    helpers.invalidate_pending_counts_cache()
+    helpers.invalidate_companies_cache()
+    helpers._onboarding_cache.clear()
+    plan_limits.invalidate_rate_paise_cache()
+    plan_limits.invalidate_extra_cost_cache()
+    platform_admin._employee_count_cache.clear()
     clear_totp_cache_for_tests()
+
+
+# A fixed "at the office" coordinate for check-in tests. Offices are per
+# company (company_settings.office_lat/lon); tests that enforce the geofence
+# set the company's office to this point.
+TEST_OFFICE = {"lat": 17.494664737165042, "lon": 78.40496618113566}
+
+
+@pytest.fixture
+def razorpay_demo_mode(monkeypatch):
+    """No Razorpay keys for this test, whatever the developer's local .env
+    holds. CI has none, and the billing/seats/auto-debit/dunning tests are
+    written for that demo branch -- with a real rzp_test_ key loaded they
+    stop taking it (and would call the Razorpay sandbox). utils/
+    razorpay_utils.py reads its keys once at import, so its module copies
+    are what get blanked; tests that need the live branch still monkeypatch
+    razorpay_configured on top of this. Production code is untouched."""
+    import utils.razorpay_utils as rz
+    monkeypatch.setattr(rz, "_KEY_ID", "")
+    monkeypatch.setattr(rz, "_KEY_SECRET", "")
+    monkeypatch.setattr(rz, "_WEBHOOK_SECRET", "")
+
+
+@pytest.fixture
+def app_gps_checkin_on(db_engine):
+    """Turns on the mobile app's location-only check-in
+    (company_settings.app_gps_checkin). The default test company has QR
+    and face enabled, so /api/employee/checkin refuses it otherwise (QA
+    NV-18). For tests that exercise that endpoint itself; the per-test
+    snapshot restore puts the setting back."""
+    from utils.helpers import invalidate_settings_cache
+    cur = db_engine.cursor()
+    cur.execute("UPDATE company_settings SET app_gps_checkin=1")
+    cur.close()
+    invalidate_settings_cache()
 
 
 @pytest.fixture

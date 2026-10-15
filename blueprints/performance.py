@@ -6,12 +6,14 @@ Bandit B608 audit note: the nosec-marked queries below interpolate
 literal chosen by a bool (`dept`/`active_cid`) -- never user input. Actual
 values are always %s-bound params.
 """
-import datetime
 from functools import wraps
 from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, g
 from database import get_db_connection
-from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE
-from utils.helpers import tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings, get_employee_sidebar_info
+from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE, session_account_ok
+from utils.helpers import (
+    tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings,
+    get_employee_sidebar_info, company_today, int_param,
+)
 from extensions import limiter, log_security_event
 
 performance_bp = Blueprint("performance", __name__)
@@ -43,6 +45,11 @@ def _admin_session_or_api_role_required(*allowed_roles):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if session.get("admin_logged_in"):
+                # Same per-request checks as the utils/auth.py decorators:
+                # kill switch, account still active, password unchanged.
+                if not session_account_ok():
+                    session.clear()
+                    return jsonify({"ok": False, "msg": "Session expired. Please log in again."}), 401
                 user_role = session.get("admin_role", "admin")
                 if user_role not in allowed_roles and user_role != "superadmin":
                     log_security_event(
@@ -55,13 +62,14 @@ def _admin_session_or_api_role_required(*allowed_roles):
             auth = request.headers.get("Authorization", "")
             if not auth.startswith("Bearer "):
                 return jsonify({"ok": False, "msg": "Unauthorized"}), 401
-            from utils.auth import _hash_token
+            from utils.auth import _hash_token, _TOKEN_NOT_STALE_SQL
             token_hash = _hash_token(auth[7:])
             with _db() as (cursor, _conn):
                 cursor.execute(
                     "SELECT t.identity, COALESCE(u.is_active, 1), COALESCE(u.role, 'admin') "
                     "FROM api_tokens t LEFT JOIN admin_users u ON u.username = t.identity "
-                    "WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW()",
+                    "WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW() "
+                    f"AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
                     (token_hash,)
                 )
                 row = cursor.fetchone()
@@ -84,6 +92,7 @@ def _admin_session_or_api_role_required(*allowed_roles):
             g.api_user = identity
             g.api_role = actual_role
             return f(*args, **kwargs)
+        wrapper._hrz_auth_guard = "admin_session_or_api_role"  # read by tests/test_route_auth_guards.py
         return wrapper
     return decorator
 
@@ -210,9 +219,9 @@ def api_submit_performance_review():
 @performance_bp.route("/performance")
 @admin_required
 def performance():
-    today = datetime.date.today()
-    q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
-    yr = int(request.args.get("year", today.year))
+    today = company_today()
+    q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int_param(request.args.get("year", today.year))
     dept = request.args.get("dept", "")
     active_tab = request.args.get("tab", "performance")
 
@@ -314,9 +323,9 @@ def performance_review(emp_id):
     if hr_scope_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
-    today = datetime.date.today()
-    q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
-    yr = int(request.args.get("year", today.year))
+    today = company_today()
+    q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int_param(request.args.get("year", today.year))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -374,8 +383,8 @@ def performance_review(emp_id):
 @admin_required
 def performance_save_review():
     emp_id = request.form["employee_id"]
-    q = int(request.form["quarter"])
-    yr = int(request.form["year"])
+    q = int_param(request.form["quarter"])
+    yr = int_param(request.form["year"])
     feedback = request.form.get("reviewer_feedback", "").strip()
     status = request.form.get("status", "Draft")
 
@@ -417,12 +426,12 @@ def performance_save_review():
 @admin_required
 def performance_add_kpi():
     emp_id = request.form["employee_id"]
-    q = int(request.form["quarter"])
-    yr = int(request.form["year"])
+    q = int_param(request.form["quarter"])
+    yr = int_param(request.form["year"])
     title = request.form.get("kpi_title", "").strip()
     desc = request.form.get("description", "").strip()
     target = request.form.get("target", "").strip()
-    weight = int(request.form.get("weight", 20))
+    weight = int_param(request.form.get("weight", 20))
 
     if not title:
         flash("KPI title is required.", "error")
@@ -460,11 +469,11 @@ def performance_add_kpi():
 @performance_bp.route("/performance_rate_kpi", methods=["POST"])
 @admin_required
 def performance_rate_kpi():
-    kpi_id = int(request.form["kpi_id"])
+    kpi_id = int_param(request.form["kpi_id"])
     emp_id = request.form["employee_id"]
-    q = int(request.form["quarter"])
-    yr = int(request.form["year"])
-    rating = int(request.form.get("rating", 0))
+    q = int_param(request.form["quarter"])
+    yr = int_param(request.form["year"])
+    rating = int_param(request.form.get("rating", 0))
     achievement = request.form.get("achievement", "").strip()
     comments = request.form.get("comments", "").strip()
 
@@ -507,10 +516,10 @@ def performance_rate_kpi():
 @performance_bp.route("/performance_delete_kpi", methods=["POST"])
 @admin_required
 def performance_delete_kpi():
-    kpi_id = int(request.form["kpi_id"])
+    kpi_id = int_param(request.form["kpi_id"])
     emp_id = request.form["employee_id"]
-    q = int(request.form["quarter"])
-    yr = int(request.form["year"])
+    q = int_param(request.form["quarter"])
+    yr = int_param(request.form["year"])
     if _hr_write_denied(emp_id):
         flash("Employee not found.", "error")
         return redirect(tpath("/performance"))
@@ -569,7 +578,7 @@ def my_performance():
 @performance_bp.route("/performance_employee_comment", methods=["POST"])
 @employee_required
 def performance_employee_comment():
-    rev_id = int(request.form["review_id"])
+    rev_id = int_param(request.form["review_id"])
     comment = request.form.get("comment", "").strip()
     emp_id = session["employee_id"]
     db = get_db_connection()
@@ -667,9 +676,9 @@ def performance_export():
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 
-    today = datetime.date.today()
-    q = int(request.args.get("quarter", (today.month - 1) // 3 + 1))
-    yr = int(request.args.get("year", today.year))
+    today = company_today()
+    q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
+    yr = int_param(request.args.get("year", today.year))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

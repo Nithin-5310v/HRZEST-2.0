@@ -24,7 +24,8 @@ from flask import Blueprint, request, session, redirect, render_template, flash,
 
 from database import get_master_db, get_db_connection, get_tenant_db
 from extensions import app_log, log_security_event, limiter
-from utils.auth import check_password_hash
+from utils.auth import check_password_hash, dummy_password_check, _mask_identifier, _hash_token
+from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
 from utils.totp import send_mfa_login_email
 from utils.plan_limits import (
     get_per_employee_paise, invalidate_rate_paise_cache, calculate_price, format_price_inr,
@@ -93,6 +94,22 @@ def _complete_platform_admin_login(username):
     return redirect("/super_admin")
 
 
+def _discard_platform_challenge(challenge_id):
+    if not challenge_id:
+        return
+    try:
+        conn = get_master_db()
+        cur = conn.cursor()
+        try:
+            discard_challenge(cur, challenge_id)
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as exc:
+        app_log.warning("Could not discard platform admin login challenge: %s", type(exc).__name__)
+
+
 def _platform_admin_required(view):
     @functools.wraps(view)
     def wrapped(*args, **kwargs):
@@ -105,6 +122,7 @@ def _platform_admin_required(view):
             return redirect("/super_admin/login")
         session["platform_admin_last_activity"] = time.time()
         return view(*args, **kwargs)
+    wrapped._hrz_auth_guard = "platform_admin"  # read by tests/test_route_auth_guards.py
     return wrapped
 
 
@@ -121,9 +139,10 @@ def platform_admin_login():
         return redirect("/super_admin")
 
     if request.args.get("restart"):
+        _discard_platform_challenge(session.get("platform_mfa_challenge_id"))
         session.pop("platform_mfa_pending", None)
         session.pop("platform_mfa_user", None)
-        session.pop("platform_mfa_otp_code", None)
+        session.pop("platform_mfa_challenge_id", None)
         session.pop("platform_mfa_issued_at", None)
         return redirect("/super_admin/login")
 
@@ -131,19 +150,30 @@ def platform_admin_login():
     if mfa_pending:
         issued_at = session.get("platform_mfa_issued_at") or 0
         if (time.time() - issued_at) > _MFA_OTP_TTL_SEC:
+            _discard_platform_challenge(session.get("platform_mfa_challenge_id"))
             session.clear()
             return render_template("super_admin_login.html", error="Your code expired. Please log in again.")
 
     if request.method == "POST" and mfa_pending and "otp_code" in request.form:
-        username = session.get("platform_mfa_user")
+        display_user = session.get("platform_mfa_user")
         submitted = (request.form.get("otp_code") or "").strip()
-        expected = session.get("platform_mfa_otp_code") or ""
-        if username and submitted and expected and secrets.compare_digest(submitted, expected):
-            return _complete_platform_admin_login(username)
+        # The code is checked against the att_master challenge row; the
+        # session only ever held the opaque challenge id.
+        conn = get_master_db()
+        cur = conn.cursor()
+        try:
+            verified = verify_challenge(cur, session.get("platform_mfa_challenge_id", ""), submitted,
+                                        ("platform_admin",))
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+        if verified:
+            return _complete_platform_admin_login(verified[1])
 
         log_security_event(
             "auth.platform_admin_mfa_failure", "Invalid platform admin login MFA code",
-            level="WARNING", identifier=username,
+            level="WARNING", identifier=_mask_identifier(display_user),
         )
         return render_template("super_admin_login.html", mfa_step=True, error="Invalid verification code.")
 
@@ -169,23 +199,32 @@ def platform_admin_login():
                 return _complete_platform_admin_login(username)
 
             email = row[1]
-            otp_code = f"{secrets.randbelow(900000) + 100000}"
+            conn = get_master_db()
+            cur = conn.cursor()
+            try:
+                challenge_id, otp_code = issue_challenge(cur, "platform_admin", username, _MFA_OTP_TTL_SEC)
+                conn.commit()
+            finally:
+                cur.close()
+                conn.close()
             try:
                 send_mfa_login_email(email, username, "Platform Administrator", "", otp_code)
             except Exception as exc:
-                app_log.warning("Platform admin MFA email send error: %s", exc)
+                app_log.warning("Platform admin MFA email send error: %s", type(exc).__name__)
 
             session.clear()
             session["platform_mfa_pending"] = True
-            session["platform_mfa_user"] = username
-            session["platform_mfa_otp_code"] = otp_code
+            session["platform_mfa_user"] = username  # display only
+            session["platform_mfa_challenge_id"] = challenge_id
             session["platform_mfa_issued_at"] = time.time()
             return render_template("super_admin_login.html", mfa_step=True)
 
+        if not row:
+            dummy_password_check(password)
         log_security_event(
             "auth.platform_admin_login_failed",
-            f"Failed platform admin login attempt for '{username}'",
-            level="WARNING", identifier=username,
+            "Failed platform admin login attempt",
+            level="WARNING", identifier=_mask_identifier(username),
         )
         return render_template("super_admin_login.html", error="Invalid credentials.")
 
@@ -899,7 +938,7 @@ def platform_admin_delete_tenant(tenant_id):
         cur.close()
         conn.close()
         app_log.error("platform_admin.delete_tenant: schema drop failed for %s: %s", db_name, exc, exc_info=True)
-        flash(f"Could not delete company data: {exc}", "error")
+        flash("Could not delete company data. The error has been logged -- try again or contact engineering.", "error")
         return redirect("/super_admin")
 
     cur.execute("DELETE FROM tenants WHERE id=%s", (tenant_id,))
@@ -1022,6 +1061,7 @@ def platform_admin_view_document(application_id, doc_kind):
         return redirect(f"/super_admin/applications/{application_id}")
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
+    # nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string
     cur.execute(f"SELECT doc_{doc_kind} FROM tenant_applications WHERE id=%s", (application_id,))  # nosec B608 -- doc_kind is allowlist-checked against _APPLICATION_DOC_KINDS above, never interpolated from an unchecked value  # noqa: E501
     row = cur.fetchone()
     cur.close()
@@ -1098,16 +1138,20 @@ def platform_admin_approve_application(application_id):
         # Payment happens AFTER approval for paid plans -- provisioning is
         # deferred until blueprints/billing.py's verify_payment() confirms
         # the charge (see create_order()'s new application_id requirement).
+        # Rotate the application's access token (same one-live-token model
+        # as the rejection email below) so the emailed pay link can carry
+        # it -- /create_org/pay/<id> now requires it (blueprints/org.py).
+        access_token = secrets.token_urlsafe(32)
         cur.execute(
             "UPDATE tenant_applications SET status='approved_pending_payment', reviewed_by=%s, reviewed_at=NOW(), "
-            "updated_at=NOW() WHERE id=%s",
-            (reviewer, application_id)
+            "access_token_hash=%s, updated_at=NOW() WHERE id=%s",
+            (reviewer, _hash_token(access_token), application_id)
         )
         conn.commit()
         cur.close()
         conn.close()
         from utils.email_utils import get_email_config, send_email_async
-        pay_url = f"{request.url_root.rstrip('/')}/create_org/pay/{application_id}"
+        pay_url = f"{request.url_root.rstrip('/')}/create_org/pay/{application_id}?token={access_token}"
         email_cfg = get_email_config()
         if email_cfg:
             send_email_async(
@@ -1118,7 +1162,7 @@ def platform_admin_approve_application(application_id):
             )
         log_security_event("platform_admin.application_approved", f"Application {application_id} approved (awaiting payment)",
                            level="INFO", identifier=reviewer, application_id=application_id)
-        flash(f"Application approved. Applicant has been emailed a payment link: {pay_url}", "success")
+        flash("Application approved. The applicant has been emailed a private payment link.", "success")
         return redirect("/super_admin/applications")
 
     if application["payment_option"] == "trial":
@@ -1133,16 +1177,17 @@ def platform_admin_approve_application(application_id):
         # parallel status string every status-aware view would also need
         # to learn -- create_org_status.html branches on payment_option to
         # show trial-appropriate copy for it.
+        access_token = secrets.token_urlsafe(32)
         cur.execute(
             "UPDATE tenant_applications SET status='approved_pending_payment', reviewed_by=%s, reviewed_at=NOW(), "
-            "updated_at=NOW() WHERE id=%s",
-            (reviewer, application_id)
+            "access_token_hash=%s, updated_at=NOW() WHERE id=%s",
+            (reviewer, _hash_token(access_token), application_id)
         )
         conn.commit()
         cur.close()
         conn.close()
         from utils.email_utils import get_email_config, send_email_async
-        setup_url = f"{request.url_root.rstrip('/')}/create_org/setup_trial/{application_id}"
+        setup_url = f"{request.url_root.rstrip('/')}/create_org/setup_trial/{application_id}?token={access_token}"
         email_cfg = get_email_config()
         if email_cfg:
             from blueprints.trial_billing import TRIAL_DURATION_DAYS
@@ -1157,7 +1202,7 @@ def platform_admin_approve_application(application_id):
             )
         log_security_event("platform_admin.application_approved", f"Application {application_id} approved (awaiting trial mandate setup)",
                            level="INFO", identifier=reviewer, application_id=application_id)
-        flash(f"Application approved. Applicant has been emailed a trial setup link: {setup_url}", "success")
+        flash("Application approved. The applicant has been emailed a private trial setup link.", "success")
         return redirect("/super_admin/applications")
 
     cur.execute("SELECT admin_password_hash FROM tenant_applications WHERE id=%s", (application_id,))

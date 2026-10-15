@@ -163,6 +163,8 @@ def _create_fallback_ticket(employee_id, query, ai_summary=""):
         row = cur.fetchone()
         ticket_id = row[0] if row else 1
         db.commit()
+        from utils.helpers import invalidate_pending_counts_cache
+        invalidate_pending_counts_cache()   # refresh the sidebar badges now (QA UX-01)
         cur.close()
         db.close()
         return ticket_id

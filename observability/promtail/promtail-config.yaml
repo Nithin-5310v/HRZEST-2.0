@@ -1,0 +1,83 @@
+---
+# Promtail config — runs ON the HRMS app server (as one more container in
+# its own compose stack), discovers the running `app` container via the
+# Docker-compatible API socket, tails its stdout (gunicorn/app_log already
+# write one JSON object per line there — see extensions.py), and ships it
+# over HTTP to the standalone Loki server. Never touches the app's own
+# process, filesystem, or resource limits.
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+# Local checkpoint of "how far have I read" per log stream, so a Promtail
+# restart resumes instead of re-shipping (or dropping) history.
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://LOKI_SERVER_PRIVATE_IP:3100/loki/api/v1/push
+    # Fill in the log server's private IP (or a private Route53 record --
+    # see observability/README.md). Deliberately a plain private-VPC
+    # address, not a public one: terraform/observability.tf's security
+    # group only accepts port 3100 from this app server's own SG, so there
+    # is nothing to gain from a public endpoint here and one real reason
+    # not to have it (a smaller attack surface for a service that receives
+    # HR system logs).
+
+scrape_configs:
+  - job_name: hrms-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+        # `com.docker.compose.service` is set by Docker/Podman Compose on
+        # every container, always equal to the service name from
+        # compose.yaml ("app") regardless of the compose project name or
+        # the container's actual generated name -- more robust than
+        # matching on a container name, which changes shape depending on
+        # project name, `--scale`, or a `-p`/COMPOSE_PROJECT_NAME override.
+        # Without this filter Promtail would also tail db/redis/clamav/
+        # nginx's noisier, non-JSON output on the same host.
+        filters:
+          - name: label
+            values: ["com.docker.compose.service=app"]
+
+    relabel_configs:
+      # Docker/Podman's SD module surfaces the container name as /<name> --
+      # strip the leading slash so the label is just the readable name.
+      - source_labels: [__meta_docker_container_name]
+        regex: "/(.*)"
+        target_label: container
+
+    pipeline_stages:
+      # Un-wraps the Docker/Podman JSON-lines log envelope
+      # ({"log":"...","stream":"stdout","time":"..."}) that the json-file
+      # driver already configured in compose.yaml writes -- this is a
+      # built-in Promtail stage, not something specific to this app.
+      - docker: {}
+
+      # The unwrapped `log` field is itself one JSON object per line (see
+      # extensions.py's JsonFormatter: time/level/module/message, plus
+      # security_event/event_type/ip/path/method/identifier on security
+      # events specifically). Parse it so those fields are queryable.
+      - json:
+          expressions:
+            level: level
+            security_event: security_event
+
+      # Only `level` and `security_event` become real Loki labels (used for
+      # index-backed filtering, e.g. `{app="hrms", level="ERROR"}`) -- kept
+      # deliberately to a handful of low-cardinality values. Do NOT add
+      # `identifier`/`ip`/`path`/`module` etc. as labels: Loki indexes by
+      # label, and a label with thousands of distinct values (one per user,
+      # one per request path) turns the index itself into the bottleneck.
+      # Those fields are still fully present in the log line's JSON and
+      # queryable via LogQL's `| json` pipe inside a query -- just not
+      # pre-indexed.
+      - labels:
+          level:
+          security_event:
+
+      - static_labels:
+          app: hrms
+          env: production
