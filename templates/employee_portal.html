@@ -3019,6 +3019,43 @@
         c.getContext("2d").drawImage(vid, 0, 0);
         return c.toDataURL("image/jpeg", 0.85).split(",")[1];
       }
+      /* Liveness burst -- same protocol as templates/index.html (utils/liveness.py). */
+      function wfhSleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+      function wfhCaptureSmallFrame(maxW) {
+        var vid = document.getElementById("wfhVideo");
+        var w0 = vid.videoWidth || 640, h0 = vid.videoHeight || 480;
+        var scale = Math.min(1, maxW / w0);
+        var c = document.createElement("canvas");
+        c.width = Math.round(w0 * scale); c.height = Math.round(h0 * scale);
+        c.getContext("2d").drawImage(vid, 0, 0, c.width, c.height);
+        return c.toDataURL("image/jpeg", 0.7).split(",")[1];
+      }
+      async function wfhCaptureLivenessBurst(employeeId) {
+        var faceImage = wfhCaptureFrame();
+        var challenge = null;
+        try {
+          var r = await fetch("/api/attendance/challenge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employee_id: employeeId }),
+          });
+          var j = await r.json();
+          if (j && j.ok) challenge = j;
+        } catch (e) { /* older server / transient failure: single-frame fallback */ }
+        if (!challenge) return { faceImage: faceImage, liveness: null };
+        wfhSetStatus(challenge.instruction);
+        await wfhSleep(1200);
+        var frames = [];
+        var total = Math.min(12, challenge.max_frames || 12);
+        for (var i = 0; i < total; i++) {
+          frames.push(wfhCaptureSmallFrame(480));
+          await wfhSleep(150);
+        }
+        return {
+          faceImage: faceImage,
+          liveness: { challenge_id: challenge.challenge_id, nonce: challenge.nonce, frames: frames },
+        };
+      }
       function wfhStartQRScan() {
         return new Promise(function(resolve, reject) {
           var vid      = document.getElementById("wfhVideo");
@@ -3109,6 +3146,7 @@
 
           var employeeId = myEmpId;
           var faceImage  = null;
+          var wfhLiveness = null;
 
           if (combo === "qr_face" || combo === "qr_fingerprint" || combo === "qr_only") {
             wfhSetStatus("Opening camera…");
@@ -3126,7 +3164,9 @@
             document.getElementById("wfhStatus").style.display = "none";
             await new Promise(function(r) { setTimeout(r, 2000); });
             wfhSetPhase("ok");
-            faceImage = wfhCaptureFrame();
+            var burst = await wfhCaptureLivenessBurst(employeeId);
+            faceImage = burst.faceImage;
+            wfhLiveness = burst.liveness;
           }
           stopWfhCamera();
 
@@ -3139,8 +3179,9 @@
 
           wfhSetStatus("Verifying identity…");
 
-          var body = { employee_id: employeeId, auth_combo: combo };
+          var body = { employee_id: employeeId, auth_combo: combo, channel: "portal" };
           if (faceImage)   body.face_image = faceImage;
+          if (wfhLiveness) body.liveness = wfhLiveness;
           if (lat !== null) { body.lat = lat; body.lon = lon; }
 
           var resp = await fetch("/attendance", {

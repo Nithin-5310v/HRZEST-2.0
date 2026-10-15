@@ -1,0 +1,18 @@
+# Run the CI-built, signed image instead of building on the host.
+# Use after compose.yaml + compose.prod.yaml (scripts/deploy_verified_image.sh
+# does):
+#   APP_IMAGE=ghcr.io/<owner>/<repo>/app@sha256:<digest> \
+#     podman-compose -f compose.yaml -f compose.prod.yaml -f compose.image.yaml \
+#     up -d --no-deps --no-build app nginx certbot clamav honeypot
+#
+# `image:` wins over the base file's `build: .` only together with
+# --no-build; pull_policy: never makes sure compose can't quietly fetch a
+# different image than the one the deploy script just signature-verified and
+# pulled by digest.
+services:
+  app:
+    image: ${APP_IMAGE:?set APP_IMAGE to registry/name@sha256:digest}
+    pull_policy: never
+  honeypot:
+    image: ${APP_IMAGE:?set APP_IMAGE to registry/name@sha256:digest}
+    pull_policy: never

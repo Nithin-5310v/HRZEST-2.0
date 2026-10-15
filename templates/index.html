@@ -812,6 +812,50 @@
         return c.toDataURL("image/jpeg", 0.85).split(",")[1];
       }
 
+      /* ── Liveness burst (utils/liveness.py) ──
+         Asks the server for a single-use challenge (one action, chosen at
+         random), shows the instruction, then grabs ~12 small frames over
+         ~2 s. Falls back to the legacy single frame if the endpoint is
+         unavailable; the server's LIVENESS_MODE decides whether that is
+         accepted. */
+      function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+      function captureSmallFrame(maxW) {
+        const vid = $("video");
+        const w0 = vid.videoWidth || 640, h0 = vid.videoHeight || 480;
+        const scale = Math.min(1, maxW / w0);
+        const c = document.createElement("canvas");
+        c.width = Math.round(w0 * scale);
+        c.height = Math.round(h0 * scale);
+        c.getContext("2d").drawImage(vid, 0, 0, c.width, c.height);
+        return c.toDataURL("image/jpeg", 0.7).split(",")[1];
+      }
+      async function captureLivenessBurst() {
+        const faceImage = captureFrame();
+        let challenge = null;
+        try {
+          const r = await fetch("/api/attendance/challenge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employee_id: gEmployeeId }),
+          });
+          const j = await r.json();
+          if (j && j.ok) challenge = j;
+        } catch (_) { /* older server / transient failure: single-frame fallback */ }
+        if (!challenge) return { faceImage: faceImage, liveness: null };
+        setStatus(challenge.instruction);
+        await sleep(1200);
+        const frames = [];
+        const total = Math.min(12, challenge.max_frames || 12);
+        for (let i = 0; i < total; i++) {
+          frames.push(captureSmallFrame(480));
+          await sleep(150);
+        }
+        return {
+          faceImage: faceImage,
+          liveness: { challenge_id: challenge.challenge_id, nonce: challenge.nonce, frames: frames },
+        };
+      }
+
       function startQRScan() {
         return new Promise((resolve, reject) => {
           const vid = $("video"), c = $("canvas");
@@ -1300,7 +1344,17 @@
 
       /* ── Submit ── */
       async function submitAttendance(faceOverride) {
-        const faceImage = faceOverride ?? captureFrame();
+        let faceImage = faceOverride;
+        let liveness = null;
+        if (faceOverride === null || faceOverride === undefined) {
+          if (selectedCombo === "qr_face") {
+            const burst = await captureLivenessBurst();
+            faceImage = burst.faceImage;
+            liveness = burst.liveness;
+          } else {
+            faceImage = captureFrame();
+          }
+        }
         stopCamera();
         setStatus("Verifying identity…");
 
@@ -1317,6 +1371,8 @@
             lat:                gLat,
             lon:                gLon,
             auth_combo:         selectedCombo,
+            channel:            "kiosk",
+            liveness:           liveness || undefined,
           }),
         });
         const result = await resp.json();

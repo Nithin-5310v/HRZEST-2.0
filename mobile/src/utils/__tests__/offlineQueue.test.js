@@ -28,6 +28,13 @@ describe('offlineQueue', () => {
     expect(punch.lon).toBeNull();
   });
 
+  it('records whether the location fix was mocked', async () => {
+    const real = await queuePunch(1, 2);
+    const fake = await queuePunch(1, 2, { mocked: true });
+    expect(real.mocked).toBe(false);
+    expect(fake.mocked).toBe(true);
+  });
+
   it('appends multiple punches in order', async () => {
     const first = await queuePunch();
     const second = await queuePunch();

@@ -81,6 +81,9 @@ ALLOWED_UNGUARDED = {
 
     # ── kiosk / WebAuthn (identity proven by QR signature, face or passkey) ──
     "attendance.attendance": "kiosk check-in; signed QR + server-decided factors",
+    "attendance.api_attendance_challenge": (
+        "kiosk liveness challenge; only redeemable together with that employee's face + "
+        "signed QR; same-shape response, rate-limited"),
     "employee_portal.api_employee_qr_face_checkin": "kiosk check-in; signed QR + server-decided factors",
     "employee_portal.api_employee_auth_config": "public: which check-in factors are enabled",
     "auth.webauthn_status": "public capability probe",

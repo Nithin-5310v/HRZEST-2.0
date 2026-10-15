@@ -1,4 +1,4 @@
-from database import get_db_connection
+from database import get_db_connection, owner_privileges, grant_runtime_privileges
 from extensions import app_log
 
 from .core_tables import _init_core_tables
@@ -17,13 +17,18 @@ def init_db(seed_admin=True):
     seed_admin=False skips seeding the env-var admin (but still creates
     the blank company_settings row) -- see _seed_defaults_and_admin's
     docstring; used by init_tenant_db() for new SaaS tenant schemas."""
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    _init_core_tables(cursor, db)
-    _run_schema_migrations(cursor, db)
-    _seed_defaults_and_admin(cursor, db, seed_admin=seed_admin)
-    cursor.close()
-    db.close()
+    # DDL + seeding run on the owner role when DB_OWNER_USER is configured
+    # (no-op otherwise); the runtime role is then granted DML on whatever
+    # tables this just created/changed -- see database.owner_privileges().
+    with owner_privileges():
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        _init_core_tables(cursor, db)
+        _run_schema_migrations(cursor, db)
+        _seed_defaults_and_admin(cursor, db, seed_admin=seed_admin)
+        grant_runtime_privileges(cursor)
+        cursor.close()
+        db.close()
 
 
 def _run_migrations_for_all_tenants():
@@ -53,11 +58,13 @@ def _run_migrations_for_all_tenants():
 
     for schema in schemas:
         try:
-            db = get_tenant_db(schema)
-            cursor = db.cursor(buffered=True)
-            _run_schema_migrations(cursor, db)
-            cursor.close()
-            db.close()
+            with owner_privileges():
+                db = get_tenant_db(schema)
+                cursor = db.cursor(buffered=True)
+                _run_schema_migrations(cursor, db)
+                grant_runtime_privileges(cursor)
+                cursor.close()
+                db.close()
         except Exception as exc:
             app_log.warning("Migration: tenant schema '%s' failed: %s", schema, exc, exc_info=True)
 

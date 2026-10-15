@@ -19,11 +19,14 @@ services:
       - "3100:3100"
     volumes:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - ./rules:/loki/rules/fake:ro   # single-tenant (auth_enabled: false) org id is "fake"
       - loki_data:/loki
     environment:
       LOKI_S3_BUCKET: ${LOKI_S3_BUCKET}
       AWS_REGION: ${AWS_REGION}
-    command: -config.file=/etc/loki/local-config.yaml
+    # expand-env: the config references ${LOKI_S3_BUCKET}/${AWS_REGION}/${ALERTMANAGER_URL};
+    # without this flag Loki reads them as literal text.
+    command: -config.file=/etc/loki/local-config.yaml -config.expand-env=true
     # No AWS access/secret keys passed here -- the instance's IAM role
     # (terraform/observability.tf's log_server_role) grants S3 access, the
     # AWS SDK inside the loki image picks that up automatically via the

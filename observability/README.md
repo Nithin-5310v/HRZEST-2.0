@@ -1,5 +1,14 @@
 # Self-hosted log analysis (Loki + Grafana)
 
+> **Note (infrastructure code):** this guide and the config comments refer to a
+> `terraform/observability.tf` that is **not in this repository**. Until that
+> module is (re)added, provision the equivalents by hand: a log-server host
+> with a security-group rule allowing port 3100 **only** from the application
+> host's private address, an S3 bucket + instance role for Loki chunk storage,
+> and no public exposure of Loki/Grafana without TLS or an authenticating
+> proxy. Everything else below (compose files, Promtail/Loki config) is real.
+
+
 A completely separate, self-hosted log pipeline for HRZEST — an independent
 EC2 instance running Grafana + Loki, receiving logs shipped from the app
 server by Promtail. Nothing here runs on the app server except Promtail

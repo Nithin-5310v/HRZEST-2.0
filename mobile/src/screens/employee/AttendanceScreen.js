@@ -15,6 +15,7 @@ import { Alert } from "react-native";
 import * as Location from "expo-location";
 import { fetchEmployeeAttendance, employeeCheckin } from "../../api/client";
 import { queuePunch } from "../../utils/offlineQueue";
+import { getDeviceId } from "../../utils/deviceId";
 
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "../../store/ThemeContext";
@@ -71,6 +72,7 @@ export default function AttendanceScreen() {
     setChecking(true);
     let lat = null;
     let lon = null;
+    let mocked = false;
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === "granted") {
@@ -80,6 +82,7 @@ export default function AttendanceScreen() {
         ]);
         lat = loc.coords.latitude;
         lon = loc.coords.longitude;
+        mocked = !!loc.mocked;
       }
     } catch (_) {}
 
@@ -87,7 +90,7 @@ export default function AttendanceScreen() {
     const todayIso = new Date().toISOString().split("T")[0];
 
     try {
-      const res = await employeeCheckin(lat, lon);
+      const res = await employeeCheckin(lat, lon, { mocked, device_id: await getDeviceId() });
       if (res.data?.ok) {
         const title = res.data.action === "logout" ? "✅ Shift Completed ⏱" : "✅ Attendance Marked 📍";
         Alert.alert(title, `${res.data.name || ""}\nStatus: ${res.data.status}\nTime: ${res.data.time || timeNow}`, [
@@ -113,8 +116,10 @@ export default function AttendanceScreen() {
           "Your login session has expired. Please sign in again to continue.",
           [{ text: "Sign In", onPress: () => signOut() }]
         );
+      } else if (e.response) {
+        Alert.alert("Notice", e.response?.data?.msg || "Could not mark attendance.");
       } else {
-        await queuePunch(lat, lon);
+        await queuePunch(lat, lon, { mocked });
         const existing = attendance.find((x) => x.date === todayIso);
         const wasCheckedIn = existing?.login_time && !existing?.logout_time;
         setAttendance((prev) => {

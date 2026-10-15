@@ -22,6 +22,7 @@ import threading
 from collections import defaultdict, deque
 
 from extensions import log_security_event, redis_client
+from utils.client_ip import is_protected_ip
 
 _SQLI_PATTERNS = [
     # UNION-based exfiltration
@@ -35,10 +36,26 @@ _SQLI_PATTERNS = [
     re.compile(r"\bor\b\s+['\"]([^'\"]{0,20})['\"]\s*=\s*['\"]\1['\"]?", re.IGNORECASE),
     re.compile(r"\bor\b\s+'[^']*'\s*=\s*'[^']*'", re.IGNORECASE),
     re.compile(r"\bor\b\s+\"[^\"]*\"\s*=\s*\"[^\"]*\"", re.IGNORECASE),
-    # Classic login-bypass comment terminator: admin'-- or '-- or 1=1--
-    re.compile(r"['\"]\s*--"),
-    re.compile(r"--\s"),
-    re.compile(r"/\*.*?\*/", re.DOTALL),
+    # Comment-terminator shapes. These used to be a bare `--\s` and a bare
+    # `/*...*/`, which also blocked ordinary prose ("Great work -- keep it
+    # up", "receipt attached -- thanks") on every non-login form/JSON field
+    # and fed the auto-ban counter with false positives. A comment marker
+    # is only an injection tell when it TERMINATES the value (that's the
+    # whole point of the attack: kill the rest of the query), or sits right
+    # after statement syntax / a SQL keyword.
+    #   admin'--   ' OR 1=1 --   x') --   x' -- -
+    re.compile(r"['\"]\s*\)*\s*--+\s*-?\s*$"),
+    #   1; -- ...   (stacked statement then comment). A bare `) --` is NOT
+    #   matched: "(approx 1200) -- receipt attached" is ordinary prose.
+    re.compile(r";\s*--(?:\s|$)"),
+    # Empty inline comment: UN/**/ION, SEL/**/ECT -- no legitimate text has one
+    re.compile(r"/\*\s*\*/"),
+    #   ... WHERE id=1 --<EOL>   (keyword ... trailing comment)
+    re.compile(r"\b(?:or|and|union|select|where|from)\b[^\n]{0,80}?--\s*$", re.IGNORECASE),
+    # Inline-comment keyword splitting: UN/**/ION, SELECT/**/password
+    re.compile(r"\b(?:union|select|from|where|and|or|insert|update|delete|drop|exec)\b\s*/\*.*?\*/",
+               re.IGNORECASE | re.DOTALL),
+    re.compile(r"/\*!\d*"),  # MySQL-style versioned comment
     # OR true/false literals
     re.compile(r"\bor\b\s+(true|false)\b", re.IGNORECASE),
     re.compile(r"\band\b\s+(true|false)\b", re.IGNORECASE),
@@ -253,6 +270,13 @@ def record_breach_and_maybe_ban(ip, reason):
     """
     if not ip:
         return
+    if is_protected_ip(ip):
+        # Loopback / RFC1918 / CGNAT / allow-listed, or an address we could
+        # not parse: banning it would not stop one attacker, it would ban
+        # every visitor that shares the address (see utils/client_ip.py).
+        # The request itself was already rejected by whoever called us.
+        _note_ban_skipped(ip, reason)
+        return
     if redis_client is not None:
         try:
             _record_breach_redis(ip, reason)
@@ -296,29 +320,74 @@ def _record_breach_memory(ip):
     return True
 
 
-def _auto_ban(ip, reason):
+_SKIP_NOTE_INTERVAL_SECONDS = 600
+_skip_note_lock = threading.Lock()
+_skip_note_last = {}
+
+
+def _note_ban_skipped(ip, reason):
+    """Throttled (one per address per 10 min) WARNING so an operator can see
+    that bans are being withheld -- the usual cause is the container
+    gateway hiding client IPs, which is a deployment bug worth fixing, not
+    a state to run in silently."""
+    now = time.time()
+    with _skip_note_lock:
+        if now - _skip_note_last.get(ip, 0) < _SKIP_NOTE_INTERVAL_SECONDS:
+            return
+        _skip_note_last[ip] = now
+    log_security_event(
+        "waf.ban_skipped_shared_ip",
+        "Auto-ban withheld: source address is non-routable/shared and cannot identify one client",
+        level="WARNING", identifier=ip, reason=reason,
+    )
+
+
+def ban_ip(ip, reason, banned_by="system:auto", minutes=None):
+    """Insert/extend a ban in public.banned_ips. The single write path for
+    automated bans (WAF breaches, HTTP + TCP honeypots) so the shared-address
+    protection and the "never shorten an existing ban" rule live in one
+    place. Written to the `public` copy of the table on purpose: tenants each
+    have their own banned_ips and the search_path would otherwise drop an
+    automated ban into whichever tenant URL the attacker happened to be on,
+    leaving every other tenant URL open to them (app.py's _enforce_ip_ban
+    checks both). minutes=None bans until manually lifted. Returns True when
+    a ban row was written."""
+    if not ip or is_protected_ip(ip):
+        return False
+    expires_at = (datetime.datetime.now() + datetime.timedelta(minutes=minutes)) if minutes else None
     from database import get_db_connection
-    expires_at = datetime.datetime.now() + datetime.timedelta(minutes=_BAN_MINUTES)
     try:
         db = get_db_connection()
         cursor = db.cursor()
         try:
+            # An existing permanent ban (expires_at NULL) stays permanent,
+            # and an existing longer ban is never shortened by a later,
+            # shorter automated one.
             cursor.execute(
-                "INSERT INTO banned_ips (ip, reason, banned_by, expires_at) VALUES (%s,%s,%s,%s) "
+                "INSERT INTO public.banned_ips (ip, reason, banned_by, expires_at) VALUES (%s,%s,%s,%s) "
                 "ON CONFLICT (ip) DO UPDATE SET reason=EXCLUDED.reason, banned_by=EXCLUDED.banned_by, "
-                "banned_at=CURRENT_TIMESTAMP, expires_at=EXCLUDED.expires_at",
-                (ip, reason, "system:auto", expires_at),
+                "banned_at=CURRENT_TIMESTAMP, "
+                "expires_at=CASE WHEN banned_ips.expires_at IS NULL THEN NULL "
+                "WHEN EXCLUDED.expires_at IS NULL THEN NULL "
+                "ELSE GREATEST(banned_ips.expires_at, EXCLUDED.expires_at) END",
+                (ip, reason, banned_by, expires_at),
             )
             db.commit()
         finally:
             cursor.close()
             db.close()
+        return True
+    except Exception as e:
+        log_security_event(
+            "waf.ban_write_failed", f"Failed to write IP ban: {e}",
+            level="ERROR", identifier=ip,
+        )
+        return False
+
+
+def _auto_ban(ip, reason):
+    if ban_ip(ip, reason, banned_by="system:auto", minutes=_BAN_MINUTES):
         log_security_event(
             "waf.auto_ban", f"IP auto-banned for {_BAN_MINUTES} minutes after repeated breaches",
             level="ERROR", identifier=ip, reason=reason,
-        )
-    except Exception as e:
-        log_security_event(
-            "waf.auto_ban_failed", f"Failed to auto-ban IP after repeated breaches: {e}",
-            level="ERROR", identifier=ip,
         )

@@ -14,6 +14,7 @@ Slack/Discord response must never add latency to the request that
 triggered the alert, and must never turn a security event into a second,
 unrelated 500 error.
 """
+import logging
 import os
 import re
 import html
@@ -25,7 +26,12 @@ import threading
 import urllib.request
 import urllib.error
 
-from extensions import app_log
+# NOT `from extensions import app_log`: importing extensions builds the whole
+# Flask app and hard-fails without SECRET_KEY/REDIS_HOST, which is why the
+# internet-facing honeypot container used to need the entire production .env
+# just to send a webhook. Same logger object extensions.py configures (by
+# name), so the main app's log output is unchanged.
+app_log = logging.getLogger("attendance")
 
 _WEBHOOK_URL = os.environ.get("SECURITY_ALERT_WEBHOOK_URL", "").strip()
 _PLATFORM = os.environ.get("SECURITY_ALERT_PLATFORM", "discord").strip().lower()  # "discord" | "slack"

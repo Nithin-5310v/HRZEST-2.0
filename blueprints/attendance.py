@@ -34,6 +34,7 @@ from utils.attendance_utils import (
 from utils.face_utils import face_recognition, _face_recognition_available, _get_known_face_encoding
 from utils.webauthn_utils import _wa_fingerprint_recently_verified
 import utils.config as cfg
+from utils import punch_integrity as pi
 
 attendance_bp = Blueprint("attendance", __name__)
 
@@ -1129,6 +1130,10 @@ def attendance():
     user_lat = data.get("lat")
     user_lon = data.get("lon")
     auth_combo = data.get("auth_combo", "qr_face")
+    # Optional integrity inputs (utils/punch_integrity.py). Old clients send
+    # none of these; what that means is decided by LIVENESS_MODE.
+    liveness_in = data.get("liveness") if isinstance(data.get("liveness"), dict) else {}
+    channel = data.get("channel") if data.get("channel") in ("kiosk", "portal") else "kiosk"
 
     if auth_combo not in ("qr_face", "qr_only", "qr_fingerprint", "fingerprint_only"):
         return jsonify({"ok": False, "msg": "Invalid auth combination."})
@@ -1214,6 +1219,29 @@ def attendance():
 
     face_path, employee_name, emp_work_mode, emp_work_lat, emp_work_lon = result
 
+    ctx = pi.build_context(emp_id, channel, auth_combo, request.remote_addr, data)
+
+    def _reject(decision):
+        """Single exit for every integrity refusal: evidence row, optional
+        lockout credit, then the response."""
+        pi.record_evidence(ctx, cursor, outcome="rejected")
+        cursor.close()
+        db.close()
+        if decision.count_as_failure:
+            record_attendance_failure(emp_id, _today, decision.msg)
+        return jsonify({"ok": False, "msg": decision.msg, "code": decision.code}), decision.status
+
+    _d = pi.check_mock_location(ctx, log_security_event)
+    if not _d.allow:
+        return _reject(_d)
+    _d = pi.check_office_network(ctx, cursor, emp_work_mode, log_security_event)
+    if not _d.allow:
+        return _reject(_d)
+    if auth_combo == "qr_face":
+        _d = pi.check_biometric_consent(ctx, cursor, log_security_event)
+        if not _d.allow:
+            return _reject(_d)
+
     # Location check
     if auth_cfg["location_enabled"] and (not user_lat or not user_lon):
         cursor.close()
@@ -1270,6 +1298,28 @@ def attendance():
             db.close()
             record_attendance_failure(emp_id, _today, "Face does not match")
             return jsonify({"ok": False, "msg": "Face does not match. Please try again."})
+
+        # Identity matched; now ask whether a live person is behind it and
+        # whether this exact photo has been used before.
+        live_frames, live_frame_bytes = _decode_liveness_frames(liveness_in.get("frames"))
+        _photo_bytes = img_bytes if face_b64 else (live_frame_bytes[0] if live_frame_bytes else None)
+        if _photo_bytes:
+            try:
+                ctx.photo_sha256, ctx.photo_dhash = pi.fingerprint_photo(_photo_bytes)
+            except Exception:
+                app_log.warning("photo fingerprint failed for %s", emp_id, exc_info=True)
+        _d = pi.check_photo_replay(ctx, cursor, log_security_event)
+        if not _d.allow:
+            return _reject(_d)
+        _d = pi.check_liveness(
+            ctx, cursor, frames=live_frames,
+            challenge_id=liveness_in.get("challenge_id"), nonce=liveness_in.get("nonce"),
+            known_encoding=known_encoding, face_recognition_mod=face_recognition,
+            log_event=log_security_event)
+        if not _d.allow:
+            return _reject(_d)
+
+    pi.record_evidence(ctx, cursor, outcome="accepted")
 
     now = company_now()
     today = now.date()
@@ -1365,6 +1415,105 @@ def attendance():
                         "work_mode": emp_work_mode})
 
 
+def _decode_liveness_frames(raw_frames):
+    return pi.decode_b64_frames(raw_frames)
+
+
+@attendance_bp.route("/api/attendance/challenge", methods=["POST"])
+@limiter.limit("60 per minute")
+def api_attendance_challenge():
+    """Issues the single-use liveness challenge a face check-in must answer
+    (see utils/punch_integrity.py). Deliberately unauthenticated like
+    /attendance itself: a challenge on its own grants nothing -- it is only
+    ever redeemable together with that employee's face. The response has
+    the same shape whether or not the id exists, so this is not an
+    employee-id oracle."""
+    import secrets
+    data = request.get_json(silent=True) or {}
+    raw_id = str(data.get("employee_id", "")).strip()
+    if not raw_id or len(raw_id) > 200:
+        return jsonify({"ok": False, "msg": "employee_id required"}), 400
+    from qr_generator import verify_qr_value
+    verified_id, valid = verify_qr_value(raw_id)
+    emp_id = verified_id if valid else raw_id.upper()
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute("SELECT 1 FROM employees WHERE employee_id=%s", (emp_id,))
+        known = cursor.fetchone() is not None
+        owner = emp_id if known else f"unknown:{secrets.token_hex(4)}"
+        ch = pi.issue_challenge(cursor, owner, request.remote_addr)
+    finally:
+        cursor.close()
+        db.close()
+    return jsonify({"ok": True, **ch})
+
+
+@attendance_bp.route("/api/admin/attendance/flagged", methods=["GET"])
+@admin_required
+def api_admin_flagged_punches():
+    """Punch attempts that tripped an integrity rule (flags set) or were
+    rejected by one, newest first -- the HR review queue for spoofing."""
+    try:
+        days = max(1, min(int(request.args.get("days", 7)), 90))
+    except ValueError:
+        days = 7
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute(
+            "SELECT id, employee_id, channel, auth_combo, ip, device_id, liveness, liveness_action, "
+            "flags, outcome, created_at FROM punch_evidence "
+            "WHERE ((flags IS NOT NULL AND flags <> '') OR outcome = 'rejected') "
+            "AND created_at > NOW() - (%s * INTERVAL '1 day') ORDER BY id DESC LIMIT 500", (days,))
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        db.close()
+    keys = ("id", "employee_id", "channel", "auth_combo", "ip", "device_id", "liveness",
+            "liveness_action", "flags", "outcome", "created_at")
+    punches = [{k: (str(v) if k == "created_at" else v) for k, v in zip(keys, r)} for r in rows]
+    return jsonify({"ok": True, "days": days, "punches": punches})
+
+
+@attendance_bp.route("/api/admin/attendance/office_networks", methods=["GET", "POST"])
+@admin_required
+def api_admin_office_networks():
+    """Public IP ranges on-site punches must come from (WFH exempt). An empty
+    list or require=false turns the rule off. Only flagged, never enforced,
+    when the app cannot see real client IPs (utils/client_ip.py)."""
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        if request.method == "GET":
+            cursor.execute("SELECT office_ip_cidrs, require_office_network FROM company_settings LIMIT 1")
+            row = cursor.fetchone() or ("", 0)
+            return jsonify({"ok": True, "cidrs": [c for c in (row[0] or "").split(",") if c],
+                            "require": bool(row[1])})
+        body = request.get_json(silent=True) or {}
+        cidrs = body.get("cidrs", [])
+        if not isinstance(cidrs, list) or len(cidrs) > 50:
+            return jsonify({"ok": False, "msg": "cidrs must be a list of at most 50 entries."}), 400
+        try:
+            nets = pi.parse_cidrs(",".join(str(c) for c in cidrs))
+        except ValueError as exc:
+            return jsonify({"ok": False, "msg": str(exc)}), 400
+        # A /0 would silently turn the control into "allow everything".
+        if any(n.prefixlen == 0 for n in nets):
+            return jsonify({"ok": False, "msg": "A /0 network allows everything; refusing."}), 400
+        require = 1 if body.get("require") and nets else 0
+        cursor.execute("UPDATE company_settings SET office_ip_cidrs=%s, require_office_network=%s",
+                       (",".join(str(n) for n in nets), require))
+        db.commit()
+    finally:
+        cursor.close()
+        db.close()
+    log_security_event("attendance.office_networks_changed", "Office network allow-list changed",
+                       level="WARNING", identifier=session.get("admin_username", ""),
+                       reason=f"count={len(nets)} require={bool(require)}")
+    return jsonify({"ok": True, "cidrs": [str(n) for n in nets], "require": bool(require)})
+
+
 def process_punch(cursor, db, emp_id, employee_name, punch_dt=None):
     """Core login/logout/relogin state machine for the mobile Bearer
     check-in flow (api_checkin below). Caller owns the cursor/db
@@ -1455,12 +1604,41 @@ def api_checkin():
         db.close()
         return jsonify({"ok": False, "msg": "Employee not found."})
     employee_name, emp_work_mode, emp_work_lat, emp_work_lon = result
+
+    # This path has no face/QR/fingerprint factor at all -- location is the
+    # only claim -- so the environment checks matter most here.
+    ctx = pi.build_context(emp_id, "mobile", "api_checkin", request.remote_addr, data)
+    for _d in (pi.check_mock_location(ctx, log_security_event),
+               pi.check_office_network(ctx, cursor, emp_work_mode, log_security_event)):
+        if not _d.allow:
+            pi.record_evidence(ctx, cursor, outcome="rejected")
+            cursor.close()
+            db.close()
+            if _d.count_as_failure:
+                record_attendance_failure(emp_id, company_today(), _d.msg)
+            return jsonify({"ok": False, "msg": _d.msg, "code": _d.code}), _d.status
+
+    # Same hole as /api/employee/checkin had: the geofence only ran `if lat
+    # and lon`, so omitting the coordinates skipped it whatever the
+    # company's location setting said. MOBILE_REQUIRE_LOCATION=false
+    # restores the old behaviour.
+    if (os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() not in ("false", "0", "no")
+            and get_auth_config().get("location_enabled") and not (lat and lon)):
+        ctx.flag("location_missing")
+        pi.record_evidence(ctx, cursor, outcome="rejected")
+        cursor.close()
+        db.close()
+        return jsonify({"ok": False, "msg": "Location not captured. Please allow location access and try again.",
+                        "code": "location_required"}), 400
+
     if lat and lon:
         geofence_err = geofence_check_error(emp_work_mode, emp_work_lat, emp_work_lon, lat, lon)
         if geofence_err:
+            pi.record_evidence(ctx, cursor, outcome="rejected")
             cursor.close()
             db.close()
             return jsonify({"ok": False, "msg": geofence_err})
+    pi.record_evidence(ctx, cursor, outcome="accepted")
     result = process_punch(cursor, db, emp_id, employee_name)
     cursor.close()
     db.close()

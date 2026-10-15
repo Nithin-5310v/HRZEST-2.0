@@ -38,6 +38,10 @@ _WIPE_TABLES = [
     # those two rows covers them.)
     "security_events", "login_attempts", "api_tokens", "known_login_ips",
     "audit_logs", "session_risk", "mobile_biometric_proofs",
+    # Hash-chain head pointer for the two audit tables above -- must be
+    # reset with them or the next audit row would chain from a head
+    # that no longer exists (reported as tampering by verify_audit_chain).
+    "audit_chain_head",
     # Core people data
     "attendance", "employees", "admin_users",
     "compoff_balance",
