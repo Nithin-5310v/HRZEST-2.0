@@ -1,0 +1,36 @@
+# Grafana Alloy sidecar -- replaces observability/promtail/compose.promtail.yml.
+# Run alongside the app stack (same hardening posture as the Promtail sidecar it
+# replaces):
+#   podman-compose -f compose.yaml -f observability/alloy/compose.alloy.yml up -d alloy
+services:
+  alloy:
+    image: docker.io/grafana/alloy:v1.20.1
+    restart: always
+    networks:
+      - frontend
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Read-only: Alloy only lists containers and streams their logs.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - run
+      - --server.http.listen-addr=127.0.0.1:12345
+      - --storage.path=/tmp/alloy
+      - /etc/alloy/config.alloy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256m
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

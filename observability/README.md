@@ -273,3 +273,32 @@ step, not a requirement to get this working securely.
    container to see its startup logs).
 3. In Grafana, Explore → Loki → run `{app="hrms"}` — the line should
    appear within a few seconds.
+
+---
+
+## Migrating from Promtail to Grafana Alloy
+
+**Promtail is end-of-life** (Grafana ended support in March 2026 and points to Alloy as the
+replacement), so the `grafana/promtail:3.3.2` sidecar no longer receives security fixes.
+`observability/alloy/` is a like-for-like replacement:
+
+| | Promtail | Alloy |
+|---|---|---|
+| Config | `observability/promtail/promtail-config.yaml` | `observability/alloy/config.alloy` |
+| Compose | `observability/promtail/compose.promtail.yml` | `observability/alloy/compose.alloy.yml` |
+
+The Alloy config was checked with `alloy fmt` and `alloy validate` (v1.20.1) and compared against
+Alloy's own `alloy convert --source-format=promtail` output of the old config: same container
+filter, relabel, JSON fields, labels (`level`, `security_event`, `app`, `env`) and Loki endpoint.
+It has **not** been run against a live Docker/Podman socket and Loki here.
+
+Cutover (no log gap needed beyond a few seconds):
+1. Put your Loki address into `observability/alloy/config.alloy` (`LOKI_SERVER_PRIVATE_IP`).
+2. `podman-compose -f compose.yaml -f observability/alloy/compose.alloy.yml up -d alloy`
+3. In Grafana, confirm new lines arrive with `{app="hrms"}` and the same labels; the
+   `AuditAnchorsStopped` alert in `log-server/rules/hrzest-security.yaml` will fire if anchors
+   stop flowing, which is your safety net.
+4. Stop and remove the Promtail container. Keep the old files for rollback until you're satisfied.
+
+Loki and Grafana were also moved to currently patched lines (Loki 3.6.18, Grafana 12.4.13;
+config format is unchanged within Loki 3.x). Roll the log server first, then the sidecar.

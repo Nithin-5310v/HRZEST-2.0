@@ -15,10 +15,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-COPY requirements.txt .
+COPY requirements.txt requirements.lock ./
+# Default = requirements.txt (floors; resolves to the newest releases on the
+# day of the build -- the behaviour before the lockfile existed).
+# --build-arg REQUIREMENTS_FILE=requirements.lock = the exact, hash-verified
+# set from scripts/relock.sh: reproducible builds, and pip aborts if any
+# downloaded file doesn't match its recorded hash (supply-chain tamper check).
+ARG REQUIREMENTS_FILE=requirements.txt
 # --prefix isolates the installed tree so stage 2 can copy just this, not
 # pip's cache or the compiler toolchain above.
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN if [ "$REQUIREMENTS_FILE" = "requirements.lock" ]; then \
+        pip install --no-cache-dir --prefix=/install --require-hashes -r requirements.lock; \
+    else \
+        pip install --no-cache-dir --prefix=/install -r "$REQUIREMENTS_FILE"; \
+    fi
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 # Same base so glibc/ABI matches the builder; no compilers, no -dev headers,
