@@ -97,8 +97,14 @@ it refuses unless `DB_NAME` contains `test`). Run it again with
     re-run. What has **not** been done is a single uninterrupted pass of all
     2,991 tests on the final tree (about four hours here); the fixes were
     verified file by file instead.
-* **Not run here:** the container image build from the lock (needs a container
-  runtime and a ~15-minute `dlib` compile), the Alloy/Loki/Grafana/Redis images,
+* **Static checks only (no container was started):** all nine shell scripts
+  pass `bash -n` and have LF line endings; `compose.yaml` validates alone and
+  with each overlay (`prod`, `lowmem`, `image` with a dummy digest, the Alloy
+  sidecar) under `docker-compose config`. That proves the files parse and
+  interpolate, not that any image builds or starts.
+* **Not run here:** the container image build from the lock (Podman is
+  installed, but its 2 GiB VM is too small to compile `dlib`, and the build
+  should not run beside the test suite), the Alloy/Loki/Grafana/Redis images,
   and a load test against a networked database. The opt-in switch should be
   measured on staging with real RTT before it is turned on.
 
