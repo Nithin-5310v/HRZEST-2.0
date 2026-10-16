@@ -1071,7 +1071,10 @@ def _security_headers(response):
         _style_hash_src = (" " + " ".join(sorted(_style_hashes))) if _style_hashes else ""
         # Cloudflare Turnstile (admin_login CAPTCHA) and employee portal
         # loopback agent get path-scoped exceptions only.
-        _is_turnstile_page = request.path in ("/admin_login", "/login")
+        # /create_org renders the same Turnstile widget on its manual-signup
+        # form; without it here the script/frame/connect are all blocked, the
+        # token comes back empty, and verify_turnstile() rejects every signup.
+        _is_turnstile_page = request.path in ("/admin_login", "/login", "/create_org")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
         # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
         # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
