@@ -1,7 +1,7 @@
 # ── Stage 1: builder ─────────────────────────────────────────────────────────
 # Compilers/headers needed only to build dlib (face_recognition) and psycopg2
 # extension wheels. None of this belongs in the image that actually runs.
-FROM python:3.11-slim AS builder
+FROM python:3.13-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1
 
@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # Same base so glibc/ABI matches the builder; no compilers, no -dev headers,
 # no build tools — only the shared libs the compiled wheels dlopen at import
 # time (verify with `ldd` against your built .so files if this list drifts).
-FROM python:3.11-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
