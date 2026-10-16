@@ -22,7 +22,7 @@ import secrets
 import functools
 from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, current_app
 
-from database import get_master_db, get_db_connection, get_tenant_db
+from database import get_master_db, get_db_connection, get_tenant_db, get_owner_master_db
 from extensions import app_log, log_security_event, limiter
 from utils.auth import check_password_hash, dummy_password_check, _mask_identifier, _hash_token
 from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
@@ -908,7 +908,6 @@ def platform_admin_delete_tenant(tenant_id):
     deleted company's transaction history correctly after this runs."""
     # Owner role: DROP SCHEMA is DDL the runtime role deliberately lacks
     # (database.owner_privileges; same connection when no split is configured).
-    from database import get_owner_master_db
     conn = get_owner_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute("SELECT company_name, subdomain, db_name FROM tenants WHERE id=%s", (tenant_id,))

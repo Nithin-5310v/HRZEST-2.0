@@ -23,6 +23,15 @@ os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 # real secret.
 os.environ["ENCRYPTION_KEY"] = "_jboJL8OrI9muPNyf0xCNrakSo_Iz5EbJSQ1KpDcAgY="
 
+# The mobile/API check-in routes now refuse a punch that omits coordinates when
+# the company's location setting is on (MOBILE_REQUIRE_LOCATION, default true in
+# production). Several dozen older tests exercise those routes' punch logic
+# (login/logout/relogin, shifts, offline sync) with bodies like `json={}`, so --
+# like the rate limiter and the MFA gates below -- the suite relaxes the rule by
+# default. tests/test_punch_integrity.py::TestMobileCheckin turns it back on
+# explicitly to cover the rule itself.
+os.environ.setdefault("MOBILE_REQUIRE_LOCATION", "false")
+
 # wsgi.py (the real production entrypoint) registers the migrated
 # blueprints on the shared `app` instance from extensions.py BEFORE
 # importing app.py — mirror that exact order here. app.py's

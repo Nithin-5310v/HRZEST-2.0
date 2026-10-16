@@ -67,10 +67,30 @@ it refuses unless `DB_NAME` contains `test`). Run it again with
 * New tests: `test_request_guard` (21), `test_search_path_tracking` (11).
 * Re-run: auth hardening, session risk, API tokens, route guards, device risk,
   BOLA ownership, auth, auth routes/blueprint, auth utils.
-* Pre-existing failures unrelated to these changes: tests that stub
-  `face_recognition` need `dlib`, which is not installed in this environment
-  (`test_webauthn_enrollment_authz.py::TestKioskFaceVerifyGate`, 4 tests). They
-  pass wherever `dlib` is available (CI).
+* **Full existing suite, run locally** (2,991 tests, embedded PostgreSQL 16,
+  Python 3.12 — this machine has no 3.13, so the 3.13 claim rests on the CI
+  matrix and the hash-pinned install check above): 2,877 passed, 16 skipped,
+  **42 failed, 56 errors**. Triage of every one of them:
+  * **22 failures — mine, by design, fixed in the tests.** The strict
+    location rule for mobile punches (`MOBILE_REQUIRE_LOCATION`) rejects the old
+    fixtures that punch without coordinates. `tests/conftest.py` now defaults it
+    off for the legacy suite and `test_punch_integrity.py` turns it on for the
+    tests that exercise the rule. Re-run of the six affected files: 264 passed.
+  * **1 failure — a real regression from the security phase, fixed.**
+    `platform_admin_delete_tenant` was switched to the owner connection
+    (`get_owner_master_db`) but the test still injected its "DROP SCHEMA fails"
+    fault into `get_master_db`, so the fault never fired and the drop really ran.
+    The route now imports the owner helper at module level and the test patches
+    that name. Re-run with `test_platform_admin.py`: 113 passed.
+  * **19 failures + 56 errors — environmental, not re-run.** Every traceback is
+    `face_recognition is None`, because `dlib` (a compiled dependency) is not
+    installed here: `AttributeError: None has no attribute 'load_image_file'` /
+    `'face_locations'`, or `_face_recognition_available` is `False`. They are
+    expected to pass wherever `dlib` is installed (CI), but **that has not been
+    observed**.
+  * Not yet done: one clean end-to-end re-run of the whole suite after these
+    fixes (a full pass takes about four hours on this machine). The affected
+    files were re-run individually instead.
 * **Not run here:** the container image build from the lock (needs a container
   runtime and a ~15-minute `dlib` compile), the Alloy/Loki/Grafana/Redis images,
   and a load test against a networked database. The opt-in switch should be

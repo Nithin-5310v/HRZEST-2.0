@@ -443,6 +443,12 @@ class TestFlaggedPunchesEndpoint:
 
 # ── the GPS-only mobile routes ───────────────────────────────────────────────
 class TestMobileCheckin:
+    @pytest.fixture(autouse=True)
+    def _location_rule_on(self, monkeypatch):
+        """The suite relaxes MOBILE_REQUIRE_LOCATION (see conftest); this class
+        tests the rule, so it runs with the production default."""
+        monkeypatch.setenv("MOBILE_REQUIRE_LOCATION", "true")
+
     @staticmethod
     def _token(client, seed_employee):
         return client.post("/api/employee/login", json={
