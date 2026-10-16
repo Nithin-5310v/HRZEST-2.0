@@ -82,15 +82,21 @@ it refuses unless `DB_NAME` contains `test`). Run it again with
     fault into `get_master_db`, so the fault never fired and the drop really ran.
     The route now imports the owner helper at module level and the test patches
     that name. Re-run with `test_platform_admin.py`: 113 passed.
-  * **19 failures + 56 errors — environmental, not re-run.** Every traceback is
-    `face_recognition is None`, because `dlib` (a compiled dependency) is not
-    installed here: `AttributeError: None has no attribute 'load_image_file'` /
-    `'face_locations'`, or `_face_recognition_available` is `False`. They are
-    expected to pass wherever `dlib` is installed (CI), but **that has not been
-    observed**.
-  * Not yet done: one clean end-to-end re-run of the whole suite after these
-    fixes (a full pass takes about four hours on this machine). The affected
-    files were re-run individually instead.
+  * **19 failures + 56 errors — environmental, now verified.** Every traceback
+    was `face_recognition is None`, because `dlib` (a compiled dependency) was
+    not installed here. With it installed, the seven affected files pass
+    **177/177**. `dlib` could not be compiled on this machine (no C++
+    toolchain), so the test venv used `dlib-bin` 20.0.1.post1, a community-built
+    wheel (sha256 `86a3f7e0…e029`) — **not** the official dlib project and not
+    used in the lock or image. `face-recognition` 1.3.0 and
+    `face-recognition-models` 0.3.0 were installed from `requirements.lock`
+    under `--require-hashes`. Because the tests mock most of the library, this
+    shows the application code is correct, not that dlib's detector works on
+    real faces.
+  * Every test that failed or errored in the full run now has a passing
+    re-run. What has **not** been done is a single uninterrupted pass of all
+    2,991 tests on the final tree (about four hours here); the fixes were
+    verified file by file instead.
 * **Not run here:** the container image build from the lock (needs a container
   runtime and a ~15-minute `dlib` compile), the Alloy/Loki/Grafana/Redis images,
   and a load test against a networked database. The opt-in switch should be
