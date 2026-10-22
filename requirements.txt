@@ -57,7 +57,7 @@ clamd>=1.0.2
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv>=1.2.2
 python-json-logger>=4.2.0
-setuptools>=84.0.0
+setuptools>=84.2.0
 # PYSEC-2026-3447 is fixed only in setuptools>=83, which no longer ships
 # pkg_resources. Its two importers here are handled without it:
 #   - face_recognition_models 0.3.0 (`from pkg_resources import
