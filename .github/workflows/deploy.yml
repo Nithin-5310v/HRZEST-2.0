@@ -406,7 +406,15 @@ jobs:
       - name: Sign the image (keyless)
         env:
           REF: ${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${REF}"
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # `podman login` above stores its credentials where cosign doesn't
+        # look, so cosign uploaded the signature unauthenticated and GHCR
+        # answered UNAUTHORIZED. cosign gets its own login with the same token.
+        run: |
+          set -euo pipefail
+          echo "${REGISTRY_TOKEN}" | cosign login ghcr.io -u "${REGISTRY_USER}" --password-stdin
+          cosign sign --yes "${REF}"
 
       - name: SBOM (CycloneDX) for the image
         # Trivy is already the pinned scanner in this pipeline; reusing it
