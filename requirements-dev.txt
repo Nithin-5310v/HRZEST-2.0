@@ -24,4 +24,4 @@ rjsmin>=1.3.0
 # running instance of the app, not the Flask test client, so they need their
 # own browser binary (`playwright install chromium`) and are meaningfully
 # slower. Run with: pytest tests_e2e/ --browser chromium
-pytest-playwright>=0.5.2
+pytest-playwright>=0.10.0
