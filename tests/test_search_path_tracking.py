@@ -83,6 +83,10 @@ class TestDefaultIsOff:
 
 class TestTrackingOn:
     def test_repeat_borrow_of_same_schema_skips_the_set(self, two_tenants, tracking_on):
+        # Leave the next pooled connection on the other schema first: under
+        # random test order an earlier test can return it still on trk_a,
+        # which would make the first borrow below a reuse already.
+        database.get_tenant_db("trk_b").close()
         db = database.get_tenant_db("trk_a")
         raw = _raw(db)
         assert raw._hrz_sp == "trk_a" and raw._hrz_sp_reuse == 0
