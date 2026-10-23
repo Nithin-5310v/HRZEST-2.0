@@ -4,7 +4,7 @@
 # ── Testing ───────────────────────────────────────────────────────────────────
 pytest>=9.1.1
 pytest-cov>=7.1.0
-pytest-mock>=3.16.0
+pytest-mock>=3.17.0
 # Randomizes test order each run (seeded + printed, so a failure is
 # reproducible with `pytest -p randomly --randomly-seed=<seed>`) -- added
 # alongside tests/conftest.py's per-test DB snapshot/restore specifically so
@@ -15,7 +15,7 @@ pytest-randomly>=5.0.0
 flake8>=7.4.1
 
 # ── Static asset minification (see minify_static.py) ───────────────────────────
-rcssmin>=1.2.2
+rcssmin>=1.3.0
 rjsmin>=1.3.0
 
 # ── End-to-end browser tests (see tests_e2e/README.md) ──────────────────────────
@@ -24,4 +24,4 @@ rjsmin>=1.3.0
 # running instance of the app, not the Flask test client, so they need their
 # own browser binary (`playwright install chromium`) and are meaningfully
 # slower. Run with: pytest tests_e2e/ --browser chromium
-pytest-playwright>=0.5.2
+pytest-playwright>=0.10.0

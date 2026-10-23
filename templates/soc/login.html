@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="color-scheme" content="dark light">
+  <title>Sign in</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/soc/assets/login.css">
+</head>
+<body>
+  <main class="wrap">
+    <section class="card" aria-labelledby="h">
+      <div class="brand" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+        <span>Security Operations</span>
+      </div>
+
+      {% if step == "password" %}
+        <h1 id="h">Sign in</h1>
+        <p class="sub">Authorised personnel only. Activity is logged.</p>
+      {% elif step == "setup" %}
+        <h1 id="h">First sign-in</h1>
+        <p class="sub">Hello <strong>{{ username }}</strong>. Enter the one-time setup code you were given separately from your password.</p>
+      {% elif step == "enroll" %}
+        <h1 id="h">Set up your authenticator</h1>
+        <p class="sub">Scan the QR code with an authenticator app, then enter the 6-digit code it shows.</p>
+      {% else %}
+        <h1 id="h">Verification code</h1>
+        <p class="sub">Enter the 6-digit code from your authenticator app, <strong>{{ username }}</strong>.</p>
+      {% endif %}
+
+      {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+
+      {% if step == "password" %}
+      <form method="post" action="/soc/login" autocomplete="on">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="password">
+        <label for="u">Username</label>
+        <input id="u" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+        <label for="p">Password</label>
+        <input id="p" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Continue</button>
+      </form>
+
+      {% elif step == "setup" %}
+      <form method="post" action="/soc/login" autocomplete="off">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="setup">
+        <label for="s">Setup code</label>
+        <input id="s" name="setup_code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX" required autofocus>
+        <button type="submit">Continue</button>
+      </form>
+
+      {% elif step == "enroll" %}
+      <img class="qr" src="{{ qr }}" alt="QR code for your authenticator app" width="200" height="200">
+      <p class="sub small">Cannot scan? Enter this key manually: <code>{{ secret }}</code></p>
+      <form method="post" action="/soc/login" autocomplete="off">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="code">
+        <label for="c">6-digit code</label>
+        <input id="c" name="code" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" autocomplete="one-time-code" required autofocus>
+        <button type="submit">Activate and sign in</button>
+      </form>
+
+      {% else %}
+      <form method="post" action="/soc/login" autocomplete="off">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="code">
+        <label for="c">6-digit code</label>
+        <input id="c" name="code" type="text" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" autocomplete="one-time-code" required autofocus>
+        <button type="submit">Sign in</button>
+      </form>
+      {% endif %}
+
+      {% if step != "password" %}
+      <form method="post" action="/soc/login" class="restart">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="restart">
+        <button type="submit" class="link">Use a different account</button>
+      </form>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

@@ -95,6 +95,7 @@ from utils.helpers import (
 # (QA BUG-01): read them with cfg.shift_rules() / cfg.salary_rules().
 import utils.config as cfg
 import utils.waf as waf
+from utils.client_ip import is_protected_ip, warn_if_client_ip_collapsed, apply_proxy_fix
 
 # ── Trusted base URL for email links (avoids Host-header injection) ───────────
 # Set APP_URL=https://yourdomain.com in .env for production.
@@ -415,6 +416,10 @@ def _resolve_tenant():
     skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin", "/oauth/callback")
     if any(request.path.startswith(p) for p in skip_prefixes):
         return
+    # The SOC console is a platform surface, never tenant-scoped. Exact segment
+    # match so a company slug that merely starts with "soc" is unaffected.
+    if request.path == "/soc" or request.path.startswith("/soc/"):
+        return
 
     url_slug = request.environ.get("hrz.tenant_slug")
     url_tenant_db = request.environ.get("hrz.tenant_db")
@@ -497,10 +502,10 @@ def _resolve_tenant():
     # reuse its lookup instead of querying the master DB a second time.
     if url_slug and url_tenant_db:
         _g.tenant_db = url_tenant_db
-        # Set only by utils/tenant_routing.py's middleware; request headers
-        # reach environ as HTTP_* keys, so a client can't supply this one.
-        # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
-        _g.billing_locked = bool(request.environ.get("hrz.billing_locked"))
+        # Set only by utils/tenant_routing.py's middleware (a real bool);
+        # request headers reach environ as HTTP_* keys, so a client can't
+        # supply this one.
+        _g.billing_locked = request.environ.get("hrz.billing_locked") is True
         session["tenant_db"] = url_tenant_db
         session["tenant_slug"] = url_slug
         session["_tenant_status_checked_at"] = time.time()
@@ -602,13 +607,36 @@ def _enforce_ip_ban():
     ip = request.remote_addr
     if not ip:
         return
+    if is_protected_ip(ip):
+        # A non-routable/shared source address (container gateway, LAN,
+        # allow-listed probe) can't identify one client, so a ban row for
+        # it -- including one written before this guard existed -- would
+        # lock out every visitor behind it. See utils/client_ip.py.
+        warn_if_client_ip_collapsed(ip)
+        return
     db = get_db_connection()
     cursor = db.cursor()
     try:
-        cursor.execute(
-            "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())",
-            (ip,),
-        )
+        # banned_ips exists once per tenant schema AND in public, and the
+        # search_path puts the tenant's copy first -- so a plain
+        # `FROM banned_ips` only ever sees that tenant's own bans. Automated
+        # bans (utils/waf.ban_ip) are written to public.banned_ips so an
+        # attacker can't hop to another tenant's URL to shake them off;
+        # check both. With no tenant active the two names are one table.
+        try:
+            cursor.execute(
+                "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW()) "
+                "UNION ALL "
+                "SELECT reason FROM public.banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW()) "
+                "LIMIT 1",
+                (ip, ip),
+            )
+        except Exception:
+            # Schema-qualified name unsupported (SQLite dev fallback).
+            cursor.execute(
+                "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())",
+                (ip,),
+            )
         row = cursor.fetchone()
     finally:
         cursor.close()
@@ -643,6 +671,12 @@ def _waf_inspect_request():
     if request.path.startswith("/static/") or request.path == "/healthz":
         return
     if request.path in _WAF_EXEMPT_PATHS:
+        return
+    # SOC analysts legitimately search for and paste attack strings (an SQLi payload
+    # as an event filter, a hostile log excerpt). Exempt only authenticated
+    # /soc/api/ calls: the login page and everything else stay inspected, and
+    # that API uses bound parameters only (utils/soc_queries.py).
+    if request.path.startswith("/soc/api/") and session.get("soc_uid"):
         return
     hit = waf.inspect_request(request)
     if hit:
@@ -863,6 +897,8 @@ def _enforce_csrf():
             # page (auth.admin_login).
             if request.path.startswith("/super_admin"):
                 login_url = "/super_admin/login"
+            elif request.path == "/soc" or request.path.startswith("/soc/"):
+                login_url = "/soc/login"
             else:
                 login_url = url_for("auth.admin_login")
             return redirect(login_url)
@@ -998,7 +1034,9 @@ def _security_headers(response):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # setdefault so a surface that needs a stricter policy keeps its own (the SOC console sends
+    # no-referrer). No route sets a weaker one; keep it that way.
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=(self)"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
@@ -1059,7 +1097,10 @@ def _security_headers(response):
         # Cloudflare Turnstile (admin_login CAPTCHA; the home page's company
         # registration form, which POST /create_org checks it for) and the
         # employee portal loopback agent get path-scoped exceptions only.
-        _is_turnstile_page = request.path in ("/admin_login", "/login", "/")
+        # /create_org renders the same Turnstile widget on its manual-signup
+        # form; without it here the script/frame/connect are all blocked, the
+        # token comes back empty, and verify_turnstile() rejects every signup.
+        _is_turnstile_page = request.path in ("/admin_login", "/login", "/", "/create_org")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
         # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
         # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
@@ -2218,12 +2259,14 @@ if "core.home" not in app.view_functions:
     from blueprints.policies import policies_bp
     from blueprints.company_profile import company_profile_bp
     from blueprints.seo import seo_bp
+    from blueprints.privacy import privacy_bp
+    from blueprints.soc import soc_bp
     for _bp in (health_bp, notifications_bp, payroll_bp, leave_bp, admin_views_bp,
                 auth_bp, employees_bp, attendance_bp, tickets_bp, performance_bp,
                 documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp,
                 ai_hrms_bp, email_blast_bp, daily_report_bp, billing_bp, webhooks_bp, seats_bp, auto_debit_bp,
                 billing_dunning_bp, platform_admin_bp, honeypot_bp, disbursement_bp, hr_dashboard_bp, policies_bp,
-                company_profile_bp, seo_bp, oauth_signup_bp):
+                company_profile_bp, seo_bp, oauth_signup_bp, privacy_bp, soc_bp):
         app.register_blueprint(_bp)
 
 
@@ -2272,7 +2315,7 @@ if __name__ == "__main__":
     # sends the header at all.
     from werkzeug.middleware.proxy_fix import ProxyFix
     if not isinstance(app.wsgi_app, ProxyFix):
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+        app.wsgi_app = apply_proxy_fix(app.wsgi_app)
     # Only started here -- when app.py is run directly (`python app.py`,
     # local dev). wsgi.py (the real production entrypoint) already starts
     # this exact worker itself before importing app.py; starting it again

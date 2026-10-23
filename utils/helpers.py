@@ -6,11 +6,12 @@ import json
 import base64
 import datetime
 import hashlib
+import math
 import threading
 from contextlib import contextmanager
 
 import pytz
-from cryptography.fernet import Fernet, InvalidToken as _FernetInvalid
+from cryptography.fernet import Fernet, MultiFernet, InvalidToken as _FernetInvalid
 from flask import session, request, jsonify, abort
 from database import get_db_connection
 from extensions import app_log, log_security_event, redis_client
@@ -232,7 +233,14 @@ if not _ENCRYPTION_KEY:
     )
     raise RuntimeError("ENCRYPTION_KEY is not set -- refusing to start (fail-secure).")
 try:
-    _fernet = Fernet(_ENCRYPTION_KEY.encode())
+    # Key rotation: ENCRYPTION_KEY always encrypts. ENCRYPTION_KEY_PREVIOUS
+    # (comma-separated, newest first) is accepted for DECRYPTION only, so a
+    # rotation is: set the new ENCRYPTION_KEY, move the old one into
+    # ENCRYPTION_KEY_PREVIOUS, deploy, run scripts/rotate_encryption_key.py
+    # to re-encrypt stored values, then drop the old key. With no previous
+    # keys this behaves exactly like a single Fernet.
+    _previous_keys = [k.strip() for k in os.environ.get("ENCRYPTION_KEY_PREVIOUS", "").split(",") if k.strip()]
+    _fernet = MultiFernet([Fernet(k.encode()) for k in [_ENCRYPTION_KEY] + _previous_keys])
 except Exception as _key_err:
     app_log.critical(
         "FATAL: ENCRYPTION_KEY is set but malformed (%s) -- refusing to start "
@@ -1661,6 +1669,20 @@ def int_param(value):
         return int(value)
     except (TypeError, ValueError):
         abort(400, description="A number in the request is invalid.")
+
+
+def parse_finite_float(raw):
+    """float() for a number taken from a form or query string, refusing NaN
+    and infinity. float() accepts "nan", "inf" and "1e999" without raising,
+    and a NaN or infinite payroll rate or deduction percentage silently
+    corrupts every calculation that uses it (QA SEC-13). Raises ValueError,
+    which the callers' invalid-value handling already catches."""
+    if raw is None:
+        raise ValueError("missing number")
+    value = float(raw)
+    if not math.isfinite(value):
+        raise ValueError("number must be finite")
+    return value
 
 
 def wants_json_response():

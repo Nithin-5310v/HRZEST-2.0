@@ -1,7 +1,7 @@
 # ── Stage 1: builder ─────────────────────────────────────────────────────────
 # Compilers/headers needed only to build dlib (face_recognition) and psycopg2
 # extension wheels. None of this belongs in the image that actually runs.
-FROM python:3.11-slim AS builder
+FROM python:3.13-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1
 
@@ -15,16 +15,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-COPY requirements.txt .
+COPY requirements.txt requirements.lock ./
+# Default = requirements.txt (floors; resolves to the newest releases on the
+# day of the build -- the behaviour before the lockfile existed).
+# --build-arg REQUIREMENTS_FILE=requirements.lock = the exact, hash-verified
+# set from scripts/relock.sh: reproducible builds, and pip aborts if any
+# downloaded file doesn't match its recorded hash (supply-chain tamper check).
+ARG REQUIREMENTS_FILE=requirements.txt
 # --prefix isolates the installed tree so stage 2 can copy just this, not
 # pip's cache or the compiler toolchain above.
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN if [ "$REQUIREMENTS_FILE" = "requirements.lock" ]; then \
+        pip install --no-cache-dir --prefix=/install --require-hashes -r requirements.lock; \
+    else \
+        pip install --no-cache-dir --prefix=/install -r "$REQUIREMENTS_FILE"; \
+    fi
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 # Same base so glibc/ABI matches the builder; no compilers, no -dev headers,
 # no build tools — only the shared libs the compiled wheels dlopen at import
 # time (verify with `ldd` against your built .so files if this list drifts).
-FROM python:3.11-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -54,8 +64,21 @@ COPY --from=builder /install /usr/local
 # sees but Trivy's raw directory scan does. Delete any leftover
 # wheel*/jaraco.context* dist-info dirs first so only the freshly
 # installed one remains (CVE-2026-24049, CVE-2026-23949).
+#
+# Then pip itself goes: it is only needed for that upgrade. pip vendors its
+# own msgpack, urllib3 and setuptools (pkg_resources) and describes them in
+# an SBOM inside its dist-info, which Trivy reads -- the base image's pip
+# 26.2.2 carried msgpack 1.1.2 (GHSA-6v7p-g79w-8964), urllib3 2.7.0
+# (CVE-2026-97687, CVE-2026-97689) and setuptools 70.3.0 (CVE-2025-47273).
+# Nothing runs pip after the build (entrypoint.sh, the app and its
+# pkg_resources shim in utils/face_utils.py don't). The installed
+# setuptools (from requirements.txt, not pip's vendored copy) is clean
+# and stays.
 RUN (find / -xdev -type d \( -iname 'wheel-*' -o -iname 'jaraco.context-*' \) -exec rm -rf {} + || true) && \
-    pip install --no-cache-dir --upgrade wheel jaraco.context
+    pip install --no-cache-dir --upgrade wheel jaraco.context && \
+    python -m pip uninstall -y pip && \
+    (find / -xdev -type d -name 'pip-*.dist-info' -exec rm -rf {} + || true) && \
+    rm -rf /usr/local/lib/python3.13/site-packages/pip /root/.cache/pip
 
 WORKDIR /app
 COPY --chown=appuser:appuser . .

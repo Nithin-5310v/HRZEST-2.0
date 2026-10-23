@@ -1,0 +1,41 @@
+name: DAST (OWASP ZAP baseline)
+
+# Dynamic scan of a STAGING deployment -- never production. Runs weekly and on
+# demand. Does nothing (and says so) until the repository variable
+# STAGING_URL is set, so it is safe to merge before staging exists.
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    name: ZAP baseline against staging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write        # the action files/updates a findings issue
+    steps:
+      - name: Require a staging URL
+        id: gate
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+        run: |
+          if [ -z "${STAGING_URL}" ]; then
+            echo "::warning title=DAST skipped::Set the STAGING_URL repository variable to enable this scan."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            case "${STAGING_URL}" in https://*) echo "run=true" >> "$GITHUB_OUTPUT" ;;
+              *) echo "::error::STAGING_URL must be https://"; exit 1 ;; esac
+          fi
+
+      - name: ZAP baseline (passive, no attack payloads)
+        if: steps.gate.outputs.run == 'true'
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: ${{ vars.STAGING_URL }}
+          fail_action: false      # report only until the baseline is triaged
+          allow_issue_writing: true

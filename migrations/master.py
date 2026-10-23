@@ -1,10 +1,26 @@
-from database import get_db_connection, get_master_db
+from database import get_db_connection, get_master_db, owner_privileges, grant_runtime_privileges
 from extensions import app_log
 
 from .core_tables import _UPDATED_AT_TRIGGER_FN, _attach_updated_at_trigger
 
 
 def init_master_db():
+    """Entry point: runs the registry setup on the owner role (when a
+    DB_OWNER_USER split is configured -- see database.owner_privileges) and
+    then grants the runtime role DML on att_master."""
+    with owner_privileges():
+        _init_master_db_impl()
+        try:
+            db = get_master_db()
+            cur = db.cursor()
+            grant_runtime_privileges(cur)
+            cur.close()
+            db.close()
+        except Exception as _e:
+            app_log.warning("init_master_db: granting runtime privileges failed: %s", _e)
+
+
+def _init_master_db_impl():
     """Create the att_master tenant-registry schema and its tenants table if
     they don't exist. Postgres has no mid-connection database switch, so this
     is a schema within the shared database now, not a separate physical
@@ -652,3 +668,20 @@ def _init_master_auth_hardening():
         db.close()
     except Exception as _e:
         app_log.warning("init_master_db auth hardening failed: %s", _e, exc_info=True)
+    _init_master_soc_tables()
+
+
+def _init_master_soc_tables():
+    """SOC console tables (migrations/soc_tables.py), in their own try block
+    for the same reason as the step above: a failure here must not roll back
+    registry setup, and the app must still boot without the SOC console."""
+    from migrations.soc_tables import ensure_soc_tables
+    try:
+        db = get_master_db()
+        cur = db.cursor()
+        ensure_soc_tables(cur)
+        db.commit()
+        cur.close()
+        db.close()
+    except Exception as _e:
+        app_log.warning("init_master_db SOC tables failed: %s", _e, exc_info=True)

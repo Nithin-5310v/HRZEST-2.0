@@ -3,9 +3,9 @@
 import os
 import json
 import time
+import threading
 import datetime
 import hashlib
-import threading
 import urllib.request  # noqa: F401 -- module-level so tests can monkeypatch auth_module.urllib.request.urlopen
 import bcrypt as _bcrypt
 from functools import wraps
@@ -121,12 +121,24 @@ def record_password_change(cursor, table: str, id_value) -> None:
                        level="INFO", identifier=_mask_identifier(str(id_value)), account_type=table)
 
 
-def _read_password_version(table: str, id_value):
+def _read_password_version(table: str, id_value, use_cache: bool = False):
     """'' when never changed (or no such row), the timestamp's isoformat
-    otherwise, None if the lookup itself failed."""
+    otherwise, None if the lookup itself failed.
+
+    use_cache=True is ONLY for the per-request "has the password changed
+    since login" check, which wants the value as of the start of the request.
+    Everything that STAMPS a version into a session (login, and the
+    keep-this-session-alive step after a user changes their own password)
+    must read the live row -- the cached value predates the very change being
+    recorded."""
     id_column = _PASSWORD_TABLES.get(table)
     if not id_column:
         return None
+    if use_cache:
+        from utils import request_guard
+        cached = request_guard.cached_password_version(table, id_value)
+        if cached is not None:
+            return cached
     try:
         with _db() as (cur, _conn):
             cur.execute(f"SELECT password_changed_at FROM {table} WHERE {id_column}=%s",  # nosec B608 -- whitelisted literals
@@ -168,7 +180,7 @@ def _password_changed_since_login() -> bool:
         table, id_value, stamped = pwv
     except (TypeError, ValueError):
         return True
-    current = _read_password_version(table, id_value)
+    current = _read_password_version(table, id_value, use_cache=True)
     if current is None:
         return table not in _PASSWORD_TABLES
     return current != stamped
@@ -196,29 +208,37 @@ def _is_ajax_request() -> bool:
     )
 
 
-# ── Token hashing ─────────────────────────────────────────────────────────────
-def _hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
-# Expired tokens are already refused by every lookup's own expires_at > NOW()
-# check, so deleting them is housekeeping: at most once per tenant per process
-# every few minutes, not a write on every API request (QA PERF-01).
-_TOKEN_PURGE_INTERVAL_SEC = 300
+# Expired-token cleanup used to be a DELETE on EVERY API request -- a write
+# (and, via its own connection borrow, extra round-trips) on the hottest path
+# in the mobile API. It is housekeeping only: every token lookup already
+# filters `expires_at > NOW()`, so an expired row can never authenticate
+# whether or not it has been deleted yet. Run it at most once per interval
+# per tenant schema per process instead (TOKEN_PURGE_INTERVAL_SECONDS, 0 =
+# every request, the previous behaviour).
+_TOKEN_PURGE_INTERVAL = float(os.environ.get("TOKEN_PURGE_INTERVAL_SECONDS", "60"))
 _last_token_purge = {}
 _token_purge_lock = threading.Lock()
 
 
-def _purge_expired_tokens(cursor, conn):
-    tenant = getattr(_flask_g, "tenant_db", None) or "public"
+def _purge_expired_tokens(cursor, conn) -> bool:
+    """-> True if the purge ran this call."""
+    try:
+        schema = getattr(_flask_g, "tenant_db", None) or "public"
+    except RuntimeError:
+        schema = "public"
     now = time.monotonic()
     with _token_purge_lock:
-        last = _last_token_purge.get(tenant)
-        if last is not None and now - last < _TOKEN_PURGE_INTERVAL_SEC:
-            return
-        _last_token_purge[tenant] = now
+        if _TOKEN_PURGE_INTERVAL > 0 and now - _last_token_purge.get(schema, -1e12) < _TOKEN_PURGE_INTERVAL:
+            return False
+        _last_token_purge[schema] = now
     cursor.execute("DELETE FROM api_tokens WHERE expires_at < NOW()")
     conn.commit()
+    return True
+
+
+# ── Token hashing ─────────────────────────────────────────────────────────────
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 # ── Account lockout ───────────────────────────────────────────────────────────
@@ -448,6 +468,10 @@ def _account_still_active(table: str, id_column: str, id_value) -> bool:
     every legitimate session out of the whole app."""
     if not id_value:
         return True
+    from utils import request_guard
+    cached = request_guard.cached_account_active(table, id_column, id_value)
+    if cached is not None:
+        return cached
     try:
         from database import get_db_connection
         db = get_db_connection()
@@ -460,6 +484,55 @@ def _account_still_active(table: str, id_column: str, id_value) -> bool:
     except Exception as e:
         app_log.error("_account_still_active check failed for %s.%s: %s", table, id_column, e)
         return True
+
+
+def _prime_guard_state(table: str, id_column: str, id_value) -> None:
+    """Answer the three per-request guard questions (kill-switch flag, account
+    still active, password changed since login) with ONE statement and cache
+    the answers for this request only (utils/request_guard.py).
+
+    Equivalent to the three separate reads it replaces, minus two connection
+    borrows (2 queries + 2 `SET search_path` round-trips) on every
+    authenticated request. Deliberately conservative:
+      * table/id_column must be a known (table, column) pair -- never
+        request-controlled;
+      * the password-version part is only primed when the session's stamped
+        credential table/id is this same account (the common case); an HR
+        employee routed into the admin panel stamps `employees` while the
+        account checked is `admin_users`, so that read stays separate;
+      * on ANY error nothing is cached and the original per-check queries
+        run (each still failing open exactly as before).
+    """
+    from utils import request_guard
+    request_guard.clear()
+    if not id_value or _PASSWORD_TABLES.get(table) != id_column:
+        return
+    sid = session.get("_sid")
+    pwv = session.get("_pwv")
+    same_pwv = bool(pwv) and len(pwv) == 3 and pwv[0] == table and pwv[1] == id_value
+    try:
+        with _db() as (cur, _conn):
+            cur.execute(
+                "SELECT (SELECT status FROM session_risk WHERE sid=%s), "  # nosec B608
+                f"a.{id_column}, COALESCE(a.is_active, 1), a.password_changed_at "
+                f"FROM (SELECT 1) AS one LEFT JOIN {table} a ON a.{id_column}=%s",
+                (sid, id_value))
+            row = cur.fetchone()
+    except Exception as exc:
+        app_log.debug("guard-state prime failed (%s): %s", table, type(exc).__name__)
+        return
+    if not row:
+        return
+    risk, found, active, changed_at = row
+    state = {
+        "sid": sid, "risk": risk,
+        "acct": (table, id_column, id_value),
+        "exists": found is not None, "active": active,
+    }
+    if same_pwv:
+        state["pwv_key"] = (table, id_value)
+        state["pwv"] = changed_at.isoformat() if (found is not None and changed_at) else ""
+    request_guard.store(state)
 
 
 def _reject_if_account_deactivated(table: str, id_column: str, id_value, login_endpoint: str):
@@ -507,6 +580,7 @@ def admin_required(f):
                 return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
                                 "redirect": url_for("auth.admin_login")}), 401
             return redirect(url_for("auth.admin_login"))
+        _prime_guard_state("admin_users", "username", session.get("admin_username"))
         _killed = _reject_if_compromised("auth.admin_login")
         if _killed:
             return _killed
@@ -538,6 +612,7 @@ def employee_required(f):
             # used to redirect to 404s (dead route); auth.admin_login is
             # also what url_for(...) resolves to a build error for below.
             return redirect(url_for("auth.admin_login"))
+        _prime_guard_state("employees", "employee_id", session.get("employee_id"))
         _killed = _reject_if_compromised("auth.admin_login")
         if _killed:
             return _killed
@@ -574,6 +649,10 @@ def any_user_required(f):
                 return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
                                 "redirect": url_for("auth.admin_login")}), 401
             return redirect(url_for("auth.admin_login"))
+        if is_admin:
+            _prime_guard_state("admin_users", "username", session.get("admin_username"))
+        else:
+            _prime_guard_state("employees", "employee_id", session.get("employee_id"))
         _killed = _reject_if_compromised("auth.admin_login")
         if _killed:
             return _killed
@@ -600,6 +679,10 @@ def session_account_ok() -> bool:
     whose account is still active, and whose password hasn't changed
     since login."""
     sid = session.get("_sid")
+    if session.get("admin_logged_in"):
+        _prime_guard_state("admin_users", "username", session.get("admin_username"))
+    elif session.get("employee_id"):
+        _prime_guard_state("employees", "employee_id", session.get("employee_id"))
     if sid and is_session_compromised(sid):
         return False
     if session.get("admin_logged_in"):
@@ -634,6 +717,7 @@ def role_required(*allowed_roles):
                     return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
                                     "redirect": url_for("auth.admin_login")}), 401
                 return redirect(url_for("auth.admin_login"))
+            _prime_guard_state("admin_users", "username", session.get("admin_username"))
             _killed = _reject_if_compromised("auth.admin_login")
             if _killed:
                 return _killed

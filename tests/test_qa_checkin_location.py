@@ -16,6 +16,14 @@ from utils.helpers import get_auth_config
 # These tests exercise the location-only app check-in (QA NV-18).
 pytestmark = pytest.mark.usefixtures("app_gps_checkin_on")
 
+
+@pytest.fixture(autouse=True)
+def _location_rule_on(monkeypatch):
+    """conftest relaxes MOBILE_REQUIRE_LOCATION for the suite; these tests
+    check the rule itself (QA SEC-08), so they run with the production default."""
+    monkeypatch.setenv("MOBILE_REQUIRE_LOCATION", "true")
+
+
 OFFICE = TEST_OFFICE
 
 

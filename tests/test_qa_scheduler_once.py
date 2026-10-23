@@ -63,7 +63,13 @@ def test_every_scheduled_job_in_wsgi_goes_through_the_claim():
     tree = ast.parse(pathlib.Path(__file__).resolve().parents[1].joinpath("wsgi.py").read_text(encoding="utf-8"))
     add_job_calls = [n for n in ast.walk(tree)
                      if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "add_job"]
-    assert len(add_job_calls) == 7
+    assert add_job_calls
     for call in add_job_calls:
-        func = next(k.value for k in call.keywords if k.arg == "func")
-        assert isinstance(func, ast.Call) and getattr(func.func, "id", "") == "_scheduled_job"
+        kw = {k.arg: k.value for k in call.keywords}
+        func = kw["func"]
+        assert isinstance(func, ast.Call) and getattr(func.func, "id", "") == "_scheduled_job", ast.unparse(func)
+        # The claim is per minute: an "interval" trigger fires N minutes after
+        # each worker booted, at a different minute per worker, so the claim
+        # couldn't stop the duplicates. Repeating jobs use cron "*/N" instead.
+        trigger = kw.get("trigger")
+        assert not (isinstance(trigger, ast.Constant) and trigger.value == "interval"), ast.unparse(func)

@@ -81,6 +81,21 @@ compactor:
   retention_enabled: true
   delete_request_store: s3
 
+# Alert rules evaluated on the log host (rules/hrzest-security.yaml): audit-
+# anchor dead-man's switch, chain violations, detections, honeypot hits.
+# Point alertmanager_url at an Alertmanager (or Grafana's) to get
+# notifications; without one the rules still evaluate and are visible in
+# Grafana's Alerting > Alert rules view.
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+  rule_path: /loki/rules-tmp
+  alertmanager_url: ${ALERTMANAGER_URL:http://localhost:9093}
+  enable_api: false
+  evaluation_interval: 1m
+
 analytics:
   reporting_enabled: false
   # Loki phones home anonymous usage stats to Grafana Labs by default --

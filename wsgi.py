@@ -33,8 +33,9 @@ load_dotenv()
 
 # ── Import shared extensions FIRST (no side-effects) ─────────────────────────
 from extensions import app, app_log  # noqa: F401
-from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+from utils.client_ip import apply_proxy_fix
+# TRUSTED_PROXY_HOPS (default 1 = nginx) -- see utils/client_ip.py
+app.wsgi_app = apply_proxy_fix(app.wsgi_app)
 
 # Path-based multi-tenancy (www.hrzest.com/<company-slug>/...) -- strips a
 # recognized tenant slug into SCRIPT_NAME before Flask ever routes the
@@ -121,6 +122,9 @@ else:
         from blueprints.billing_dunning import check_tenant_billing
         from blueprints.disbursement import prepare_pending_disbursements
         from blueprints.trial_billing import check_trial_expirations, check_trial_ending_soon
+        from utils.detections import run_detections
+        from utils.privacy_jobs import run_retention_purge
+        from utils.audit_jobs import emit_anchors, run_full_verification
     except ImportError as _job_import_err:
         # Deliberately NOT the same except block as "apscheduler missing"
         # above -- that used to be one try/except ImportError covering
@@ -188,6 +192,49 @@ else:
                 trigger="cron",
                 hour=0, minute=30,
                 id="trial_ending_soon_check",
+                replace_existing=True,
+            )
+            # Every worker runs this scheduler, so every job goes through
+            # _scheduled_job's once-per-minute claim (QA SCALE-01). The
+            # repeating jobs fire on the clock ("*/N" minutes) rather than N
+            # minutes after each worker booted, so all workers fire in the
+            # same minute and the claim leaves exactly one to run.
+            # Correlation rules over security_events/audit_logs/punch_evidence
+            # (utils/detections.py); a per-(rule,key) cooldown claim also keeps
+            # each finding to one alert.
+            _scheduler.add_job(
+                func=_scheduled_job("security_detections", run_detections),
+                trigger="cron",
+                minute=f"*/{int(_os.environ.get('DETECTIONS_INTERVAL_MINUTES', '5'))}",
+                id="security_detections",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
+            # Audit-chain head anchors -> stdout -> Promtail -> Loki (off-box).
+            _scheduler.add_job(
+                func=_scheduled_job("audit_anchor", emit_anchors),
+                trigger="cron",
+                minute=f"*/{int(_os.environ.get('AUDIT_ANCHOR_INTERVAL_MINUTES', '10'))}",
+                id="audit_anchor",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
+            _scheduler.add_job(
+                func=_scheduled_job("audit_chain_verify", run_full_verification),
+                trigger="cron",
+                hour=3, minute=45,
+                id="audit_chain_verify",
+                replace_existing=True,
+            )
+            # Personal-data retention (utils/privacy.py): check-in face photos,
+            # punch evidence, spent challenges.
+            _scheduler.add_job(
+                func=_scheduled_job("privacy_retention_purge", run_retention_purge),
+                trigger="cron",
+                hour=3, minute=30,
+                id="privacy_retention_purge",
                 replace_existing=True,
             )
             _scheduler.start()

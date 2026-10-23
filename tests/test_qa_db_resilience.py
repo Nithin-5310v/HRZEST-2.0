@@ -54,6 +54,8 @@ def test_request_gets_503_not_sqlite_data(client, monkeypatch):
     api = client.get("/api/employee/portal", headers={"Authorization": "Bearer x"})
     assert api.status_code == 503
     assert api.get_json()["ok"] is False
-    page = client.get("/login")
+    # Submitting the login form has to read the database (the form itself no
+    # longer does): it must get the 503 page, never data from anywhere else.
+    page = client.post("/login", data={"identifier": "someone", "password": "x"})
     assert page.status_code == 503
     assert b"temporarily unavailable" in page.data.lower()

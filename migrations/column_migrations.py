@@ -20,6 +20,10 @@ def _run_schema_migrations(cursor, db):
     _run_company_policies_seed_v2(cursor, db)
     _run_push_tokens_table_migration(cursor, db)
     _run_auth_hardening_migration(cursor, db)
+    _run_audit_integrity_migration(cursor, db)
+    _run_punch_integrity_migration(cursor, db)
+    _run_privacy_tables_migration(cursor, db)
+    _run_detection_state_migration(cursor, db)
     _run_leave_declined_to_rejected(cursor, db)
 
 
@@ -75,6 +79,135 @@ def _run_auth_hardening_migration(cursor, db):
         app_log.warning("Migration 'auth hardening' failed: %s", exc, exc_info=True)
 
 
+def _run_audit_integrity_migration(cursor, db):
+    """The audit hash chain + strict immutability trigger (migrations/
+    audit_integrity.py). _init_core_tables() only ever runs for a brand-new
+    tenant or the default schema, so without this an already-provisioned
+    tenant would never receive the chain -- or the production-strict trigger
+    function that compiles out the audit.bypass escape hatch. Idempotent."""
+    try:
+        from .audit_integrity import init_audit_integrity
+        init_audit_integrity(cursor, db)
+    except Exception as exc:
+        db.rollback()
+        app_log.warning("Migration 'audit integrity' failed: %s", exc, exc_info=True)
+
+
+def _run_detection_state_migration(cursor, db):
+    """Cooldown bookkeeping for utils/detections.py: one row per (rule, key)
+    so concurrent workers and repeated scheduler ticks alert once."""
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS detection_state (
+                rule       VARCHAR(60)  NOT NULL,
+                key        VARCHAR(200) NOT NULL,
+                last_fired TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                fired      INT          NOT NULL DEFAULT 1,
+                PRIMARY KEY (rule, key)
+            )
+        """)
+        db.commit()
+    except psycopg2.Error as exc:
+        db.rollback()
+        app_log.warning("Migration 'detection_state' failed: %s", exc, exc_info=True)
+
+
+def _run_privacy_tables_migration(cursor, db):
+    """consent_records (append-only ledger) and privacy_requests (subject
+    access / erasure workflow) behind utils/privacy.py."""
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS consent_records (
+                id             SERIAL PRIMARY KEY,
+                employee_id    VARCHAR(50) NOT NULL,
+                purpose        VARCHAR(50) NOT NULL,
+                policy_version VARCHAR(30) NOT NULL,
+                granted        BOOLEAN NOT NULL,
+                ip             VARCHAR(64),
+                created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_consent_emp_purpose ON consent_records (employee_id, purpose, id DESC)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS privacy_requests (
+                id           SERIAL PRIMARY KEY,
+                employee_id  VARCHAR(50) NOT NULL,
+                kind         VARCHAR(20) NOT NULL,
+                status       VARCHAR(20) NOT NULL DEFAULT 'open',
+                note         TEXT,
+                requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                handled_by   VARCHAR(100),
+                handled_at   TIMESTAMP,
+                result_json  TEXT
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_privacy_requests_status ON privacy_requests (status, id)")
+        # Consent history is evidence of consent: append-only, same guard as
+        # the audit tables (the function is installed by the audit-integrity
+        # migration above; skipped if it is somehow absent).
+        cursor.execute("SELECT 1 FROM pg_proc WHERE proname = '_reject_audit_mutation' LIMIT 1")
+        if cursor.fetchone():
+            cursor.execute("DROP TRIGGER IF EXISTS trg_consent_records_immutable ON consent_records")
+            cursor.execute(
+                "CREATE TRIGGER trg_consent_records_immutable BEFORE UPDATE OR DELETE ON consent_records "
+                "FOR EACH ROW EXECUTE FUNCTION _reject_audit_mutation()")
+        db.commit()
+    except psycopg2.Error as exc:
+        db.rollback()
+        app_log.warning("Migration 'privacy tables' failed: %s", exc, exc_info=True)
+
+
+def _run_punch_integrity_migration(cursor, db):
+    """Tables/columns behind utils/punch_integrity.py (liveness challenges,
+    per-punch evidence, office-network allow-list). Idempotent; lives here
+    (not only in core_tables.py) so already-provisioned tenants get it --
+    _init_core_tables() never re-runs against an existing tenant."""
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS checkin_challenges (
+                id          VARCHAR(64) PRIMARY KEY,
+                employee_id VARCHAR(50) NOT NULL,
+                nonce_hash  VARCHAR(64) NOT NULL,
+                action      VARCHAR(16) NOT NULL,
+                ip          VARCHAR(64),
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at  TIMESTAMP NOT NULL,
+                used_at     TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_checkin_challenges_expires ON checkin_challenges (expires_at)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS punch_evidence (
+                id              SERIAL PRIMARY KEY,
+                employee_id     VARCHAR(50) NOT NULL,
+                channel         VARCHAR(20) NOT NULL,
+                auth_combo      VARCHAR(30),
+                ip              VARCHAR(64),
+                device_id       VARCHAR(64),
+                lat             DOUBLE PRECISION,
+                lon             DOUBLE PRECISION,
+                mocked          BOOLEAN DEFAULT FALSE,
+                liveness        VARCHAR(20),
+                liveness_action VARCHAR(16),
+                photo_sha256    VARCHAR(64),
+                photo_dhash     VARCHAR(64),
+                flags           VARCHAR(200),
+                outcome         VARCHAR(20) DEFAULT 'accepted',
+                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_punch_evidence_emp ON punch_evidence (employee_id, created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_punch_evidence_device ON punch_evidence (device_id, created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_punch_evidence_sha ON punch_evidence (photo_sha256)")
+        cursor.execute("ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS office_ip_cidrs TEXT DEFAULT ''")
+        cursor.execute("ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS require_office_network INT DEFAULT 0")
+        db.commit()
+    except psycopg2.Error as exc:
+        db.rollback()
+        app_log.warning("Migration 'punch integrity tables' failed: %s", exc, exc_info=True)
+
+
 def _run_push_tokens_table_migration(cursor, db):
     """Backfills the push_tokens table (see core_tables.py's own copy) into
     tenants provisioned BEFORE it was added there. _init_core_tables() only
@@ -115,6 +248,10 @@ def _run_column_migrations(cursor, db):
     # Migrations for existing installs
     for sql in [
         "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS logout_status VARCHAR(50) DEFAULT NULL",
+        # Previously issued lazily by blueprints/onboarding.py on every offer-letter save --
+        # runtime DDL in a request handler, which forces the web role to be a table owner.
+        "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS notice_period_days INT DEFAULT 30",
+        "ALTER TABLE offer_letters ADD COLUMN IF NOT EXISTS candidate_address TEXT",
         # When a drainer claimed the row; lets rows stranded in 'sending' by
         # a crashed worker go back to the queue (QA SCALE-06).
         "ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP DEFAULT NULL",
