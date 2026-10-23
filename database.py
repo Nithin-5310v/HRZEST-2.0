@@ -696,9 +696,16 @@ def _ensure_pg_schema(raw_conn):
         _log.warning("PostgreSQL schema migration note: %s", e)
 
 
+class DatabaseUnavailable(RuntimeError):
+    """PostgreSQL can't be reached. Raised instead of switching to the local
+    SQLite fallback anywhere but APP_ENV=development; app.py turns it into a
+    503 so the outage is loud, and the next request retries Postgres."""
+
+
 def _sqlite_fallback_allowed():
-    """Local/demo convenience only: allowed in APP_ENV=development, or when an
-    operator opts in explicitly. Never implicit in production."""
+    """Local/demo convenience only: allowed in APP_ENV=development (exact
+    match, read per call), or when an operator opts in explicitly with
+    ALLOW_SQLITE_FALLBACK. Never implicit in staging or production."""
     return (os.environ.get("APP_ENV", "production") == "development"
             or os.environ.get("ALLOW_SQLITE_FALLBACK", "").strip().lower() in ("1", "true", "yes"))
 
@@ -748,8 +755,9 @@ def _create_pool(retries=1, delay=0.1):
                         opool.putconn(oconn)
                 except Exception as _owner_exc:
                     _log.warning("owner-role schema bootstrap failed: %s", _owner_exc)
+                _pool = candidate  # the runtime pool itself connected fine
                 return
-            conn = _pool.getconn()
+            conn = candidate.getconn()
             _ensure_pg_schema(conn)
             candidate.putconn(conn)
             _pool = candidate  # only a pool that actually works is ever installed
@@ -764,18 +772,16 @@ def _create_pool(retries=1, delay=0.1):
             if attempt < retries:
                 time.sleep(delay)
     if not _sqlite_fallback_allowed():
-        # Fail closed. This used to fall back to a per-process SQLite file
-        # after a single failed connect (connect_timeout defaults to 1s), so a
-        # transient database blip at boot left that worker silently writing HR,
-        # attendance and payroll data to an ephemeral local file for the rest of
-        # its life -- split-brain data that no other worker or the real
-        # database would ever see. Leaving _pool unset means the NEXT request
-        # retries the connection; callers see an error in the meantime, which
-        # is the honest outcome.
+        # Fail closed. Never serve traffic from a per-process SQLite file:
+        # writes would be lost (split-brain data no other worker or the real
+        # database ever sees) and every tenant would look empty. Leaving
+        # _pool unset means the NEXT request retries Postgres.
         _pool = None
-        _log.error("PostgreSQL unavailable and the SQLite fallback is disabled outside "
-                   "development (set ALLOW_SQLITE_FALLBACK=true to override) -- failing the request.")
-        raise RuntimeError("PostgreSQL unavailable")
+        _log.critical(
+            "PostgreSQL unavailable after %d attempt(s) -- refusing to fall back to SQLite outside "
+            "APP_ENV=development (set ALLOW_SQLITE_FALLBACK=true to override)", retries,
+        )
+        raise DatabaseUnavailable("PostgreSQL is unavailable")
     _log.error(
         "PostgreSQL unavailable -- falling back to local SQLite (%s). "
         "This is fine for local/demo use, but if this happens in production, "

@@ -11,7 +11,7 @@ from contextlib import contextmanager
 
 import pytz
 from cryptography.fernet import Fernet, MultiFernet, InvalidToken as _FernetInvalid
-from flask import session, request
+from flask import session, request, jsonify, abort
 from database import get_db_connection
 from extensions import app_log, log_security_event, redis_client
 

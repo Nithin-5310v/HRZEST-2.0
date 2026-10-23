@@ -33,7 +33,6 @@ from utils.attendance_utils import (
 )
 from utils.face_utils import face_recognition, _face_recognition_available, _get_known_face_encoding
 from utils.webauthn_utils import _wa_fingerprint_recently_verified
-import utils.config as cfg
 from utils import punch_integrity as pi
 
 attendance_bp = Blueprint("attendance", __name__)

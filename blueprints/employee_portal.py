@@ -29,7 +29,6 @@ from utils.face_utils import face_recognition, _face_recognition_available, _get
 from utils.webauthn_utils import _wa_fingerprint_recently_verified, _mobile_biometric_recently_verified
 from qr_generator import generate_qr
 from utils.storage import open_private
-import utils.config as cfg
 from utils import punch_integrity as pi
 
 employee_portal_bp = Blueprint("employee_portal", __name__)
@@ -883,6 +882,16 @@ def api_employee_portal():
     })
 
 
+def _mobile_location_enforced(auth_cfg):
+    """App check-ins (live and offline sync) must carry coordinates when the
+    company enforces location -- on unless the company turned it off (QA
+    SEC-08). MOBILE_REQUIRE_LOCATION=false is the deployment-wide opt-out
+    from the security-hardening work."""
+    if os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() in ("false", "0", "no"):
+        return False
+    return bool(auth_cfg.get("location_enabled", True))
+
+
 @employee_portal_bp.route("/api/employee/checkin", methods=["POST"])
 @employee_api_required
 def api_employee_checkin():
@@ -925,13 +934,10 @@ def api_employee_checkin():
     _d = pi.check_office_network(ctx, cursor, work_mode, log_security_event)
     if not _d.allow:
         return _reject(_d)
-    # This route used to run the geofence only `if lat and lon:` -- a client
-    # that simply omitted the coordinates skipped the location check
-    # entirely, whatever the company's location setting said. Enforce the
-    # setting the same way /attendance does. MOBILE_REQUIRE_LOCATION=false
-    # restores the old permissive behaviour for a deployment that must.
-    if (os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() not in ("false", "0", "no")
-            and get_auth_config().get("location_enabled") and not (lat and lon)):
+    # Same rule as the kiosk (/attendance): with location enforced, a request
+    # that leaves the coordinates out is refused rather than skipping the
+    # geofence (QA SEC-08).
+    if _mobile_location_enforced(auth_cfg) and not (lat and lon):
         ctx.flag("location_missing")
         return _reject(pi.Decision(False, 400,
                                    "Location not captured. Please allow location access and try again.",
@@ -963,38 +969,18 @@ def api_employee_checkin():
     # app never sends it here; queued offline punches go through
     # /api/employee/sync_punches.
     now = company_now()
+    # The client's punched_at never sets the time (above), but an old one
+    # still means the app queued this punch while offline -- flag it for HR
+    # review in the punch evidence.
+    punched_at_str = str(data.get("punched_at") or "")
     if punched_at_str:
         try:
             _pt = datetime.datetime.fromisoformat(punched_at_str.replace("Z", "+00:00"))
-            if _pt.tzinfo is not None:
-                # Mobile sends Date.toISOString() (always UTC, "...Z") --
-                # convert to the tenant's configured timezone before using
-                # it as a wall-clock "now". Previously this just discarded
-                # the offset (.replace(tzinfo=None)) and treated the raw
-                # UTC digits as if they were already local, which shifted
-                # every offline check-in's date/time by the UTC offset
-                # (e.g. a 9am IST check-in landing as 3:30am).
-                _pt = _pt.astimezone(now.tzinfo)
-            else:
-                # No offset info on the string (e.g. this app's own test
-                # suite posts a naive isoformat()) -- assume it already
-                # represents company-local wall-clock time, same as before.
-                _pt = now.tzinfo.localize(_pt)
-            if (now - _pt).total_seconds() <= 86400:
-                if (now - _pt).total_seconds() > 600:
-                    ctx.flag("offline_punch")      # client-chosen timestamp, flagged for HR review
-                now = _pt
-            else:
-                cursor.close()
-                db.close()
-                return jsonify({"ok": False, "msg": "Offline punch too old (>24 h). Rejected."}), 400
+            _pt = _pt.astimezone(now.tzinfo) if _pt.tzinfo is not None else now.tzinfo.localize(_pt)
+            if (now - _pt).total_seconds() > 600:
+                ctx.flag("offline_punch")
         except (ValueError, TypeError) as exc:
-            # Deliberate fallback, not a bug being hidden: an unparseable
-            # client-supplied offline-punch timestamp just means `now`
-            # (already set above) is used instead -- still worth a trace
-            # for diagnosing a client that's persistently sending malformed
-            # timestamps.
-            app_log.debug("Unparseable offline-punch punched_at=%r: %s", punched_at_str, exc)
+            app_log.debug("Unparseable punched_at=%r: %s", punched_at_str, exc)
 
     pi.record_evidence(ctx, cursor, outcome="accepted")
 
@@ -1073,8 +1059,8 @@ def api_employee_sync_punches():
         db2.close()
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     _work_mode, _work_lat, _work_lon = _emp_row[1], _emp_row[2], _emp_row[3]
-    _require_loc = (os.environ.get("MOBILE_REQUIRE_LOCATION", "true").strip().lower() not in ("false", "0", "no")
-                    and get_auth_config().get("location_enabled"))
+    s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cur2)
+    location_enforced = _mobile_location_enforced(get_auth_config())
     _device_id = pi.sanitize_device_id(payload.get("device_id"))
 
     results = []
@@ -1087,25 +1073,21 @@ def api_employee_sync_punches():
             pi.record_evidence(ctx, cur2, outcome="rejected")
             results.append({"id": punch.get("id"), "ok": False, "msg": _d.msg})
             continue
-        if _require_loc and not (punch.get("lat") and punch.get("lon")):
+        lat = punch.get("lat")
+        lon = punch.get("lon")
+        # With location enforced, a punch without coordinates is refused,
+        # exactly like the live route (QA SEC-08).
+        if location_enforced and not (lat and lon):
             ctx.flag("location_missing")
             pi.record_evidence(ctx, cur2, outcome="rejected")
-            results.append({"id": punch.get("id"), "ok": False, "msg": "Location missing."})
+            results.append({"id": punch.get("id"), "ok": False,
+                            "msg": "Location not captured. Please allow location access."})
             continue
         # "received", not "accepted": the geofence/timestamp checks below can
         # still reject this punch after the integrity layer has seen it.
         pi.record_evidence(ctx, cur2, outcome="received")
         # Same geo-fence check as the live check-in route (is_within_range
-        # against work_lat/work_lon for wfh, else is_within_office_range) --
-        # previously captured but never enforced here, unlike the live
-        # route. With location enforced, a punch without coordinates is
-        # refused, exactly like the live route.
-        lat = punch.get("lat")
-        lon = punch.get("lon")
-        if location_enforced and not (lat and lon):          # QA SEC-08, as on the live endpoint
-            results.append({"id": punch.get("id"), "ok": False,
-                            "msg": "Location not captured. Please allow location access."})
-            continue
+        # against work_lat/work_lon for wfh, else is_within_office_range).
         if lat and lon:
             try:
                 lat_f = float(lat)

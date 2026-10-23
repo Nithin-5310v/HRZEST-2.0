@@ -442,6 +442,7 @@ class TestFlaggedPunchesEndpoint:
 
 
 # ── the GPS-only mobile routes ───────────────────────────────────────────────
+@pytest.mark.usefixtures("app_gps_checkin_on")  # location-only app check-in is opt-in (QA NV-18)
 class TestMobileCheckin:
     @pytest.fixture(autouse=True)
     def _location_rule_on(self, monkeypatch):

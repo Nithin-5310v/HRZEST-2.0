@@ -83,10 +83,13 @@ class TestSyncPunchesGeofence:
         assert len(results) == 1
         assert results[0]["ok"] is True
 
-    def test_punch_without_coordinates_refused_when_location_enforced(self, client, seed_employee, db_engine):
+    def test_punch_without_coordinates_refused_when_location_enforced(
+            self, client, seed_employee, db_engine, monkeypatch):
         """No lat/lon sent at all while location is enforced (this class's
         fixture sets location_enabled=1) -- refused, like the live check-in
-        route. It used to skip the geofence instead (QA SEC-08)."""
+        route. It used to skip the geofence instead (QA SEC-08). conftest
+        relaxes MOBILE_REQUIRE_LOCATION for the suite; this tests the rule."""
+        monkeypatch.setenv("MOBILE_REQUIRE_LOCATION", "true")
         auth = _login(client, seed_employee)
         r = client.post("/api/employee/sync_punches", headers=auth, json={
             "punches": [{"id": "1", "punched_at": _now_str()}]

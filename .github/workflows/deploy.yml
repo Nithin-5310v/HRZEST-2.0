@@ -447,7 +447,12 @@ jobs:
       HAS_DEPLOY_SECRETS: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
 
     steps:
+      - name: Warn that the deploy was skipped
+        if: env.HAS_DEPLOY_SECRETS != 'true'
+        run: echo "::warning title=Deploy skipped::SSH_HOST, SSH_USER and SSH_KEY secrets are not all set, so nothing was deployed."
+
       - name: Deploy the signed image by digest
+        if: env.HAS_DEPLOY_SECRETS == 'true'
         # SSH_USER must be the "attendance" user deploy.sh creates -- it runs
         # rootless Podman and owns /opt/employee-attendance directly, so no
         # sudo is needed (and it has none). Add the CI key to

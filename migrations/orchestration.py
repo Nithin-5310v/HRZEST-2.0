@@ -1,3 +1,6 @@
+import os
+import re
+
 from database import get_db_connection, owner_privileges, grant_runtime_privileges
 from extensions import app_log
 
@@ -161,13 +164,19 @@ def _run_migrations_for_all_tenants():
                                  "re-provisioned", schema)
             continue
         try:
+            # DDL runs on the owner role (security-hardening's DB role
+            # split); the runtime role is then granted what it needs on
+            # this schema. Grants are transactional, hence the commit.
             with owner_privileges():
+                created_by_migrations, present[schema] = _migrate_tenant(schema)
+                from database import get_tenant_db
                 db = get_tenant_db(schema)
                 cursor = db.cursor(buffered=True)
-                _run_schema_migrations(cursor, db)
                 grant_runtime_privileges(cursor)
+                db.commit()
                 cursor.close()
                 db.close()
+            required |= created_by_migrations
         except Exception as exc:
             app_log.warning("Migration: tenant schema '%s' failed: %s", schema, exc, exc_info=True)
 
