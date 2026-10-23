@@ -6,7 +6,6 @@ import time
 import threading
 import datetime
 import hashlib
-import threading
 import urllib.request  # noqa: F401 -- module-level so tests can monkeypatch auth_module.urllib.request.urlopen
 import bcrypt as _bcrypt
 from functools import wraps

@@ -139,7 +139,14 @@ class TestSignupPageCsp:
         for name in ("script-src", "frame-src", "connect-src"):
             assert "https://challenges.cloudflare.com" in self._directive(csp, name), name
 
-    @pytest.mark.parametrize("path", ["/", "/get-started", "/checkin"])
+    def test_turnstile_is_allowed_on_the_home_page(self, client):
+        """The home page carries the same registration form and widget
+        (templates/landing.html), posting to /create_org."""
+        csp = client.get("/").headers["Content-Security-Policy"]
+        for name in ("script-src", "frame-src", "connect-src"):
+            assert "https://challenges.cloudflare.com" in self._directive(csp, name), name
+
+    @pytest.mark.parametrize("path", ["/get-started", "/checkin"])
     def test_turnstile_is_not_opened_up_elsewhere(self, client, path):
         resp = client.get(path, follow_redirects=False)
         csp = resp.headers.get("Content-Security-Policy", "")

@@ -157,6 +157,7 @@ _PREFIX = {
     "ratelimit": ("ratelimit", []),
     "validation": ("validation", []),
     "app": ("app", []),
+    "db": ("app", []),          # db.unavailable: PostgreSQL down, requests answered 503
     "tenant": ("access", []),
     "mfa": ("auth", []),
     "soc": ("soc", []),

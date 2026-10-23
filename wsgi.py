@@ -194,13 +194,18 @@ else:
                 id="trial_ending_soon_check",
                 replace_existing=True,
             )
+            # Every worker runs this scheduler, so every job goes through
+            # _scheduled_job's once-per-minute claim (QA SCALE-01). The
+            # repeating jobs fire on the clock ("*/N" minutes) rather than N
+            # minutes after each worker booted, so all workers fire in the
+            # same minute and the claim leaves exactly one to run.
             # Correlation rules over security_events/audit_logs/punch_evidence
-            # (utils/detections.py). Every worker schedules it; a per-(rule,key)
-            # cooldown claim keeps that to one alert.
+            # (utils/detections.py); a per-(rule,key) cooldown claim also keeps
+            # each finding to one alert.
             _scheduler.add_job(
-                func=_with_heartbeat("security_detections", run_detections),
-                trigger="interval",
-                minutes=int(_os.environ.get("DETECTIONS_INTERVAL_MINUTES", "5")),
+                func=_scheduled_job("security_detections", run_detections),
+                trigger="cron",
+                minute=f"*/{int(_os.environ.get('DETECTIONS_INTERVAL_MINUTES', '5'))}",
                 id="security_detections",
                 replace_existing=True,
                 max_instances=1,
@@ -208,16 +213,16 @@ else:
             )
             # Audit-chain head anchors -> stdout -> Promtail -> Loki (off-box).
             _scheduler.add_job(
-                func=_with_heartbeat("audit_anchor", emit_anchors),
-                trigger="interval",
-                minutes=int(_os.environ.get("AUDIT_ANCHOR_INTERVAL_MINUTES", "10")),
+                func=_scheduled_job("audit_anchor", emit_anchors),
+                trigger="cron",
+                minute=f"*/{int(_os.environ.get('AUDIT_ANCHOR_INTERVAL_MINUTES', '10'))}",
                 id="audit_anchor",
                 replace_existing=True,
                 max_instances=1,
                 coalesce=True,
             )
             _scheduler.add_job(
-                func=_with_heartbeat("audit_chain_verify", run_full_verification),
+                func=_scheduled_job("audit_chain_verify", run_full_verification),
                 trigger="cron",
                 hour=3, minute=45,
                 id="audit_chain_verify",
@@ -226,7 +231,7 @@ else:
             # Personal-data retention (utils/privacy.py): check-in face photos,
             # punch evidence, spent challenges.
             _scheduler.add_job(
-                func=_with_heartbeat("privacy_retention_purge", run_retention_purge),
+                func=_scheduled_job("privacy_retention_purge", run_retention_purge),
                 trigger="cron",
                 hour=3, minute=30,
                 id="privacy_retention_purge",
