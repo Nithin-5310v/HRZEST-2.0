@@ -64,8 +64,21 @@ COPY --from=builder /install /usr/local
 # sees but Trivy's raw directory scan does. Delete any leftover
 # wheel*/jaraco.context* dist-info dirs first so only the freshly
 # installed one remains (CVE-2026-24049, CVE-2026-23949).
+#
+# Then pip itself goes: it is only needed for that upgrade. pip vendors its
+# own msgpack, urllib3 and setuptools (pkg_resources) and describes them in
+# an SBOM inside its dist-info, which Trivy reads -- the base image's pip
+# 26.2.2 carried msgpack 1.1.2 (GHSA-6v7p-g79w-8964), urllib3 2.7.0
+# (CVE-2026-97687, CVE-2026-97689) and setuptools 70.3.0 (CVE-2025-47273).
+# Nothing runs pip after the build (entrypoint.sh, the app and its
+# pkg_resources shim in utils/face_utils.py don't). The installed
+# setuptools (from requirements.txt, not pip's vendored copy) is clean
+# and stays.
 RUN (find / -xdev -type d \( -iname 'wheel-*' -o -iname 'jaraco.context-*' \) -exec rm -rf {} + || true) && \
-    pip install --no-cache-dir --upgrade wheel jaraco.context
+    pip install --no-cache-dir --upgrade wheel jaraco.context && \
+    python -m pip uninstall -y pip && \
+    (find / -xdev -type d -name 'pip-*.dist-info' -exec rm -rf {} + || true) && \
+    rm -rf /usr/local/lib/python3.13/site-packages/pip /root/.cache/pip
 
 WORKDIR /app
 COPY --chown=appuser:appuser . .
