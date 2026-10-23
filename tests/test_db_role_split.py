@@ -55,8 +55,8 @@ class TestRuntimeRoleIsNotAnOwner:
     def test_normal_dml_works(self, runtime):
         runtime.execute("SELECT COUNT(*) FROM employees")
         runtime.fetchone()
-        runtime.execute("INSERT INTO login_attempts (identifier, attempt_type, ip_address) "
-                        "VALUES ('rolesplit','admin','203.0.113.1') ON CONFLICT DO NOTHING")
+        runtime.execute("INSERT INTO login_attempts (identifier, attempt_type, failed_count) "
+                        "VALUES ('rolesplit','admin',1) ON CONFLICT DO NOTHING")
 
 
 @requires_split
@@ -81,6 +81,13 @@ class TestAuditTablesAreAppendOnlyForRuntime:
         _denied(runtime, "SELECT * FROM audit_chain_head")
         _denied(runtime, "UPDATE audit_chain_head SET head = repeat('0', 64)")
         _denied(runtime, "DELETE FROM audit_chain_head")
+
+    def test_soc_audit_trail_is_append_only_by_grant(self, runtime):
+        """Not only by its trigger: the runtime role holds no UPDATE/DELETE/TRUNCATE at all."""
+        runtime.execute("INSERT INTO att_master.soc_audit_log (actor, action) VALUES ('rolesplit','probe')")
+        for sql in ("UPDATE att_master.soc_audit_log SET detail='x'", "DELETE FROM att_master.soc_audit_log",
+                    "TRUNCATE att_master.soc_audit_log"):
+            _denied(runtime, sql)
 
 
 @requires_split
@@ -127,6 +134,7 @@ def test_grant_statements_are_pure_and_reject_unsafe_identifiers():
     ok = database.runtime_grant_statements("tenant_acme", "hrzest_app")
     assert any("GRANT USAGE ON SCHEMA \"tenant_acme\"" in s for s in ok)
     assert any("REVOKE UPDATE, DELETE, TRUNCATE" in s and "audit_logs" in s for s in ok)
+    assert any("REVOKE UPDATE, DELETE, TRUNCATE" in s and "soc_audit_log" in s for s in ok)
     assert any("audit_chain_head" in s and "REVOKE ALL" in s for s in ok)
     assert database.runtime_grant_statements('x"; DROP SCHEMA public;--', "hrzest_app") == []
     assert database.runtime_grant_statements("public", "bad role") == []

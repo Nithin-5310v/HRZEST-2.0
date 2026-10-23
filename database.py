@@ -643,8 +643,9 @@ def runtime_grant_statements(schema, app_role):
     ]
     # Append-only for the runtime role no matter what triggers say, and no
     # access at all to the hash-chain head pointer (the chain trigger is
-    # SECURITY DEFINER, so it still works).
-    for tbl in ("audit_logs", "security_events"):
+    # SECURITY DEFINER, so it still works). soc_audit_log lives in att_master
+    # only; to_regclass makes this a no-op in every other schema.
+    for tbl in ("audit_logs", "security_events", "soc_audit_log"):
         stmts.append(
             f"DO $$ BEGIN IF to_regclass('{schema}.{tbl}') IS NOT NULL THEN "
             f"REVOKE UPDATE, DELETE, TRUNCATE ON {s}.{tbl} FROM {r}; END IF; END $$")
