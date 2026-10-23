@@ -6,6 +6,7 @@ import json
 import base64
 import datetime
 import hashlib
+import math
 import threading
 from contextlib import contextmanager
 
@@ -1668,6 +1669,20 @@ def int_param(value):
         return int(value)
     except (TypeError, ValueError):
         abort(400, description="A number in the request is invalid.")
+
+
+def parse_finite_float(raw):
+    """float() for a number taken from a form or query string, refusing NaN
+    and infinity. float() accepts "nan", "inf" and "1e999" without raising,
+    and a NaN or infinite payroll rate or deduction percentage silently
+    corrupts every calculation that uses it (QA SEC-13). Raises ValueError,
+    which the callers' invalid-value handling already catches."""
+    if raw is None:
+        raise ValueError("missing number")
+    value = float(raw)
+    if not math.isfinite(value):
+        raise ValueError("number must be finite")
+    return value
 
 
 def wants_json_response():

@@ -967,6 +967,10 @@ def platform_admin_delete_tenant(tenant_id):
 # verify_payment() after the post-approval payment step completes).
 
 _APPLICATION_DOC_KINDS = ("registration_cert", "address_proof", "visiting_card", "name_board_photo")
+# One fixed statement per document column: doc_kind only ever selects among
+# these, so nothing from the request is formatted into SQL (QA SEC-12).
+_APPLICATION_DOC_SQL = {kind: "SELECT doc_" + kind + " FROM tenant_applications WHERE id=%s"  # nosec B608
+                        for kind in _APPLICATION_DOC_KINDS}
 _APPLICATION_STATUS_COLS = (
     "id, company_name, subdomain, admin_username, admin_email, email_domain, gst_number, employee_count, "
     "payment_option, logo_path, email_verified_at, doc_registration_cert, doc_address_proof, "
@@ -1063,8 +1067,7 @@ def platform_admin_view_document(application_id, doc_kind):
         return redirect(f"/super_admin/applications/{application_id}")
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    # nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string
-    cur.execute(f"SELECT doc_{doc_kind} FROM tenant_applications WHERE id=%s", (application_id,))  # nosec B608 -- doc_kind is allowlist-checked against _APPLICATION_DOC_KINDS above, never interpolated from an unchecked value  # noqa: E501
+    cur.execute(_APPLICATION_DOC_SQL[doc_kind], (application_id,))  # nosec B608 -- doc_kind is allowlist-checked against _APPLICATION_DOC_KINDS above, never interpolated from an unchecked value  # noqa: E501
     row = cur.fetchone()
     cur.close()
     conn.close()

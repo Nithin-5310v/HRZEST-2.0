@@ -12,7 +12,6 @@ that registers it.
 """
 import datetime
 import calendar
-import math
 import io as _io
 import openpyxl
 from markupsafe import escape
@@ -30,7 +29,7 @@ from utils.auth import (
 )
 from utils.helpers import (
     tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime,
-    hr_scope_column, int_param,
+    hr_scope_column, int_param, parse_finite_float,
 )
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
 from utils.attendance_utils import (
@@ -1338,24 +1337,15 @@ def payroll_settings():
 
     if request.method == "POST":
         try:
-            # nan-injection findings below: float() accepts the literal
-            # string "nan" without raising, so the try/except here doesn't
-            # catch it -- the math.isnan() guard a few lines down is what
-            # actually rejects it, not this try block.
-            pf_emp = float(request.form.get("pf_employee_pct", 12))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
-            pf_er = float(request.form.get("pf_employer_pct", 12))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
-            pt = float(request.form.get("professional_tax", 200))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
-            tds = float(request.form.get("tds_annual_pct", 0))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
-            pf_cap = float(request.form.get("pf_basic_cap", 15000))  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+            # parse_finite_float() refuses "nan" and "inf" too: float()
+            # accepts both, and either corrupts every payroll calculation
+            # that uses the rate (QA SEC-13).
+            pf_emp = parse_finite_float(request.form.get("pf_employee_pct", 12))
+            pf_er = parse_finite_float(request.form.get("pf_employer_pct", 12))
+            pt = parse_finite_float(request.form.get("professional_tax", 200))
+            tds = parse_finite_float(request.form.get("tds_annual_pct", 0))
+            pf_cap = parse_finite_float(request.form.get("pf_basic_cap", 15000))
         except (ValueError, TypeError):
-            flash("Invalid values.", "error")
-            cursor.close()
-            db.close()
-            return redirect(tpath("/payroll_settings"))
-        # NaN would silently corrupt every downstream payroll calculation
-        # that compares against these values (NaN comparisons are always
-        # False) -- reject it explicitly since float() alone won't.
-        if any(math.isnan(v) for v in (pf_emp, pf_er, pt, tds, pf_cap)):
             flash("Invalid values.", "error")
             cursor.close()
             db.close()

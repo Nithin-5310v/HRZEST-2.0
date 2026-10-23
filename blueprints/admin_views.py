@@ -42,7 +42,7 @@ from utils.helpers import (
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
     encrypt_pii, decrypt_pii, invalidate_companies_cache,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
-    post_announcement, _validate_upload, company_today, company_now, int_param,
+    post_announcement, _validate_upload, company_today, company_now, int_param, parse_finite_float,
     get_auth_config, app_gps_checkin_allowed,
 )
 from utils.storage import save_private, open_private, delete_private
@@ -67,6 +67,26 @@ _TOGGLE_COLUMN_MAP = {
     "password": "employee_password_auth",
     "app_gps": "app_gps_checkin",
 }
+# company_settings columns the settings toggles write (toggle_auth_method,
+# toggle_feature, api_settings_toggle_feature). A column name can't be a
+# query parameter, so each column gets one fixed statement, built from these
+# constants at import; nothing from a request is ever formatted into SQL
+# (QA SEC-12).
+_CS_FLAG_COLUMNS = frozenset(_TOGGLE_COLUMN_MAP.values()) | {
+    "face_auth_enabled", "geo_enabled", "qr_enabled", "pin_enabled", "fingerprint_enabled",
+    "biometric_enabled", "notify_leave", "notify_payslip", "notify_resignation", "notify_doc_expiry",
+}
+_CS_FLAG_UPDATE_SQL = {col: "UPDATE company_settings SET " + col + "=%s"  # nosec B608 -- constant column names
+                       for col in _CS_FLAG_COLUMNS}
+
+
+def _update_company_setting_flag(cursor, column, value):
+    sql = _CS_FLAG_UPDATE_SQL.get(column)
+    if sql is None:
+        raise ValueError(f"not a company_settings flag column: {column!r}")
+    cursor.execute(sql, (value,))
+
+
 _TOGGLE_LABEL_MAP = {
     "fingerprint": "Fingerprint / Biometric",
     "qr": "QR Code",
@@ -1060,8 +1080,9 @@ def save_default_onboarding_template():
 @role_required("admin")
 def save_salary_rules():
     try:
-        late_pct = max(0.0, min(100.0, float(request.form.get("late_deduction_pct", 10))))
-        half_pct = max(0.0, min(100.0, float(request.form.get("half_day_deduction_pct", 50))))
+        # parse_finite_float: a "nan" here used to be clamped to 100% (QA SEC-13).
+        late_pct = max(0.0, min(100.0, parse_finite_float(request.form.get("late_deduction_pct", 10))))
+        half_pct = max(0.0, min(100.0, parse_finite_float(request.form.get("half_day_deduction_pct", 50))))
         grace_min = max(0, min(120, int(request.form.get("grace_minutes", 15))))
     except (ValueError, TypeError):
         flash("Invalid values.", "error")
@@ -1131,7 +1152,7 @@ def toggle_auth_method():
             return redirect(tpath("/settings?tab=attendance"))
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
-        cursor.execute(f"UPDATE company_settings SET {column}=%s", (1 if enabled else 0,))  # nosec B608 nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string  # noqa: E501
+        _update_company_setting_flag(cursor, column, 1 if enabled else 0)
         db.commit()
         cursor.close()
         db.close()
@@ -1243,7 +1264,7 @@ def toggle_feature():
     else:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
-        cursor.execute(f"UPDATE company_settings SET {cs_col}=%s", (value,))  # nosec B608 nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string  # noqa: E501
+        _update_company_setting_flag(cursor, cs_col, value)
         db.commit()
         cursor.close()
         db.close()
@@ -1412,8 +1433,7 @@ def api_settings_toggle_feature():
         return jsonify({"ok": False, "msg": "Unknown feature."}), 400
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    # nosemgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string
-    cursor.execute(f"UPDATE company_settings SET {feature}=%s", (value,))  # nosec B608 -- feature is allowlist-checked above, never interpolated from an unchecked value  # noqa: E501
+    _update_company_setting_flag(cursor, feature, value)
     db.commit()
     cursor.close()
     db.close()
@@ -1823,8 +1843,8 @@ def id_card_template_upload(cid):
     back_file = request.files.get("back_image")
     # bool() of a truthiness check, not a numeric-string parse -- nothing
     # here casts user input to float/complex, so NaN injection doesn't apply.
-    has_front = bool(front_file and front_file.filename)  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
-    has_back = bool(back_file and back_file.filename)  # nosemgrep: python.flask.security.injection.nan-injection.nan-injection
+    has_front = front_file is not None and front_file.filename not in (None, "")
+    has_back = back_file is not None and back_file.filename not in (None, "")
     if not has_front and not has_back:
         flash("Upload at least a front or back template image.", "error")
         return redirect(tpath("/settings?tab=company"))
