@@ -67,7 +67,7 @@ class TestSmtpTestEmail:
 
 
 class _DropSchemaFails:
-    """Stands in for get_master_db()'s connection: identical except that
+    """Stands in for get_owner_master_db()'s connection: identical except that
     DROP SCHEMA raises, so the route's failure branch runs for real."""
 
     def __init__(self, conn):
@@ -102,9 +102,11 @@ class TestDeleteTenantSchemaDropFailure:
             ("Generic Error Co", "generic-error-co", "att_generic_error_co"),
         )
         tenant_id = cur.fetchone()[0]
-        real_get_master_db = platform_admin.get_master_db
-        monkeypatch.setattr(platform_admin, "get_master_db",
-                            lambda *a, **k: _DropSchemaFails(real_get_master_db(*a, **k)))
+        # The delete route runs DROP SCHEMA on the owner connection
+        # (database.get_owner_master_db), not the runtime one.
+        real_get_owner_master_db = platform_admin.get_owner_master_db
+        monkeypatch.setattr(platform_admin, "get_owner_master_db",
+                            lambda *a, **k: _DropSchemaFails(real_get_owner_master_db(*a, **k)))
         with client.session_transaction() as s:
             s["platform_admin_logged_in"] = True
             s["platform_admin_username"] = "generic_error_admin"

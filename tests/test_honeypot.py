@@ -31,7 +31,8 @@ class TestDecoyPortsShape:
         """21/23/25 are <1024 — this container is unprivileged (see
         compose.yaml), so any DECOY_PORTS entry whose public_port is
         privileged MUST bind to something >=1024 (redirected at the host
-        via deploy.sh's ufw DNAT) or the process can never actually start."""
+        via scripts/host_hardening.sh's NAT redirect) or the process can
+        never actually start."""
         for bind_port, (public_port, _label) in hp.DECOY_PORTS.items():
             if public_port < 1024:
                 assert bind_port >= 1024, (

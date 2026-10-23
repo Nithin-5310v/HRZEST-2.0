@@ -126,7 +126,7 @@ services:
       start_period: 300s
 
   redis:
-    image: docker.io/library/redis:7-alpine
+    image: docker.io/library/redis:8-alpine
     restart: always
     labels:
       io.containers.autoupdate: registry
@@ -252,7 +252,7 @@ services:
   # "system32_crypto_admin" — decoy listeners on ports nothing legitimate
   # here ever uses (FTP/Telnet/SMTP/MSSQL/MySQL/RDP). Any connection is
   # unambiguous scan/attack activity — see utils/honeypot.py and
-  # terraform/honeypot.tf for the full reasoning. Reuses the app image
+  # SECURITY_HARDENING.md ("Honeypot") for the full reasoning. Reuses the app image
   # (same build) rather than a second Containerfile — it never touches
   # face_recognition, so the extra image weight costs nothing at
   # runtime and this avoids maintaining a second build pipeline for one
@@ -268,15 +268,30 @@ services:
       # db/clamav even if a crafted payload somehow compromised it.
       # Only outbound HTTPS to the alert webhook is needed.
     ports:
-      - "8021:8021" # decoys public 21 (FTP) via deploy.sh's ufw DNAT, same pattern as nginx's 80->8080
+      - "8021:8021" # decoys public 21 (FTP) via scripts/host_hardening.sh's NAT redirect, same pattern as nginx's 80->8080
       - "8023:8023" # decoys public 23 (Telnet)
       - "8025:8025" # decoys public 25 (SMTP)
       - "1433:1433" # decoys MSSQL directly — already unprivileged, no redirect needed
       - "3306:3306" # decoys MySQL directly
       - "3389:3389" # decoys RDP directly
-    env_file: .env # only needs SECURITY_ALERT_* and ENCRYPTION_KEY (utils.alerts' import chain requires the latter — see utils/honeypot.py)
+    # Explicit allow-list, NOT `env_file: .env`: this is the one container
+    # that listens on the open internet, so it must not hold SECRET_KEY,
+    # DB_PASS, ENCRYPTION_KEY, SMTP or payment credentials. utils/alerts.py
+    # no longer imports the Flask app, so these few variables are all it
+    # needs. ${VAR:-} is interpolated by compose from .env at parse time.
+    environment:
+      SECURITY_ALERT_WEBHOOK_URL: ${SECURITY_ALERT_WEBHOOK_URL:-}
+      SECURITY_ALERT_PLATFORM: ${SECURITY_ALERT_PLATFORM:-discord}
+      SECURITY_ALERT_SIGNING_SECRET: ${SECURITY_ALERT_SIGNING_SECRET:-}
+      # Signed hit report to the app (utils/honeypot_report.py). The secret
+      # grants nothing but "this IP touched a decoy"; the app pins its own
+      # internal certificate, mounted read-only below.
+      HONEYPOT_REPORT_URL: ${HONEYPOT_REPORT_URL:-https://app:5000/webhooks/honeypot}
+      HONEYPOT_REPORT_SECRET: ${HONEYPOT_REPORT_SECRET:-}
+      HONEYPOT_REPORT_CAFILE: /app/cert.pem
     volumes:
       - honeypot_logs:/var/log/honeypot:z
+      - ./cert.pem:/app/cert.pem:ro,z
     deploy:
       resources:
         limits:

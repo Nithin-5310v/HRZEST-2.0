@@ -1,0 +1,45 @@
+# Loki ruler rules -- evaluated on the log host, i.e. OUTSIDE the application
+# and its database. The one thing the app can't alert on from the inside is
+# its own silence: if an attacker (or a bug) stops the audit anchors being
+# emitted, nothing in-app notices. absent_over_time() does.
+#
+# Mount at /loki/rules/fake/ (single-tenant "fake" org) -- see
+# observability/log-server/compose.yml and loki-config.yaml (ruler: block).
+groups:
+  - name: hrzest-audit-integrity
+    rules:
+      - alert: AuditAnchorsStopped
+        expr: absent_over_time({container="app"} |= "audit_anchor" [45m])
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "No audit-chain anchors received from the app for 45 minutes"
+          description: >
+            utils/audit_jobs.py emits an anchor every 10 minutes. Silence means the
+            scheduler, the app, or log shipping is down -- or someone stopped it.
+            Until anchors resume, a rewrite of the audit tables would go unnoticed.
+      - alert: AuditChainViolation
+        expr: sum(count_over_time({container="app"} |= "audit.chain_violation" [15m])) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Audit hash chain verification failed"
+          description: "History in audit_logs/security_events no longer matches its hash chain."
+
+  - name: hrzest-detections
+    rules:
+      - alert: SecurityDetectionFired
+        expr: sum(count_over_time({container="app"} |= "detection." [10m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "A correlation detection rule fired (see security_events / SOC dashboard)"
+      - alert: HoneypotHit
+        expr: sum(count_over_time({container="app"} |= "honeypot" [5m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "A decoy port or path was touched"
+      - alert: SharedClientIpDetected
+        expr: sum(count_over_time({container="app"} |= "non-routable address" [30m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "The app is seeing non-routable client IPs in production"
+          description: "IP bans/rate limits are being withheld; fix the network (SECURITY_HARDENING.md, Real client IP)."

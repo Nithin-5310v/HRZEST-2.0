@@ -1,0 +1,89 @@
+// Grafana Alloy -- replaces observability/promtail/promtail-config.yaml.
+//
+// Promtail reached end-of-life in March 2026 (Grafana's announcement: Alloy is
+// its successor), so it no longer receives security fixes. This is a like-for-
+// like translation of the Promtail config: same container discovery, same
+// relabel, same JSON parsing, same (deliberately few) labels. Runs ON the HRMS
+// app host as a read-only sidecar, tails the `app` container's stdout (one JSON
+// object per line -- see extensions.py) and ships it to the standalone Loki.
+//
+// Cutover (see observability/README.md): start Alloy, confirm lines arrive in
+// Loki with the same labels, then stop Promtail. The old files are left in
+// place for rollback.
+
+// Find the running `app` container. `com.docker.compose.service` is set by
+// Docker/Podman Compose on every container and always equals the service name
+// from compose.yaml, regardless of project name or `--scale` -- more robust
+// than matching a generated container name. Without the filter we would also
+// tail db/redis/clamav/nginx's noisier non-JSON output.
+discovery.docker "app" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.service=app"]
+  }
+}
+
+// Docker/Podman surface the container name as "/<name>"; strip the slash.
+discovery.relabel "app" {
+  targets = discovery.docker.app.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "app" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.relabel.app.output
+  refresh_interval = "15s"
+  forward_to       = [loki.process.app.receiver]
+}
+
+loki.process "app" {
+  // Un-wrap the Docker/Podman JSON-lines envelope if present.
+  stage.docker {}
+
+  // The unwrapped line is itself one JSON object (time/level/module/message,
+  // plus security_event/event_type/ip/path/method/identifier on security
+  // events). Parse the two fields we index on.
+  stage.json {
+    expressions = {
+      level          = "level",
+      security_event = "security_event",
+    }
+  }
+
+  // Only `level` and `security_event` become Loki labels -- low-cardinality
+  // values used for index-backed filtering. Do NOT add identifier/ip/path as
+  // labels: a label with thousands of distinct values turns Loki's index into
+  // the bottleneck. Those fields stay in the line and are queryable with
+  // LogQL's `| json` inside a query.
+  stage.labels {
+    values = {
+      level          = "",
+      security_event = "",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      app = "hrms",
+      env = "production",
+    }
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+loki.write "loki" {
+  endpoint {
+    // The log server's PRIVATE address (not a public one): Loki should only
+    // accept port 3100 from this app host.
+    url = "http://LOKI_SERVER_PRIVATE_IP:3100/loki/api/v1/push"
+  }
+}

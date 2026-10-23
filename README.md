@@ -25,7 +25,7 @@ A full-featured, self-hosted employee management and attendance platform built w
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.13+
 - PostgreSQL 16+
 - `cmake`, `dlib` build tools (for face recognition — see Containerfile for the full list)
 - Node.js 18+ (for mobile app only)
@@ -209,11 +209,19 @@ employee-attendance-system/
 
 ---
 
+## Security notes for operators
+
+Read [SECURITY_HARDENING.md](SECURITY_HARDENING.md) before deploying. The short version:
+set `HONEYPOT_REPORT_SECRET`, configure `BACKUP_ENCRYPTION` (backups refuse to write plaintext),
+run `scripts/host_hardening.sh` on a new host, make sure the host preserves real client IPs
+(pasta networking), and roll liveness out as `LIVENESS_MODE=warn` before `enforce`.
+
 ## Tech stack
 
-- **Backend:** Python 3.11, Flask 3, PostgreSQL 16, Gunicorn
+- **Backend:** Python 3.13, Flask 3, PostgreSQL 16, Gunicorn
 - **Auth:** bcrypt, WebAuthn (passkeys), session-based admin auth, Bearer token API auth
 - **Security:** CSRF (custom), CSP (dynamic sha256), HSTS, rate limiting, Fernet PII encryption
+- **Security hardening:** tamper-evident audit log (hash chain + off-box anchors), least-privilege DB roles, active liveness + replay/spoof detection on check-in, correlation detections, retention/erasure/consent, signed-image deploys -- see [SECURITY_HARDENING.md](SECURITY_HARDENING.md) for what each does **and does not** cover
 - **Face recognition:** `face_recognition` (dlib-based)
 - **Mobile:** React Native (Expo)
 - **DevOps:** Podman, nginx, Let's Encrypt, GitHub Actions CI/CD

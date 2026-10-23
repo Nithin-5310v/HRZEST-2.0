@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Decoy TCP listeners -- "system32_crypto_admin" -- for ports nothing
 legitimate on this stack ever uses (FTP 21, Telnet 23, SMTP 25, MSSQL
-1433, MySQL 3306, RDP 3389 -- see terraform/honeypot.tf for why these six).
+1433, MySQL 3306, RDP 3389 -- the six commonly-scanned service ports with
+no legitimate use on this stack).
 
 Any connection here is unambiguous: there is no real service behind any
 of these ports, so every single hit is either a port scan or an active
@@ -16,9 +17,15 @@ anything other than opaque logging data, which is what keeps a honeypot
 itself from becoming the next vulnerability. It accepts a connection,
 waits briefly for whatever the client sends, logs it, and closes.
 
-Runs as its own tiny standalone process (see honeypot_entrypoint.py) --
-no Flask, no DB dependency, so it starts and keeps running independently
-of the main app's health.
+Runs as its own tiny standalone process (python -m utils.honeypot) -- no
+Flask, no DB dependency, so it starts and keeps running independently of
+the main app's health. It imports only utils.alerts and
+utils.honeypot_report, both stdlib-only, and needs just SECURITY_ALERT_* and
+HONEYPOT_REPORT_* in its environment -- never the app's SECRET_KEY, DB
+credentials or ENCRYPTION_KEY (compose.yaml passes an explicit allow-list
+instead of env_file). Besides the chat/email alert it posts a signed
+{ip, port, protocol} report to the app (utils/honeypot_report.py) so the
+source address is banned at the web tier too.
 """
 import asyncio
 import datetime
@@ -33,7 +40,8 @@ SERVICE_NAME = "system32_crypto_admin"
 # bind_port -> (public_port, protocol_label). This container runs
 # unprivileged (same as nginx -- see compose.yaml/deploy.sh), so it can't
 # bind ports <1024 directly. FTP/Telnet/SMTP are DNAT-redirected from
-# their real public ports at the host level (deploy.sh's ufw before.rules,
+# their real public ports at the host level (scripts/host_hardening.sh's
+# ufw before.rules block,
 # same mechanism already used for 80->8080/443->8443) -- this listener
 # only ever sees the high internal port, so public_port here is purely
 # for accurate logging/alerting of what the attacker actually targeted.
@@ -48,6 +56,7 @@ DECOY_PORTS = {
 }
 
 _READ_TIMEOUT_SECONDS = 5
+_REPORT_TIMEOUT_SECONDS = 5
 _MAX_CAPTURE_BYTES = 512
 
 
@@ -124,6 +133,24 @@ async def _handle_connection(reader: asyncio.StreamReader, writer: asyncio.Strea
         # A webhook outage must never crash the listener -- same principle
         # as send_security_alert's own fire-and-forget design.
         log.error("honeypot: alert dispatch failed: %s", e)
+    await _report_to_app(port, protocol, peer_ip, len(captured))
+
+
+async def _report_to_app(port: int, protocol: str, peer_ip: str, captured_bytes: int):
+    """Best-effort signed report to the app (no-op unless HONEYPOT_REPORT_URL
+    and HONEYPOT_REPORT_SECRET are set). Run in an executor with a hard cap:
+    a hung app must never stall the accept loop."""
+    from utils.honeypot_report import report_hit
+    try:
+        loop = asyncio.get_running_loop()
+        ok = await asyncio.wait_for(
+            loop.run_in_executor(None, report_hit, peer_ip, port, protocol, captured_bytes),
+            timeout=_REPORT_TIMEOUT_SECONDS,
+        )
+        if not ok:
+            log.debug("honeypot: report to app not delivered (unconfigured or rejected)")
+    except Exception as e:
+        log.warning("honeypot: report to app failed: %s", e)
 
 
 async def _serve_port(bind_port: int):

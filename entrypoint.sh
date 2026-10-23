@@ -42,7 +42,10 @@ fi
 
 # ── 3. Run database migrations ────────────────────────────────────────────────
 echo "📦 Running schema migrations..."
-python migrate_plans.py || { echo "⚠️  migrate_plans.py failed — continuing (may be first boot)"; }
+# (A `python migrate_plans.py` step used to run here. That file is not in this repository, so it
+# failed on every boot and the failure was swallowed, which would also have hidden a REAL
+# migration failure. Schema creation/upgrade runs inside the app at import time -- see
+# wsgi.py (init_master_db / init_db / _run_migrations_for_all_tenants).)
 
 # ── 4. Start Gunicorn ─────────────────────────────────────────────────────────
 echo "🔥 Launching Gunicorn..."

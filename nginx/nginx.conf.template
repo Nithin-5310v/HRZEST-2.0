@@ -23,7 +23,7 @@ server_tokens off;
 #
 # rate=30r/m, not a tighter per-IP-style value: under rootless Podman's
 # port-forwarding proxy every external visitor collapses to the same
-# internal gateway IP before nginx ever sees it (see deploy.sh's matching
+# internal gateway IP before nginx ever sees it (see scripts/host_hardening.sh's
 # comment), so this bucket is shared by the whole site's traffic, not one
 # visitor. Revisit once nginx can see real client IPs again.
 limit_req_zone $binary_remote_addr zone=login:10m rate=30r/m;
@@ -46,7 +46,7 @@ server {
     # nginx runs unprivileged (nginxinc/nginx-unprivileged, cap_drop: ALL —
     # see compose.yaml) and can't bind ports <1024. The host redirects
     # public 80/443 -> 8080/8443 via iptables DNAT before packets reach
-    # this container (see deploy.sh's ufw before.rules block) — Let's
+    # this container (see scripts/host_hardening.sh's before.rules block) — Let's
     # Encrypt's HTTP-01 validation and every browser still just uses 80/443
     # from the outside; only this listen directive needs to match what's
     # actually bound.

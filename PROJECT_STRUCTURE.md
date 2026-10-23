@@ -91,3 +91,17 @@ employee-attendance/
 3. **Database Abstraction (`database.py`)**: Uses PostgreSQL connection pooling in production, with seamless fallback to SQLite mode when running standalone/demo.
 4. **Presentation Layer (`templates/` + `static/`)**: Server-rendered HTML pages powered by a cohesive design system using HSL color tokens, dark mode support, and micro-animations.
 
+## Security modules added by the hardening work
+
+| Module | Purpose |
+|---|---|
+| `utils/client_ip.py` | Never-ban list, trusted-proxy hops, shared-IP-aware rate-limit key |
+| `utils/honeypot_report.py` | HMAC-signed honeypot -> app report channel (stdlib only) |
+| `migrations/audit_integrity.py`, `utils/audit_chain.py`, `utils/audit_jobs.py` | Hash-chained audit tables, verifier, scheduled anchors |
+| `utils/liveness.py`, `utils/punch_integrity.py` | Active liveness, challenge store, replay/mock-location/office-network policy, punch evidence |
+| `utils/detections.py` | Correlation rules over security_events / audit_logs / punch_evidence |
+| `utils/privacy.py`, `utils/privacy_jobs.py`, `blueprints/privacy.py` | Retention, subject access, erasure, consent ledger |
+| `scripts/provision_db_roles.py` | One-time split of owner / runtime database roles |
+| `scripts/verify_audit_chain.py`, `scripts/rotate_encryption_key.py` | Chain verification (+ anchors), Fernet key rotation |
+| `scripts/backup_db.sh`, `scripts/restore_test.sh` | Encrypted offsite backups; restore proof |
+| `scripts/host_hardening.sh`, `scripts/deploy_verified_image.sh`, `compose.image.yaml` | Host firewall/NAT/podman setup; signed-image deploy by digest |

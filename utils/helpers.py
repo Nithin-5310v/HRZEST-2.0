@@ -10,9 +10,9 @@ import threading
 from contextlib import contextmanager
 
 import pytz
-from cryptography.fernet import Fernet, InvalidToken as _FernetInvalid
+from cryptography.fernet import Fernet, MultiFernet, InvalidToken as _FernetInvalid
 from flask import session, request, jsonify, abort
-from database import get_db_connection
+from database import get_db_connection, DatabaseUnavailable
 from extensions import app_log, log_security_event, redis_client
 
 _SAFE_IDENT_RE = re.compile(r'^[a-z][a-z0-9_]*$')
@@ -232,7 +232,14 @@ if not _ENCRYPTION_KEY:
     )
     raise RuntimeError("ENCRYPTION_KEY is not set -- refusing to start (fail-secure).")
 try:
-    _fernet = Fernet(_ENCRYPTION_KEY.encode())
+    # Key rotation: ENCRYPTION_KEY always encrypts. ENCRYPTION_KEY_PREVIOUS
+    # (comma-separated, newest first) is accepted for DECRYPTION only, so a
+    # rotation is: set the new ENCRYPTION_KEY, move the old one into
+    # ENCRYPTION_KEY_PREVIOUS, deploy, run scripts/rotate_encryption_key.py
+    # to re-encrypt stored values, then drop the old key. With no previous
+    # keys this behaves exactly like a single Fernet.
+    _previous_keys = [k.strip() for k in os.environ.get("ENCRYPTION_KEY_PREVIOUS", "").split(",") if k.strip()]
+    _fernet = MultiFernet([Fernet(k.encode()) for k in [_ENCRYPTION_KEY] + _previous_keys])
 except Exception as _key_err:
     app_log.critical(
         "FATAL: ENCRYPTION_KEY is set but malformed (%s) -- refusing to start "
@@ -951,6 +958,10 @@ def get_company_settings():
             }
             _cache_set(_co_cache, "settings_co", result, _CO_CACHE_TTL)
             return dict(result)
+    except DatabaseUnavailable:
+        # A database outage is not a missing settings row: rendering every
+        # page with placeholder branding would hide it. Let app.py answer 503.
+        raise
     except Exception as exc:
         # Falls through to generic hardcoded defaults below -- every page
         # in the app would silently render wrong branding/settings, worth

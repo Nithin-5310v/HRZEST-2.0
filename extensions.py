@@ -8,7 +8,7 @@ import warnings
 from flask import Flask
 from flask_cors import CORS
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from utils.client_ip import rate_limit_key
 from pythonjsonlogger import jsonlogger
 import redis as _redis_lib
 from urllib.parse import quote as _urlquote
@@ -105,8 +105,14 @@ def log_security_event(event_type: str, message: str, level: str = "WARNING", **
     upper_level = level.upper()
     if upper_level in ("ERROR", "CRITICAL"):
         from utils.alerts import send_security_alert
+        # Merge rather than pass ip=/path=/method= alongside **fields: a
+        # caller that supplies its own ip/path/method (the HTTP honeypot
+        # does) used to hit "got multiple values for keyword argument 'ip'"
+        # here -- an exception raised from the logging call itself, which
+        # turned every honeypot trap hit into a 500 before it could ban or
+        # alert. An explicit caller value wins over the request-derived one.
         send_security_alert(event_type, message, level=upper_level,
-                            ip=ip, path=path, method=method, **fields)
+                            **{"ip": ip, "path": path, "method": method, **fields})
 
     # Every event (not just ERROR) also lands in the security_events table,
     # queryable by the SOC dashboard — the log stream above is for
@@ -481,9 +487,32 @@ def _init_redis_backend():
 redis_client, _limiter_storage_uri = _init_redis_backend()
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
+# rate_limit_key == get_remote_address for routable clients; for shared/non-routable
+# source addresses it adds the signed-session identity so authenticated users don't
+# share one bucket with every visitor (utils/client_ip.py).
 limiter = Limiter(
-    get_remote_address,
+    rate_limit_key,
     app=app,
     storage_uri=_limiter_storage_uri,
     default_limits=["300 per minute"],
 )
+
+
+# ── Per-request guard cache lifecycle (utils/request_guard.py) ───────────────
+# The authenticated-session guard caches its account-state read for ONE
+# request. Drop it the moment the request is over -- on the normal path
+# (after_request) and when a handler raised (teardown_request) -- so the next
+# request, or any code running in a preserved context, can never be served a
+# stale "not compromised / still active / password unchanged".
+from utils import request_guard as _request_guard  # noqa: E402
+
+
+@app.after_request
+def _drop_guard_cache(response):
+    _request_guard.clear()
+    return response
+
+
+@app.teardown_request
+def _drop_guard_cache_on_teardown(_exc):
+    _request_guard.clear()

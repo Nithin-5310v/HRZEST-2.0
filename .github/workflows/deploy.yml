@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Syntax & structure check
@@ -13,16 +16,16 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.13"
           cache: pip
 
       - name: Install dependencies (for import checks)
         # dlib (pulled in transitively by face-recognition) ships no
-        # prebuilt wheel for cp311, so a bare `pip install -r
+        # prebuilt wheel at all (sdist only), so a bare `pip install -r
         # requirements.txt` compiles it from source here — 10-20+ min on
         # this runner's 2 cores, sometimes longer. dlib-bin is the same
         # `dlib` import, prebuilt as a wheel; installing face-recognition
@@ -35,6 +38,18 @@ jobs:
           pip install --no-cache-dir --no-deps face-recognition face-recognition-models
           grep -v '^face-recognition' requirements.txt > /tmp/ci-requirements.txt
           pip install --no-cache-dir -r /tmp/ci-requirements.txt
+
+      - name: Lockfile is in sync with requirements.txt
+        # requirements.lock pins every dependency by version and hash for the
+        # production image. If requirements.txt changed without re-locking this
+        # shows a diff. Non-blocking for now: it becomes a hard gate once the
+        # image has been built from the lock in CI (see SECURITY_HARDENING.md /
+        # MODERNIZATION.md). Fix with: bash scripts/relock.sh
+        continue-on-error: true
+        run: |
+          pip install --no-cache-dir uv
+          uv pip compile requirements.txt --universal --python-version 3.13 --generate-hashes -o requirements.lock
+          git diff --exit-code requirements.lock || { echo "::warning title=requirements.lock is stale::run scripts/relock.sh"; exit 1; }
 
       - name: Check Python syntax
         run: |
@@ -86,11 +101,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Audit Python dependencies (pip-audit)
         # Scans requirements.txt/-dev.txt against the OSV vulnerability
@@ -114,7 +129,7 @@ jobs:
         # block a PR on; ignore-unfixed skips CVEs with no available patch
         # yet, since failing the build on something nobody can act on today
         # just trains people to ignore red X's.
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -132,11 +147,11 @@ jobs:
       security-events: write   # required by github/codeql-action/upload-sarif below
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Run Bandit SAST
         # -ll: only report medium+ severity. -iii: only high-confidence
@@ -169,7 +184,7 @@ jobs:
 
       - name: Upload Semgrep SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
         with:
           sarif_file: semgrep.sarif
         continue-on-error: true
@@ -179,7 +194,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0   # TruffleHog needs full history to scan past commits, not just the current tree
 
@@ -205,7 +220,7 @@ jobs:
         # extra_args, so including it here duplicates the flag; v3.95.9's
         # parser rejects that outright ("flag 'fail' cannot be repeated"),
         # which is what was actually failing this job, not a real secret.
-        uses: trufflesecurity/trufflehog@v3.99.2
+        uses: trufflesecurity/trufflehog@e76dff8a7e57d6df0c60ad8cbf5d5cba505a8fc9 # v3.99.2
         with:
           extra_args: --only-verified --exclude-paths=.github/trufflehog-exclude.txt
 
@@ -277,17 +292,17 @@ jobs:
           --health-retries=10
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.13"
           cache: pip
 
       - name: Install dependencies
         # See the lint job's "Install dependencies" step for why dlib-bin
         # is used here instead of letting pip compile the real dlib from
-        # source (transitive dep of face-recognition, no cp311 wheel).
+        # source (transitive dep of face-recognition, sdist only on PyPI).
         run: |
           pip install --no-cache-dir dlib-bin
           pip install --no-cache-dir --no-deps face-recognition face-recognition-models
@@ -311,7 +326,7 @@ jobs:
     needs: test
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Build Podman image
         run: podman build -t attendance-app:ci .
@@ -334,7 +349,7 @@ jobs:
         # postgres:16 / nginx-unprivileged at deploy time).
         # This is the only step in the pipeline that actually looks inside
         # the built image.
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           input: ${{ github.workspace }}/attendance-app-ci.tar
           severity: HIGH,CRITICAL
@@ -354,38 +369,104 @@ jobs:
           podman logs test-app 2>&1 | tail -20
           podman rm -f test-app || true
 
+  publish:
+    name: Publish signed image + SBOM
+    runs-on: ubuntu-latest
+    needs: podman
+    # Only on a direct push to main, never for pull_request runs (no write
+    # token / OIDC is issued to fork PRs anyway).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write      # push the image to GHCR
+      id-token: write      # keyless cosign signing (GitHub OIDC -> Sigstore)
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Build and push by digest
+        id: build
+        env:
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')/app"
+          echo "${REGISTRY_TOKEN}" | podman login ghcr.io -u "${REGISTRY_USER}" --password-stdin
+          podman build -t "${IMAGE}:${GITHUB_SHA}" .
+          podman push "${IMAGE}:${GITHUB_SHA}" --digestfile digest.txt
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "digest=$(cat digest.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Sign the image (keyless)
+        env:
+          REF: ${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${REF}"
+
+      - name: SBOM (CycloneDX) for the image
+        # Trivy is already the pinned scanner in this pipeline; reusing it
+        # avoids a second SBOM tool to keep current.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image-ref: ${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }}
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      - name: Attest the SBOM to the image
+        env:
+          REF: ${{ steps.build.outputs.image }}@${{ steps.build.outputs.digest }}
+        run: cosign attest --yes --type cyclonedx --predicate sbom.cdx.json "${REF}"
+
+      - name: Keep the SBOM with the run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
+
   deploy:
     name: Deploy to production
     runs-on: ubuntu-latest
-    needs: podman
-    # Only deploy on a direct push to main, never on pull_request runs
+    needs: publish
+    # Only on a direct push to main, never on pull_request runs
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production   # requires approval from a repo admin before deploy runs
 
     steps:
-      - name: Deploy via SSH
-        # SSH_USER must be the "attendance" user deploy.sh creates — it runs
+      - name: Deploy the signed image by digest
+        # SSH_USER must be the "attendance" user deploy.sh creates -- it runs
         # rootless Podman and owns /opt/employee-attendance directly, so no
         # sudo is needed (and it has none). Add the CI key to
         # /home/attendance/.ssh/authorized_keys on the instance.
-        uses: appleboy/ssh-action@v1.2.5
+        #
+        # The host no longer builds anything: it checks out the exact commit
+        # CI tested (compose/nginx files only) and runs the image CI built,
+        # selected by digest and verified against its Sigstore signature
+        # (scripts/deploy_verified_image.sh refuses an unsigned or
+        # tag-addressed image).
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          APP_IMAGE: ${{ needs.publish.outputs.image }}@${{ needs.publish.outputs.digest }}
+          GIT_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: APP_IMAGE,GIT_SHA
           script: |
             set -e
             export XDG_RUNTIME_DIR="/run/user/$(id -u)"
             cd /opt/employee-attendance
-            git pull origin main
-            COMPOSE="podman-compose -f compose.yaml -f compose.prod.yaml"
-            $COMPOSE build app
-            # clamav must be listed explicitly alongside app/nginx/certbot --
-            # --no-deps means Compose won't auto-start it just because app
-            # depends_on it, and without it running, utils/helpers.py's
-            # _scan_for_malware() fails closed on every upload in production
-            # (APP_ENV=production), rejecting all KYC/document uploads.
-            $COMPOSE up -d --no-deps app nginx certbot clamav
-            podman image prune -f
+            git fetch --quiet origin main
+            git checkout --quiet --detach "$GIT_SHA"
+            bash scripts/deploy_verified_image.sh
             echo "Deploy complete at $(date)"

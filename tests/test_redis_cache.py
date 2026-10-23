@@ -142,16 +142,16 @@ class TestInitRedisBackend:
 class TestWafBreachCounterRedisDispatch:
     def test_none_client_uses_in_memory_path(self, monkeypatch):
         monkeypatch.setattr(waf_module, "redis_client", None)
-        waf_module._breach_log.pop("10.0.0.1", None)
+        waf_module._breach_log.pop("198.51.100.211", None)
         for _ in range(waf_module._BREACH_THRESHOLD - 1):
-            waf_module.record_breach_and_maybe_ban("10.0.0.1", "test")
-        assert len(waf_module._breach_log["10.0.0.1"]) == waf_module._BREACH_THRESHOLD - 1
-        waf_module._breach_log.pop("10.0.0.1", None)
+            waf_module.record_breach_and_maybe_ban("198.51.100.211", "test")
+        assert len(waf_module._breach_log["198.51.100.211"]) == waf_module._BREACH_THRESHOLD - 1
+        waf_module._breach_log.pop("198.51.100.211", None)
 
     def test_redis_client_used_when_configured(self, monkeypatch, db_engine):
         fake = FakeRedis(host="x", port=1)
         monkeypatch.setattr(waf_module, "redis_client", fake)
-        ip = "10.0.0.2"
+        ip = "198.51.100.212"
         cur = db_engine.cursor()
         cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
         db_engine.commit()
@@ -178,7 +178,7 @@ class TestWafBreachCounterRedisDispatch:
 
     def test_redis_failure_mid_call_falls_back_to_memory(self, monkeypatch):
         monkeypatch.setattr(waf_module, "redis_client", MidCallFailureRedis())
-        ip = "10.0.0.3"
+        ip = "198.51.100.213"
         waf_module._breach_log.pop(ip, None)
         calls = []
         monkeypatch.setattr(waf_module, "log_security_event",

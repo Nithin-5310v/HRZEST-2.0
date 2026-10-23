@@ -6,6 +6,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { qrFaceCheckin, getAuthConfig } from '../api/client';
+import { getDeviceId } from '../utils/deviceId';
 
 export default function QRScannerModal({ visible, onClose }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -50,7 +51,7 @@ export default function QRScannerModal({ visible, onClose }) {
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
       ]);
-      setCoords({ lat: loc.coords.latitude, lon: loc.coords.longitude });
+      setCoords({ lat: loc.coords.latitude, lon: loc.coords.longitude, mocked: !!loc.mocked });
       setStep('qr');
     } catch {
       setLocError('Could not get your location. Please check GPS and try again.');
@@ -118,7 +119,11 @@ export default function QRScannerModal({ visible, onClose }) {
       if (coords) {
         formData.append('lat', String(coords.lat));
         formData.append('lon', String(coords.lon));
+        formData.append('mocked', coords.mocked ? 'true' : 'false');
       }
+      formData.append('channel', 'kiosk');
+      const deviceId = await getDeviceId();
+      if (deviceId) formData.append('device_id', deviceId);
       if (photo?.uri) {
         formData.append('face_photo', {
           uri: photo.uri,

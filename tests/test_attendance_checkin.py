@@ -366,6 +366,11 @@ class TestKioskAttendance:
 
 class TestApiAdminCheckin:
 
+    @pytest.fixture(autouse=True)
+    def _no_location_rule(self, monkeypatch):
+        """Shift/status logic, not the location rule (tests/test_punch_integrity.py)."""
+        monkeypatch.setenv("MOBILE_REQUIRE_LOCATION", "false")
+
     def test_requires_admin_token(self, client):
         rv = client.post("/api/attendance/checkin", json={"employee_id": "TST001"})
         assert rv.status_code == 401

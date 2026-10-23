@@ -115,6 +115,12 @@ def is_session_compromised(sid: str) -> bool:
     auth decorators on every request, not just at login."""
     if not sid:
         return False
+    # Answered already, in the same statement as the account checks, by
+    # utils/auth.py's _prime_guard_state() for this request.
+    from utils import request_guard
+    cached = request_guard.cached_risk_status(sid)
+    if cached is not None:
+        return cached == "compromised"
     try:
         db = get_db_connection()
         cur = db.cursor()

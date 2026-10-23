@@ -105,6 +105,8 @@ def _qr_fingerprint_checkin(client, seed_employee, mocker, hour, minute, signed_
 
 
 def _device_checkin(client, seed_admin, mocker, hour, minute):
+    # Shift classification, not the location rule (tests/test_punch_integrity.py).
+    mocker.patch.dict("os.environ", {"MOBILE_REQUIRE_LOCATION": "false"})
     _at(mocker, "blueprints.attendance", hour, minute)
     token = _admin_token(client, seed_admin)
     return client.post("/api/attendance/checkin", json={"employee_id": EMP},

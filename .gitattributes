@@ -1,0 +1,8 @@
+# Files that run on Linux (containers, hosts, CI) must keep LF endings even when
+# checked out on Windows (core.autocrlf=true would otherwise give them CRLF and
+# a "bad interpreter: /bin/bash^M" / "\r: command not found" failure at runtime).
+*.sh              text eol=lf
+Containerfile     text eol=lf
+*.alloy           text eol=lf
+requirements*.txt text eol=lf
+requirements.lock text eol=lf

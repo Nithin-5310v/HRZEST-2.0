@@ -823,6 +823,11 @@ class TestKioskWfhGeoFence:
 
 class TestApiCheckinStatusBranches:
 
+    @pytest.fixture(autouse=True)
+    def _no_location_rule(self, monkeypatch):
+        """Shift/status logic, not the location rule (tests/test_punch_integrity.py)."""
+        monkeypatch.setenv("MOBILE_REQUIRE_LOCATION", "false")
+
     def _patch_shifts(self, s_start, s_half, s_end, grace=0):
         rules = _cfg.ShiftRules(s_start, s_half, s_end, grace)
         _cfg.shift_rules = lambda: rules
