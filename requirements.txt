@@ -15,7 +15,7 @@ psycopg2-binary>=2.9.13
 # ── Face recognition & image processing ───────────────────────────────────────
 face-recognition>=1.3.0
 numpy>=2.4.6
-pillow>=12.3.0
+pillow>=13.0.0
 
 # ── QR codes ──────────────────────────────────────────────────────────────────
 qrcode>=8.2
@@ -32,7 +32,7 @@ openpyxl>=3.1.5
 reportlab>=5.0.1,<6.0.0
 
 # ── Cryptography & auth ───────────────────────────────────────────────────────
-cryptography>=50.0.1
+cryptography>=50.0.2
 webauthn>=3.0.1
 bcrypt>=5.0.0
 pyotp>=2.10.0
@@ -42,7 +42,7 @@ redis>=8.1.0
 
 # ── Background job queue (utils/task_queue.py) -- only used once REDIS_URL
 # is set; a no-op dependency otherwise (sync fallback needs no import at all)
-rq>=1.16.0
+rq>=2.12.0
 
 # ── Scheduled cron jobs (wsgi.py: daily attendance report, auto-debit sync,
 # billing dunning, salary disbursement prep) -- wsgi.py already imported this
@@ -55,9 +55,9 @@ apscheduler>=3.11.3
 clamd>=1.0.2
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
-python-dotenv>=1.2.2
+python-dotenv>=1.2.4
 python-json-logger>=4.2.0
-setuptools>=84.0.0
+setuptools>=84.2.0
 # PYSEC-2026-3447 is fixed only in setuptools>=83, which no longer ships
 # pkg_resources. Its two importers here are handled without it:
 #   - face_recognition_models 0.3.0 (`from pkg_resources import
