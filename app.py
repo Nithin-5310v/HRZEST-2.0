@@ -415,6 +415,10 @@ def _resolve_tenant():
     skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin", "/oauth/callback")
     if any(request.path.startswith(p) for p in skip_prefixes):
         return
+    # The SOC console is a platform surface, never tenant-scoped. Exact segment
+    # match so a company slug that merely starts with "soc" is unaffected.
+    if request.path == "/soc" or request.path.startswith("/soc/"):
+        return
 
     url_slug = request.environ.get("hrz.tenant_slug")
     url_tenant_db = request.environ.get("hrz.tenant_db")
@@ -657,6 +661,12 @@ def _waf_inspect_request():
         return
     if request.path in _WAF_EXEMPT_PATHS:
         return
+    # SOC analysts legitimately search for and paste attack strings (an SQLi payload
+    # as an event filter, a hostile log excerpt). Exempt only authenticated
+    # /soc/api/ calls: the login page and everything else stay inspected, and
+    # that API uses bound parameters only (utils/soc_queries.py).
+    if request.path.startswith("/soc/api/") and session.get("soc_uid"):
+        return
     hit = waf.inspect_request(request)
     if hit:
         event_type, field, matched = hit
@@ -876,6 +886,8 @@ def _enforce_csrf():
             # page (auth.admin_login).
             if request.path.startswith("/super_admin"):
                 login_url = "/super_admin/login"
+            elif request.path == "/soc" or request.path.startswith("/soc/"):
+                login_url = "/soc/login"
             else:
                 login_url = url_for("auth.admin_login")
             return redirect(login_url)
@@ -1011,7 +1023,9 @@ def _security_headers(response):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # setdefault so a surface that needs a stricter policy keeps its own (the SOC console sends
+    # no-referrer). No route sets a weaker one; keep it that way.
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=(self)"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
@@ -2214,12 +2228,13 @@ if "core.home" not in app.view_functions:
     from blueprints.company_profile import company_profile_bp
     from blueprints.seo import seo_bp
     from blueprints.privacy import privacy_bp
+    from blueprints.soc import soc_bp
     for _bp in (health_bp, notifications_bp, payroll_bp, leave_bp, admin_views_bp,
                 auth_bp, employees_bp, attendance_bp, tickets_bp, performance_bp,
                 documents_bp, org_bp, onboarding_bp, employee_portal_bp, core_bp,
                 ai_hrms_bp, email_blast_bp, daily_report_bp, billing_bp, webhooks_bp, seats_bp, auto_debit_bp,
                 billing_dunning_bp, platform_admin_bp, honeypot_bp, disbursement_bp, hr_dashboard_bp, policies_bp,
-                company_profile_bp, seo_bp, oauth_signup_bp, privacy_bp):
+                company_profile_bp, seo_bp, oauth_signup_bp, privacy_bp, soc_bp):
         app.register_blueprint(_bp)
 
 

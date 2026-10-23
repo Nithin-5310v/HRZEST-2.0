@@ -78,6 +78,9 @@ ALLOWED_UNGUARDED = {
     "core.mobile_bridge_login": "single-use, 5-minute, hashed bridge token minted only for MFA'd tokens",
     "platform_admin.platform_admin_login": "super-admin login",
     "platform_admin.platform_admin_logout": "logout (POST + CSRF)",
+    "soc.login": "SOC console login: password -> setup code/enrol -> TOTP (rate-limited, lockout)",
+    "soc.logout": "SOC console logout (POST + CSRF)",
+    "soc.asset": "SOC console assets; the login stylesheet is public, everything else needs a SOC session (checked inline)",
 
     # ── kiosk / WebAuthn (identity proven by QR signature, face or passkey) ──
     "attendance.attendance": "kiosk check-in; signed QR + server-decided factors",

@@ -539,6 +539,10 @@ def _init_core_tables(cursor, db):
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events (created_at DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events (event_type)")
+    # Pivot indexes for the SOC console (blueprints/soc.py): "everything this
+    # address did" and "everything about this account" over a time window.
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_ip ON security_events (ip, created_at DESC)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_ident ON security_events (identifier, created_at DESC)")
 
     # Immutable + tamper-evident audit trail: audit_logs (data/config
     # changes) and security_events (auth/access events) are append-only

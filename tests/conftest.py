@@ -14,7 +14,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Override values for testing
-os.environ["DB_NAME"] = "att_test"
+# HRZEST_TEST_DB lets two suites run side by side against separate databases: this harness
+# TRUNCATEs every table after each test, so two runs sharing one database corrupt each other.
+# The name must contain "test" (scripts/profile_requests.py and factory_reset.py refuse otherwise).
+os.environ["DB_NAME"] = os.environ.get("HRZEST_TEST_DB", "att_test")
+assert "test" in os.environ["DB_NAME"], "HRZEST_TEST_DB must contain 'test'"
 os.environ["APP_ENV"] = "development"   # avoids HTTPS-only cookies
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
 # utils/helpers.py's PII-encryption bootstrap hard-fails at import time if
@@ -73,6 +77,7 @@ from blueprints.policies import policies_bp
 from blueprints.company_profile import company_profile_bp
 from blueprints.seo import seo_bp
 from blueprints.privacy import privacy_bp
+from blueprints.soc import soc_bp
 flask_app.register_blueprint(health_bp)
 flask_app.register_blueprint(notifications_bp)
 flask_app.register_blueprint(payroll_bp)
@@ -105,6 +110,7 @@ flask_app.register_blueprint(policies_bp)
 flask_app.register_blueprint(company_profile_bp)
 flask_app.register_blueprint(seo_bp)
 flask_app.register_blueprint(privacy_bp)
+flask_app.register_blueprint(soc_bp)
 
 # Mirror wsgi.py's WSGI-level tenant-prefix stripping so tests exercise the
 # real path-based tenant resolution (www.hrzest.com/<slug>/...), not just
