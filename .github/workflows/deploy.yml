@@ -20,7 +20,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.13"
           cache: pip
 
       - name: Install dependencies (for import checks)
@@ -38,6 +38,18 @@ jobs:
           pip install --no-cache-dir --no-deps face-recognition face-recognition-models
           grep -v '^face-recognition' requirements.txt > /tmp/ci-requirements.txt
           pip install --no-cache-dir -r /tmp/ci-requirements.txt
+
+      - name: Lockfile is in sync with requirements.txt
+        # requirements.lock pins every dependency by version and hash for the
+        # production image. If requirements.txt changed without re-locking this
+        # shows a diff. Non-blocking for now: it becomes a hard gate once the
+        # image has been built from the lock in CI (see SECURITY_HARDENING.md /
+        # MODERNIZATION.md). Fix with: bash scripts/relock.sh
+        continue-on-error: true
+        run: |
+          pip install --no-cache-dir uv
+          uv pip compile requirements.txt --universal --python-version 3.13 --generate-hashes -o requirements.lock
+          git diff --exit-code requirements.lock || { echo "::warning title=requirements.lock is stale::run scripts/relock.sh"; exit 1; }
 
       - name: Check Python syntax
         run: |
@@ -93,7 +105,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Audit Python dependencies (pip-audit)
         # Scans requirements.txt/-dev.txt against the OSV vulnerability
@@ -139,7 +151,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Run Bandit SAST
         # -ll: only report medium+ severity. -iii: only high-confidence
@@ -284,7 +296,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          python-version: "3.11"
+          python-version: "3.13"
           cache: pip
 
       - name: Install dependencies

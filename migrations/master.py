@@ -668,3 +668,20 @@ def _init_master_auth_hardening():
         db.close()
     except Exception as _e:
         app_log.warning("init_master_db auth hardening failed: %s", _e, exc_info=True)
+    _init_master_soc_tables()
+
+
+def _init_master_soc_tables():
+    """SOC console tables (migrations/soc_tables.py), in their own try block
+    for the same reason as the step above: a failure here must not roll back
+    registry setup, and the app must still boot without the SOC console."""
+    from migrations.soc_tables import ensure_soc_tables
+    try:
+        db = get_master_db()
+        cur = db.cursor()
+        ensure_soc_tables(cur)
+        db.commit()
+        cur.close()
+        db.close()
+    except Exception as _e:
+        app_log.warning("init_master_db SOC tables failed: %s", _e, exc_info=True)

@@ -18,6 +18,60 @@ updates:
     labels:
       - "dependencies"
       - "mobile"
+    ignore:
+      # Expo-managed packages are versioned in lockstep with the installed
+      # Expo SDK (the `expo` entry in mobile/package.json). Bumping them one
+      # PR at a time splits the app across SDKs: on 2026-10-14 this left
+      # `expo` on 58 (still the `next` pre-release channel) and
+      # react-native on 0.87 while 16 expo-* packages stayed on 57. Move the
+      # SDK deliberately (`npx expo install expo@latest --fix`, then
+      # `npx expo-doctor`); patch updates inside the current SDK still flow
+      # through the ~ / exact ranges.
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "expo-*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@expo/metro-runtime"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@expo/vector-icons"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native-web"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native-gesture-handler"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native-reanimated"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native-worklets"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native-screens"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native-safe-area-context"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native-webview"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@react-native-async-storage/async-storage"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@react-native-picker/picker"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@sentry/react-native"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "jest-expo"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "babel-preset-expo"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "metro-runtime"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@react-native/jest-preset"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@babel/core"
+        # babel-preset-expo for the pinned SDK is tested against Babel 7.
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions themselves (actions/checkout, actions/setup-python, etc.)
   - package-ecosystem: "github-actions"

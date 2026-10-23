@@ -149,7 +149,7 @@ Dev-only
 5. INFRASTRUCTURE — container images pulled by Podman/Docker Compose (compose*.yaml,
    Containerfile) — not "installed" into the app, but downloaded to run/deploy it
 ------------------------------------------------------------------------------------
-  python:3.11-slim              Base image the Flask app itself is built on
+  python:3.13-slim              Base image the Flask app itself is built on
                                   (Containerfile).
   postgres:16                    The application database (see compose.yaml's `db`
                                   service). Not used at all in compose.prod.yaml, which
@@ -175,4 +175,4 @@ NOTES
 - pillow and numpy form a face-recognition/dlib dependency chain that
   should be smoke-tested (face enrollment + check-in) after the next `pip install
   --upgrade` or image rebuild, since they weren't re-installed/re-tested on this machine
-  (local Python here is 3.7; the app actually deploys on Python 3.11 per Containerfile).
+  (local Python here is 3.7; the app actually deploys on Python 3.13 per Containerfile).

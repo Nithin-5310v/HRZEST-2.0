@@ -49,7 +49,11 @@ def _ensure_test_database(name):
 
 
 # Override values for testing
+# HRZEST_TEST_DB lets two suites run side by side against separate databases: this harness
+# TRUNCATEs every table after each test, so two runs sharing one database corrupt each other.
+# The name must contain "test" (scripts/profile_requests.py and factory_reset.py refuse otherwise).
 os.environ["DB_NAME"] = _test_db_name(os.environ)
+assert "test" in os.environ["DB_NAME"], "HRZEST_TEST_DB must contain 'test'"
 _ensure_test_database(os.environ["DB_NAME"])
 os.environ["APP_ENV"] = "development"   # avoids HTTPS-only cookies
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
@@ -74,6 +78,15 @@ _EXTERNAL_SERVICE_VARS = (
 )
 for _name in _EXTERNAL_SERVICE_VARS + tuple(k for k in os.environ if k.startswith("HEARTBEAT_URL_")):
     os.environ[_name] = ""
+
+# The mobile/API check-in routes now refuse a punch that omits coordinates when
+# the company's location setting is on (MOBILE_REQUIRE_LOCATION, default true in
+# production). Several dozen older tests exercise those routes' punch logic
+# (login/logout/relogin, shifts, offline sync) with bodies like `json={}`, so --
+# like the rate limiter and the MFA gates below -- the suite relaxes the rule by
+# default. tests/test_punch_integrity.py::TestMobileCheckin turns it back on
+# explicitly to cover the rule itself.
+os.environ.setdefault("MOBILE_REQUIRE_LOCATION", "false")
 
 # wsgi.py (the real production entrypoint) registers the migrated
 # blueprints on the shared `app` instance from extensions.py BEFORE
@@ -116,6 +129,7 @@ from blueprints.policies import policies_bp
 from blueprints.company_profile import company_profile_bp
 from blueprints.seo import seo_bp
 from blueprints.privacy import privacy_bp
+from blueprints.soc import soc_bp
 flask_app.register_blueprint(health_bp)
 flask_app.register_blueprint(notifications_bp)
 flask_app.register_blueprint(payroll_bp)
@@ -148,6 +162,7 @@ flask_app.register_blueprint(policies_bp)
 flask_app.register_blueprint(company_profile_bp)
 flask_app.register_blueprint(seo_bp)
 flask_app.register_blueprint(privacy_bp)
+flask_app.register_blueprint(soc_bp)
 
 # Mirror wsgi.py's WSGI-level tenant-prefix stripping so tests exercise the
 # real path-based tenant resolution (www.hrzest.com/<slug>/...), not just

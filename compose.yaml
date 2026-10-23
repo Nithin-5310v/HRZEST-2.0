@@ -126,7 +126,7 @@ services:
       start_period: 300s
 
   redis:
-    image: docker.io/library/redis:7-alpine
+    image: docker.io/library/redis:8-alpine
     restart: always
     labels:
       io.containers.autoupdate: registry

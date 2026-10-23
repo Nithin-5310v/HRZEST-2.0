@@ -44,6 +44,39 @@ if os.environ.get("DB_SSLROOTCERT"):
     _DB_CONFIG["sslrootcert"] = os.environ["DB_SSLROOTCERT"]
 
 
+# ── Optional: skip a redundant `SET search_path` ────────────────────────────
+# Every get_db_connection()/get_master_db()/get_tenant_db() borrow issues
+# `SET search_path` -- one network round-trip -- even when the pooled
+# connection is already pointing at the schema being asked for, which is the
+# overwhelmingly common case (an admin page borrows 7-12 connections for the
+# same tenant). Measured: roughly a third of all round-trips on an
+# authenticated page. Skipping it is a pure win UNLESS the skip is ever wrong,
+# and a wrong skip means a request reading another tenant's schema -- the
+# class of bug this file's own history already records. So:
+#   * OFF by default. Opt in with DB_SKIP_REDUNDANT_SET_SEARCH_PATH=true,
+#     ideally on staging first and compare the metrics.
+#   * The skip is decided from state kept ON the psycopg2 connection object
+#     itself (the schema this very session was last SET to), never from the
+#     request or the pool, so it cannot be applied to a different session.
+#   * Any doubt clears it: a connection returned mid-transaction or closed,
+#     a failed SET, and every DB_SEARCH_PATH_REVALIDATE_EVERY reuses forces a
+#     real SET anyway.
+_SKIP_REDUNDANT_SP = os.environ.get("DB_SKIP_REDUNDANT_SET_SEARCH_PATH", "false").strip().lower() in (
+    "1", "true", "yes")
+try:
+    _SP_REVALIDATE_EVERY = max(1, int(os.environ.get("DB_SEARCH_PATH_REVALIDATE_EVERY", "200")))
+except ValueError:
+    _SP_REVALIDATE_EVERY = 200
+
+
+class _TrackedConnection(psycopg2.extensions.connection):
+    """psycopg2 connection that remembers which schema its session was last
+    SET to. Used as the pools' connection_factory (harmless when the skip is
+    switched off -- the attribute is simply never consulted)."""
+    _hrz_sp = None
+    _hrz_sp_reuse = 0
+
+
 class _PooledConnection:
     """Wraps a psycopg2 pooled connection so `.close()` returns it to the
     pool (via putconn) instead of actually closing it -- psycopg2 pools
@@ -71,7 +104,14 @@ class _PooledConnection:
 
     def close(self):
         if self._conn is not None:
-            self._pool.putconn(self._conn)
+            conn = self._conn
+            try:
+                if isinstance(conn, _TrackedConnection) and (
+                        conn.closed or conn.status != psycopg2.extensions.STATUS_READY):
+                    conn._hrz_sp = None     # returned dirty: forget what we knew about its session
+            except Exception:
+                conn._hrz_sp = None
+            self._pool.putconn(conn)
             self._conn = None
 
     def __del__(self):
@@ -103,9 +143,19 @@ def _set_search_path(conn, schema_name):
     physical database per tenant (Postgres has no mid-connection USE)."""
     if not re.match(r'^[a-zA-Z0-9_]+$', schema_name):
         raise ValueError(f"Invalid tenant schema name: {schema_name!r}")
+    tracked = _SKIP_REDUNDANT_SP and isinstance(conn, _TrackedConnection)
+    if tracked:
+        if (conn._hrz_sp == schema_name and conn._hrz_sp_reuse < _SP_REVALIDATE_EVERY
+                and not conn.closed and conn.status == psycopg2.extensions.STATUS_READY):
+            conn._hrz_sp_reuse += 1
+            return
+        conn._hrz_sp = None         # unknown until the SET below succeeds
     cur = conn.cursor()
     cur.execute(f'SET search_path TO "{schema_name}", public')
     cur.close()
+    if tracked:
+        conn._hrz_sp = schema_name
+        conn._hrz_sp_reuse = 0
 
 
 # The SQLite fallback below shares ONE sqlite3.Connection across every
@@ -577,7 +627,8 @@ def _get_owner_pool():
             if _owner_pool is None:
                 cfg = dict(_DB_CONFIG, user=_OWNER_USER, password=_OWNER_PASS)
                 _owner_pool = psycopg2.pool.ThreadedConnectionPool(
-                    minconn=1, maxconn=int(os.environ.get("DB_OWNER_POOL_MAX_CONN", "4")), **cfg)
+                    minconn=1, maxconn=int(os.environ.get("DB_OWNER_POOL_MAX_CONN", "4")),
+                    connection_factory=_TrackedConnection, **cfg)
     return _owner_pool
 
 
@@ -601,8 +652,9 @@ def runtime_grant_statements(schema, app_role):
     ]
     # Append-only for the runtime role no matter what triggers say, and no
     # access at all to the hash-chain head pointer (the chain trigger is
-    # SECURITY DEFINER, so it still works).
-    for tbl in ("audit_logs", "security_events"):
+    # SECURITY DEFINER, so it still works). soc_audit_log lives in att_master
+    # only; to_regclass makes this a no-op in every other schema.
+    for tbl in ("audit_logs", "security_events", "soc_audit_log"):
         stmts.append(
             f"DO $$ BEGIN IF to_regclass('{schema}.{tbl}') IS NOT NULL THEN "
             f"REVOKE UPDATE, DELETE, TRUNCATE ON {s}.{tbl} FROM {r}; END IF; END $$")
@@ -671,6 +723,7 @@ def _create_pool(retries=1, delay=0.1):
                 # what made admin pages intermittently feel slow to load.
                 minconn=int(os.environ.get("DB_POOL_MIN_CONN", "5")),
                 maxconn=int(os.environ.get("DB_POOL_MAX_CONN", "20")),
+                connection_factory=_TrackedConnection,
                 **_DB_CONFIG,
             )
             _log.info('"Connected to PostgreSQL (attempt %d)"', attempt)

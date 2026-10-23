@@ -23,8 +23,8 @@ qrcode>=8.2
 # ── Spreadsheets & reports ────────────────────────────────────────────────────
 openpyxl>=3.1.5
 # Dependabot-proposed major bump (3.x -> 5.x) — floor raised per its advisory.
-# Verified on Python 3.12 (matching the production container, not the 3.7
-# interpreter this comment used to warn about): reportlab 5.0.1 installs
+# Verified on the production container's Python (see Containerfile; not the
+# 3.7 interpreter this comment used to warn about): reportlab 5.0.1 installs
 # cleanly and tests/test_onboarding.py's own tests call the real PDF
 # generator (_generate_offer_letter_pdf, blueprints/onboarding.py) directly,
 # unmocked — passing there across many full-suite runs is the actual smoke

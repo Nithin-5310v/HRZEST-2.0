@@ -496,3 +496,23 @@ limiter = Limiter(
     storage_uri=_limiter_storage_uri,
     default_limits=["300 per minute"],
 )
+
+
+# ── Per-request guard cache lifecycle (utils/request_guard.py) ───────────────
+# The authenticated-session guard caches its account-state read for ONE
+# request. Drop it the moment the request is over -- on the normal path
+# (after_request) and when a handler raised (teardown_request) -- so the next
+# request, or any code running in a preserved context, can never be served a
+# stale "not compromised / still active / password unchanged".
+from utils import request_guard as _request_guard  # noqa: E402
+
+
+@app.after_request
+def _drop_guard_cache(response):
+    _request_guard.clear()
+    return response
+
+
+@app.teardown_request
+def _drop_guard_cache_on_teardown(_exc):
+    _request_guard.clear()
