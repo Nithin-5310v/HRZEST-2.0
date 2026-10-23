@@ -24,6 +24,7 @@ if [ ! -f ".env" ]; then
   echo -e "${YELLOW}No .env found. Running setup_env.py to create one...${NC}"
   python3 setup_env.py
   echo -e "${RED}Edit .env (APP_URL, ALLOWED_ORIGINS, DB_*, SMTP, ...) then re-run: bash deploy.sh${NC}"
+  echo "   (The office location is set per company in Settings, not in .env.)"
   exit 1
 fi
 
