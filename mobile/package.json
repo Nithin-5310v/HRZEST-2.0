@@ -25,7 +25,7 @@
     "@react-navigation/stack": "^7.10.17",
     "@sentry/react-native": "~7.11.0",
     "axios": "^1.7.9",
-    "expo": "~57.0.29",
+    "expo": "~57.0.30",
     "expo-asset": "~57.0.20",
     "expo-blur": "~57.0.3",
     "expo-camera": "~57.0.6",
