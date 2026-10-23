@@ -466,7 +466,7 @@ def onboarding_template_delete():
 @admin_required
 def onboarding_task_save():
     task_id = request.form.get("task_id")
-    tid = request.form.get("template_id")
+    tid = int_param(request.form.get("template_id"))
     title = request.form.get("task_title", "").strip()
     desc = request.form.get("task_description", "").strip()
     req_doc = 1 if request.form.get("requires_document") else 0
@@ -650,7 +650,7 @@ def onboarding_admin_task_update():
     task_id = request.form.get("task_id")
     new_status = request.form.get("status")
     notes = request.form.get("admin_notes", "")
-    ob_id = request.form.get("ob_id")
+    ob_id = int_param(request.form.get("ob_id"))
     cursor.execute("SELECT employee_id FROM employee_onboarding WHERE id=%s", (ob_id,))
     _ob_owner = cursor.fetchone()
     if not _ob_owner or hr_scope_denied(_ob_owner[0]):
@@ -1503,7 +1503,7 @@ def my_onboarding_task_done():
     db = get_db_connection()
     cursor = db.cursor()
     task_id = request.form.get("task_id")
-    ob_id = request.form.get("ob_id")
+    ob_id = int_param(request.form.get("ob_id")) if request.form.get("ob_id") else ""
     employee_note = request.form.get("employee_note", "").strip()[:500]
 
     cursor.execute("SELECT employee_id, requires_document FROM employee_onboarding_tasks WHERE id=%s", (task_id,))

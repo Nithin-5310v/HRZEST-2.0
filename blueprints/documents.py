@@ -92,7 +92,8 @@ def delete_document(did):
     cursor.close()
     db.close()
     flash("Document deleted.", "success")
-    return redirect(_safe_referrer_redirect(request.referrer or "", fallback))
+    target = _safe_referrer_redirect(request.referrer or "", fallback)  # same-site referrers only
+    return redirect(target)
 
 
 @documents_bp.route("/download_document/<int:did>")

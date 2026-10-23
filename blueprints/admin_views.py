@@ -1514,7 +1514,8 @@ def switch_company():
 def clear_company():
     session.pop("active_company_id", None)
     flash("Viewing all companies.", "success")
-    return redirect(_safe_redirect(request.form.get("next", ""), "/admin"))
+    target = _safe_redirect(request.form.get("next", ""), "/admin")  # same-site paths only
+    return redirect(target)
 
 
 @admin_views_bp.route("/set_company_pin", methods=["POST"])

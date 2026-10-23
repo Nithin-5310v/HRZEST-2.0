@@ -92,9 +92,17 @@ jobs:
       - name: SAST Scan (Semgrep)
         # returntocorp/semgrep-action is archived; the CLI is the supported
         # path (same invocation deploy.yml's sast job uses).
+        # Two p/default rules don't apply to this codebase and are excluded
+        # by id, nothing else: sqlalchemy-execute-raw-query targets
+        # SQLAlchemy, which HRZEST doesn't use (psycopg2 with %s parameters;
+        # injection is covered by tainted-sql-string in deploy.yml's scan),
+        # and python37-compatibility-importlib2 targets Python 3.7 (the
+        # image runs 3.13).
         run: |
           pip install --no-cache-dir semgrep
           semgrep scan --config p/default --severity ERROR --error \
+            --exclude-rule python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query \
+            --exclude-rule python.lang.compatibility.python37.python37-compatibility-importlib2 \
             --exclude tests --exclude node_modules --exclude mobile .
 
       # Optional: runs only once a SNYK_TOKEN repository secret exists.

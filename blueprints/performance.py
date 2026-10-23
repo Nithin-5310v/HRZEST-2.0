@@ -12,7 +12,7 @@ from database import get_db_connection
 from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE, session_account_ok
 from utils.helpers import (
     tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings,
-    get_employee_sidebar_info, company_today, int_param,
+    get_employee_sidebar_info, company_today, int_param, emp_id_param,
 )
 from extensions import limiter, log_security_event
 
@@ -382,7 +382,7 @@ def performance_review(emp_id):
 @performance_bp.route("/performance_save_review", methods=["POST"])
 @admin_required
 def performance_save_review():
-    emp_id = request.form["employee_id"]
+    emp_id = emp_id_param(request.form["employee_id"])
     q = int_param(request.form["quarter"])
     yr = int_param(request.form["year"])
     feedback = request.form.get("reviewer_feedback", "").strip()
@@ -425,7 +425,7 @@ def performance_save_review():
 @performance_bp.route("/performance_add_kpi", methods=["POST"])
 @admin_required
 def performance_add_kpi():
-    emp_id = request.form["employee_id"]
+    emp_id = emp_id_param(request.form["employee_id"])
     q = int_param(request.form["quarter"])
     yr = int_param(request.form["year"])
     title = request.form.get("kpi_title", "").strip()
@@ -470,7 +470,7 @@ def performance_add_kpi():
 @admin_required
 def performance_rate_kpi():
     kpi_id = int_param(request.form["kpi_id"])
-    emp_id = request.form["employee_id"]
+    emp_id = emp_id_param(request.form["employee_id"])
     q = int_param(request.form["quarter"])
     yr = int_param(request.form["year"])
     rating = int_param(request.form.get("rating", 0))
@@ -517,7 +517,7 @@ def performance_rate_kpi():
 @admin_required
 def performance_delete_kpi():
     kpi_id = int_param(request.form["kpi_id"])
-    emp_id = request.form["employee_id"]
+    emp_id = emp_id_param(request.form["employee_id"])
     q = int_param(request.form["quarter"])
     yr = int_param(request.form["year"])
     if _hr_write_denied(emp_id):

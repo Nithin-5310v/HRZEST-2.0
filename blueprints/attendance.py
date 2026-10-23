@@ -598,22 +598,26 @@ def correct_attendance():
     login_str = request.form.get("login_time", "").strip()
     logout_str = request.form.get("logout_time", "").strip()
     att_type = request.form.get("attendance_type", "").strip()
-    year = request.form.get("year", "")
-    month = request.form.get("month", "")
+    # Only used for the redirect back to the detail page (QA SEC-14).
+    year = int_param(request.form.get("year") or company_today().year)
+    month = int_param(request.form.get("month") or company_today().month)
 
     if not emp_id or not date_str or not att_type:
         flash("Missing required fields.", "error")
-        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
+        back = _safe_referrer_redirect(request.referrer or "", "/monthly_report")  # same-site only
+        return redirect(back)
 
     if hr_scope_denied(emp_id):
         flash("Employee not found.", "error")
-        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
+        back = _safe_referrer_redirect(request.referrer or "", "/monthly_report")  # same-site only
+        return redirect(back)
 
     try:
         date_obj = datetime.date.fromisoformat(date_str)
     except ValueError:
         flash("Invalid date.", "error")
-        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
+        back = _safe_referrer_redirect(request.referrer or "", "/monthly_report")  # same-site only
+        return redirect(back)
 
     login_time = login_str if login_str else None
     logout_time = logout_str if logout_str else None
@@ -704,7 +708,7 @@ def bulk_mark_attendance():
             clear_attendance_lockout(eid, date_obj, admin_username)
 
         flash(f"Attendance saved for {saved} employee(s) on {date_obj.strftime('%d %b %Y')}.", "success")
-        return redirect(tpath(f"/bulk_mark_attendance?date={date_str}"))
+        return redirect(tpath(f"/bulk_mark_attendance?date={date_obj.isoformat()}"))
 
     date_str = request.args.get("date", today.isoformat())
     try:

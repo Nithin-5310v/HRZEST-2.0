@@ -92,7 +92,7 @@ def import_indian_holidays():
 @leave_bp.route("/delete_holiday/<int:hid>", methods=["POST"])
 @admin_required
 def delete_holiday(hid):
-    year = request.form.get("year", company_today().year)
+    year = int_param(request.form.get("year") or company_today().year)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM holidays WHERE id=%s", (hid,))

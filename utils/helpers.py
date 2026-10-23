@@ -29,6 +29,16 @@ def validate_emp_id(emp_id: str) -> bool:
     return bool(emp_id) and bool(_EMP_ID_RE.match(emp_id))
 
 
+def emp_id_param(value):
+    """An employee id taken from the request, checked against the same
+    format as validate_emp_id(). Malformed input answers 400 Bad Request,
+    like int_param() -- it never reaches a query or a redirect URL as sent
+    (QA SEC-14)."""
+    if not isinstance(value, str) or not validate_emp_id(value):
+        abort(400, description="An employee id in the request is invalid.")
+    return value
+
+
 def coerce_datetime(value):
     """A TIMESTAMP column comes back as a real datetime from Postgres, but
     as a plain str from the local-fallback SQLite path (database.py's

@@ -1312,7 +1312,7 @@ def create_org_verify_otp():
     ok, error = _verify_application_otp(application, otp_code)
     if not ok:
         flash(error, "error")
-        return redirect(f"/create_org/verify_otp?application_id={application_id}")
+        return redirect(f"/create_org/verify_otp?application_id={application['id']}")
 
     # Re-fetch: _verify_application_otp() just advanced status to
     # 'otp_verified' in the DB, but `application` here is still the
@@ -1325,7 +1325,7 @@ def create_org_verify_otp():
         flash(f"Could not set up your company: {error}. Please contact support.", "error")
         return redirect("/create_org")
 
-    return redirect(f"/create_org/upload_documents?application_id={application_id}")
+    return redirect(f"/create_org/upload_documents?application_id={application['id']}")
 
 
 @org_bp.route("/create_org/resend_otp", methods=["POST"])
@@ -1352,7 +1352,7 @@ def create_org_resend_otp():
 
     send_org_signup_otp_email(application["admin_email"], application["company_name"], otp_code)
     flash("A new code has been sent to your email.", "info")
-    return redirect(f"/create_org/verify_otp?application_id={application_id}")
+    return redirect(f"/create_org/verify_otp?application_id={application['id']}")
 
 
 @org_bp.route("/create_org/upload_documents", methods=["GET"])
@@ -1381,7 +1381,7 @@ def create_org_upload_documents():
     if not ok:
         flash(error, "error")
         _token_qs = f"&token={request.form.get('token', '')}" if request.form.get("token") else ""
-        return redirect(f"/create_org/upload_documents?application_id={application_id}{_token_qs}")
+        return redirect(f"/create_org/upload_documents?application_id={application['id']}{_token_qs}")
 
     # Every self-serve application reaches status='provisioned' right after
     # OTP now (see _provision_application_instantly()) -- there's nothing
@@ -1391,8 +1391,8 @@ def create_org_upload_documents():
     # application that somehow reached here pre-provisioned.
     if application["status"] == "provisioned":
         flash("Documents submitted -- your company is live. Log in below.", "info")
-        return redirect(f"/create_org/status/{application_id}")
-    return redirect(f"/create_org/pending?application_id={application_id}")
+        return redirect(f"/create_org/status/{application['id']}")
+    return redirect(f"/create_org/pending?application_id={application['id']}")
 
 
 @org_bp.route("/create_org/pending", methods=["GET"])

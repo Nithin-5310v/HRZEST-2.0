@@ -1009,8 +1009,8 @@ def award_performance_bonus():
 @payroll_bp.route("/save_hike_config", methods=["POST"])
 @admin_required
 def save_hike_config():
-    q = request.form.get("quarter", "1")
-    yr = request.form.get("year", str(company_today().year))
+    q = int_param(request.form.get("quarter", 1))
+    yr = int_param(request.form.get("year", company_today().year))
     ids = request.form.getlist("band_id")
     labels = request.form.getlist("band_label")
     min_rats = request.form.getlist("band_min")
