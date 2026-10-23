@@ -336,7 +336,15 @@ describe('attendance check-in / check-out', () => {
     mockAxiosInstance.post.mockResolvedValue({ data: {} });
     const punches = [{ id: '1', lat: 1, lon: 2 }];
     await client.syncOfflinePunches(punches);
-    expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/employee/sync_punches', { punches });
+    // device_id (security-hardening's punch integrity) is null when the caller has none
+    expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/employee/sync_punches', { punches, device_id: null });
+  });
+
+  it('syncOfflinePunches sends the device id when given', async () => {
+    mockAxiosInstance.post.mockResolvedValue({ data: {} });
+    const punches = [{ id: '1', lat: 1, lon: 2 }];
+    await client.syncOfflinePunches(punches, 'dev-123');
+    expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/employee/sync_punches', { punches, device_id: 'dev-123' });
   });
 
   it('propagates a network failure from employeeCheckin (offline) untouched', async () => {
