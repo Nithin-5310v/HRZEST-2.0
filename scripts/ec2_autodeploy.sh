@@ -142,6 +142,8 @@ backup
 if deploy_to "$target" "$current" && healthy; then
   log "deployed ${target:0:7}; $HEALTH_URL is healthy"
   rm -f "$STATE_DIR/last_status"
+  # Commits from before this script existed don't carry it; keep what's installed.
+  [ -f scripts/install_ec2_autodeploy.sh ] || exit 0
   for f in ec2_autodeploy.sh hrzest-autodeploy.service hrzest-autodeploy.timer; do
     installed="/etc/systemd/system/$f"
     [ "$f" = ec2_autodeploy.sh ] && installed=/usr/local/bin/hrzest-autodeploy
