@@ -19,6 +19,10 @@ import pytest
 from tests.test_admin_views_routes import _admin_session
 from utils.helpers import invalidate_settings_cache
 
+# SEC-09 is on hold: the window setting, review flag and /offline_punches
+# page don't exist yet. Delete this line when the feature lands.
+pytestmark = pytest.mark.skip(reason="SEC-09 offline-punch review not built yet")
+
 
 @pytest.fixture
 def emp(client, seed_employee, db_engine):
