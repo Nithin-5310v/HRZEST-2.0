@@ -441,51 +441,10 @@ jobs:
           retention-days: 90
 
   deploy:
-    name: Deploy to production
+    name: Deploy to production (temporarily disabled)
     runs-on: ubuntu-latest
     needs: publish
-    # Only on a direct push to main, never on pull_request runs
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment: production   # requires approval from a repo admin before deploy runs
-    env:
-      # true/false only -- the SSH key itself stays on the deploy step. A
-      # copy of this repo without the server's SSH secrets (a fork, a new
-      # remote) skips the deploy with a warning instead of failing every
-      # push to main. A step's own env isn't visible to its if:, hence here.
-      HAS_DEPLOY_SECRETS: ${{ secrets.SSH_HOST != '' && secrets.SSH_USER != '' && secrets.SSH_KEY != '' }}
-
+    if: false
     steps:
-      - name: Warn that the deploy was skipped
-        if: env.HAS_DEPLOY_SECRETS != 'true'
-        run: echo "::warning title=Deploy skipped::SSH_HOST, SSH_USER and SSH_KEY secrets are not all set, so nothing was deployed."
-
-      - name: Deploy the signed image by digest
-        if: env.HAS_DEPLOY_SECRETS == 'true'
-        # SSH_USER must be the "attendance" user deploy.sh creates -- it runs
-        # rootless Podman and owns /opt/employee-attendance directly, so no
-        # sudo is needed (and it has none). Add the CI key to
-        # /home/attendance/.ssh/authorized_keys on the instance.
-        #
-        # The host no longer builds anything: it checks out the exact commit
-        # CI tested (compose/nginx files only) and runs the image CI built,
-        # selected by digest and verified against its Sigstore signature
-        # (scripts/deploy_verified_image.sh refuses an unsigned or
-        # tag-addressed image).
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-        env:
-          APP_IMAGE: ${{ needs.publish.outputs.image }}@${{ needs.publish.outputs.digest }}
-          GIT_SHA: ${{ github.sha }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          envs: APP_IMAGE,GIT_SHA
-          script: |
-            set -e
-            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-            cd /opt/employee-attendance
-            git fetch --quiet origin main
-            git checkout --quiet --detach "$GIT_SHA"
-            bash scripts/deploy_verified_image.sh
-            echo "Deploy complete at $(date)"
+      - name: Deployment intentionally disabled
+        run: echo "Production deployment is temporarily disabled during testing."
