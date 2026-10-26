@@ -441,6 +441,10 @@ jobs:
           retention-days: 90
 
   deploy:
+    # Production deploys are pull-based: the EC2 host checks every 2 minutes
+    # for a main commit whose Actions runs all passed and deploys it itself
+    # (scripts/ec2_autodeploy.sh). This SSH job stays off -- that host runs
+    # gunicorn under systemd, not the container stack this job targets.
     name: Deploy to production (temporarily disabled)
     runs-on: ubuntu-latest
     needs: publish

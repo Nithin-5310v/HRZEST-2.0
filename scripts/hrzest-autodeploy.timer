@@ -1,0 +1,13 @@
+[Unit]
+Description=Check GitHub for a new HRzest.com release every 2 minutes
+
+[Timer]
+OnActiveSec=1min
+OnBootSec=3min
+# Measured from the end of the previous run, so a long deploy never overlaps
+# the next check (the script also holds a lock).
+OnUnitInactiveSec=2min
+RandomizedDelaySec=20
+
+[Install]
+WantedBy=timers.target
