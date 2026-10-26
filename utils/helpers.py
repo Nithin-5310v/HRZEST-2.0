@@ -970,6 +970,9 @@ def get_company_settings():
             _cache_set(_co_cache, "settings_co", result, _CO_CACHE_TTL)
             return dict(result)
     except Exception as exc:
+        from database import DatabaseUnavailable
+        if isinstance(exc, DatabaseUnavailable):
+            raise
         # Falls through to generic hardcoded defaults below -- every page
         # in the app would silently render wrong branding/settings, worth
         # a trace.
