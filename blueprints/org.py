@@ -879,16 +879,11 @@ def _verify_application_otp(application, otp_code):
     mconn = get_master_db()
     mcur = mconn.cursor()
     stored_hash = application["otp_code_hash"] or ""
-    # Local-dev-only bypass: accepts any code (even blank) so the signup
-    # flow can be tested end-to-end without real SMTP -- same APP_ENV gate
-    # utils/helpers.py already uses for the malware-scan fail-open and the
-    # missing-APP_URL warning. Never active unless APP_ENV=development, so
-    # production (default "production") is unaffected.
-    _dev_bypass = os.environ.get("APP_ENV", "production") == "development"
-    if _dev_bypass:
-        app_log.warning("_verify_application_otp: APP_ENV=development -- OTP check bypassed for application %s",
-                        application["id"])
-    code_matches = _dev_bypass or (bool(otp_code) and secrets.compare_digest(_hash_token(otp_code), stored_hash))
+    # Always the real code, in every APP_ENV: an APP_ENV=development bypass
+    # that accepted any code let a server left in development mode create
+    # companies for email addresses nobody had verified. Local dev without
+    # SMTP reads the code from the log instead (send_org_signup_otp_email).
+    code_matches = bool(otp_code) and secrets.compare_digest(_hash_token(otp_code), stored_hash)
     if not code_matches:
         mcur.execute("UPDATE tenant_applications SET otp_attempts=otp_attempts+1, updated_at=NOW() WHERE id=%s",
                      (application["id"],))
@@ -909,9 +904,8 @@ def _verify_application_otp(application, otp_code):
 
 
 def _mark_application_otp_verified(application_id, mconn, mcur):
-    """Shared with the APP_ENV=development skip-OTP path in create_org()
-    below -- same DB transition, whether a real code was checked or the
-    step was bypassed entirely for local testing."""
+    """Advances the application to 'otp_verified' once its emailed code
+    has been checked; commits and closes mconn/mcur."""
     mcur.execute(
         "UPDATE tenant_applications SET status='otp_verified', email_verified_at=NOW(), updated_at=NOW() WHERE id=%s",
         (application_id,)
@@ -1272,24 +1266,14 @@ def create_org():
     # sequential id, not a secret) is fine to carry in the URL.
     session["org_access_token"] = access_token
 
-    if os.environ.get("APP_ENV", "production") == "development":
-        # Local-dev-only: skip the verify-email screen entirely instead of
-        # just accepting any code on it -- there's no SMTP to receive a
-        # real email against anyway. Same APP_ENV gate as everywhere else
-        # in this codebase that relaxes local dev; production (default
-        # "production") always goes through the real verify_otp step.
-        app_log.warning("create_org: APP_ENV=development -- OTP screen skipped entirely for application %s",
-                        application_id)
-        # Commits and closes mconn/mcur itself (QA CONN-01's leak is covered
-        # there) -- closing them again here raised AttributeError on the
-        # already-returned pooled connection.
-        _mark_application_otp_verified(application_id, mconn, mcur)
-        return redirect(f"/create_org/upload_documents?application_id={application_id}")
-
     mconn.commit()
     mcur.close()
     mconn.close()
 
+    # Email verification is never skipped, in any APP_ENV: an
+    # APP_ENV=development shortcut here once jumped straight to the document
+    # upload, which also skipped the provisioning that only runs after a
+    # verified code (create_org_verify_otp), stranding the applicant.
     send_org_signup_otp_email(admin_email, company_name, otp_code)
     return redirect(f"/create_org/verify_otp?application_id={application_id}")
 

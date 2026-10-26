@@ -89,7 +89,9 @@ class TestHomeRegistrationErrors:
 
 
 class TestHomeRegistrationSuccess:
-    def test_valid_submission_starts_an_application(self, client, db_engine):
+    def test_valid_submission_starts_an_application(self, client, db_engine, monkeypatch):
+        import blueprints.org as org_module
+        monkeypatch.setattr(org_module, "send_org_signup_otp_email", lambda email, company, otp: True)
         gst = _random_gst()
         resp = client.post("/create_org", data={
             "company_name": "Home Form Valid Co", "subdomain": "home-form-valid-co",
@@ -98,9 +100,9 @@ class TestHomeRegistrationSuccess:
             "gst_number": gst, "signup_plan": "pay_now", "return_to": "home",
         })
         assert resp.status_code == 302
-        # conftest forces APP_ENV=development, where create_org() skips the
-        # OTP screen and goes straight to the document upload step.
-        assert resp.headers["Location"].startswith("/create_org/upload_documents?application_id=")
+        # Next step is always the emailed-code screen (conftest's
+        # APP_ENV=development used to skip it).
+        assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
         cur = db_engine.cursor()
         cur.execute("SELECT company_name, status FROM att_master.tenant_applications WHERE gst_number=%s", (gst,))
         row = cur.fetchone()

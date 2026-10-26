@@ -248,25 +248,59 @@ class TestSignupValidation:
         assert resp.headers.get("Location") == "/create_org"
 
 
-class TestDevModeSignupSkipsOtp:
-    """conftest forces APP_ENV=development, where create_org() skips the
-    OTP screen. _mark_application_otp_verified() commits and closes the
-    connection itself; closing it a second time 500'd every local signup."""
+class TestDevModeSignupStillVerifiesEmail:
+    """conftest forces APP_ENV=development -- the mode the EC2 host ran in.
+    create_org() used to skip the email-code screen there, which also
+    skipped the provisioning that only follows a verified code, so the
+    applicant ended on a pending page nothing ever advanced. The code is
+    now emailed and checked in every APP_ENV."""
 
-    def test_valid_signup_goes_straight_to_document_upload(self, client, db_engine):
-        gst = _random_gst()
+    def _start(self, client, monkeypatch, gst):
+        import blueprints.org as org_module
+        sent = {}
+        monkeypatch.setattr(org_module, "send_org_signup_otp_email",
+                            lambda email, company, otp: sent.setdefault("otp", otp) or True)
         resp = client.post("/create_org", data={
             "company_name": "Dev Mode Signup Co", "subdomain": "dev-mode-signup-co",
             "admin_username": "dm_admin", "admin_password": "password123",
             "admin_email": "dm@devmodesignup.test", "email_domain": "devmodesignup.test",
             "gst_number": gst,
         }, follow_redirects=False)
-        assert resp.status_code == 302
-        assert resp.headers["Location"].startswith("/create_org/upload_documents?application_id=")
+        return resp, sent.get("otp")
+
+    def _status(self, db_engine, gst):
         cur = db_engine.cursor()
-        cur.execute("SELECT status FROM att_master.tenant_applications WHERE gst_number=%s", (gst,))
-        assert cur.fetchone()[0] == "otp_verified"
+        cur.execute("SELECT status, email_verified_at FROM att_master.tenant_applications WHERE gst_number=%s",
+                    (gst,))
+        row = cur.fetchone()
         cur.close()
+        return row
+
+    def test_signup_emails_a_code_and_shows_the_verify_screen(self, client, db_engine, monkeypatch):
+        gst = _random_gst()
+        resp, otp = self._start(client, monkeypatch, gst)
+        assert resp.status_code == 302
+        assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
+        assert otp, "the verification code must be emailed"
+        assert self._status(db_engine, gst) == ("started", None)
+
+    def test_wrong_or_blank_code_is_refused(self, client, db_engine, monkeypatch):
+        gst = _random_gst()
+        resp, _otp = self._start(client, monkeypatch, gst)
+        application_id = resp.headers["Location"].rsplit("=", 1)[-1]
+        for code in ("", "000000"):   # real codes are 100000-999999
+            bad = client.post("/create_org/verify_otp", data={"application_id": application_id, "otp_code": code})
+            assert bad.headers["Location"] == f"/create_org/verify_otp?application_id={application_id}"
+        assert self._status(db_engine, gst) == ("started", None)
+
+    def test_documents_cannot_be_uploaded_before_the_code_is_verified(self, client, db_engine, monkeypatch):
+        gst = _random_gst()
+        resp, _otp = self._start(client, monkeypatch, gst)
+        application_id = resp.headers["Location"].rsplit("=", 1)[-1]
+        upload = client.post("/create_org/upload_documents", data={"application_id": application_id},
+                             content_type="multipart/form-data")
+        assert upload.headers["Location"].startswith("/create_org/upload_documents?application_id=")
+        assert self._status(db_engine, gst) == ("started", None)
 
 
 # ===========================================================================
@@ -289,26 +323,6 @@ class TestGatedSignupFlow:
 
     def _start_application(self, client, monkeypatch, **overrides):
         import blueprints.org as org_module
-        # org.py has an APP_ENV=development convenience branch (added
-        # 2026-09-01) that skips the OTP screen entirely for local
-        # browser testing without real SMTP -- conftest.py forces
-        # APP_ENV=development for the whole suite, so without this
-        # override every test in this class would silently take that
-        # bypass instead of exercising the real OTP flow these tests are
-        # actually verifying (including OTP-lockout, which has nothing to
-        # lock out if the screen never appears). Scoped to just this
-        # request via monkeypatch so the dev bypass itself stays intact
-        # for its real purpose outside the test suite.
-        monkeypatch.setenv("APP_ENV", "production")
-        # _scan_for_malware() (utils/helpers.py) also reads APP_ENV to decide
-        # whether to fail open or closed when ClamAV is unreachable -- forcing
-        # "production" above for the OTP gate would otherwise also flip
-        # malware scanning to fail-closed, and there's no local ClamAV to
-        # reach in this test environment. _MALWARE_SCAN_ENABLED is read once
-        # at import time (not per-request like APP_ENV), so it has to be
-        # patched directly rather than via monkeypatch.setenv.
-        import utils.helpers as helpers_module
-        monkeypatch.setattr(helpers_module, "_MALWARE_SCAN_ENABLED", False)
         captured = {}
         monkeypatch.setattr(
             org_module, "send_org_signup_otp_email",
@@ -872,8 +886,8 @@ class TestSignupOtpCleartextLoggingGate:
     misconfigured would write the real signup-verification code to
     application logs, letting anyone with log/SIEM read access complete
     email verification for an arbitrary address. Now explicitly gated on
-    APP_ENV == "development" (mirroring _verify_application_otp's own dev
-    bypass); production instead logs an ERROR with no code in it at all."""
+    APP_ENV == "development"; production instead logs an ERROR with no code
+    in it at all."""
 
     def test_development_with_no_smtp_still_logs_the_code(self, monkeypatch):
         import blueprints.org as org_module

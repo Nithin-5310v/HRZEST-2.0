@@ -392,9 +392,6 @@ class TestTrialSignupIntegration:
 
     def _run_pipeline_to_approval(self, client, monkeypatch, subdomain, company_name, admin_username, admin_email):
         import blueprints.org as org_module
-        monkeypatch.setenv("APP_ENV", "production")  # exercise the real OTP screen, not the dev bypass
-        import utils.helpers as helpers_module
-        monkeypatch.setattr(helpers_module, "_MALWARE_SCAN_ENABLED", False)
         captured = {}
         monkeypatch.setattr(
             org_module, "send_org_signup_otp_email",

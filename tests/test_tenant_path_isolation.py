@@ -47,19 +47,6 @@ def _provision(client, monkeypatch, subdomain, admin_username, admin_password):
     import io as _io
     import blueprints.org as org_module
 
-    # org.py has an APP_ENV=development convenience branch that skips the
-    # OTP screen entirely for local browser testing without real SMTP --
-    # conftest.py forces APP_ENV=development for the whole suite, so
-    # without this override the assert below would always fail (see
-    # tests/test_org.py's identical fix for the same reason).
-    monkeypatch.setenv("APP_ENV", "production")
-    # See tests/test_org.py's identical comment: _scan_for_malware() also
-    # keys off APP_ENV to fail open/closed when ClamAV is unreachable, so
-    # forcing "production" above for the OTP gate would otherwise reject
-    # this fixture's document upload too (no local ClamAV in this
-    # environment). Patched directly since it's read once at import time.
-    import utils.helpers as helpers_module
-    monkeypatch.setattr(helpers_module, "_MALWARE_SCAN_ENABLED", False)
     captured = {}
     monkeypatch.setattr(
         org_module, "send_org_signup_otp_email",

@@ -88,9 +88,6 @@ class TestManualSignupFormIsOffered:
 class TestRenderedFormReachesTheBackend:
     def test_submitting_the_fields_the_page_renders_starts_an_application(self, client, db_engine, monkeypatch):
         import blueprints.org as org_module
-        # conftest forces APP_ENV=development, which skips the OTP screen;
-        # this test is about the real flow the browser form feeds.
-        monkeypatch.setenv("APP_ENV", "production")
         sent = {}
         monkeypatch.setattr(org_module, "send_org_signup_otp_email",
                             lambda email, company, otp: sent.setdefault("otp", otp) or True)
