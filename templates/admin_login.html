@@ -233,10 +233,10 @@
 
       <form action="{{ tpath('/login') }}" method="POST" autocomplete="on">
         <div class="field-group">
-          <label class="field-label" for="login_identifier">Username or Employee ID</label>
+          <label class="field-label" for="login_identifier">Email, Username or Employee ID</label>
           <input class="field-input" type="text" id="login_identifier" name="identifier"
-                 placeholder="Enter your username or employee ID"
-                 required autofocus autocomplete="username" />
+                 placeholder="Enter your email, username or employee ID"
+                 required autofocus autocomplete="username" autocapitalize="none" spellcheck="false" />
         </div>
 
         <div class="field-group">

@@ -29,7 +29,7 @@
     .page-intro h1 { font-family: var(--font-heading); font-size: 24px; font-weight: 800; margin-bottom: 6px; }
     .page-intro p { font-size: 14px; color: var(--text-muted); }
     .wizard-steps { display: flex; align-items: flex-start; justify-content: center; margin-bottom: 24px; }
-    .wizard-step { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 84px; flex-shrink: 0; }
+    .wizard-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 1 84px; min-width: 0; }
     .wizard-step-circle {
       width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
       font-size: 12px; font-weight: 700; background: var(--bg-secondary); border: 1.5px solid var(--border-color);
@@ -80,7 +80,7 @@
       <h1>{{ company_name }}</h1>
       <p>Your application was approved — set up your 2-day free trial.</p>
     </div>
-    {% set current_step = 4 %}
+    {% set current_step = 5 %}
     {% include "_org_wizard_steps.html" %}
     <div class="card">
       <div id="formError" class="alert alert-error"></div>

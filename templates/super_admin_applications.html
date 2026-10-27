@@ -97,7 +97,7 @@
             {% for app in applications %}
             <tr>
               <td>
-                <div class="co-name">{{ app.company_name }}</div>
+                <div class="co-name">{{ app.company_name or 'Company profile not set up yet' }}</div>
                 <div class="subdomain">{{ app.subdomain }}</div>
               </td>
               <td class="subdomain">{{ app.admin_email }}</td>

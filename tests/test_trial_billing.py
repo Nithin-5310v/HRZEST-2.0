@@ -37,18 +37,6 @@ def _drop_schema(db_engine, schema_name):
     cur.close()
 
 
-def _random_gst():
-    """A syntactically valid, but not otherwise meaningful, 15-character
-    GSTIN -- matches blueprints/org.py's _GST_RE, now required by
-    POST /create_org (see tests/test_org.py's identical helper)."""
-    letters = ''.join(secrets.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(5))
-    return (
-        f"{secrets.randbelow(100):02d}{letters}{secrets.randbelow(10000):04d}"
-        f"{secrets.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{secrets.choice('123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
-        f"Z{secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
-    )
-
-
 def _admin_session(client, username, role="admin"):
     with client.session_transaction() as sess:
         sess["admin_logged_in"] = True
@@ -375,14 +363,11 @@ class TestWebhookIdempotencyHardening:
 
 
 class TestTrialSignupIntegration:
-    """End-to-end: /create_org (signup_plan=trial) -> OTP -> KYC docs ->
-    platform-admin approval -> /create_org/setup_trial/<id> mandate setup
-    (demo mode) -> a real, provisioned tenant with the 14-day trial clock
-    started. Same "heavy but worth one real test" posture as
-    tests/test_org.py's test_full_flow_provisions_real_tenant_schema."""
-
-    _FAKE_PDF = b"%PDF-1.4\n" + b"x" * 20
-    _FAKE_PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 20
+    """End-to-end: the signup wizard with the trial plan picked on the
+    company profile -> KYC docs -> platform-admin approval -> a real,
+    provisioned tenant with the trial clock started at first login. Same
+    "heavy but worth one real test" posture as tests/test_org.py's
+    test_full_flow_provisions_real_tenant_schema."""
 
     def _login_platform_admin(self, client):
         with client.session_transaction() as sess:
@@ -390,35 +375,10 @@ class TestTrialSignupIntegration:
             sess["platform_admin_username"] = "test_platform_admin"
             sess["platform_admin_last_activity"] = time.time()
 
-    def _run_pipeline_to_approval(self, client, monkeypatch, subdomain, company_name, admin_username, admin_email):
-        import blueprints.org as org_module
-        captured = {}
-        monkeypatch.setattr(
-            org_module, "send_org_signup_otp_email",
-            lambda email, company, otp: captured.setdefault("otp", otp) or True
-        )
-        resp = client.post("/create_org", data={
-            "company_name": company_name, "subdomain": subdomain,
-            "admin_username": admin_username, "admin_password": "password123",
-            "admin_email": admin_email, "email_domain": "test.local",
-            "signup_plan": "trial", "gst_number": _random_gst(),
-        }, follow_redirects=False)
-        assert resp.status_code in (301, 302), resp.data
-        application_id = int(resp.headers["Location"].rsplit("=", 1)[-1])
-        otp = captured.get("otp")
-        assert otp is not None
-
-        resp = client.post("/create_org/verify_otp", data={"application_id": application_id, "otp_code": otp})
-        assert resp.status_code in (301, 302)
-
-        resp = client.post("/create_org/upload_documents", data={
-            "application_id": str(application_id),
-            "registration_cert": (io.BytesIO(self._FAKE_PDF), "cert.pdf"),
-            "address_proof": (io.BytesIO(self._FAKE_PDF), "address.pdf"),
-            "visiting_card": (io.BytesIO(self._FAKE_PNG), "card.png"),
-            "name_board_photo": (io.BytesIO(self._FAKE_PNG), "board.png"),
-        }, content_type="multipart/form-data", follow_redirects=False)
-        assert resp.status_code in (301, 302)
+    def _run_pipeline_to_approval(self, client, monkeypatch, subdomain, company_name, admin_email):
+        from tests.signup_flow import signup_company
+        application_id = signup_company(client, monkeypatch, admin_email, company_name, subdomain,
+                                        profile_extra={"signup_plan": "trial"})
 
         self._login_platform_admin(client)
         resp = client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
@@ -447,7 +407,7 @@ class TestTrialSignupIntegration:
         _drop_schema(db_engine, schema_name)
         try:
             application_id = self._run_pipeline_to_approval(
-                client, monkeypatch, subdomain, "E2E Trial Org", "e2e_trial_admin", "e2e-trial@test.local",
+                client, monkeypatch, subdomain, "E2E Trial Org", "e2e-trial@test.local",
             )
 
             cur = db_engine.cursor()
@@ -495,7 +455,7 @@ class TestTrialSignupIntegration:
             # not the newly provisioned "att_e2e_trial_org" schema, and the
             # login would fail (wrong schema's admin_users table).
             login_resp = client.post(f"/{subdomain}/login", data={
-                "identifier": "e2e_trial_admin", "password": "password123",
+                "identifier": "e2e-trial@test.local", "password": "password123",
             }, follow_redirects=True)
             assert login_resp.status_code == 200
 

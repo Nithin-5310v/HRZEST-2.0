@@ -452,6 +452,17 @@ def admin_login():
                 (identifier,)
             )
             admin_row = cursor.fetchone()
+            # A company's sign-up admin logs in with their email, stored
+            # lowercase (org.create_org) -- still match it when a phone
+            # keyboard capitalised the first letter.
+            if not admin_row and "@" in identifier and identifier != identifier.lower():
+                cursor.execute(
+                    "SELECT password, COALESCE(role,'admin'), email, COALESCE(is_active,1) FROM admin_users "
+                    "WHERE username=%s", (identifier.lower(),)
+                )
+                admin_row = cursor.fetchone()
+                if admin_row:
+                    identifier = identifier.lower()
         # Every account -- top-level admins included -- needs its password
         # first; the emailed code is only ever a SECOND factor. (Admins used
         # to skip the password entirely, which made a readable/guessable

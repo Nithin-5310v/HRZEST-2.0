@@ -54,7 +54,7 @@
     .page-intro h1 { font-family: var(--font-heading); font-size: 20px; font-weight: 800; letter-spacing: -0.3px; color: var(--text-main); margin-bottom: 5px; }
     .page-intro p { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
     .wizard-steps { display: flex; align-items: flex-start; justify-content: center; margin-bottom: 24px; }
-    .wizard-step { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 84px; flex-shrink: 0; }
+    .wizard-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 1 84px; min-width: 0; }
     .wizard-step-circle {
       width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
       font-size: 12px; font-weight: 700; background: var(--bg-secondary); border: 1.5px solid var(--border-color);
@@ -166,7 +166,15 @@
   {% include "_auth_promo.html" %}
   <div class="page-container">
 
+    {# Two wizard steps share this page (blueprints/org.py): the account (step 1,
+       POST /create_org) and, once the email is verified, the company profile
+       (step 3, profile_step, POST /create_org/profile). #}
     <div class="page-intro">
+      {% if profile_step %}
+      <div class="intro-icon"><i class="ti ti-building"></i></div>
+      <h1>Set Up Your Company Profile</h1>
+      <p>Your email is verified. Tell us about your company to create its portal — business documents come next.</p>
+      {% else %}
       <div class="intro-icon"><i class="ti ti-rocket"></i></div>
       <h1>Start Your Organisation</h1>
       {% set oauth_names = oauth_providers | map('title') | join(' or ') %}
@@ -174,11 +182,15 @@
       <p>Free registration from the Platform Admin dashboard: the same steps as a paid signup, without the payment.
          The company admin receives the verification code by email.</p>
       {% elif oauth_providers %}
-      <p>Sign up with your {{ oauth_names }} work account, or enter your company details yourself.</p>
+      <p>Sign up with your {{ oauth_names }} work account, or create an account with your email.</p>
       {% else %}
-      <p>Enter your company details to get started. We'll email you a code to verify your address.</p>
+      <p>Create your admin account with your email, mobile number and a password. We'll email you a code to verify your address.</p>
+      {% endif %}
       {% endif %}
     </div>
+
+    {% set current_step = 3 if profile_step else 1 %}
+    {% include "_org_wizard_steps.html" %}
 
     <div class="card">
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -189,6 +201,7 @@
         {% endfor %}
       {% endwith %}
 
+      {% if not profile_step %}
       {# Google/Microsoft buttons only for providers with keys configured (oauth_signup.py),
          and never on a platform admin's free registration #}
       {% if oauth_providers and not free_registration %}
@@ -230,21 +243,57 @@
 
       <div class="verify-note">
         <i class="ti ti-shield-lock"></i>
-        After this step we'll email you a verification code, then ask for a few business documents
-        (registration certificate, address proof, visiting card, and a photo of your office name-board).
+        Your email is also your login username. We'll email it a verification code, then you'll set up your
+        company profile and upload a few business documents.
       </div>
 
-      <form method="POST" action="/create_org" enctype="multipart/form-data" autocomplete="off">
+      <form method="POST" action="/create_org" autocomplete="off">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-        <input type="hidden" name="signup_plan" id="signup_plan_input" value="{{ 'free' if free_registration else 'pay_now' }}" />
+        {% if free_registration %}<input type="hidden" name="signup_plan" value="free" />{% endif %}
+
+        <div class="field-group">
+          <label class="field-label" for="admin_email_input"><i class="ti ti-mail"></i> Email</label>
+          <input class="field-input" type="email" name="admin_email" id="admin_email_input"
+                 placeholder="you@company.com" required maxlength="50" autocomplete="email" autocapitalize="none" />
+          <div class="field-hint">You'll sign in with this email, and your verification code goes here.</div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="admin_mobile_input"><i class="ti ti-phone"></i> Mobile Number</label>
+          <input class="field-input" type="tel" name="admin_mobile" id="admin_mobile_input"
+                 placeholder="+91 98765 43210" required autocomplete="tel" inputmode="tel"
+                 minlength="10" maxlength="20" />
+        </div>
+
+        <div class="field-group" style="margin-bottom: 24px;">
+          <label class="field-label" for="admin_password_input"><i class="ti ti-lock"></i> Password</label>
+          <input class="field-input" type="password" name="admin_password" id="admin_password_input"
+                 placeholder="At least 8 characters" required minlength="8" autocomplete="new-password" />
+        </div>
+
+        {% if show_captcha %}
+        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom:20px;"></div>
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        {% endif %}
+
+        <button type="submit" class="btn-submit"><span>Continue to Email Verification</span> <i class="ti ti-arrow-right"></i></button>
+      </form>
+
+      <a href="/login" class="footer-login-link" style="margin-top: 18px;">Already registered? Log in to your corporate workspace →</a>
+      {% else %}
+
+      <form method="POST" action="/create_org/profile" enctype="multipart/form-data" autocomplete="off">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="application_id" value="{{ application_id }}" />
 
         {% if free_registration %}
         <div class="trial-badge">
           <i class="ti ti-gift"></i>
-          Free registration — no payment step. The company is created once the admin email is verified,
-          billed later by manual invoice.
+          Free registration — no payment step. The company is created with this profile and billed later
+          by manual invoice.
         </div>
         {% else %}
+        <input type="hidden" name="signup_plan" id="signup_plan_input" value="pay_now" />
         <div class="plan-toggle">
           <div class="plan-option selected" id="planOptionPayNow" onclick="selectSignupPlan('pay_now')">
             <div class="plan-option-title"><i class="ti ti-credit-card"></i> Pay Now</div>
@@ -289,45 +338,15 @@
           <div class="field-hint">Your team will access their portal at: <strong id="liveUrlPreview" style="color: var(--accent-cyan);">www.hrzest.com/acme/login</strong></div>
         </div>
 
-        <div class="field-group">
-          <label class="field-label" for="admin_email_input"><i class="ti ti-mail"></i> Admin Email</label>
-          <input class="field-input" type="email" name="admin_email" id="admin_email_input"
-                 placeholder="admin@acme.com" required autocomplete="email"
-                 oninput="deriveFromEmail(this.value)" onblur="deriveFromEmail(this.value)" />
-          <div class="field-hint">We'll send your verification code here.</div>
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="admin_username_input"><i class="ti ti-user"></i> Admin Name (login username)</label>
-          <input class="field-input" type="text" name="admin_username" id="admin_username_input"
-                 placeholder="e.g. john" required minlength="2" pattern="[a-zA-Z0-9_.\-]+"
-                 title="Letters, numbers, dots, hyphens and underscores only" oninput="usernameUserEdited = true;" />
-          <div class="field-hint">This is what you and your team sign in with — pick anything memorable, no need to match your email.</div>
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="admin_password_input"><i class="ti ti-lock"></i> Admin Password</label>
-          <input class="field-input" type="password" name="admin_password" id="admin_password_input"
-                 placeholder="At least 8 characters" required minlength="8" autocomplete="new-password" />
-        </div>
-
         <div class="field-group" style="margin-bottom: 24px;">
           <label class="field-label" for="logo_input"><i class="ti ti-photo"></i> Company Logo (optional)</label>
           <input class="field-input" type="file" name="logo" id="logo_input" accept="image/jpeg,image/png,image/webp,image/bmp" />
           <div class="field-hint">Shown in your team's dashboards. JPG, PNG, WEBP or BMP, up to 5&nbsp;MB. You can skip this and add it later.</div>
         </div>
 
-        <input type="hidden" name="email_domain" id="email_domain_input" />
-
-        {% if show_captcha %}
-        <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom:20px;"></div>
-        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-        {% endif %}
-
-        <button type="submit" class="btn-submit"><span>Continue to Verification</span> <i class="ti ti-arrow-right"></i></button>
+        <button type="submit" class="btn-submit"><span>Create My Company</span> <i class="ti ti-arrow-right"></i></button>
       </form>
-
-      <a href="/login" class="footer-login-link" style="margin-top: 18px;">Already registered? Log in to your corporate workspace →</a>
+      {% endif %}
     </div>
 
   </div>
@@ -335,7 +354,6 @@
 
   <script>
   let subdomainUserEdited = false;
-  let usernameUserEdited = false;
 
   function selectSignupPlan(plan) {
     document.getElementById('signup_plan_input').value = plan;
@@ -367,19 +385,6 @@
   function updateLivePreview(slug) {
     const preview = document.getElementById('liveUrlPreview');
     if (preview) preview.textContent = 'www.hrzest.com/' + (slug || 'acme') + '/login';
-  }
-
-  function deriveFromEmail(email) {
-    const at = email.indexOf('@');
-    if (at < 1) return;
-    const localPart = email.slice(0, at).toLowerCase().replace(/[^a-z0-9_.\-]/g, '');
-    const domainPart = email.slice(at + 1).toLowerCase();
-    // Suggest a username from the email only until the visitor types their
-    // own into that field -- once they have, their choice always wins.
-    if (!usernameUserEdited) {
-      document.getElementById('admin_username_input').value = localPart;
-    }
-    document.getElementById('email_domain_input').value = domainPart;
   }
   </script>
 </body>

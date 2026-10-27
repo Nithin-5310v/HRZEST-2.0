@@ -14,20 +14,9 @@ Provisions two real tenant schemas (same heavy-but-necessary pattern as
 tests/test_org.py's TestSuccessfulProvisioning), with explicit DROP SCHEMA
 cleanup after each test.
 """
-import secrets
 import pytest
 
-
-def _random_gst():
-    """A syntactically valid, but not otherwise meaningful, 15-character
-    GSTIN -- matches blueprints/org.py's _GST_RE, now required by
-    POST /create_org (see tests/test_org.py's identical helper)."""
-    letters = ''.join(secrets.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(5))
-    return (
-        f"{secrets.randbelow(100):02d}{letters}{secrets.randbelow(10000):04d}"
-        f"{secrets.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{secrets.choice('123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
-        f"Z{secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
-    )
+ADMIN_A = "tpi_admin_a@test.local"   # company A's admin; signup makes the email the username
 
 
 def _drop_schema(db_engine, schema_name):
@@ -37,50 +26,13 @@ def _drop_schema(db_engine, schema_name):
     cur.close()
 
 
-def _provision(client, monkeypatch, subdomain, admin_username, admin_password):
-    """Signup is gated now (blueprints/org.py's tenant_applications state
-    machine: OTP verification -> KYC document upload -> platform-admin
-    approval) rather than a single instant-provisioning POST -- walk the
-    whole pipeline so this fixture still ends with a real, live tenant
-    schema. See tests/test_org.py's TestGatedSignupFlow for the dedicated
-    coverage of each individual step; this just needs the end result."""
-    import io as _io
-    import blueprints.org as org_module
-
-    captured = {}
-    monkeypatch.setattr(
-        org_module, "send_org_signup_otp_email",
-        lambda email, company, otp: captured.setdefault("otp", otp) or True
-    )
-
-    resp = client.post("/create_org", data={
-        "company_name": f"{subdomain} Inc",
-        "subdomain": subdomain,
-        "admin_username": admin_username,
-        "admin_password": admin_password,
-        "admin_email": f"{admin_username}@test.local",
-        "email_domain": "test.local",
-        "gst_number": _random_gst(),
-    }, follow_redirects=False)
-    assert resp.status_code in (301, 302), resp.data
-    application_id = int(resp.headers["Location"].rsplit("=", 1)[-1])
-    assert captured.get("otp"), "OTP email was never sent"
-
-    resp = client.post("/create_org/verify_otp", data={
-        "application_id": application_id, "otp_code": captured["otp"],
-    }, follow_redirects=False)
-    assert resp.status_code in (301, 302), resp.data
-
-    fake_pdf = b"%PDF-1.4\n" + b"x" * 20
-    fake_png = b"\x89PNG\r\n\x1a\n" + b"x" * 20
-    resp = client.post("/create_org/upload_documents", data={
-        "application_id": str(application_id),
-        "registration_cert": (_io.BytesIO(fake_pdf), "cert.pdf"),
-        "address_proof": (_io.BytesIO(fake_pdf), "address.pdf"),
-        "visiting_card": (_io.BytesIO(fake_png), "card.png"),
-        "name_board_photo": (_io.BytesIO(fake_png), "board.png"),
-    }, content_type="multipart/form-data", follow_redirects=False)
-    assert resp.status_code in (301, 302), resp.data
+def _provision(client, monkeypatch, subdomain, admin_email):
+    """Walks the whole signup wizard (tests/signup_flow.py: account, email
+    code, company profile, documents, then platform-admin approval) so the
+    fixture ends with a real, live tenant schema whose admin signs in with
+    admin_email."""
+    from tests.signup_flow import signup_company
+    application_id = signup_company(client, monkeypatch, admin_email, f"{subdomain} Inc", subdomain)
 
     with client.session_transaction() as sess:
         sess["platform_admin_logged_in"] = True
@@ -104,8 +56,8 @@ def two_tenants(client, db_engine, monkeypatch):
     _drop_schema(db_engine, schema_a)
     _drop_schema(db_engine, schema_b)
     try:
-        _provision(client, monkeypatch, slug_a, "tpi_admin_a", "password123")
-        _provision(client, monkeypatch, slug_b, "tpi_admin_b", "password123")
+        _provision(client, monkeypatch, slug_a, ADMIN_A)
+        _provision(client, monkeypatch, slug_b, "tpi_admin_b@test.local")
         # Provisioning (via the platform-admin approve step) resolves
         # g.tenant_db/session["tenant_db"] and sets platform_admin_* keys as
         # a side effect -- clear the session so the isolation tests below
@@ -123,7 +75,7 @@ class TestPathBasedLogin:
     def test_login_under_company_slug_sets_tenant_session(self, client, two_tenants):
         slug_a, schema_a, _, _ = two_tenants
         resp = client.post(f"/{slug_a}/login", data={
-            "identifier": "tpi_admin_a", "password": "password123",
+            "identifier": ADMIN_A, "password": "password123",
         }, follow_redirects=False)
         assert resp.status_code == 302
         assert resp.headers["Location"].startswith(f"/{slug_a}/")
@@ -152,7 +104,7 @@ class TestCrossTenantSessionIsolation:
         slug_a, schema_a, slug_b, schema_b = two_tenants
 
         client.post(f"/{slug_a}/login", data={
-            "identifier": "tpi_admin_a", "password": "password123",
+            "identifier": ADMIN_A, "password": "password123",
         }, follow_redirects=False)
         with client.session_transaction() as sess:
             assert sess.get("tenant_slug") == slug_a  # sanity check
@@ -176,7 +128,7 @@ class TestCrossTenantSessionIsolation:
         the SAME company's URL must never trigger a false-positive clear."""
         slug_a, schema_a, _, _ = two_tenants
         client.post(f"/{slug_a}/login", data={
-            "identifier": "tpi_admin_a", "password": "password123",
+            "identifier": ADMIN_A, "password": "password123",
         }, follow_redirects=False)
 
         resp = client.get(f"/{slug_a}/admin", follow_redirects=False)
@@ -192,7 +144,7 @@ class TestCrossTenantSessionIsolation:
         mismatch -- only an actual DIFFERENT company's URL should clear."""
         slug_a, _, _, _ = two_tenants
         client.post(f"/{slug_a}/login", data={
-            "identifier": "tpi_admin_a", "password": "password123",
+            "identifier": ADMIN_A, "password": "password123",
         }, follow_redirects=False)
 
         resp = client.get("/healthz", follow_redirects=False)
@@ -221,7 +173,7 @@ class TestBareLoginKeepsSessionCompany:
 
         client.get(f"/{slug_a}/login")
         resp = client.post("/login", data={
-            "identifier": "tpi_admin_a", "password": "password123",
+            "identifier": ADMIN_A, "password": "password123",
         }, follow_redirects=False)
         assert resp.headers["Location"] == "/mfa_verify"
 
@@ -237,7 +189,7 @@ class TestBareLoginKeepsSessionCompany:
         slug_a, schema_a, _, _ = two_tenants
         client.get(f"/{slug_a}/login")
         resp = client.post("/login", data={
-            "identifier": "tpi_admin_a", "password": "password123",
+            "identifier": ADMIN_A, "password": "password123",
         }, follow_redirects=False)
         assert resp.status_code == 302
         with client.session_transaction() as sess:
@@ -273,7 +225,7 @@ class TestFormFieldCannotSelectTenant:
         # Log in as tenant A's admin -- session/tenant_db is now bound to
         # schema_a, exactly like every other request in this file.
         client.post(f"/{slug_a}/login", data={
-            "identifier": "tpi_admin_a", "password": "password123",
+            "identifier": ADMIN_A, "password": "password123",
         }, follow_redirects=False)
         with client.session_transaction() as sess:
             assert sess.get("tenant_db") == schema_a  # sanity check

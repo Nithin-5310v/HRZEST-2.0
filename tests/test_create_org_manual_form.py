@@ -3,19 +3,18 @@
 The page had been reduced to the two OAuth buttons while POST /create_org
 (email OTP -> documents -> approval) stayed in the backend, which left manual
 registration unreachable from the browser. These tests pin that the form is
-there, that it posts every field the handler reads, and that it works under
-the page's own CSP (the Turnstile widget on it was previously blocked).
+there -- the wizard's first step, the admin's email, mobile number and
+password -- that it posts every field the handler reads, and that it works
+under the page's own CSP (the Turnstile widget on it was previously blocked).
 """
 import html
 import re
 
 import pytest
 
-# Every request.form key create_org() reads in blueprints/org.py.
-HANDLER_FIELDS = {
-    "company_name", "subdomain", "admin_username", "admin_password",
-    "admin_email", "email_domain", "gst_number", "signup_plan",
-}
+# Every request.form key create_org() reads in blueprints/org.py (plus
+# signup_plan, sent only by a platform admin's free registration).
+HANDLER_FIELDS = {"admin_email", "admin_mobile", "admin_password"}
 
 
 def _page(client):
@@ -67,7 +66,7 @@ class TestWithoutOAuthKeys:
         assert "Sign up with Google" not in page and "Sign up with Microsoft" not in page
         assert "or register manually" not in page
         assert "No documents or business registration number needed" not in page
-        assert "Enter your company details to get started" in page
+        assert "Create your admin account with your email, mobile number and a password" in page
         _manual_form(page)
 
     def test_one_configured_provider_shows_only_its_button(self, client, monkeypatch):
@@ -85,8 +84,6 @@ class TestManualSignupFormIsOffered:
         assert 'href="/create_org/microsoft"' in page
         form_tag, _ = _manual_form(page)
         assert 'method="POST"' in form_tag
-        # the logo upload needs multipart
-        assert 'enctype="multipart/form-data"' in form_tag
 
     def test_form_carries_a_csrf_token_that_matches_the_session(self, client):
         _, page = _page(client)
@@ -102,13 +99,15 @@ class TestManualSignupFormIsOffered:
         missing = HANDLER_FIELDS - _field_names(body)
         assert not missing, f"form no longer sends: {sorted(missing)}"
 
-    def test_logo_upload_is_optional_and_password_is_masked(self, client):
+    def test_password_is_masked_and_company_details_wait_for_the_profile(self, client):
         _, page = _page(client)
         _, body = _manual_form(page)
-        logo = re.search(r'<input[^>]*name="logo"[^>]*>', body).group(0)
-        assert "required" not in logo
         pw = re.search(r'<input[^>]*name="admin_password"[^>]*>', body).group(0)
         assert 'type="password"' in pw and 'autocomplete="new-password"' in pw
+        mobile = re.search(r'<input[^>]*name="admin_mobile"[^>]*>', body).group(0)
+        assert 'type="tel"' in mobile and "required" in mobile
+        for name in ("company_name", "gst_number", "subdomain", "admin_username", "logo"):
+            assert f'name="{name}"' not in body, f"{name} belongs to the company profile step"
 
     def test_copy_does_not_promise_oauth_perks_to_manual_signups(self, client, oauth_keys):
         """The 'no documents needed' line is true for Google/Microsoft only;
@@ -119,11 +118,9 @@ class TestManualSignupFormIsOffered:
         assert "No documents or business registration number needed" in before_form
         assert "business documents" in before_form.split("or register manually")[1]
 
-    def test_page_script_defines_every_handler_the_form_calls(self, client):
+    def test_page_script_defines_every_handler_the_page_calls(self, client):
         _, page = _page(client)
-        _, body = _manual_form(page)
-        called = set(re.findall(r'on(?:click|input|blur)="\s*([A-Za-z_]\w*)\(', body))
-        assert called, "expected the form to use its inline helpers"
+        called = set(re.findall(r'on(?:click|input|blur)="\s*([A-Za-z_]\w*)\(', page))
         for fn in called:
             assert re.search(rf"function\s+{fn}\s*\(", page), f"{fn}() is called but not defined"
 
@@ -138,10 +135,8 @@ class TestRenderedFormReachesTheBackend:
         _, page = _page(client)
         _, body = _manual_form(page)
         values = {
-            "company_name": "Manual Form Org", "subdomain": "manual-form-org",
-            "admin_username": "mf_admin", "admin_password": "password123",
-            "admin_email": "mf@manualform.test", "email_domain": "manualform.test",
-            "gst_number": "27ABCDE1234F1Z5", "signup_plan": "trial",
+            "admin_email": "mf@manualform.test", "admin_mobile": "+91 98765 43210",
+            "admin_password": "password123",
             "_csrf_token": html.unescape(re.search(r'name="_csrf_token"\s+value="([^"]+)"', body).group(1)),
         }
         # Only send what the page actually renders -- a field the form dropped
@@ -156,11 +151,11 @@ class TestRenderedFormReachesTheBackend:
             assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
             assert sent.get("otp"), "an OTP email should have been issued"
             cur.execute(
-                "SELECT payment_option, admin_email, email_domain FROM att_master.tenant_applications "
-                "WHERE subdomain=%s", ("manual-form-org",))
-            assert cur.fetchone() == ("trial", "mf@manualform.test", "manualform.test")
+                "SELECT admin_username, admin_mobile, email_domain FROM att_master.tenant_applications "
+                "WHERE admin_email=%s", ("mf@manualform.test",))
+            assert cur.fetchone() == ("mf@manualform.test", "+919876543210", "manualform.test")
         finally:
-            cur.execute("DELETE FROM att_master.tenant_applications WHERE subdomain=%s", ("manual-form-org",))
+            cur.execute("DELETE FROM att_master.tenant_applications WHERE admin_email=%s", ("mf@manualform.test",))
             cur.close()
 
 

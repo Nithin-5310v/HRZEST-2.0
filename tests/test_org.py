@@ -17,21 +17,14 @@ test for, with explicit cleanup (DROP SCHEMA) after.
 Run with:
     python -m pytest tests/test_org.py -v
 """
-import secrets
 import pytest
 
+from tests.signup_flow import (
+    MOBILE, application_id_from, capture_codes, random_gst, signup_company, signup_to_profile,
+    start_signup, submit_profile, verify_email,
+)
 
-def _random_gst():
-    """A syntactically valid, but not otherwise meaningful, 15-character
-    GSTIN -- matches blueprints/org.py's _GST_RE so create_org()/
-    api_create_org() accept it, freshly random each call so unrelated
-    tests/companies never collide on check_duplicate_gst()."""
-    letters = ''.join(secrets.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(5))
-    return (
-        f"{secrets.randbelow(100):02d}{letters}{secrets.randbelow(10000):04d}"
-        f"{secrets.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{secrets.choice('123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
-        f"Z{secrets.choice('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
-    )
+_random_gst = random_gst   # other test modules import it from here
 
 
 def _drop_schema(db_engine, schema_name):
@@ -196,60 +189,79 @@ class TestFeedbackSubmission:
 
 
 class TestSignupValidation:
-    def test_missing_required_fields_rejected(self, client):
-        resp = client.post("/create_org", data={
-            "company_name": "", "subdomain": "",
-        }, follow_redirects=False)
-        assert resp.status_code in (301, 302)
+    """Step 1 (POST /create_org) takes just the account -- email, mobile
+    number, password. Anything wrong sends the visitor back to the form
+    before an application exists."""
 
-    def test_missing_admin_email_rejected(self, client):
-        # admin_email is required now (was optional before) -- needed for
-        # password reset and as the tenant's primary contact.
-        resp = client.post("/create_org", data={
-            "company_name": "Acme", "subdomain": "acme-noemail",
-            "admin_username": "admin", "admin_password": "password123",
-        }, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-
-    def test_invalid_admin_email_rejected(self, client):
-        resp = client.post("/create_org", data={
-            "company_name": "Acme", "subdomain": "acme-bademail",
-            "admin_username": "admin", "admin_password": "password123",
-            "admin_email": "not-an-email",
-        }, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-
-    def test_invalid_subdomain_format_rejected(self, client):
-        resp = client.post("/create_org", data={
-            "company_name": "Acme", "subdomain": "Not Valid!",
-            "admin_username": "admin", "admin_password": "password123",
-            "admin_email": "admin@acme.test",
-        }, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-
-    def test_short_password_rejected(self, client):
-        resp = client.post("/create_org", data={
-            "company_name": "Acme", "subdomain": "acme-test",
-            "admin_username": "admin", "admin_password": "short",
-            "admin_email": "admin@acme.test",
-        }, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-
-    @pytest.mark.parametrize("subdomain", [
-        "hrms", "www", "api", "admin", "master", "super_admin",
+    @pytest.mark.parametrize("field, value", [
+        ("admin_email", ""), ("admin_email", "not-an-email"),
+        ("admin_email", "a" * 45 + "@x.test"),   # over 50 characters: it's the login username
+        ("admin_mobile", ""), ("admin_mobile", "12345"), ("admin_mobile", "98765abcde"),
+        ("admin_password", ""), ("admin_password", "short"),
     ])
-    def test_reserved_subdomain_rejected(self, client, subdomain):
-        # _resolve_tenant() (app.py) parses any 3-label host as
-        # <label1>.<rest> -- registering "www" would silently hijack
-        # www.hrzest.com from that point on. "hrms" stays reserved too,
-        # a holdover from the old hrms.gradzest.com domain.
-        resp = client.post("/create_org", data={
-            "company_name": "Evil Org", "subdomain": subdomain,
-            "admin_username": "evil_admin", "admin_password": "password123",
-            "admin_email": "evil@test.local",
-        }, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers.get("Location") == "/create_org"
+    def test_bad_account_field_rejected(self, client, monkeypatch, field, value):
+        codes = capture_codes(monkeypatch)
+        data = {"admin_email": "valid@account.test", "admin_mobile": MOBILE, "admin_password": "password123"}
+        data[field] = value
+        resp = client.post("/create_org", data=data, follow_redirects=False)
+        assert resp.headers["Location"] == "/create_org"
+        assert codes == []
+
+    def test_valid_account_starts_an_application_with_the_email_as_username(self, client, db_engine, monkeypatch):
+        codes = capture_codes(monkeypatch)
+        resp = start_signup(client, "  Owner@Account-Start.TEST ", mobile="+91 98765-43210")
+        assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
+        assert codes, "the verification code must be emailed"
+        cur = db_engine.cursor()
+        cur.execute("SELECT admin_username, admin_email, admin_mobile, email_domain, company_name, status "
+                    "FROM att_master.tenant_applications WHERE id=%s", (application_id_from(resp),))
+        row = cur.fetchone()
+        cur.close()
+        assert row == ("owner@account-start.test", "owner@account-start.test", "+919876543210",
+                       "account-start.test", "", "started")
+
+
+class TestCompanyProfileStep:
+    """Step 3 (/create_org/profile): the company's name, GSTIN, URL and logo,
+    only once the email code checks out."""
+
+    def test_profile_needs_a_verified_email(self, client, monkeypatch):
+        capture_codes(monkeypatch)
+        application_id = application_id_from(start_signup(client, "early@profile.test"))
+        page = client.get(f"/create_org/profile?application_id={application_id}")
+        assert page.headers["Location"] == "/create_org"
+        resp = submit_profile(client, application_id, "Too Early Co", "too-early-co")
+        assert resp.headers["Location"] == "/create_org"
+
+    def test_profile_page_offers_the_company_fields_and_plans(self, client, monkeypatch):
+        application_id = signup_to_profile(client, monkeypatch, "page@profile.test")
+        page = client.get(f"/create_org/profile?application_id={application_id}").get_data(as_text=True)
+        assert 'action="/create_org/profile"' in page and "Set Up Your Company Profile" in page
+        for field in ("company_name", "gst_number", "subdomain", "logo", "signup_plan", "application_id"):
+            assert f'name="{field}"' in page, field
+        assert 'id="planOptionPayNow"' in page and 'name="admin_password"' not in page
+
+    def test_code_page_sends_an_already_verified_applicant_on_to_the_profile(self, client, monkeypatch):
+        application_id = signup_to_profile(client, monkeypatch, "again@profile.test")
+        resp = verify_email(client, application_id, "000000")
+        assert resp.headers["Location"] == f"/create_org/profile?application_id={application_id}"
+
+    @pytest.mark.parametrize("company_name, subdomain, gst, message", [
+        ("", "blank-name-co", "", "required"),
+        ("No Gst Co", "no-gst-co", "", "GST"),
+        ("Bad Gst Co", "bad-gst-co", "not-a-real-gstin", "valid"),
+        ("Evil Org", "login", None, "reserved"),
+        ("Evil Org", "api", None, "reserved"),
+        ("Evil Org", "webhooks", None, "reserved"),
+    ])
+    def test_bad_profile_returns_to_the_profile_form(self, client, monkeypatch, company_name, subdomain, gst, message):
+        application_id = signup_to_profile(client, monkeypatch, f"bad-{subdomain}@profile.test")
+        data = {"application_id": str(application_id), "company_name": company_name, "subdomain": subdomain,
+                "gst_number": random_gst() if gst is None else gst}
+        resp = client.post("/create_org/profile", data=data, content_type="multipart/form-data")
+        assert resp.headers["Location"] == f"/create_org/profile?application_id={application_id}"
+        page = client.get(resp.headers["Location"]).get_data(as_text=True)
+        assert message.lower() in page.lower()
 
 
 class TestDevModeSignupStillVerifiesEmail:
@@ -259,52 +271,39 @@ class TestDevModeSignupStillVerifiesEmail:
     applicant ended on a pending page nothing ever advanced. The code is
     now emailed and checked in every APP_ENV."""
 
-    def _start(self, client, monkeypatch, gst):
-        import blueprints.org as org_module
-        sent = {}
-        monkeypatch.setattr(org_module, "send_org_signup_otp_email",
-                            lambda email, company, otp: sent.setdefault("otp", otp) or True)
-        resp = client.post("/create_org", data={
-            "company_name": "Dev Mode Signup Co", "subdomain": "dev-mode-signup-co",
-            "admin_username": "dm_admin", "admin_password": "password123",
-            "admin_email": "dm@devmodesignup.test", "email_domain": "devmodesignup.test",
-            "gst_number": gst,
-        }, follow_redirects=False)
-        return resp, sent.get("otp")
+    _EMAIL = "dm@devmodesignup.test"
 
-    def _status(self, db_engine, gst):
+    def _status(self, db_engine):
         cur = db_engine.cursor()
-        cur.execute("SELECT status, email_verified_at FROM att_master.tenant_applications WHERE gst_number=%s",
-                    (gst,))
+        cur.execute("SELECT status, email_verified_at FROM att_master.tenant_applications WHERE admin_email=%s",
+                    (self._EMAIL,))
         row = cur.fetchone()
         cur.close()
         return row
 
     def test_signup_emails_a_code_and_shows_the_verify_screen(self, client, db_engine, monkeypatch):
-        gst = _random_gst()
-        resp, otp = self._start(client, monkeypatch, gst)
+        codes = capture_codes(monkeypatch)
+        resp = start_signup(client, self._EMAIL)
         assert resp.status_code == 302
         assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
-        assert otp, "the verification code must be emailed"
-        assert self._status(db_engine, gst) == ("started", None)
+        assert codes, "the verification code must be emailed"
+        assert self._status(db_engine) == ("started", None)
 
     def test_wrong_or_blank_code_is_refused(self, client, db_engine, monkeypatch):
-        gst = _random_gst()
-        resp, _otp = self._start(client, monkeypatch, gst)
-        application_id = resp.headers["Location"].rsplit("=", 1)[-1]
+        capture_codes(monkeypatch)
+        application_id = application_id_from(start_signup(client, self._EMAIL))
         for code in ("", "000000"):   # real codes are 100000-999999
-            bad = client.post("/create_org/verify_otp", data={"application_id": application_id, "otp_code": code})
+            bad = verify_email(client, application_id, code)
             assert bad.headers["Location"] == f"/create_org/verify_otp?application_id={application_id}"
-        assert self._status(db_engine, gst) == ("started", None)
+        assert self._status(db_engine) == ("started", None)
 
     def test_documents_cannot_be_uploaded_before_the_code_is_verified(self, client, db_engine, monkeypatch):
-        gst = _random_gst()
-        resp, _otp = self._start(client, monkeypatch, gst)
-        application_id = resp.headers["Location"].rsplit("=", 1)[-1]
+        capture_codes(monkeypatch)
+        application_id = application_id_from(start_signup(client, self._EMAIL))
         upload = client.post("/create_org/upload_documents", data={"application_id": application_id},
                              content_type="multipart/form-data")
         assert upload.headers["Location"].startswith("/create_org/upload_documents?application_id=")
-        assert self._status(db_engine, gst) == ("started", None)
+        assert self._status(db_engine) == ("started", None)
 
 
 # ===========================================================================
@@ -312,55 +311,11 @@ class TestDevModeSignupStillVerifiesEmail:
 # ===========================================================================
 
 class TestGatedSignupFlow:
-    """Signup is no longer instant: POST /create_org now only starts a
-    pending application (blocking a duplicate company name up front) and
-    emails an OTP; provision_tenant() isn't called until a platform admin
-    approves the application (blueprints/platform_admin.py) after
-    reviewing the uploaded KYC documents. These tests walk the real
-    pipeline end-to-end rather than assuming the old single-request
-    instant-provision behavior."""
-
-    import io as _io
-
-    _FAKE_PDF = b"%PDF-1.4\n" + b"x" * 20
-    _FAKE_PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 20
-
-    def _start_application(self, client, monkeypatch, **overrides):
-        import blueprints.org as org_module
-        captured = {}
-        monkeypatch.setattr(
-            org_module, "send_org_signup_otp_email",
-            lambda email, company, otp: captured.setdefault("otp", otp) or True
-        )
-        payload = {
-            "company_name": "Gated Flow Org", "subdomain": "gated-flow-org",
-            "admin_username": "gf_admin", "admin_password": "password123",
-            "admin_email": "gf@test.local", "email_domain": "test.local",
-            "gst_number": _random_gst(),
-        }
-        payload.update(overrides)
-        resp = client.post("/create_org", data=payload, follow_redirects=False)
-        return resp, captured.get("otp")
-
-    def _application_id_from_redirect(self, resp):
-        location = resp.headers["Location"]
-        return int(location.rsplit("=", 1)[-1])
-
-    def _verify_otp(self, client, application_id, otp_code):
-        return client.post("/create_org/verify_otp", data={
-            "application_id": application_id, "otp_code": otp_code,
-        }, follow_redirects=False)
-
-    def _upload_documents(self, client, application_id):
-        data = {
-            "application_id": str(application_id),
-            "registration_cert": (self._io.BytesIO(self._FAKE_PDF), "cert.pdf"),
-            "address_proof": (self._io.BytesIO(self._FAKE_PDF), "address.pdf"),
-            "visiting_card": (self._io.BytesIO(self._FAKE_PNG), "card.png"),
-            "name_board_photo": (self._io.BytesIO(self._FAKE_PNG), "board.png"),
-        }
-        return client.post("/create_org/upload_documents", data=data,
-                           content_type="multipart/form-data", follow_redirects=False)
+    """The web wizard end to end: the account (POST /create_org) only
+    starts an application and emails a code; the company profile, after
+    the code, provisions the company (blueprints/org.py's
+    _provision_application_instantly()); KYC documents follow and are
+    reviewed after the fact. These tests walk the real pipeline."""
 
     def _login_platform_admin(self, client):
         import time as _time
@@ -369,35 +324,11 @@ class TestGatedSignupFlow:
             sess["platform_admin_username"] = "test_platform_admin"
             sess["platform_admin_last_activity"] = _time.time()
 
-    def _run_full_pipeline(self, client, monkeypatch, **overrides):
-        """Start -> verify OTP (which now provisions the tenant instantly,
-        see blueprints/org.py's _provision_application_instantly()) ->
-        upload docs, leaving the application at status='provisioned',
-        doc_review_status='approved' -- documents are now auto-approved
-        the moment they're submitted (see _save_application_documents()'s
-        own call to _approve_application_reviewed() at the end), not left
-        pending a human/AI review. Returns application_id."""
-        resp, otp = self._start_application(client, monkeypatch, **overrides)
-        assert resp.status_code in (301, 302), resp.data
-        application_id = self._application_id_from_redirect(resp)
-        assert otp is not None, "OTP email was never sent"
-
-        resp = self._verify_otp(client, application_id, otp)
-        assert resp.status_code in (301, 302)
-        assert "/create_org/upload_documents" in resp.headers["Location"], resp.headers.get("Location")
-
-        resp = self._upload_documents(client, application_id)
-        assert resp.status_code in (301, 302)
-        assert "/create_org/status" in resp.headers["Location"], resp.headers.get("Location")
-
-        return application_id
-
     def test_full_flow_provisions_real_tenant_schema(self, client, db_engine, monkeypatch):
-        """Every self-serve signup lane now provisions the tenant
-        INSTANTLY right after OTP verification -- before any document is
-        uploaded, let alone reviewed by a platform admin. KYC review still
-        happens, but it's tracked separately (doc_review_status) and no
-        longer gates login/schema creation at all."""
+        """The company is provisioned the moment its profile is submitted --
+        before any document is uploaded, let alone reviewed by a platform
+        admin. KYC review still happens, but it's tracked separately
+        (doc_review_status) and no longer gates login/schema creation."""
         from app import init_master_db
         init_master_db()
 
@@ -405,10 +336,7 @@ class TestGatedSignupFlow:
         schema_name = "att_" + subdomain.replace("-", "_")
         _drop_schema(db_engine, schema_name)
         try:
-            application_id = self._run_full_pipeline(
-                client, monkeypatch, subdomain=subdomain, company_name="E2E Gated Org",
-                admin_username="e2e_admin", admin_email="e2e-gated@test.local",
-            )
+            application_id = signup_company(client, monkeypatch, "e2e-gated@test.local", "E2E Gated Org", subdomain)
 
             cur = db_engine.cursor()
             cur.execute(
@@ -416,7 +344,8 @@ class TestGatedSignupFlow:
             )
             assert cur.fetchone() is not None, "tenant schema was not created"
 
-            cur.execute("SELECT db_name, status, plan, subscription_status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+            cur.execute("SELECT db_name, status, plan, subscription_status, admin_email FROM att_master.tenants "
+                        "WHERE subdomain=%s", (subdomain,))
             row = cur.fetchone()
             assert row is not None, "tenant was not registered in att_master.tenants"
             assert row[0] == schema_name
@@ -428,9 +357,15 @@ class TestGatedSignupFlow:
             # upfront anymore under this flow, see provision_tenant()'s
             # subscription_status parameter.
             assert row[3] == "trialing"
+            assert row[4] == "e2e-gated@test.local"
 
-            cur.execute(f'SELECT username FROM "{schema_name}".admin_users WHERE username=%s', ("e2e_admin",))
+            # The admin's login username is their email; the mobile number
+            # from step 1 becomes the company's contact phone.
+            cur.execute(f'SELECT username FROM "{schema_name}".admin_users WHERE username=%s',
+                        ("e2e-gated@test.local",))
             assert cur.fetchone() is not None, "admin user was not seeded into the new tenant schema"
+            cur.execute(f'SELECT contact_phone FROM "{schema_name}".company_settings WHERE id=1')
+            assert cur.fetchone()[0] == "+919876543210"
 
             cur.execute(
                 "SELECT status, tenant_id, doc_review_status FROM att_master.tenant_applications WHERE id=%s",
@@ -439,7 +374,7 @@ class TestGatedSignupFlow:
             app_row = cur.fetchone()
             assert app_row[0] == "provisioned"
             assert app_row[1] is not None
-            # Documents were uploaded (inside _run_full_pipeline) and
+            # Documents were uploaded (inside signup_company) and
             # auto-approved in that same call -- no human/AI review is
             # awaited before login works.
             assert app_row[2] == "approved"
@@ -465,20 +400,38 @@ class TestGatedSignupFlow:
         finally:
             _drop_schema(db_engine, schema_name)
 
-    def test_subdomain_colliding_with_master_registry_schema_rejected(self, client, db_engine):
-        # subdomain "master" is caught by the reserved-subdomain blocklist
-        # at step 1, before any application row is even created --
-        # unchanged behavior from before the gated flow.
+    def test_admin_signs_in_with_their_email(self, client, db_engine, monkeypatch):
+        """The sign-up email is the admin's username -- also when a phone
+        keyboard capitalises it."""
         from app import init_master_db
         init_master_db()
 
-        resp = client.post("/create_org", data={
-            "company_name": "Evil Org", "subdomain": "master",
-            "admin_username": "evil_admin", "admin_password": "password123",
-            "admin_email": "evil@test.local",
-        }, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers.get("Location") == "/create_org"
+        subdomain = "e2e-email-login"
+        schema_name = "att_" + subdomain.replace("-", "_")
+        _drop_schema(db_engine, schema_name)
+        try:
+            signup_company(client, monkeypatch, "owner@emaillogin.test", "Email Login Org", subdomain)
+            with client.session_transaction() as sess:
+                sess.clear()
+            resp = client.post(f"/{subdomain}/login", data={
+                "identifier": "Owner@EmailLogin.test", "password": "password123",
+            }, follow_redirects=False)
+            assert resp.status_code == 302 and resp.headers["Location"] == f"/{subdomain}/admin"
+            with client.session_transaction() as sess:
+                assert sess.get("admin_logged_in") is True
+                assert sess.get("admin_username") == "owner@emaillogin.test"
+        finally:
+            _drop_schema(db_engine, schema_name)
+
+    def test_subdomain_colliding_with_master_registry_schema_rejected(self, client, db_engine, monkeypatch):
+        # "master" is caught by the reserved-subdomain blocklist on the
+        # profile step, before anything is provisioned.
+        from app import init_master_db
+        init_master_db()
+
+        application_id = signup_to_profile(client, monkeypatch, "evil@test.local")
+        resp = submit_profile(client, application_id, "Evil Org", "master")
+        assert resp.headers.get("Location") == f"/create_org/profile?application_id={application_id}"
 
         cur = db_engine.cursor()
         cur.execute(
@@ -489,64 +442,46 @@ class TestGatedSignupFlow:
         cur.close()
         assert not polluted, "tenant schema migration leaked into the master registry schema"
 
-    def test_duplicate_subdomain_rejected_at_verification(self, client, db_engine, monkeypatch):
-        # Subdomain availability is now enforced at OTP-verification time
-        # (provision_tenant() runs right there, see
-        # _provision_application_instantly()) -- not at step-1 submission,
-        # and not at platform-admin approval either. Two applicants could
-        # both submit the same slug, but only the first to verify their
-        # OTP can ever actually provision it.
+    def test_taken_company_url_returns_to_the_profile_to_pick_another(self, client, db_engine, monkeypatch):
+        # Company URL availability is enforced when the profile provisions
+        # the company. A second applicant asking for a taken URL comes back
+        # to the profile form, application intact, and can choose another.
         from app import init_master_db
         init_master_db()
 
-        subdomain = "e2e-dup-org"
-        schema_name = "att_" + subdomain.replace("-", "_")
-        _drop_schema(db_engine, schema_name)
+        subdomain, other = "e2e-dup-org", "e2e-dup-org-two"
+        schemas = ["att_" + s.replace("-", "_") for s in (subdomain, other)]
+        for schema in schemas:
+            _drop_schema(db_engine, schema)
         try:
-            # NOTE: /create_org's org_access_token lives in the session
-            # cookie, one at a time -- verify each applicant fully before
-            # starting the next, or the second _start_application()
-            # overwrites the first's token and _load_application() fails
-            # for an unrelated reason (token mismatch, not the subdomain
-            # race this test actually means to exercise).
-            resp1, otp1 = self._start_application(
-                client, monkeypatch, subdomain=subdomain, company_name="Dup Org One",
-                admin_username="dup_admin1", admin_email="dup1@test.local",
-            )
-            app1 = self._application_id_from_redirect(resp1)
-            resp = self._verify_otp(client, app1, otp1)
-            assert resp.status_code in (301, 302)
-            assert "/create_org/upload_documents" in resp.headers["Location"]
+            # One signup at a time: /create_org's org_access_token lives in
+            # the session cookie, so a second start replaces the first's.
+            app1 = signup_company(client, monkeypatch, "dup1@test.local", "Dup Org One", subdomain, documents=False)
 
-            resp2, otp2 = self._start_application(
-                client, monkeypatch, subdomain=subdomain, company_name="Dup Org Two",
-                admin_username="dup_admin2", admin_email="dup2@test.local",
-            )
-            app2 = self._application_id_from_redirect(resp2)
-
-            # Second applicant's OTP is correct too, but provisioning now
-            # fails inside verify_otp itself, since the slug is taken --
-            # flashed error, redirected back to the start of the form.
-            resp = self._verify_otp(client, app2, otp2)
-            assert resp.status_code in (301, 302)
-            assert resp.headers["Location"] == "/create_org"
+            app2 = signup_to_profile(client, monkeypatch, "dup2@test.local")
+            resp = submit_profile(client, app2, "Dup Org Two", subdomain)
+            assert resp.headers["Location"] == f"/create_org/profile?application_id={app2}"
+            assert b"already taken" in client.get(resp.headers["Location"]).data
 
             cur = db_engine.cursor()
             cur.execute("SELECT status, tenant_id FROM att_master.tenant_applications WHERE id=%s", (app1,))
             row1 = cur.fetchone()
-            assert row1[0] == "provisioned"
-            assert row1[1] is not None
-
+            assert row1[0] == "provisioned" and row1[1] is not None
             cur.execute("SELECT status, tenant_id FROM att_master.tenant_applications WHERE id=%s", (app2,))
             row2 = cur.fetchone()
             assert row2[0] == "otp_verified", "a failed provisioning attempt must not silently mark provisioned"
             assert row2[1] is None
-
             cur.execute("SELECT COUNT(*) FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             assert cur.fetchone()[0] == 1, "only the first applicant's tenant should exist"
+
+            resp = submit_profile(client, app2, "Dup Org Two", other)
+            assert resp.headers["Location"] == f"/create_org/upload_documents?application_id={app2}"
+            cur.execute("SELECT status FROM att_master.tenant_applications WHERE id=%s", (app2,))
+            assert cur.fetchone()[0] == "provisioned"
             cur.close()
         finally:
-            _drop_schema(db_engine, schema_name)
+            for schema in schemas:
+                _drop_schema(db_engine, schema)
 
     def test_duplicate_company_name_blocked_with_generic_message_and_alert(self, client, db_engine, monkeypatch):
         from app import init_master_db
@@ -556,10 +491,8 @@ class TestGatedSignupFlow:
         schema_name = "att_" + subdomain.replace("-", "_")
         _drop_schema(db_engine, schema_name)
         try:
-            application_id = self._run_full_pipeline(
-                client, monkeypatch, subdomain=subdomain, company_name="Acme Duplicate Test",
-                admin_username="dupname_admin", admin_email="dupname@test.local",
-            )
+            application_id = signup_company(client, monkeypatch, "dupname@test.local", "Acme Duplicate Test",
+                                            subdomain)
             self._login_platform_admin(client)
             client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
 
@@ -570,18 +503,13 @@ class TestGatedSignupFlow:
             # A second, unrelated registrant tries the SAME company name
             # (different case/whitespace) -- must be blocked with a
             # generic message that never reveals the real owner's details.
-            resp = client.post("/create_org", data={
-                "company_name": "  acme duplicate test  ", "subdomain": "some-other-slug",
-                "admin_username": "impersonator", "admin_password": "password123",
-                "admin_email": "impersonator@test.local", "email_domain": "impersonator.test",
-                # Deliberately a DIFFERENT GST than the original application's --
-                # this test isolates the company-name-based match, not GST dedup
-                # (see TestGstAndEmailDuplicateChecks below for that).
-                "gst_number": _random_gst(),
-            }, follow_redirects=True)
-            assert resp.status_code == 200
-            assert b"already" in resp.data
-            assert b"dupname@test.local" not in resp.data
+            # Deliberately a DIFFERENT GST: this isolates the name match.
+            app2 = signup_to_profile(client, monkeypatch, "impersonator@test.local")
+            resp = submit_profile(client, app2, "  acme duplicate test  ", "some-other-slug")
+            page = client.get(resp.headers["Location"])
+            assert page.status_code == 200
+            assert b"already" in page.data
+            assert b"dupname@test.local" not in page.data
 
             cur.execute(
                 "SELECT conflicting_company_name, conflicting_admin_email "
@@ -603,21 +531,19 @@ class TestGatedSignupFlow:
         from app import init_master_db
         init_master_db()
 
-        subdomain = "e2e-otp-lockout"
+        email = "lockout@test.local"
         try:
-            resp, otp = self._start_application(
-                client, monkeypatch, subdomain=subdomain, company_name="OTP Lockout Org",
-                admin_username="lockout_admin", admin_email="lockout@test.local",
-            )
-            application_id = self._application_id_from_redirect(resp)
+            codes = capture_codes(monkeypatch)
+            application_id = application_id_from(start_signup(client, email))
+            otp = codes[-1]
             wrong_otp = "000000" if otp != "000000" else "111111"
 
             for _ in range(5):
-                self._verify_otp(client, application_id, wrong_otp)
+                verify_email(client, application_id, wrong_otp)
 
             # Even the CORRECT code is now refused -- the attempt cap trips
             # regardless of what's submitted next.
-            resp = self._verify_otp(client, application_id, otp)
+            resp = verify_email(client, application_id, otp)
             assert resp.status_code in (301, 302)
             assert resp.headers["Location"].startswith("/create_org/verify_otp")
 
@@ -625,14 +551,14 @@ class TestGatedSignupFlow:
             assert b"Too many incorrect attempts" in resp.data
         finally:
             cur = db_engine.cursor()
-            cur.execute("DELETE FROM att_master.tenant_applications WHERE subdomain=%s", (subdomain,))
+            cur.execute("DELETE FROM att_master.tenant_applications WHERE admin_email=%s", (email,))
             db_engine.commit()
             cur.close()
 
     def test_application_rejected_by_platform_admin_suspends_provisioned_tenant(self, client, db_engine, monkeypatch):
         """The tenant is already live by the time a platform admin ever
-        gets to review its KYC documents (provisioning happens right after
-        OTP verification now) -- rejection can no longer "prevent"
+        gets to review its KYC documents (provisioning happens with the
+        company profile) -- rejection can no longer "prevent"
         provisioning, so it suspends the already-live tenant instead,
         reusing the same enforcement utils/tenant_routing.py already
         applies to any platform-admin-suspended tenant."""
@@ -643,10 +569,7 @@ class TestGatedSignupFlow:
         schema_name = "att_" + subdomain.replace("-", "_")
         _drop_schema(db_engine, schema_name)
         try:
-            application_id = self._run_full_pipeline(
-                client, monkeypatch, subdomain=subdomain, company_name="Reject Me Org",
-                admin_username="reject_admin", admin_email="reject@test.local",
-            )
+            application_id = signup_company(client, monkeypatch, "reject@test.local", "Reject Me Org", subdomain)
             cur = db_engine.cursor()
             cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             assert cur.fetchone()[0] == "active", "tenant should already be live before any review happens"
@@ -685,10 +608,8 @@ class TestGatedSignupFlow:
         shared_gst = _random_gst()
         _drop_schema(db_engine, schema_name)
         try:
-            application_id = self._run_full_pipeline(
-                client, monkeypatch, subdomain=subdomain, company_name="Gst Dupe Org One",
-                admin_username="gstdupe_admin1", admin_email="gstdupe1@test.local", gst_number=shared_gst,
-            )
+            application_id = signup_company(client, monkeypatch, "gstdupe1@test.local", "Gst Dupe Org One",
+                                            subdomain, gst_number=shared_gst)
             self._login_platform_admin(client)
             client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
 
@@ -696,17 +617,14 @@ class TestGatedSignupFlow:
             cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             assert cur.fetchone()[0] == "active"
 
-            # Wholly unrelated company name/subdomain/email -- only the
-            # GST number is reused.
-            resp = client.post("/create_org", data={
-                "company_name": "A Totally Different Business", "subdomain": "totally-different-biz",
-                "admin_username": "gstimpersonator", "admin_password": "password123",
-                "admin_email": "gstimpersonator@test.local", "email_domain": "gstimpersonator.test",
-                "gst_number": shared_gst,
-            }, follow_redirects=True)
-            assert resp.status_code == 200
-            assert b"already" in resp.data
-            assert b"gstdupe1@test.local" not in resp.data
+            # Wholly unrelated company name/URL/email -- only the GST
+            # number is reused.
+            app2 = signup_to_profile(client, monkeypatch, "gstimpersonator@test.local")
+            resp = submit_profile(client, app2, "A Totally Different Business", "totally-different-biz", shared_gst)
+            page = client.get(resp.headers["Location"])
+            assert page.status_code == 200
+            assert b"already" in page.data
+            assert b"gstdupe1@test.local" not in page.data
 
             cur.execute(
                 "SELECT match_type, conflicting_admin_email FROM att_master.tenant_duplicate_alerts "
@@ -723,15 +641,17 @@ class TestGatedSignupFlow:
 
             cur.execute("DELETE FROM att_master.tenant_duplicate_alerts WHERE attempted_admin_email=%s",
                         ("gstimpersonator@test.local",))
-            cur.execute("DELETE FROM att_master.tenant_applications WHERE subdomain=%s", ("totally-different-biz",))
+            cur.execute("DELETE FROM att_master.tenant_applications WHERE admin_email=%s",
+                        ("gstimpersonator@test.local",))
             db_engine.commit()
             cur.close()
         finally:
             _drop_schema(db_engine, schema_name)
 
     def test_duplicate_admin_email_blocked_even_with_different_name_and_gst(self, client, db_engine, monkeypatch):
-        """Same trial-abuse case as GST above, but the registrant changes
-        company name AND GST and only reuses their own email address."""
+        """Same trial-abuse case as GST above: the registrant only reuses
+        their own email address -- caught at the account step, before any
+        company details are asked for."""
         from app import init_master_db
         init_master_db()
 
@@ -740,65 +660,38 @@ class TestGatedSignupFlow:
         shared_email = "emaildupe-owner@test.local"
         _drop_schema(db_engine, schema_name)
         try:
-            application_id = self._run_full_pipeline(
-                client, monkeypatch, subdomain=subdomain, company_name="Email Dupe Org One",
-                admin_username="emaildupe_admin1", admin_email=shared_email,
-            )
+            application_id = signup_company(client, monkeypatch, shared_email, "Email Dupe Org One", subdomain)
             self._login_platform_admin(client)
             client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
 
             cur = db_engine.cursor()
             cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             assert cur.fetchone()[0] == "active"
+            cur.execute("SELECT COUNT(*) FROM att_master.tenant_applications WHERE admin_email=%s", (shared_email,))
+            applications_before = cur.fetchone()[0]
 
-            resp = client.post("/create_org", data={
-                "company_name": "Yet Another Unrelated Business", "subdomain": "yet-another-unrelated-biz",
-                "admin_username": "emailimpersonator", "admin_password": "password123",
-                # Case/whitespace-varied but the same real address -- must
-                # still be caught.
-                "admin_email": f"  {shared_email.upper()}  ", "email_domain": "unrelated.test",
-                "gst_number": _random_gst(),
-            }, follow_redirects=True)
-            assert resp.status_code == 200
-            assert b"already" in resp.data
+            # Case/whitespace-varied but the same real address -- must
+            # still be caught.
+            codes = capture_codes(monkeypatch)
+            resp = start_signup(client, f"  {shared_email.upper()}  ")
+            assert resp.headers["Location"] == "/create_org"
+            assert codes == []
+            assert b"already" in client.get("/create_org").data
 
             cur.execute(
-                "SELECT match_type FROM att_master.tenant_duplicate_alerts WHERE attempted_company_name=%s",
-                ("Yet Another Unrelated Business",)
+                "SELECT match_type FROM att_master.tenant_duplicate_alerts "
+                "WHERE attempted_admin_email=%s AND match_type='email'", (shared_email,)
             )
-            alert = cur.fetchone()
-            assert alert is not None, "email duplicate attempt was not recorded for platform-admin review"
-            assert alert[0] == "email"
+            assert cur.fetchone() is not None, "email duplicate attempt was not recorded for platform-admin review"
+            cur.execute("SELECT COUNT(*) FROM att_master.tenant_applications WHERE admin_email=%s", (shared_email,))
+            assert cur.fetchone()[0] == applications_before, "an email-duplicate signup must not start an application"
 
-            cur.execute("SELECT 1 FROM att_master.tenants WHERE subdomain=%s", ("yet-another-unrelated-biz",))
-            assert cur.fetchone() is None, "an email-duplicate signup must never reach provisioning"
-
-            cur.execute("DELETE FROM att_master.tenant_duplicate_alerts WHERE attempted_company_name=%s",
-                        ("Yet Another Unrelated Business",))
-            cur.execute("DELETE FROM att_master.tenant_applications WHERE subdomain=%s", ("yet-another-unrelated-biz",))
+            cur.execute("DELETE FROM att_master.tenant_duplicate_alerts WHERE attempted_admin_email=%s",
+                        (shared_email,))
             db_engine.commit()
             cur.close()
         finally:
             _drop_schema(db_engine, schema_name)
-
-    def test_missing_gst_rejected(self, client):
-        resp = client.post("/create_org", data={
-            "company_name": "No Gst Co", "subdomain": "no-gst-co",
-            "admin_username": "nogst_admin", "admin_password": "password123",
-            "admin_email": "nogst@test.local", "email_domain": "test.local",
-        }, follow_redirects=True)
-        assert resp.status_code == 200
-        assert b"GST" in resp.data
-
-    def test_malformed_gst_rejected(self, client):
-        resp = client.post("/create_org", data={
-            "company_name": "Bad Gst Co", "subdomain": "bad-gst-co",
-            "admin_username": "badgst_admin", "admin_password": "password123",
-            "admin_email": "badgst@test.local", "email_domain": "test.local",
-            "gst_number": "not-a-real-gstin",
-        }, follow_redirects=True)
-        assert resp.status_code == 200
-        assert b"valid" in resp.data.lower()
 
 
 class TestCompanyNameFuzzyMatching:

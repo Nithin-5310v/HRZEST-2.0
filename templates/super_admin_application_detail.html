@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ application.company_name }} — Application Review</title>
+    <title>{{ application.company_name or application.admin_email }} — Application Review</title>
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
@@ -72,7 +72,7 @@
   <body>
     <div class="container">
       <div class="header">
-        <h1>{{ application.company_name }} <span class="badge badge-{{ application.status }}">{{ application.status.replace('_', ' ') }}</span></h1>
+        <h1>{{ application.company_name or application.admin_email }} <span class="badge badge-{{ application.status }}">{{ application.status.replace('_', ' ') }}</span></h1>
         <a href="/super_admin/applications" class="back-link"><i class="ti ti-arrow-left"></i> Back to Applications</a>
       </div>
 
@@ -87,10 +87,11 @@
       <div class="card">
         <h2><i class="ti ti-building"></i> Company & Admin Details</h2>
         <div class="info-grid">
-          <div class="info-row"><div class="label">Company Name</div><div class="value">{{ application.company_name }}</div></div>
+          <div class="info-row"><div class="label">Company Name</div><div class="value">{{ application.company_name or 'Not set up yet' }}</div></div>
           <div class="info-row"><div class="label">Subdomain</div><div class="value">{{ application.subdomain }}</div></div>
           <div class="info-row"><div class="label">Admin Username</div><div class="value">{{ application.admin_username }}</div></div>
           <div class="info-row"><div class="label">Admin Email</div><div class="value">{{ application.admin_email }}</div></div>
+          <div class="info-row"><div class="label">Admin Mobile</div><div class="value">{{ application.admin_mobile or '—' }}</div></div>
           <div class="info-row"><div class="label">Email Domain</div><div class="value">{{ application.email_domain or '—' }}</div></div>
           <div class="info-row"><div class="label">Payment Option</div><div class="value">{{ application.payment_option }}</div></div>
           <div class="info-row"><div class="label">Email Verified</div><div class="value">{{ 'Yes, ' + application.email_verified_at.strftime('%Y-%m-%d %H:%M') if application.email_verified_at else 'No' }}</div></div>

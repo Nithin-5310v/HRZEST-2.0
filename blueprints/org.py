@@ -79,12 +79,58 @@ def _validate_new_tenant_fields(company_name, subdomain, admin_username, admin_p
     return None
 
 
+_MOBILE_RE = re.compile(r'^\+?[0-9]{10,15}$')
+# The web signup's admin login username IS their email, and
+# admin_users.username is VARCHAR(50) in every company schema.
+_MAX_SIGNUP_EMAIL_LEN = 50
+
+
+def _clean_mobile(raw):
+    """A mobile number as digits with an optional leading +, dropping the
+    spaces, dashes, dots and brackets people type in them."""
+    return re.sub(r'[\s\-.()]', '', str(raw or ''))
+
+
+def _validate_signup_account(admin_email, admin_mobile, admin_password):
+    """Step 1 of the web signup (POST /create_org): the admin's email (also
+    their login username), mobile number and password. The company itself
+    is described after the email is verified, at /create_org/profile.
+    Returns an error message, or None."""
+    if not all([admin_email, admin_mobile, admin_password]):
+        return "Email, mobile number and password are all required."
+    if not _EMAIL_RE.match(admin_email):
+        return "Enter a valid email address."
+    if len(admin_email) > _MAX_SIGNUP_EMAIL_LEN:
+        return f"Use an email address of at most {_MAX_SIGNUP_EMAIL_LEN} characters -- it's also your login username."
+    if not _MOBILE_RE.match(admin_mobile):
+        return "Enter a valid mobile number: 10 to 15 digits, optionally starting with +."
+    _pw_ok, _pw_err = validate_new_password(admin_password)
+    if not _pw_ok:
+        return _pw_err
+    return validate_email_domain_format(clean_email_domain(admin_email))
+
+
+def _validate_company_profile(company_name, subdomain, gst_number):
+    """Step 3 of the web signup (POST /create_org/profile): the company's
+    name, URL slug (already through _clean_subdomain_slug) and GSTIN
+    (through _clean_gst). Returns an error message, or None."""
+    if not company_name or not subdomain:
+        return "Company name and company URL are required."
+    if len(company_name) > 200:
+        return "Company name must be at most 200 characters."
+    if not _SUBDOMAIN_RE.match(subdomain) or len(subdomain) > 100:
+        return "Company URL may only contain lowercase letters, digits, and hyphens (up to 100)."
+    if subdomain in _RESERVED_SUBDOMAINS:
+        return f"Company URL '{subdomain}' is reserved. Choose another."
+    return _validate_gst_number(gst_number)
+
+
 _PAYMENT_OPTIONS = frozenset({"online", "manual", "trial"})
 
 
 def provision_tenant(company_name, subdomain, admin_username, admin_password_hash, admin_email,
                      payment_option="online", email_domain=None, employee_count=None, logo_path=None,
-                     gst_number=None, subscription_status=None):
+                     gst_number=None, subscription_status=None, contact_phone=None):
     """Shared tenant-provisioning core: schema creation, admin-user seed,
     and master-registry insert. Callers must run
     _validate_new_tenant_fields() first -- this only does the actual
@@ -133,6 +179,9 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
     tenants row so check_duplicate_gst() can block a second signup under
     the same real-world business later. None for the Platform Admin
     direct-create path, which doesn't collect one.
+
+    contact_phone (the admin's mobile number from the web signup) goes to
+    company_settings.contact_phone; None leaves it unset.
 
     subscription_status overrides the default "'trialing' iff
     payment_option=='trial', else 'active'" rule -- explicit None (the
@@ -208,8 +257,8 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
             logo_url = f"/static/{logo_path}"
         tcur.execute(
             "UPDATE company_settings SET company_name=%s, email_domain=%s, paid_employee_slots=%s, "
-            "logo_url=COALESCE(%s, logo_url), setup_done=1 WHERE id=1",
-            (company_name, clean_email_domain(email_domain) or None, employee_count, logo_url)
+            "logo_url=COALESCE(%s, logo_url), contact_phone=COALESCE(%s, contact_phone), setup_done=1 WHERE id=1",
+            (company_name, clean_email_domain(email_domain) or None, employee_count, logo_url, contact_phone)
         )
         # Plain INSERT, no ON CONFLICT: the schema-existence check above
         # guarantees this is a brand-new schema, so a conflict here means a
@@ -689,7 +738,8 @@ def send_org_signup_otp_email(to_email, company_name, otp_code):
                     to_email, company_name,
                 )
             return False
-        _company = html.escape(str(company_name))
+        # No company name yet on the web signup's first step.
+        _company = html.escape(str(company_name)) if company_name else "your company"
         _code = html.escape(str(otp_code))
         html_body = f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:480px;margin:auto;background:#0f172a;border-radius:16px;overflow:hidden;border:1px solid #1e293b;">
@@ -793,7 +843,7 @@ def _fetch_application_row(application_id):
         "email_domain, employee_count, payment_option, logo_path, access_token_hash, otp_code_hash, "
         "otp_expires_at, otp_attempts, email_verified_at, doc_registration_cert, doc_address_proof, "
         "doc_visiting_card, doc_name_board_photo, documents_submitted_at, status, reviewed_by, "
-        "reviewed_at, rejection_reason, tenant_id, doc_review_status, gst_number, free_registration "
+        "reviewed_at, rejection_reason, tenant_id, doc_review_status, gst_number, free_registration, admin_mobile "
         "FROM tenant_applications WHERE id=%s",
         (application_id,)
     )
@@ -806,7 +856,8 @@ def _fetch_application_row(application_id):
             "email_domain", "employee_count", "payment_option", "logo_path", "access_token_hash", "otp_code_hash",
             "otp_expires_at", "otp_attempts", "email_verified_at", "doc_registration_cert", "doc_address_proof",
             "doc_visiting_card", "doc_name_board_photo", "documents_submitted_at", "status", "reviewed_by",
-            "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status", "gst_number", "free_registration"]
+            "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status", "gst_number", "free_registration",
+            "admin_mobile"]
     return dict(zip(cols, row))
 
 
@@ -958,6 +1009,7 @@ def _provision_application_instantly(application):
         employee_count=application["employee_count"], logo_path=application["logo_path"],
         gst_number=application["gst_number"],
         subscription_status=None if application.get("free_registration") else "trialing",
+        contact_phone=application.get("admin_mobile"),
     )
     if not ok:
         return False, error, None, None
@@ -1191,19 +1243,15 @@ def _back_to_signup_form():
 @org_bp.route("/create_org", methods=["POST"])
 @limiter.limit("10 per hour")
 def create_org():
-    """Step 1 of the gated signup flow: validate fields, block a
-    duplicate company name, and -- if clear -- create a pending
-    tenant_applications row and email an OTP. No tenant is provisioned
-    here anymore; provision_tenant() is only ever called later, from
-    platform_admin.py's approve action (or billing.py's verify_payment
-    for paid plans, once payment completes after that approval). This
-    replaces the old instant-provisioning behavior entirely -- since
-    something like a name-board photo can't be validated by code, manual
-    review is a required step, not an optional hardening layer that's
-    safe to bypass in dev (unlike the Turnstile captcha below, which
-    fails open when unconfigured)."""
-    signup_plan = request.form.get("signup_plan", "pay_now").strip().lower()
-    free_registration = signup_plan == "free"
+    """Step 1 of the web signup wizard: just the admin's account -- email
+    (which is also their login username), mobile number and password.
+    Creates a tenant_applications row whose company fields stay blank
+    ('' -- the columns are NOT NULL) and emails a verification code. Once
+    the code checks out, create_org_verify_otp() sends the applicant to
+    the company profile (/create_org/profile), which provisions the
+    company; documents follow. The mobile app's /api/create_org still
+    takes everything in one request."""
+    free_registration = request.form.get("signup_plan", "").strip().lower() == "free"
     if free_registration and not _free_registration_allowed():
         flash("Free registration can only be started from the Platform Admin dashboard.", "error")
         return redirect("/create_org")
@@ -1214,70 +1262,36 @@ def create_org():
             flash("Captcha verification failed. Please try again.", "error")
             return _back_to_signup_form()
 
-    company_name = request.form.get("company_name", "").strip()
-    subdomain = _clean_subdomain_slug(request.form.get("subdomain", ""), company_name)
-    admin_username = request.form.get("admin_username", "").strip()
+    # Lowercase: it's the login username, matched exactly at /login.
+    admin_email = request.form.get("admin_email", "").strip().lower()
+    admin_mobile = _clean_mobile(request.form.get("admin_mobile", ""))
     admin_password = request.form.get("admin_password", "").strip()
-    admin_email = request.form.get("admin_email", "").strip()
-    email_domain = clean_email_domain(request.form.get("email_domain", ""))
-    gst_number = _clean_gst(request.form.get("gst_number", ""))
 
-    error = _validate_new_tenant_fields(company_name, subdomain, admin_username, admin_password, admin_email,
-                                        email_domain)
+    error = _validate_signup_account(admin_email, admin_mobile, admin_password)
     if error:
         flash(error, "error")
         return _back_to_signup_form()
 
-    gst_error = _validate_gst_number(gst_number)
-    if gst_error:
-        flash(gst_error, "error")
-        return _back_to_signup_form()
-
-    conflicting, match_type = check_duplicate_name(company_name)
-    if not conflicting:
-        conflicting, match_type = check_duplicate_gst(gst_number), "gst"
-    if not conflicting:
-        conflicting, match_type = check_duplicate_admin_email(admin_email), "email"
+    conflicting = check_duplicate_admin_email(admin_email)
     if conflicting:
-        _record_duplicate_alert(None, company_name, admin_email, conflicting, match_type=match_type)
+        _record_duplicate_alert(None, "", admin_email, conflicting, match_type="email")
         flash(_GENERIC_DUPLICATE_MSG, "error")
         return _back_to_signup_form()
-
-    logo_path = None
-    logo_file = request.files.get("logo")
-    if logo_file and logo_file.filename:
-        from utils.helpers import save_uploaded_logo
-        logo_path, logo_err = save_uploaded_logo(logo_file, subdomain)
-        if logo_err:
-            flash(f"Company logo: {logo_err}", "error")
-            return _back_to_signup_form()
-
-    from utils.razorpay_utils import razorpay_configured
-    # "trial" is only ever chosen explicitly on the signup form (a "Start a
-    # free trial" option, blueprints/trial_billing.TRIAL_DURATION_DAYS long,
-    # alongside "Pay now") -- any caller that doesn't send signup_plan (the
-    # mobile app, an older cached form) keeps the original online/manual
-    # auto-detect behavior unchanged. A platform admin's free registration
-    # has no payment step and is billed by manual invoice.
-    if free_registration:
-        payment_option = "manual"
-    elif signup_plan == "trial":
-        payment_option = "trial"
-    else:
-        payment_option = "online" if razorpay_configured() else "manual"
 
     access_token = _generate_access_token()
     otp_code = _generate_otp()
     from database import get_master_db
     mconn = get_master_db()
     mcur = mconn.cursor()
+    # payment_option is settled with the company profile; a platform
+    # admin's free registration is billed by manual invoice either way.
     mcur.execute(
-        "INSERT INTO tenant_applications (company_name, subdomain, admin_username, admin_email, "
-        "admin_password_hash, email_domain, gst_number, payment_option, logo_path, access_token_hash, otp_code_hash, "
+        "INSERT INTO tenant_applications (company_name, subdomain, admin_username, admin_email, admin_mobile, "
+        "admin_password_hash, email_domain, payment_option, access_token_hash, otp_code_hash, "
         "otp_expires_at, source_ip, free_registration) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, NOW() + (%s * INTERVAL '1 minute'), %s, %s) RETURNING id",
-        (company_name, subdomain, admin_username, admin_email, generate_password_hash(admin_password),
-         email_domain, gst_number, payment_option, logo_path, _hash_token(access_token), _hash_token(otp_code),
+        "VALUES ('', '', %s,%s,%s,%s,%s,'manual',%s,%s, NOW() + (%s * INTERVAL '1 minute'), %s, %s) RETURNING id",
+        (admin_email, admin_email, admin_mobile, generate_password_hash(admin_password),
+         clean_email_domain(admin_email), _hash_token(access_token), _hash_token(otp_code),
          _OTP_TTL_MINUTES, request.remote_addr, free_registration)
     )
     application_id = mcur.fetchone()[0]
@@ -1298,8 +1312,8 @@ def create_org():
     # Email verification is never skipped, in any APP_ENV: an
     # APP_ENV=development shortcut here once jumped straight to the document
     # upload, which also skipped the provisioning that only runs after a
-    # verified code (create_org_verify_otp), stranding the applicant.
-    send_org_signup_otp_email(admin_email, company_name, otp_code)
+    # verified code, stranding the applicant.
+    send_org_signup_otp_email(admin_email, "", otp_code)
     return redirect(f"/create_org/verify_otp?application_id={application_id}")
 
 
@@ -1318,14 +1332,22 @@ def create_org_verify_otp():
     if not application:
         flash("Application not found. Please start again.", "error")
         return redirect("/create_org")
+    if application["status"] == "otp_verified" and not application["company_name"]:
+        return redirect(f"/create_org/profile?application_id={application['id']}")  # already verified
 
     ok, error = _verify_application_otp(application, otp_code)
     if not ok:
         flash(error, "error")
         return redirect(f"/create_org/verify_otp?application_id={application['id']}")
 
-    # Re-fetch: _verify_application_otp() just advanced status to
-    # 'otp_verified' in the DB, but `application` here is still the
+    # A web signup describes its company after the code (create_org()
+    # leaves the company fields blank), and the profile step provisions it.
+    if not application["company_name"]:
+        return redirect(f"/create_org/profile?application_id={application['id']}")
+
+    # An application started before the profile step existed already has
+    # its company. Re-fetch: _verify_application_otp() just advanced status
+    # to 'otp_verified' in the DB, but `application` here is still the
     # pre-verification snapshot loaded at the top of this request.
     application = _load_application(application_id, session.get("org_access_token"))
     ok, error, portal_url, checkin_url = _provision_application_instantly(application)
@@ -1335,6 +1357,106 @@ def create_org_verify_otp():
         flash(f"Could not set up your company: {error}. Please contact support.", "error")
         return redirect("/create_org")
 
+    return redirect(f"/create_org/upload_documents?application_id={application['id']}")
+
+
+def _load_profile_application(application_id):
+    """The signup session's application if its email is verified and it's
+    still waiting for its company profile, else None."""
+    application = _load_application(application_id, session.get("org_access_token"))
+    if application and application["status"] == "otp_verified" and not application["tenant_id"]:
+        return application
+    return None
+
+
+def _render_profile_page(application):
+    return render_template(
+        "create_org.html", profile_step=True, application_id=application["id"],
+        free_registration=bool(application["free_registration"]),
+        per_employee_paise=get_per_employee_paise(),
+    )
+
+
+@org_bp.route("/create_org/profile", methods=["GET"])
+def create_org_profile_page():
+    application = _load_profile_application(request.args.get("application_id", ""))
+    if not application:
+        flash("Verify your email first, or start a new registration.", "error")
+        return redirect("/create_org")
+    return _render_profile_page(application)
+
+
+@org_bp.route("/create_org/profile", methods=["POST"])
+@limiter.limit("20 per hour")
+def create_org_profile():
+    """Step 3 of the web signup wizard, after the email code: the company
+    profile -- name, GSTIN, company URL, optional logo, and the plan. Saves
+    it on the application and provisions the company right away (as the
+    code step used to); documents come next. A rejected profile (a taken
+    URL, a duplicate company) comes back to this form, application intact."""
+    application = _load_profile_application(request.form.get("application_id", ""))
+    if not application:
+        flash("Verify your email first, or start a new registration.", "error")
+        return redirect("/create_org")
+    back = redirect(f"/create_org/profile?application_id={application['id']}")
+
+    company_name = request.form.get("company_name", "").strip()
+    subdomain = _clean_subdomain_slug(request.form.get("subdomain", ""), company_name)
+    gst_number = _clean_gst(request.form.get("gst_number", ""))
+    error = _validate_company_profile(company_name, subdomain, gst_number)
+    if error:
+        flash(error, "error")
+        return back
+
+    conflicting, match_type = check_duplicate_name(company_name)
+    if not conflicting:
+        conflicting, match_type = check_duplicate_gst(gst_number), "gst"
+    if conflicting:
+        _record_duplicate_alert(application["id"], company_name, application["admin_email"], conflicting,
+                                match_type=match_type)
+        flash(_GENERIC_DUPLICATE_MSG, "error")
+        return back
+
+    logo_path = application["logo_path"]
+    logo_file = request.files.get("logo")
+    if logo_file and logo_file.filename:
+        from utils.helpers import save_uploaded_logo
+        logo_path, logo_err = save_uploaded_logo(logo_file, subdomain)
+        if logo_err:
+            flash(f"Company logo: {logo_err}", "error")
+            return back
+
+    from utils.razorpay_utils import razorpay_configured
+    # "trial" is only ever chosen explicitly (the "2-Day Free Trial" option,
+    # blueprints/trial_billing.TRIAL_DURATION_DAYS long, beside "Pay now").
+    # A platform admin's free registration has no payment step and is
+    # billed by manual invoice.
+    signup_plan = request.form.get("signup_plan", "pay_now").strip().lower()
+    if application["free_registration"]:
+        payment_option = "manual"
+    elif signup_plan == "trial":
+        payment_option = "trial"
+    else:
+        payment_option = "online" if razorpay_configured() else "manual"
+
+    from database import get_master_db
+    mconn = get_master_db()
+    mcur = mconn.cursor()
+    mcur.execute(
+        "UPDATE tenant_applications SET company_name=%s, subdomain=%s, gst_number=%s, logo_path=%s, "
+        "payment_option=%s, updated_at=NOW() WHERE id=%s AND status='otp_verified'",
+        (company_name, subdomain, gst_number, logo_path, payment_option, application["id"])
+    )
+    mconn.commit()
+    mcur.close()
+    mconn.close()
+
+    application = _load_application(application["id"], session.get("org_access_token"))
+    ok, error, portal_url, checkin_url = _provision_application_instantly(application)
+    if not ok:
+        app_log.warning("create_org_profile: provisioning failed for application %s: %s", application["id"], error)
+        flash(error, "error")
+        return back
     return redirect(f"/create_org/upload_documents?application_id={application['id']}")
 
 

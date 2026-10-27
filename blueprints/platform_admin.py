@@ -931,7 +931,7 @@ _APPLICATION_STATUS_COLS = (
     "id, company_name, subdomain, admin_username, admin_email, email_domain, gst_number, employee_count, "
     "payment_option, logo_path, email_verified_at, doc_registration_cert, doc_address_proof, "
     "doc_visiting_card, doc_name_board_photo, documents_submitted_at, status, reviewed_by, "
-    "reviewed_at, rejection_reason, tenant_id, created_at, doc_review_status"
+    "reviewed_at, rejection_reason, tenant_id, created_at, doc_review_status, admin_mobile"
 )
 _APPLICATION_COLS = [c.strip() for c in _APPLICATION_STATUS_COLS.split(",")]
 

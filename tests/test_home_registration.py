@@ -1,22 +1,18 @@
 """The manual company-registration form on the home page ("/").
 
-It posts to the existing POST /create_org (OTP -> KYC documents ->
-platform-admin review), so these tests cover only what is new: the form
-is on the page with every field create_org() reads, a failed submission
-comes back to that form instead of the OAuth-only /create_org page, and
-the Turnstile captcha can load there when it is configured.
+It is the signup wizard's first step -- the admin's email, mobile number
+and password, posted to POST /create_org (the emailed code, company profile
+and documents follow on /create_org/*). These tests cover what is specific
+to the home page: the form is there with every field create_org() reads, a
+failed submission comes back to that form, and the Turnstile captcha can
+load there when it is configured.
 """
 import re
 
 import blueprints.core as core_module
-from tests.test_org import _random_gst
 
 _FORM_RE = re.compile(r'<form[^>]*id="homeRegisterForm".*?</form>', re.S)
-_SHORT_PASSWORD = {
-    "company_name": "Home Form Co", "subdomain": "home-form-co",
-    "admin_username": "home_admin", "admin_password": "short",
-    "admin_email": "admin@homeform.test", "email_domain": "homeform.test",
-}
+_SHORT_PASSWORD = {"admin_email": "admin@homeform.test", "admin_mobile": "+91 98765 43210", "admin_password": "short"}
 
 
 def _form_html(client):
@@ -32,19 +28,14 @@ class TestHomeRegistrationForm:
         form, resp = _form_html(client)
         assert 'action="/create_org"' in form
         assert 'method="POST"' in form
-        assert 'enctype="multipart/form-data"' in form
-        for name in ("company_name", "gst_number", "subdomain", "admin_email", "admin_username",
-                     "admin_password", "logo", "email_domain", "signup_plan", "return_to", "_csrf_token"):
+        for name in ("admin_email", "admin_mobile", "admin_password", "return_to", "_csrf_token"):
             assert f'name="{name}"' in form, name
+        for name in ("company_name", "gst_number", "subdomain", "admin_username", "logo"):
+            assert f'name="{name}"' not in form, f"{name} belongs to the company profile step"
         assert 'name="return_to" value="home"' in form
         with client.session_transaction() as s:
             assert s["_csrf"] in form
         assert 'id="register"' in resp.get_data(as_text=True)
-
-    def test_form_script_is_external_and_served(self, client):
-        _form, resp = _form_html(client)
-        assert "landing_register.js" in resp.get_data(as_text=True)
-        assert client.get("/static/landing_register.js").status_code == 200
 
     def test_no_captcha_when_turnstile_off(self, client, monkeypatch):
         monkeypatch.setattr(core_module, "turnstile_enabled", lambda: False)
@@ -64,19 +55,19 @@ class TestHomeRegistrationForm:
 
 class TestHomeRegistrationErrors:
     def test_failed_submission_returns_to_home_form_with_message(self, client):
-        resp = client.post("/create_org", data=dict(_SHORT_PASSWORD, gst_number=_random_gst(), return_to="home"))
+        resp = client.post("/create_org", data=dict(_SHORT_PASSWORD, return_to="home"))
         assert resp.status_code == 302
         assert resp.headers["Location"] == "/?registration=failed#register"
         page = client.get("/?registration=failed").get_data(as_text=True)
         assert "at least 8 characters" in page
 
     def test_without_return_to_still_goes_to_create_org(self, client):
-        resp = client.post("/create_org", data=dict(_SHORT_PASSWORD, gst_number=_random_gst()))
+        resp = client.post("/create_org", data=dict(_SHORT_PASSWORD))
         assert resp.headers["Location"] == "/create_org"
 
     def test_return_to_accepts_only_home(self, client):
         for value in ("https://evil.example/", "//evil.example", "/admin", "HOME"):
-            resp = client.post("/create_org", data=dict(_SHORT_PASSWORD, gst_number=_random_gst(), return_to=value))
+            resp = client.post("/create_org", data=dict(_SHORT_PASSWORD, return_to=value))
             assert resp.headers["Location"] == "/create_org", value
 
     def test_home_leaves_unrelated_flashes_alone(self, client):
@@ -92,19 +83,17 @@ class TestHomeRegistrationSuccess:
     def test_valid_submission_starts_an_application(self, client, db_engine, monkeypatch):
         import blueprints.org as org_module
         monkeypatch.setattr(org_module, "send_org_signup_otp_email", lambda email, company, otp: True)
-        gst = _random_gst()
         resp = client.post("/create_org", data={
-            "company_name": "Home Form Valid Co", "subdomain": "home-form-valid-co",
-            "admin_username": "hf_admin", "admin_password": "password123",
-            "admin_email": "hf@homeformvalid.test", "email_domain": "homeformvalid.test",
-            "gst_number": gst, "signup_plan": "pay_now", "return_to": "home",
+            "admin_email": "hf@homeformvalid.test", "admin_mobile": "9876543210",
+            "admin_password": "password123", "return_to": "home",
         })
         assert resp.status_code == 302
         # Next step is always the emailed-code screen (conftest's
         # APP_ENV=development used to skip it).
         assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
         cur = db_engine.cursor()
-        cur.execute("SELECT company_name, status FROM att_master.tenant_applications WHERE gst_number=%s", (gst,))
+        cur.execute("SELECT admin_username, admin_mobile, status FROM att_master.tenant_applications "
+                    "WHERE admin_email=%s", ("hf@homeformvalid.test",))
         row = cur.fetchone()
         cur.close()
-        assert row is not None and row[0] == "Home Form Valid Co"
+        assert row == ("hf@homeformvalid.test", "9876543210", "started")

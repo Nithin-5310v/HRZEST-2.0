@@ -325,6 +325,10 @@ def _init_master_db_impl():
         # manually-invoiced company instead of a capped self-serve trial.
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS free_registration BOOLEAN "
                     "NOT NULL DEFAULT FALSE")
+        # The admin's mobile number, asked for with their email and password
+        # on the web signup's first step; copied onto the new company's
+        # company_settings.contact_phone when it's provisioned.
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS admin_mobile VARCHAR(20) DEFAULT NULL")
         # Tracks KYC document review progress SEPARATELY from `status` above.
         # `status` used to double as both "has this application been
         # provisioned" AND "where's the KYC review at" -- that stopped

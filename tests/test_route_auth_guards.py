@@ -33,6 +33,8 @@ ALLOWED_UNGUARDED = {
     "org.create_org_verify_otp_page": "signup OTP step; application token checked",
     "org.create_org_verify_otp": "signup OTP step; application token checked",
     "org.create_org_resend_otp": "signup OTP step; application token checked",
+    "org.create_org_profile_page": "signup company step; application token + verified email checked",
+    "org.create_org_profile": "signup company step; application token + verified email checked",
     "org.create_org_upload_documents_page": "renders form only; POST checks token",
     "org.create_org_upload_documents": "application access token checked (_load_application)",
     "org.create_org_pending_page": "static pending notice",
