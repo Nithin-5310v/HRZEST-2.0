@@ -464,6 +464,9 @@ def _resolve_tenant():
     # between "suspended" and "still fully working," since cookie-based
     # sessions have no server-side store to revoke from outside.
     if session.get("tenant_db"):
+        # Remembered for _restamp_tenant_session: a URL with no company slug
+        # (bare /login) still runs as this company.
+        _g.tenant_slug = session.get("tenant_slug")
         last_checked = session.get("_tenant_status_checked_at", 0)
         if (time.time() - last_checked) < _TENANT_STATUS_RECHECK_SEC:
             _g.tenant_db = session["tenant_db"]
@@ -536,13 +539,21 @@ def _restamp_tenant_session(response):
     the session -- just re-stamp the session from it before the response
     goes out. No-ops for the overwhelming majority of requests (guarded
     on the session already being correct), so this isn't forcing a
-    Set-Cookie on every response."""
+    Set-Cookie on every response.
+
+    The company comes from the URL slug or, on a URL without one (bare
+    /login, /mfa_verify), from the session binding _resolve_tenant() ran
+    this request under. Without the latter, a bare /login after a
+    /<slug>/ visit issued its MFA code in that company's schema and
+    /mfa_verify then looked for it in the default one -- no code could
+    ever verify -- and a login without MFA landed in the default
+    company's data."""
     from flask import g as _g
     tenant_db = getattr(_g, "tenant_db", None)
-    url_slug = request.environ.get("hrz.tenant_slug")
-    if tenant_db and url_slug and session.get("tenant_slug") != url_slug:
+    slug = request.environ.get("hrz.tenant_slug") or getattr(_g, "tenant_slug", None)
+    if tenant_db and slug and session.get("tenant_slug") != slug:
         session["tenant_db"] = tenant_db
-        session["tenant_slug"] = url_slug
+        session["tenant_slug"] = slug
         session["_tenant_status_checked_at"] = time.time()
         session["_billing_locked"] = getattr(_g, "billing_locked", False)
     return response

@@ -203,6 +203,49 @@ class TestCrossTenantSessionIsolation:
             assert sess.get("tenant_slug") == slug_a
 
 
+class TestBareLoginKeepsSessionCompany:
+    """A browser that visited /<slug>/ and then opens the bare /login gets
+    that company's login page (the session binding resolves it). The login
+    clears the session, and the company must survive that even though the
+    URL carries no slug to re-stamp it from -- production saw every MFA
+    code rejected here: issued in the company's schema, checked in the
+    default one."""
+
+    def test_mfa_code_from_bare_login_verifies(self, client, two_tenants, monkeypatch):
+        import blueprints.auth as auth_module
+        slug_a, schema_a, _, _ = two_tenants
+        codes = []
+        monkeypatch.setattr(auth_module, "send_mfa_login_email",
+                            lambda to, user, role, secret, code: codes.append(code))
+        monkeypatch.setitem(client.application.config, "MANDATORY_LOGIN_MFA", True)
+
+        client.get(f"/{slug_a}/login")
+        resp = client.post("/login", data={
+            "identifier": "tpi_admin_a", "password": "password123",
+        }, follow_redirects=False)
+        assert resp.headers["Location"] == "/mfa_verify"
+
+        resp = client.post("/mfa_verify", data={"otp_code": codes[-1]}, follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["Location"] == "/admin"
+        with client.session_transaction() as sess:
+            assert sess.get("admin_logged_in") is True
+            assert sess.get("tenant_db") == schema_a
+        assert client.get("/admin").status_code == 200
+
+    def test_login_without_mfa_stays_in_session_company(self, client, two_tenants):
+        slug_a, schema_a, _, _ = two_tenants
+        client.get(f"/{slug_a}/login")
+        resp = client.post("/login", data={
+            "identifier": "tpi_admin_a", "password": "password123",
+        }, follow_redirects=False)
+        assert resp.status_code == 302
+        with client.session_transaction() as sess:
+            assert sess.get("admin_logged_in") is True
+            assert sess.get("tenant_db") == schema_a
+            assert sess.get("tenant_slug") == slug_a
+
+
 class TestFormFieldCannotSelectTenant:
     """Defense-in-depth regression coverage: a POST body field that happens
     to look like a tenant/company identifier (company_id) must never be able
