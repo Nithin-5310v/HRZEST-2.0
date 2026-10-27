@@ -154,6 +154,26 @@ def _init_master_db_impl():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # A Google/Microsoft sign-up waiting for its emailed code
+        # (blueprints/oauth_signup.py): the company is only provisioned once
+        # the code is entered, like the manual form's tenant_applications.
+        # Located by id + a random token carried in the verify link and
+        # form -- not the session, for the SameSite=Strict reason above.
+        # Deleted when verified; rows older than a day are swept on insert.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS oauth_signup_pending (
+                id SERIAL PRIMARY KEY,
+                provider VARCHAR(20) NOT NULL,
+                subject VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                name VARCHAR(255) DEFAULT NULL,
+                access_token_hash VARCHAR(64) NOT NULL,
+                otp_code_hash VARCHAR(64) NOT NULL,
+                otp_expires_at TIMESTAMP NOT NULL,
+                otp_attempts INT NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         # Platform-operator identity (blueprints/platform_admin.py) --
         # lives in att_master, not any tenant schema, since tenant
         # admin_users rows only exist inside their own schema and this

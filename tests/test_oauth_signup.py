@@ -155,6 +155,122 @@ class TestCompleteOAuth:
 # blueprints/oauth_signup.py -- route-level, complete_oauth() mocked out
 # ===========================================================================
 
+def _start_signup(client, monkeypatch, sub, email, name):
+    """Returns from the provider for `email` and lands on the emailed-code
+    step. Returns (pending_id, token, emailed_code)."""
+    import urllib.parse
+    import blueprints.org as org_module
+    sent = {}
+    monkeypatch.setattr(org_module, "send_org_signup_otp_email",
+                        lambda to, company, otp: sent.update(to=to, otp=otp) or True)
+    monkeypatch.setattr(
+        oauth_signup, "complete_oauth",
+        lambda *a, **k: {"sub": sub, "email": email, "name": name,
+                         "provider": "google", "mode": "signup", "tenant_db": None},
+    )
+    resp = client.get("/create_org/google/callback?code=abc&state=xyz", follow_redirects=False)
+    assert resp.status_code in (301, 302)
+    location = resp.headers["Location"]
+    assert location.startswith("/create_org/oauth/verify?")
+    assert sent.get("to") == email, "the verification code must be emailed to the provider's address"
+    qs = urllib.parse.parse_qs(urllib.parse.urlparse(location).query)
+    return qs["id"][0], qs["token"][0], sent["otp"]
+
+
+def _submit_code(client, pending_id, token, otp_code):
+    return client.post("/create_org/oauth/verify", data={
+        "application_id": pending_id, "token": token, "otp_code": otp_code,
+    }, follow_redirects=False)
+
+
+def _tenant_count(db_engine, email):
+    cur = db_engine.cursor()
+    cur.execute("SELECT COUNT(*) FROM att_master.tenants WHERE admin_email=%s", (email,))
+    count = cur.fetchone()[0]
+    cur.close()
+    return count
+
+
+class TestSignupEmailVerification:
+    """Signing up with Google/Microsoft never creates the company before the
+    code emailed to that address is entered."""
+
+    EMAIL = "admin@otpgatedco.com"
+
+    def _drop_created(self, db_engine):
+        cur = db_engine.cursor()
+        cur.execute("SELECT db_name FROM att_master.tenants WHERE admin_email=%s", (self.EMAIL,))
+        row = cur.fetchone()
+        cur.close()
+        if row:
+            _drop_schema(db_engine, row[0])
+
+    def test_callback_emails_a_code_and_creates_nothing_yet(self, client, db_engine, monkeypatch):
+        pending_id, token, otp = _start_signup(client, monkeypatch, "g-otp-1", self.EMAIL, "Admin")
+        assert len(otp) == 6
+        assert _tenant_count(db_engine, self.EMAIL) == 0
+        with client.session_transaction() as sess:
+            assert not sess.get("admin_logged_in")
+        page = client.get(f"/create_org/oauth/verify?id={pending_id}&token={token}")
+        assert page.status_code == 200
+        assert self.EMAIL.encode() in page.data
+
+    def test_wrong_or_blank_code_is_refused(self, client, db_engine, monkeypatch):
+        pending_id, token, _otp = _start_signup(client, monkeypatch, "g-otp-2", self.EMAIL, "Admin")
+        for code in ("", "000000"):   # real codes are 100000-999999
+            resp = _submit_code(client, pending_id, token, code)
+            assert resp.headers["Location"] == f"/create_org/oauth/verify?id={pending_id}&token={token}"
+        assert _tenant_count(db_engine, self.EMAIL) == 0
+
+    def test_too_many_wrong_codes_lock_out_the_right_one(self, client, db_engine, monkeypatch):
+        pending_id, token, otp = _start_signup(client, monkeypatch, "g-otp-3", self.EMAIL, "Admin")
+        for _ in range(5):
+            _submit_code(client, pending_id, token, "000000")
+        _submit_code(client, pending_id, token, otp)
+        assert _tenant_count(db_engine, self.EMAIL) == 0
+
+    def test_expired_code_is_refused(self, client, db_engine, monkeypatch):
+        pending_id, token, otp = _start_signup(client, monkeypatch, "g-otp-4", self.EMAIL, "Admin")
+        cur = db_engine.cursor()
+        cur.execute("UPDATE att_master.oauth_signup_pending SET otp_expires_at = NOW() - INTERVAL '1 minute' "
+                    "WHERE id=%s", (int(pending_id),))
+        db_engine.commit()
+        cur.close()
+        _submit_code(client, pending_id, token, otp)
+        assert _tenant_count(db_engine, self.EMAIL) == 0
+
+    def test_wrong_token_cannot_use_the_code(self, client, db_engine, monkeypatch):
+        pending_id, _token, otp = _start_signup(client, monkeypatch, "g-otp-5", self.EMAIL, "Admin")
+        resp = _submit_code(client, pending_id, "not-the-token", otp)
+        assert resp.headers["Location"] == "/create_org"
+        assert client.get(f"/create_org/oauth/verify?id={pending_id}&token=not-the-token").status_code == 302
+        assert _tenant_count(db_engine, self.EMAIL) == 0
+
+    def test_resend_replaces_the_code(self, client, db_engine, monkeypatch):
+        import blueprints.org as org_module
+        pending_id, token, first = _start_signup(client, monkeypatch, "g-otp-6", self.EMAIL, "Admin")
+        sent = {}
+        monkeypatch.setattr(org_module, "send_org_signup_otp_email",
+                            lambda to, company, otp: sent.update(to=to, otp=otp) or True)
+        resp = client.post("/create_org/oauth/resend", data={"application_id": pending_id, "token": token})
+        assert resp.headers["Location"] == f"/create_org/oauth/verify?id={pending_id}&token={token}"
+        assert sent["to"] == self.EMAIL and sent["otp"]
+        if sent["otp"] != first:
+            _submit_code(client, pending_id, token, first)
+            assert _tenant_count(db_engine, self.EMAIL) == 0
+
+    def test_code_is_single_use(self, client, db_engine, monkeypatch):
+        from app import init_master_db
+        init_master_db()
+        try:
+            pending_id, token, otp = _start_signup(client, monkeypatch, "g-otp-7", self.EMAIL, "Admin")
+            assert _submit_code(client, pending_id, token, otp).headers["Location"].endswith("/admin")
+            assert _submit_code(client, pending_id, token, otp).headers["Location"] == "/create_org"
+            assert _tenant_count(db_engine, self.EMAIL) == 1
+        finally:
+            self._drop_created(db_engine)
+
+
 class TestSignupRoutes:
     def test_start_redirects_to_provider_when_configured(self, client, google_creds, monkeypatch):
         monkeypatch.setattr(oauth_signup, "build_authorize_url", lambda *a, **k: "https://accounts.google.com/fake")
@@ -173,19 +289,13 @@ class TestSignupRoutes:
         assert client.get("/create_org/facebook").status_code == 404
         assert client.get("/create_org/facebook/callback").status_code == 404
 
-    def test_callback_provisions_tenant_and_logs_in(self, client, db_engine, monkeypatch):
+    def test_verified_code_provisions_tenant_and_logs_in(self, client, db_engine, monkeypatch):
         from app import init_master_db
         init_master_db()
         schema_name = None
-        monkeypatch.setattr(
-            oauth_signup, "complete_oauth",
-            lambda *a, **k: {
-                "sub": "g-newco-1", "email": "admin@oauthtestco.com", "name": "New Admin",
-                "provider": "google", "mode": "signup", "tenant_db": None,
-            },
-        )
         try:
-            resp = client.get("/create_org/google/callback?code=abc&state=xyz", follow_redirects=False)
+            pending_id, token, otp = _start_signup(client, monkeypatch, "g-newco-1", "admin@oauthtestco.com", "New Admin")
+            resp = _submit_code(client, pending_id, token, otp)
             assert resp.status_code in (301, 302)
             location = resp.headers["Location"]
             assert "/admin" in location
@@ -274,14 +384,8 @@ class TestSignupRoutes:
         db_engine.commit()
         second_schema = None
         try:
-            monkeypatch.setattr(
-                oauth_signup, "complete_oauth",
-                lambda *a, **k: {
-                    "sub": "g-gmailperson2", "email": "person2@gmail.com", "name": "Person Two",
-                    "provider": "google", "mode": "signup", "tenant_db": None,
-                },
-            )
-            resp = client.get("/create_org/google/callback?code=abc&state=xyz", follow_redirects=False)
+            pending_id, token, otp = _start_signup(client, monkeypatch, "g-gmailperson2", "person2@gmail.com", "Person Two")
+            resp = _submit_code(client, pending_id, token, otp)
             assert resp.status_code in (301, 302)
             cur.execute("SELECT db_name FROM att_master.tenants WHERE admin_email=%s", ("person2@gmail.com",))
             row = cur.fetchone()

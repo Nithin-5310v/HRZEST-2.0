@@ -62,10 +62,12 @@
     <div class="page-intro">
       <div class="intro-icon"><i class="ti ti-mail-check"></i></div>
       <h1>Verify Your Email</h1>
-      <p>Enter the 6-digit code we just emailed you. It expires in 5 minutes.</p>
+      <p>Enter the 6-digit code we just emailed {% if sent_to %}to <strong>{{ sent_to }}</strong>{% else %}you{% endif %}. It expires in 5 minutes.</p>
     </div>
+    {% if not oauth %}{# Google/Microsoft signups have no Documents/Payment steps #}
     {% set current_step = 2 %}
     {% include "_org_wizard_steps.html" %}
+    {% endif %}
     <div class="card">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for cat, msg in messages %}
@@ -75,17 +77,19 @@
         {% endfor %}
       {% endwith %}
 
-      <form method="POST" action="/create_org/verify_otp">
+      <form method="POST" action="{{ verify_action or '/create_org/verify_otp' }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
         <input type="hidden" name="application_id" value="{{ application_id }}" />
+        {% if token %}<input type="hidden" name="token" value="{{ token }}" />{% endif %}
         <input class="otp-input" type="text" name="otp_code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
                placeholder="••••••" required autofocus autocomplete="one-time-code" />
         <button type="submit" class="btn-submit">Verify &amp; Continue</button>
       </form>
 
-      <form class="resend-form" method="POST" action="/create_org/resend_otp">
+      <form class="resend-form" method="POST" action="{{ resend_action or '/create_org/resend_otp' }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
         <input type="hidden" name="application_id" value="{{ application_id }}" />
+        {% if token %}<input type="hidden" name="token" value="{{ token }}" />{% endif %}
         <button type="submit" class="resend-btn">Didn't get a code? Resend</button>
       </form>
     </div>

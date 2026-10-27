@@ -2,10 +2,13 @@
 """OAuth blueprint -- "Sign up/in with Google" / "...with Microsoft".
 
 Replaces the public entry point of the old manual /create_org form
-(company details + GST + document upload + human KYC review) with an
-instant path: sign in with a Google or Microsoft account, we provision the
-company in the same request, and you land straight on a 2-day free trial
--- no payment, no waiting on a reviewer. The old manual routes
+(company details + GST + document upload + human KYC review) with a
+quick path: sign in with a Google or Microsoft account, enter the 6-digit
+code we email to that address, and the company is provisioned on a 2-day
+free trial -- no payment, no waiting on a reviewer. The emailed code is
+mandatory, as on every other signup path: the provider's own
+email_verified claim isn't enough (Microsoft doesn't send one at all --
+see utils/oauth_client.complete_oauth). The old manual routes
 (POST /create_org, OTP verify, document upload, Platform Admin's KYC
 review queue) still exist underneath and are untouched -- they're no
 longer linked from the public signup page, but removing them outright
@@ -23,9 +26,10 @@ accepted trade-off per this feature's explicit spec, not an oversight.
 
 Two independent flows:
   - SIGNUP (new company): GET /create_org/<provider> starts it,
-    GET /create_org/<provider>/callback finishes it. Both paths already
-    fall under app.py's _resolve_tenant() "/create_org" skip prefix (no
-    tenant exists yet).
+    GET /create_org/<provider>/callback emails the code and shows
+    /create_org/oauth/verify, and POST /create_org/oauth/verify provisions
+    the company once the code matches. All of these fall under app.py's
+    _resolve_tenant() "/create_org" skip prefix (no tenant exists yet).
   - LOGIN (returning admin of an OAuth-provisioned company, needed
     because that admin has no usable password -- see provision_tenant()
     call below): GET /oauth_login/<provider> must be reached tenant-
@@ -41,10 +45,10 @@ Two independent flows:
 import time
 import secrets
 
-from flask import Blueprint, request, redirect, session, flash, g
+from flask import Blueprint, request, redirect, session, flash, g, render_template
 
 from extensions import limiter, app_log, log_security_event
-from utils.auth import generate_password_hash, HR_ROLE, MANAGER_ROLE, stamp_password_version
+from utils.auth import generate_password_hash, HR_ROLE, MANAGER_ROLE, stamp_password_version, _hash_token
 from utils.helpers import tpath, _safe_app_url
 from utils.session_risk import ensure_session_id
 from utils.oauth_client import (
@@ -160,28 +164,182 @@ def oauth_signup_callback(provider):
         flash("Sign-up failed. Please try again.", "error")
         return redirect("/create_org")
 
-    email = identity["email"]
-    domain = email.split("@", 1)[1]
-    is_personal_domain = domain in PERSONAL_EMAIL_DOMAINS
+    blocked = _signup_blocked(identity["email"])
+    if blocked:
+        return blocked
+    pending_id, token = _start_pending_signup(provider, identity)
+    return redirect(_verify_link(pending_id, token))
 
-    from blueprints.org import check_duplicate_admin_email, provision_tenant, _clean_subdomain_slug
-    dup = check_duplicate_admin_email(email)
-    if dup:
+
+_PENDING_TTL_HOURS = 24
+
+
+def _signup_blocked(email):
+    """A redirect if this email can't start a new company (it already has
+    an account, or its company domain already has a trial), else None.
+    Checked when the provider sends the user back and again once the code
+    is verified, since another signup can land in between."""
+    from blueprints.org import check_duplicate_admin_email
+    if check_duplicate_admin_email(email):
         flash("An account already exists for this email. Try signing in instead.", "error")
         return redirect(tpath("/login"))
+    domain = email.split("@", 1)[1]
+    if domain not in PERSONAL_EMAIL_DOMAINS and _tenant_for_domain(domain):
+        flash(
+            "A free trial has already been created for this organisation. "
+            "Ask your admin for access, or sign in if that's you.", "error",
+        )
+        return redirect(tpath("/login"))
+    return None
 
-    if not is_personal_domain:
-        existing = _tenant_for_domain(domain)
-        if existing:
-            flash(
-                "A free trial has already been created for this organisation. "
-                "Ask your admin for access, or sign in if that's you.", "error",
-            )
-            return redirect(tpath("/login"))
 
-    company_name = identity["name"] if is_personal_domain else domain.split(".")[0].replace("-", " ").title()
-    if not company_name:
-        company_name = email.split("@")[0]
+def _company_name_for(email, name):
+    local, domain = email.split("@", 1)
+    if domain in PERSONAL_EMAIL_DOMAINS:
+        return name or local
+    return domain.split(".")[0].replace("-", " ").title() or local
+
+
+def _verify_link(pending_id, token):
+    return f"/create_org/oauth/verify?id={pending_id}&token={token}"
+
+
+def _start_pending_signup(provider, identity):
+    """Stores the provider-confirmed identity as an oauth_signup_pending row
+    and emails it a code. Returns (pending_id, token): the token is the only
+    way back to the row, so it travels in the verify link and form."""
+    from database import get_master_db
+    from blueprints.org import _generate_otp, _OTP_TTL_MINUTES, send_org_signup_otp_email
+    token = secrets.token_urlsafe(32)
+    otp_code = _generate_otp()
+    conn = get_master_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM oauth_signup_pending WHERE created_at < NOW() - (%s * INTERVAL '1 hour')",
+                (_PENDING_TTL_HOURS,))
+    cur.execute(
+        "INSERT INTO oauth_signup_pending (provider, subject, email, name, access_token_hash, otp_code_hash, "
+        "otp_expires_at) VALUES (%s,%s,%s,%s,%s,%s, NOW() + (%s * INTERVAL '1 minute')) RETURNING id",
+        (provider, identity["sub"], identity["email"], identity.get("name") or None,
+         _hash_token(token), _hash_token(otp_code), _OTP_TTL_MINUTES)
+    )
+    pending_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    send_org_signup_otp_email(identity["email"], _company_name_for(identity["email"], identity.get("name")),
+                              otp_code)
+    return pending_id, token
+
+
+def _load_pending(pending_id, token):
+    """The oauth_signup_pending row as a dict if `token` is its token, else None."""
+    if not str(pending_id).isdigit() or not token:
+        return None
+    from database import get_master_db
+    conn = get_master_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, provider, subject, email, name, access_token_hash, otp_code_hash, otp_attempts, "
+        "otp_expires_at < NOW() FROM oauth_signup_pending WHERE id=%s",
+        (int(pending_id),)
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not row or not secrets.compare_digest(row[5], _hash_token(token)):
+        return None
+    keys = ("id", "provider", "subject", "email", "name", "access_token_hash", "otp_code_hash",
+            "otp_attempts", "expired")
+    return dict(zip(keys, row))
+
+
+def _run_on_pending(sql, params):
+    """Executes one statement against oauth_signup_pending; returns the row count."""
+    from database import get_master_db
+    conn = get_master_db()
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    count = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return count
+
+
+def _expired_signup():
+    flash("This sign-up has expired. Please start again.", "error")
+    return redirect("/create_org")
+
+
+@oauth_signup_bp.route("/create_org/oauth/verify", methods=["GET"])
+def oauth_signup_verify_page():
+    token = request.args.get("token", "")
+    pending = _load_pending(request.args.get("id", ""), token)
+    if not pending:
+        return _expired_signup()
+    return render_template(
+        "create_org_verify_otp.html", application_id=pending["id"], token=token, sent_to=pending["email"],
+        oauth=True, verify_action="/create_org/oauth/verify", resend_action="/create_org/oauth/resend",
+    )
+
+
+@oauth_signup_bp.route("/create_org/oauth/verify", methods=["POST"])
+@limiter.limit("20 per hour")
+def oauth_signup_verify():
+    from blueprints.org import _OTP_MAX_ATTEMPTS
+    token = request.form.get("token", "")
+    pending = _load_pending(request.form.get("application_id", ""), token)
+    if not pending:
+        return _expired_signup()
+    back_to_form = redirect(_verify_link(pending["id"], token))
+
+    if pending["otp_attempts"] >= _OTP_MAX_ATTEMPTS:
+        flash("Too many incorrect attempts. Please request a new code.", "error")
+        return back_to_form
+    otp_code = request.form.get("otp_code", "").strip()
+    if not otp_code or not secrets.compare_digest(_hash_token(otp_code), pending["otp_code_hash"]):
+        _run_on_pending("UPDATE oauth_signup_pending SET otp_attempts=otp_attempts+1 WHERE id=%s", (pending["id"],))
+        flash("Incorrect code. Please try again.", "error")
+        return back_to_form
+    if pending["expired"]:
+        flash("This code has expired. Please request a new one.", "error")
+        return back_to_form
+
+    # Single use: of two simultaneous submissions only one deletes the row.
+    if not _run_on_pending("DELETE FROM oauth_signup_pending WHERE id=%s", (pending["id"],)):
+        return _expired_signup()
+    blocked = _signup_blocked(pending["email"])
+    if blocked:
+        return blocked
+    return _provision_oauth_signup(pending["provider"], pending["subject"], pending["email"], pending["name"])
+
+
+@oauth_signup_bp.route("/create_org/oauth/resend", methods=["POST"])
+@limiter.limit("3 per 10 minutes")
+def oauth_signup_resend():
+    from blueprints.org import _generate_otp, _OTP_TTL_MINUTES, send_org_signup_otp_email
+    token = request.form.get("token", "")
+    pending = _load_pending(request.form.get("application_id", ""), token)
+    if not pending:
+        return _expired_signup()
+    otp_code = _generate_otp()
+    _run_on_pending(
+        "UPDATE oauth_signup_pending SET otp_code_hash=%s, otp_expires_at=NOW() + (%s * INTERVAL '1 minute'), "
+        "otp_attempts=0 WHERE id=%s",
+        (_hash_token(otp_code), _OTP_TTL_MINUTES, pending["id"])
+    )
+    send_org_signup_otp_email(pending["email"], _company_name_for(pending["email"], pending["name"]), otp_code)
+    flash("A new code has been sent to your email.", "info")
+    return redirect(_verify_link(pending["id"], token))
+
+
+def _provision_oauth_signup(provider, subject, email, name):
+    """Creates the company for a verified OAuth signup, links the admin
+    account to the provider identity and signs the admin in."""
+    from blueprints.org import provision_tenant, _clean_subdomain_slug
+    domain = email.split("@", 1)[1]
+    is_personal_domain = domain in PERSONAL_EMAIL_DOMAINS
+    company_name = _company_name_for(email, name)
     base_slug = _clean_subdomain_slug(company_name if not is_personal_domain else email.split("@")[0])
 
     admin_username = email
@@ -245,7 +403,7 @@ def oauth_signup_callback(provider):
     tcur = tconn.cursor()
     tcur.execute(
         "UPDATE admin_users SET oauth_provider=%s, oauth_subject=%s WHERE username=%s",
-        (provider, identity["sub"], admin_username)
+        (provider, subject, admin_username)
     )
     tconn.commit()
     tcur.close()
