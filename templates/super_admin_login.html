@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
+    <link rel="stylesheet" href="{{ static_url('auth_split.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
     <style>
       /* Same top-nav component/tokens as templates/admin_login.html --
@@ -106,6 +107,8 @@
       </div>
     </header>
 
+    <main class="auth-split">
+    {% include "_auth_promo.html" %}
     <div class="card">
       {% if mfa_step %}
       <div class="logo-hdr">
@@ -165,5 +168,6 @@
       </div>
       {% endif %}
     </div>
+    </main>
   </body>
 </html>

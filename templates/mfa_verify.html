@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
+    <link rel="stylesheet" href="{{ static_url('auth_split.css') }}" />
     <style>
       /* Same design system as templates/admin_login.html -- see that file's
          comment. Locked to light theme. */
@@ -18,14 +19,6 @@
         background-attachment: fixed;
         display: flex; align-items: center; justify-content: center;
         padding: 24px;
-      }
-      /* Same place as the login card (admin_login.html): right side, left empty. */
-      .login-shell {
-        width: 100%; max-width: 1132px;
-        display: flex; justify-content: flex-end;
-      }
-      @media (max-width: 900px) {
-        .login-shell { justify-content: center; }
       }
       .card {
         width: 100%; max-width: 420px;
@@ -85,7 +78,8 @@
     </style>
   </head>
   <body>
-    <main class="login-shell">
+    <main class="auth-split">
+    {% include "_auth_promo.html" %}
     <div class="card">
       <div class="logo">
         <div class="logo-icon"><i class="ti ti-mail-check"></i></div>

@@ -1,0 +1,73 @@
+/* Login and registration pages: an HRzest promo panel on the left
+   (templates/_auth_promo.html) and the page's own form column on the right,
+   lined up under the header. Uses landing_v2.css's tokens, so load it after
+   that file. A page whose form isn't 420px wide sets --auth-form-w on
+   .auth-split. Below 960px the promo is hidden and the form is centered. */
+.auth-split {
+  --auth-form-w: 420px;
+  width: 100%; max-width: 1132px; /* the header's 1180px less its 24px padding */
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--auth-form-w));
+  gap: 64px;
+  align-items: center;
+}
+
+.auth-promo { max-width: 500px; color: var(--text-main); }
+.auth-promo-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 12px; border-radius: var(--radius-full);
+  background: rgba(79, 70, 229, 0.08); border: 1px solid var(--border-color-glow);
+  color: var(--accent-cyan);
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.auth-promo-title {
+  font-family: var(--font-heading);
+  font-size: 34px; line-height: 1.15; font-weight: 800; letter-spacing: -0.8px;
+  margin: 18px 0 14px;
+}
+.auth-promo-title span {
+  display: block;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.auth-promo-lead { font-size: 15px; line-height: 1.6; color: var(--text-muted); margin-bottom: 26px; }
+
+.auth-promo-list { list-style: none; display: grid; gap: 16px; margin: 0 0 26px; padding: 0; }
+.auth-promo-list li { display: flex; gap: 14px; align-items: flex-start; }
+.auth-promo-list i {
+  flex: 0 0 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);
+  color: var(--accent-cyan); font-size: 20px;
+}
+.auth-promo-list strong { display: block; font-size: 14.5px; font-weight: 700; margin-bottom: 2px; }
+.auth-promo-list span { display: block; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+
+.auth-promo-trust { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.auth-promo-trust span {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.7); border: 1px solid var(--border-color);
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+}
+.auth-promo-trust i { color: var(--accent-emerald); }
+
+.auth-promo-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13.5px; font-weight: 700; color: var(--accent-cyan); text-decoration: none;
+}
+.auth-promo-link:hover { color: var(--accent-blue); }
+
+/* The registration wizard's pages: no centering flexbox on <body> and a
+   .page-container that may run long. Top-aligned, with the side gutter the
+   container used to supply, and the promo stays in view while it scrolls. */
+.auth-split--top { max-width: 1180px; padding: 0 24px; align-items: start; }
+.auth-split--top > .page-container { max-width: none; margin: 0; padding-left: 0; padding-right: 0; }
+.auth-split--top .auth-promo { position: sticky; top: 0; padding-top: 72px; }
+
+@media (max-width: 960px) {
+  .auth-split { grid-template-columns: minmax(0, var(--auth-form-w)); justify-content: center; }
+  .auth-promo { display: none; }
+}

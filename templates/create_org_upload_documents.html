@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
+  <link rel="stylesheet" href="{{ static_url('auth_split.css') }}" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-body); }
     html, body { min-height: 100vh; color: var(--text-main); }
@@ -16,6 +17,9 @@
       background-attachment: fixed;
     }
     .page-container { max-width: 560px; margin: 0 auto; padding: 56px 24px 72px; }
+    /* Form column beside the promo (static/auth_split.css): the container's old width and top spacing */
+    .auth-split { --auth-form-w: 512px; }
+    .auth-split--top .auth-promo { padding-top: 56px; }
     .page-intro { text-align: center; margin-bottom: 32px; }
     .page-intro .intro-icon {
       width: 52px; height: 52px; margin: 0 auto 18px; border-radius: var(--radius-md); background: var(--gradient-brand);
@@ -57,6 +61,8 @@
   </style>
 </head>
 <body>
+  <main class="auth-split auth-split--top">
+  {% include "_auth_promo.html" %}
   <div class="page-container">
     <div class="page-intro">
       <div class="intro-icon"><i class="ti ti-file-upload"></i></div>
@@ -107,5 +113,6 @@
       </form>
     </div>
   </div>
+  </main>
 </body>
 </html>

@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
+    <link rel="stylesheet" href="{{ static_url('auth_split.css') }}" />
     <style>
       /* Same design system as templates/create_org.html -- landing_v2.css's
          tokens (--bg-card, --accent-cyan, --text-main, --shadow-*,
@@ -54,16 +55,6 @@
         transition: var(--transition-fast);
       }
       .nav-link-btn:hover { box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4); transform: translateY(-1px); }
-
-      /* ── Layout: the card sits on the right, under the header's button;
-         the left side is deliberately left empty. Centered on narrow screens. ── */
-      .login-shell {
-        width: 100%; max-width: 1132px; /* the header's 1180px less its 24px padding */
-        display: flex; justify-content: flex-end;
-      }
-      @media (max-width: 900px) {
-        .login-shell { justify-content: center; }
-      }
 
       /* ── Card ── */
       .card {
@@ -187,7 +178,8 @@
       </div>
     </header>
 
-    <main class="login-shell">
+    <main class="auth-split">
+    {% include "_auth_promo.html" %}
     <div class="card">
       <div class="logo">
         <div class="logo-icon">
