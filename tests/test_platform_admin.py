@@ -436,13 +436,26 @@ class TestSetLeadStatus:
 # for correctly).
 # ===========================================================================
 
+def _new_company_email_code(client, monkeypatch, admin_email):
+    """Clicks the New Company form's "Send code" for admin_email and returns
+    the code that was emailed -- creating a company requires it."""
+    import blueprints.org as org_module
+    sent = {}
+    monkeypatch.setattr(org_module, "send_org_signup_otp_email",
+                        lambda to, company, otp: sent.update(to=to, otp=otp) or True)
+    resp = client.post("/super_admin/tenants/send_email_code", json={"admin_email": admin_email})
+    assert resp.status_code == 200, resp.data
+    assert sent["to"] == admin_email.lower()
+    return sent["otp"]
+
+
 class TestCreateTenant:
     def test_requires_login(self, client):
         resp = client.post("/super_admin/tenants/create", data={}, follow_redirects=False)
         assert resp.status_code in (301, 302)
         assert resp.headers["Location"] == "/super_admin/login"
 
-    def test_create_tenant_hashes_password_and_admin_can_log_in(self, client, db_engine):
+    def test_create_tenant_hashes_password_and_admin_can_log_in(self, client, db_engine, monkeypatch):
         from app import init_master_db
         init_master_db()
         _login_platform_admin(client)
@@ -457,6 +470,7 @@ class TestCreateTenant:
                 "admin_username": "sact_admin",
                 "admin_password": "SactPass@123",
                 "admin_email": "sact@test.local",
+                "email_code": _new_company_email_code(client, monkeypatch, "sact@test.local"),
                 "payment_option": "manual",
                 "email_domain": "test.local",
             }, follow_redirects=False)

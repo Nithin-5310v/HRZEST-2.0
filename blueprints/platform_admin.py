@@ -766,6 +766,64 @@ def platform_admin_set_lead_status(lead_id):
     return redirect("/super_admin")
 
 
+# Creating a company here requires the code emailed to its admin address,
+# like every self-serve signup. The code lives in att_master's
+# login_otp_challenges (HMAC only); the session holds just the challenge id.
+_NEW_COMPANY_CODE_KIND = "new_company_email"
+_NEW_COMPANY_CODE_SESSION_KEY = "new_company_email_challenge_id"
+
+
+@platform_admin_bp.route("/super_admin/tenants/send_email_code", methods=["POST"])
+@_platform_admin_required
+@limiter.limit("10 per 10 minutes")
+def platform_admin_send_new_company_code():
+    """Emails a 6-digit code to the admin address typed into the New Company
+    form; platform_admin_create_tenant() won't create the company without it."""
+    from blueprints.org import _EMAIL_RE, _OTP_TTL_MINUTES, send_org_signup_otp_email
+    data = request.get_json(silent=True) or {}
+    admin_email = str(data.get("admin_email") or "").strip().lower()
+    company_name = str(data.get("company_name") or "").strip() or "your company"
+    if not _EMAIL_RE.match(admin_email) or len(admin_email) > 150:
+        return jsonify({"ok": False, "msg": "Enter a valid admin email first."}), 400
+
+    conn = get_master_db()
+    cur = conn.cursor()
+    try:
+        challenge_id, otp_code = issue_challenge(cur, _NEW_COMPANY_CODE_KIND, admin_email, _OTP_TTL_MINUTES * 60)
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    session[_NEW_COMPANY_CODE_SESSION_KEY] = challenge_id
+    if not send_org_signup_otp_email(admin_email, company_name, otp_code):
+        return jsonify({"ok": False, "msg": "The code email could not be sent -- check the SMTP settings."}), 502
+    return jsonify({"ok": True, "msg": f"Code sent to {admin_email}. It expires in {_OTP_TTL_MINUTES} minutes."})
+
+
+def _check_new_company_email_code(admin_email, submitted):
+    """None when `submitted` is the code this session emailed to admin_email
+    (used up on success), else the error to show."""
+    challenge_id = session.get(_NEW_COMPANY_CODE_SESSION_KEY)
+    if not challenge_id:
+        return "Click 'Send code' to email a verification code to the admin email, then enter it."
+    if not (submitted or "").strip():
+        return f"Enter the verification code emailed to {admin_email}."
+    conn = get_master_db()
+    cur = conn.cursor()
+    try:
+        verified = verify_challenge(cur, challenge_id, submitted, (_NEW_COMPANY_CODE_KIND,))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    if not verified:
+        return "Incorrect or expired verification code. Check the email, or send a new code."
+    session.pop(_NEW_COMPANY_CODE_SESSION_KEY, None)
+    if verified[1] != admin_email.strip().lower():
+        return f"That code was sent to a different address. Send a new code to {admin_email}."
+    return None
+
+
 @platform_admin_bp.route("/super_admin/tenants/create", methods=["POST"])
 @_platform_admin_required
 def platform_admin_create_tenant():
@@ -789,6 +847,11 @@ def platform_admin_create_tenant():
                                         email_domain)
     if error:
         flash(error, "error")
+        return redirect("/super_admin")
+
+    code_error = _check_new_company_email_code(admin_email, request.form.get("email_code", ""))
+    if code_error:
+        flash(code_error, "error")
         return redirect("/super_admin")
 
     logo_path = None
