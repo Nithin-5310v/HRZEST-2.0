@@ -45,6 +45,7 @@ ALLOWED_UNGUARDED = {
     "org.create_org_setup_trial_confirm": "bound to the application's pending subscription + signature",
     "org.api_create_org": "public signup API (rate-limited)",
     "org.api_create_org_verify_otp": "application token checked",
+    "org.api_create_org_profile": "application token + verified email checked",
     "org.api_create_org_resend_otp": "application token checked",
     "org.api_create_org_upload_documents": "application token checked",
     "org.api_create_org_status": "application token checked",

@@ -15,6 +15,7 @@ import * as DocumentPicker from "expo-document-picker";
 
 import { uploadCompanyDocuments } from "../api/client";
 import { useTheme } from "../store/ThemeContext";
+import SignupSteps from "../components/signup/SignupSteps";
 
 const DOC_SLOTS = [
   { key: "registration_cert", label: "Company Registration Certificate", hint: "PDF, JPG or PNG", icon: "document-text-outline", pickType: "document" },
@@ -101,8 +102,10 @@ export default function CompanyDocumentUploadScreen({ navigation, route }) {
             <Ionicons name="cloud-upload-outline" size={30} color="#173B8C" />
           </View>
           <Text style={styles.title}>Upload Business Documents</Text>
-          <Text style={styles.subtitle}>Almost there — we need these to verify {companyName} before your portal goes live.</Text>
+          <Text style={styles.subtitle}>Almost there — we need these to verify {companyName || "your company"}.</Text>
         </View>
+
+        <SignupSteps current={4} />
 
         <View style={styles.card}>
           {DOC_SLOTS.map((slot) => {

@@ -252,6 +252,16 @@ def api_login():
             (username,)
         )
         row = cursor.fetchone()
+        # A company's sign-up admin logs in with their email, stored
+        # lowercase -- same fallback as the web login (auth.admin_login).
+        if not row and "@" in username and username != username.lower():
+            cursor.execute(
+                "SELECT password, COALESCE(role,'admin'), COALESCE(is_active,1), email FROM admin_users "
+                "WHERE username=%s", (username.lower(),)
+            )
+            row = cursor.fetchone()
+            if row:
+                username = username.lower()
     if not row:
         dummy_password_check(password)  # equal timing for unknown usernames
     if not row or not check_password_hash(row[0], password) or not row[2]:

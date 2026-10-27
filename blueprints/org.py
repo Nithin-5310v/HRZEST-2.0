@@ -1278,6 +1278,25 @@ def create_org():
         flash(_GENERIC_DUPLICATE_MSG, "error")
         return _back_to_signup_form()
 
+    application_id, access_token = _start_signup_application(admin_email, admin_mobile, admin_password,
+                                                             free_registration)
+    # access_token lives ONLY in the session cookie from here on for the
+    # web flow -- never in a URL/query string, so it can't leak via
+    # referrer headers or browser history. application_id (a bare
+    # sequential id, not a secret) is fine to carry in the URL.
+    session["org_access_token"] = access_token
+    # Display only (drops the Payment step from the wizard's indicator);
+    # what's provisioned follows the application row's free_registration.
+    session["org_free_registration"] = free_registration
+    return redirect(f"/create_org/verify_otp?application_id={application_id}")
+
+
+def _start_signup_application(admin_email, admin_mobile, admin_password, free_registration=False):
+    """The account step's shared tail (web create_org(), the mobile app's
+    api_create_org()), once the account is validated and its email isn't
+    already a company admin's: creates the application with its company
+    fields still blank ('' -- the columns are NOT NULL) and emails the
+    verification code. Returns (application_id, access_token)."""
     access_token = _generate_access_token()
     otp_code = _generate_otp()
     from database import get_master_db
@@ -1295,16 +1314,6 @@ def create_org():
          _OTP_TTL_MINUTES, request.remote_addr, free_registration)
     )
     application_id = mcur.fetchone()[0]
-
-    # access_token lives ONLY in the session cookie from here on for the
-    # web flow -- never in a URL/query string, so it can't leak via
-    # referrer headers or browser history. application_id (a bare
-    # sequential id, not a secret) is fine to carry in the URL.
-    session["org_access_token"] = access_token
-    # Display only (drops the Payment step from the wizard's indicator);
-    # what's provisioned follows the application row's free_registration.
-    session["org_free_registration"] = free_registration
-
     mconn.commit()
     mcur.close()
     mconn.close()
@@ -1314,7 +1323,7 @@ def create_org():
     # upload, which also skipped the provisioning that only runs after a
     # verified code, stranding the applicant.
     send_org_signup_otp_email(admin_email, "", otp_code)
-    return redirect(f"/create_org/verify_otp?application_id={application_id}")
+    return application_id, access_token
 
 
 @org_bp.route("/create_org/verify_otp", methods=["GET"])
@@ -1360,53 +1369,28 @@ def create_org_verify_otp():
     return redirect(f"/create_org/upload_documents?application_id={application['id']}")
 
 
-def _load_profile_application(application_id):
-    """The signup session's application if its email is verified and it's
-    still waiting for its company profile, else None."""
-    application = _load_application(application_id, session.get("org_access_token"))
+def _load_profile_application(application_id, access_token):
+    """The application if access_token proves access, its email is
+    verified and it's still waiting for its company profile, else None."""
+    application = _load_application(application_id, access_token)
     if application and application["status"] == "otp_verified" and not application["tenant_id"]:
         return application
     return None
 
 
-def _render_profile_page(application):
-    return render_template(
-        "create_org.html", profile_step=True, application_id=application["id"],
-        free_registration=bool(application["free_registration"]),
-        per_employee_paise=get_per_employee_paise(),
-    )
-
-
-@org_bp.route("/create_org/profile", methods=["GET"])
-def create_org_profile_page():
-    application = _load_profile_application(request.args.get("application_id", ""))
-    if not application:
-        flash("Verify your email first, or start a new registration.", "error")
-        return redirect("/create_org")
-    return _render_profile_page(application)
-
-
-@org_bp.route("/create_org/profile", methods=["POST"])
-@limiter.limit("20 per hour")
-def create_org_profile():
-    """Step 3 of the web signup wizard, after the email code: the company
-    profile -- name, GSTIN, company URL, optional logo, and the plan. Saves
-    it on the application and provisions the company right away (as the
-    code step used to); documents come next. A rejected profile (a taken
-    URL, a duplicate company) comes back to this form, application intact."""
-    application = _load_profile_application(request.form.get("application_id", ""))
-    if not application:
-        flash("Verify your email first, or start a new registration.", "error")
-        return redirect("/create_org")
-    back = redirect(f"/create_org/profile?application_id={application['id']}")
-
-    company_name = request.form.get("company_name", "").strip()
-    subdomain = _clean_subdomain_slug(request.form.get("subdomain", ""), company_name)
-    gst_number = _clean_gst(request.form.get("gst_number", ""))
+def _save_company_profile(application, fields, logo_file):
+    """Step 3 of the signup wizard, shared by the web form and the mobile
+    app's /api/create_org/profile: validates the company profile -- name,
+    GSTIN, company URL, optional logo, the plan -- saves it on the verified
+    application and provisions the company right away (as the code step
+    used to). Returns (ok, error, portal_url, checkin_url); on failure the
+    application is left verified, so the profile can be submitted again."""
+    company_name = (fields.get("company_name") or "").strip()
+    subdomain = _clean_subdomain_slug(fields.get("subdomain") or "", company_name)
+    gst_number = _clean_gst(fields.get("gst_number") or "")
     error = _validate_company_profile(company_name, subdomain, gst_number)
     if error:
-        flash(error, "error")
-        return back
+        return False, error, None, None
 
     conflicting, match_type = check_duplicate_name(company_name)
     if not conflicting:
@@ -1414,24 +1398,21 @@ def create_org_profile():
     if conflicting:
         _record_duplicate_alert(application["id"], company_name, application["admin_email"], conflicting,
                                 match_type=match_type)
-        flash(_GENERIC_DUPLICATE_MSG, "error")
-        return back
+        return False, _GENERIC_DUPLICATE_MSG, None, None
 
     logo_path = application["logo_path"]
-    logo_file = request.files.get("logo")
     if logo_file and logo_file.filename:
         from utils.helpers import save_uploaded_logo
         logo_path, logo_err = save_uploaded_logo(logo_file, subdomain)
         if logo_err:
-            flash(f"Company logo: {logo_err}", "error")
-            return back
+            return False, f"Company logo: {logo_err}", None, None
 
     from utils.razorpay_utils import razorpay_configured
     # "trial" is only ever chosen explicitly (the "2-Day Free Trial" option,
     # blueprints/trial_billing.TRIAL_DURATION_DAYS long, beside "Pay now").
     # A platform admin's free registration has no payment step and is
     # billed by manual invoice.
-    signup_plan = request.form.get("signup_plan", "pay_now").strip().lower()
+    signup_plan = (fields.get("signup_plan") or "pay_now").strip().lower()
     if application["free_registration"]:
         payment_option = "manual"
     elif signup_plan == "trial":
@@ -1451,12 +1432,44 @@ def create_org_profile():
     mcur.close()
     mconn.close()
 
-    application = _load_application(application["id"], session.get("org_access_token"))
-    ok, error, portal_url, checkin_url = _provision_application_instantly(application)
+    ok, error, portal_url, checkin_url = _provision_application_instantly(_fetch_application_row(application["id"]))
     if not ok:
-        app_log.warning("create_org_profile: provisioning failed for application %s: %s", application["id"], error)
+        app_log.warning("company profile: provisioning failed for application %s: %s", application["id"], error)
+    return ok, error, portal_url, checkin_url
+
+
+def _render_profile_page(application):
+    return render_template(
+        "create_org.html", profile_step=True, application_id=application["id"],
+        free_registration=bool(application["free_registration"]),
+        per_employee_paise=get_per_employee_paise(),
+    )
+
+
+@org_bp.route("/create_org/profile", methods=["GET"])
+def create_org_profile_page():
+    application = _load_profile_application(request.args.get("application_id", ""), session.get("org_access_token"))
+    if not application:
+        flash("Verify your email first, or start a new registration.", "error")
+        return redirect("/create_org")
+    return _render_profile_page(application)
+
+
+@org_bp.route("/create_org/profile", methods=["POST"])
+@limiter.limit("20 per hour")
+def create_org_profile():
+    """Step 3 of the web signup wizard, after the email code (see
+    _save_company_profile). A rejected profile -- a taken URL, a duplicate
+    company -- comes back to this form, application intact; documents
+    come next."""
+    application = _load_profile_application(request.form.get("application_id", ""), session.get("org_access_token"))
+    if not application:
+        flash("Verify your email first, or start a new registration.", "error")
+        return redirect("/create_org")
+    ok, error, _portal_url, _checkin_url = _save_company_profile(application, request.form, request.files.get("logo"))
+    if not ok:
         flash(error, "error")
-        return back
+        return redirect(f"/create_org/profile?application_id={application['id']}")
     return redirect(f"/create_org/upload_documents?application_id={application['id']}")
 
 
@@ -1895,9 +1908,17 @@ def api_create_org():
     longer provisions a tenant -- it returns an application_id + access_token
     that the app must carry through verify_otp -> upload_documents ->
     status (there's no session cookie on this side to hold it implicitly,
-    the way the web flow's does)."""
+    the way the web flow's does).
+
+    Current app builds send just the account -- admin_email, admin_mobile,
+    admin_password -- like the web form, and describe the company after
+    the code (/api/create_org/profile). A request that includes
+    company_name is an older build sending everything at once, which still
+    works the old way: its company is provisioned at the code step."""
     try:
         data = request.get_json() or {}
+        if not (data.get("company_name") or "").strip():
+            return _api_start_account(data)
         company_name = data.get("company_name", "").strip()
         raw_subdomain = data.get("subdomain", "").strip().lower()
         subdomain = re.sub(r'[^a-z0-9\-]', '-', raw_subdomain).strip('-')
@@ -1961,6 +1982,29 @@ def api_create_org():
         return jsonify({"ok": False, "msg": f"Server error: {global_exc}"}), 500
 
 
+def _api_start_account(data):
+    """api_create_org()'s account step: the same checks as the web form's
+    create_org()."""
+    admin_email = (data.get("admin_email") or "").strip().lower()
+    admin_mobile = _clean_mobile(data.get("admin_mobile"))
+    admin_password = (data.get("admin_password") or "").strip()
+    error = _validate_signup_account(admin_email, admin_mobile, admin_password)
+    if error:
+        return jsonify({"ok": False, "msg": error}), 400
+    conflicting = check_duplicate_admin_email(admin_email)
+    if conflicting:
+        _record_duplicate_alert(None, "", admin_email, conflicting, match_type="email")
+        return jsonify({"ok": False, "msg": _GENERIC_DUPLICATE_MSG}), 409
+    application_id, access_token = _start_signup_application(admin_email, admin_mobile, admin_password)
+    return jsonify({
+        "ok": True,
+        "msg": f"We've emailed a verification code to {admin_email}.",
+        "application_id": application_id,
+        "access_token": access_token,
+        "step": "otp",
+    })
+
+
 @org_bp.route("/api/create_org/verify_otp", methods=["POST"])
 @limiter.limit("20 per hour")
 def api_create_org_verify_otp():
@@ -1968,10 +2012,16 @@ def api_create_org_verify_otp():
     application = _load_application(data.get("application_id"), data.get("access_token", ""))
     if not application:
         return jsonify({"ok": False, "msg": "Application not found."}), 404
+    if application["status"] == "otp_verified" and not application["company_name"]:
+        return jsonify({"ok": True, "step": "profile", "msg": "Email already verified."})
 
     ok, error = _verify_application_otp(application, str(data.get("otp_code", "")).strip())
     if not ok:
         return jsonify({"ok": False, "msg": error}), 400
+
+    # An account-first signup describes its company next (/api/create_org/profile).
+    if not application["company_name"]:
+        return jsonify({"ok": True, "step": "profile", "msg": "Email verified -- now set up your company."})
 
     # Re-fetch: _verify_application_otp() just advanced status in the DB,
     # but `application` here is still the pre-verification snapshot.
@@ -1982,6 +2032,23 @@ def api_create_org_verify_otp():
                       application["id"], error)
         return jsonify({"ok": False, "msg": f"Could not set up your company: {error}. Contact support."}), 500
 
+    return jsonify({"ok": True, "step": "documents", "portal_url": portal_url, "checkin_url": checkin_url})
+
+
+@org_bp.route("/api/create_org/profile", methods=["POST"])
+@limiter.limit("20 per hour")
+def api_create_org_profile():
+    """The mobile app's company profile step (see _save_company_profile):
+    application_id, access_token, company_name, gst_number, subdomain,
+    signup_plan, as JSON -- or multipart form fields when the optional
+    logo file comes along."""
+    data = request.form if request.form else (request.get_json(silent=True) or {})
+    application = _load_profile_application(data.get("application_id"), data.get("access_token", ""))
+    if not application:
+        return jsonify({"ok": False, "msg": "Verify your email first, or start a new registration."}), 400
+    ok, error, portal_url, checkin_url = _save_company_profile(application, data, request.files.get("logo"))
+    if not ok:
+        return jsonify({"ok": False, "msg": error}), 400
     return jsonify({"ok": True, "step": "documents", "portal_url": portal_url, "checkin_url": checkin_url})
 
 

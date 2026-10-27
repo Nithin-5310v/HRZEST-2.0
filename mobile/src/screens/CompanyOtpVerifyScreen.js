@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { verifyCompanySignupOtp, resendCompanySignupOtp } from "../api/client";
 import { useTheme } from "../store/ThemeContext";
+import SignupSteps from "../components/signup/SignupSteps";
 
 export default function CompanyOtpVerifyScreen({ navigation, route }) {
   const { colors } = useTheme();
@@ -34,7 +35,10 @@ export default function CompanyOtpVerifyScreen({ navigation, route }) {
     setLoading(true);
     try {
       const res = await verifyCompanySignupOtp(applicationId, accessToken, otpCode.trim());
-      if (res?.data?.ok) {
+      if (res?.data?.ok && res.data.step === "profile") {
+        // The company is described next, as on the website.
+        navigation.navigate("CompanyProfile", { applicationId, accessToken });
+      } else if (res?.data?.ok) {
         navigation.navigate("CompanyDocumentUpload", { applicationId, accessToken, companyName });
       } else {
         Alert.alert("Verification Failed", res?.data?.msg || "Incorrect or expired code.");
@@ -73,6 +77,8 @@ export default function CompanyOtpVerifyScreen({ navigation, route }) {
               Enter the 6-digit code we sent to {adminEmail}. It expires in 5 minutes.
             </Text>
           </View>
+
+          <SignupSteps current={2} />
 
           <View style={styles.card}>
             <TextInput

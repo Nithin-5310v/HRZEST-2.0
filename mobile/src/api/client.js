@@ -147,6 +147,10 @@ export const verifyCompanySignupOtp = (application_id, access_token, otp_code) =
 export const resendCompanySignupOtp = (application_id, access_token) =>
   client.post('/api/create_org/resend_otp', { application_id, access_token });
 
+// The company profile, after the email code (multipart: the logo is optional).
+export const submitCompanyProfile = (formData) =>
+  client.post('/api/create_org/profile', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+
 export const uploadCompanyDocuments = (formData) =>
   client.post('/api/create_org/upload_documents', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 

@@ -169,6 +169,18 @@ describe('company signup (5 new functions)', () => {
     });
   });
 
+  it('submitCompanyProfile POSTs the given FormData to /api/create_org/profile as multipart', async () => {
+    mockAxiosInstance.post.mockResolvedValue({ data: {} });
+    const formData = new FormData();
+    formData.append('company_name', 'Acme');
+    await client.submitCompanyProfile(formData);
+    expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+      '/api/create_org/profile',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }
+    );
+  });
+
   it('uploadCompanyDocuments POSTs the given FormData with multipart headers and a 30s timeout', async () => {
     mockAxiosInstance.post.mockResolvedValue({ data: {} });
     const formData = new FormData();

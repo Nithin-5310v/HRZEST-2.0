@@ -285,12 +285,12 @@ export default function LoginScreen({ navigation }) {
                   <Text style={styles.formSubtitle}>Sign in to manage company attendance</Text>
                 </View>
 
-                <Text style={styles.label}>USERNAME</Text>
+                <Text style={styles.label}>EMAIL OR USERNAME</Text>
                 <View style={styles.inputRow}>
                   <Ionicons name="person-outline" size={18} color="#64748B" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter admin username"
+                    placeholder="Enter your email or username"
                     placeholderTextColor={colors.textLight}
                     value={username}
                     onChangeText={setUsername}

@@ -11,6 +11,7 @@ import LaunchCountdownScreen from "./src/screens/LaunchCountdownScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import CompanySignupScreen from "./src/screens/CompanySignupScreen";
 import CompanyOtpVerifyScreen from "./src/screens/CompanyOtpVerifyScreen";
+import CompanyProfileScreen from "./src/screens/CompanyProfileScreen";
 import CompanyDocumentUploadScreen from "./src/screens/CompanyDocumentUploadScreen";
 import CompanySignupPendingScreen from "./src/screens/CompanySignupPendingScreen";
 import AppLockScreen from "./src/screens/AppLockScreen";
@@ -22,7 +23,7 @@ import { initCrashReporting } from "./src/utils/crashReporting";
 
 initCrashReporting();
 
-// Only the logged-out flow needs real stack navigation (Login <-> the 4
+// Only the logged-out flow needs real stack navigation (Login <-> the 5
 // company-signup screens, with back-navigation) -- the post-login
 // AdminDrawerNavigator/EmployeeDrawerNavigator trees are untouched below.
 const AuthStack = createStackNavigator();
@@ -33,6 +34,7 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="CompanySignup" component={CompanySignupScreen} />
       <AuthStack.Screen name="CompanyOtpVerify" component={CompanyOtpVerifyScreen} />
+      <AuthStack.Screen name="CompanyProfile" component={CompanyProfileScreen} />
       <AuthStack.Screen name="CompanyDocumentUpload" component={CompanyDocumentUploadScreen} />
       <AuthStack.Screen name="CompanySignupPending" component={CompanySignupPendingScreen} />
     </AuthStack.Navigator>
