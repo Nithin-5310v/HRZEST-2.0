@@ -430,126 +430,21 @@ class TestSetLeadStatus:
 
 
 # ===========================================================================
-# Tenant creation -- the password-hashing round trip is the key regression
-# this covers (provision_tenant() now takes admin_password_hash, not
-# plaintext -- a signature change platform_admin_create_tenant() must hash
-# for correctly).
+# New Company (Free) -- the dashboard links to the signup wizard in free mode
+# (tests/test_free_registration.py covers the wizard itself); the inline
+# direct-create form and its /super_admin/tenants/create route are gone.
 # ===========================================================================
 
-def _new_company_email_code(client, monkeypatch, admin_email):
-    """Clicks the New Company form's "Send code" for admin_email and returns
-    the code that was emailed -- creating a company requires it."""
-    import blueprints.org as org_module
-    sent = {}
-    monkeypatch.setattr(org_module, "send_org_signup_otp_email",
-                        lambda to, company, otp: sent.update(to=to, otp=otp) or True)
-    resp = client.post("/super_admin/tenants/send_email_code", json={"admin_email": admin_email})
-    assert resp.status_code == 200, resp.data
-    assert sent["to"] == admin_email.lower()
-    return sent["otp"]
-
-
-class TestCreateTenant:
-    def test_requires_login(self, client):
-        resp = client.post("/super_admin/tenants/create", data={}, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
-
-    def test_create_tenant_hashes_password_and_admin_can_log_in(self, client, db_engine, monkeypatch):
-        from app import init_master_db
-        init_master_db()
+class TestNewCompanyFreeLink:
+    def test_dashboard_links_to_the_free_registration_wizard(self, client):
         _login_platform_admin(client)
+        page = client.get("/super_admin").get_data(as_text=True)
+        assert 'href="/create_org?free=1"' in page
+        assert "/super_admin/tenants/create" not in page
 
-        subdomain = "sa-create-tenant"
-        schema_name = "att_" + subdomain.replace("-", "_")
-        _drop_schema(db_engine, schema_name)
-        try:
-            resp = client.post("/super_admin/tenants/create", data={
-                "company_name": "SA Create Tenant Co",
-                "subdomain": subdomain,
-                "admin_username": "sact_admin",
-                "admin_password": "SactPass@123",
-                "admin_email": "sact@test.local",
-                "email_code": _new_company_email_code(client, monkeypatch, "sact@test.local"),
-                "payment_option": "manual",
-                "email_domain": "test.local",
-            }, follow_redirects=False)
-            assert resp.status_code in (301, 302), resp.data
-
-            cur = db_engine.cursor()
-            cur.execute("SELECT db_name, status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
-            row = cur.fetchone()
-            assert row is not None, "tenant was not registered"
-            assert row[0] == schema_name
-            assert row[1] == "active"
-
-            cur.execute(f'SELECT password FROM "{schema_name}".admin_users WHERE username=%s', ("sact_admin",))
-            stored_hash = cur.fetchone()[0]
-            # Never the plaintext password itself, and looks like a real
-            # bcrypt hash -- catches a regression back to passing plaintext
-            # straight through to provision_tenant().
-            assert stored_hash != "SactPass@123"
-            assert stored_hash.startswith("$2")
-            cur.close()
-
-            # The actual regression check: the submitted password must
-            # round-trip through whatever hash got stored.
-            login_resp = client.post(f"/{subdomain}/login", data={
-                "identifier": "sact_admin", "password": "SactPass@123",
-            }, follow_redirects=False)
-            assert login_resp.status_code in (301, 302), login_resp.data
-            assert login_resp.headers["Location"].startswith(f"/{subdomain}/")
-            with client.session_transaction() as sess:
-                assert sess.get("admin_logged_in") is True
-                assert sess.get("admin_username") == "sact_admin"
-        finally:
-            _drop_schema(db_engine, schema_name)
-
-    def test_full_email_in_domain_field_is_accepted(self, client, db_engine, monkeypatch):
-        # The "Employee Email Domain" field sits next to "Admin Email" and
-        # browsers autofill an email into it -- that used to bounce back
-        # with "Enter a valid domain" no matter how often it was retried.
-        from app import init_master_db
-        init_master_db()
+    def test_direct_create_route_is_gone(self, client):
         _login_platform_admin(client)
-
-        subdomain = "sa-email-domain"
-        schema_name = "att_" + subdomain.replace("-", "_")
-        _drop_schema(db_engine, schema_name)
-        try:
-            resp = client.post("/super_admin/tenants/create", data={
-                "company_name": "SA Email Domain Co",
-                "subdomain": subdomain,
-                "admin_username": "saed_admin",
-                "admin_password": "SaedPass@123",
-                "admin_email": "saed@test.local",
-                "email_code": _new_company_email_code(client, monkeypatch, "saed@test.local"),
-                "payment_option": "manual",
-                "email_domain": "saed@Test.Local",
-            }, follow_redirects=False)
-            assert resp.status_code in (301, 302), resp.data
-
-            cur = db_engine.cursor()
-            cur.execute(f'SELECT email_domain FROM "{schema_name}".company_settings WHERE id=1')
-            assert cur.fetchone()[0] == "test.local"
-            cur.close()
-        finally:
-            _drop_schema(db_engine, schema_name)
-
-    def test_invalid_fields_rejected_without_provisioning(self, client, db_engine):
-        _login_platform_admin(client)
-        resp = client.post("/super_admin/tenants/create", data={
-            "company_name": "Bad Co",
-            "subdomain": "super_admin",  # reserved
-            "admin_username": "bad_admin",
-            "admin_password": "password123",
-            "admin_email": "bad@test.local",
-        }, follow_redirects=True)
-        assert resp.status_code == 200
-        cur = db_engine.cursor()
-        cur.execute("SELECT 1 FROM att_master.tenants WHERE subdomain='super_admin'")
-        assert cur.fetchone() is None
-        cur.close()
+        assert client.post("/super_admin/tenants/create", data={}).status_code in (404, 405)
 
 
 # ===========================================================================

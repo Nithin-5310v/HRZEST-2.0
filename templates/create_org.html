@@ -164,7 +164,10 @@
       <div class="intro-icon"><i class="ti ti-rocket"></i></div>
       <h1>Start Your Organisation</h1>
       {% set oauth_names = oauth_providers | map('title') | join(' or ') %}
-      {% if oauth_providers %}
+      {% if free_registration %}
+      <p>Free registration from the Platform Admin dashboard: the same steps as a paid signup, without the payment.
+         The company admin receives the verification code by email.</p>
+      {% elif oauth_providers %}
       <p>Sign up with your {{ oauth_names }} work account, or enter your company details yourself.</p>
       {% else %}
       <p>Enter your company details to get started. We'll email you a code to verify your address.</p>
@@ -180,8 +183,9 @@
         {% endfor %}
       {% endwith %}
 
-      {# Google/Microsoft buttons only for providers with keys configured (oauth_signup.py) #}
-      {% if oauth_providers %}
+      {# Google/Microsoft buttons only for providers with keys configured (oauth_signup.py),
+         and never on a platform admin's free registration #}
+      {% if oauth_providers and not free_registration %}
       <div class="trial-badge">
         <i class="ti ti-gift"></i>
         With {{ oauth_names }}: no card, no waiting — you're set up on a 2-day free trial once you verify your email.
@@ -226,8 +230,15 @@
 
       <form method="POST" action="/create_org" enctype="multipart/form-data" autocomplete="off">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-        <input type="hidden" name="signup_plan" id="signup_plan_input" value="pay_now" />
+        <input type="hidden" name="signup_plan" id="signup_plan_input" value="{{ 'free' if free_registration else 'pay_now' }}" />
 
+        {% if free_registration %}
+        <div class="trial-badge">
+          <i class="ti ti-gift"></i>
+          Free registration — no payment step. The company is created once the admin email is verified,
+          billed later by manual invoice.
+        </div>
+        {% else %}
         <div class="plan-toggle">
           <div class="plan-option selected" id="planOptionPayNow" onclick="selectSignupPlan('pay_now')">
             <div class="plan-option-title"><i class="ti ti-credit-card"></i> Pay Now</div>
@@ -243,6 +254,7 @@
           You'll authorize a payment method after approval. Your 2-day trial starts the first time you log in,
           and billing starts automatically when it ends unless you cancel before then.
         </div>
+        {% endif %}
 
         <div class="field-group">
           <label class="field-label" for="company_name_input"><i class="ti ti-building"></i> Company Name</label>

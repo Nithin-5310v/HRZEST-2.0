@@ -7,7 +7,12 @@
   linked via landing_v2.css tokens on the including page.
 #}
 <div class="wizard-steps">
+  {# A platform admin's free registration has no Payment step (org.py's free_registration) #}
+  {% if free_registration %}
+  {% set wizard_step_list = [(1, 'Company Info'), (2, 'Verify Email'), (3, 'Documents')] %}
+  {% else %}
   {% set wizard_step_list = [(1, 'Company Info'), (2, 'Verify Email'), (3, 'Documents'), (4, 'Payment')] %}
+  {% endif %}
   {% for num, label in wizard_step_list %}
     <div class="wizard-step{{ ' done' if num < current_step else (' active' if num == current_step else '') }}">
       <div class="wizard-step-circle">{% if num < current_step %}<i class="ti ti-check"></i>{% else %}{{ num }}{% endif %}</div>

@@ -429,9 +429,11 @@
         </div>
         <div class="section-body">
           <div class="section-toolbar">
-            <button type="button" class="new-co-btn" onclick="document.getElementById('newCoPanel').hidden = !document.getElementById('newCoPanel').hidden;">
+            <a href="/create_org?free=1" target="_blank" rel="noopener" class="new-co-btn"
+               title="Opens the same registration wizard as a paid signup (company details, email code, documents) without the payment step."
+               style="text-decoration:none;display:inline-flex;align-items:center;">
               New Company (Free)
-            </button>
+            </a>
             <button type="button" class="new-co-btn" onclick="document.getElementById('editRatePanel').hidden = !document.getElementById('editRatePanel').hidden;"
                     title="Change the flat per-employee monthly rate — applies to every new signup, top-up, and bill immediately">
               Edit Rate ({{ per_employee_paise | plan_price }})
@@ -500,68 +502,6 @@
               Export CSV
             </a>
           </form>
-
-          <div class="new-co card" id="newCoPanel" hidden>
-            <p style="margin:0;font-size:12px;color:var(--text-muted);">
-              Provisions at no charge once the admin email is verified (use <strong>Send code</strong> and enter
-              the code the admin receives) — for sales-assisted or trial onboarding. To actually
-              charge a client via Razorpay instead, use <strong>New Company (Paid Signup)</strong> above.
-              Billing for every tenant is {{ per_employee_paise | plan_price }}/employee/month, live-computed
-              from headcount — there's nothing to select here.
-            </p>
-            <form class="new-co-form" action="/super_admin/tenants/create" method="POST" enctype="multipart/form-data">
-              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-              <div class="field">
-                <label>Company Name</label>
-                <input aria-label="Company Name" type="text" name="company_name" required />
-              </div>
-              <div class="field">
-                <label>Company Logo (optional)</label>
-                <input aria-label="Company Logo (optional)" type="file" name="logo" accept="image/jpeg,image/png,image/webp,image/bmp" />
-              </div>
-              <div class="field">
-                <label>Subdomain</label>
-                <input aria-label="Subdomain" type="text" name="subdomain" pattern="[a-z0-9\-]+" placeholder="acme-corp" required />
-              </div>
-              <div class="field">
-                <label>Employee Email Domain</label>
-                <input aria-label="Employee Email Domain" type="text" name="email_domain" placeholder="acme.com" required autocomplete="off" title="The part after the @ in employees' emails, e.g. acme.com" />
-              </div>
-              <div class="field">
-                <label>Admin Username</label>
-                <input aria-label="Admin Username" type="text" name="admin_username" required />
-              </div>
-              <div class="field">
-                <label>Admin Email</label>
-                <div style="display:flex;gap:8px;">
-                  <input aria-label="Admin Email" type="email" name="admin_email" required style="flex:1;min-width:0;" />
-                  <button type="button" class="mini-btn" id="newCoSendCodeBtn" onclick="newCoSendEmailCode()">Send code</button>
-                </div>
-                <small id="newCoCodeStatus" style="font-size:11.5px;color:var(--text-muted);" aria-live="polite"></small>
-              </div>
-              <div class="field">
-                <label>Email Verification Code</label>
-                <input aria-label="Email Verification Code" type="text" name="email_code" inputmode="numeric"
-                       pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code sent to the admin email"
-                       required autocomplete="one-time-code" title="The 6-digit code emailed to the admin email" />
-              </div>
-              <div class="field">
-                <label>Admin Password</label>
-                <input aria-label="Admin Password" type="password" name="admin_password" minlength="8" required />
-              </div>
-              <div class="field">
-                <label>Payment Option</label>
-                <select aria-label="Payment Option" name="payment_option">
-                  <option value="online">Online (Razorpay)</option>
-                  <option value="manual" selected>Bank Transfer / Manual Invoice</option>
-                  <option value="trial">Free / Trial</option>
-                </select>
-              </div>
-              <div class="actions">
-                <button type="submit" class="submit-btn">Create Company</button>
-              </div>
-            </form>
-          </div>
 
           <div class="new-co card" id="editRatePanel" hidden>
             <p style="margin:0;font-size:12px;color:var(--text-muted);">
@@ -1030,29 +970,6 @@
         return false;
       }
 
-      // New Company form: the company can't be created until the code
-      // emailed to its admin address is entered (platform_admin.py).
-      function newCoSendEmailCode() {
-        var form = document.querySelector('form[action="/super_admin/tenants/create"]');
-        var emailInput = form.elements['admin_email'];
-        var status = document.getElementById('newCoCodeStatus');
-        var btn = document.getElementById('newCoSendCodeBtn');
-        if (!emailInput.value.trim() || !emailInput.checkValidity()) {
-          status.textContent = 'Enter a valid admin email first.';
-          return;
-        }
-        btn.disabled = true;
-        status.textContent = 'Sending...';
-        fetch('/super_admin/tenants/send_email_code', {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({admin_email: emailInput.value.trim(), company_name: form.elements['company_name'].value.trim()}),
-        }).then(function(r) { return r.json(); }).then(function(data) {
-          status.textContent = data.msg || (data.ok ? 'Code sent.' : 'Could not send the code.');
-          if (data.ok) form.elements['email_code'].focus();
-        }).catch(function() {
-          status.textContent = 'Could not send the code. Try again.';
-        }).then(function() { btn.disabled = false; });
-      }
     </script>
   </body>
 </html>

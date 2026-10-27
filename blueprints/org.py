@@ -480,10 +480,9 @@ def check_duplicate_name(company_name):
     Pvt Ltd" vs "Acme India"). Returns ((tenant_id, company_name,
     admin_email), match_type) if found, else (None, None).
 
-    Deliberately NOT folded into _validate_new_tenant_fields() -- that
-    function is also called by platform_admin_create_tenant(), where a
-    platform admin legitimately re-creating/fixing a tenant must not be
-    blocked by this. Only the gated step-1 signup route calls this."""
+    Deliberately NOT folded into _validate_new_tenant_fields(), which the
+    mobile signup API shares -- only the gated step-1 signup route calls
+    this (including a platform admin's free registration)."""
     normalized = _normalize_company_name(company_name)
     if not normalized:
         return None, None
@@ -794,7 +793,7 @@ def _fetch_application_row(application_id):
         "email_domain, employee_count, payment_option, logo_path, access_token_hash, otp_code_hash, "
         "otp_expires_at, otp_attempts, email_verified_at, doc_registration_cert, doc_address_proof, "
         "doc_visiting_card, doc_name_board_photo, documents_submitted_at, status, reviewed_by, "
-        "reviewed_at, rejection_reason, tenant_id, doc_review_status, gst_number "
+        "reviewed_at, rejection_reason, tenant_id, doc_review_status, gst_number, free_registration "
         "FROM tenant_applications WHERE id=%s",
         (application_id,)
     )
@@ -807,7 +806,7 @@ def _fetch_application_row(application_id):
             "email_domain", "employee_count", "payment_option", "logo_path", "access_token_hash", "otp_code_hash",
             "otp_expires_at", "otp_attempts", "email_verified_at", "doc_registration_cert", "doc_address_proof",
             "doc_visiting_card", "doc_name_board_photo", "documents_submitted_at", "status", "reviewed_by",
-            "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status", "gst_number"]
+            "reviewed_at", "rejection_reason", "tenant_id", "doc_review_status", "gst_number", "free_registration"]
     return dict(zip(cols, row))
 
 
@@ -862,7 +861,16 @@ def create_org_page():
         per_employee_paise=get_per_employee_paise(),
         show_captcha=turnstile_enabled(),
         turnstile_site_key=_TURNSTILE_SITE_KEY,
+        free_registration=request.args.get("free") == "1" and _free_registration_allowed(),
     )
+
+
+def _free_registration_allowed():
+    """A free registration -- the same signup wizard with no payment step
+    (signup_plan=free) -- can only be started by a logged-in platform admin,
+    from the dashboard's "New Company (Free)" link to /create_org?free=1."""
+    from blueprints.platform_admin import platform_admin_session_active
+    return platform_admin_session_active()
 
 
 def _verify_application_otp(application, otp_code):
@@ -941,12 +949,15 @@ def _provision_application_instantly(application):
         checkin_url = f"{_safe_app_url()}/{application['subdomain']}/checkin"
         return True, None, portal_url, checkin_url
 
+    # A platform admin's free registration is a normal manually-invoiced
+    # company (provision_tenant()'s default status), never a capped trial.
     ok, error, portal_url, checkin_url = provision_tenant(
         application["company_name"], application["subdomain"], application["admin_username"],
         application["admin_password_hash"], application["admin_email"],
         payment_option=application["payment_option"], email_domain=application["email_domain"],
         employee_count=application["employee_count"], logo_path=application["logo_path"],
-        gst_number=application["gst_number"], subscription_status="trialing",
+        gst_number=application["gst_number"],
+        subscription_status=None if application.get("free_registration") else "trialing",
     )
     if not ok:
         return False, error, None, None
@@ -966,7 +977,8 @@ def _provision_application_instantly(application):
 
     log_security_event(
         "org.tenant_provisioned_instant",
-        f"Self-serve signup '{application['company_name']}' provisioned instantly "
+        f"{'Free registration' if application.get('free_registration') else 'Self-serve signup'} "
+        f"'{application['company_name']}' provisioned instantly "
         f"(payment_option={application['payment_option']}) -- KYC document review still pending, async",
         level="INFO", subdomain=application["subdomain"], application_id=application["id"], tenant_id=tenant_id,
     )
@@ -1171,6 +1183,8 @@ def _back_to_signup_form():
     /create_org."""
     if request.form.get("return_to") == "home":
         return redirect("/?registration=failed#register")
+    if request.form.get("signup_plan") == "free":
+        return redirect("/create_org?free=1")
     return redirect("/create_org")
 
 
@@ -1188,6 +1202,12 @@ def create_org():
     review is a required step, not an optional hardening layer that's
     safe to bypass in dev (unlike the Turnstile captcha below, which
     fails open when unconfigured)."""
+    signup_plan = request.form.get("signup_plan", "pay_now").strip().lower()
+    free_registration = signup_plan == "free"
+    if free_registration and not _free_registration_allowed():
+        flash("Free registration can only be started from the Platform Admin dashboard.", "error")
+        return redirect("/create_org")
+
     if turnstile_enabled():
         token = request.form.get("cf-turnstile-response", "")
         if not verify_turnstile(token, request.remote_addr):
@@ -1237,9 +1257,11 @@ def create_org():
     # free trial" option, blueprints/trial_billing.TRIAL_DURATION_DAYS long,
     # alongside "Pay now") -- any caller that doesn't send signup_plan (the
     # mobile app, an older cached form) keeps the original online/manual
-    # auto-detect behavior unchanged.
-    signup_plan = request.form.get("signup_plan", "pay_now").strip().lower()
-    if signup_plan == "trial":
+    # auto-detect behavior unchanged. A platform admin's free registration
+    # has no payment step and is billed by manual invoice.
+    if free_registration:
+        payment_option = "manual"
+    elif signup_plan == "trial":
         payment_option = "trial"
     else:
         payment_option = "online" if razorpay_configured() else "manual"
@@ -1252,11 +1274,11 @@ def create_org():
     mcur.execute(
         "INSERT INTO tenant_applications (company_name, subdomain, admin_username, admin_email, "
         "admin_password_hash, email_domain, gst_number, payment_option, logo_path, access_token_hash, otp_code_hash, "
-        "otp_expires_at, source_ip) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, NOW() + (%s * INTERVAL '1 minute'), %s) "
-        "RETURNING id",
+        "otp_expires_at, source_ip, free_registration) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, NOW() + (%s * INTERVAL '1 minute'), %s, %s) RETURNING id",
         (company_name, subdomain, admin_username, admin_email, generate_password_hash(admin_password),
          email_domain, gst_number, payment_option, logo_path, _hash_token(access_token), _hash_token(otp_code),
-         _OTP_TTL_MINUTES, request.remote_addr)
+         _OTP_TTL_MINUTES, request.remote_addr, free_registration)
     )
     application_id = mcur.fetchone()[0]
 
@@ -1265,6 +1287,9 @@ def create_org():
     # referrer headers or browser history. application_id (a bare
     # sequential id, not a secret) is fine to carry in the URL.
     session["org_access_token"] = access_token
+    # Display only (drops the Payment step from the wizard's indicator);
+    # what's provisioned follows the application row's free_registration.
+    session["org_free_registration"] = free_registration
 
     mconn.commit()
     mcur.close()
@@ -1280,7 +1305,8 @@ def create_org():
 
 @org_bp.route("/create_org/verify_otp", methods=["GET"])
 def create_org_verify_otp_page():
-    return render_template("create_org_verify_otp.html", application_id=request.args.get("application_id", ""))
+    return render_template("create_org_verify_otp.html", application_id=request.args.get("application_id", ""),
+                           free_registration=session.get("org_free_registration", False))
 
 
 @org_bp.route("/create_org/verify_otp", methods=["POST"])
@@ -1349,7 +1375,8 @@ def create_org_upload_documents_page():
     # doesn't need it (session["org_access_token"] already covers that).
     return render_template("create_org_upload_documents.html",
                            application_id=request.args.get("application_id", ""),
-                           token=request.args.get("token", ""))
+                           token=request.args.get("token", ""),
+                           free_registration=session.get("org_free_registration", False))
 
 
 @org_bp.route("/create_org/upload_documents", methods=["POST"])

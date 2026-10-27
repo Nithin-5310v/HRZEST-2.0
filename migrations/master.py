@@ -94,8 +94,8 @@ def _init_master_db_impl():
         # block a second free trial/signup under a different company name
         # but the same real-world business, a gap the old company-name-only
         # dedup didn't cover. NULL for tenants provisioned before this
-        # existed, or via the Platform Admin direct-create path (which
-        # deliberately doesn't collect one -- see platform_admin_create_tenant()).
+        # existed, or via the former Platform Admin direct-create form (which
+        # didn't collect one; free registrations now use the same wizard).
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS gst_number VARCHAR(20) DEFAULT NULL")
         # PAN/CIN, same duplicate-detection purpose as gst_number just
         # above -- backfilled from utils/document_verification.py's OCR
@@ -319,6 +319,12 @@ def _init_master_db_impl():
         # for why this exists; carried on the application row first and
         # copied onto tenants.gst_number by provision_tenant() once approved.
         cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS gst_number VARCHAR(20) DEFAULT NULL")
+        # A free registration a platform admin started from the dashboard
+        # (/create_org?free=1, blueprints/org.py): the same wizard -- email
+        # code, documents -- with no payment step, provisioned as a normal
+        # manually-invoiced company instead of a capped self-serve trial.
+        cur.execute("ALTER TABLE tenant_applications ADD COLUMN IF NOT EXISTS free_registration BOOLEAN "
+                    "NOT NULL DEFAULT FALSE")
         # Tracks KYC document review progress SEPARATELY from `status` above.
         # `status` used to double as both "has this application been
         # provisioned" AND "where's the KYC review at" -- that stopped

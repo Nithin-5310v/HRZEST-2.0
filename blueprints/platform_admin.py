@@ -126,6 +126,16 @@ def _platform_admin_required(view):
     return wrapped
 
 
+def platform_admin_session_active():
+    """Whether this browser holds a live platform-admin session (logged in
+    and not idle past _IDLE_TIMEOUT_SEC) -- for pages outside /super_admin
+    that offer a platform-admin-only option, like org.py's free company
+    registration. No side effects, unlike _platform_admin_required."""
+    if not session.get("platform_admin_logged_in"):
+        return False
+    return (time.time() - session.get("platform_admin_last_activity", 0)) <= _IDLE_TIMEOUT_SEC
+
+
 @platform_admin_bp.route("/super_admin/login", methods=["GET", "POST"])
 @limiter.limit("10 per 15 minutes")
 def platform_admin_login():
@@ -287,17 +297,18 @@ def _self_signup_tenant_ids():
     the paid path (blueprints/billing.py's verify_payment, real Razorpay or
     the demo checkout) or the gated free/manual path (a tenant_applications
     row approved directly by platform_admin_approve_application()) -- rather
-    than being created directly by a platform admin via
-    platform_admin_create_tenant(), which never touches either table. A
-    payment_orders or tenant_applications row with tenant_id set is only
-    ever written by one of those two self-service paths, so its presence
-    is the signal -- no separate 'source' column needed on tenants itself."""
+    than being set up by a platform admin: a free registration started from
+    this dashboard (tenant_applications.free_registration) or a tenant from
+    the former direct-create form, which never touched either table. A
+    payment_orders or tenant_applications row with tenant_id set is the
+    signal -- no separate 'source' column needed on tenants itself."""
     try:
         conn = get_master_db()
         cur = conn.cursor(buffered=True)
         cur.execute("SELECT DISTINCT tenant_id FROM payment_orders WHERE tenant_id IS NOT NULL")
         ids = {r[0] for r in cur.fetchall()}
-        cur.execute("SELECT DISTINCT tenant_id FROM tenant_applications WHERE tenant_id IS NOT NULL")
+        cur.execute("SELECT DISTINCT tenant_id FROM tenant_applications "
+                    "WHERE tenant_id IS NOT NULL AND NOT free_registration")
         ids |= {r[0] for r in cur.fetchall()}
         cur.close()
         conn.close()
@@ -763,124 +774,6 @@ def platform_admin_set_lead_status(lead_id):
     cur.close()
     conn.close()
     flash("Lead updated.", "success")
-    return redirect("/super_admin")
-
-
-# Creating a company here requires the code emailed to its admin address,
-# like every self-serve signup. The code lives in att_master's
-# login_otp_challenges (HMAC only); the session holds just the challenge id.
-_NEW_COMPANY_CODE_KIND = "new_company_email"
-_NEW_COMPANY_CODE_SESSION_KEY = "new_company_email_challenge_id"
-
-
-@platform_admin_bp.route("/super_admin/tenants/send_email_code", methods=["POST"])
-@_platform_admin_required
-@limiter.limit("10 per 10 minutes")
-def platform_admin_send_new_company_code():
-    """Emails a 6-digit code to the admin address typed into the New Company
-    form; platform_admin_create_tenant() won't create the company without it."""
-    from blueprints.org import _EMAIL_RE, _OTP_TTL_MINUTES, send_org_signup_otp_email
-    data = request.get_json(silent=True) or {}
-    admin_email = str(data.get("admin_email") or "").strip().lower()
-    company_name = str(data.get("company_name") or "").strip() or "your company"
-    if not _EMAIL_RE.match(admin_email) or len(admin_email) > 150:
-        return jsonify({"ok": False, "msg": "Enter a valid admin email first."}), 400
-
-    conn = get_master_db()
-    cur = conn.cursor()
-    try:
-        challenge_id, otp_code = issue_challenge(cur, _NEW_COMPANY_CODE_KIND, admin_email, _OTP_TTL_MINUTES * 60)
-        conn.commit()
-    finally:
-        cur.close()
-        conn.close()
-    session[_NEW_COMPANY_CODE_SESSION_KEY] = challenge_id
-    if not send_org_signup_otp_email(admin_email, company_name, otp_code):
-        return jsonify({"ok": False, "msg": "The code email could not be sent -- check the SMTP settings."}), 502
-    return jsonify({"ok": True, "msg": f"Code sent to {admin_email}. It expires in {_OTP_TTL_MINUTES} minutes."})
-
-
-def _check_new_company_email_code(admin_email, submitted):
-    """None when `submitted` is the code this session emailed to admin_email
-    (used up on success), else the error to show."""
-    challenge_id = session.get(_NEW_COMPANY_CODE_SESSION_KEY)
-    if not challenge_id:
-        return "Click 'Send code' to email a verification code to the admin email, then enter it."
-    if not (submitted or "").strip():
-        return f"Enter the verification code emailed to {admin_email}."
-    conn = get_master_db()
-    cur = conn.cursor()
-    try:
-        verified = verify_challenge(cur, challenge_id, submitted, (_NEW_COMPANY_CODE_KIND,))
-        conn.commit()
-    finally:
-        cur.close()
-        conn.close()
-    if not verified:
-        return "Incorrect or expired verification code. Check the email, or send a new code."
-    session.pop(_NEW_COMPANY_CODE_SESSION_KEY, None)
-    if verified[1] != admin_email.strip().lower():
-        return f"That code was sent to a different address. Send a new code to {admin_email}."
-    return None
-
-
-@platform_admin_bp.route("/super_admin/tenants/create", methods=["POST"])
-@_platform_admin_required
-def platform_admin_create_tenant():
-    """Operator-initiated company creation -- the same provisioning core
-    the public /create_org signup uses, so a sales-assisted or manually
-    onboarded company gets an identical, fully-isolated schema rather than
-    a second, softer path into tenant creation."""
-    from blueprints.org import _validate_new_tenant_fields, provision_tenant, send_portal_ready_email
-    from utils.auth import generate_password_hash
-    from utils.helpers import clean_email_domain
-
-    company_name = request.form.get("company_name", "").strip()
-    subdomain = request.form.get("subdomain", "").strip().lower()
-    admin_username = request.form.get("admin_username", "").strip()
-    admin_password = request.form.get("admin_password", "").strip()
-    admin_email = request.form.get("admin_email", "").strip()
-    payment_option = request.form.get("payment_option", "manual").strip()
-    email_domain = clean_email_domain(request.form.get("email_domain", ""))
-
-    error = _validate_new_tenant_fields(company_name, subdomain, admin_username, admin_password, admin_email,
-                                        email_domain)
-    if error:
-        flash(error, "error")
-        return redirect("/super_admin")
-
-    code_error = _check_new_company_email_code(admin_email, request.form.get("email_code", ""))
-    if code_error:
-        flash(code_error, "error")
-        return redirect("/super_admin")
-
-    logo_path = None
-    logo_file = request.files.get("logo")
-    if logo_file and logo_file.filename:
-        from utils.helpers import save_uploaded_logo
-        logo_path, logo_err = save_uploaded_logo(logo_file, subdomain)
-        if logo_err:
-            flash(f"Company logo: {logo_err}", "error")
-            return redirect("/super_admin")
-
-    ok, error, portal_url, checkin_url = provision_tenant(company_name, subdomain, admin_username,
-                                                          generate_password_hash(admin_password),
-                                                          admin_email, payment_option, email_domain=email_domain,
-                                                          logo_path=logo_path)
-    if not ok:
-        flash(error, "error")
-        return redirect("/super_admin")
-
-    send_portal_ready_email(admin_email, company_name, admin_username, portal_url, admin_password,
-                            checkin_url=checkin_url)
-
-    log_security_event(
-        "platform_admin.tenant_created",
-        f"Platform admin created tenant '{company_name}' (subdomain={subdomain}, "
-        f"payment_option={payment_option})",
-        level="INFO", identifier=session.get("platform_admin_username"), subdomain=subdomain,
-    )
-    flash(f"Company '{company_name}' created. Portal: {portal_url}", "success")
     return redirect("/super_admin")
 
 
