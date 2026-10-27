@@ -749,6 +749,19 @@ class TestSecurityHeaders:
         resp = client.get("/login")
         assert resp.status_code in (200, 304)  # header presence is optional
 
+    @pytest.mark.parametrize("path", ["/create_org/pay/1", "/create_org/setup_trial/1",
+                                      "/pay_overdue_bill", "/settings/seats", "/settings"])
+    def test_razorpay_pages_keep_their_bank_popup(self, client, path):
+        """Razorpay Checkout runs a card's bank/OTP step in a popup; COOP
+        same-origin cut it off and every such payment failed."""
+        resp = client.get(path, follow_redirects=False)
+        assert resp.headers.get("Cross-Origin-Opener-Policy") == "same-origin-allow-popups"
+
+    @pytest.mark.parametrize("path", ["/login", "/", "/settings/other", "/create_org"])
+    def test_other_pages_stay_same_origin(self, client, path):
+        resp = client.get(path, follow_redirects=False)
+        assert resp.headers.get("Cross-Origin-Opener-Policy") == "same-origin"
+
     def test_no_server_header_leak(self, client):
         resp = client.get("/login")
         server = resp.headers.get("Server", "")

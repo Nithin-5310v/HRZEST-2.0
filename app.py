@@ -1028,6 +1028,14 @@ _SETTINGS_PATHS = {"/settings", "/admin_set_recovery_email",
                    "/save_company_info", "/toggle_feature"}
 
 
+def _is_razorpay_checkout_page(path):
+    """Pages that open Razorpay Checkout.js: org.py's /create_org/pay,
+    /create_org/setup_trial; billing_dunning.py's /pay_overdue_bill;
+    seats.py's /settings/seats; admin_views.py's /settings."""
+    return (path in ("/pay_overdue_bill", "/settings/seats", "/settings")
+            or path.startswith(("/create_org/pay/", "/create_org/setup_trial/")))
+
+
 @app.after_request
 def _security_headers(response):
     # ── Invariant headers (every response, every content-type) ──────────────
@@ -1038,7 +1046,14 @@ def _security_headers(response):
     # no-referrer). No route sets a weaker one; keep it that way.
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=(self)"
-    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    # Razorpay Checkout opens a card's bank page (3-D Secure / OTP) in a popup
+    # and watches it from its iframe. "same-origin" severs that link, so
+    # Checkout sees the popup as closed at once and shows "Payment could not
+    # be completed" while the payment stays "created". The checkout pages use
+    # same-origin-allow-popups, which still isolates them from any
+    # cross-origin page that opens them.
+    response.headers["Cross-Origin-Opener-Policy"] = (
+        "same-origin-allow-popups" if _is_razorpay_checkout_page(request.path) else "same-origin")
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
     response.headers["Server"] = "HRzest"
     # ── HSTS -- always set so dev tools and scanners see the policy ──────────
@@ -1102,21 +1117,15 @@ def _security_headers(response):
         # token comes back empty, and verify_turnstile() rejects every signup.
         _is_turnstile_page = request.path in ("/admin_login", "/login", "/", "/create_org")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
-        # Razorpay Checkout.js (org.py's /create_org/pay, /create_org/
-        # setup_trial; billing_dunning.py's /pay_overdue_bill; seats.py's
-        # /settings/seats; admin_views.py's /settings) -- without this, the
-        # default 'self'-only script-src silently blocks
+        # Razorpay Checkout.js (see _is_razorpay_checkout_page()) -- without
+        # this, the default 'self'-only script-src silently blocks
         # checkout.razorpay.com/v1/checkout.js from ever loading, so the
         # "Pay" button's onclick handler runs but `new Razorpay(...)` never
         # gets a Razorpay global to construct, and clicking it does
         # nothing. frame-src/connect-src additions are what Checkout.js's
         # own embedded iframe (card/UPI entry) and its API/analytics calls
         # need once the script itself loads.
-        _is_razorpay_page = (
-            request.path in ("/pay_overdue_bill", "/settings/seats", "/settings")
-            or request.path.startswith("/create_org/pay/")
-            or request.path.startswith("/create_org/setup_trial/")
-        )
+        _is_razorpay_page = _is_razorpay_checkout_page(request.path)
         _razorpay_script_src = " https://checkout.razorpay.com https://cdn.razorpay.com" if _is_razorpay_page else ""
         _razorpay_frame_src = "https://checkout.razorpay.com https://api.razorpay.com" if _is_razorpay_page else ""
         _razorpay_connect_src = " https://api.razorpay.com https://lumberjack.razorpay.com" if _is_razorpay_page else ""
