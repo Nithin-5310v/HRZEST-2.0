@@ -505,6 +505,37 @@ class TestCreateTenant:
         finally:
             _drop_schema(db_engine, schema_name)
 
+    def test_full_email_in_domain_field_is_accepted(self, client, db_engine, monkeypatch):
+        # The "Employee Email Domain" field sits next to "Admin Email" and
+        # browsers autofill an email into it -- that used to bounce back
+        # with "Enter a valid domain" no matter how often it was retried.
+        from app import init_master_db
+        init_master_db()
+        _login_platform_admin(client)
+
+        subdomain = "sa-email-domain"
+        schema_name = "att_" + subdomain.replace("-", "_")
+        _drop_schema(db_engine, schema_name)
+        try:
+            resp = client.post("/super_admin/tenants/create", data={
+                "company_name": "SA Email Domain Co",
+                "subdomain": subdomain,
+                "admin_username": "saed_admin",
+                "admin_password": "SaedPass@123",
+                "admin_email": "saed@test.local",
+                "email_code": _new_company_email_code(client, monkeypatch, "saed@test.local"),
+                "payment_option": "manual",
+                "email_domain": "saed@Test.Local",
+            }, follow_redirects=False)
+            assert resp.status_code in (301, 302), resp.data
+
+            cur = db_engine.cursor()
+            cur.execute(f'SELECT email_domain FROM "{schema_name}".company_settings WHERE id=1')
+            assert cur.fetchone()[0] == "test.local"
+            cur.close()
+        finally:
+            _drop_schema(db_engine, schema_name)
+
     def test_invalid_fields_rejected_without_provisioning(self, client, db_engine):
         _login_platform_admin(client)
         resp = client.post("/super_admin/tenants/create", data={

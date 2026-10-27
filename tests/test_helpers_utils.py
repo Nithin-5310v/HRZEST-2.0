@@ -38,6 +38,20 @@ class TestValidateEmpId:
         assert not helpers.validate_emp_id("has/slash")
 
 
+class TestCleanEmailDomain:
+    def test_normalizes_to_bare_domain(self):
+        for raw in ("acme.com", " Acme.COM ", "@acme.com", "www.acme.com", "https://acme.com/",
+                    "admin@acme.com", "Admin@Acme.com", "acme.com."):
+            assert helpers.clean_email_domain(raw) == "acme.com", raw
+
+    def test_cleaned_email_passes_validation(self):
+        assert helpers.validate_email_domain_format(helpers.clean_email_domain("nithin@magzest.in")) is None
+
+    def test_invalid_domain_error_names_the_value(self):
+        assert helpers.validate_email_domain_format("") == "Company email domain is required."
+        assert "'acme'" in helpers.validate_email_domain_format(helpers.clean_email_domain("acme"))
+
+
 class TestSafeRedirect:
     def test_relative_path_allowed(self):
         assert helpers._safe_redirect("/dashboard") == "/dashboard"

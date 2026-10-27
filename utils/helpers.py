@@ -1055,12 +1055,15 @@ _DOMAIN_RE = re.compile(r'^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a
 
 def clean_email_domain(raw: str) -> str:
     """Normalize a user-entered company domain -- strips a leading
-    scheme/"@"/"www.", any path, and lowercases it, so "https://Acme.com/"
-    and "acme.com" both land on "acme.com"."""
+    scheme/"www.", everything up to an "@", any path, and a trailing dot,
+    and lowercases it, so "https://Acme.com/", "admin@acme.com" and
+    "acme.com" all land on "acme.com". A full email address is the
+    common mistake on the Platform Admin form, where this field sits
+    next to "Admin Email" and browsers autofill an email into it."""
     s = (raw or "").strip().lower()
     s = re.sub(r'^https?://', '', s)
-    s = s.lstrip('@')
-    s = s.split('/')[0].split(':')[0]
+    s = s.rsplit('@', 1)[-1]
+    s = s.split('/')[0].split(':')[0].rstrip('.')
     if s.startswith('www.'):
         s = s[4:]
     return s
@@ -1072,7 +1075,7 @@ def validate_email_domain_format(domain: str) -> str:
     if not domain:
         return "Company email domain is required."
     if not _DOMAIN_RE.match(domain):
-        return "Enter a valid domain, e.g. acme.com."
+        return f"'{domain}' is not a valid email domain. Enter a domain like acme.com."
     return None
 
 
