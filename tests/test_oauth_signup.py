@@ -406,6 +406,36 @@ class TestSignupRoutes:
             cur.close()
 
 
+class TestLoginPageButtonsFollowConfiguredKeys:
+    """admin_login.html offers "Sign in with ..." only for providers whose
+    keys are set; with none, it's the password form alone."""
+
+    _ENV = ("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET",
+            "MICROSOFT_OAUTH_CLIENT_ID", "MICROSOFT_OAUTH_CLIENT_SECRET")
+
+    def _login_page(self, client, monkeypatch, configured=()):
+        for name in self._ENV:
+            if name.split("_")[0].lower() in configured:
+                monkeypatch.setenv(name, "test-value")
+            else:
+                monkeypatch.delenv(name, raising=False)
+        resp = client.get("/login")
+        assert resp.status_code == 200
+        return resp.get_data(as_text=True)
+
+    def test_no_keys_means_password_login_only(self, client, monkeypatch):
+        page = self._login_page(client, monkeypatch)
+        assert "oauth_login/google" not in page and "oauth_login/microsoft" not in page
+        assert "or with a password" not in page
+        assert 'type="password"' in page
+
+    def test_only_the_configured_provider_is_offered(self, client, monkeypatch):
+        page = self._login_page(client, monkeypatch, configured=("microsoft",))
+        assert "oauth_login/microsoft" in page
+        assert "oauth_login/google" not in page
+        assert "or with a password" in page
+
+
 class TestLoginRoutes:
     def test_unknown_provider_404s(self, client):
         assert client.get("/oauth_login/facebook").status_code == 404

@@ -46,7 +46,11 @@ def _drop_schema(db_engine, schema_name):
 # ===========================================================================
 
 class TestSignupPage:
-    def test_get_page_renders(self, client):
+    def test_get_page_renders(self, client, monkeypatch):
+        # The Google/Microsoft buttons only show for providers with keys set.
+        for name in ("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET",
+                     "MICROSOFT_OAUTH_CLIENT_ID", "MICROSOFT_OAUTH_CLIENT_SECRET"):
+            monkeypatch.setenv(name, "test-value")
         resp = client.get("/create_org")
         assert resp.status_code == 200
         assert b"Start Your Organisation" in resp.data

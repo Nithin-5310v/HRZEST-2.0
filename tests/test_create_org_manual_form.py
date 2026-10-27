@@ -35,8 +35,51 @@ def _field_names(form_body):
     return set(re.findall(r'<input[^>]*\bname="([^"]+)"', form_body))
 
 
+_OAUTH_ENV = {
+    "google": ("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"),
+    "microsoft": ("MICROSOFT_OAUTH_CLIENT_ID", "MICROSOFT_OAUTH_CLIENT_SECRET"),
+}
+
+
+def _set_oauth_keys(monkeypatch, *providers):
+    """Configure exactly these providers' keys (none = no Google/Microsoft)."""
+    for provider, names in _OAUTH_ENV.items():
+        for name in names:
+            if provider in providers:
+                monkeypatch.setenv(name, "test-value")
+            else:
+                monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture
+def oauth_keys(monkeypatch):
+    _set_oauth_keys(monkeypatch, "google", "microsoft")
+
+
+class TestWithoutOAuthKeys:
+    """No Google/Microsoft keys (the current deployment): the page offers
+    only the manual form, never buttons that can only fail."""
+
+    def test_only_the_manual_form_is_offered(self, client, monkeypatch):
+        _set_oauth_keys(monkeypatch)
+        _, page = _page(client)
+        assert "/create_org/google" not in page and "/create_org/microsoft" not in page
+        assert "Sign up with Google" not in page and "Sign up with Microsoft" not in page
+        assert "or register manually" not in page
+        assert "No documents or business registration number needed" not in page
+        assert "Enter your company details to get started" in page
+        _manual_form(page)
+
+    def test_one_configured_provider_shows_only_its_button(self, client, monkeypatch):
+        _set_oauth_keys(monkeypatch, "google")
+        _, page = _page(client)
+        assert 'href="/create_org/google"' in page
+        assert "/create_org/microsoft" not in page
+        assert "Sign up with your Google work account" in page
+
+
 class TestManualSignupFormIsOffered:
-    def test_google_microsoft_and_manual_entry_all_present(self, client):
+    def test_google_microsoft_and_manual_entry_all_present(self, client, oauth_keys):
         _, page = _page(client)
         assert 'href="/create_org/google"' in page
         assert 'href="/create_org/microsoft"' in page
@@ -67,7 +110,7 @@ class TestManualSignupFormIsOffered:
         pw = re.search(r'<input[^>]*name="admin_password"[^>]*>', body).group(0)
         assert 'type="password"' in pw and 'autocomplete="new-password"' in pw
 
-    def test_copy_does_not_promise_oauth_perks_to_manual_signups(self, client):
+    def test_copy_does_not_promise_oauth_perks_to_manual_signups(self, client, oauth_keys):
         """The 'no documents needed' line is true for Google/Microsoft only;
         the manual path asks for an email code and four documents."""
         _, page = _page(client)

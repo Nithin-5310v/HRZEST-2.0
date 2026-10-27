@@ -66,6 +66,15 @@ def _bad_provider(provider):
     return provider not in _PROVIDERS
 
 
+@oauth_signup_bp.app_context_processor
+def _inject_oauth_providers():
+    """The providers whose client id and secret are set -- create_org.html
+    and admin_login.html show a "Sign up/in with ..." button only for
+    these, so a deployment without Google/Microsoft keys offers the manual
+    form and password login alone instead of buttons that can only fail."""
+    return {"oauth_providers": [p for p in _PROVIDERS if provider_configured(p)]}
+
+
 def _tenant_for_domain(domain):
     """(id, company_name) of the tenant already registered under this
     email domain, or None. Only meaningful for non-personal domains --
