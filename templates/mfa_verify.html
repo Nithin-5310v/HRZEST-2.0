@@ -19,6 +19,14 @@
         display: flex; align-items: center; justify-content: center;
         padding: 24px;
       }
+      /* Same place as the login card (admin_login.html): right side, left empty. */
+      .login-shell {
+        width: 100%; max-width: 1132px;
+        display: flex; justify-content: flex-end;
+      }
+      @media (max-width: 900px) {
+        .login-shell { justify-content: center; }
+      }
       .card {
         width: 100%; max-width: 420px;
         background: var(--bg-card);
@@ -31,7 +39,8 @@
         content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
         background: var(--gradient-brand);
       }
-      .logo { text-align: center; margin-bottom: 20px; }
+      /* block: landing_v2.css makes .logo a flex row (its nav logo) */
+      .logo { display: block; text-align: center; margin-bottom: 20px; }
       .logo-icon {
         width: 60px; height: 60px; margin: 0 auto 16px;
         background: var(--gradient-brand);
@@ -76,6 +85,7 @@
     </style>
   </head>
   <body>
+    <main class="login-shell">
     <div class="card">
       <div class="logo">
         <div class="logo-icon"><i class="ti ti-mail-check"></i></div>
@@ -103,5 +113,6 @@
         <a href="{{ tpath('/login') }}">← Start over</a>
       </div>
     </div>
+    </main>
   </body>
 </html>

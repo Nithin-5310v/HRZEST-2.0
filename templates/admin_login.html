@@ -55,6 +55,16 @@
       }
       .nav-link-btn:hover { box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4); transform: translateY(-1px); }
 
+      /* ── Layout: the card sits on the right, under the header's button;
+         the left side is deliberately left empty. Centered on narrow screens. ── */
+      .login-shell {
+        width: 100%; max-width: 1132px; /* the header's 1180px less its 24px padding */
+        display: flex; justify-content: flex-end;
+      }
+      @media (max-width: 900px) {
+        .login-shell { justify-content: center; }
+      }
+
       /* ── Card ── */
       .card {
         width: 100%; max-width: 420px;
@@ -69,7 +79,8 @@
         background: var(--gradient-brand);
       }
 
-      .logo { text-align: center; margin-bottom: 32px; }
+      /* block: landing_v2.css makes .logo a flex row (its nav logo) */
+      .logo { display: block; text-align: center; margin-bottom: 32px; }
       .logo-icon {
         width: 64px; height: 64px; margin: 0 auto 16px;
         background: var(--gradient-brand);
@@ -176,6 +187,7 @@
       </div>
     </header>
 
+    <main class="login-shell">
     <div class="card">
       <div class="logo">
         <div class="logo-icon">
@@ -264,5 +276,6 @@
         <strong>Sign In Help</strong> — Use your <strong>username</strong> or <strong>employee ID</strong> to continue.
       </div>
     </div>
+    </main>
   </body>
 </html>
