@@ -246,6 +246,14 @@ class TestSignupEmailVerification:
         assert client.get(f"/create_org/oauth/verify?id={pending_id}&token=not-the-token").status_code == 302
         assert _tenant_count(db_engine, self.EMAIL) == 0
 
+    def test_malformed_token_never_reaches_a_redirect(self, client, db_engine, monkeypatch):
+        pending_id, token, otp = _start_signup(client, monkeypatch, "g-otp-8", self.EMAIL, "Admin")
+        for bad in (token + "&next=https://evil.example/x", token[:10]):
+            assert _submit_code(client, pending_id, bad, otp).headers["Location"] == "/create_org"
+            resend = client.post("/create_org/oauth/resend", data={"application_id": pending_id, "token": bad})
+            assert resend.headers["Location"] == "/create_org"
+        assert _tenant_count(db_engine, self.EMAIL) == 0
+
     def test_resend_replaces_the_code(self, client, db_engine, monkeypatch):
         import blueprints.org as org_module
         pending_id, token, first = _start_signup(client, monkeypatch, "g-otp-6", self.EMAIL, "Admin")

@@ -42,6 +42,7 @@ Two independent flows:
     oauth_signup_states row instead (utils/oauth_client.py), keyed by the
     `state` param, not the URL.
 """
+import re
 import time
 import secrets
 
@@ -204,6 +205,16 @@ def _verify_link(pending_id, token):
     return f"/create_org/oauth/verify?id={pending_id}&token={token}"
 
 
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{32,64}")
+
+
+def _token_param(value):
+    """A pending-signup token taken from the request, or "" unless it has
+    the shape _start_pending_signup() issues (secrets.token_urlsafe) -- so
+    only a well-formed token is ever put back into a redirect URL (QA SEC-14)."""
+    return value if isinstance(value, str) and _TOKEN_RE.fullmatch(value) else ""
+
+
 def _start_pending_signup(provider, identity):
     """Stores the provider-confirmed identity as an oauth_signup_pending row
     and emails it a code. Returns (pending_id, token): the token is the only
@@ -273,7 +284,7 @@ def _expired_signup():
 
 @oauth_signup_bp.route("/create_org/oauth/verify", methods=["GET"])
 def oauth_signup_verify_page():
-    token = request.args.get("token", "")
+    token = _token_param(request.args.get("token", ""))
     pending = _load_pending(request.args.get("id", ""), token)
     if not pending:
         return _expired_signup()
@@ -287,7 +298,7 @@ def oauth_signup_verify_page():
 @limiter.limit("20 per hour")
 def oauth_signup_verify():
     from blueprints.org import _OTP_MAX_ATTEMPTS
-    token = request.form.get("token", "")
+    token = _token_param(request.form.get("token", ""))
     pending = _load_pending(request.form.get("application_id", ""), token)
     if not pending:
         return _expired_signup()
@@ -318,7 +329,7 @@ def oauth_signup_verify():
 @limiter.limit("3 per 10 minutes")
 def oauth_signup_resend():
     from blueprints.org import _generate_otp, _OTP_TTL_MINUTES, send_org_signup_otp_email
-    token = request.form.get("token", "")
+    token = _token_param(request.form.get("token", ""))
     pending = _load_pending(request.form.get("application_id", ""), token)
     if not pending:
         return _expired_signup()
