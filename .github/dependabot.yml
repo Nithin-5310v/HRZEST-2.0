@@ -35,29 +35,28 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "@expo/vector-icons"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # The SDK pins these to one exact version (expo/bundledNativeModules.json),
+      # and Expo Go ships that exact native build -- so even a patch bump breaks
+      # the app in Expo Go. On 2026-10-23 patch PRs took react to 19.2.9,
+      # reanimated to 4.5.5 and worklets to 0.10.4 against SDK 57's 19.2.3 /
+      # 4.5.1 / 0.10.1, and Reanimated/Worklets refused to start ("Mismatch
+      # between JavaScript part and native part"). No updates at all; they
+      # move with the SDK via `npx expo install --fix`.
       - dependency-name: "react"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-native"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native-reanimated"
+      - dependency-name: "react-native-worklets"
+      - dependency-name: "react-native-webview"
+      - dependency-name: "@react-native-async-storage/async-storage"
+      - dependency-name: "@react-native-picker/picker"
       - dependency-name: "react-native-web"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-native-gesture-handler"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "react-native-reanimated"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "react-native-worklets"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-native-screens"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-native-safe-area-context"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "react-native-webview"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "@react-native-async-storage/async-storage"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-      - dependency-name: "@react-native-picker/picker"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "@sentry/react-native"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
