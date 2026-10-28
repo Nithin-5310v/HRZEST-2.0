@@ -4,13 +4,13 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
   TouchableOpacity,
   Modal,
   TextInput,
   Alert,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "../../store/ThemeContext";

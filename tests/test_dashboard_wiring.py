@@ -126,3 +126,81 @@ def test_toast_treats_messages_as_text_and_validates_class_names(tmp_path):
     for t in toasts:
         assert '"' not in t["cls"] + t["icon"] and "=" not in t["cls"] + t["icon"]
     assert toasts[1]["cls"] == "toast info" and toasts[1]["icon"] == "ti ti-info-circle"   # bad type/icon fell back
+
+
+# ── The shared chat thread (static/chat.js): admin widget + super admin chat ──
+CHAT_HARNESS = r"""
+const fs = require('fs'), vm = require('vm');
+function el(tag) {
+  const e = { tag, children: [], attrs: {}, className: '', _text: '', style: {}, parentNode: null,
+    scrollTop: 0, scrollHeight: 1000, clientHeight: 400,
+    appendChild(c) {
+      const kids = c.tag === '#frag' ? c.children.splice(0) : [c];
+      kids.forEach(k => { k.parentNode = this; this.children.push(k); });
+      return c;
+    },
+    replaceChild(n, o) { this.children[this.children.indexOf(o)] = n; n.parentNode = this; return o; },
+    setAttribute(k, v) { this.attrs[k] = v; } };
+  Object.defineProperty(e, 'textContent', {
+    set(v) { this._text = v; this.children = []; },
+    get() { return this._text + this.children.map(c => c.textContent).join(''); } });
+  Object.defineProperty(e, 'innerHTML', { set(v) { throw new Error('innerHTML assigned: ' + v); }, get() { return ''; } });
+  return e;
+}
+const sandbox = { window: {}, document: { createElement: el, createDocumentFragment: () => el('#frag') } };
+vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync(process.argv[2], 'utf8'), sandbox);
+const C = sandbox.window.HZChat;
+const PAYLOAD = '<img src=x onerror=alert(1)>';
+const msgs = [
+  { id: 1, sender_kind: 'admin', sender_name: PAYLOAD, message: PAYLOAD, created_at: '2026-10-27T10:00:00+05:30',
+    read_by_platform: true, read_by_company: true },
+  { id: 2, sender_kind: 'admin', sender_name: PAYLOAD, message: 'same run', created_at: '2026-10-27T10:01:00+05:30',
+    read_by_platform: true, read_by_company: true },
+  { id: 3, sender_kind: 'platform_admin', sender_name: 'pa', message: 'reply', created_at: '2026-10-27T10:02:00+05:30',
+    read_by_platform: true, read_by_company: false },
+];
+const opts = { isMine: m => m.sender_kind === 'platform_admin', seenByOther: m => m.read_by_company };
+const box = el('div');
+const rows = () => box.children.map(r => ({ cls: r.className, text: r.textContent }));
+const out = {};
+C.render(box, msgs, opts);
+out.first = rows();
+const firstRow = box.children[1];
+C.render(box, msgs, opts);                              // a poll with nothing new
+out.untouched = box.children[1] === firstRow;
+msgs[2].read_by_company = true;
+C.render(box, msgs, opts);
+out.seen = rows()[3].text;
+const p = C.addPending(box, 'typed text');
+out.pending = rows()[4];
+p.fail();
+out.failed = rows()[4];
+C.render(box, msgs, Object.assign({ force: true }, opts));
+out.failedKept = rows().length;
+out.initials = [C.initials('Trends'), C.initials('Magzest Consultancy Services'), C.initials('')];
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+@pytest.mark.skipif(not NODE, reason="node is required to execute chat.js")
+def test_chat_thread_renders_text_only_bubbles_with_ticks(tmp_path):
+    import json
+    harness = tmp_path / "chat_check.js"
+    harness.write_text(CHAT_HARNESS, encoding="utf-8")
+    out = subprocess.run([NODE, str(harness), os.path.join(ROOT, "static", "chat.js")],
+                         capture_output=True, text=True, timeout=30)
+    assert out.returncode == 0, out.stderr[:600]          # innerHTML assignment would have thrown
+    r = json.loads(out.stdout)
+    payload = "<img src=x onerror=alert(1)>"
+    day, a, b, mine = r["first"]
+    assert day["cls"] == "hz-day"
+    assert a["cls"] == "hz-msg hz-theirs hz-first" and a["text"].startswith(payload + payload)  # name, then text
+    assert b["cls"] == "hz-msg hz-theirs" and payload not in b["text"]   # same sender a minute later: no repeat name
+    assert mine["cls"] == "hz-msg hz-mine hz-first" and mine["text"].endswith("Sent")
+    assert r["untouched"] is True                         # unchanged poll leaves the DOM (and scroll) alone
+    assert r["seen"].endswith("Seen")
+    assert r["pending"]["text"].startswith("typed text") and r["pending"]["text"].endswith("Sending")
+    assert "hz-failed" in r["failed"]["cls"] and r["failed"]["text"] == "typed textNot sent"
+    assert r["failedKept"] == 5                           # a refresh doesn't silently drop the unsent message
+    assert r["initials"] == ["TR", "MC", "?"]

@@ -569,7 +569,7 @@
       <div class="section-header">
         <span class="section-tag"><i class="ti ti-building"></i> REGISTER YOUR COMPANY</span>
         <h2 class="section-title" style="margin-bottom: 0.25rem;">Create your company account</h2>
-        <p class="section-subtitle">Start with your email, mobile number and a password. Once your email is verified, you'll set up your company profile and upload a few business documents.</p>
+        <p class="section-subtitle">Name your company and create your admin account. Verify your email with a code and you're straight into your dashboard.</p>
       </div>
 
       <div class="contact-grid">
@@ -580,31 +580,23 @@
             <div class="contact-icon cyan"><i class="ti ti-user-check"></i></div>
             <div>
               <span class="contact-detail-label">Step 1</span>
-              <span class="contact-detail-value">Create your account: your email (also your login username), mobile number and a password</span>
+              <span class="contact-detail-value">Enter your company name and your admin account: email (also your login username), mobile number and a password</span>
             </div>
           </div>
 
           <div class="contact-detail-item">
             <div class="contact-icon emerald"><i class="ti ti-mail-check"></i></div>
             <div>
-              <span class="contact-detail-label">Step 2</span>
-              <span class="contact-detail-value">Verify your email with a one-time code</span>
+              <span class="contact-detail-label">Same step</span>
+              <span class="contact-detail-value">Type in the code we email you — your company's portal goes live and you're in your dashboard</span>
             </div>
           </div>
 
           <div class="contact-detail-item">
-            <div class="contact-icon purple"><i class="ti ti-building"></i></div>
+            <div class="contact-icon purple"><i class="ti ti-checklist"></i></div>
             <div>
-              <span class="contact-detail-label">Step 3</span>
-              <span class="contact-detail-value">Set up your company profile: name, GSTIN and company URL — your portal goes live</span>
-            </div>
-          </div>
-
-          <div class="contact-detail-item">
-            <div class="contact-icon cyan"><i class="ti ti-file-upload"></i></div>
-            <div>
-              <span class="contact-detail-label">Step 4</span>
-              <span class="contact-detail-value">Upload your registration certificate, address proof, visiting card and an office name-board photo</span>
+              <span class="contact-detail-label">From your dashboard</span>
+              <span class="contact-detail-value">Finish when you're ready: company details (GSTIN, logo), business documents and payment</span>
             </div>
           </div>
 
@@ -625,6 +617,12 @@
           <form id="homeRegisterForm" method="POST" action="/create_org" autocomplete="off">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="return_to" value="home">
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label for="regCompanyName">Company Name <span class="req">*</span></label>
+              <input type="text" id="regCompanyName" name="company_name" class="form-control" placeholder="e.g. Acme Corporation" required
+                     maxlength="200" autocomplete="organization">
+            </div>
 
             <div class="form-group" style="margin-bottom: 1.25rem;">
               <label for="regAdminEmail">Email <span class="req">*</span></label>
@@ -653,7 +651,7 @@
             {% endif %}
 
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.9rem;">
-              <i class="ti ti-arrow-right"></i> Continue to Email Verification
+              <i class="ti ti-arrow-right"></i> Send Verification Code
             </button>
           </form>
         </div>

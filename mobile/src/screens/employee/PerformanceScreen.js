@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   View,
   Text,
@@ -9,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 
 import { StyleSheet } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";

@@ -4,7 +4,40 @@ import { secureGetItem } from '../utils/secureStorage';
 
 const client = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
 
+// ── Company ──────────────────────────────────────────────────────────
+// The server tells companies apart by the first segment of the URL path,
+// as on the website (www.hrzest.com/<company>/...; utils/tenant_routing.py)
+// -- a request without one runs as the server's default company. The app
+// keeps the company's URL slug -- from sign-up, or the login screen's
+// Company URL -- and sends every API call under it. Sign-up calls belong to
+// no company yet, so they never get one.
+let companySlug = '';
+const COMPANYLESS_PATHS = ['/api/create_org'];
+
+export const setCompanySlug = (slug) => {
+  companySlug = slug || '';
+};
+
+export const getCompanySlug = () => companySlug;
+
+export const withCompany = (url) => {
+  if (!companySlug || typeof url !== 'string' || !url.startsWith('/')) return url;
+  if (COMPANYLESS_PATHS.some((path) => url.startsWith(path))) return url;
+  if (url.startsWith(`/${companySlug}/`)) return url;
+  return `/${companySlug}${url}`;
+};
+
+// What someone types as their company's address -- "acme",
+// "203.0.113.10/acme" or the full "https://203.0.113.10/acme/login" --
+// as the slug ("acme"). '' for nothing usable, i.e. the default company.
+export const parseCompanySlug = (input) => {
+  const parts = String(input || '').trim().toLowerCase().replace(/^https?:\/\//, '').split('/').filter(Boolean);
+  if (parts.length && /[.:]/.test(parts[0])) parts.shift(); // the server's host (name, IP, or with :port)
+  return (parts[0] || '').replace(/[^a-z0-9-]/g, '');
+};
+
 client.interceptors.request.use(async (config) => {
+  config.url = withCompany(config.url);
   // A release build whose API URL is not https (EXPO_PUBLIC_API_BASE_URL
   // missing -> config.js falls back to a plain-http dev host) would send the
   // Bearer token in clear text. Refuse to make the request at all rather than
@@ -137,8 +170,10 @@ export const employeeSignup = (employee_id, name, password, email = '', role = '
 export const changePassword = (current_password, new_password) =>
   client.post('/api/employee/change-password', { current_password, new_password });
 
-// ── Company Signup (gated: OTP verification + KYC document upload + ─
-// platform-admin review, before a tenant is ever provisioned) ────────
+// ── Company Signup ─────────────────────────────────────────────────
+// One step, like the website: the company name and the admin's account,
+// then the emailed code -- which creates the company and answers with a
+// Bearer token for it and its URL slug (step "done").
 export const startCompanySignup = (payload) => client.post('/api/create_org', payload);
 
 export const verifyCompanySignupOtp = (application_id, access_token, otp_code) =>
@@ -147,15 +182,17 @@ export const verifyCompanySignupOtp = (application_id, access_token, otp_code) =
 export const resendCompanySignupOtp = (application_id, access_token) =>
   client.post('/api/create_org/resend_otp', { application_id, access_token });
 
-// The company profile, after the email code (multipart: the logo is optional).
-export const submitCompanyProfile = (formData) =>
-  client.post('/api/create_org/profile', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+// ── Registration checklist (finished from the dashboard) ───────────
+// { steps: [{ key: 'company'|'documents'|'payment', status }] } -- empty
+// once nothing is left. Payment is done on the website (SeatsBilling).
+export const getRegistrationChecklist = () => client.get('/api/admin/registration');
 
-export const uploadCompanyDocuments = (formData) =>
-  client.post('/api/create_org/upload_documents', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+// GSTIN, plus the optional logo (multipart).
+export const saveCompanyDetails = (formData) =>
+  client.post('/api/admin/registration/company', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 
-export const getCompanySignupStatus = (application_id, access_token) =>
-  client.get(`/api/create_org/status/${application_id}`, { params: { access_token } });
+export const uploadRegistrationDocuments = (formData) =>
+  client.post('/api/admin/registration/documents', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 
 export const uploadEmployeePhoto = (formData) =>
   client.post('/api/employee/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
@@ -175,7 +212,7 @@ export const attestMobileBiometric = (nonce) =>
 export const attendanceCheckin = (formData) =>
   client.post('/api/employee/qr-face-checkin', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 
-export const getPhotoUrl = (empId) => `${API_BASE_URL}/dataset/${empId}.jpg`;
+export const getPhotoUrl = (empId) => `${API_BASE_URL}${withCompany(`/dataset/${empId}.jpg`)}`;
 
 export const employeeLogout = () => client.post('/api/employee/logout');
 

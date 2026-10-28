@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   View,
@@ -11,6 +10,7 @@ import {
   Modal,
   Alert,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
 

@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Modal,
   FlatList,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +22,7 @@ import PendingApprovalCard from "../../components/admin/PendingApprovalCard";
 import AnalyticsOverviewCard from "../../components/admin/AnalyticsOverviewCard";
 import AnnouncementCard from "../../components/admin/AnnouncementCard";
 import RecentActivityList from "../../components/admin/RecentActivityList";
+import RegistrationChecklistCard from "../../components/admin/RegistrationChecklistCard";
 import AiChatModal from "../../components/AiChatModal";
 
 import { fetchDashboard } from "../../api/client";
@@ -91,6 +92,8 @@ export default function AdminDashboard({ navigation }) {
             payroll={payrollFormatted}
             profileImage={user?.logo || dashboardData?.company_logo}
           />
+
+          <RegistrationChecklistCard navigation={navigation} />
 
           <AdminSearchBar
             value={search}

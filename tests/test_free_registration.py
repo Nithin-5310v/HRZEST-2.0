@@ -1,13 +1,15 @@
 """A platform admin's free company registration -- "New Company (Free)" on the
-dashboard opens /create_org?free=1: the same wizard as a paid signup
-(account, emailed code, company profile, documents) without the Pay Now /
-Trial choice, and the company is provisioned as a normal manually-invoiced
-one, not a capped trial. Only a live platform-admin session can start one
-(blueprints/org.py's _free_registration_allowed)."""
+dashboard opens /create_org?free=1: the same one-step signup as a paid one
+(company name, admin account, emailed code), and the company is provisioned
+as a normal manually-invoiced one, not a capped trial. The code sends the
+platform admin back to Platform Admin; the company's own admin logs in and
+finishes the checklist, which has no payment step. Only a live
+platform-admin session can start one (blueprints/org.py's
+_free_registration_allowed)."""
 import time
 
 from tests.signup_flow import (
-    application_id_from, capture_codes, start_signup, submit_profile, verify_email,
+    PASSWORD, application_id_from, capture_codes, start_signup, verify_email,
 )
 from tests.test_org import _drop_schema
 from tests.test_platform_admin import _login_platform_admin
@@ -42,7 +44,7 @@ class TestFreeModePage:
         assert _FREE_PLAN_INPUT in page
         assert "/create_org/google" not in page and "/create_org/microsoft" not in page
         assert "Free registration" in page
-        for field in ("admin_email", "admin_mobile", "admin_password"):
+        for field in ("company_name", "admin_email", "admin_mobile", "admin_password"):
             assert f'name="{field}"' in page, field
 
     def test_without_a_platform_admin_session_it_is_the_normal_page(self, client):
@@ -71,8 +73,9 @@ class TestFreeRegistrationFlow:
         assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
         assert codes, "the verification code must be emailed to the company admin"
         assert _application(db_engine) == ("started", "manual", True, None)
-        verify_page = client.get(resp.headers["Location"]).get_data(as_text=True)
-        assert "Verify Email" in verify_page and "Payment" not in verify_page
+        code_page = client.get(resp.headers["Location"]).get_data(as_text=True)
+        assert 'name="otp_code"' in code_page and "Create the Company" in code_page
+        assert "Payment" not in code_page
 
     def test_validation_errors_return_to_the_free_form(self, client, monkeypatch):
         _login_platform_admin(client)
@@ -80,7 +83,8 @@ class TestFreeRegistrationFlow:
         resp = start_signup(client, _EMAIL, password="short", signup_plan="free")
         assert resp.headers["Location"] == "/create_org?free=1"
 
-    def test_profile_offers_no_plan_and_creates_an_active_invoiced_company(self, client, db_engine, monkeypatch):
+    def test_code_creates_an_active_invoiced_company_and_returns_to_platform_admin(self, client, db_engine,
+                                                                                     monkeypatch):
         from app import init_master_db
         init_master_db()
         _login_platform_admin(client)
@@ -88,25 +92,28 @@ class TestFreeRegistrationFlow:
         _drop_schema(db_engine, schema_name)
         try:
             codes = capture_codes(monkeypatch)
-            application_id = application_id_from(start_signup(client, "owner@freereglive.test", signup_plan="free"))
+            application_id = application_id_from(
+                start_signup(client, "owner@freereglive.test", "Free Reg Live", signup_plan="free"))
             verified = verify_email(client, application_id, codes[-1])
-            assert verified.headers["Location"] == f"/create_org/profile?application_id={application_id}"
+            assert verified.headers["Location"] == "/super_admin"
+            with client.session_transaction() as sess:
+                assert sess.get("platform_admin_logged_in") is True
+                assert not sess.get("admin_logged_in"), "the platform admin must not become the company's admin"
 
-            profile = client.get(verified.headers["Location"]).get_data(as_text=True)
-            assert "Free registration" in profile
-            assert 'id="planOptionPayNow"' not in profile and "2-Day Free Trial" not in profile
-            assert "Payment" not in profile
-
-            # A plan sent anyway is ignored: the application says free.
-            resp = submit_profile(client, application_id, "Free Reg Live", "free-reg-live", signup_plan="trial")
-            assert resp.headers["Location"] == f"/create_org/upload_documents?application_id={application_id}"
             cur = db_engine.cursor()
             cur.execute("SELECT db_name, status, subscription_status, payment_option FROM att_master.tenants "
                         "WHERE subdomain=%s", ("free-reg-live",))
             row = cur.fetchone()
             cur.close()
             assert row == (schema_name, "active", "active", "manual")
-            docs_page = client.get(resp.headers["Location"]).get_data(as_text=True)
-            assert "Documents" in docs_page and "Payment" not in docs_page
+
+            # The company's admin finishes registering from the dashboard:
+            # company details and documents, no payment step.
+            with client.session_transaction() as sess:
+                sess.clear()
+            client.post("/free-reg-live/login", data={"identifier": "owner@freereglive.test", "password": PASSWORD})
+            page = client.get("/free-reg-live/admin").get_data(as_text=True)
+            assert "Complete your registration" in page and "0 of 2 done" in page
+            assert "/free-reg-live/settings?tab=billing" not in page
         finally:
             _drop_schema(db_engine, schema_name)

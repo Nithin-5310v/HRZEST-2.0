@@ -45,6 +45,9 @@ if (!ENV_API_BASE_URL && !__DEV__) {
 
 const DEV_HOST = getDevHost();
 export const API_BASE_URL = ENV_API_BASE_URL || `http://${DEV_HOST}:5000`;
+// The website and the API are one server, so a company's portal is
+// `${API_BASE_URL}/<company>/login` -- shown where signup and login mention it.
+export const PORTAL_HOST = API_BASE_URL.replace(/^https?:\/\//, "").replace(/\/+$/, "");
 export const IS_PRODUCTION_API = !!ENV_API_BASE_URL && ENV_API_BASE_URL.startsWith('https://');
 
 export const COLORS = {

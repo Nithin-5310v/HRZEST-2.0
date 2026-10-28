@@ -6,6 +6,7 @@ jest.mock('../../api/client', () => ({
   adminLogout: jest.fn().mockResolvedValue({}),
   employeeLogout: jest.fn().mockResolvedValue({}),
   setUnauthorizedHandler: jest.fn(),
+  setCompanySlug: jest.fn(),
 }));
 
 // Stateful, not just resolved-value stubs -- employeeStore.js now persists
@@ -37,6 +38,7 @@ jest.mock('expo-local-authentication', () => ({
 
 jest.mock('../../utils/preferences', () => ({
   getBiometricLockEnabled: jest.fn().mockResolvedValue(false),
+  setLastCompanySlug: jest.fn().mockResolvedValue(undefined),
 }));
 
 // signIn() now fires this off after every login -- mocked at this boundary
@@ -120,6 +122,38 @@ describe('AuthContext cross-account cache isolation', () => {
     });
 
     expect(await getLocalEmployees()).toHaveLength(0);
+  });
+
+  it('wipes cached data when the same username signs in at a different company', async () => {
+    const { result } = await renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.signIn('tok1', { role: 'admin', name: 'admin', companySlug: 'acme' });
+    });
+    await act(async () => {
+      await saveLocalEmployee({ employee_id: 'X1', name: 'Cached' });
+    });
+
+    await act(async () => {
+      await result.current.signIn('tok2', { role: 'admin', name: 'admin', companySlug: 'globex' });
+    });
+
+    expect(await getLocalEmployees()).toHaveLength(0);
+  });
+
+  it('sends the API to the signed-in company, and back to the default one on signOut()', async () => {
+    const { setCompanySlug } = require('../../api/client');
+    const { setLastCompanySlug } = require('../../utils/preferences');
+    const { result } = await renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.signIn('tok1', { role: 'admin', name: 'admin', companySlug: 'acme' });
+    });
+    expect(setCompanySlug).toHaveBeenLastCalledWith('acme');
+    expect(setLastCompanySlug).toHaveBeenLastCalledWith('acme');
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+    expect(setCompanySlug).toHaveBeenLastCalledWith('');
   });
 
   it('wipes cached data on a clean signOut()', async () => {

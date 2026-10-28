@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Alert,
   RefreshControl,
   View,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 import { useFocusEffect } from "@react-navigation/native";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import TicketHeaderCard from "../../components/tickets/TicketHeaderCard";

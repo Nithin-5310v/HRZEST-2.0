@@ -3,11 +3,12 @@
 import os
 import re
 import html
+import time
 import secrets
 import difflib
 from flask import Blueprint, request, redirect, render_template, flash, jsonify, session, g, abort
 from extensions import app_log, limiter, log_security_event
-from utils.auth import generate_password_hash, _hash_token, turnstile_enabled, verify_turnstile, _TURNSTILE_SITE_KEY, validate_new_password, admin_required
+from utils.auth import generate_password_hash, _hash_token, turnstile_enabled, verify_turnstile, _TURNSTILE_SITE_KEY, validate_new_password, admin_required, api_required, api_role_required
 from utils.plan_limits import PLAN_LABEL, get_per_employee_paise, format_price_inr
 from utils.email_utils import get_email_config, send_email_async
 from utils.tenant_routing import RESERVED_PATH_SEGMENTS
@@ -45,6 +46,43 @@ def _clean_subdomain_slug(raw, company_name=""):
             s = s[:-len(suffix)]
     s = re.sub(r'[^a-z0-9\-]', '', s)
     return s
+
+
+_MAX_SLUG_LEN = 40
+
+
+def _slug_for_company(company_name):
+    """The company URL for a new signup, made from its name -- step 1 asks
+    for the name, never the URL: lowercase letters and digits, words joined
+    by hyphens ("Acme Pvt. Ltd." -> "acme-pvt-ltd"), with -2, -3 ... added
+    when that URL is reserved, already a company's, or would land on an
+    existing schema (provision_tenant()'s own check, since "a-b" and "a_b"
+    share att_a_b). Picked when the code is verified, the moment the company
+    is created, so two pending signups never hold the same URL. None if the
+    name has no letters or digits at all."""
+    base = re.sub(r'[^a-z0-9]+', '-', (company_name or '').lower()).strip('-')[:_MAX_SLUG_LEN].strip('-')
+    if not base:
+        return None
+    from database import get_master_db
+    mconn = get_master_db()
+    mcur = mconn.cursor(buffered=True)
+    try:
+        for n in range(1, 1000):
+            slug = base if n == 1 else f"{base[:_MAX_SLUG_LEN - len(str(n)) - 1].rstrip('-')}-{n}"
+            if slug in _RESERVED_SUBDOMAINS:
+                continue
+            mcur.execute("SELECT 1 FROM tenants WHERE subdomain=%s", (slug,))
+            if mcur.fetchone():
+                continue
+            mcur.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name=%s",
+                         ("att_" + slug.replace("-", "_"),))
+            if mcur.fetchone():
+                continue
+            return slug
+    finally:
+        mcur.close()
+        mconn.close()
+    return None
 
 
 def _validate_new_tenant_fields(company_name, subdomain, admin_username, admin_password, admin_email,
@@ -91,13 +129,18 @@ def _clean_mobile(raw):
     return re.sub(r'[\s\-.()]', '', str(raw or ''))
 
 
-def _validate_signup_account(admin_email, admin_mobile, admin_password):
-    """Step 1 of the web signup (POST /create_org): the admin's email (also
-    their login username), mobile number and password. The company itself
-    is described after the email is verified, at /create_org/profile.
-    Returns an error message, or None."""
-    if not all([admin_email, admin_mobile, admin_password]):
-        return "Email, mobile number and password are all required."
+def _validate_signup_account(company_name, admin_email, admin_mobile, admin_password):
+    """Step 1 of the signup (POST /create_org, the app's /api/create_org):
+    the company's name -- its URL is made from it (_slug_for_company) --
+    and the admin's email (also their login username), mobile number and
+    password. Everything else (GSTIN, logo, documents, payment) is done
+    from the dashboard afterwards. Returns an error message, or None."""
+    if not all([company_name, admin_email, admin_mobile, admin_password]):
+        return "Company name, email, mobile number and password are all required."
+    if len(company_name) > 200:
+        return "Company name must be at most 200 characters."
+    if not re.search(r'[A-Za-z0-9]', company_name):
+        return "Company name must contain at least one letter or digit."
     if not _EMAIL_RE.match(admin_email):
         return "Enter a valid email address."
     if len(admin_email) > _MAX_SIGNUP_EMAIL_LEN:
@@ -111,9 +154,11 @@ def _validate_signup_account(admin_email, admin_mobile, admin_password):
 
 
 def _validate_company_profile(company_name, subdomain, gst_number):
-    """Step 3 of the web signup (POST /create_org/profile): the company's
-    name, URL slug (already through _clean_subdomain_slug) and GSTIN
-    (through _clean_gst). Returns an error message, or None."""
+    """The old step 3 (POST /create_org/profile), still served for an
+    application whose email was verified before step 1 asked for the
+    company name: the company's name, URL slug (already through
+    _clean_subdomain_slug) and GSTIN (through _clean_gst). Returns an error
+    message, or None."""
     if not company_name or not subdomain:
         return "Company name and company URL are required."
     if len(company_name) > 200:
@@ -913,6 +958,7 @@ def create_org_page():
         show_captcha=turnstile_enabled(),
         turnstile_site_key=_TURNSTILE_SITE_KEY,
         free_registration=request.args.get("free") == "1" and _free_registration_allowed(),
+        portal_base=_safe_app_url(),
     )
 
 
@@ -1039,6 +1085,49 @@ def _provision_application_instantly(application):
         portal_url, checkin_url=checkin_url,
     )
     return True, None, portal_url, checkin_url
+
+
+def _create_signup_company(application):
+    """Creates the company for an application whose step 1 named it, once
+    its email code is verified: re-checks the name against companies
+    registered since step 1, picks the company URL (_slug_for_company),
+    records it and the billing option on the application, and provisions
+    it (_provision_application_instantly). Retries with the next free URL if
+    a concurrent signup took this one between the pick and the insert.
+    Returns (ok, error, application) -- the refreshed row on success."""
+    conflicting, match_type = check_duplicate_name(application["company_name"])
+    if conflicting:
+        _record_duplicate_alert(application["id"], application["company_name"], application["admin_email"],
+                                conflicting, match_type=match_type)
+        return False, _GENERIC_DUPLICATE_MSG, None
+
+    from utils.razorpay_utils import razorpay_configured
+    from database import get_master_db
+    # A platform admin's free registration is billed by manual invoice; a
+    # self-serve company sets up auto-debit from its dashboard's checklist.
+    online = not application["free_registration"] and razorpay_configured()
+    error = "Could not pick a company URL. Please contact support."
+    for _attempt in range(3):
+        slug = _slug_for_company(application["company_name"])
+        if not slug:
+            return False, "Company name must contain at least one letter or digit.", None
+        mconn = get_master_db()
+        mcur = mconn.cursor()
+        mcur.execute(
+            "UPDATE tenant_applications SET subdomain=%s, payment_option=%s, updated_at=NOW() "
+            "WHERE id=%s AND status='otp_verified'",
+            (slug, "online" if online else "manual", application["id"])
+        )
+        mconn.commit()
+        mcur.close()
+        mconn.close()
+        ok, error, _portal_url, _checkin_url = _provision_application_instantly(
+            _fetch_application_row(application["id"]))
+        if ok:
+            return True, None, _fetch_application_row(application["id"])
+        if "already taken" not in (error or ""):
+            break
+    return False, error, None
 
 
 def _approve_application_reviewed(application, reviewed_by):
@@ -1243,14 +1332,14 @@ def _back_to_signup_form():
 @org_bp.route("/create_org", methods=["POST"])
 @limiter.limit("10 per hour")
 def create_org():
-    """Step 1 of the web signup wizard: just the admin's account -- email
-    (which is also their login username), mobile number and password.
-    Creates a tenant_applications row whose company fields stay blank
-    ('' -- the columns are NOT NULL) and emails a verification code. Once
-    the code checks out, create_org_verify_otp() sends the applicant to
-    the company profile (/create_org/profile), which provisions the
-    company; documents follow. The mobile app's /api/create_org still
-    takes everything in one request."""
+    """The whole web signup is one step: the company's name and the admin's
+    account -- email (also their login username), mobile number and
+    password -- then, on the same page, the code emailed to verify the
+    address. This creates the tenant_applications row and emails the code;
+    create_org_verify_otp() then creates the company and logs the admin
+    straight into its dashboard, whose checklist (app.py's
+    inject_registration_checklist) collects the rest: company details,
+    documents, payment."""
     free_registration = request.form.get("signup_plan", "").strip().lower() == "free"
     if free_registration and not _free_registration_allowed():
         flash("Free registration can only be started from the Platform Admin dashboard.", "error")
@@ -1262,24 +1351,19 @@ def create_org():
             flash("Captcha verification failed. Please try again.", "error")
             return _back_to_signup_form()
 
+    company_name = re.sub(r'\s+', ' ', request.form.get("company_name", "")).strip()
     # Lowercase: it's the login username, matched exactly at /login.
     admin_email = request.form.get("admin_email", "").strip().lower()
     admin_mobile = _clean_mobile(request.form.get("admin_mobile", ""))
     admin_password = request.form.get("admin_password", "").strip()
 
-    error = _validate_signup_account(admin_email, admin_mobile, admin_password)
+    error = _check_new_signup(company_name, admin_email, admin_mobile, admin_password)
     if error:
         flash(error, "error")
         return _back_to_signup_form()
 
-    conflicting = check_duplicate_admin_email(admin_email)
-    if conflicting:
-        _record_duplicate_alert(None, "", admin_email, conflicting, match_type="email")
-        flash(_GENERIC_DUPLICATE_MSG, "error")
-        return _back_to_signup_form()
-
-    application_id, access_token = _start_signup_application(admin_email, admin_mobile, admin_password,
-                                                             free_registration)
+    application_id, access_token = _start_signup_application(company_name, admin_email, admin_mobile,
+                                                             admin_password, free_registration)
     # access_token lives ONLY in the session cookie from here on for the
     # web flow -- never in a URL/query string, so it can't leak via
     # referrer headers or browser history. application_id (a bare
@@ -1291,25 +1375,42 @@ def create_org():
     return redirect(f"/create_org/verify_otp?application_id={application_id}")
 
 
-def _start_signup_application(admin_email, admin_mobile, admin_password, free_registration=False):
-    """The account step's shared tail (web create_org(), the mobile app's
-    api_create_org()), once the account is validated and its email isn't
-    already a company admin's: creates the application with its company
-    fields still blank ('' -- the columns are NOT NULL) and emails the
-    verification code. Returns (application_id, access_token)."""
+def _check_new_signup(company_name, admin_email, admin_mobile, admin_password):
+    """Step 1's checks, shared by the web form (create_org()) and the app
+    (_api_start_account()): the fields, then whether this company or this
+    admin email is already registered (both recorded as duplicate alerts
+    for Platform Admin). Returns an error message, or None."""
+    error = _validate_signup_account(company_name, admin_email, admin_mobile, admin_password)
+    if error:
+        return error
+    conflicting, match_type = check_duplicate_name(company_name)
+    if not conflicting:
+        conflicting, match_type = check_duplicate_admin_email(admin_email), "email"
+    if conflicting:
+        _record_duplicate_alert(None, company_name, admin_email, conflicting, match_type=match_type)
+        return _GENERIC_DUPLICATE_MSG
+    return None
+
+
+def _start_signup_application(company_name, admin_email, admin_mobile, admin_password, free_registration=False):
+    """Step 1's shared tail (web create_org(), the app's api_create_org()),
+    once _check_new_signup() passes: creates the application and emails
+    the verification code. The company URL stays blank ('' -- the column is
+    NOT NULL) until the code is verified (_create_signup_company). Returns
+    (application_id, access_token)."""
     access_token = _generate_access_token()
     otp_code = _generate_otp()
     from database import get_master_db
     mconn = get_master_db()
     mcur = mconn.cursor()
-    # payment_option is settled with the company profile; a platform
-    # admin's free registration is billed by manual invoice either way.
+    # payment_option is settled when the company is created
+    # (_create_signup_company).
     mcur.execute(
         "INSERT INTO tenant_applications (company_name, subdomain, admin_username, admin_email, admin_mobile, "
         "admin_password_hash, email_domain, payment_option, access_token_hash, otp_code_hash, "
         "otp_expires_at, source_ip, free_registration) "
-        "VALUES ('', '', %s,%s,%s,%s,%s,'manual',%s,%s, NOW() + (%s * INTERVAL '1 minute'), %s, %s) RETURNING id",
-        (admin_email, admin_email, admin_mobile, generate_password_hash(admin_password),
+        "VALUES (%s, '', %s,%s,%s,%s,%s,'manual',%s,%s, NOW() + (%s * INTERVAL '1 minute'), %s, %s) RETURNING id",
+        (company_name, admin_email, admin_email, admin_mobile, generate_password_hash(admin_password),
          clean_email_domain(admin_email), _hash_token(access_token), _hash_token(otp_code),
          _OTP_TTL_MINUTES, request.remote_addr, free_registration)
     )
@@ -1322,19 +1423,32 @@ def _start_signup_application(admin_email, admin_mobile, admin_password, free_re
     # APP_ENV=development shortcut here once jumped straight to the document
     # upload, which also skipped the provisioning that only runs after a
     # verified code, stranding the applicant.
-    send_org_signup_otp_email(admin_email, "", otp_code)
+    send_org_signup_otp_email(admin_email, company_name, otp_code)
     return application_id, access_token
 
 
 @org_bp.route("/create_org/verify_otp", methods=["GET"])
 def create_org_verify_otp_page():
-    return render_template("create_org_verify_otp.html", application_id=request.args.get("application_id", ""),
-                           free_registration=session.get("org_free_registration", False))
+    """The signup page again, with what was entered locked in and a box for
+    the emailed code -- verification belongs to the one signup step."""
+    application = _load_application(request.args.get("application_id", ""), session.get("org_access_token"))
+    if not application or application["status"] != "started":
+        flash("Your registration session has ended. Please start again.", "error")
+        return redirect("/create_org")
+    return render_template(
+        "create_org.html", code_step=True, application=application,
+        free_registration=bool(application["free_registration"]),
+        portal_base=_safe_app_url(),
+    )
 
 
 @org_bp.route("/create_org/verify_otp", methods=["POST"])
 @limiter.limit("20 per hour")
 def create_org_verify_otp():
+    """Checks the emailed code, creates the company (_create_signup_company)
+    and logs its admin in -- the dashboard's checklist takes it from there.
+    A platform admin's free registration goes back to Platform Admin
+    instead: the company's own admin logs in with their email."""
     application_id = request.form.get("application_id", "")
     otp_code = request.form.get("otp_code", "").strip()
     application = _load_application(application_id, session.get("org_access_token"))
@@ -1342,31 +1456,72 @@ def create_org_verify_otp():
         flash("Application not found. Please start again.", "error")
         return redirect("/create_org")
     if application["status"] == "otp_verified" and not application["company_name"]:
-        return redirect(f"/create_org/profile?application_id={application['id']}")  # already verified
+        # Verified before step 1 asked for the company name: the old
+        # company-profile step still finishes it.
+        return redirect(f"/create_org/profile?application_id={application['id']}")
 
     ok, error = _verify_application_otp(application, otp_code)
     if not ok:
         flash(error, "error")
         return redirect(f"/create_org/verify_otp?application_id={application['id']}")
-
-    # A web signup describes its company after the code (create_org()
-    # leaves the company fields blank), and the profile step provisions it.
     if not application["company_name"]:
         return redirect(f"/create_org/profile?application_id={application['id']}")
 
-    # An application started before the profile step existed already has
-    # its company. Re-fetch: _verify_application_otp() just advanced status
-    # to 'otp_verified' in the DB, but `application` here is still the
-    # pre-verification snapshot loaded at the top of this request.
-    application = _load_application(application_id, session.get("org_access_token"))
-    ok, error, portal_url, checkin_url = _provision_application_instantly(application)
+    # Re-fetch: _verify_application_otp() just advanced status to
+    # 'otp_verified', but `application` is the pre-verification snapshot.
+    ok, error, application = _create_signup_company(_fetch_application_row(application["id"]))
     if not ok:
-        app_log.error("create_org_verify_otp: instant provisioning failed for application %s: %s",
-                      application_id, error)
-        flash(f"Could not set up your company: {error}. Please contact support.", "error")
+        app_log.warning("create_org_verify_otp: could not create the company for application %s: %s",
+                        application_id, error)
+        flash(error if error == _GENERIC_DUPLICATE_MSG else
+              f"Could not set up your company: {error}. Please contact support.", "error")
         return redirect("/create_org")
 
-    return redirect(f"/create_org/upload_documents?application_id={application['id']}")
+    session.pop("org_access_token", None)
+    session.pop("org_free_registration", None)
+    if application["free_registration"]:
+        flash(f"'{application['company_name']}' is created at {_safe_app_url()}/{application['subdomain']}/login. "
+              f"Its admin logs in with {application['admin_email']} and finishes registering from the dashboard.",
+              "success")
+        return redirect("/super_admin")
+    return _log_in_new_company_admin(application)
+
+
+def _log_in_new_company_admin(application):
+    """Signs the new company's admin straight into its dashboard: binds the
+    session to the company just provisioned (this request ran on a URL with
+    no company in it, so under the default one) and starts the admin
+    session the way a password login does (auth.begin_admin_session). The
+    code they just entered was emailed to this same address, so it stands
+    in for the emailed login code when MANDATORY_LOGIN_MFA is on, exactly as
+    auth.mfa_verify() treats one."""
+    from flask import current_app
+    from blueprints.auth import begin_admin_session
+    from database import get_master_db
+    from utils.totp import mark_totp_enabled
+
+    mconn = get_master_db()
+    mcur = mconn.cursor(buffered=True)
+    mcur.execute("SELECT db_name, subdomain FROM tenants WHERE id=%s", (application["tenant_id"],))
+    db_name, slug = mcur.fetchone()
+    mcur.close()
+    mconn.close()
+
+    g.tenant_db, g.tenant_slug = db_name, slug
+    username = application["admin_username"]
+    if current_app.config["MANDATORY_LOGIN_MFA"]:
+        mark_totp_enabled(username)
+    begin_admin_session(username, "admin")
+    session["tenant_db"] = db_name
+    session["tenant_slug"] = slug
+    session["_tenant_status_checked_at"] = time.time()
+    session["_billing_locked"] = False
+    log_security_event(
+        "auth.admin_login_success", f"Admin login for '{username}' (role=admin) right after registering",
+        level="INFO", identifier=username, subdomain=slug,
+    )
+    flash("Your company is ready. Finish registering from the checklist below.", "success")
+    return redirect(f"/{slug}/admin")
 
 
 def _load_profile_application(application_id, access_token):
@@ -1443,6 +1598,7 @@ def _render_profile_page(application):
         "create_org.html", profile_step=True, application_id=application["id"],
         free_registration=bool(application["free_registration"]),
         per_employee_paise=get_per_employee_paise(),
+        portal_base=_safe_app_url(),
     )
 
 
@@ -1647,6 +1803,197 @@ def company_verification_upload():
     else:
         flash("Documents submitted -- your account is fully active again.", "success")
     return redirect(tpath("/settings/company_verification"))
+
+
+_DOC_STEP_STATUS = {"approved": "done", "pending_review": "review", "rejected": "rejected"}
+
+
+def registration_checklist(tenant_db):
+    """What a company still has to do after registering -- signup itself
+    only asks for its name and the admin's account, so these come from the
+    dashboard: a list of {"key", "status"} for "company" (GSTIN, via
+    save_company_details), "documents" (_save_application_documents) and
+    "payment" (auto-debit, Settings > Billing). status is "done" or "todo";
+    documents can also be "review" (submitted, awaiting review -- nothing
+    for the company to do) or "rejected" (with "reason"). Payment is left
+    out for a platform admin's free registration, billed by manual invoice.
+
+    None for a company with no application at all (Platform Admin's direct
+    create tool, or registered before company verification existed):
+    nothing to finish. Shared by admin_base.html's checklist (app.py's
+    inject_registration_checklist) and the app's /api/admin/registration."""
+    from database import get_master_db
+    mconn = get_master_db()
+    mcur = mconn.cursor(buffered=True)
+    try:
+        mcur.execute(
+            "SELECT ta.doc_review_status, ta.rejection_reason, ta.free_registration, t.gst_number, "
+            "t.subscription_status FROM tenant_applications ta JOIN tenants t ON ta.tenant_id=t.id "
+            "WHERE t.db_name=%s ORDER BY ta.id DESC LIMIT 1",
+            (tenant_db,)
+        )
+        row = mcur.fetchone()
+        if not row:
+            return None
+        doc_status, rejection_reason, free_registration, gst_number, subscription_status = row
+        mandate_status = None
+        if not free_registration:
+            mcur.execute("SELECT status FROM auto_debit_mandates WHERE tenant_schema=%s", (tenant_db,))
+            mandate = mcur.fetchone()
+            mandate_status = mandate[0] if mandate else None
+    finally:
+        mcur.close()
+        mconn.close()
+
+    doc_step_status = _DOC_STEP_STATUS.get(doc_status, "todo")
+    steps = [
+        {"key": "company", "status": "done" if gst_number else "todo"},
+        {"key": "documents", "status": doc_step_status,
+         "reason": rejection_reason if doc_step_status == "rejected" else None},
+    ]
+    if not free_registration:
+        paid = mandate_status in ("active", "pending_cancellation") or subscription_status == "active"
+        steps.append({"key": "payment", "status": "done" if paid else "todo"})
+    return steps
+
+
+def _own_tenant():
+    """The logged-in company's own tenants row: (id, company_name,
+    subdomain, gst_number), or None."""
+    from database import get_master_db
+    mconn = get_master_db()
+    mcur = mconn.cursor(buffered=True)
+    mcur.execute("SELECT id, company_name, subdomain, gst_number FROM tenants WHERE db_name=%s", (g.tenant_db,))
+    row = mcur.fetchone()
+    mcur.close()
+    mconn.close()
+    return row
+
+
+def save_company_details(tenant, fields, logo_file):
+    """The registration checklist's "Company details" step (web
+    /settings/company_details, the app's /api/admin/registration/company):
+    the GSTIN -- required, and must not already belong to another company
+    (check_duplicate_gst) -- and an optional logo. The GSTIN goes on the
+    tenants row, where duplicate checks read it, and on the company's
+    application; the logo becomes company_settings.logo_url. `tenant` is
+    _own_tenant()'s row. Returns an error message, or None."""
+    from database import get_master_db, get_db_connection
+    from utils.helpers import save_uploaded_logo, invalidate_settings_cache
+
+    tenant_id, company_name, slug, _current_gst = tenant
+    gst_number = _clean_gst(fields.get("gst_number") or "")
+    error = _validate_gst_number(gst_number)
+    if error:
+        return error
+    conflicting = check_duplicate_gst(gst_number)
+    if conflicting and conflicting[0] != tenant_id:
+        application = _load_own_tenant_application()
+        _record_duplicate_alert(application["id"] if application else None, company_name,
+                                application["admin_email"] if application else "", conflicting, match_type="gst")
+        return _GENERIC_DUPLICATE_MSG
+
+    logo_url = None
+    if logo_file and logo_file.filename:
+        logo_path, logo_err = save_uploaded_logo(logo_file, slug)
+        if logo_err:
+            return f"Company logo: {logo_err}"
+        logo_url = f"/static/{logo_path}"
+
+    mconn = get_master_db()
+    mcur = mconn.cursor()
+    mcur.execute("UPDATE tenants SET gst_number=%s WHERE id=%s", (gst_number, tenant_id))
+    mcur.execute("UPDATE tenant_applications SET gst_number=%s, updated_at=NOW() WHERE tenant_id=%s",
+                 (gst_number, tenant_id))
+    mconn.commit()
+    mcur.close()
+    mconn.close()
+    if logo_url:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE company_settings SET logo_url=%s WHERE id=1", (logo_url,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        invalidate_settings_cache()
+    log_security_event("org.company_details_saved", f"Company details saved for '{company_name}'",
+                       level="INFO", subdomain=slug, tenant_id=tenant_id, logo_changed=bool(logo_url))
+    return None
+
+
+@org_bp.route("/api/admin/registration", methods=["GET"])
+@api_required
+@api_role_required("admin")
+def api_admin_registration():
+    """The app's registration checklist (registration_checklist()), for the
+    company its /<company_slug>/ prefix resolved to. steps is empty once
+    there is nothing left to finish."""
+    tenant = _own_tenant()
+    if not tenant:
+        return jsonify({"ok": False, "msg": "No company record found."}), 404
+    steps = registration_checklist(g.tenant_db) or []
+    return jsonify({
+        "ok": True, "company_name": tenant[1], "company_slug": tenant[2], "gst_number": tenant[3] or "",
+        "portal_url": f"{_safe_app_url()}/{tenant[2]}/login",
+        "steps": [] if all(step["status"] == "done" for step in steps) else steps,
+    })
+
+
+@org_bp.route("/api/admin/registration/company", methods=["POST"])
+@api_required
+@api_role_required("admin")
+def api_admin_registration_company():
+    """The checklist's company details from the app: gst_number, as JSON
+    or as multipart fields when the optional logo comes along."""
+    tenant = _own_tenant()
+    if not tenant:
+        return jsonify({"ok": False, "msg": "No company record found."}), 404
+    data = request.form if request.form else (request.get_json(silent=True) or {})
+    error = save_company_details(tenant, data, request.files.get("logo"))
+    if error:
+        return jsonify({"ok": False, "msg": error}), 400
+    return jsonify({"ok": True, "msg": "Company details saved."})
+
+
+@org_bp.route("/api/admin/registration/documents", methods=["POST"])
+@api_required
+@api_role_required("admin")
+def api_admin_registration_documents():
+    """The checklist's business documents from the app (multipart, the same
+    four files as /settings/company_verification)."""
+    application = _load_own_tenant_application()
+    if not application:
+        return jsonify({"ok": False, "msg": "No company verification record found."}), 404
+    ok, error = _save_application_documents(application, request.files)
+    if not ok:
+        return jsonify({"ok": False, "msg": error}), 400
+    return jsonify({"ok": True, "msg": "Documents submitted -- we'll review them shortly."})
+
+
+@org_bp.route("/settings/company_details", methods=["GET"])
+@admin_required
+def company_details_page():
+    tenant = _own_tenant()
+    if not tenant:
+        flash("No company record found.", "error")
+        return redirect(tpath("/admin"))
+    return render_template("company_details.html", gst_number=tenant[3] or "",
+                           portal_url=f"{_safe_app_url()}/{tenant[2]}/login")
+
+
+@org_bp.route("/settings/company_details", methods=["POST"])
+@admin_required
+def company_details_save():
+    tenant = _own_tenant()
+    if not tenant:
+        flash("No company record found.", "error")
+        return redirect(tpath("/admin"))
+    error = save_company_details(tenant, request.form, request.files.get("logo"))
+    if error:
+        flash(error, "error")
+        return redirect(tpath("/settings/company_details"))
+    flash("Company details saved.", "success")
+    return redirect(tpath("/admin"))
 
 
 @org_bp.route("/create_org/pay/<int:application_id>", methods=["GET"])
@@ -1910,14 +2257,15 @@ def api_create_org():
     status (there's no session cookie on this side to hold it implicitly,
     the way the web flow's does).
 
-    Current app builds send just the account -- admin_email, admin_mobile,
-    admin_password -- like the web form, and describe the company after
-    the code (/api/create_org/profile). A request that includes
-    company_name is an older build sending everything at once, which still
-    works the old way: its company is provisioned at the code step."""
+    Current app builds send what the web form does -- company_name,
+    admin_email, admin_mobile, admin_password -- and the code step creates
+    the company and signs the admin in (api_create_org_verify_otp). A
+    request carrying a subdomain is an older build sending everything at
+    once (URL, GSTIN, username), which still works the old way: its
+    company is provisioned at the code step, documents follow."""
     try:
         data = request.get_json() or {}
-        if not (data.get("company_name") or "").strip():
+        if "subdomain" not in data:
             return _api_start_account(data)
         company_name = data.get("company_name", "").strip()
         raw_subdomain = data.get("subdomain", "").strip().lower()
@@ -1983,19 +2331,17 @@ def api_create_org():
 
 
 def _api_start_account(data):
-    """api_create_org()'s account step: the same checks as the web form's
+    """api_create_org()'s signup step: the same checks as the web form's
     create_org()."""
+    company_name = re.sub(r'\s+', ' ', str(data.get("company_name") or "")).strip()
     admin_email = (data.get("admin_email") or "").strip().lower()
     admin_mobile = _clean_mobile(data.get("admin_mobile"))
     admin_password = (data.get("admin_password") or "").strip()
-    error = _validate_signup_account(admin_email, admin_mobile, admin_password)
+    error = _check_new_signup(company_name, admin_email, admin_mobile, admin_password)
     if error:
-        return jsonify({"ok": False, "msg": error}), 400
-    conflicting = check_duplicate_admin_email(admin_email)
-    if conflicting:
-        _record_duplicate_alert(None, "", admin_email, conflicting, match_type="email")
-        return jsonify({"ok": False, "msg": _GENERIC_DUPLICATE_MSG}), 409
-    application_id, access_token = _start_signup_application(admin_email, admin_mobile, admin_password)
+        return jsonify({"ok": False, "msg": error}), 409 if error == _GENERIC_DUPLICATE_MSG else 400
+    application_id, access_token = _start_signup_application(company_name, admin_email, admin_mobile,
+                                                             admin_password)
     return jsonify({
         "ok": True,
         "msg": f"We've emailed a verification code to {admin_email}.",
@@ -2019,13 +2365,18 @@ def api_create_org_verify_otp():
     if not ok:
         return jsonify({"ok": False, "msg": error}), 400
 
-    # An account-first signup describes its company next (/api/create_org/profile).
+    # Verified before step 1 asked for the company name: the old profile
+    # step (/api/create_org/profile) still finishes it.
     if not application["company_name"]:
         return jsonify({"ok": True, "step": "profile", "msg": "Email verified -- now set up your company."})
 
     # Re-fetch: _verify_application_otp() just advanced status in the DB,
     # but `application` here is still the pre-verification snapshot.
     application = _load_application(data.get("application_id"), data.get("access_token", ""))
+    if not application["subdomain"]:
+        return _api_create_company_and_sign_in(application)
+
+    # An older app build's one-request signup already chose its URL.
     ok, error, portal_url, checkin_url = _provision_application_instantly(application)
     if not ok:
         app_log.error("api_create_org_verify_otp: instant provisioning failed for application %s: %s",
@@ -2033,6 +2384,47 @@ def api_create_org_verify_otp():
         return jsonify({"ok": False, "msg": f"Could not set up your company: {error}. Contact support."}), 500
 
     return jsonify({"ok": True, "step": "documents", "portal_url": portal_url, "checkin_url": checkin_url})
+
+
+def _api_create_company_and_sign_in(application):
+    """The app's counterpart of create_org_verify_otp()'s tail: creates the
+    company (_create_signup_company) and signs its admin in with a Bearer
+    token issued in the new company's schema. The app sends every later
+    request under /<company_slug>/ -- tenant routing then resolves the
+    company from that prefix, as it does for the website -- and finishes
+    the registration checklist from its dashboard (/api/admin/registration).
+    The token counts as MFA-verified: the code just checked was emailed to
+    this admin's address, the same factor /api/login/verify accepts."""
+    from blueprints.core import _issue_admin_api_token
+    from database import get_master_db
+
+    ok, error, application = _create_signup_company(application)
+    if not ok:
+        app_log.warning("api_create_org_verify_otp: could not create the company for application %s: %s",
+                        application and application["id"], error)
+        if error == _GENERIC_DUPLICATE_MSG:
+            return jsonify({"ok": False, "msg": error}), 409
+        return jsonify({"ok": False, "msg": f"Could not set up your company: {error}. Contact support."}), 500
+
+    mconn = get_master_db()
+    mcur = mconn.cursor(buffered=True)
+    mcur.execute("SELECT db_name, subdomain, company_name FROM tenants WHERE id=%s", (application["tenant_id"],))
+    db_name, slug, company_name = mcur.fetchone()
+    mcur.close()
+    mconn.close()
+
+    g.tenant_db = db_name
+    username = application["admin_username"]
+    token = _issue_admin_api_token(username, mfa_verified=True)
+    log_security_event(
+        "auth.admin_login_success", f"App sign-in for '{username}' (role=admin) right after registering",
+        level="INFO", identifier=username, subdomain=slug,
+    )
+    return jsonify({
+        "ok": True, "step": "done", "token": token, "username": username, "role": "admin",
+        "company_slug": slug, "company_name": company_name,
+        "portal_url": f"{_safe_app_url()}/{slug}/login",
+    })
 
 
 @org_bp.route("/api/create_org/profile", methods=["POST"])

@@ -6,6 +6,7 @@
     <title>Platform Admin — SaaS Operator Console</title>
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
+    <link rel="stylesheet" href="{{ static_url('chat.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
     <style>
       :root {
@@ -890,86 +891,91 @@
     </script>
 
     <!-- ═══ PER-TENANT CHAT ═══ -->
-    <div id="tcOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:99998;align-items:center;justify-content:center;padding:20px;">
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;width:100%;max-width:420px;height:520px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;font-family:'Segoe UI',sans-serif;box-shadow:0 24px 60px rgba(15,23,42,0.18);">
-        <div style="background:linear-gradient(135deg,#23268f,#3538cd);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;">
-          <div style="font-size:13px;font-weight:800;" id="tcCompanyName">Chat</div>
-          <button onclick="tenantChatClose()" style="border:none;background:rgba(255,255,255,0.18);color:#fff;width:24px;height:24px;border-radius:7px;cursor:pointer;">&#10005;</button>
+    <div id="tcOverlay" class="hz-chat-overlay" onclick="if (event.target === this) tenantChatClose()">
+      <div class="hz-chat" role="dialog" aria-modal="true" aria-labelledby="tcCompanyName">
+        <div class="hz-chat-head">
+          <div class="hz-chat-avatar" id="tcAvatar" aria-hidden="true"></div>
+          <div class="hz-chat-title">
+            <div class="hz-chat-name" id="tcCompanyName">Chat</div>
+            <div class="hz-chat-sub">Company admin &amp; HR</div>
+          </div>
+          <a class="hz-chat-icon-btn" href="mailto:admin@magzest.tech" title="Escalate by email · admin@magzest.tech"
+             aria-label="Escalate by email to admin@magzest.tech"><i class="ti ti-mail"></i></a>
+          <button type="button" class="hz-chat-icon-btn" onclick="tenantChatClose()" title="Close" aria-label="Close chat"><i class="ti ti-x"></i></button>
         </div>
-        <a href="mailto:admin@magzest.tech" style="display:block;padding:7px 16px;background:#eef2ff;color:#23268f;
-           font-size:11px;font-weight:600;text-decoration:none;border-bottom:1px solid #e0e7ff;">
-          &#9993;&nbsp; Escalate by email &middot; admin@magzest.tech
-        </a>
-        <div id="tcMsgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#f8fafc;"></div>
-        <form id="tcSendForm" style="display:flex;gap:8px;padding:10px;border-top:1px solid #e2e8f0;background:#fff;" onsubmit="return tenantChatSend(event)">
-          <input aria-label="Message this company's admin/HR…" id="tcInput" placeholder="Message this company's admin/HR&hellip;" autocomplete="off"
-                 style="flex:1;padding:9px 12px;border:1px solid #e2e8f0;border-radius:20px;font-size:13px;outline:none;background:#fff;color:#0f172a;">
-          <button type="submit" style="border:none;background:#3538cd;color:#fff;width:36px;height:36px;border-radius:50%;cursor:pointer;">&#10148;</button>
+        <div id="tcMsgs" class="hz-chat-body" aria-live="polite"></div>
+        <form id="tcSendForm" class="hz-chat-compose" onsubmit="return tenantChatSend(event)">
+          <textarea aria-label="Message this company's admin/HR" id="tcInput" rows="1" maxlength="2000"
+                    placeholder="Message this company's admin/HR&hellip;" autocomplete="off"></textarea>
+          <button type="submit" class="hz-chat-send" title="Send" aria-label="Send message"><i class="ti ti-send"></i></button>
         </form>
       </div>
     </div>
+    <script src="{{ static_url('chat.js') }}"></script>
     <script>
       var tcTenantId = null;
       var tcPollTimer = null;
-
-      function tcEscape(s) {
-        var d = document.createElement('div');
-        d.textContent = s || '';
-        return d.innerHTML;
-      }
-
-      function tcBubbleHtml(m) {
-        var mine = m.sender_kind === 'platform_admin';
-        return (
-          '<div style="max-width:82%;align-self:' + (mine ? 'flex-end' : 'flex-start') + ';">' +
-            '<div style="background:' + (mine ? '#3538cd' : '#fff') + ';color:' + (mine ? '#fff' : '#0f172a') + ';border:' + (mine ? 'none' : '1px solid #e2e8f0') + ';border-radius:14px;' +
-              (mine ? 'border-bottom-right-radius:4px;' : 'border-bottom-left-radius:4px;') +
-              'padding:8px 12px;font-size:13px;word-break:break-word;">' + tcEscape(m.message) + '</div>' +
-            '<div style="font-size:10px;color:#64748b;margin-top:2px;' + (mine ? 'text-align:right;' : '') + '">' + tcEscape(m.sender_name) + '</div>' +
-          '</div>'
-        );
-      }
+      var tcMsgs = document.getElementById('tcMsgs');
+      var tcInput = document.getElementById('tcInput');
+      HZChat.wireComposer(document.getElementById('tcSendForm'), tcInput);
 
       function tenantChatOpen(tenantId, companyName) {
         tcTenantId = tenantId;
-        document.getElementById('tcCompanyName').textContent = 'Chat · ' + companyName;
-        document.getElementById('tcOverlay').style.display = 'flex';
-        tenantChatLoad();
+        document.getElementById('tcCompanyName').textContent = companyName;
+        document.getElementById('tcAvatar').textContent = HZChat.initials(companyName);
+        HZChat.reset(tcMsgs);
+        document.getElementById('tcOverlay').classList.add('hz-open');
+        tcInput.focus();
+        tenantChatLoad(true);
         if (tcPollTimer) clearInterval(tcPollTimer);
         tcPollTimer = setInterval(tenantChatLoad, 8000);
       }
 
       function tenantChatClose() {
-        document.getElementById('tcOverlay').style.display = 'none';
+        document.getElementById('tcOverlay').classList.remove('hz-open');
         if (tcPollTimer) { clearInterval(tcPollTimer); tcPollTimer = null; }
         tcTenantId = null;
       }
 
-      function tenantChatLoad() {
+      function tenantChatLoad(force) {
         if (!tcTenantId) return;
-        fetch('/super_admin/chat/' + tcTenantId + '/messages').then(function(r) { return r.json(); }).then(function(data) {
-          if (!data.ok) return;
-          var box = document.getElementById('tcMsgs');
-          box.innerHTML = data.messages.map(tcBubbleHtml).join('') ||
-            '<div style="font-size:12px;color:#64748b;text-align:center;margin-top:20px;">No messages yet.</div>';
-          box.scrollTop = box.scrollHeight;
+        var tenantId = tcTenantId;
+        fetch('/super_admin/chat/' + tenantId + '/messages').then(function(r) { return r.json(); }).then(function(data) {
+          if (!data.ok || tenantId !== tcTenantId) return;      // switched company while this was in flight
+          HZChat.render(tcMsgs, data.messages, {
+            force: force === true,
+            isMine: function(m) { return m.sender_kind === 'platform_admin'; },
+            seenByOther: function(m) { return m.read_by_company; },
+            notice: {text: 'Need it on record? Escalate by email · admin@magzest.tech', href: 'mailto:admin@magzest.tech'},
+            emptyText: 'No messages yet. Say hello 👋',
+          });
         }).catch(function() {});
       }
 
       function tenantChatSend(ev) {
         ev.preventDefault();
         if (!tcTenantId) return false;
-        var input = document.getElementById('tcInput');
-        var text = input.value.trim();
+        var text = tcInput.value.trim();
         if (!text) return false;
-        input.value = '';
+        HZChat.clearComposer(tcInput);
+        var pending = HZChat.addPending(tcMsgs, text);
         fetch('/super_admin/chat/' + tcTenantId + '/send', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({message: text}),
-        }).then(function() { tenantChatLoad(); }).catch(function() {});
+        }).then(function(r) { return r.json(); }).then(function(data) {
+          if (!data.ok) throw new Error(data.msg || 'not sent');
+          pending.done();
+          tenantChatLoad(true);
+        }).catch(function() {
+          pending.fail();
+          if (!tcInput.value) tcInput.value = text;       // never lose what was typed
+        });
         return false;
       }
 
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && tcTenantId) tenantChatClose();
+      });
     </script>
   </body>
 </html>

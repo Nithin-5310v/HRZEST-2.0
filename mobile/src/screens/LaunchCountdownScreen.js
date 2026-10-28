@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Animated,
   ScrollView,
 } from "react-native";
+import SafeAreaView from "../components/SafeAreaView";
 import { Ionicons } from "@expo/vector-icons";
 
 import QRScannerModal from "./QRScannerModal";

@@ -29,3 +29,11 @@ export const getDarkModeEnabled = async () => {
 
 export const setDarkModeEnabled = (enabled) =>
   AsyncStorage.setItem(DARK_MODE_KEY, enabled ? 'true' : 'false');
+
+// The company URL slug last signed in with, so the login screen can fill
+// it in again -- it's in every URL the company's team uses, not a secret.
+const LAST_COMPANY_KEY = '@pref_last_company_slug';
+
+export const getLastCompanySlug = async () => (await AsyncStorage.getItem(LAST_COMPANY_KEY)) || '';
+
+export const setLastCompanySlug = (slug) => AsyncStorage.setItem(LAST_COMPANY_KEY, slug || '');

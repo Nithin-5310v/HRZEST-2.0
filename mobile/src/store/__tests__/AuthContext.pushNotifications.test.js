@@ -17,6 +17,7 @@ jest.mock('../../api/client', () => ({
   adminLogout: jest.fn().mockResolvedValue({}),
   employeeLogout: jest.fn().mockResolvedValue({}),
   setUnauthorizedHandler: jest.fn(),
+  setCompanySlug: jest.fn(),
 }));
 
 jest.mock('expo-secure-store', () => {
@@ -43,6 +44,7 @@ jest.mock('expo-local-authentication', () => ({
 
 jest.mock('../../utils/preferences', () => ({
   getBiometricLockEnabled: jest.fn().mockResolvedValue(false),
+  setLastCompanySlug: jest.fn().mockResolvedValue(undefined),
 }));
 
 // signIn() fires this off after every login -- mocked at this boundary

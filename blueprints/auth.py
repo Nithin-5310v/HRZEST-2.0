@@ -67,14 +67,20 @@ _MFA_OTP_TTL_SEC = 300
 
 def _kyc_verification_blocks_login():
     """True if this tenant's company-KYC review (blueprints/org.py's
-    automated/manual document-verification pipeline) hasn't reached
-    doc_review_status='approved' yet. Blocks ADMIN login entirely for the
-    whole tenant, regardless of which admin_users account is used or
-    whether MFA is configured -- the company as a whole isn't verified
-    yet, not any one account, so gating a single login path would leave
-    others (e.g. an auto-provisioned HR account) able to slip through.
-    Never applies to employee logins (blueprints/auth.py's employee
-    branch never calls this).
+    automated/manual document-verification pipeline) REJECTED its
+    documents. Blocks ADMIN login entirely for the whole tenant, regardless
+    of which admin_users account is used or whether MFA is configured --
+    it's the company that failed review, not any one account, so gating a
+    single login path would leave others (e.g. an auto-provisioned HR
+    account) able to slip through. Never applies to employee logins
+    (blueprints/auth.py's employee branch never calls this).
+
+    Documents not yet uploaded ('pending_documents') or awaiting review
+    ('pending_review') do NOT block: a new company's admin lands in the
+    dashboard straight after registering and uploads the documents from
+    its registration checklist (app.py's inject_registration_checklist).
+    Login used to stay blocked until approval, when documents were part of
+    signup itself.
 
     No tenant_applications row at all -- a legacy pre-KYC tenant, or one
     created via Platform Admin's own always-free direct-create tool,
@@ -98,15 +104,15 @@ def _kyc_verification_blocks_login():
         row = cur.fetchone()
         cur.close()
         db.close()
-        return bool(row) and row[0] != "approved"
+        return bool(row) and row[0] == "rejected"
     except Exception as exc:
         app_log.warning("_kyc_verification_blocks_login: check failed, failing open: %s", exc)
         return False
 
 
-_KYC_PENDING_LOGIN_MSG = (
-    "Your company's documents are still being verified -- this is usually automatic and "
-    "takes under a minute. Please check back shortly."
+_KYC_REJECTED_LOGIN_MSG = (
+    "Your company's documents were not approved. Check the email we sent for the reason and a "
+    "link to upload corrected documents, or contact support."
 )
 
 
@@ -394,6 +400,23 @@ def switch_back_to_hr_panel():
     return redirect(tpath("/hr_dashboard"))
 
 
+def begin_admin_session(username, role):
+    """Starts a fresh logged-in admin session for admin_users `username` in
+    the current company (g.tenant_db) -- shared by the password login, the
+    emailed-code login (mfa_verify) and a new company's admin landing in
+    its dashboard right after registering (org._log_in_new_company_admin).
+    Clears the session first, so a pre-login session can't be fixed onto
+    the logged-in one."""
+    session.clear()
+    session["admin_logged_in"] = True
+    session["admin_username"] = username
+    session["admin_role"] = role
+    session["_session_created"] = time.time()
+    session.permanent = True
+    ensure_session_id(session)
+    stamp_password_version("admin_users", username)
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @auth_bp.route("/admin_login", methods=["GET", "POST"])
 @auth_bp.route("/admin-login", methods=["GET", "POST"])
@@ -485,7 +508,7 @@ def admin_login():
                 )
             _clear_login_failures(identifier)
             if _kyc_verification_blocks_login():
-                return render_template("admin_login.html", co=co, error=_KYC_PENDING_LOGIN_MSG)
+                return render_template("admin_login.html", co=co, error=_KYC_REJECTED_LOGIN_MSG)
             # Upgrade legacy hash to bcrypt on first successful login
             if admin_row[0] and not admin_row[0].startswith("$2"):
                 with _db() as (_uc, _ud):
@@ -495,14 +518,7 @@ def admin_login():
             if app.config["MANDATORY_LOGIN_MFA"]:
                 return _start_login_mfa(co, "admin_login.html", "admin_users", identifier, admin_row[2],
                                         "Executive Administrator" if admin_row[1] == "admin" else admin_row[1].title())
-            session.clear()
-            session["admin_logged_in"] = True
-            session["admin_username"] = identifier
-            session["admin_role"] = admin_row[1]
-            session["_session_created"] = time.time()
-            session.permanent = True
-            ensure_session_id(session)
-            stamp_password_version("admin_users", identifier)
+            begin_admin_session(identifier, admin_row[1])
             log_security_event(
                 "auth.admin_login_success", f"Admin login for '{identifier}' (role={admin_row[1]})",
                 level="INFO", identifier=identifier,
@@ -606,14 +622,7 @@ def mfa_verify():
                 # to admin/manager/hr sessions) doesn't also demand a
                 # separate authenticator-app enrollment right after.
                 mark_totp_enabled(username)
-                session.clear()
-                session["admin_logged_in"] = True
-                session["admin_username"] = username
-                session["admin_role"] = role
-                session["_session_created"] = time.time()
-                session.permanent = True
-                ensure_session_id(session)
-                stamp_password_version("admin_users", username)
+                begin_admin_session(username, role)
                 if row[1]:
                     notify_if_new_login_ip(username, "admin", request.remote_addr, username, row[1])
                 if role == HR_ROLE:

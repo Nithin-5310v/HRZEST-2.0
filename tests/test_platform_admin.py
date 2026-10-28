@@ -1075,6 +1075,35 @@ class TestChat:
         assert resp.status_code == 400
         assert resp.get_json()["ok"] is False
 
+    def test_messages_carry_zoned_time_and_read_flags(self, client, tenant_row):
+        """The chat shows each message's time and sent/seen ticks: created_at
+        must carry its UTC offset (a bare timestamp is read as browser-local
+        time, hours off when the database runs in UTC) and each message says
+        which side has read it."""
+        from datetime import datetime
+        from utils import chat_utils
+        chat_utils.send_message("att_chat_test_co", "admin", "co_admin", "Hi from the company")
+        _login_platform_admin(client)
+        client.post(f"/super_admin/chat/{tenant_row}/send", json={"message": "Hi back"})
+
+        messages = client.get(f"/super_admin/chat/{tenant_row}/messages").get_json()["messages"]
+        assert [m["message"] for m in messages] == ["Hi from the company", "Hi back"]
+        for m in messages:
+            assert datetime.fromisoformat(m["created_at"]).utcoffset() is not None
+        # Platform just read the thread; the company hasn't opened it since the reply.
+        assert messages[0]["read_by_platform"] is True and messages[0]["read_by_company"] is True
+        assert messages[1]["read_by_platform"] is True and messages[1]["read_by_company"] is False
+
+        chat_utils.mark_read("att_chat_test_co", "company")
+        assert chat_utils.list_messages("att_chat_test_co")[1]["read_by_company"] is True
+
+    def test_long_thread_shows_the_newest_messages(self, tenant_row):
+        from utils import chat_utils
+        for i in range(5):
+            chat_utils.send_message("att_chat_test_co", "admin", "co_admin", f"message {i}")
+        assert [m["message"] for m in chat_utils.list_messages("att_chat_test_co", limit=3)] == [
+            "message 2", "message 3", "message 4"]
+
 
 # ===========================================================================
 # Audit log (browsable view over security_events, scoped to

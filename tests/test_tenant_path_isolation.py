@@ -27,12 +27,13 @@ def _drop_schema(db_engine, schema_name):
 
 
 def _provision(client, monkeypatch, subdomain, admin_email):
-    """Walks the whole signup wizard (tests/signup_flow.py: account, email
-    code, company profile, documents, then platform-admin approval) so the
-    fixture ends with a real, live tenant schema whose admin signs in with
-    admin_email."""
+    """Walks the whole signup (tests/signup_flow.py: company name and
+    account, email code, then the dashboard's company details and
+    documents, then platform-admin approval) so the fixture ends with a
+    real, live tenant schema whose admin signs in with admin_email. The
+    company is named after its URL, which is made from the name."""
     from tests.signup_flow import signup_company
-    application_id = signup_company(client, monkeypatch, admin_email, f"{subdomain} Inc", subdomain)
+    application_id = signup_company(client, monkeypatch, admin_email, subdomain)
 
     with client.session_transaction() as sess:
         sess["platform_admin_logged_in"] = True

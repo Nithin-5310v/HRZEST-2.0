@@ -8,15 +8,19 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import SafeAreaView from "../../components/SafeAreaView";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 
-import { uploadCompanyDocuments } from "../api/client";
-import { useTheme } from "../store/ThemeContext";
-import SignupSteps from "../components/signup/SignupSteps";
+import AdminHeader from "../../components/admin/AdminHeader";
+import { uploadRegistrationDocuments } from "../../api/client";
+import { useTheme } from "../../store/ThemeContext";
 
+// The registration checklist's business documents (RegistrationChecklist
+// on the dashboard): the same four files as the website's
+// /settings/company_verification, reviewed after the fact -- the company
+// is already live while they're checked.
 const DOC_SLOTS = [
   { key: "registration_cert", label: "Company Registration Certificate", hint: "PDF, JPG or PNG", icon: "document-text-outline", pickType: "document" },
   { key: "address_proof", label: "Address Proof", hint: "Utility bill, lease agreement, or similar — PDF, JPG or PNG", icon: "location-outline", pickType: "document" },
@@ -24,10 +28,9 @@ const DOC_SLOTS = [
   { key: "name_board_photo", label: "Office Name-Board Photo", hint: "Photo of your office entrance/name-board", icon: "image-outline", pickType: "image" },
 ];
 
-export default function CompanyDocumentUploadScreen({ navigation, route }) {
+export default function RegistrationDocumentsScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
-  const { applicationId, accessToken, companyName } = route.params;
 
   const [files, setFiles] = useState({});
   const [uploading, setUploading] = useState(false);
@@ -70,43 +73,33 @@ export default function CompanyDocumentUploadScreen({ navigation, route }) {
     }
     setUploading(true);
     const formData = new FormData();
-    formData.append("application_id", String(applicationId));
-    formData.append("access_token", accessToken);
     DOC_SLOTS.forEach((slot) => {
       formData.append(slot.key, files[slot.key]);
     });
 
     let res;
     try {
-      res = await uploadCompanyDocuments(formData);
+      res = await uploadRegistrationDocuments(formData);
     } catch (err) {
       res = err?.response;
     }
     setUploading(false);
     if (res?.data?.ok) {
-      navigation.navigate("CompanySignupPending", { applicationId, accessToken, companyName });
+      setFiles({});
+      Alert.alert("Documents Submitted", res.data.msg || "We'll review them shortly.");
+      navigation.navigate("Dashboard");
     } else {
       Alert.alert("Upload Failed", res?.data?.msg || "Could not submit your documents.");
     }
   };
 
   return (
-    <LinearGradient colors={["#0F172A", "#1E3A8A", "#173B8C"]} style={styles.bg}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <View style={styles.header}>
-          <View style={styles.logoCircle}>
-            <Ionicons name="cloud-upload-outline" size={30} color="#173B8C" />
-          </View>
-          <Text style={styles.title}>Upload Business Documents</Text>
-          <Text style={styles.subtitle}>Almost there — we need these to verify {companyName || "your company"}.</Text>
-        </View>
-
-        <SignupSteps current={4} />
-
+    <SafeAreaView style={styles.container}>
+      <AdminHeader title="Business Documents" subtitle="COMPLETE REGISTRATION" navigation={navigation} />
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={styles.intro}>
+          Your company is already live — these confirm your business details for our records.
+        </Text>
         <View style={styles.card}>
           {DOC_SLOTS.map((slot) => {
             const picked = files[slot.key];
@@ -118,7 +111,7 @@ export default function CompanyDocumentUploadScreen({ navigation, route }) {
                 activeOpacity={0.8}
               >
                 <View style={styles.docIcon}>
-                  <Ionicons name={picked ? "checkmark-circle" : slot.icon} size={22} color={picked ? "#16A34A" : "#173B8C"} />
+                  <Ionicons name={picked ? "checkmark-circle" : slot.icon} size={22} color={picked ? colors.success : colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.docLabel}>{slot.label}</Text>
@@ -134,35 +127,28 @@ export default function CompanyDocumentUploadScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const makeStyles = (colors) => StyleSheet.create({
-  bg: { flex: 1 },
-  scroll: { flexGrow: 1, paddingHorizontal: 22, paddingVertical: 32 },
-  backBtn: { width: 40, height: 40, justifyContent: "center", marginBottom: 8 },
-  header: { alignItems: "center", marginBottom: 24 },
-  logoCircle: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: "#FFFFFF",
-    justifyContent: "center", alignItems: "center", marginBottom: 16,
-  },
-  title: { fontSize: 18, fontWeight: "800", color: "#FFFFFF", textAlign: "center" },
-  subtitle: { fontSize: 12.5, color: "rgba(255,255,255,0.75)", textAlign: "center", marginTop: 8, lineHeight: 18, paddingHorizontal: 8 },
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollContent: { padding: 16, paddingBottom: 110 },
+  intro: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 14 },
   card: {
-    backgroundColor: colors.card, borderRadius: 24, padding: 18,
-    shadowColor: "#0F172A", shadowOpacity: 0.12, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 8,
+    backgroundColor: colors.surface, borderRadius: 16, padding: 16,
+    shadowColor: "#0F172A", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
   docSlot: {
     flexDirection: "row", alignItems: "center", padding: 14, borderRadius: 14,
     backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, marginBottom: 12,
   },
-  docSlotFilled: { borderColor: "#16A34A" },
+  docSlotFilled: { borderColor: colors.success },
   docIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.blueBg, justifyContent: "center", alignItems: "center", marginRight: 12 },
   docLabel: { fontSize: 13, fontWeight: "700", color: colors.text },
   docHint: { fontSize: 11.5, color: colors.textLight, marginTop: 2 },
   submitBtn: {
-    height: 48, borderRadius: 14, backgroundColor: "#173B8C",
+    height: 48, borderRadius: 14, backgroundColor: colors.primary,
     justifyContent: "center", alignItems: "center", marginTop: 6,
   },
   submitBtnText: { fontSize: 13, fontWeight: "800", color: "#FFFFFF" },

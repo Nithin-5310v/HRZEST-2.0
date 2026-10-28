@@ -19,9 +19,10 @@ Run with:
 """
 import pytest
 
+from extensions import app as flask_app
 from tests.signup_flow import (
-    MOBILE, application_id_from, capture_codes, random_gst, signup_company, signup_to_profile,
-    start_signup, submit_profile, verify_email,
+    MOBILE, application_id_from, capture_codes, company_slug, random_gst, save_company_details, signup_company,
+    signup_verified, start_signup, submit_profile, upload_documents, verify_email,
 )
 
 _random_gst = random_gst   # other test modules import it from here
@@ -189,41 +190,98 @@ class TestFeedbackSubmission:
 
 
 class TestSignupValidation:
-    """Step 1 (POST /create_org) takes just the account -- email, mobile
-    number, password. Anything wrong sends the visitor back to the form
-    before an application exists."""
+    """Signup is one step (POST /create_org): the company name and the
+    admin's account -- email, mobile number, password. Anything wrong sends
+    the visitor back to the form before an application exists."""
 
     @pytest.mark.parametrize("field, value", [
+        ("company_name", ""), ("company_name", "!!! ---"), ("company_name", "x" * 201),
         ("admin_email", ""), ("admin_email", "not-an-email"),
         ("admin_email", "a" * 45 + "@x.test"),   # over 50 characters: it's the login username
         ("admin_mobile", ""), ("admin_mobile", "12345"), ("admin_mobile", "98765abcde"),
         ("admin_password", ""), ("admin_password", "short"),
     ])
-    def test_bad_account_field_rejected(self, client, monkeypatch, field, value):
+    def test_bad_field_rejected(self, client, monkeypatch, field, value):
         codes = capture_codes(monkeypatch)
-        data = {"admin_email": "valid@account.test", "admin_mobile": MOBILE, "admin_password": "password123"}
+        data = {"company_name": "Valid Account Co", "admin_email": "valid@account.test", "admin_mobile": MOBILE,
+                "admin_password": "password123"}
         data[field] = value
         resp = client.post("/create_org", data=data, follow_redirects=False)
         assert resp.headers["Location"] == "/create_org"
         assert codes == []
 
-    def test_valid_account_starts_an_application_with_the_email_as_username(self, client, db_engine, monkeypatch):
+    def test_valid_signup_starts_an_application_with_the_email_as_username(self, client, db_engine, monkeypatch):
         codes = capture_codes(monkeypatch)
-        resp = start_signup(client, "  Owner@Account-Start.TEST ", mobile="+91 98765-43210")
+        resp = start_signup(client, "  Owner@Account-Start.TEST ", "  Account   Start  Co ", mobile="+91 98765-43210")
         assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
         assert codes, "the verification code must be emailed"
         cur = db_engine.cursor()
-        cur.execute("SELECT admin_username, admin_email, admin_mobile, email_domain, company_name, status "
+        cur.execute("SELECT admin_username, admin_email, admin_mobile, email_domain, company_name, subdomain, status "
                     "FROM att_master.tenant_applications WHERE id=%s", (application_id_from(resp),))
         row = cur.fetchone()
         cur.close()
+        # The company URL is picked when the code is verified, not before.
         assert row == ("owner@account-start.test", "owner@account-start.test", "+919876543210",
-                       "account-start.test", "", "started")
+                       "account-start.test", "Account Start Co", "", "started")
 
 
-class TestCompanyProfileStep:
-    """Step 3 (/create_org/profile): the company's name, GSTIN, URL and logo,
-    only once the email code checks out."""
+class TestOneStepSignupPage:
+    """The code is entered on the signup page itself -- there are no
+    separate wizard steps any more."""
+
+    def test_signup_form_asks_only_for_the_company_name_and_account(self, client):
+        page = client.get("/create_org").get_data(as_text=True)
+        for field in ("company_name", "admin_email", "admin_mobile", "admin_password"):
+            assert f'name="{field}"' in page, field
+        for field in ("gst_number", "subdomain", "logo", "otp_code"):
+            assert f'name="{field}"' not in page, field
+        assert "wizard-step" not in page
+
+    def test_portal_preview_uses_this_servers_address(self, client):
+        """The company URL preview shows where the portal really lives --
+        this server's own address (APP_URL, the live server's IP
+        address there) -- not a hard-coded www.hrzest.com, which is another
+        server."""
+        from utils.helpers import _safe_app_url
+        with flask_app.test_request_context("/create_org"):
+            base = _safe_app_url()
+        page = client.get("/create_org").get_data(as_text=True)
+        assert f"{base}/your-company/login" in page
+        assert "www.hrzest.com/your-company" not in page
+
+    def test_code_entry_is_the_signup_page_with_the_details_locked_in(self, client, monkeypatch):
+        capture_codes(monkeypatch)
+        resp = start_signup(client, "lockedin@code.test", "Locked In Co")
+        page = client.get(resp.headers["Location"]).get_data(as_text=True)
+        assert "Start Your Organisation" in page
+        assert "Locked In Co" in page and "lockedin@code.test" in page
+        assert 'name="otp_code"' in page and 'action="/create_org/verify_otp"' in page
+        assert 'action="/create_org/resend_otp"' in page and "Change details" in page
+        assert 'name="admin_password"' not in page and "wizard-step" not in page
+
+    def test_code_entry_without_the_signup_session_starts_over(self, client, monkeypatch):
+        capture_codes(monkeypatch)
+        application_id = application_id_from(start_signup(client, "nosession@code.test"))
+        with client.session_transaction() as sess:
+            sess.pop("org_access_token", None)
+        resp = client.get(f"/create_org/verify_otp?application_id={application_id}")
+        assert resp.headers["Location"] == "/create_org"
+
+
+class TestLegacyProfileStep:
+    """An application whose email was verified before step 1 asked for the
+    company name still finishes at the old company-profile form."""
+
+    def _verified_without_company(self, client, db_engine, monkeypatch, email):
+        codes = capture_codes(monkeypatch)
+        application_id = application_id_from(start_signup(client, email))
+        cur = db_engine.cursor()
+        cur.execute("UPDATE att_master.tenant_applications SET company_name='' WHERE id=%s", (application_id,))
+        cur.close()
+        db_engine.commit()
+        resp = verify_email(client, application_id, codes[-1])
+        assert resp.headers["Location"] == f"/create_org/profile?application_id={application_id}"
+        return application_id
 
     def test_profile_needs_a_verified_email(self, client, monkeypatch):
         capture_codes(monkeypatch)
@@ -233,35 +291,24 @@ class TestCompanyProfileStep:
         resp = submit_profile(client, application_id, "Too Early Co", "too-early-co")
         assert resp.headers["Location"] == "/create_org"
 
-    def test_profile_page_offers_the_company_fields_and_plans(self, client, monkeypatch):
-        application_id = signup_to_profile(client, monkeypatch, "page@profile.test")
-        page = client.get(f"/create_org/profile?application_id={application_id}").get_data(as_text=True)
-        assert 'action="/create_org/profile"' in page and "Set Up Your Company Profile" in page
-        for field in ("company_name", "gst_number", "subdomain", "logo", "signup_plan", "application_id"):
-            assert f'name="{field}"' in page, field
-        assert 'id="planOptionPayNow"' in page and 'name="admin_password"' not in page
-
-    def test_code_page_sends_an_already_verified_applicant_on_to_the_profile(self, client, monkeypatch):
-        application_id = signup_to_profile(client, monkeypatch, "again@profile.test")
-        resp = verify_email(client, application_id, "000000")
-        assert resp.headers["Location"] == f"/create_org/profile?application_id={application_id}"
-
-    @pytest.mark.parametrize("company_name, subdomain, gst, message", [
-        ("", "blank-name-co", "", "required"),
-        ("No Gst Co", "no-gst-co", "", "GST"),
-        ("Bad Gst Co", "bad-gst-co", "not-a-real-gstin", "valid"),
-        ("Evil Org", "login", None, "reserved"),
-        ("Evil Org", "api", None, "reserved"),
-        ("Evil Org", "webhooks", None, "reserved"),
-    ])
-    def test_bad_profile_returns_to_the_profile_form(self, client, monkeypatch, company_name, subdomain, gst, message):
-        application_id = signup_to_profile(client, monkeypatch, f"bad-{subdomain}@profile.test")
-        data = {"application_id": str(application_id), "company_name": company_name, "subdomain": subdomain,
-                "gst_number": random_gst() if gst is None else gst}
-        resp = client.post("/create_org/profile", data=data, content_type="multipart/form-data")
-        assert resp.headers["Location"] == f"/create_org/profile?application_id={application_id}"
-        page = client.get(resp.headers["Location"]).get_data(as_text=True)
-        assert message.lower() in page.lower()
+    def test_profile_still_creates_an_old_applications_company(self, client, db_engine, monkeypatch):
+        from app import init_master_db
+        init_master_db()
+        subdomain = "legacy-profile-co"
+        schema_name = "att_" + subdomain.replace("-", "_")
+        _drop_schema(db_engine, schema_name)
+        try:
+            application_id = self._verified_without_company(client, db_engine, monkeypatch, "legacy@profile.test")
+            assert "Set Up Your Company Profile" in client.get(
+                f"/create_org/profile?application_id={application_id}").get_data(as_text=True)
+            resp = submit_profile(client, application_id, "Legacy Profile Co", subdomain)
+            assert resp.headers["Location"] == f"/create_org/upload_documents?application_id={application_id}"
+            cur = db_engine.cursor()
+            cur.execute("SELECT status FROM att_master.tenant_applications WHERE id=%s", (application_id,))
+            assert cur.fetchone()[0] == "provisioned"
+            cur.close()
+        finally:
+            _drop_schema(db_engine, schema_name)
 
 
 class TestDevModeSignupStillVerifiesEmail:
@@ -281,7 +328,7 @@ class TestDevModeSignupStillVerifiesEmail:
         cur.close()
         return row
 
-    def test_signup_emails_a_code_and_shows_the_verify_screen(self, client, db_engine, monkeypatch):
+    def test_signup_emails_a_code_and_shows_the_code_entry(self, client, db_engine, monkeypatch):
         codes = capture_codes(monkeypatch)
         resp = start_signup(client, self._EMAIL)
         assert resp.status_code == 302
@@ -307,15 +354,15 @@ class TestDevModeSignupStillVerifiesEmail:
 
 
 # ===========================================================================
-# Full provisioning — real schema creation, one end-to-end test
+# Full provisioning -- real schema creation
 # ===========================================================================
 
-class TestGatedSignupFlow:
-    """The web wizard end to end: the account (POST /create_org) only
-    starts an application and emails a code; the company profile, after
-    the code, provisions the company (blueprints/org.py's
-    _provision_application_instantly()); KYC documents follow and are
-    reviewed after the fact. These tests walk the real pipeline."""
+class TestSignupFlow:
+    """Signup end to end: step 1 only starts an application and emails a
+    code; the code creates the company (blueprints/org.py's
+    _create_signup_company) and logs its admin into the dashboard, whose
+    checklist collects the GSTIN, the KYC documents (reviewed after the
+    fact) and payment. These tests walk the real pipeline."""
 
     def _login_platform_admin(self, client):
         import time as _time
@@ -325,18 +372,20 @@ class TestGatedSignupFlow:
             sess["platform_admin_last_activity"] = _time.time()
 
     def test_full_flow_provisions_real_tenant_schema(self, client, db_engine, monkeypatch):
-        """The company is provisioned the moment its profile is submitted --
-        before any document is uploaded, let alone reviewed by a platform
-        admin. KYC review still happens, but it's tracked separately
-        (doc_review_status) and no longer gates login/schema creation."""
+        """The company is provisioned the moment the code is verified --
+        before its GSTIN or any document. KYC review still happens, but it's
+        tracked separately (doc_review_status) and doesn't gate login or
+        schema creation."""
         from app import init_master_db
         init_master_db()
 
-        subdomain = "e2e-gated-org"
+        company_name = "E2E Gated Org"
+        subdomain = company_slug(company_name)
         schema_name = "att_" + subdomain.replace("-", "_")
         _drop_schema(db_engine, schema_name)
+        gst = random_gst()
         try:
-            application_id = signup_company(client, monkeypatch, "e2e-gated@test.local", "E2E Gated Org", subdomain)
+            application_id = signup_company(client, monkeypatch, "e2e-gated@test.local", company_name, gst_number=gst)
 
             cur = db_engine.cursor()
             cur.execute(
@@ -344,20 +393,19 @@ class TestGatedSignupFlow:
             )
             assert cur.fetchone() is not None, "tenant schema was not created"
 
-            cur.execute("SELECT db_name, status, plan, subscription_status, admin_email FROM att_master.tenants "
-                        "WHERE subdomain=%s", (subdomain,))
+            cur.execute("SELECT db_name, status, plan, subscription_status, admin_email, gst_number "
+                        "FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             row = cur.fetchone()
             assert row is not None, "tenant was not registered in att_master.tenants"
             assert row[0] == schema_name
             assert row[1] == "active"
             import utils.plan_limits as plan_limits
             assert row[2] == plan_limits.PLAN_LABEL
-            # subscription_status='trialing' regardless of the chosen
-            # payment_option ("online" here, the default) -- nobody pays
-            # upfront anymore under this flow, see provision_tenant()'s
-            # subscription_status parameter.
+            # Every self-serve company starts trialing -- nobody pays
+            # upfront; auto-debit is the checklist's payment step.
             assert row[3] == "trialing"
             assert row[4] == "e2e-gated@test.local"
+            assert row[5] == gst
 
             # The admin's login username is their email; the mobile number
             # from step 1 becomes the company's contact phone.
@@ -368,34 +416,94 @@ class TestGatedSignupFlow:
             assert cur.fetchone()[0] == "+919876543210"
 
             cur.execute(
-                "SELECT status, tenant_id, doc_review_status FROM att_master.tenant_applications WHERE id=%s",
-                (application_id,)
+                "SELECT status, tenant_id, doc_review_status, gst_number FROM att_master.tenant_applications "
+                "WHERE id=%s", (application_id,)
             )
             app_row = cur.fetchone()
             assert app_row[0] == "provisioned"
             assert app_row[1] is not None
             # Documents were uploaded (inside signup_company) and
-            # auto-approved in that same call -- no human/AI review is
-            # awaited before login works.
+            # auto-approved in that same call.
             assert app_row[2] == "approved"
+            assert app_row[3] == gst
 
             # A platform-admin "approve" click against an application
-            # that's already auto-approved is a harmless no-op (the
-            # underlying guard just declines to re-approve) -- it must
+            # that's already auto-approved is a harmless no-op -- it must
             # NOT attempt to re-provision or change tenants.status.
             self._login_platform_admin(client)
             resp = client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
             assert resp.status_code in (301, 302)
-
             cur.execute(
                 "SELECT status, doc_review_status FROM att_master.tenant_applications WHERE id=%s",
                 (application_id,)
             )
-            app_row = cur.fetchone()
-            assert app_row[0] == "provisioned"
-            assert app_row[1] == "approved"
+            assert cur.fetchone() == ("provisioned", "approved")
             cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             assert cur.fetchone()[0] == "active", "approval must not touch an already-active tenant's status"
+            cur.close()
+        finally:
+            _drop_schema(db_engine, schema_name)
+
+    def test_the_code_opens_the_dashboard_with_the_registration_checklist(self, client, db_engine, monkeypatch):
+        from app import init_master_db
+        init_master_db()
+
+        company_name = "E2E Straight In"
+        slug = company_slug(company_name)
+        schema_name = "att_" + slug.replace("-", "_")
+        _drop_schema(db_engine, schema_name)
+        try:
+            _application_id, landed = signup_verified(client, monkeypatch, "straightin@test.local", company_name)
+            assert landed == slug
+            with client.session_transaction() as sess:
+                assert sess.get("admin_logged_in") is True
+                assert sess.get("admin_username") == "straightin@test.local"
+                assert sess.get("tenant_slug") == slug and sess.get("tenant_db") == schema_name
+                assert "org_access_token" not in sess
+
+            page = client.get(f"/{slug}/admin").get_data(as_text=True)
+            assert "Complete your registration" in page and "0 of 3 done" in page
+            for path in ("/settings/company_details", "/settings/company_verification", "/settings?tab=billing"):
+                assert f'href="/{slug}{path}"' in page, path
+
+            assert save_company_details(client, slug).headers["Location"] == f"/{slug}/admin"
+            assert "1 of 3 done" in client.get(f"/{slug}/admin").get_data(as_text=True)
+
+            upload_documents(client, slug)   # auto-approved in tests
+            assert "2 of 3 done" in client.get(f"/{slug}/admin").get_data(as_text=True)
+
+            # Payment: an active auto-debit mandate finishes the checklist.
+            cur = db_engine.cursor()
+            cur.execute("INSERT INTO att_master.auto_debit_mandates (tenant_schema, company_name, status) "
+                        "VALUES (%s, %s, 'active')", (schema_name, company_name))
+            cur.close()
+            db_engine.commit()
+            assert "Complete your registration" not in client.get(f"/{slug}/admin").get_data(as_text=True)
+        finally:
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM att_master.auto_debit_mandates WHERE tenant_schema=%s", (schema_name,))
+            cur.close()
+            db_engine.commit()
+            _drop_schema(db_engine, schema_name)
+
+    def test_company_details_needs_a_valid_gstin(self, client, db_engine, monkeypatch):
+        from app import init_master_db
+        init_master_db()
+
+        company_name = "E2E Bad Gstin"
+        slug = company_slug(company_name)
+        schema_name = "att_" + slug.replace("-", "_")
+        _drop_schema(db_engine, schema_name)
+        try:
+            signup_verified(client, monkeypatch, "badgstin@test.local", company_name)
+            for bad in (" ", "not-a-real-gstin"):
+                resp = save_company_details(client, slug, gst_number=bad)
+                assert resp.headers["Location"] == f"/{slug}/settings/company_details"
+            page = client.get(f"/{slug}/settings/company_details").get_data(as_text=True)
+            assert "GSTIN" in page and 'name="gst_number"' in page
+            cur = db_engine.cursor()
+            cur.execute("SELECT gst_number FROM att_master.tenants WHERE subdomain=%s", (slug,))
+            assert cur.fetchone()[0] is None
             cur.close()
         finally:
             _drop_schema(db_engine, schema_name)
@@ -406,11 +514,12 @@ class TestGatedSignupFlow:
         from app import init_master_db
         init_master_db()
 
-        subdomain = "e2e-email-login"
+        company_name = "Email Login Org"
+        subdomain = company_slug(company_name)
         schema_name = "att_" + subdomain.replace("-", "_")
         _drop_schema(db_engine, schema_name)
         try:
-            signup_company(client, monkeypatch, "owner@emaillogin.test", "Email Login Org", subdomain)
+            signup_company(client, monkeypatch, "owner@emaillogin.test", company_name)
             with client.session_transaction() as sess:
                 sess.clear()
             resp = client.post(f"/{subdomain}/login", data={
@@ -423,94 +532,75 @@ class TestGatedSignupFlow:
         finally:
             _drop_schema(db_engine, schema_name)
 
-    def test_subdomain_colliding_with_master_registry_schema_rejected(self, client, db_engine, monkeypatch):
-        # "master" is caught by the reserved-subdomain blocklist on the
-        # profile step, before anything is provisioned.
+    def test_company_named_like_a_reserved_url_gets_a_numbered_one(self, client, db_engine, monkeypatch):
+        """"master" is both reserved and the master registry's own schema
+        (att_master) -- a company called Master gets /master-2 and its
+        tables never land in att_master."""
         from app import init_master_db
         init_master_db()
-
-        application_id = signup_to_profile(client, monkeypatch, "evil@test.local")
-        resp = submit_profile(client, application_id, "Evil Org", "master")
-        assert resp.headers.get("Location") == f"/create_org/profile?application_id={application_id}"
-
-        cur = db_engine.cursor()
-        cur.execute(
-            "SELECT 1 FROM information_schema.tables "
-            "WHERE table_schema='att_master' AND table_name='admin_users'"
-        )
-        polluted = cur.fetchone() is not None
-        cur.close()
-        assert not polluted, "tenant schema migration leaked into the master registry schema"
-
-    def test_taken_company_url_returns_to_the_profile_to_pick_another(self, client, db_engine, monkeypatch):
-        # Company URL availability is enforced when the profile provisions
-        # the company. A second applicant asking for a taken URL comes back
-        # to the profile form, application intact, and can choose another.
-        from app import init_master_db
-        init_master_db()
-
-        subdomain, other = "e2e-dup-org", "e2e-dup-org-two"
-        schemas = ["att_" + s.replace("-", "_") for s in (subdomain, other)]
-        for schema in schemas:
-            _drop_schema(db_engine, schema)
+        _drop_schema(db_engine, "att_master_2")
         try:
-            # One signup at a time: /create_org's org_access_token lives in
-            # the session cookie, so a second start replaces the first's.
-            app1 = signup_company(client, monkeypatch, "dup1@test.local", "Dup Org One", subdomain, documents=False)
-
-            app2 = signup_to_profile(client, monkeypatch, "dup2@test.local")
-            resp = submit_profile(client, app2, "Dup Org Two", subdomain)
-            assert resp.headers["Location"] == f"/create_org/profile?application_id={app2}"
-            assert b"already taken" in client.get(resp.headers["Location"]).data
-
+            _application_id, slug = signup_verified(client, monkeypatch, "master@reserved.test", "Master")
+            assert slug == "master-2"
             cur = db_engine.cursor()
-            cur.execute("SELECT status, tenant_id FROM att_master.tenant_applications WHERE id=%s", (app1,))
-            row1 = cur.fetchone()
-            assert row1[0] == "provisioned" and row1[1] is not None
-            cur.execute("SELECT status, tenant_id FROM att_master.tenant_applications WHERE id=%s", (app2,))
-            row2 = cur.fetchone()
-            assert row2[0] == "otp_verified", "a failed provisioning attempt must not silently mark provisioned"
-            assert row2[1] is None
-            cur.execute("SELECT COUNT(*) FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
-            assert cur.fetchone()[0] == 1, "only the first applicant's tenant should exist"
-
-            resp = submit_profile(client, app2, "Dup Org Two", other)
-            assert resp.headers["Location"] == f"/create_org/upload_documents?application_id={app2}"
-            cur.execute("SELECT status FROM att_master.tenant_applications WHERE id=%s", (app2,))
-            assert cur.fetchone()[0] == "provisioned"
+            cur.execute("SELECT 1 FROM information_schema.tables "
+                        "WHERE table_schema='att_master' AND table_name='admin_users'")
+            assert cur.fetchone() is None, "tenant schema migration leaked into the master registry schema"
             cur.close()
         finally:
-            for schema in schemas:
-                _drop_schema(db_engine, schema)
+            _drop_schema(db_engine, "att_master_2")
+
+    def test_taken_company_url_gets_the_next_number(self, client, db_engine, monkeypatch):
+        """A URL already held by a differently named company (e.g. one a
+        platform admin created by hand) moves the new company to -2."""
+        from app import init_master_db
+        init_master_db()
+
+        company_name = "E2E Taken Url"
+        taken = company_slug(company_name)
+        schema_name = "att_" + taken.replace("-", "_") + "_2"
+        _drop_schema(db_engine, schema_name)
+        cur = db_engine.cursor()
+        cur.execute("DELETE FROM att_master.tenants WHERE subdomain=%s", (taken,))
+        cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name) VALUES (%s, %s, %s)",
+                    ("Unrelated Holder Ltd", taken, "att_" + taken.replace("-", "_")))
+        cur.close()
+        db_engine.commit()
+        try:
+            _application_id, slug = signup_verified(client, monkeypatch, "takenurl@test.local", company_name)
+            assert slug == f"{taken}-2"
+        finally:
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM att_master.tenants WHERE subdomain=%s", (taken,))
+            cur.close()
+            db_engine.commit()
+            _drop_schema(db_engine, schema_name)
 
     def test_duplicate_company_name_blocked_with_generic_message_and_alert(self, client, db_engine, monkeypatch):
         from app import init_master_db
         init_master_db()
 
-        subdomain = "e2e-dupname-org"
+        company_name = "Acme Duplicate Test"
+        subdomain = company_slug(company_name)
         schema_name = "att_" + subdomain.replace("-", "_")
         _drop_schema(db_engine, schema_name)
         try:
-            application_id = signup_company(client, monkeypatch, "dupname@test.local", "Acme Duplicate Test",
-                                            subdomain)
-            self._login_platform_admin(client)
-            client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
-
-            cur = db_engine.cursor()
-            cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
-            assert cur.fetchone()[0] == "active"
+            signup_company(client, monkeypatch, "dupname@test.local", company_name)
+            with client.session_transaction() as sess:
+                sess.clear()
 
             # A second, unrelated registrant tries the SAME company name
-            # (different case/whitespace) -- must be blocked with a
+            # (different case/whitespace) -- blocked at step 1 with a
             # generic message that never reveals the real owner's details.
-            # Deliberately a DIFFERENT GST: this isolates the name match.
-            app2 = signup_to_profile(client, monkeypatch, "impersonator@test.local")
-            resp = submit_profile(client, app2, "  acme duplicate test  ", "some-other-slug")
-            page = client.get(resp.headers["Location"])
-            assert page.status_code == 200
+            codes = capture_codes(monkeypatch)
+            resp = start_signup(client, "impersonator@test.local", "  acme duplicate test  ")
+            assert resp.headers["Location"] == "/create_org"
+            assert codes == []
+            page = client.get("/create_org")
             assert b"already" in page.data
             assert b"dupname@test.local" not in page.data
 
+            cur = db_engine.cursor()
             cur.execute(
                 "SELECT conflicting_company_name, conflicting_admin_email "
                 "FROM att_master.tenant_duplicate_alerts WHERE attempted_admin_email=%s",
@@ -518,8 +608,7 @@ class TestGatedSignupFlow:
             )
             alert = cur.fetchone()
             assert alert is not None, "duplicate attempt was not recorded for platform-admin review"
-            assert alert[0] == "Acme Duplicate Test"
-            assert alert[1] == "dupname@test.local"
+            assert alert == ("Acme Duplicate Test", "dupname@test.local")
             cur.execute("DELETE FROM att_master.tenant_duplicate_alerts WHERE attempted_admin_email=%s",
                         ("impersonator@test.local",))
             db_engine.commit()
@@ -557,19 +646,19 @@ class TestGatedSignupFlow:
 
     def test_application_rejected_by_platform_admin_suspends_provisioned_tenant(self, client, db_engine, monkeypatch):
         """The tenant is already live by the time a platform admin ever
-        gets to review its KYC documents (provisioning happens with the
-        company profile) -- rejection can no longer "prevent"
-        provisioning, so it suspends the already-live tenant instead,
-        reusing the same enforcement utils/tenant_routing.py already
-        applies to any platform-admin-suspended tenant."""
+        gets to review its KYC documents -- rejection can't "prevent"
+        provisioning, so it suspends the live tenant instead, reusing the
+        same enforcement utils/tenant_routing.py already applies to any
+        platform-admin-suspended tenant."""
         from app import init_master_db
         init_master_db()
 
-        subdomain = "e2e-reject-org"
+        company_name = "Reject Me Org"
+        subdomain = company_slug(company_name)
         schema_name = "att_" + subdomain.replace("-", "_")
         _drop_schema(db_engine, schema_name)
         try:
-            application_id = signup_company(client, monkeypatch, "reject@test.local", "Reject Me Org", subdomain)
+            application_id = signup_company(client, monkeypatch, "reject@test.local", company_name)
             cur = db_engine.cursor()
             cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             assert cur.fetchone()[0] == "active", "tenant should already be live before any review happens"
@@ -583,11 +672,7 @@ class TestGatedSignupFlow:
                 "SELECT status, doc_review_status, rejection_reason FROM att_master.tenant_applications WHERE id=%s",
                 (application_id,)
             )
-            row = cur.fetchone()
-            assert row[0] == "provisioned", "status must stay 'provisioned' -- the tenant still exists"
-            assert row[1] == "rejected"
-            assert row[2] == "Documents did not match."
-
+            assert cur.fetchone() == ("provisioned", "rejected", "Documents did not match.")
             cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
             assert cur.fetchone()[0] == "suspended", "a rejected review must suspend the live tenant"
             cur.close()
@@ -596,84 +681,67 @@ class TestGatedSignupFlow:
 
     def test_duplicate_gst_blocked_even_with_a_wholly_different_company_name(self, client, db_engine, monkeypatch):
         """The trial-abuse case check_duplicate_name() alone can't catch:
-        the same real business re-registers under a completely different
-        company name (no string similarity at all) to get a second free
-        trial. check_duplicate_gst() must block this even though the name
-        check would let it straight through."""
+        the same real business registers again under a completely different
+        company name. Its GSTIN, entered in the dashboard's company details,
+        must be refused."""
         from app import init_master_db
         init_master_db()
 
-        subdomain = "e2e-gstdupe-org"
-        schema_name = "att_" + subdomain.replace("-", "_")
+        first, second = "Gst Dupe Org One", "A Totally Different Business"
+        schemas = ["att_" + company_slug(name).replace("-", "_") for name in (first, second)]
         shared_gst = _random_gst()
-        _drop_schema(db_engine, schema_name)
+        for schema in schemas:
+            _drop_schema(db_engine, schema)
         try:
-            application_id = signup_company(client, monkeypatch, "gstdupe1@test.local", "Gst Dupe Org One",
-                                            subdomain, gst_number=shared_gst)
-            self._login_platform_admin(client)
-            client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
+            signup_company(client, monkeypatch, "gstdupe1@test.local", first, gst_number=shared_gst)
 
-            cur = db_engine.cursor()
-            cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
-            assert cur.fetchone()[0] == "active"
-
-            # Wholly unrelated company name/URL/email -- only the GST
-            # number is reused.
-            app2 = signup_to_profile(client, monkeypatch, "gstimpersonator@test.local")
-            resp = submit_profile(client, app2, "A Totally Different Business", "totally-different-biz", shared_gst)
+            # Wholly unrelated company name/URL/email -- only the GSTIN
+            # is reused.
+            _application_id, slug = signup_verified(client, monkeypatch, "gstimpersonator@test.local", second)
+            resp = save_company_details(client, slug, gst_number=shared_gst)
+            assert resp.headers["Location"] == f"/{slug}/settings/company_details"
             page = client.get(resp.headers["Location"])
-            assert page.status_code == 200
             assert b"already" in page.data
             assert b"gstdupe1@test.local" not in page.data
 
+            cur = db_engine.cursor()
             cur.execute(
                 "SELECT match_type, conflicting_admin_email FROM att_master.tenant_duplicate_alerts "
-                "WHERE attempted_admin_email=%s",
-                ("gstimpersonator@test.local",)
+                "WHERE attempted_admin_email=%s", ("gstimpersonator@test.local",)
             )
-            alert = cur.fetchone()
-            assert alert is not None, "GST duplicate attempt was not recorded for platform-admin review"
-            assert alert[0] == "gst"
-            assert alert[1] == "gstdupe1@test.local"
-
-            cur.execute("SELECT 1 FROM att_master.tenants WHERE subdomain=%s", ("totally-different-biz",))
-            assert cur.fetchone() is None, "a GST-duplicate signup must never reach provisioning"
-
+            assert cur.fetchone() == ("gst", "gstdupe1@test.local"), "GST duplicate attempt was not recorded"
+            cur.execute("SELECT gst_number FROM att_master.tenants WHERE subdomain=%s", (slug,))
+            assert cur.fetchone()[0] is None, "a duplicate GSTIN must never be saved"
             cur.execute("DELETE FROM att_master.tenant_duplicate_alerts WHERE attempted_admin_email=%s",
-                        ("gstimpersonator@test.local",))
-            cur.execute("DELETE FROM att_master.tenant_applications WHERE admin_email=%s",
                         ("gstimpersonator@test.local",))
             db_engine.commit()
             cur.close()
         finally:
-            _drop_schema(db_engine, schema_name)
+            for schema in schemas:
+                _drop_schema(db_engine, schema)
 
-    def test_duplicate_admin_email_blocked_even_with_different_name_and_gst(self, client, db_engine, monkeypatch):
+    def test_duplicate_admin_email_blocked_even_with_a_different_company_name(self, client, db_engine, monkeypatch):
         """Same trial-abuse case as GST above: the registrant only reuses
-        their own email address -- caught at the account step, before any
-        company details are asked for."""
+        their own email address -- caught at step 1."""
         from app import init_master_db
         init_master_db()
 
-        subdomain = "e2e-emaildupe-org"
-        schema_name = "att_" + subdomain.replace("-", "_")
+        company_name = "Email Dupe Org One"
+        schema_name = "att_" + company_slug(company_name).replace("-", "_")
         shared_email = "emaildupe-owner@test.local"
         _drop_schema(db_engine, schema_name)
         try:
-            application_id = signup_company(client, monkeypatch, shared_email, "Email Dupe Org One", subdomain)
-            self._login_platform_admin(client)
-            client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
-
+            signup_company(client, monkeypatch, shared_email, company_name)
+            with client.session_transaction() as sess:
+                sess.clear()
             cur = db_engine.cursor()
-            cur.execute("SELECT status FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
-            assert cur.fetchone()[0] == "active"
             cur.execute("SELECT COUNT(*) FROM att_master.tenant_applications WHERE admin_email=%s", (shared_email,))
             applications_before = cur.fetchone()[0]
 
             # Case/whitespace-varied but the same real address -- must
             # still be caught.
             codes = capture_codes(monkeypatch)
-            resp = start_signup(client, f"  {shared_email.upper()}  ")
+            resp = start_signup(client, f"  {shared_email.upper()}  ", "Wholly Unrelated Venture")
             assert resp.headers["Location"] == "/create_org"
             assert codes == []
             assert b"already" in client.get("/create_org").data
@@ -692,6 +760,39 @@ class TestGatedSignupFlow:
             cur.close()
         finally:
             _drop_schema(db_engine, schema_name)
+
+
+class TestCompanyUrlFromName:
+    """org._slug_for_company(): the company URL step 1's name turns into."""
+
+    @pytest.mark.parametrize("name, slug", [
+        ("Acme Pvt. Ltd.", "acme-pvt-ltd"),
+        ("  ACME   Corp  ", "acme-corp"),
+        ("R&D -- Labs 24x7", "r-d-labs-24x7"),
+        ("x" * 60, "x" * 40),
+        ("Login", "login-2"),        # reserved path segment
+        ("API", "api-2"),
+        ("!!! ---", None),
+    ])
+    def test_slug(self, name, slug):
+        from blueprints.org import _slug_for_company
+        assert _slug_for_company(name) == slug
+
+    def test_numbered_slug_stays_within_the_length_limit(self, db_engine):
+        from blueprints.org import _slug_for_company
+        base = "y" * 40
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name) VALUES (%s, %s, %s)",
+                    ("Long Name Holder", base, "att_" + base))
+        cur.close()
+        db_engine.commit()
+        try:
+            assert _slug_for_company("Y" * 60) == "y" * 38 + "-2"
+        finally:
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM att_master.tenants WHERE subdomain=%s", (base,))
+            cur.close()
+            db_engine.commit()
 
 
 class TestCompanyNameFuzzyMatching:

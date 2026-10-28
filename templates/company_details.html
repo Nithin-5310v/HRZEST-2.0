@@ -1,0 +1,65 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Company Details{% endblock %}
+
+{% block page_css %}
+<style>
+  .cd-wrap { max-width: 640px; margin: 0 auto; padding: 8px 0 32px; }
+  .cd-header { margin-bottom: 22px; }
+  .cd-header h1 { font-size: 21px; font-weight: 800; }
+  .cd-header p { font-size: 13px; color: var(--text-muted, #64748b); margin-top: 4px; }
+  .cd-card { background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e2e8f0); border-radius: 14px; padding: 26px; }
+  .cd-facts { background: var(--bg-secondary, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); border-radius: 10px; padding: 12px 14px; margin-bottom: 22px; font-size: 13px; }
+  .cd-fact { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; flex-wrap: wrap; }
+  .cd-fact-label { font-weight: 700; min-width: 110px; color: var(--text-muted, #64748b); }
+  .cd-fact-value { word-break: break-all; }
+  .cd-field { margin-bottom: 18px; }
+  .cd-label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .cd-hint { font-size: 12px; color: var(--text-muted, #64748b); margin-bottom: 8px; }
+  .cd-input { width: 100%; padding: 11px 14px; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; font-size: 13.5px; background: var(--bg-secondary, #f8fafc); }
+  .cd-logo { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted, #64748b); margin-top: 6px; }
+  .cd-logo img { width: 40px; height: 40px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0); background: #fff; }
+  .cd-submit { width: 100%; padding: 13px; border: none; border-radius: 8px; background: #1d4ed8; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 6px; }
+  body.dark-mode .cd-card { background: #161b22; border-color: #30363d; }
+  body.dark-mode .cd-facts { background: #0d1117; border-color: #30363d; }
+  body.dark-mode .cd-header p, body.dark-mode .cd-hint, body.dark-mode .cd-fact-label, body.dark-mode .cd-logo { color: #8b949e; }
+</style>
+{% endblock %}
+
+{% block main %}
+<div class="cd-wrap">
+  <div class="cd-header">
+    <h1>Company Details</h1>
+    <p>Your GSTIN confirms your company is a real, distinct business. Your logo appears in your team's dashboards.</p>
+  </div>
+  <div class="cd-card">
+    <div class="cd-facts">
+      <div class="cd-fact"><span class="cd-fact-label">Company</span><span class="cd-fact-value">{{ co.company_name }}</span></div>
+      <div class="cd-fact"><span class="cd-fact-label">Team portal</span><span class="cd-fact-value">{{ portal_url }}</span></div>
+    </div>
+
+    <form method="POST" action="{{ tpath('/settings/company_details') }}" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+
+      <div class="cd-field">
+        <label class="cd-label" for="cdGstNumber"><i class="ti ti-file-invoice"></i> GST / Business Registration Number</label>
+        <div class="cd-hint">The 15-character GSTIN, e.g. 27AAAAA0000A1Z5.</div>
+        <input class="cd-input" type="text" name="gst_number" id="cdGstNumber" value="{{ gst_number }}" required maxlength="15"
+               pattern="[0-9]{2}[A-Za-z]{5}[0-9]{4}[A-Za-z][1-9A-Za-z]Z[0-9A-Za-z]" title="15-character GSTIN, e.g. 27AAAAA0000A1Z5"
+               oninput="this.value = this.value.toUpperCase().replace(/\s+/g, '')" />
+      </div>
+
+      <div class="cd-field">
+        <label class="cd-label" for="cdLogo"><i class="ti ti-photo"></i> Company Logo (optional)</label>
+        <div class="cd-hint">JPG, PNG, WEBP or BMP, up to 5&nbsp;MB.</div>
+        <input class="cd-input" type="file" name="logo" id="cdLogo" accept="image/jpeg,image/png,image/webp,image/bmp" />
+        {% if co.logo_url %}
+        <div class="cd-logo"><img src="{{ co.logo_url }}" alt="Current company logo" /> Current logo — choosing a new file replaces it.</div>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="cd-submit">Save Company Details</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

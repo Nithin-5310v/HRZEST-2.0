@@ -28,20 +28,6 @@
     }
     .page-intro h1 { font-family: var(--font-heading); font-size: 24px; font-weight: 800; margin-bottom: 6px; }
     .page-intro p { font-size: 14px; color: var(--text-muted); }
-    .wizard-steps { display: flex; align-items: flex-start; justify-content: center; margin-bottom: 24px; }
-    .wizard-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 1 84px; min-width: 0; }
-    .wizard-step-circle {
-      width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 700; background: var(--bg-secondary); border: 1.5px solid var(--border-color);
-      color: var(--text-subtle); transition: var(--transition-fast);
-    }
-    .wizard-step-label { font-size: 10px; font-weight: 600; color: var(--text-subtle); text-align: center; letter-spacing: 0.2px; }
-    .wizard-step.active .wizard-step-circle { background: var(--gradient-brand); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35); }
-    .wizard-step.active .wizard-step-label { color: var(--text-main); }
-    .wizard-step.done .wizard-step-circle { background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.3); color: var(--accent-emerald); }
-    .wizard-step.done .wizard-step-label { color: var(--text-muted); }
-    .wizard-step-line { flex: 1; max-width: 40px; height: 2px; background: var(--border-color); margin-top: 15px; }
-    .wizard-step-line.done { background: var(--accent-emerald); }
     .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 28px; box-shadow: var(--shadow-lg); }
     .field-group { margin-bottom: 18px; }
     .field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 7px; display: block; }
@@ -84,8 +70,6 @@
       <h1>{{ company_name }}</h1>
       <p>Your application was approved — complete payment to activate your portal.</p>
     </div>
-    {% set current_step = 5 %}
-    {% include "_org_wizard_steps.html" %}
     <div class="card">
       <div id="formError" class="alert alert-error"></div>
 

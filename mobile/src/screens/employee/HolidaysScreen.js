@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   View,
   Text,
@@ -9,6 +8,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 import { Ionicons } from "@expo/vector-icons";
 
 import ProfileHeader from "../../components/profile/ProfileHeader";
