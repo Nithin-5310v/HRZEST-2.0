@@ -3,9 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 // Shown over an attendance scanner's camera when it failed to start (see
-// useCameraHandoff): a reason instead of a black preview, a restart, and --
-// on the face step -- the phone's own camera as a way through.
-export default function CameraStartupOverlay({ camera, onUsePhoneCamera }) {
+// useCameraHandoff): a reason instead of a black preview, a restart, on the
+// face step the phone's own camera as a way through, and a way out -- it
+// covers the screen's own back/close button.
+export default function CameraStartupOverlay({ camera, onUsePhoneCamera, onCancel }) {
   if (!camera.error) return null;
   return (
     <View style={styles.overlay}>
@@ -19,6 +20,11 @@ export default function CameraStartupOverlay({ camera, onUsePhoneCamera }) {
         <TouchableOpacity style={styles.secondaryBtn} onPress={onUsePhoneCamera} activeOpacity={0.85}>
           <Ionicons name="camera-outline" size={16} color="#fff" />
           <Text style={styles.secondaryTxt}>Use phone camera</Text>
+        </TouchableOpacity>
+      ) : null}
+      {onCancel ? (
+        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+          <Text style={styles.cancelTxt}>Cancel</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -39,4 +45,6 @@ const styles = StyleSheet.create({
     borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
   },
   secondaryTxt: { color: "#fff", fontWeight: "600", fontSize: 14, marginLeft: 8 },
+  cancelBtn: { marginTop: 18, padding: 8 },
+  cancelTxt: { color: "rgba(255,255,255,0.6)", fontSize: 14 },
 });

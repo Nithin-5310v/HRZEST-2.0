@@ -24,7 +24,15 @@ export default function useCameraHandoff(active, ...deps) {
   const key = `${depsKey}-${attempt}`;
 
   useEffect(() => {
-    if (!active) return undefined;
+    if (!active) {
+      // Released -- no permission yet, the phone's camera app in use, the
+      // scanner closed: the next activation waits for a fresh handoff and a
+      // fresh onCameraReady, even for the same step.
+      setReadyFor(null);
+      setOpenFor(null);
+      setAutoRetriedFor(null);
+      return undefined;
+    }
     const timer = setTimeout(() => setReadyFor(key), CAMERA_HANDOFF_DELAY_MS);
     return () => clearTimeout(timer);
   }, [active, key]);

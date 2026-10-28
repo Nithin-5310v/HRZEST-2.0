@@ -65,7 +65,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   const cameraRef = useRef(null);
   const [usingPhoneCamera, setUsingPhoneCamera] = useState(false);
   const camera = useCameraHandoff(
-    (step === 'qr' || step === 'face') && !!permission?.granted && !usingPhoneCamera, step, facing,
+    visible && (step === 'qr' || step === 'face') && !!permission?.granted && !usingPhoneCamera, step, facing,
   );
   const scannedEmpIdRef = useRef(null);
 
@@ -337,11 +337,15 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   };
 
   const captureWithPhoneCamera = async () => {
-    if (processing) return;
+    if (processing || usingPhoneCamera) return;
     setUsingPhoneCamera(true);
-    await new Promise((r) => setTimeout(r, CAMERA_HANDOFF_DELAY_MS));
-    const photo = await takeSelfieWithPhoneCamera();
-    setUsingPhoneCamera(false);
+    let photo = null;
+    try {
+      await new Promise((r) => setTimeout(r, CAMERA_HANDOFF_DELAY_MS));
+      photo = await takeSelfieWithPhoneCamera();
+    } finally {
+      setUsingPhoneCamera(false); // the in-app camera comes back either way
+    }
     if (!photo) return;
     if (authMethod === COMBO_QR_FACE) {
       await submitAttendance({ face: photo, empId: scannedEmpIdRef.current || employeeId });
@@ -568,7 +572,10 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
               onCameraReady={camera.onCameraReady}
             />
           )}
-          <CameraStartupOverlay camera={camera} />
+          <CameraStartupOverlay
+            camera={camera}
+            onCancel={availCombos.length > 1 ? () => setStep('method') : onClose}
+          />
 
           <View style={styles.topBar}>
             <TouchableOpacity
@@ -706,7 +713,11 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
               onCameraReady={camera.onCameraReady}
             />
           )}
-          <CameraStartupOverlay camera={camera} onUsePhoneCamera={captureWithPhoneCamera} />
+          <CameraStartupOverlay
+            camera={camera}
+            onUsePhoneCamera={captureWithPhoneCamera}
+            onCancel={isFaceFP ? () => setStep('fingerprint') : resetFlow}
+          />
 
           <View style={styles.topBar}>
             <TouchableOpacity

@@ -24,7 +24,7 @@ export default function QRScannerModal({ visible, onClose }) {
   const cameraRef = useRef(null);
   const [usingPhoneCamera, setUsingPhoneCamera] = useState(false);
   const camera = useCameraHandoff(
-    (step === 'qr' || step === 'face') && !!permission?.granted && !usingPhoneCamera, step, facing,
+    visible && (step === 'qr' || step === 'face') && !!permission?.granted && !usingPhoneCamera, step, facing,
   );
 
   useEffect(() => {
@@ -198,11 +198,15 @@ export default function QRScannerModal({ visible, onClose }) {
   };
 
   const captureWithPhoneCamera = async () => {
-    if (processing) return;
+    if (processing || usingPhoneCamera) return;
     setUsingPhoneCamera(true);
-    await new Promise((r) => setTimeout(r, CAMERA_HANDOFF_DELAY_MS));
-    const photo = await takeSelfieWithPhoneCamera();
-    setUsingPhoneCamera(false);
+    let photo = null;
+    try {
+      await new Promise((r) => setTimeout(r, CAMERA_HANDOFF_DELAY_MS));
+      photo = await takeSelfieWithPhoneCamera();
+    } finally {
+      setUsingPhoneCamera(false); // the in-app camera comes back either way
+    }
     if (photo) await submitCheckin({ empId: employeeId, combo: 'qr_face', photo });
   };
 
@@ -295,7 +299,7 @@ export default function QRScannerModal({ visible, onClose }) {
               onCameraReady={camera.onCameraReady}
             />
           )}
-          <CameraStartupOverlay camera={camera} />
+          <CameraStartupOverlay camera={camera} onCancel={onClose} />
 
           {/* Top bar */}
           <View style={styles.topBar}>
@@ -363,7 +367,7 @@ export default function QRScannerModal({ visible, onClose }) {
               onCameraReady={camera.onCameraReady}
             />
           )}
-          <CameraStartupOverlay camera={camera} onUsePhoneCamera={captureWithPhoneCamera} />
+          <CameraStartupOverlay camera={camera} onUsePhoneCamera={captureWithPhoneCamera} onCancel={resetToQR} />
 
           {/* Top bar */}
           <View style={styles.topBar}>

@@ -71,6 +71,21 @@ it('reports a mount error straight away', async () => {
   expect(result.current.error).toBe('Camera could not be started');
 });
 
+it("waits for a fresh handoff and a fresh ready after being released (back from the phone's camera)", async () => {
+  const { result, rerender } = await renderCamera({ active: true, step: 'face', facing: 'front' });
+  await tick(CAMERA_HANDOFF_DELAY_MS);
+  await act(async () => result.current.onCameraReady());
+  expect(result.current.open).toBe(true);
+
+  await rerender({ active: false, step: 'face', facing: 'front' });
+  expect(result.current.ready).toBe(false);
+  await rerender({ active: true, step: 'face', facing: 'front' });
+  expect(result.current.ready).toBe(false);
+  await tick(CAMERA_HANDOFF_DELAY_MS);
+  expect(result.current.ready).toBe(true);
+  expect(result.current.open).toBe(false);
+});
+
 it('does nothing while inactive (no permission yet, or the phone camera in use)', async () => {
   const { result } = await renderCamera({ active: false, step: 'qr', facing: 'back' });
   await tick(CAMERA_HANDOFF_DELAY_MS + START_TIMEOUT_MS * 3);
