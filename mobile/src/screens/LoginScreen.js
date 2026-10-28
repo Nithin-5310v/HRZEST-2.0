@@ -5,14 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   adminLogin,
@@ -20,13 +19,12 @@ import {
   employeeLogin,
 } from "../api/client";
 import { useAuth } from "../store/AuthContext";
-import { useTheme } from "../store/ThemeContext";
 import QRScannerModal from "./QRScannerModal";
+import { WEB, WebPage, WebTopBar, WebNavButton, WebCard, WebCardHeader, WebButton, webAuthStyles } from "../theme/webAuthStyle";
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
-  const { colors } = useTheme();
-  const styles = React.useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState("admin"); // 'admin' | 'employee'
 
   // Admin login states
@@ -167,87 +165,51 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <LinearGradient colors={["#0F172A", "#1E3A8A", "#173B8C"]} style={styles.bg}>
+    <WebPage>
       <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
+      <WebTopBar
+        style={{ paddingTop: insets.top + 14 }}
+        right={<WebNavButton title="Register a Company" icon="business-outline" onPress={() => navigation.navigate("CompanySignup")} />}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[webAuthStyles.scroll, styles.scroll]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.logoCircle}>
-              <Ionicons
-                name={tab === "admin" ? "shield-checkmark" : "people"}
-                size={32}
-                color="#173B8C"
-              />
-            </View>
-
-            <Text style={styles.title}>Employee Attendance</Text>
-            <Text style={styles.companyText}>Enterprise Workforce Platform</Text>
-
-            <View style={styles.headerBadge}>
-              <Ionicons name="lock-closed-outline" size={12} color="#FFFFFF" style={{ marginRight: 5 }} />
-              <Text style={styles.badgeText}>Encrypted & Verified</Text>
-            </View>
+          {/* Admin / Employee: which sign-in the card below runs */}
+          <View style={styles.tabs}>
+            {[["admin", "shield-checkmark-outline", "Admin"], ["employee", "person-outline", "Employee"]].map(([key, icon, label]) => (
+              <TouchableOpacity
+                key={key}
+                activeOpacity={0.85}
+                style={[styles.tab, tab === key && styles.tabActive]}
+                onPress={() => setTab(key)}
+              >
+                <Ionicons name={icon} size={15} color={tab === key ? WEB.brand : WEB.textSubtle} />
+                <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {/* Segmented Tab Switcher - Clean 2 Tab Design */}
-          <View style={styles.tabsContainer}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[styles.tabBtn, tab === "admin" && styles.tabBtnActive]}
-              onPress={() => setTab("admin")}
-            >
-              <Ionicons
-                name="shield-outline"
-                size={16}
-                color={tab === "admin" ? "#173B8C" : "#94A3B8"}
-              />
-              <Text style={[styles.tabText, tab === "admin" && styles.tabTextActive]}>
-                Admin
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[styles.tabBtn, tab === "employee" && styles.tabBtnActive]}
-              onPress={() => setTab("employee")}
-            >
-              <Ionicons
-                name="person-outline"
-                size={16}
-                color={tab === "employee" ? "#173B8C" : "#94A3B8"}
-              />
-              <Text style={[styles.tabText, tab === "employee" && styles.tabTextActive]}>
-                Employee
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Form Card */}
-          <View style={styles.card}>
+          <WebCard>
             {tab === "admin" && challengeId ? (
               <>
-                <View style={styles.formHeader}>
-                  <Text style={styles.formTitle}>Check Your Email</Text>
-                  <Text style={styles.formSubtitle}>
-                    Enter the 6-digit code we sent to the email on this account. It expires in 5 minutes.
-                  </Text>
-                </View>
+                <WebCardHeader
+                  icon="mail-open-outline"
+                  title="Check Your Email"
+                  subtitle="Enter the 6-digit code we sent to the email on this account. It expires in 5 minutes."
+                />
 
-                <Text style={styles.label}>VERIFICATION CODE</Text>
-                <View style={styles.inputRow}>
-                  <Ionicons name="key-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                <View style={webAuthStyles.field}>
+                  <Text style={webAuthStyles.label}>Verification Code</Text>
                   <TextInput
-                    style={styles.input}
-                    placeholder="123456"
-                    placeholderTextColor={colors.textLight}
+                    style={[webAuthStyles.input, styles.codeInput]}
+                    placeholder="000000"
+                    placeholderTextColor={WEB.textSubtle}
                     value={otpCode}
                     onChangeText={(v) => setOtpCode(v.replace(/[^0-9]/g, "").slice(0, 6))}
                     keyboardType="number-pad"
@@ -257,431 +219,173 @@ export default function LoginScreen({ navigation }) {
                   />
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.submitBtn}
-                  onPress={handleVerifyAdminCode}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.submitBtnText}>Verify & Sign In</Text>
-                  )}
-                </TouchableOpacity>
+                <WebButton title="Verify & Continue" onPress={handleVerifyAdminCode} loading={loading} />
 
-                <TouchableOpacity
-                  style={{ alignSelf: 'center', marginTop: 12 }}
-                  onPress={resetAdminCodeStep}
-                  disabled={loading}
-                >
-                  <Text style={{ color: '#173B8C', fontSize: 13, fontWeight: '600' }}>Start over</Text>
-                </TouchableOpacity>
-              </>
-            ) : tab === "admin" ? (
-              <>
-                <View style={styles.formHeader}>
-                  <Text style={styles.formTitle}>Admin Portal</Text>
-                  <Text style={styles.formSubtitle}>Sign in to manage company attendance</Text>
-                </View>
-
-                <Text style={styles.label}>EMAIL OR USERNAME</Text>
-                <View style={styles.inputRow}>
-                  <Ionicons name="person-outline" size={18} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter your email or username"
-                    placeholderTextColor={colors.textLight}
-                    value={username}
-                    onChangeText={setUsername}
-                    autoCapitalize="none"
-                  />
-                </View>
-
-                <Text style={styles.label}>PASSWORD</Text>
-                <View style={styles.inputRow}>
-                  <Ionicons name="lock-closed-outline" size={18} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter password"
-                    placeholderTextColor={colors.textLight}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPass}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-                    <Ionicons
-                      name={showPass ? "eye-off-outline" : "eye-outline"}
-                      size={18}
-                      color="#64748B"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.submitBtn}
-                  onPress={handleAdminLogin}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.submitBtnText}>Sign In as Admin</Text>
-                  )}
-                </TouchableOpacity>
-
-                {__DEV__ && (
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#EFF6FF",
-                      borderColor: "#BFDBFE",
-                      borderWidth: 1,
-                      borderRadius: 10,
-                      paddingVertical: 9,
-                      marginTop: 12,
-                    }}
-                    onPress={() => {
-                      setUsername("admin");
-                      setPassword("admin123");
-                    }}
-                  >
-                    <Ionicons name="flash-outline" size={15} color="#1D4ED8" style={{ marginRight: 6 }} />
-                    <Text style={{ color: "#1D4ED8", fontSize: 13, fontWeight: "700" }}>
-                      Quick Fill Admin (dev only)
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                <TouchableOpacity
-                  style={{ alignSelf: 'center', marginTop: 12 }}
-                  onPress={handleForgotPassword}
-                >
-                  <Text style={{ color: '#173B8C', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
+                <TouchableOpacity style={styles.centerLink} onPress={resetAdminCodeStep} disabled={loading}>
+                  <Text style={webAuthStyles.linkMuted}>← Start over</Text>
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <View style={styles.formHeader}>
-                  <Text style={styles.formTitle}>Employee Portal</Text>
-                  <Text style={styles.formSubtitle}>Sign in to check-in and access self service</Text>
-                </View>
+                <WebCardHeader
+                  icon="shield-checkmark"
+                  title="Sign In to Your Workspace"
+                  subtitle={tab === "admin" ? "Admin, HR and manager accounts" : "Employee self service and check-in"}
+                />
 
-                <Text style={styles.label}>EMPLOYEE ID</Text>
-                <View style={styles.inputRow}>
-                  <Ionicons name="id-card-outline" size={18} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter employee ID"
-                    placeholderTextColor={colors.textLight}
-                    value={empId}
-                    onChangeText={setEmpId}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                  />
-                </View>
-
-                <Text style={styles.label}>PASSWORD</Text>
-                <View style={styles.inputRow}>
-                  <Ionicons name="lock-closed-outline" size={18} color="#64748B" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter password"
-                    placeholderTextColor={colors.textLight}
-                    value={empPassword}
-                    onChangeText={setEmpPassword}
-                    secureTextEntry={!showPass}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-                    <Ionicons
-                      name={showPass ? "eye-off-outline" : "eye-outline"}
-                      size={18}
-                      color="#64748B"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.submitBtn}
-                  onPress={handleEmployeeLogin}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.submitBtnText}>Sign In as Employee</Text>
-                  )}
-                </TouchableOpacity>
-
-                {__DEV__ && (
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#F0FDF4",
-                      borderColor: "#BBF7D0",
-                      borderWidth: 1,
-                      borderRadius: 10,
-                      paddingVertical: 9,
-                      marginTop: 12,
-                    }}
-                    onPress={() => {
-                      setEmpId("EMP-1001");
-                      setEmpPassword("welcome123");
-                    }}
-                  >
-                    <Ionicons name="flash-outline" size={15} color="#15803D" style={{ marginRight: 6 }} />
-                    <Text style={{ color: "#15803D", fontSize: 13, fontWeight: "700" }}>
-                      Quick Fill Employee (dev only)
-                    </Text>
-                  </TouchableOpacity>
+                {tab === "admin" ? (
+                  <>
+                    <View style={webAuthStyles.field}>
+                      <Text style={webAuthStyles.label}>Email or Username</Text>
+                      <TextInput
+                        style={webAuthStyles.input}
+                        placeholder="Enter your email or username"
+                        placeholderTextColor={WEB.textSubtle}
+                        value={username}
+                        onChangeText={setUsername}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
+                    <View style={webAuthStyles.field}>
+                      <Text style={webAuthStyles.label}>Password</Text>
+                      <View>
+                        <TextInput
+                          style={[webAuthStyles.input, styles.passwordInput]}
+                          placeholder="Enter your password"
+                          placeholderTextColor={WEB.textSubtle}
+                          value={password}
+                          onChangeText={setPassword}
+                          secureTextEntry={!showPass}
+                          autoCapitalize="none"
+                        />
+                        <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                          <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color={WEB.textSubtle} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <WebButton title="Sign In" onPress={handleAdminLogin} loading={loading} />
+                    {__DEV__ && (
+                      <TouchableOpacity
+                        style={styles.devFill}
+                        onPress={() => {
+                          setUsername("admin");
+                          setPassword("admin123");
+                        }}
+                      >
+                        <Ionicons name="flash-outline" size={14} color={WEB.brand} style={{ marginRight: 6 }} />
+                        <Text style={styles.devFillText}>Quick Fill Admin (dev only)</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <View style={webAuthStyles.field}>
+                      <Text style={webAuthStyles.label}>Employee ID</Text>
+                      <TextInput
+                        style={webAuthStyles.input}
+                        placeholder="Enter your employee ID"
+                        placeholderTextColor={WEB.textSubtle}
+                        value={empId}
+                        onChangeText={setEmpId}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                      />
+                    </View>
+                    <View style={webAuthStyles.field}>
+                      <Text style={webAuthStyles.label}>Password</Text>
+                      <View>
+                        <TextInput
+                          style={[webAuthStyles.input, styles.passwordInput]}
+                          placeholder="Enter your password"
+                          placeholderTextColor={WEB.textSubtle}
+                          value={empPassword}
+                          onChangeText={setEmpPassword}
+                          secureTextEntry={!showPass}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                        <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                          <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color={WEB.textSubtle} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <WebButton title="Sign In" onPress={handleEmployeeLogin} loading={loading} />
+                    {__DEV__ && (
+                      <TouchableOpacity
+                        style={styles.devFill}
+                        onPress={() => {
+                          setEmpId("EMP-1001");
+                          setEmpPassword("welcome123");
+                        }}
+                      >
+                        <Ionicons name="flash-outline" size={14} color={WEB.brand} style={{ marginRight: 6 }} />
+                        <Text style={styles.devFillText}>Quick Fill Employee (dev only)</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
                 )}
 
-                <TouchableOpacity
-                  style={{ alignSelf: 'center', marginTop: 12 }}
-                  onPress={handleForgotPassword}
-                >
-                  <Text style={{ color: '#173B8C', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
-                </TouchableOpacity>
-
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>QUICK OPTIONS</Text>
-                  <View style={styles.dividerLine} />
+                {/* The website's links row: kiosk on the left, password reset on the right */}
+                <View style={styles.linksRow}>
+                  {tab === "employee" ? (
+                    <TouchableOpacity onPress={() => setShowScanner(true)} style={styles.kioskLink}>
+                      <Ionicons name="qr-code-outline" size={14} color={WEB.textSubtle} style={{ marginRight: 5 }} />
+                      <Text style={webAuthStyles.linkMuted}>Scan Attendance QR</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View />
+                  )}
+                  <TouchableOpacity onPress={handleForgotPassword}>
+                    <Text style={webAuthStyles.link}>Forgot Password?</Text>
+                  </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.scanBtn}
-                  onPress={() => setShowScanner(true)}
-                >
-                  <Ionicons name="qr-code-outline" size={18} color="#173B8C" />
-                  <Text style={styles.scanBtnText}>Scan Attendance QR Code</Text>
-                </TouchableOpacity>
-
+                <View style={webAuthStyles.helpBox}>
+                  <Text style={webAuthStyles.helpText}>
+                    <Text style={webAuthStyles.helpStrong}>Sign In Help</Text> — Use your{" "}
+                    {tab === "admin" ? (
+                      <><Text style={webAuthStyles.helpStrong}>email</Text> or <Text style={webAuthStyles.helpStrong}>username</Text></>
+                    ) : (
+                      <Text style={webAuthStyles.helpStrong}>employee ID</Text>
+                    )}{" "}
+                    to continue.
+                  </Text>
+                </View>
               </>
             )}
-          </View>
-
-          <TouchableOpacity
-            style={styles.registerLink}
-            onPress={() => navigation.navigate("CompanySignup")}
-          >
-            <Ionicons name="business-outline" size={14} color="rgba(255,255,255,0.85)" style={{ marginRight: 6 }} />
-            <Text style={styles.registerLinkText}>New company? Register here</Text>
-          </TouchableOpacity>
+          </WebCard>
         </ScrollView>
       </KeyboardAvoidingView>
-
-    </LinearGradient>
+    </WebPage>
   );
 }
 
-const makeStyles = (colors) => StyleSheet.create({
-  bg: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 22,
-    paddingVertical: 32,
+const styles = StyleSheet.create({
+  scroll: { justifyContent: "center", paddingTop: 20 },
+  tabs: {
+    flexDirection: "row", padding: 4, marginBottom: 16, borderRadius: WEB.radiusMd,
+    backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 1, borderColor: WEB.border,
   },
-
-  header: {
-    alignItems: "center",
-    marginBottom: 24,
+  tab: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 10, borderRadius: 10,
   },
-  logoCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+  tabActive: {
+    backgroundColor: WEB.card,
+    shadowColor: "#0F172A", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: -0.4,
+  tabText: { marginLeft: 6, fontSize: 13, fontWeight: "700", color: WEB.textSubtle },
+  tabTextActive: { color: WEB.brand },
+  codeInput: { textAlign: "center", fontSize: 22, fontWeight: "800", letterSpacing: 8 },
+  passwordInput: { paddingRight: 44 },
+  eyeBtn: { position: "absolute", right: 10, top: 0, bottom: 0, justifyContent: "center", paddingHorizontal: 4 },
+  centerLink: { alignSelf: "center", marginTop: 16 },
+  linksRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20 },
+  kioskLink: { flexDirection: "row", alignItems: "center" },
+  devFill: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 12, paddingVertical: 9,
+    borderRadius: WEB.radiusSm, borderWidth: 1, borderColor: WEB.borderGlow, backgroundColor: WEB.brandTint,
   },
-  companyText: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.78)",
-    marginTop: 4,
-  },
-  headerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: 0.4,
-  },
-
-  // Tabs
-  tabsContainer: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: 20,
-  },
-  tabBtn: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  tabBtnActive: {
-    backgroundColor: "#FFFFFF",
-  },
-  tabText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.75)",
-    marginLeft: 4,
-  },
-  tabTextActive: {
-    color: "#173B8C",
-  },
-
-  // Card
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 24,
-    padding: 22,
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
-  },
-  formHeader: {
-    marginBottom: 20,
-  },
-  formTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: colors.text,
-    letterSpacing: -0.3,
-  },
-  formSubtitle: {
-    fontSize: 12,
-    color: "#64748B",
-    marginTop: 3,
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#64748B",
-    letterSpacing: 0.8,
-    marginBottom: 6,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    marginBottom: 16,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    height: "100%",
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  eyeBtn: {
-    padding: 6,
-  },
-  submitBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#173B8C",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  submitBtnText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 18,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: colors.textLight,
-    paddingHorizontal: 10,
-  },
-  scanBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.primaryLight,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-  scanBtnText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#173B8C",
-    marginLeft: 8,
-  },
-
-  registerLink: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 22,
-  },
-  registerLinkText: {
-    fontSize: 12.5,
-    fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.85)",
-  },
+  devFillText: { fontSize: 12.5, fontWeight: "700", color: WEB.brand },
 });
