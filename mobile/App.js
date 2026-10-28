@@ -10,10 +10,6 @@ import { ThemeProvider } from "./src/store/ThemeContext";
 import LaunchCountdownScreen from "./src/screens/LaunchCountdownScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import CompanySignupScreen from "./src/screens/CompanySignupScreen";
-import CompanyOtpVerifyScreen from "./src/screens/CompanyOtpVerifyScreen";
-import CompanyProfileScreen from "./src/screens/CompanyProfileScreen";
-import CompanyDocumentUploadScreen from "./src/screens/CompanyDocumentUploadScreen";
-import CompanySignupPendingScreen from "./src/screens/CompanySignupPendingScreen";
 import AppLockScreen from "./src/screens/AppLockScreen";
 import AdminDrawerNavigator from "./src/navigation/AdminDrawerNavigator";
 import EmployeeDrawerNavigator from "./src/navigation/EmployeeDrawerNavigator";
@@ -23,9 +19,12 @@ import { initCrashReporting } from "./src/utils/crashReporting";
 
 initCrashReporting();
 
-// Only the logged-out flow needs real stack navigation (Login <-> the 5
-// company-signup screens, with back-navigation) -- the post-login
+// Only the logged-out flow needs real stack navigation (Login <-> company
+// signup, with back-navigation) -- the post-login
 // AdminDrawerNavigator/EmployeeDrawerNavigator trees are untouched below.
+// Signup is one screen: its code step signs the new admin in, which swaps
+// this whole tree for the admin one, where the registration checklist
+// carries on.
 const AuthStack = createStackNavigator();
 
 function AuthNavigator() {
@@ -33,10 +32,6 @@ function AuthNavigator() {
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="CompanySignup" component={CompanySignupScreen} />
-      <AuthStack.Screen name="CompanyOtpVerify" component={CompanyOtpVerifyScreen} />
-      <AuthStack.Screen name="CompanyProfile" component={CompanyProfileScreen} />
-      <AuthStack.Screen name="CompanyDocumentUpload" component={CompanyDocumentUploadScreen} />
-      <AuthStack.Screen name="CompanySignupPending" component={CompanySignupPendingScreen} />
     </AuthStack.Navigator>
   );
 }

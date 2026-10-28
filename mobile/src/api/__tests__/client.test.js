@@ -5,8 +5,8 @@
 // every export (mechanically identical for a given "shape"), this covers:
 //   - the interceptors themselves (token attach, 401 handling)
 //   - every *distinct* call shape used across the file (see describe titles)
-//   - the 5 new company-signup functions in full, since they were the
-//     reason this file grew this session
+//   - the company-signup and registration-checklist functions in full
+//   - the company prefix every API call is sent under
 //   - representative auth / attendance / multipart / error-path coverage
 
 const mockAxiosInstance = {
@@ -137,7 +137,7 @@ describe('response interceptor (dead-session detection)', () => {
   });
 });
 
-describe('company signup (5 new functions)', () => {
+describe('company signup', () => {
   beforeEach(() => {
     mockAxiosInstance.post.mockReset();
     mockAxiosInstance.get.mockReset();
@@ -166,38 +166,6 @@ describe('company signup (5 new functions)', () => {
     expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/create_org/resend_otp', {
       application_id: 'app1',
       access_token: 'tok1',
-    });
-  });
-
-  it('submitCompanyProfile POSTs the given FormData to /api/create_org/profile as multipart', async () => {
-    mockAxiosInstance.post.mockResolvedValue({ data: {} });
-    const formData = new FormData();
-    formData.append('company_name', 'Acme');
-    await client.submitCompanyProfile(formData);
-    expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-      '/api/create_org/profile',
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }
-    );
-  });
-
-  it('uploadCompanyDocuments POSTs the given FormData with multipart headers and a 30s timeout', async () => {
-    mockAxiosInstance.post.mockResolvedValue({ data: {} });
-    const formData = new FormData();
-    formData.append('pan_card', 'file-blob');
-    await client.uploadCompanyDocuments(formData);
-    expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-      '/api/create_org/upload_documents',
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }
-    );
-  });
-
-  it('getCompanySignupStatus GETs the status endpoint with access_token as a query param', async () => {
-    mockAxiosInstance.get.mockResolvedValue({ data: { status: 'pending' } });
-    await client.getCompanySignupStatus('app1', 'tok1');
-    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/create_org/status/app1', {
-      params: { access_token: 'tok1' },
     });
   });
 
@@ -663,6 +631,79 @@ describe('multipart upload built internally from scalar args', () => {
     await client.completeMyOnboardingTask('TASK1', 'OB1');
     const [, body] = mockAxiosInstance.post.mock.calls[0];
     expect(body.get('employee_note')).toBe('');
+  });
+});
+
+describe('registration checklist', () => {
+  beforeEach(() => {
+    mockAxiosInstance.post.mockReset();
+    mockAxiosInstance.get.mockReset();
+  });
+
+  it('getRegistrationChecklist GETs /api/admin/registration', async () => {
+    mockAxiosInstance.get.mockResolvedValue({ data: { ok: true, steps: [] } });
+    await client.getRegistrationChecklist();
+    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/admin/registration');
+  });
+
+  it.each([
+    ['saveCompanyDetails', '/api/admin/registration/company'],
+    ['uploadRegistrationDocuments', '/api/admin/registration/documents'],
+  ])('%s POSTs the FormData to %s as multipart with a 30s timeout', async (fn, url) => {
+    mockAxiosInstance.post.mockResolvedValue({ data: {} });
+    const formData = new FormData();
+    await client[fn](formData);
+    expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+      url, formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 }
+    );
+  });
+});
+
+describe('company prefix', () => {
+  const getRequestInterceptor = () => mockAxiosInstance.interceptors.request.use.mock.calls[0][0];
+
+  afterEach(() => {
+    client.setCompanySlug('');
+    secureGetItem.mockReset();
+  });
+
+  it('leaves URLs alone for the default company', () => {
+    expect(client.withCompany('/api/dashboard')).toBe('/api/dashboard');
+  });
+
+  it('sends API calls under the signed-in company', async () => {
+    client.setCompanySlug('acme');
+    expect(client.getCompanySlug()).toBe('acme');
+    expect(client.withCompany('/api/dashboard')).toBe('/acme/api/dashboard');
+    expect(client.withCompany('/acme/api/dashboard')).toBe('/acme/api/dashboard');
+    secureGetItem.mockResolvedValue(null);
+    const config = await getRequestInterceptor()({ url: '/api/login', headers: {} });
+    expect(config.url).toBe('/acme/api/login');
+  });
+
+  it('never prefixes signup, which belongs to no company yet', () => {
+    client.setCompanySlug('acme');
+    expect(client.withCompany('/api/create_org')).toBe('/api/create_org');
+    expect(client.withCompany('/api/create_org/verify_otp')).toBe('/api/create_org/verify_otp');
+  });
+
+  it('puts employee photos under the company too', () => {
+    client.setCompanySlug('acme');
+    expect(client.getPhotoUrl('EMP1')).toBe(`${API_BASE_URL}/acme/dataset/EMP1.jpg`);
+  });
+
+  it.each([
+    ['acme', 'acme'],
+    ['  Acme-Corp ', 'acme-corp'],
+    ['hrzest.com/acme', 'acme'],
+    ['https://www.hrzest.com/acme/login', 'acme'],
+    ['https://203.0.113.10/acme/login', 'acme'],
+    ['192.168.1.9:5000/acme', 'acme'],
+    ['localhost:5000/acme', 'acme'],
+    ['www.hrzest.com', ''],
+    ['', ''],
+  ])('parseCompanySlug(%j) is %j', (typed, slug) => {
+    expect(client.parseCompanySlug(typed)).toBe(slug);
   });
 });
 

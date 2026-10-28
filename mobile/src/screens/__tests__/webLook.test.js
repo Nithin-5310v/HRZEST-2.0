@@ -9,6 +9,11 @@ import LoginScreen from '../LoginScreen';
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  // components/SafeAreaView.js wraps this one.
+  SafeAreaView: ({ children, ...props }) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
 }));
 jest.mock('../QRScannerModal', () => () => null);
 jest.mock('../../store/AuthContext', () => ({ useAuth: () => ({ signIn: jest.fn() }) }));

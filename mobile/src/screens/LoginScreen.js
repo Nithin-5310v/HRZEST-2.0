@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -17,8 +17,13 @@ import {
   adminLogin,
   verifyAdminLogin,
   employeeLogin,
+  getCompanySlug,
+  parseCompanySlug,
+  setCompanySlug,
 } from "../api/client";
+import { PORTAL_HOST } from "../config";
 import { useAuth } from "../store/AuthContext";
+import { getLastCompanySlug } from "../utils/preferences";
 import QRScannerModal from "./QRScannerModal";
 import { WEB, WebPage, WebTopBar, WebNavButton, WebCard, WebCardHeader, WebButton, webAuthStyles } from "../theme/webAuthStyle";
 
@@ -26,6 +31,17 @@ export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState("admin"); // 'admin' | 'employee'
+
+  // The company's address (its URL slug, e.g. "acme" from
+  // https://<server>/acme/login) -- which company the sign-in goes to.
+  // Blank means the server's default company. Filled in with the last one used.
+  const [companyUrl, setCompanyUrl] = useState("");
+  useEffect(() => {
+    getLastCompanySlug().then((slug) => slug && setCompanyUrl((typed) => typed || slug)).catch(() => {});
+  }, []);
+
+  // Every login call below goes to this company (api/client.js prefixes it).
+  const applyTypedCompany = () => setCompanySlug(parseCompanySlug(companyUrl));
 
   // Admin login states
   const [username, setUsername] = useState("");
@@ -55,6 +71,7 @@ export default function LoginScreen({ navigation }) {
       // fix yet, not as a guess about who's really logging in.
       adminRole: data.role || "admin",
       name: data.username || typedUser,
+      companySlug: getCompanySlug(),
     });
   };
 
@@ -71,6 +88,7 @@ export default function LoginScreen({ navigation }) {
       return;
     }
     setLoading(true);
+    applyTypedCompany();
     try {
       const res = await adminLogin(trimmedUser, password);
       if (res?.data?.ok && res?.data?.mfa_required && res?.data?.challenge_id) {
@@ -128,6 +146,7 @@ export default function LoginScreen({ navigation }) {
       return;
     }
     setLoading(true);
+    applyTypedCompany();
     try {
       const res = await employeeLogin(typedId, empPassword);
       if ((res?.data?.ok || res?.data?.token) && res?.data?.token) {
@@ -138,6 +157,7 @@ export default function LoginScreen({ navigation }) {
           email: res.data.email || `${typedId}@company.com`,
           company: res.data.company_name || res.data.company || "Enterprise HRMS",
           logo: res.data.company_logo || null,
+          companySlug: getCompanySlug(),
         });
         setLoading(false);
         return;
@@ -232,6 +252,21 @@ export default function LoginScreen({ navigation }) {
                   title="Sign In to Your Workspace"
                   subtitle={tab === "admin" ? "Admin, HR and manager accounts" : "Employee self service and check-in"}
                 />
+
+                <View style={webAuthStyles.field}>
+                  <Text style={webAuthStyles.label}>Company URL</Text>
+                  <TextInput
+                    style={webAuthStyles.input}
+                    placeholder={`${PORTAL_HOST}/your-company`}
+                    placeholderTextColor={WEB.textSubtle}
+                    value={companyUrl}
+                    onChangeText={setCompanyUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                  />
+                  <Text style={webAuthStyles.hint}>Your team's portal address — the part after {PORTAL_HOST}/ is enough.</Text>
+                </View>
 
                 {tab === "admin" ? (
                   <>

@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 
 import ProfileHeader from "../../components/profile/ProfileHeader";
 

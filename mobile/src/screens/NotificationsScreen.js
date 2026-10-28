@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   RefreshControl,
@@ -12,6 +11,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
+import SafeAreaView from "../components/SafeAreaView";
 import { Ionicons } from "@expo/vector-icons";
 import ProfileHeader from "../components/profile/ProfileHeader";
 import NotificationHeaderCard from "../components/notifications/NotificationHeaderCard";

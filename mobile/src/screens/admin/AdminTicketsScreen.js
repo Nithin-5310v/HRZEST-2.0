@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   View,
@@ -11,6 +10,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";

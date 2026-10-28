@@ -5,7 +5,6 @@ import React, {
 } from "react";
 
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
   View,
   Alert,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 
 import AdminHeader from "../../components/admin/AdminHeader";
 

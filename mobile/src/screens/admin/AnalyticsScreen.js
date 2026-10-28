@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   View,
@@ -9,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 import { DrawerActions } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";

@@ -2,9 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { adminLogout, employeeLogout, setUnauthorizedHandler } from '../api/client';
+import { adminLogout, employeeLogout, setCompanySlug, setUnauthorizedHandler } from '../api/client';
 import { secureGetItem, secureSetItem, secureMultiRemove } from '../utils/secureStorage';
-import { getBiometricLockEnabled } from '../utils/preferences';
+import { getBiometricLockEnabled, setLastCompanySlug } from '../utils/preferences';
 import { clearLocalEmployees } from '../utils/employeeStore';
 import { clearQueue as clearOfflinePunchQueue } from '../utils/offlineQueue';
 import { registerForPushNotifications } from '../utils/pushNotifications';
@@ -28,9 +28,13 @@ const DEVICE_SESSION_OWNER_KEY = 'device_session_owner';
 // provide: admin sessions carry `name` (the admin username itself -- see
 // LoginScreen.js's handleAdminLogin), employee sessions carry
 // `employeeId`. Prefixed with role so an admin and an employee that
-// happen to share a string never collide.
+// happen to share a string never collide, and with the company
+// (`companySlug`, '' for the server's default one) since "admin" or
+// "EMP001" at one company is a different account from the same name at
+// another.
 const ownerKeyFor = (userData) =>
-  `${userData?.role || 'unknown'}:${userData?.role === 'employee' ? userData?.employeeId : userData?.name}`;
+  `${userData?.role || 'unknown'}:${userData?.companySlug || ''}:` +
+  `${userData?.role === 'employee' ? userData?.employeeId : userData?.name}`;
 
 // Wipes every locally-persisted, non-session-keyed cache this app keeps --
 // currently the admin-side "created employees" cache and the employee-side
@@ -62,6 +66,8 @@ export function AuthProvider({ children }) {
         const saved = await secureGetItem('user');
         if (token && saved) {
           const restoredUser = JSON.parse(saved);
+          // Before anything renders: every API call from here on goes to this company.
+          setCompanySlug(restoredUser.companySlug);
           setUser(restoredUser);
           try {
             const wantsLock = await getBiometricLockEnabled();
@@ -82,6 +88,7 @@ export function AuthProvider({ children }) {
     // stuck retrying calls with a dead token.
     setUnauthorizedHandler(() => {
       secureMultiRemove(SESSION_KEYS).catch(() => {});
+      setCompanySlug('');
       setUser(null);
     });
     return () => setUnauthorizedHandler(null);
@@ -103,6 +110,10 @@ export function AuthProvider({ children }) {
       await AsyncStorage.setItem(DEVICE_SESSION_OWNER_KEY, newOwnerKey);
     } catch (_) {}
 
+    // userData.companySlug: the company this session belongs to ('' or
+    // missing = the server's default company).
+    setCompanySlug(userData?.companySlug);
+    setLastCompanySlug(userData?.companySlug).catch(() => {});
     await secureSetItem('token', token);
     await secureSetItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -125,6 +136,8 @@ export function AuthProvider({ children }) {
         await employeeLogout();
       }
     } catch (_) {}
+    // Only now: the logout call above still had to reach this company.
+    setCompanySlug('');
     await secureMultiRemove(SESSION_KEYS);
     await clearCrossAccountCaches();
     setUser(null);

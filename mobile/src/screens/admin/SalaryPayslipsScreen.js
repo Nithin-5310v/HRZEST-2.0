@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Alert,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   FlatList,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 
 import { Ionicons } from "@expo/vector-icons";
 

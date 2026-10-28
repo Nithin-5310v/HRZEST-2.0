@@ -12,6 +12,13 @@ import { LogBox } from 'react-native';
 // own body runs -- so being import #1 guarantees this rule exists before
 // anything else (including expo-notifications, several imports deep in
 // App.js) gets a chance to load.
+//
+// Newer expo-notifications (SDK 57) warns instead of throwing, in two more
+// wordings: one when the push-token listener is skipped in Expo Go, and a
+// general "not fully supported in Expo Go" notice on import. Same false
+// alarm; real (development/production) builds never print any of these.
 LogBox.ignoreLogs([
   'expo-notifications: Android Push notifications',
+  '[expo-notifications] Push notifications (remote notifications) are unavailable in Expo Go',
+  '`expo-notifications` functionality is not fully supported in Expo Go',
 ]);

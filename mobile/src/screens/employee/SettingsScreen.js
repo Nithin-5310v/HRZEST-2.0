@@ -5,10 +5,10 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Switch,
   Alert,
 } from "react-native";
+import SafeAreaView from "../../components/SafeAreaView";
 import * as LocalAuthentication from "expo-local-authentication";
 
 import { Ionicons } from "@expo/vector-icons";
