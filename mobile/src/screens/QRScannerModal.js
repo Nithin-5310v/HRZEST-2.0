@@ -7,7 +7,9 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { qrFaceCheckin, getAuthConfig } from '../api/client';
 import { getDeviceId } from '../utils/deviceId';
-import useCameraHandoff from '../utils/useCameraHandoff';
+import useCameraHandoff, { CAMERA_HANDOFF_DELAY_MS } from '../utils/useCameraHandoff';
+import { takeSelfieWithPhoneCamera } from '../utils/phoneCamera';
+import CameraStartupOverlay from '../components/attendance/CameraStartupOverlay';
 
 export default function QRScannerModal({ visible, onClose }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -20,7 +22,10 @@ export default function QRScannerModal({ visible, onClose }) {
   const [locError, setLocError]   = useState(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
   const cameraRef = useRef(null);
-  const camera = useCameraHandoff(step, facing);
+  const [usingPhoneCamera, setUsingPhoneCamera] = useState(false);
+  const camera = useCameraHandoff(
+    (step === 'qr' || step === 'face') && !!permission?.granted && !usingPhoneCamera, step, facing,
+  );
 
   useEffect(() => {
     if (visible) {
@@ -192,6 +197,15 @@ export default function QRScannerModal({ visible, onClose }) {
     await submitCheckin({ empId: employeeId, combo: 'qr_face', photo });
   };
 
+  const captureWithPhoneCamera = async () => {
+    if (processing) return;
+    setUsingPhoneCamera(true);
+    await new Promise((r) => setTimeout(r, CAMERA_HANDOFF_DELAY_MS));
+    const photo = await takeSelfieWithPhoneCamera();
+    setUsingPhoneCamera(false);
+    if (photo) await submitCheckin({ empId: employeeId, combo: 'qr_face', photo });
+  };
+
   const resetToQR = () => {
     setStep('qr');
     setScanned(false);
@@ -278,9 +292,10 @@ export default function QRScannerModal({ visible, onClose }) {
               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
               onBarcodeScanned={scanned ? undefined : handleQRScan}
               onMountError={camera.onMountError}
+              onCameraReady={camera.onCameraReady}
             />
           )}
-          <CameraErrorOverlay camera={camera} />
+          <CameraStartupOverlay camera={camera} />
 
           {/* Top bar */}
           <View style={styles.topBar}>
@@ -345,9 +360,10 @@ export default function QRScannerModal({ visible, onClose }) {
               style={StyleSheet.absoluteFillObject}
               facing={facing}
               onMountError={camera.onMountError}
+              onCameraReady={camera.onCameraReady}
             />
           )}
-          <CameraErrorOverlay camera={camera} />
+          <CameraStartupOverlay camera={camera} onUsePhoneCamera={captureWithPhoneCamera} />
 
           {/* Top bar */}
           <View style={styles.topBar}>
@@ -363,7 +379,9 @@ export default function QRScannerModal({ visible, onClose }) {
           {/* Face guide overlay */}
           <View style={styles.faceMiddle}>
             <View style={styles.faceGuide} />
-            <Text style={styles.faceHintTxt}>Align your face inside the circle</Text>
+            <Text style={styles.faceHintTxt}>
+              {camera.open ? 'Align your face inside the circle' : 'Starting camera…'}
+            </Text>
             <View style={styles.empIdBadge}>
               <Ionicons name="card-outline" size={14} color="#fff" />
               <Text style={styles.empIdTxt}>{employeeId}</Text>
@@ -382,11 +400,16 @@ export default function QRScannerModal({ visible, onClose }) {
             {processing ? (
               <ActivityIndicator color="#fff" size="large" style={{ marginTop: 24 }} />
             ) : (
-              <TouchableOpacity style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
-                <View style={styles.captureBtnInner}>
-                  <Ionicons name="camera" size={30} color="#173B8C" />
-                </View>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
+                  <View style={styles.captureBtnInner}>
+                    <Ionicons name="camera" size={30} color="#173B8C" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={captureWithPhoneCamera} style={styles.phoneCameraLink}>
+                  <Text style={styles.phoneCameraTxt}>Camera not showing? Use the phone's camera</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
@@ -399,25 +422,9 @@ export default function QRScannerModal({ visible, onClose }) {
 
 const FRAME = 240;
 
-/* A camera that failed to start says so, instead of a black preview. */
-function CameraErrorOverlay({ camera }) {
-  if (!camera.error) return null;
-  return (
-    <View style={styles.camError}>
-      <Ionicons name="videocam-off-outline" size={44} color="rgba(255,255,255,0.6)" />
-      <Text style={styles.permText}>{camera.error}</Text>
-      <TouchableOpacity style={styles.permBtn} onPress={camera.retry}>
-        <Text style={styles.permBtnTxt}>Restart camera</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  camError: {
-    ...StyleSheet.absoluteFillObject, zIndex: 5, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 32, backgroundColor: '#000',
-  },
+  phoneCameraLink: { marginTop: 14, paddingVertical: 6 },
+  phoneCameraTxt: { color: 'rgba(255,255,255,0.75)', fontSize: 13, textDecorationLine: 'underline' },
   container: { flex: 1, backgroundColor: '#000' },
 
   center: {

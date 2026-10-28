@@ -11,7 +11,9 @@ import {
   getAttendanceChallenge,
 } from '../api/client';
 import { getDeviceId } from '../utils/deviceId';
-import useCameraHandoff from '../utils/useCameraHandoff';
+import useCameraHandoff, { CAMERA_HANDOFF_DELAY_MS } from '../utils/useCameraHandoff';
+import { takeSelfieWithPhoneCamera } from '../utils/phoneCamera';
+import CameraStartupOverlay from '../components/attendance/CameraStartupOverlay';
 import { queuePunch } from '../utils/offlineQueue';
 import { useAuth } from '../store/AuthContext';
 
@@ -61,7 +63,10 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   const [authMethod, setAuthMethod] = useState(COMBO_QR_FACE);
 
   const cameraRef = useRef(null);
-  const camera = useCameraHandoff(step, facing);
+  const [usingPhoneCamera, setUsingPhoneCamera] = useState(false);
+  const camera = useCameraHandoff(
+    (step === 'qr' || step === 'face') && !!permission?.granted && !usingPhoneCamera, step, facing,
+  );
   const scannedEmpIdRef = useRef(null);
 
   useEffect(() => {
@@ -331,6 +336,22 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
     setProcessing(false);
   };
 
+  const captureWithPhoneCamera = async () => {
+    if (processing) return;
+    setUsingPhoneCamera(true);
+    await new Promise((r) => setTimeout(r, CAMERA_HANDOFF_DELAY_MS));
+    const photo = await takeSelfieWithPhoneCamera();
+    setUsingPhoneCamera(false);
+    if (!photo) return;
+    if (authMethod === COMBO_QR_FACE) {
+      await submitAttendance({ face: photo, empId: scannedEmpIdRef.current || employeeId });
+    } else {
+      const fpEmpId = user?.employeeId || user?.employee_id || user?.emp_id;
+      await submitAttendance({ face: photo, empId: fpEmpId, combo: COMBO_FACE_FP });
+    }
+    setProcessing(false);
+  };
+
   // ── Fingerprint ──────────────────────────────────────────────────────────────
   const handleFingerprint = async () => {
     if (processing) return;
@@ -544,9 +565,10 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
               onBarcodeScanned={scanned ? undefined : handleQRScan}
               onMountError={camera.onMountError}
+              onCameraReady={camera.onCameraReady}
             />
           )}
-          <CameraErrorOverlay camera={camera} />
+          <CameraStartupOverlay camera={camera} />
 
           <View style={styles.topBar}>
             <TouchableOpacity
@@ -681,9 +703,10 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
               style={StyleSheet.absoluteFillObject}
               facing={facing}
               onMountError={camera.onMountError}
+              onCameraReady={camera.onCameraReady}
             />
           )}
-          <CameraErrorOverlay camera={camera} />
+          <CameraStartupOverlay camera={camera} onUsePhoneCamera={captureWithPhoneCamera} />
 
           <View style={styles.topBar}>
             <TouchableOpacity
@@ -700,7 +723,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
 
           <View style={styles.faceMiddle}>
             <View style={styles.faceGuide} />
-            <Text style={styles.faceHintTxt}>{livenessPrompt || 'Align your face inside the circle'}</Text>
+            <Text style={styles.faceHintTxt}>{livenessPrompt || (camera.open ? 'Align your face inside the circle' : 'Starting camera…')}</Text>
             {isFaceFP ? (
               <View style={styles.empIdBadge}>
                 <Ionicons name="finger-print" size={14} color="#a5b4fc" />
@@ -727,11 +750,16 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
             {processing ? (
               <ActivityIndicator color="#fff" size="large" style={{ marginTop: 24 }} />
             ) : (
-              <TouchableOpacity style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
-                <View style={styles.captureBtnInner}>
-                  <Ionicons name="camera" size={30} color="#173B8C" />
-                </View>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
+                  <View style={styles.captureBtnInner}>
+                    <Ionicons name="camera" size={30} color="#173B8C" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={captureWithPhoneCamera} style={styles.phoneCameraLink}>
+                  <Text style={styles.phoneCameraTxt}>Camera not showing? Use the phone's camera</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
         </View>
@@ -744,25 +772,9 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
 
 const FRAME = 240;
 
-/* A camera that failed to start says so, instead of a black preview. */
-function CameraErrorOverlay({ camera }) {
-  if (!camera.error) return null;
-  return (
-    <View style={styles.camError}>
-      <Ionicons name="videocam-off-outline" size={44} color="rgba(255,255,255,0.6)" />
-      <Text style={styles.permText}>{camera.error}</Text>
-      <TouchableOpacity style={styles.permBtn} onPress={camera.retry}>
-        <Text style={styles.permBtnTxt}>Restart camera</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  camError: {
-    ...StyleSheet.absoluteFillObject, zIndex: 5, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 32, backgroundColor: '#000',
-  },
+  phoneCameraLink: { marginTop: 14, paddingVertical: 6 },
+  phoneCameraTxt: { color: 'rgba(255,255,255,0.75)', fontSize: 13, textDecorationLine: 'underline' },
   container: { flex: 1, backgroundColor: '#000' },
   center: {
     flex: 1, backgroundColor: '#0f2027',
