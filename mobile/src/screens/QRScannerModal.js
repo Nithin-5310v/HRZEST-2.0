@@ -7,6 +7,7 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { qrFaceCheckin, getAuthConfig } from '../api/client';
 import { getDeviceId } from '../utils/deviceId';
+import useCameraHandoff from '../utils/useCameraHandoff';
 
 export default function QRScannerModal({ visible, onClose }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -19,6 +20,7 @@ export default function QRScannerModal({ visible, onClose }) {
   const [locError, setLocError]   = useState(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
   const cameraRef = useRef(null);
+  const camera = useCameraHandoff(step, facing);
 
   useEffect(() => {
     if (visible) {
@@ -268,12 +270,17 @@ export default function QRScannerModal({ visible, onClose }) {
     return (
       <Modal visible={visible} animationType="slide" statusBarTranslucent>
         <View style={styles.container}>
-          <CameraView
-            style={StyleSheet.absoluteFillObject}
-            facing={facing}
-            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onBarcodeScanned={scanned ? undefined : handleQRScan}
-          />
+          {camera.ready && (
+            <CameraView
+              key={camera.cameraKey}
+              style={StyleSheet.absoluteFillObject}
+              facing={facing}
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={scanned ? undefined : handleQRScan}
+              onMountError={camera.onMountError}
+            />
+          )}
+          <CameraErrorOverlay camera={camera} />
 
           {/* Top bar */}
           <View style={styles.topBar}>
@@ -331,11 +338,16 @@ export default function QRScannerModal({ visible, onClose }) {
     return (
       <Modal visible={visible} animationType="slide" statusBarTranslucent>
         <View style={styles.container}>
-          <CameraView
-            ref={cameraRef}
-            style={StyleSheet.absoluteFillObject}
-            facing={facing}
-          />
+          {camera.ready && (
+            <CameraView
+              key={camera.cameraKey}
+              ref={cameraRef}
+              style={StyleSheet.absoluteFillObject}
+              facing={facing}
+              onMountError={camera.onMountError}
+            />
+          )}
+          <CameraErrorOverlay camera={camera} />
 
           {/* Top bar */}
           <View style={styles.topBar}>
@@ -387,7 +399,25 @@ export default function QRScannerModal({ visible, onClose }) {
 
 const FRAME = 240;
 
+/* A camera that failed to start says so, instead of a black preview. */
+function CameraErrorOverlay({ camera }) {
+  if (!camera.error) return null;
+  return (
+    <View style={styles.camError}>
+      <Ionicons name="videocam-off-outline" size={44} color="rgba(255,255,255,0.6)" />
+      <Text style={styles.permText}>{camera.error}</Text>
+      <TouchableOpacity style={styles.permBtn} onPress={camera.retry}>
+        <Text style={styles.permBtnTxt}>Restart camera</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  camError: {
+    ...StyleSheet.absoluteFillObject, zIndex: 5, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, backgroundColor: '#000',
+  },
   container: { flex: 1, backgroundColor: '#000' },
 
   center: {

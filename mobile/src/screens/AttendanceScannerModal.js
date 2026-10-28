@@ -11,6 +11,7 @@ import {
   getAttendanceChallenge,
 } from '../api/client';
 import { getDeviceId } from '../utils/deviceId';
+import useCameraHandoff from '../utils/useCameraHandoff';
 import { queuePunch } from '../utils/offlineQueue';
 import { useAuth } from '../store/AuthContext';
 
@@ -60,6 +61,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   const [authMethod, setAuthMethod] = useState(COMBO_QR_FACE);
 
   const cameraRef = useRef(null);
+  const camera = useCameraHandoff(step, facing);
   const scannedEmpIdRef = useRef(null);
 
   useEffect(() => {
@@ -534,12 +536,17 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
     return (
       <Modal visible={visible} animationType="slide" statusBarTranslucent>
         <View style={styles.container}>
-          <CameraView
-            style={StyleSheet.absoluteFillObject}
-            facing={facing}
-            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onBarcodeScanned={scanned ? undefined : handleQRScan}
-          />
+          {camera.ready && (
+            <CameraView
+              key={camera.cameraKey}
+              style={StyleSheet.absoluteFillObject}
+              facing={facing}
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={scanned ? undefined : handleQRScan}
+              onMountError={camera.onMountError}
+            />
+          )}
+          <CameraErrorOverlay camera={camera} />
 
           <View style={styles.topBar}>
             <TouchableOpacity
@@ -667,11 +674,16 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
     return (
       <Modal visible={visible} animationType="slide" statusBarTranslucent>
         <View style={styles.container}>
-          <CameraView
-            ref={cameraRef}
-            style={StyleSheet.absoluteFillObject}
-            facing={facing}
-          />
+          {camera.ready && (
+            <CameraView
+              key={camera.cameraKey}
+              ref={cameraRef}
+              style={StyleSheet.absoluteFillObject}
+              facing={facing}
+              onMountError={camera.onMountError}
+            />
+          )}
+          <CameraErrorOverlay camera={camera} />
 
           <View style={styles.topBar}>
             <TouchableOpacity
@@ -732,7 +744,25 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
 
 const FRAME = 240;
 
+/* A camera that failed to start says so, instead of a black preview. */
+function CameraErrorOverlay({ camera }) {
+  if (!camera.error) return null;
+  return (
+    <View style={styles.camError}>
+      <Ionicons name="videocam-off-outline" size={44} color="rgba(255,255,255,0.6)" />
+      <Text style={styles.permText}>{camera.error}</Text>
+      <TouchableOpacity style={styles.permBtn} onPress={camera.retry}>
+        <Text style={styles.permBtnTxt}>Restart camera</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  camError: {
+    ...StyleSheet.absoluteFillObject, zIndex: 5, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 32, backgroundColor: '#000',
+  },
   container: { flex: 1, backgroundColor: '#000' },
   center: {
     flex: 1, backgroundColor: '#0f2027',
