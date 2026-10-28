@@ -1,0 +1,318 @@
+/* Company <-> platform-team chat (static/chat.js) -- shared by
+   templates/_admin_chat_widget.html and super_admin_dashboard.html's
+   per-tenant chat. Everything is a class here: the page CSP blocks style=""
+   attributes created at runtime, which is why the bubbles used to render as
+   plain unstyled text. */
+.hz-chat {
+  --hz-accent: #3538cd;
+  --hz-accent-dark: #23268f;
+  --hz-mine: #3538cd;
+  --hz-mine-text: #fff;
+  --hz-theirs: #fff;
+  --hz-theirs-text: #0f172a;
+  --hz-wall: #eef0f7;
+  --hz-dots: rgba(53, 56, 205, 0.07);
+  --hz-muted: #64748b;
+  --hz-seen: #7dd3fc;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: var(--hz-theirs-text);
+}
+.hz-chat, .hz-chat *, .hz-chat-fab { box-sizing: border-box; }
+.hz-chat--company {
+  --hz-accent: #1e3a8a;
+  --hz-accent-dark: #0f2460;
+  --hz-mine: #1e40af;
+  --hz-dots: rgba(30, 58, 138, 0.07);
+}
+
+/* ── Header ── */
+.hz-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  background: linear-gradient(135deg, var(--hz-accent-dark), var(--hz-accent));
+  color: #fff;
+}
+.hz-chat-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.hz-chat-avatar .ti { font-size: 20px; }
+.hz-chat-title { flex: 1; min-width: 0; }
+.hz-chat-name {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hz-chat-sub { font-size: 12px; opacity: 0.8; }
+.hz-chat-icon-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #fff;
+  font-size: 19px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.hz-chat-icon-btn:hover { background: rgba(255, 255, 255, 0.18); }
+.hz-chat-icon-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* ── Conversation ── */
+.hz-chat-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--hz-wall);
+  background-image: radial-gradient(var(--hz-dots) 1.2px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+.hz-day, .hz-system {
+  align-self: center;
+  margin: 10px 0 6px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--hz-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.06);
+  text-align: center;
+}
+.hz-system { max-width: 88%; font-weight: 500; background: #fef9c3; color: #713f12; text-decoration: none; }
+a.hz-system:hover { text-decoration: underline; }
+
+.hz-msg { display: flex; margin-top: 2px; }
+.hz-msg.hz-first { margin-top: 8px; }
+.hz-mine { justify-content: flex-end; }
+.hz-theirs { justify-content: flex-start; }
+
+.hz-bubble {
+  position: relative;
+  max-width: 78%;
+  padding: 6px 9px 7px 10px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.38;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.1);
+}
+.hz-new .hz-bubble { animation: hz-pop 0.16s ease-out; }
+.hz-mine .hz-bubble { background: var(--hz-mine); color: var(--hz-mine-text); }
+.hz-theirs .hz-bubble { background: var(--hz-theirs); color: var(--hz-theirs-text); }
+
+/* WhatsApp-style tail on the first bubble of each run of messages */
+.hz-mine.hz-first .hz-bubble { border-top-right-radius: 0; }
+.hz-theirs.hz-first .hz-bubble { border-top-left-radius: 0; }
+.hz-first .hz-bubble::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 12px;
+}
+.hz-mine.hz-first .hz-bubble::before {
+  right: -7px;
+  background: var(--hz-mine);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.hz-theirs.hz-first .hz-bubble::before {
+  left: -7px;
+  background: var(--hz-theirs);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.hz-sender { font-size: 12.5px; font-weight: 700; color: var(--hz-accent); margin-bottom: 1px; }
+.hz-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.hz-meta {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 7px 0 -4px 12px;
+  font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+.hz-mine .hz-meta { opacity: 0.85; }
+.hz-meta .ti { font-size: 15px; }
+.hz-meta .hz-seen { color: var(--hz-seen); }
+.hz-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.hz-mine.hz-failed .hz-bubble { background: #fee2e2; color: #7f1d1d; outline: 1px solid #fca5a5; }
+.hz-mine.hz-failed.hz-first .hz-bubble::before { background: #fee2e2; }
+.hz-failed .hz-meta { color: #b91c1c; opacity: 1; font-weight: 600; }
+
+@keyframes hz-pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Composer ── */
+.hz-chat-compose {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--hz-wall);
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+.hz-chat-compose textarea {
+  flex: 1;
+  min-height: 42px;
+  max-height: 120px;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 22px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: none;
+  outline: none;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.08);
+}
+.hz-chat-compose textarea:focus { box-shadow: 0 0 0 2px var(--hz-accent); }
+.hz-chat-send {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hz-accent);
+  color: #fff;
+  font-size: 19px;
+  cursor: pointer;
+  transition: transform 0.12s, background-color 0.15s;
+}
+.hz-chat-send:hover { background: var(--hz-accent-dark); }
+.hz-chat-send:active { transform: scale(0.92); }
+
+/* ── Super admin: centred modal ── */
+.hz-chat-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.45);
+}
+.hz-chat-overlay.hz-open { display: flex; }
+.hz-chat-overlay .hz-chat { width: 100%; max-width: 440px; height: 600px; max-height: 86vh; animation: hz-pop 0.18s ease-out; }
+
+/* ── Company admin: floating button + docked panel ── */
+.hz-chat-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 99997;
+  width: 58px;
+  height: 58px;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+  color: #fff;
+  font-size: 26px;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(30, 58, 138, 0.4);
+  transition: transform 0.15s;
+}
+.hz-chat-fab:hover { transform: scale(1.06); }
+.hz-chat-fab-badge {
+  display: none;
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  align-items: center;
+  justify-content: center;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  border: 2px solid #fff;
+}
+.hz-chat-dock {
+  display: none;
+  position: fixed;
+  right: 24px;
+  bottom: 94px;
+  z-index: 99997;
+  width: 370px;
+  max-width: calc(100vw - 32px);
+  height: 540px;
+  max-height: calc(100vh - 120px);
+}
+.hz-chat-dock.hz-open { display: flex; animation: hz-pop 0.18s ease-out; }
+
+@media (max-width: 480px) {
+  .hz-chat-overlay { padding: 0; }
+  .hz-chat-overlay .hz-chat { max-width: none; height: 100%; max-height: none; border-radius: 0; }
+  .hz-chat-dock { right: 16px; bottom: 86px; }
+}
+
+/* ── Dark mode (admin pages: body.dark-mode, see admin_base.html) ── */
+body.dark-mode .hz-chat {
+  --hz-theirs: #202c33;
+  --hz-theirs-text: #e9edef;
+  --hz-wall: #0b141a;
+  --hz-dots: rgba(255, 255, 255, 0.04);
+  --hz-muted: #8696a0;
+  background: #111b21;
+}
+body.dark-mode .hz-chat--company { --hz-mine: #1d4ed8; }
+body.dark-mode .hz-day { background: #182229; color: #8696a0; }
+body.dark-mode .hz-system { background: #2a2f1e; color: #e9d78c; }
+body.dark-mode .hz-chat-compose { border-top-color: rgba(255, 255, 255, 0.06); }
+body.dark-mode .hz-chat-compose textarea { background: #2a3942; color: #e9edef; }
+body.dark-mode .hz-sender { color: #93c5fd; }
+body.dark-mode .hz-chat-fab-badge { border-color: #0d1117; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hz-new .hz-bubble, .hz-chat-overlay .hz-chat, .hz-chat-dock.hz-open { animation: none; }
+}

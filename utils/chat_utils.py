@@ -11,12 +11,21 @@ _MAX_MESSAGE_LEN = 2000
 
 
 def list_messages(tenant_schema, limit=200):
+    """created_at is a plain TIMESTAMP written in the database session's time
+    zone; reading it back AT TIME ZONE that same zone gives an offset-carrying
+    ISO string, so the browser shows each message's real local time rather
+    than guessing which zone a bare timestamp was in. The read_by_* flags drive
+    the sent/seen ticks on each side's own messages. Returns the newest
+    `limit` messages, oldest first."""
     conn = get_master_db()
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT id, sender_kind, sender_name, message, created_at "
-            "FROM chat_messages WHERE tenant_schema=%s ORDER BY created_at ASC LIMIT %s",
+            "SELECT id, sender_kind, sender_name, message, created_at, read_by_platform, read_by_company FROM ("
+            "SELECT id, sender_kind, sender_name, message, "
+            "created_at AT TIME ZONE current_setting('TimeZone') AS created_at, read_by_platform, read_by_company "
+            "FROM chat_messages WHERE tenant_schema=%s ORDER BY created_at DESC, id DESC LIMIT %s"
+            ") newest ORDER BY created_at ASC, id ASC",
             (tenant_schema, limit),
         )
         rows = cursor.fetchall()
@@ -25,7 +34,8 @@ def list_messages(tenant_schema, limit=200):
         conn.close()
     return [
         {"id": r[0], "sender_kind": r[1], "sender_name": r[2], "message": r[3],
-         "created_at": r[4].isoformat() if r[4] else None}
+         "created_at": r[4].isoformat() if r[4] else None,
+         "read_by_platform": bool(r[5]), "read_by_company": bool(r[6])}
         for r in rows
     ]
 
