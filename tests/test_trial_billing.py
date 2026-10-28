@@ -363,9 +363,10 @@ class TestWebhookIdempotencyHardening:
 
 
 class TestTrialSignupIntegration:
-    """End-to-end: the signup wizard with the trial plan picked on the
-    company profile -> KYC docs -> platform-admin approval -> a real,
-    provisioned tenant with the trial clock started at first login. Same
+    """End-to-end: signup (company name, account, email code) -> the
+    dashboard's company details and KYC docs -> platform-admin approval ->
+    a real, provisioned tenant on the free trial, whose clock starts at
+    the first dashboard visit. Same
     "heavy but worth one real test" posture as tests/test_org.py's
     test_full_flow_provisions_real_tenant_schema."""
 
@@ -377,8 +378,8 @@ class TestTrialSignupIntegration:
 
     def _run_pipeline_to_approval(self, client, monkeypatch, subdomain, company_name, admin_email):
         from tests.signup_flow import signup_company
-        application_id = signup_company(client, monkeypatch, admin_email, company_name, subdomain,
-                                        profile_extra={"signup_plan": "trial"})
+        application_id = signup_company(client, monkeypatch, admin_email, company_name)
+        assert subdomain == company_name.lower().replace(" ", "-")
 
         self._login_platform_admin(client)
         resp = client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
@@ -416,7 +417,10 @@ class TestTrialSignupIntegration:
                 (application_id,)
             )
             app_status, app_payment_option, doc_review_status = cur.fetchone()
-            assert app_payment_option == "trial"
+            # No plan to pick any more: every self-serve company starts on
+            # the trial, billed online once auto-debit is set up (manual
+            # when Razorpay isn't configured).
+            assert app_payment_option in ("online", "manual")
             assert app_status == "provisioned"
             assert doc_review_status == "approved"  # the platform-admin approve step in _run_pipeline_to_approval
             cur.close()
@@ -431,7 +435,7 @@ class TestTrialSignupIntegration:
             assert row is not None, "trial tenant was not provisioned"
             trial_start, trial_end, subscription_status, payment_option = row
             assert subscription_status == "trialing"
-            assert payment_option == "trial"
+            assert payment_option == app_payment_option
             # Deliberately NULL until first login (app.py's
             # inject_billing_lock_status()) -- not stamped at provisioning.
             assert trial_start is None and trial_end is None
@@ -445,9 +449,11 @@ class TestTrialSignupIntegration:
 
             # The old mandate-first setup routes are still reachable but
             # correctly refuse to do anything for an already-provisioned
-            # application, rather than silently double-provisioning.
+            # application, rather than silently double-provisioning -- 404
+            # here, since logging the new admin in dropped the signup
+            # session's application token (400 for a caller that has one).
             resp = client.post(f"/api/create_org/setup_trial/{application_id}/create_subscription")
-            assert resp.status_code == 400
+            assert resp.status_code in (400, 404)
             assert resp.get_json()["ok"] is False
 
             # Tenant-prefixed path -- a bare /login resolves to this test

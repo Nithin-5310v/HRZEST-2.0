@@ -222,12 +222,18 @@ class TestRunAutomatedVerification:
             _cleanup(db_engine, [tenant_id], [app_id])
 
 
-class TestLoginGateBlocksUntilApproved:
+class TestLoginGateBlocksOnlyRejectedDocuments:
+    """A new company's admin logs straight into its dashboard and uploads
+    the documents from its registration checklist, so documents not yet
+    uploaded or still under review never block login -- only rejected
+    ones do (auth._kyc_verification_blocks_login)."""
+
     def _admin_session_login(self, client, subdomain, username, password):
         return client.post(f"/{subdomain}/login", data={"identifier": username, "password": password},
                            follow_redirects=False)
 
-    def test_login_blocked_while_pending_review(self, client, db_engine, monkeypatch):
+    @pytest.mark.parametrize("doc_review_status", ["pending_documents", "pending_review"])
+    def test_login_allowed_while_documents_are_outstanding(self, client, db_engine, monkeypatch, doc_review_status):
         from app import init_master_db
         init_master_db()
         subdomain = "kyc-gate-pending"
@@ -250,11 +256,47 @@ class TestLoginGateBlocksUntilApproved:
             tenant_id = cur.fetchone()[0]
             cur.close()
             app_id = _insert_application(db_engine, tenant_id, "KYC Gate Pending Co", "kycgate_admin",
-                                         "kycgate@test.local")
+                                         "kycgate@test.local", doc_review_status=doc_review_status)
 
             resp = self._admin_session_login(client, subdomain, "kycgate_admin", "Test@1234")
+            assert resp.status_code in (301, 302)
+            with client.session_transaction() as sess:
+                assert sess.get("admin_logged_in") is True
+            _cleanup(db_engine, [], [app_id])
+        finally:
+            cur = db_engine.cursor()
+            cur.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+            cur.execute("DELETE FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+            cur.close()
+
+    def test_login_blocked_once_documents_are_rejected(self, client, db_engine, monkeypatch):
+        from app import init_master_db
+        init_master_db()
+        subdomain = "kyc-gate-rejected"
+        schema = "att_" + subdomain.replace("-", "_")
+        cur = db_engine.cursor()
+        cur.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+        cur.execute("DELETE FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+        cur.close()
+        try:
+            from blueprints.org import provision_tenant
+            from utils.auth import generate_password_hash as _gph
+            with flask_app.app_context():
+                ok, error, portal_url, checkin_url = provision_tenant(
+                    "KYC Gate Rejected Co", subdomain, "kycgatebad_admin",
+                    _gph("Test@1234"), "kycgatebad@test.local", subscription_status="trialing",
+                )
+            assert ok, error
+            cur = db_engine.cursor()
+            cur.execute("SELECT id FROM att_master.tenants WHERE subdomain=%s", (subdomain,))
+            tenant_id = cur.fetchone()[0]
+            cur.close()
+            app_id = _insert_application(db_engine, tenant_id, "KYC Gate Rejected Co", "kycgatebad_admin",
+                                         "kycgatebad@test.local", doc_review_status="rejected")
+
+            resp = self._admin_session_login(client, subdomain, "kycgatebad_admin", "Test@1234")
             assert resp.status_code == 200
-            assert b"still being verified" in resp.data
+            assert b"were not approved" in resp.data
             with client.session_transaction() as sess:
                 assert not sess.get("admin_logged_in")
             _cleanup(db_engine, [], [app_id])

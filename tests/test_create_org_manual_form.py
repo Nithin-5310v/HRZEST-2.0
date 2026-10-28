@@ -3,8 +3,8 @@
 The page had been reduced to the two OAuth buttons while POST /create_org
 (email OTP -> documents -> approval) stayed in the backend, which left manual
 registration unreachable from the browser. These tests pin that the form is
-there -- the wizard's first step, the admin's email, mobile number and
-password -- that it posts every field the handler reads, and that it works
+there -- the one signup step: the company name and the admin's email,
+mobile number and password -- that it posts every field the handler reads, and that it works
 under the page's own CSP (the Turnstile widget on it was previously blocked).
 """
 import html
@@ -14,7 +14,7 @@ import pytest
 
 # Every request.form key create_org() reads in blueprints/org.py (plus
 # signup_plan, sent only by a platform admin's free registration).
-HANDLER_FIELDS = {"admin_email", "admin_mobile", "admin_password"}
+HANDLER_FIELDS = {"company_name", "admin_email", "admin_mobile", "admin_password"}
 
 
 def _page(client):
@@ -66,7 +66,7 @@ class TestWithoutOAuthKeys:
         assert "Sign up with Google" not in page and "Sign up with Microsoft" not in page
         assert "or register manually" not in page
         assert "No documents or business registration number needed" not in page
-        assert "Create your admin account with your email, mobile number and a password" in page
+        assert "Name your company and create your admin account" in page
         _manual_form(page)
 
     def test_one_configured_provider_shows_only_its_button(self, client, monkeypatch):
@@ -99,19 +99,19 @@ class TestManualSignupFormIsOffered:
         missing = HANDLER_FIELDS - _field_names(body)
         assert not missing, f"form no longer sends: {sorted(missing)}"
 
-    def test_password_is_masked_and_company_details_wait_for_the_profile(self, client):
+    def test_password_is_masked_and_company_details_wait_for_the_dashboard(self, client):
         _, page = _page(client)
         _, body = _manual_form(page)
         pw = re.search(r'<input[^>]*name="admin_password"[^>]*>', body).group(0)
         assert 'type="password"' in pw and 'autocomplete="new-password"' in pw
         mobile = re.search(r'<input[^>]*name="admin_mobile"[^>]*>', body).group(0)
         assert 'type="tel"' in mobile and "required" in mobile
-        for name in ("company_name", "gst_number", "subdomain", "admin_username", "logo"):
-            assert f'name="{name}"' not in body, f"{name} belongs to the company profile step"
+        for name in ("gst_number", "subdomain", "admin_username", "logo"):
+            assert f'name="{name}"' not in body, f"{name} is finished from the dashboard, or made from another field"
 
     def test_copy_does_not_promise_oauth_perks_to_manual_signups(self, client, oauth_keys):
         """The 'no documents needed' line is true for Google/Microsoft only;
-        the manual path asks for an email code and four documents."""
+        the manual path asks for an email code, then documents from the dashboard."""
         _, page = _page(client)
         form_tag, body = _manual_form(page)
         before_form = page.split(form_tag)[0]
@@ -135,7 +135,7 @@ class TestRenderedFormReachesTheBackend:
         _, page = _page(client)
         _, body = _manual_form(page)
         values = {
-            "admin_email": "mf@manualform.test", "admin_mobile": "+91 98765 43210",
+            "company_name": "Manual Form Co", "admin_email": "mf@manualform.test", "admin_mobile": "+91 98765 43210",
             "admin_password": "password123",
             "_csrf_token": html.unescape(re.search(r'name="_csrf_token"\s+value="([^"]+)"', body).group(1)),
         }
@@ -151,9 +151,9 @@ class TestRenderedFormReachesTheBackend:
             assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
             assert sent.get("otp"), "an OTP email should have been issued"
             cur.execute(
-                "SELECT admin_username, admin_mobile, email_domain FROM att_master.tenant_applications "
+                "SELECT company_name, admin_username, admin_mobile, email_domain FROM att_master.tenant_applications "
                 "WHERE admin_email=%s", ("mf@manualform.test",))
-            assert cur.fetchone() == ("mf@manualform.test", "+919876543210", "manualform.test")
+            assert cur.fetchone() == ("Manual Form Co", "mf@manualform.test", "+919876543210", "manualform.test")
         finally:
             cur.execute("DELETE FROM att_master.tenant_applications WHERE admin_email=%s", ("mf@manualform.test",))
             cur.close()

@@ -53,20 +53,25 @@
     }
     .page-intro h1 { font-family: var(--font-heading); font-size: 20px; font-weight: 800; letter-spacing: -0.3px; color: var(--text-main); margin-bottom: 5px; }
     .page-intro p { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
-    .wizard-steps { display: flex; align-items: flex-start; justify-content: center; margin-bottom: 24px; }
-    .wizard-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 1 84px; min-width: 0; }
-    .wizard-step-circle {
-      width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 700; background: var(--bg-secondary); border: 1.5px solid var(--border-color);
-      color: var(--text-subtle); transition: var(--transition-fast);
+    .entered-details {
+      background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+      padding: 10px 12px; margin-bottom: 16px; font-size: 12.5px; color: var(--text-main);
     }
-    .wizard-step-label { font-size: 10px; font-weight: 600; color: var(--text-subtle); text-align: center; letter-spacing: 0.2px; }
-    .wizard-step.active .wizard-step-circle { background: var(--gradient-brand); border-color: transparent; color: #fff; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35); }
-    .wizard-step.active .wizard-step-label { color: var(--text-main); }
-    .wizard-step.done .wizard-step-circle { background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.3); color: var(--accent-emerald); }
-    .wizard-step.done .wizard-step-label { color: var(--text-muted); }
-    .wizard-step-line { flex: 1; max-width: 40px; height: 2px; background: var(--border-color); margin-top: 15px; }
-    .wizard-step-line.done { background: var(--accent-emerald); }
+    .entered-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; min-width: 0; }
+    .entered-row i { color: var(--accent-cyan); font-size: 14px; flex-shrink: 0; }
+    .entered-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .entered-change { display: inline-block; margin-top: 6px; font-size: 11.5px; font-weight: 600; color: var(--accent-cyan); text-decoration: none; }
+    .entered-change:hover { text-decoration: underline; }
+    .otp-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+    .otp-input {
+      width: 100%; padding: 14px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 10px;
+      background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+      color: var(--text-main); outline: none; margin-bottom: 16px;
+    }
+    .otp-input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12); }
+    .resend-form { text-align: center; margin-top: 12px; }
+    .resend-btn { background: none; border: none; color: var(--accent-cyan); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+    .resend-btn:hover { text-decoration: underline; }
     .card {
       background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg);
       padding: 22px 22px 20px; box-shadow: var(--shadow-lg); position: relative; overflow: hidden;
@@ -166,31 +171,34 @@
   {% include "_auth_promo.html" %}
   <div class="page-container">
 
-    {# Two wizard steps share this page (blueprints/org.py): the account (step 1,
-       POST /create_org) and, once the email is verified, the company profile
-       (step 3, profile_step, POST /create_org/profile). #}
+    {# Signup is one step (blueprints/org.py): the company name and admin account
+       (POST /create_org), then, on this same page, the emailed code (code_step,
+       POST /create_org/verify_otp), which creates the company and opens its
+       dashboard. profile_step is the old company-profile form, still served for
+       an application verified before step 1 asked for the company name. #}
     <div class="page-intro">
       {% if profile_step %}
       <div class="intro-icon"><i class="ti ti-building"></i></div>
       <h1>Set Up Your Company Profile</h1>
-      <p>Your email is verified. Tell us about your company to create its portal — business documents come next.</p>
+      <p>Your email is verified. Tell us about your company to create its portal.</p>
+      {% elif code_step %}
+      <div class="intro-icon"><i class="ti ti-mail-check"></i></div>
+      <h1>Start Your Organisation</h1>
+      <p>Enter the 6-digit code we emailed to <strong>{{ application.admin_email }}</strong>. It expires in 5 minutes.</p>
       {% else %}
       <div class="intro-icon"><i class="ti ti-rocket"></i></div>
       <h1>Start Your Organisation</h1>
       {% set oauth_names = oauth_providers | map('title') | join(' or ') %}
       {% if free_registration %}
-      <p>Free registration from the Platform Admin dashboard: the same steps as a paid signup, without the payment.
-         The company admin receives the verification code by email.</p>
+      <p>Free registration from the Platform Admin dashboard: no payment. The company's admin receives the
+         verification code by email and finishes registering from their dashboard.</p>
       {% elif oauth_providers %}
       <p>Sign up with your {{ oauth_names }} work account, or create an account with your email.</p>
       {% else %}
-      <p>Create your admin account with your email, mobile number and a password. We'll email you a code to verify your address.</p>
+      <p>Name your company and create your admin account. We'll email you a code, and you're in.</p>
       {% endif %}
       {% endif %}
     </div>
-
-    {% set current_step = 3 if profile_step else 1 %}
-    {% include "_org_wizard_steps.html" %}
 
     <div class="card">
       {% with messages = get_flashed_messages(with_categories=true) %}
@@ -201,7 +209,33 @@
         {% endfor %}
       {% endwith %}
 
-      {% if not profile_step %}
+      {% if code_step %}
+      <div class="entered-details">
+        <div class="entered-row"><i class="ti ti-building"></i><span>{{ application.company_name }}</span></div>
+        <div class="entered-row"><i class="ti ti-mail"></i><span>{{ application.admin_email }}</span></div>
+        {% if application.admin_mobile %}
+        <div class="entered-row"><i class="ti ti-phone"></i><span>{{ application.admin_mobile }}</span></div>
+        {% endif %}
+        <a href="/create_org{{ '?free=1' if free_registration else '' }}" class="entered-change">Change details</a>
+      </div>
+
+      <form method="POST" action="/create_org/verify_otp">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="application_id" value="{{ application.id }}" />
+        <label class="otp-label" for="otp_code_input">Verification code</label>
+        <input class="otp-input" type="text" name="otp_code" id="otp_code_input" inputmode="numeric" pattern="[0-9]{6}"
+               maxlength="6" placeholder="••••••" required autofocus autocomplete="one-time-code" />
+        <button type="submit" class="btn-submit">
+          <span>{% if free_registration %}Verify &amp; Create the Company{% else %}Verify &amp; Open My Dashboard{% endif %}</span>
+          <i class="ti ti-arrow-right"></i>
+        </button>
+      </form>
+      <form class="resend-form" method="POST" action="/create_org/resend_otp">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="application_id" value="{{ application.id }}" />
+        <button type="submit" class="resend-btn">Didn't get a code? Resend</button>
+      </form>
+      {% elif not profile_step %}
       {# Google/Microsoft buttons only for providers with keys configured (oauth_signup.py),
          and never on a platform admin's free registration #}
       {% if oauth_providers and not free_registration %}
@@ -243,13 +277,21 @@
 
       <div class="verify-note">
         <i class="ti ti-shield-lock"></i>
-        Your email is also your login username. We'll email it a verification code, then you'll set up your
-        company profile and upload a few business documents.
+        Your email is also your login username. Once you enter the code we email to it, you're in your dashboard —
+        add your GSTIN, business documents and payment details from there whenever you're ready.
       </div>
 
       <form method="POST" action="/create_org" autocomplete="off">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
         {% if free_registration %}<input type="hidden" name="signup_plan" value="free" />{% endif %}
+
+        <div class="field-group">
+          <label class="field-label" for="company_name_input"><i class="ti ti-building"></i> Company Name</label>
+          <input class="field-input" type="text" name="company_name" id="company_name_input"
+                 placeholder="e.g. Acme Corporation" required maxlength="200" autocomplete="organization"
+                 oninput="previewCompanyUrl(this.value)" />
+          <div class="field-hint">Your team's portal: <strong id="companyUrlPreview" style="color: var(--accent-cyan);">{{ portal_base }}/your-company/login</strong></div>
+        </div>
 
         <div class="field-group">
           <label class="field-label" for="admin_email_input"><i class="ti ti-mail"></i> Email</label>
@@ -276,7 +318,7 @@
         <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
         {% endif %}
 
-        <button type="submit" class="btn-submit"><span>Continue to Email Verification</span> <i class="ti ti-arrow-right"></i></button>
+        <button type="submit" class="btn-submit"><span>Send Verification Code</span> <i class="ti ti-arrow-right"></i></button>
       </form>
 
       <a href="/login" class="footer-login-link" style="margin-top: 18px;">Already registered? Log in to your corporate workspace →</a>
@@ -330,12 +372,12 @@
         <div class="field-group">
           <label class="field-label" for="subdomain_input"><i class="ti ti-world-www"></i> Corporate Subdomain URL</label>
           <div class="subdomain-container">
-            <div class="subdomain-prefix">www.hrzest.com/</div>
+            <div class="subdomain-prefix">{{ portal_base }}/</div>
             <input class="field-input subdomain-input" type="text" name="subdomain" id="subdomain_input"
                    placeholder="acme" pattern="[a-z0-9\-]+" required title="Lowercase letters, digits and hyphens only"
                    oninput="cleanSubdomainInput(this)" onblur="cleanSubdomainInput(this)" />
           </div>
-          <div class="field-hint">Your team will access their portal at: <strong id="liveUrlPreview" style="color: var(--accent-cyan);">www.hrzest.com/acme/login</strong></div>
+          <div class="field-hint">Your team will access their portal at: <strong id="liveUrlPreview" style="color: var(--accent-cyan);">{{ portal_base }}/acme/login</strong></div>
         </div>
 
         <div class="field-group" style="margin-bottom: 24px;">
@@ -354,6 +396,8 @@
 
   <script>
   let subdomainUserEdited = false;
+  // This server's own address (APP_URL) -- what the company's portal links really use.
+  const PORTAL_BASE = {{ portal_base | tojson }};
 
   function selectSignupPlan(plan) {
     document.getElementById('signup_plan_input').value = plan;
@@ -384,7 +428,13 @@
 
   function updateLivePreview(slug) {
     const preview = document.getElementById('liveUrlPreview');
-    if (preview) preview.textContent = 'www.hrzest.com/' + (slug || 'acme') + '/login';
+    if (preview) preview.textContent = PORTAL_BASE + '/' + (slug || 'acme') + '/login';
+  }
+
+  // Mirrors org.py's _slug_for_company(); the server adds -2, -3 ... if the URL is taken.
+  function previewCompanyUrl(name) {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
+    document.getElementById('companyUrlPreview').textContent = PORTAL_BASE + '/' + (slug || 'your-company') + '/login';
   }
   </script>
 </body>
