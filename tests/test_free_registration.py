@@ -83,8 +83,8 @@ class TestFreeRegistrationFlow:
         resp = start_signup(client, _EMAIL, password="short", signup_plan="free")
         assert resp.headers["Location"] == "/create_org?free=1"
 
-    def test_code_creates_an_active_invoiced_company_and_returns_to_platform_admin(self, client, db_engine,
-                                                                                     monkeypatch):
+    def test_code_creates_an_active_invoiced_company_and_returns_to_platform_admin(
+            self, client, db_engine, monkeypatch):
         from app import init_master_db
         init_master_db()
         _login_platform_admin(client)

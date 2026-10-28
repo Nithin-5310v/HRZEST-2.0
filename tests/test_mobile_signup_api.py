@@ -159,8 +159,8 @@ class TestLegacyProfileStep:
     """An application verified before step 1 asked for the company name
     still finishes at the old profile step."""
 
-    def test_code_leads_to_the_profile_for_an_application_without_a_company(self, client, db_engine,
-                                                                              monkeypatch):
+    def test_code_leads_to_the_profile_for_an_application_without_a_company(
+            self, client, db_engine, monkeypatch):
         resp, codes = _start(client, monkeypatch)
         body = resp.get_json()
         cur = db_engine.cursor()
