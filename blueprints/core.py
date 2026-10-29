@@ -389,6 +389,18 @@ def api_dashboard():
     cursor.execute("SELECT COALESCE(company_name, '') FROM company_settings LIMIT 1")
     co_row = cursor.fetchone()
     company_name = co_row[0] if co_row else ""
+    # The app dashboard's Announcements card: company-wide ones only -- this
+    # endpoint also serves HR and manager accounts, and a private
+    # announcement is meant for its one employee.
+    cursor.execute(
+        "SELECT id, title, content, priority, created_at FROM announcements "
+        "WHERE COALESCE(visibility, 'public')='public' ORDER BY created_at DESC LIMIT 10"
+    )
+    announcements = [
+        {"id": str(r[0]), "title": r[1], "message": r[2], "priority": r[3],
+         "date": r[4].strftime("%d %b") if r[4] else ""}
+        for r in cursor.fetchall()
+    ]
     cursor.close()
     db.close()
 
@@ -398,7 +410,7 @@ def api_dashboard():
         "today": today.strftime("%d %b %Y"), "today_rows": today_rows,
         "pending_leaves": pending_leaves, "pending_resignations": pending_resignations,
         "pending_tickets": pending_tickets, "unread_notifications": unread_notifications,
-        "company_name": company_name,
+        "company_name": company_name, "announcements": announcements,
     })
 
 

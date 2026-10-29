@@ -10,32 +10,9 @@ import { Ionicons } from "@expo/vector-icons";
 
 import THEME from "../../constants/theme";
 
-const DEFAULT_ANNOUNCEMENTS = [
-  {
-    id: 1,
-    title: "Company Meeting",
-    message:
-      "Monthly all-hands meeting scheduled tomorrow at 10:00 AM.",
-    date: "Tomorrow",
-    type: "meeting",
-  },
-  {
-    id: 2,
-    title: "Holiday Notice",
-    message:
-      "Office will remain closed on Independence Day.",
-    date: "15 Aug",
-    type: "holiday",
-  },
-  {
-    id: 3,
-    title: "Payroll Update",
-    message:
-      "Salary will be credited on the last working day.",
-    date: "This Month",
-    type: "payroll",
-  },
-];
+// The company's latest announcements (blueprints/core.py's /api/dashboard),
+// newest first; the card shows the top three and View All opens the rest.
+const SHOWN = 3;
 
 function getIcon(type) {
   switch (type) {
@@ -71,7 +48,7 @@ function getIcon(type) {
 
 export default function AnnouncementCard({
 
-  announcements = DEFAULT_ANNOUNCEMENTS,
+  announcements = [],
 
   onViewAll = () => {},
 
@@ -98,7 +75,15 @@ export default function AnnouncementCard({
 
       </View>
 
-      {announcements.map((item) => {
+      {announcements.length === 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.message}>
+            No announcements yet. Post one from Notifications & Broadcast.
+          </Text>
+        </View>
+      ) : null}
+
+      {announcements.slice(0, SHOWN).map((item) => {
 
         const config = getIcon(item.type);
 

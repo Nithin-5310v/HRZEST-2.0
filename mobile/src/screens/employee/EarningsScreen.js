@@ -97,7 +97,8 @@ export default function EarningsScreen() {
             />
 
             <View style={styles.chipContainer}>
-              <StatChip label="Salary Credited" color="#16A34A" background="#DCFCE7" />
+              {/* A live estimate (/api/employee/salary), not a payment record. */}
+              <StatChip label="Estimated from attendance" color="#B45309" background="#FEF3C7" />
               <StatChip label="Payslip Available" color={colors.primary} background={colors.primaryLight} />
             </View>
 
