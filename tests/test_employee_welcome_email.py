@@ -1,7 +1,7 @@
 """New-employee welcome emails link the recipient somewhere useful rather
 than listing bare credentials with nowhere to use them. Covers all 3 live
 employee-creation entry points: /add_employee_page, the Bearer-token
-/api/employees, and the self-service /api/employee/signup. (A 4th used to
+/api/employees, and the app's /api/employee/signup. (A 4th used to
 exist -- POST /admin_action action="register" -- but that branch was
 removed from blueprints/employees.py; see tests/test_employee_registration.py's
 docstring. /add_employee_page's coverage below is the same welcome-email
@@ -12,8 +12,8 @@ their welcome email sends a one-time "set your password" link
 (/employee_reset_password/<token>) instead of a plain login link -- see
 blueprints/employees.py's _send_welcome_credentials_email docstring for
 why (Gmail hard-blocks the old plaintext-password-plus-login-link shape as
-phishing). /api/employee/signup is self-service -- the employee already
-chose their own password -- so it still links straight to /login.
+phishing). /api/employee/signup takes the password the admin typed in
+the app, so it still links straight to /login.
 
 get_email_config()/send_email_smtp() are monkeypatched per call site
 (imported directly into each blueprint module, same pattern
@@ -141,7 +141,7 @@ class TestApiRegisterEmployeeWelcomeEmail:
 
 
 class TestApiEmployeeSignupWelcomeEmail:
-    def test_self_signup_sends_email_with_login_link_no_password(self, client, db_engine, monkeypatch):
+    def test_signup_sends_email_with_login_link_no_password(self, client, seed_admin, db_engine, monkeypatch):
         import blueprints.core as core_module
         monkeypatch.setattr(core_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
@@ -150,18 +150,37 @@ class TestApiEmployeeSignupWelcomeEmail:
 
         emp_id = "WELMAIL004"
         try:
+            token = client.post("/api/login", json={
+                "username": seed_admin["username"], "password": seed_admin["password"],
+            }).get_json()["token"]
             resp = client.post("/api/employee/signup", json={
                 "employee_id": emp_id, "name": "Welcome Mail Test 4",
                 "email": "welmail004@test.local", "password": "SelfChosen@1",
-            })
+            }, headers={"Authorization": f"Bearer {token}"})
             assert resp.status_code == 200
 
             assert len(sent) == 1
             to, subject, html = sent[0]
             assert to == "welmail004@test.local"
             assert "/login" in html
-            # Self-service signup: the employee already knows the password
-            # they typed -- don't echo it back into the email.
+            # The password was typed in the app, not generated -- don't
+            # echo it back into the email.
             assert "SelfChosen@1" not in html
+        finally:
+            _cleanup_employee(db_engine, emp_id)
+
+    def test_signup_needs_an_admin_token(self, client, db_engine):
+        """Open, this let anyone create an employee in any company -- with
+        role "HR", an admin-panel login (auth.py's _finish_employee_login)."""
+        emp_id = "WELMAIL005"
+        try:
+            resp = client.post("/api/employee/signup", json={
+                "employee_id": emp_id, "name": "Not Staff", "role": "HR",
+                "email": "welmail005@test.local", "password": "SelfChosen@1",
+            })
+            assert resp.status_code == 401
+            cur = db_engine.cursor()
+            cur.execute("SELECT 1 FROM employees WHERE employee_id=%s", (emp_id,))
+            assert cur.fetchone() is None
         finally:
             _cleanup_employee(db_engine, emp_id)

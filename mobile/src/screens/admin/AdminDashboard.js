@@ -40,7 +40,7 @@ export default function AdminDashboard({ navigation }) {
   const [announcementModalVisible, setAnnouncementModalVisible] = useState(false);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
-
+  const [verification, setVerification] = useState(null);
 
   useEffect(() => {
     loadDashboard();
@@ -91,9 +91,10 @@ export default function AdminDashboard({ navigation }) {
             attendance={attendancePct}
             payroll={payrollFormatted}
             profileImage={user?.logo || dashboardData?.company_logo}
+            verification={verification}
           />
 
-          <RegistrationChecklistCard navigation={navigation} />
+          <RegistrationChecklistCard navigation={navigation} onVerification={setVerification} />
 
           <AdminSearchBar
             value={search}
@@ -141,6 +142,7 @@ export default function AdminDashboard({ navigation }) {
 
           {/* Announcements Card with Working View All */}
           <AnnouncementCard
+            announcements={dashboardData?.announcements || []}
             onViewAll={() => setAnnouncementModalVisible(true)}
           />
 

@@ -56,12 +56,12 @@ export default function EmployeesScreen({ navigation }) {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newEmpId, setNewEmpId] = useState("");
   const [newEmpName, setNewEmpName] = useState("");
-  const [newEmpRole, setNewEmpRole] = useState("Software Engineer");
-  const [newEmpDept, setNewEmpDept] = useState("Engineering");
+  const [newEmpRole, setNewEmpRole] = useState("");
+  const [newEmpDept, setNewEmpDept] = useState("");
   const [newEmpEmail, setNewEmpEmail] = useState("");
   const [newEmpPhone, setNewEmpPhone] = useState("");
   const [newEmpDoj, setNewEmpDoj] = useState(new Date().toISOString().split("T")[0]);
-  const [newEmpPassword, setNewEmpPassword] = useState("welcome123");
+  const [newEmpPassword, setNewEmpPassword] = useState("");
   const [newEmpPhoto, setNewEmpPhoto] = useState(null);
 
   // Edit Employee Form State -- mirrors blueprints/employees.py's
@@ -193,16 +193,19 @@ export default function EmployeesScreen({ navigation }) {
           rawList = res.data.data;
         }
       }
+      // Missing fields stay empty: the edit form is filled from these and
+      // saves them back, so a made-up email, role or joining date here
+      // would end up in the employee's real record.
       const formattedList = rawList.map((emp) => ({
         id: emp.employee_id || emp.id,
-        employee_id: emp.employee_id || emp.id || "EMP-1001",
+        employee_id: emp.employee_id || emp.id,
         name: emp.name || emp.employee_id || "Staff Member",
-        email: emp.email || `${(emp.employee_id || "emp").toLowerCase()}@company.com`,
-        role: emp.role || emp.designation || "Software Engineer",
-        department: emp.department || "Engineering",
+        email: emp.email || "",
+        role: emp.role || emp.designation || "",
+        department: emp.department || "",
         status: emp.status || "Active",
         phone: emp.phone || "",
-        date_of_joining: emp.date_of_joining || emp.doj || new Date().toISOString().split("T")[0],
+        date_of_joining: emp.date_of_joining || emp.doj || "",
         has_photo: true,
       }));
 
@@ -242,9 +245,9 @@ export default function EmployeesScreen({ navigation }) {
   const handleAddEmployeeSubmit = async () => {
     const empIdTrim = newEmpId.trim().toUpperCase();
     const empNameTrim = newEmpName.trim();
-    const empPassTrim = newEmpPassword.trim() || "welcome123";
-    if (!empIdTrim || !empNameTrim) {
-      Alert.alert("Input Required", "Employee ID and Full Name are required.");
+    const empPassTrim = newEmpPassword.trim();
+    if (!empIdTrim || !empNameTrim || !empPassTrim) {
+      Alert.alert("Input Required", "Employee ID, Full Name and Password are required.");
       return;
     }
     setSubmitting(true);
@@ -253,10 +256,10 @@ export default function EmployeesScreen({ navigation }) {
       name: empNameTrim,
       password: empPassTrim,
       role: newEmpRole.trim() || "Employee",
-      department: newEmpDept.trim() || "Engineering",
-      email: newEmpEmail.trim() || `${empIdTrim.toLowerCase()}@company.com`,
+      department: newEmpDept.trim(),
+      email: newEmpEmail.trim(),
       phone: newEmpPhone.trim() || "",
-      date_of_joining: newEmpDoj.trim() || new Date().toISOString().split("T")[0],
+      date_of_joining: newEmpDoj.trim(),
     };
 
     // Real API call first -- only treat this as a success (and only cache
@@ -317,12 +320,12 @@ export default function EmployeesScreen({ navigation }) {
     setAddModalVisible(false);
     setNewEmpId("");
     setNewEmpName("");
-    setNewEmpRole("Software Engineer");
-    setNewEmpDept("Engineering");
+    setNewEmpRole("");
+    setNewEmpDept("");
     setNewEmpEmail("");
     setNewEmpPhone("");
     setNewEmpDoj(new Date().toISOString().split("T")[0]);
-    setNewEmpPassword("welcome123");
+    setNewEmpPassword("");
     setNewEmpPhoto(null);
     setSubmitting(false);
   };
@@ -409,7 +412,10 @@ export default function EmployeesScreen({ navigation }) {
     );
   };
 
-  const departments = ["All", "Engineering", "Design", "HR", "Testing"];
+  const departments = [
+    "All",
+    ...[...new Set(employees.map((emp) => emp.department).filter(Boolean))].sort(),
+  ];
   const statuses = ["All", "Active", "On Leave", "Inactive"];
   const sortOptions = ["Name (A-Z)", "Name (Z-A)", "Role"];
 
@@ -424,7 +430,7 @@ export default function EmployeesScreen({ navigation }) {
         (emp.employee_id && emp.employee_id.toLowerCase().includes(search.toLowerCase())) ||
         (emp.role && emp.role.toLowerCase().includes(search.toLowerCase()));
 
-      const empDept = emp.department || "Engineering";
+      const empDept = emp.department || "";
       const matchesDept = selectedDept === "All" || empDept.toLowerCase() === selectedDept.toLowerCase();
 
       const empStatus = emp.status || "Active";
@@ -649,7 +655,7 @@ export default function EmployeesScreen({ navigation }) {
                       <Ionicons name="mail-outline" size={16} color="#173B8C" />
                       <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 8, fontWeight: "600" }}>Email:</Text>
                       <Text style={{ fontSize: 13, color: colors.text, marginLeft: 6, fontWeight: "700" }}>
-                        {selectedEmp.email || `${selectedEmp.employee_id}@company.com`}
+                        {selectedEmp.email || "Not set"}
                       </Text>
                     </View>
 
@@ -761,6 +767,7 @@ export default function EmployeesScreen({ navigation }) {
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textLight}
                   value={editEmpDoj}
                   onChangeText={setEditEmpDoj}
                 />
@@ -954,6 +961,7 @@ export default function EmployeesScreen({ navigation }) {
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="Engineering"
+                  placeholderTextColor={colors.textLight}
                   value={newEmpDept}
                   onChangeText={setNewEmpDept}
                 />
@@ -962,6 +970,7 @@ export default function EmployeesScreen({ navigation }) {
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="Software Engineer"
+                  placeholderTextColor={colors.textLight}
                   value={newEmpRole}
                   onChangeText={setNewEmpRole}
                 />
@@ -969,7 +978,7 @@ export default function EmployeesScreen({ navigation }) {
                 <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>INITIAL PASSWORD</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
-                  placeholder="welcome123"
+                  placeholder="At least 8 characters"
                   placeholderTextColor={colors.textLight}
                   value={newEmpPassword}
                   onChangeText={setNewEmpPassword}

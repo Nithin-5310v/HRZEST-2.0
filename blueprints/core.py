@@ -6,6 +6,7 @@ last routes drained out of app.py, which now holds only shared setup
 (init_db, error handlers, before/after_request hooks, template filters)."""
 import time
 import secrets
+from datetime import date
 from flask import Blueprint, request, session, jsonify, render_template, redirect, Response, g, current_app
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
@@ -388,6 +389,18 @@ def api_dashboard():
     cursor.execute("SELECT COALESCE(company_name, '') FROM company_settings LIMIT 1")
     co_row = cursor.fetchone()
     company_name = co_row[0] if co_row else ""
+    # The app dashboard's Announcements card: company-wide ones only -- this
+    # endpoint also serves HR and manager accounts, and a private
+    # announcement is meant for its one employee.
+    cursor.execute(
+        "SELECT id, title, content, priority, created_at FROM announcements "
+        "WHERE COALESCE(visibility, 'public')='public' ORDER BY created_at DESC LIMIT 10"
+    )
+    announcements = [
+        {"id": str(r[0]), "title": r[1], "message": r[2], "priority": r[3],
+         "date": r[4].strftime("%d %b") if r[4] else ""}
+        for r in cursor.fetchall()
+    ]
     cursor.close()
     db.close()
 
@@ -397,7 +410,7 @@ def api_dashboard():
         "today": today.strftime("%d %b %Y"), "today_rows": today_rows,
         "pending_leaves": pending_leaves, "pending_resignations": pending_resignations,
         "pending_tickets": pending_tickets, "unread_notifications": unread_notifications,
-        "company_name": company_name,
+        "company_name": company_name, "announcements": announcements,
     })
 
 
@@ -687,8 +700,14 @@ def api_employee_logout():
 
 @core_bp.route("/api/employee/signup", methods=["POST"])
 @limiter.limit("5 per minute")
+@api_required
 def api_employee_signup():
-    """API endpoint for employee self-registration / sign up."""
+    """The app's admin Add Employee (mobile/src/api/client.js's addEmployee):
+    creates an employee with the password the admin typed. Needs an admin
+    token, like /api/employees and the web's /add_employee_page -- open, it
+    let anyone who knew a company's URL create themselves an employee,
+    including role "HR" or "Manager", which auth.py's
+    _finish_employee_login() turns into admin-panel access."""
     data = request.get_json() or {}
     emp_id = data.get("employee_id", "").strip().upper()
     name = data.get("name", "").strip()
@@ -696,9 +715,16 @@ def api_employee_signup():
     password = data.get("password", "").strip()
     role = data.get("role", "Employee").strip()
     department = data.get("department", "Engineering").strip()
+    phone = (data.get("phone") or "").strip() or None
+    date_of_joining = (data.get("date_of_joining") or "").strip() or None
 
     if not emp_id or not name or not password:
         return jsonify({"ok": False, "msg": "Employee ID, Full Name, and Password are required."}), 400
+    if date_of_joining:
+        try:
+            date.fromisoformat(date_of_joining)
+        except ValueError:
+            return jsonify({"ok": False, "msg": "Date of joining must be in YYYY-MM-DD format."}), 400
 
     _pw_ok, _pw_err = validate_new_password(password)
     if not _pw_ok:
@@ -745,9 +771,9 @@ def api_employee_signup():
             _seat_error = add_employee_seat_cap_check(cursor)
             if not _seat_error:
                 cursor.execute(
-                    "INSERT INTO employees (employee_id, name, email, role, department, password, date_of_joining) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, NOW())",
-                    (emp_id, name, email, role, department, hashed_pw)
+                    "INSERT INTO employees (employee_id, name, email, role, department, phone, password, "
+                    "date_of_joining) VALUES (%s, %s, %s, %s, %s, %s, %s, COALESCE(%s::date, NOW()))",
+                    (emp_id, name, email, role, department, phone, hashed_pw, date_of_joining)
                 )
         if _seat_error:
             cursor.close()

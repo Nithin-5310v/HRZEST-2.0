@@ -143,7 +143,11 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ProfileHeader title="Alerts & Announcements" showBack={false} />
+      <ProfileHeader
+        title="Alerts & Announcements"
+        subtitle={isAdmin ? (user?.company || "Admin Portal").toUpperCase() : undefined}
+        showBack={false}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -170,7 +174,7 @@ export default function NotificationsScreen() {
 
           {canBroadcast && (
             <TouchableOpacity style={styles.broadcastBtn} onPress={() => setBroadcastVisible(true)}>
-              <Ionicons name="mega-phone-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Ionicons name="megaphone-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
               <Text style={styles.broadcastBtnText}>Send Broadcast</Text>
             </TouchableOpacity>
           )}

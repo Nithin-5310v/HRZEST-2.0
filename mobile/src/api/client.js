@@ -321,10 +321,12 @@ export const addEmployee = (employeeData) =>
   client.post('/api/employee/signup', {
     employee_id: (employeeData.employee_id || employeeData.emp_id || '').toUpperCase(),
     name: employeeData.name,
-    password: employeeData.password || 'welcome123',
-    email: employeeData.email,
-    role: employeeData.role || 'Software Engineer',
-    department: employeeData.department || 'Engineering',
+    password: employeeData.password,
+    email: employeeData.email || '',
+    role: employeeData.role || 'Employee',
+    department: employeeData.department || '',
+    phone: employeeData.phone || '',
+    date_of_joining: employeeData.date_of_joining || '',
   });
 // forgotPassword, resetPassword, addHoliday, deleteHoliday stay removed --
 // their routes (/api/forgot-password, /api/reset-password,

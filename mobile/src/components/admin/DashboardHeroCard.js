@@ -9,6 +9,19 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
+import { getCompanySlug } from "../../api/client";
+import { PORTAL_HOST } from "../../config";
+
+// verification: the registration checklist's documents step, as
+// RegistrationChecklistCard reports it -- "verified" (approved, or nothing
+// left to finish), "review" (submitted, awaiting review) or "pending"
+// (not submitted yet, or rejected). No badge until it's known.
+const BADGES = {
+  verified: { label: "VERIFIED", icon: "shield-checkmark", color: "#34D399", bg: "rgba(16, 185, 129, 0.2)", border: "rgba(16, 185, 129, 0.4)" },
+  review: { label: "UNDER REVIEW", icon: "time-outline", color: "#FBBF24", bg: "rgba(245, 158, 11, 0.2)", border: "rgba(245, 158, 11, 0.4)" },
+  pending: { label: "NOT VERIFIED", icon: "alert-circle-outline", color: "#FCA5A5", bg: "rgba(239, 68, 68, 0.2)", border: "rgba(239, 68, 68, 0.4)" },
+};
+
 export default function DashboardHeroCard({
   adminName = "Administrator",
   company = "Workforce Portal",
@@ -17,7 +30,10 @@ export default function DashboardHeroCard({
   attendance = "0%",
   payroll = "₹0",
   profileImage,
+  verification,
 }) {
+  const slug = getCompanySlug();
+  const badge = BADGES[verification];
 
   return (
 
@@ -50,18 +66,22 @@ export default function DashboardHeroCard({
                 : "HRZEST TECHNOLOGIES"
               ).toUpperCase()}
             </Text>
-            <View style={styles.tenantMetaRow}>
-              <Ionicons name="globe-outline" size={10} color="#38BDF8" style={{ marginRight: 3 }} />
-              <Text style={styles.companyBannerTenant}>
-                TENANT: {(company || "hrzest").toLowerCase().replace(/[^a-z0-9]/g, "")}.hrzest.com
-              </Text>
-            </View>
+            {slug ? (
+              <View style={styles.tenantMetaRow}>
+                <Ionicons name="globe-outline" size={10} color="#38BDF8" style={{ marginRight: 3 }} />
+                <Text style={styles.companyBannerTenant} numberOfLines={1}>
+                  {PORTAL_HOST}/{slug}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
-        <View style={styles.verifiedBadge}>
-          <Ionicons name="shield-checkmark" size={12} color="#10B981" style={{ marginRight: 4 }} />
-          <Text style={styles.verifiedText}>VERIFIED</Text>
-        </View>
+        {badge ? (
+          <View style={[styles.verifiedBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+            <Ionicons name={badge.icon} size={12} color={badge.color} style={{ marginRight: 4 }} />
+            <Text style={[styles.verifiedText, { color: badge.color }]}>{badge.label}</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.topRow}>

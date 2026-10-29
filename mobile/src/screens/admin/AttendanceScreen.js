@@ -25,14 +25,16 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const YEARS = ["2024", "2025", "2026", "2027"];
+// Opens on the current month; the year list follows the calendar.
+const yearsAround = (year) => [-2, -1, 0, 1].map((offset) => String(year + offset));
 
 export default function AttendanceScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
   const [search, setSearch] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("August");
-  const [selectedYear, setSelectedYear] = useState("2026");
+  const [selectedMonth, setSelectedMonth] = useState(() => MONTHS[new Date().getMonth()]);
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
+  const years = React.useMemo(() => yearsAround(new Date().getFullYear()), []);
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedSort, setSelectedSort] = useState("Default");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -370,7 +372,7 @@ export default function AttendanceScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
               <FlatList
-                data={YEARS}
+                data={years}
                 keyExtractor={(item) => item}
                 renderItem={({ item }) => (
                   <TouchableOpacity

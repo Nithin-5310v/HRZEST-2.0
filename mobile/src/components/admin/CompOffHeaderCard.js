@@ -123,28 +123,6 @@ export default function CompOffHeaderCard({
             </Text>
           </Text>
 
-          <View style={styles.trendRow}>
-
-            <View style={styles.trendChip}>
-
-              <Ionicons
-                name="trending-up"
-                size={14}
-                color="#22C55E"
-              />
-
-              <Text style={styles.trendText}>
-                +12%
-              </Text>
-
-            </View>
-
-            <Text style={styles.compareText}>
-              vs last month
-            </Text>
-
-          </View>
-
         </View>
                   {/* Floating Balance Card */}
 

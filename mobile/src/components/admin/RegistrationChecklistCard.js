@@ -22,7 +22,15 @@ const STEPS = {
              icon: "card-outline", screen: "SeatsBilling", action: "Set up payment" },
 };
 
-export default function RegistrationChecklistCard({ navigation }) {
+// The dashboard's verified badge (DashboardHeroCard's verification) from the
+// documents step; no steps left means there is nothing to verify.
+function verificationOf(steps) {
+  const documents = steps.find((step) => step.key === "documents");
+  if (!documents || documents.status === "done") return "verified";
+  return documents.status === "review" ? "review" : "pending";
+}
+
+export default function RegistrationChecklistCard({ navigation, onVerification }) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
   const [steps, setSteps] = useState([]);
@@ -31,12 +39,17 @@ export default function RegistrationChecklistCard({ navigation }) {
     useCallback(() => {
       let active = true;
       getRegistrationChecklist()
-        .then((res) => active && setSteps(res?.data?.ok ? res.data.steps || [] : []))
+        .then((res) => {
+          if (!active) return;
+          const loaded = res?.data?.ok ? res.data.steps || [] : [];
+          setSteps(loaded);
+          if (res?.data?.ok) onVerification?.(verificationOf(loaded));
+        })
         .catch(() => active && setSteps([]));
       return () => {
         active = false;
       };
-    }, [])
+    }, [onVerification])
   );
 
   const known = steps.filter((step) => STEPS[step.key]);

@@ -519,16 +519,20 @@ describe('POST with positional-args body', () => {
     });
   });
 
-  it('addEmployee uppercases employee_id and fills in default password/role/department', async () => {
+  it('addEmployee uppercases employee_id and makes up nothing the admin left blank', async () => {
+    // No default password (it was a guessable 'welcome123') and no invented
+    // department -- the screen requires the password, the server checks it.
     mockAxiosInstance.post.mockResolvedValue({ data: {} });
     await client.addEmployee({ employee_id: 'emp2', name: 'Bob', email: 'b@x.com' });
     expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/employee/signup', {
       employee_id: 'EMP2',
       name: 'Bob',
-      password: 'welcome123',
+      password: undefined,
       email: 'b@x.com',
-      role: 'Software Engineer',
-      department: 'Engineering',
+      role: 'Employee',
+      department: '',
+      phone: '',
+      date_of_joining: '',
     });
   });
 
@@ -540,14 +544,18 @@ describe('POST with positional-args body', () => {
       password: 'custompw',
       role: 'Manager',
       department: 'Sales',
+      phone: '9123456780',
+      date_of_joining: '2026-10-01',
     });
     expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/employee/signup', {
       employee_id: 'EMP3',
       name: 'Carol',
       password: 'custompw',
-      email: undefined,
+      email: '',
       role: 'Manager',
       department: 'Sales',
+      phone: '9123456780',
+      date_of_joining: '2026-10-01',
     });
   });
 
