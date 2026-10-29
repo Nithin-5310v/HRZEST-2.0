@@ -8,6 +8,19 @@ import datetime
 from utils.payout_utils import validate_ifsc, mask_account_number
 
 
+def _a_scheduled_payday(monkeypatch):
+    """A fixed "today" -- the 15th of this month -- for the run-preparation
+    tests, which make it the payday. Using the real date failed on the
+    29th-31st: the bank config only accepts disbursement days 1-28 (so every
+    month has one), so the config was refused and nothing was prepared. It
+    also pins company_today(), which reads the company's time zone and can be
+    a day ahead of the test machine's UTC date."""
+    import blueprints.disbursement as disbursement
+    payday = datetime.date.today().replace(day=15)
+    monkeypatch.setattr(disbursement, "company_today", lambda: payday)
+    return payday
+
+
 def _admin_session(client, seed_admin):
     client.post("/login", data={
         "identifier": seed_admin["username"],
@@ -187,7 +200,8 @@ class TestFirstTimeTotpEnrollment:
 
 
 class TestMissingBankDetailsFlaggedAtPrepTime:
-    def test_employee_without_bank_details_flagged_before_approval(self, client, seed_admin, seed_employee, db_engine):
+    def test_employee_without_bank_details_flagged_before_approval(
+            self, client, seed_admin, seed_employee, db_engine, monkeypatch):
         """seed_employee (TST001) has no bank_account/bank_ifsc set -- its
         disbursement item must come out of preparation already marked
         missing_bank_details, visible to the admin BEFORE they approve,
@@ -196,7 +210,7 @@ class TestMissingBankDetailsFlaggedAtPrepTime:
         from utils.helpers import encrypt_pii
 
         _admin_session(client, seed_admin)
-        today = datetime.date.today()
+        today = _a_scheduled_payday(monkeypatch)
         client.post("/api/payout/bank_config", json={
             "account_holder_name": "Test Co", "bank_name": "Test Bank",
             "account_number": "444455556666", "ifsc_code": "UTIB0001234",
@@ -246,11 +260,12 @@ class TestMissingBankDetailsFlaggedAtPrepTime:
 
 
 class TestRunPreparationIdempotent:
-    def test_prepare_does_not_double_create_for_same_month(self, client, seed_admin, seed_employee, db_engine):
+    def test_prepare_does_not_double_create_for_same_month(
+            self, client, seed_admin, seed_employee, db_engine, monkeypatch):
         from blueprints.disbursement import _prepare_one_tenant
 
         _admin_session(client, seed_admin)
-        today = datetime.date.today()
+        today = _a_scheduled_payday(monkeypatch)
         client.post("/api/payout/bank_config", json={
             "account_holder_name": "Test Co", "bank_name": "Test Bank",
             "account_number": "111122223333", "ifsc_code": "ICIC0001234",
@@ -277,7 +292,10 @@ class TestRunPreparationIdempotent:
         )
         count = cur.fetchone()[0]
         cur.close()
-        assert count <= 1, "prepare_pending_disbursements created more than one run for the same month"
+        # Exactly one: the first call prepares the run (today is its payday),
+        # the second must not add another. (This used to be "<= 1", which
+        # also passed when nothing was prepared at all.)
+        assert count == 1, "expected exactly one run for the month after preparing twice"
 
 
 class TestApprovalGuards:
