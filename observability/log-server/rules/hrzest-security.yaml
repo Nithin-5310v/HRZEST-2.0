@@ -42,4 +42,4 @@ groups:
         labels: {severity: warning}
         annotations:
           summary: "The app is seeing non-routable client IPs in production"
-          description: "IP bans/rate limits are being withheld; fix the network (SECURITY_HARDENING.md, Real client IP)."
+          description: "IP bans/rate limits are being withheld; fix the network (docs/SECURITY_HARDENING.md, Real client IP)."

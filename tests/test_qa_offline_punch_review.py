@@ -5,7 +5,7 @@ time up to 24 hours old, and nothing flagged it: an employee could stay
 "offline", queue an 08:55 punch at 11:00 and sync it later to avoid the
 late mark. The live check-in already ignores the client's time.
 
-Owner decision (QA_AUDIT.md §0.1): punches older than 12 hours are refused
+Owner decision (docs/QA_AUDIT.md §0.1): punches older than 12 hours are refused
 (a per-company setting, company_settings.offline_punch_max_hours), and every
 synced punch is flagged for review. An admin approves or rejects it on
 /offline_punches; rejecting removes the punch's effect on the attendance

@@ -43,8 +43,8 @@ jobs:
         # requirements.lock pins every dependency by version and hash for the
         # production image. If requirements.txt changed without re-locking this
         # shows a diff. Non-blocking for now: it becomes a hard gate once the
-        # image has been built from the lock in CI (see SECURITY_HARDENING.md /
-        # MODERNIZATION.md). Fix with: bash scripts/relock.sh
+        # image has been built from the lock in CI (see docs/SECURITY_HARDENING.md /
+        # docs/MODERNIZATION.md). Fix with: bash scripts/relock.sh
         continue-on-error: true
         run: |
           pip install --no-cache-dir uv

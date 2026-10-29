@@ -252,7 +252,7 @@ services:
   # "system32_crypto_admin" — decoy listeners on ports nothing legitimate
   # here ever uses (FTP/Telnet/SMTP/MSSQL/MySQL/RDP). Any connection is
   # unambiguous scan/attack activity — see utils/honeypot.py and
-  # SECURITY_HARDENING.md ("Honeypot") for the full reasoning. Reuses the app image
+  # docs/SECURITY_HARDENING.md ("Honeypot") for the full reasoning. Reuses the app image
   # (same build) rather than a second Containerfile — it never touches
   # face_recognition, so the extra image weight costs nothing at
   # runtime and this avoids maintaining a second build pipeline for one

@@ -1,4 +1,4 @@
-"""Process-local environment for the QA load test (QA_AUDIT.md §0.4).
+"""Process-local environment for the QA load test (docs/QA_AUDIT.md §0.4).
 
 Only os.environ of the CURRENT process is changed -- nothing in the repo's
 config or defaults. Imported first by run_server.py / seed.py / cleanup.py.
