@@ -687,8 +687,14 @@ def api_employee_logout():
 
 @core_bp.route("/api/employee/signup", methods=["POST"])
 @limiter.limit("5 per minute")
+@api_required
 def api_employee_signup():
-    """API endpoint for employee self-registration / sign up."""
+    """The app's admin Add Employee (mobile/src/api/client.js's addEmployee):
+    creates an employee with the password the admin typed. Needs an admin
+    token, like /api/employees and the web's /add_employee_page -- open, it
+    let anyone who knew a company's URL create themselves an employee,
+    including role "HR" or "Manager", which auth.py's
+    _finish_employee_login() turns into admin-panel access."""
     data = request.get_json() or {}
     emp_id = data.get("employee_id", "").strip().upper()
     name = data.get("name", "").strip()
