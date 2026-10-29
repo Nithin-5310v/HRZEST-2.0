@@ -31,6 +31,8 @@ This page splits the project into blocks, saying where each block lives and what
 
 Every folder and top-level file in the repo, grouped by the block it belongs to. The sections after this one explain each block in detail.
 
+**See it this way in VS Code:** *File → Open Workspace from File… → `HRZEST.code-workspace`*. The Explorer then lists the blocks in this order (1. UI, 2–3. CSS & JavaScript, 4–5. Back end & API, …), hides caches and virtual environments, and keeps the root files under **HRZEST** at the bottom. Nothing moves on disk.
+
 ```text
 HRZEST/
 │
