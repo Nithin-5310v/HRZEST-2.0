@@ -13,7 +13,7 @@ Net pay was computed five different ways:
   - the mobile app's /api/employee/salary (yet another formula).
 An employee's payslip could differ from what was paid.
 
-Owner decision (QA_AUDIT.md §0.1): earnings from attendance under the
+Owner decision (docs/QA_AUDIT.md §0.1): earnings from attendance under the
 company's rules plus incentives -- the amount disbursed until now --
 minus the PF/PT/TDS from Payroll settings. Every view now shows that
 figure, and it is what the disbursement pays.

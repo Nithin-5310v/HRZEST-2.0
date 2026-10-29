@@ -3,7 +3,7 @@ grant_runtime_privileges / scripts/provision_db_roles.py).
 
 These only mean something when the suite is run with the split configured --
 DB_USER = restricted runtime role, DB_OWNER_USER = owner role (see
-SECURITY_HARDENING.md, "Database roles") -- so they skip otherwise. CI runs
+docs/SECURITY_HARDENING.md, "Database roles") -- so they skip otherwise. CI runs
 them in a dedicated job.
 """
 import os

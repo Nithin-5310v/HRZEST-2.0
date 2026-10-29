@@ -18,6 +18,7 @@
     { "name": "12. Deployment - scripts", "path": "scripts" },
     { "name": "12. CI workflows (.github)", "path": ".github" },
     { "name": "12. Logs & monitoring (observability)", "path": "observability" },
+    { "name": "13. Docs (docs)", "path": "docs" },
     { "name": "HRZEST", "path": "." }
   ],
   "settings": {
@@ -43,7 +44,8 @@
       "tests_e2e": true,
       "scripts": true,
       ".github": true,
-      "observability": true
+      "observability": true,
+      "docs": true
     },
     // Python imports (from utils..., from blueprints..., import database) resolve
     // from the repo root, whichever block a file is opened from.

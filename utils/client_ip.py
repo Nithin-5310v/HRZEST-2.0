@@ -14,7 +14,7 @@ private IP, so:
   * a single scanner touching /.env would permanently ban the whole site;
   * one 300/min Flask-Limiter bucket would be shared by every user.
 
-The fix for the root cause is deployment-level (see SECURITY_HARDENING.md:
+The fix for the root cause is deployment-level (see docs/SECURITY_HARDENING.md:
 pasta networking / host networking / a trusted edge that forwards the real
 address). This module is the in-app safety net so the app degrades to "no
 IP ban" instead of "self-inflicted outage" while that is being fixed, and
@@ -146,7 +146,7 @@ def warn_if_client_ip_collapsed(ip, app_env=None):
         "real internet traffic, the container network is hiding client IPs (rootless "
         "Podman slirp4netns). IP bans and per-IP rate limits are DISABLED for such "
         "addresses to avoid locking out every user -- fix the deployment (see "
-        "SECURITY_HARDENING.md, 'Real client IP').", ip,
+        "docs/SECURITY_HARDENING.md, 'Real client IP').", ip,
     )
 
 

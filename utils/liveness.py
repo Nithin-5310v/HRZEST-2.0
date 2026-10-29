@@ -34,7 +34,7 @@ What this does NOT stop (be honest about it)
 * A real-time deepfake/face-swap driven by the attacker's own face.
 * A client that hooks the camera API and feeds synthetic frames.
 For those, you need device attestation (Play Integrity / App Attest) and/or
-a certified PAD SDK -- see SECURITY_HARDENING.md. This is a meaningful
+a certified PAD SDK -- see docs/SECURITY_HARDENING.md. This is a meaningful
 raise-the-bar control, not a guarantee.
 
 The decision logic below is pure Python over landmark dicts so it can be

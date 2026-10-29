@@ -1,6 +1,6 @@
 """Count true database round-trips per request: queries + SET search_path + borrows.
 
-Reproduces the table in MODERNIZATION.md. Run from the repo root against a
+Reproduces the table in docs/MODERNIZATION.md. Run from the repo root against a
 DISPOSABLE database (it inserts a throw-away admin and employee):
 
     DB_HOST=127.0.0.1 DB_NAME=att_test DB_USER=postgres DB_PASS=...     SECRET_KEY=x APP_ENV=development python scripts/profile_requests.py

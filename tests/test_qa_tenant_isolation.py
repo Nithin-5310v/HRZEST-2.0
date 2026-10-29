@@ -8,7 +8,7 @@ re-applied only the column migrations to existing tenants, never the table
 creation, so a table added to core_tables after a company was provisioned
 never reached that company's schema.
 
-Owner decision (QA_AUDIT.md §0.1, option A): the deploy-time migrations
+Owner decision (docs/QA_AUDIT.md §0.1, option A): the deploy-time migrations
 create missing tables in every tenant, record any table still missing on
 att_master.tenants.schema_missing_tables, and such a company gets a 503
 (and is skipped by background jobs) instead of another company's data.
