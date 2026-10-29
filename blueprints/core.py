@@ -6,6 +6,7 @@ last routes drained out of app.py, which now holds only shared setup
 (init_db, error handlers, before/after_request hooks, template filters)."""
 import time
 import secrets
+from datetime import date
 from flask import Blueprint, request, session, jsonify, render_template, redirect, Response, g, current_app
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
@@ -702,9 +703,16 @@ def api_employee_signup():
     password = data.get("password", "").strip()
     role = data.get("role", "Employee").strip()
     department = data.get("department", "Engineering").strip()
+    phone = (data.get("phone") or "").strip() or None
+    date_of_joining = (data.get("date_of_joining") or "").strip() or None
 
     if not emp_id or not name or not password:
         return jsonify({"ok": False, "msg": "Employee ID, Full Name, and Password are required."}), 400
+    if date_of_joining:
+        try:
+            date.fromisoformat(date_of_joining)
+        except ValueError:
+            return jsonify({"ok": False, "msg": "Date of joining must be in YYYY-MM-DD format."}), 400
 
     _pw_ok, _pw_err = validate_new_password(password)
     if not _pw_ok:
@@ -751,9 +759,9 @@ def api_employee_signup():
             _seat_error = add_employee_seat_cap_check(cursor)
             if not _seat_error:
                 cursor.execute(
-                    "INSERT INTO employees (employee_id, name, email, role, department, password, date_of_joining) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, NOW())",
-                    (emp_id, name, email, role, department, hashed_pw)
+                    "INSERT INTO employees (employee_id, name, email, role, department, phone, password, "
+                    "date_of_joining) VALUES (%s, %s, %s, %s, %s, %s, %s, COALESCE(%s::date, NOW()))",
+                    (emp_id, name, email, role, department, phone, hashed_pw, date_of_joining)
                 )
         if _seat_error:
             cursor.close()
