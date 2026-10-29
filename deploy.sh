@@ -78,4 +78,4 @@ done
 
 echo -e "\n${GREEN}Deployment successful.${NC}"
 echo "   App URL: $(grep -E '^APP_URL=' .env | cut -d= -f2-)"
-echo "   Next: bash scripts/verify_audit_chain.py is run by the audit timer; see SECURITY_HARDENING.md"
+echo "   Next: bash scripts/verify_audit_chain.py is run by the audit timer; see docs/SECURITY_HARDENING.md"

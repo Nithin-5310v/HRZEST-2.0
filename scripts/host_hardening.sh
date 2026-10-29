@@ -110,7 +110,7 @@ per-IP rate limits, the WAF auto-ban and the honeypot ban are disabled for
 such addresses (utils/client_ip.py logs a CRITICAL line when it sees this).
 Fix: podman >= 5.0 with pasta (containers.conf: [network] default_rootless_network_cmd="pasta"),
 or run nginx with host networking, or put a trusted edge in front that
-forwards the real address. See SECURITY_HARDENING.md, "Real client IP".
+forwards the real address. See docs/SECURITY_HARDENING.md, "Real client IP".
 EOF
   fi
 fi
