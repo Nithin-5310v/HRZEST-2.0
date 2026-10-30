@@ -96,8 +96,8 @@ export default function ManagerDashboard({ navigation }) {
               pending={counts.overtime}
               subtitle="Requires your approval"
               icon="time-outline"
-              color="#2563EB"
-              background="#DBEAFE"
+              color="#0B6E8E"
+              background="#CDEBF2"
               onPress={() => navigation.navigate("CompOff")}
             />
             {counts.total === 0 && (

@@ -57,12 +57,12 @@ export default function NotificationHeaderCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B6E8E",
     borderRadius: 22,
     padding: 22,
     marginBottom: 22,
 
-    shadowColor: "#173B8C",
+    shadowColor: "#0B6E8E",
     shadowOpacity: 0.18,
     shadowRadius: 12,
     shadowOffset: {

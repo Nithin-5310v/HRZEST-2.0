@@ -54,7 +54,7 @@ export default function HolidayHeaderCard({
           <Ionicons
             name="calendar-clear-outline"
             size={22}
-            color="#173B8C"
+            color="#0B6E8E"
           />
 
           <Text style={styles.statNumber}>
@@ -90,13 +90,13 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 12,
 
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B6E8E",
 
     borderRadius: 24,
 
     padding: 20,
 
-    shadowColor: "#173B8C",
+    shadowColor: "#0B6E8E",
     shadowOpacity: 0.22,
     shadowRadius: 14,
     shadowOffset: {
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#132026",
   },
 
   statLabel: {
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "600",
 
-    color: "#64748B",
+    color: "#5A6A70",
 
     textAlign: "center",
   },

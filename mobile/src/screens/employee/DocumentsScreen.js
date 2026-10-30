@@ -215,9 +215,9 @@ export default function DocumentsScreen() {
 
             <TouchableOpacity
               onPress={handlePickPhoto}
-              style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: "#BFDBFE", borderStyle: "dashed", borderRadius: 14, padding: 20, alignItems: "center", marginBottom: 16 }}
+              style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: "#B5DFE8", borderStyle: "dashed", borderRadius: 14, padding: 20, alignItems: "center", marginBottom: 16 }}
             >
-              <Ionicons name={photoUri ? "checkmark-circle" : "image-outline"} size={32} color={photoUri ? "#16A34A" : "#1D4ED8"} />
+              <Ionicons name={photoUri ? "checkmark-circle" : "image-outline"} size={32} color={photoUri ? "#16A34A" : "#0A5878"} />
               <Text style={{ fontSize: 12, fontWeight: "700", color: colors.text, marginTop: 8 }}>
                 {photoUri ? "Photo Attached — Tap to Change" : "Tap to Attach a Photo"}
               </Text>

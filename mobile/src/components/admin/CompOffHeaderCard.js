@@ -13,8 +13,8 @@ const COMPOFF_THEME = {
   colors: {
     success: "#16A34A",
     successLight: "#DCFCE7",
-    textPrimary: "#0F172A",
-    textMuted: "#64748B",
+    textPrimary: "#132026",
+    textMuted: "#5A6A70",
   },
 };
 
@@ -321,7 +321,7 @@ export default function CompOffHeaderCard({
 const styles = StyleSheet.create({
 
   card: {
-    backgroundColor: "#1E3A8A",
+    backgroundColor: "#0C3054",
 
     borderRadius: 30,
 
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
 
     overflow: "hidden",
 
-    shadowColor: "#1E3A8A",
+    shadowColor: "#0C3054",
 
     shadowOpacity: 0.28,
 

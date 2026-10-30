@@ -203,7 +203,7 @@ export default function AdminDrawerContent(props) {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Admin Executive Hero Header */}
       <LinearGradient
-        colors={["#0B2253", "#173B8C"]}
+        colors={["#0C3054", "#0B6E8E"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -284,7 +284,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderBottomLeftRadius: 26,
     borderBottomRightRadius: 26,
     elevation: 10,
-    shadowColor: "#0B2253",
+    shadowColor: "#0C3054",
     shadowOpacity: 0.35,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
@@ -371,7 +371,7 @@ const makeStyles = (colors) => StyleSheet.create({
     marginLeft: 4,
     fontSize: 10,
     fontWeight: "800",
-    color: "#64748B",
+    color: "#5A6A70",
     letterSpacing: 1.2,
   },
   menuItem: {
@@ -394,7 +394,7 @@ const makeStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
     elevation: 6,
-    shadowColor: "#0B2253",
+    shadowColor: "#0C3054",
     shadowOpacity: 0.35,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

@@ -158,7 +158,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
             style={[styles.tab, activeTab === "leaves" && styles.activeTab]}
             onPress={() => setActiveTab("leaves")}
           >
-            <Ionicons name="document-text-outline" size={16} color={activeTab === "leaves" ? "#FFFFFF" : "#64748B"} />
+            <Ionicons name="document-text-outline" size={16} color={activeTab === "leaves" ? "#FFFFFF" : "#5A6A70"} />
             <Text style={[styles.tabText, activeTab === "leaves" && styles.activeTabText]}>Leave Requests</Text>
           </TouchableOpacity>
 
@@ -166,7 +166,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
             style={[styles.tab, activeTab === "compoff" && styles.activeTab]}
             onPress={() => setActiveTab("compoff")}
           >
-            <Ionicons name="time-outline" size={16} color={activeTab === "compoff" ? "#FFFFFF" : "#64748B"} />
+            <Ionicons name="time-outline" size={16} color={activeTab === "compoff" ? "#FFFFFF" : "#5A6A70"} />
             <Text style={[styles.tabText, activeTab === "compoff" && styles.activeTabText]}>Comp-Off</Text>
           </TouchableOpacity>
 
@@ -174,7 +174,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
             style={[styles.tab, activeTab === "holidays" && styles.activeTab]}
             onPress={() => setActiveTab("holidays")}
           >
-            <Ionicons name="calendar-outline" size={16} color={activeTab === "holidays" ? "#FFFFFF" : "#64748B"} />
+            <Ionicons name="calendar-outline" size={16} color={activeTab === "holidays" ? "#FFFFFF" : "#5A6A70"} />
             <Text style={[styles.tabText, activeTab === "holidays" && styles.activeTabText]}>Holidays</Text>
           </TouchableOpacity>
         </View>
@@ -185,7 +185,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         >
           {loading ? (
-            <ActivityIndicator size="large" color="#173B8C" style={{ marginTop: 40 }} />
+            <ActivityIndicator size="large" color="#0B6E8E" style={{ marginTop: 40 }} />
           ) : activeTab === "leaves" ? (
             <View>
               <Text style={styles.sectionHeader}>Pending Leave Approvals ({leaves.length})</Text>
@@ -234,7 +234,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
               <Text style={styles.sectionHeader}>Comp-Off Balances ({compoffs.length})</Text>
               {compoffs.length === 0 ? (
                 <View style={styles.emptyCard}>
-                  <Ionicons name="time-outline" size={44} color="#64748B" />
+                  <Ionicons name="time-outline" size={44} color="#5A6A70" />
                   <Text style={styles.emptyTitle}>No Balances</Text>
                   <Text style={styles.emptySub}>Comp-off is credited automatically from approved overtime -- there's no manual approval step.</Text>
                 </View>
@@ -248,7 +248,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
                     <View style={{ flexDirection: "row", gap: 18, marginTop: 6 }}>
                       <Text style={styles.reasonText}>Earned: {co.earned_days ?? 0}d</Text>
                       <Text style={styles.reasonText}>Used: {co.used_days ?? 0}d</Text>
-                      <Text style={[styles.reasonText, { fontWeight: "800", color: "#173B8C" }]}>Balance: {co.balance_days ?? 0}d</Text>
+                      <Text style={[styles.reasonText, { fontWeight: "800", color: "#0B6E8E" }]}>Balance: {co.balance_days ?? 0}d</Text>
                     </View>
                   </View>
                 ))
@@ -276,7 +276,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
                     <View style={styles.cardHeader}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <View style={styles.dateCircle}>
-                          <Ionicons name="gift-outline" size={20} color="#173B8C" />
+                          <Ionicons name="gift-outline" size={20} color="#0B6E8E" />
                         </View>
                         <View style={{ marginLeft: 12 }}>
                           <Text style={styles.empName}>{h.name || h.title}</Text>
@@ -357,8 +357,8 @@ const makeStyles = (colors) => StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
-  activeTab: { backgroundColor: "#173B8C" },
-  tabText: { fontSize: 12, fontWeight: "600", color: "#64748B", marginLeft: 6 },
+  activeTab: { backgroundColor: "#0B6E8E" },
+  tabText: { fontSize: 12, fontWeight: "600", color: "#5A6A70", marginLeft: 6 },
   activeTabText: { color: "#FFFFFF" },
   content: { padding: 16 },
   sectionHeader: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 12 },
@@ -371,10 +371,10 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   empName: { fontSize: 13, fontWeight: "700", color: colors.text },
-  leaveType: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  leaveType: { fontSize: 12, color: "#5A6A70", marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   statusText: { fontSize: 11, fontWeight: "700" },
-  reasonText: { fontSize: 12, color: "#334155", fontStyle: "italic", marginTop: 10 },
+  reasonText: { fontSize: 12, color: "#2E3D43", fontStyle: "italic", marginTop: 10 },
   actionRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 14, gap: 10 },
   btn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, flexDirection: "row", alignItems: "center" },
   btnReject: { backgroundColor: "#FEE2E2" },
@@ -383,19 +383,19 @@ const makeStyles = (colors) => StyleSheet.create({
   approveText: { color: "#FFFFFF", fontWeight: "700", fontSize: 12 },
   emptyCard: { backgroundColor: colors.card, padding: 32, borderRadius: 20, alignItems: "center", marginTop: 20 },
   emptyTitle: { fontSize: 14, fontWeight: "700", color: colors.text, marginTop: 12 },
-  emptySub: { fontSize: 12, color: "#64748B", textAlign: "center", marginTop: 4 },
+  emptySub: { fontSize: 12, color: "#5A6A70", textAlign: "center", marginTop: 4 },
   holidayHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  addBtn: { backgroundColor: "#173B8C", flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  addBtn: { backgroundColor: "#0B6E8E", flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   addBtnText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700", marginLeft: 4 },
   dateCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.blueBg, justifyContent: "center", alignItems: "center" },
   modalBg: { flex: 1, backgroundColor: "rgba(15,23,42,0.75)", justifyContent: "center", padding: 20 },
   modalCard: { backgroundColor: colors.card, borderRadius: 20, padding: 20 },
   modalTitle: { fontSize: 15, fontWeight: "700", color: colors.text, marginBottom: 16 },
-  inputLabel: { fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10, marginBottom: 4 },
+  inputLabel: { fontSize: 11, fontWeight: "700", color: "#5A6A70", marginTop: 10, marginBottom: 4 },
   textInput: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 13 },
   modalBtnRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 20, gap: 10 },
-  modalCancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: "#F1F5F9" },
-  modalCancelText: { color: "#64748B", fontWeight: "600" },
-  modalSubmitBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: "#173B8C" },
+  modalCancelBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: "#ECF3F5" },
+  modalCancelText: { color: "#5A6A70", fontWeight: "600" },
+  modalSubmitBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: "#0B6E8E" },
   modalSubmitText: { color: "#FFFFFF", fontWeight: "700" },
 });

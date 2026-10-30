@@ -220,7 +220,7 @@ export default function AttendanceScreen({ navigation }) {
             >
               <Ionicons name="calendar-outline" size={16} color={colors.primary} />
               <Text style={styles.selectorPillText}>{selectedMonth}</Text>
-              <Ionicons name="chevron-down" size={14} color="#64748B" />
+              <Ionicons name="chevron-down" size={14} color="#5A6A70" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -230,7 +230,7 @@ export default function AttendanceScreen({ navigation }) {
             >
               <Ionicons name="time-outline" size={16} color={colors.primary} />
               <Text style={styles.selectorPillText}>{selectedYear}</Text>
-              <Ionicons name="chevron-down" size={14} color="#64748B" />
+              <Ionicons name="chevron-down" size={14} color="#5A6A70" />
             </TouchableOpacity>
           </View>
 
@@ -442,7 +442,7 @@ const makeStyles = (colors) => StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     elevation: 4,
-    shadowColor: "#0B2253",
+    shadowColor: "#0C3054",
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -503,7 +503,7 @@ const makeStyles = (colors) => StyleSheet.create({
   filterChipText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#5A6A70",
   },
   filterChipTextActive: {
     color: "#FFFFFF",
@@ -532,7 +532,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 11,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
     fontWeight: "600",
   },
@@ -577,7 +577,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   employeeId: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
   percentBadge: {
@@ -594,7 +594,7 @@ const makeStyles = (colors) => StyleSheet.create({
   progressBackground: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#ECF3F5",
     marginBottom: 14,
     overflow: "hidden",
   },
@@ -645,7 +645,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   chipLabel: {
     fontSize: 10,
-    color: "#64748B",
+    color: "#5A6A70",
     fontWeight: "700",
   },
   modalOverlay: {
@@ -662,7 +662,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 22,
     padding: 20,
     elevation: 10,
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.2,
     shadowRadius: 16,
   },
@@ -695,7 +695,7 @@ const makeStyles = (colors) => StyleSheet.create({
   pickerOptionText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#334155",
+    color: "#2E3D43",
   },
   pickerOptionTextActive: {
     fontWeight: "800",

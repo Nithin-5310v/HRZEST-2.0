@@ -1,8 +1,7 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { materialTabOptions, MaterialTabIcon } from "./materialTabs";
 
 import AdminDashboard from "../screens/admin/AdminDashboard";
 import EmployeesScreen from "../screens/admin/EmployeesScreen";
@@ -27,8 +26,18 @@ import RegistrationDocumentsScreen from "../screens/admin/RegistrationDocumentsS
 import NotificationsScreen from "../screens/NotificationsScreen";
 import DocumentsScreen from "../screens/admin/DocumentsScreen";
 import IdCardScreen from "../screens/IdCardScreen";
+import AdminMoreScreen from "../screens/admin/AdminMoreScreen";
 
 const Tab = createBottomTabNavigator();
+
+// Tabs + More: five daily tabs; everything else opens from More.
+const TAB_ICONS = {
+  Dashboard: "home",
+  Employees: "people",
+  LeaveRequests: "checkmark-done-circle",
+  Attendance: "calendar",
+  More: "grid",
+};
 
 export default function AdminBottomNavigator() {
   const insets = useSafeAreaInsets();
@@ -37,109 +46,26 @@ export default function AdminBottomNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarHideOnKeyboard: true,
-
-        tabBarStyle: {
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 58 + bottomInset,
-          backgroundColor: "#0B2253",
-          borderTopWidth: 1,
-          borderTopColor: "rgba(255, 255, 255, 0.15)",
-          borderTopLeftRadius: 22,
-          borderTopRightRadius: 22,
-          elevation: 25,
-          shadowColor: "#000",
-          shadowOpacity: 0.3,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: -4 },
-          paddingTop: 6,
-          paddingBottom: bottomInset,
-        },
-
-        tabBarItemStyle: {
-          justifyContent: "center",
-          alignItems: "center",
-          height: 52,
-        },
-
-        tabBarActiveTintColor: "#FFFFFF",
-        tabBarInactiveTintColor: "rgba(255, 255, 255, 0.65)",
-
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
-          letterSpacing: 0.2,
-          marginTop: 1,
-        },
-
-        tabBarIcon: ({ focused, color }) => {
-          let icon;
-
-          switch (route.name) {
-            case "Dashboard":
-              icon = focused ? "home" : "home-outline";
-              break;
-            case "Employees":
-              icon = focused ? "people" : "people-outline";
-              break;
-            case "Attendance":
-              icon = focused ? "calendar" : "calendar-outline";
-              break;
-            case "LeaveRequests":
-              icon = focused ? "checkmark-done-circle" : "checkmark-done-circle-outline";
-              break;
-            case "Settings":
-              icon = focused ? "settings" : "settings-outline";
-              break;
-            default:
-              icon = "ellipse";
-          }
-
-          return (
-            <View style={styles.iconContainer}>
-              <Ionicons name={icon} size={22} color={color} />
-              {focused && <View style={styles.activeDot} />}
-            </View>
-          );
-        },
+        ...materialTabOptions(bottomInset),
+        tabBarIcon: ({ focused, color }) => (
+          <MaterialTabIcon name={TAB_ICONS[route.name] || "ellipse"} focused={focused} color={color} />
+        ),
       })}
     >
       {/* 5 Visible Tabs */}
-      <Tab.Screen
-        name="Dashboard"
-        component={AdminDashboard}
-        options={{ tabBarLabel: "Home" }}
-      />
+      <Tab.Screen name="Dashboard" component={AdminDashboard} options={{ tabBarLabel: "Home" }} />
+      <Tab.Screen name="Employees" component={EmployeesScreen} options={{ tabBarLabel: "Staff" }} />
+      <Tab.Screen name="LeaveRequests" component={LeaveRequestsScreen} options={{ tabBarLabel: "Approvals" }} />
+      <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ tabBarLabel: "Attendance" }} />
+      <Tab.Screen name="More" component={AdminMoreScreen} options={{ tabBarLabel: "More" }} />
 
-      <Tab.Screen
-        name="Employees"
-        component={EmployeesScreen}
-        options={{ tabBarLabel: "Staff" }}
-      />
-
-      <Tab.Screen
-        name="Attendance"
-        component={AttendanceScreen}
-        options={{ tabBarLabel: "Logs" }}
-      />
-
-      <Tab.Screen
-        name="LeaveRequests"
-        component={LeaveRequestsScreen}
-        options={{ tabBarLabel: "Approvals" }}
-      />
-
+      {/* Hidden Screens (opened from More or the dashboard) */}
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ tabBarLabel: "Settings" }}
+        options={{ tabBarItemStyle: { display: "none" } }}
       />
 
-      {/* Hidden Screens */}
       <Tab.Screen
         name="Payroll"
         component={SalaryPayslipsScreen}
@@ -245,19 +171,3 @@ export default function AdminBottomNavigator() {
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  iconContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    height: 26,
-  },
-  activeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#FFFFFF",
-    position: "absolute",
-    bottom: -4,
-  },
-});

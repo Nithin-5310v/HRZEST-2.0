@@ -13,7 +13,7 @@ export default function CompOffInfoCard() {
         <Ionicons
           name="information-circle"
           size={24}
-          color="#173B8C"
+          color="#0B6E8E"
         />
       </View>
 
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E9EEF5",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.05,
     shadowRadius: 14,
     shadowOffset: {
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 16,
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E3F2F5",
 
     justifyContent: "center",
     alignItems: "center",
@@ -116,13 +116,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#132026",
   },
 
   description: {
     marginTop: 8,
 
-    color: "#64748B",
+    color: "#5A6A70",
 
     fontSize: 14,
 
@@ -130,14 +130,14 @@ const styles = StyleSheet.create({
   },
 
   highlight: {
-    color: "#173B8C",
+    color: "#0B6E8E",
     fontWeight: "800",
   },
 
   divider: {
     height: 1,
 
-    backgroundColor: "#EEF2F7",
+    backgroundColor: "#E9F1F3",
 
     marginVertical: 16,
   },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
 
     marginLeft: 10,
 
-    color: "#475569",
+    color: "#44555B",
 
     fontSize: 13,
 

@@ -61,7 +61,7 @@ export default function PendingApprovalCard({
         <Ionicons
           name="chevron-forward"
           size={20}
-          color="#94A3B8"
+          color="#8A9AA0"
         />
       </View>
     </TouchableOpacity>
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E8EDF5",
+    borderColor: "#E3ECEF",
 
     shadowColor: "#000",
 
@@ -133,13 +133,13 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#0F172A",
+    color: "#132026",
   },
 
   subtitle: {
     marginTop: 5,
 
-    color: "#64748B",
+    color: "#5A6A70",
 
     fontSize: 13,
 

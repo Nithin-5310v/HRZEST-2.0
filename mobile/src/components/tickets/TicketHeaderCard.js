@@ -21,7 +21,7 @@ export default function TicketHeaderCard({
           <Ionicons
             name="ticket"
             size={34}
-            color="#173B8C"
+            color="#0B6E8E"
           />
         </View>
 
@@ -108,9 +108,9 @@ const styles = StyleSheet.create({
     marginBottom: 22,
 
     borderWidth: 1,
-    borderColor: "#E8EDF3",
+    borderColor: "#E3ECEF",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.05,
     shadowRadius: 12,
     shadowOffset: {
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 35,
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E3F2F5",
 
     justifyContent: "center",
     alignItems: "center",
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#132026",
   },
 
   subtitle: {
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
 
     fontSize: 14,
 
-    color: "#64748B",
+    color: "#5A6A70",
 
     lineHeight: 21,
   },
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
 
-    backgroundColor: "#EEF2F7",
+    backgroundColor: "#E9F1F3",
 
     marginVertical: 22,
   },
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
 
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5FAFB",
 
     borderRadius: 18,
 
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#173B8C",
+    color: "#0B6E8E",
   },
 
   statLabel: {
@@ -203,6 +203,6 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#64748B",
+    color: "#5A6A70",
   },
 });

@@ -28,10 +28,10 @@ export default function EmployeeRecentAttendance({
             style={{ flexDirection: "row", alignItems: "center" }}
             onPress={() => navigation.navigate("Attendance")}
           >
-            <Text style={{ color: "#173B8C", fontWeight: "700", fontSize: 13, marginRight: 2 }}>
+            <Text style={{ color: "#0B6E8E", fontWeight: "700", fontSize: 13, marginRight: 2 }}>
               View All
             </Text>
-            <Ionicons name="chevron-forward" size={16} color="#173B8C" />
+            <Ionicons name="chevron-forward" size={16} color="#0B6E8E" />
           </TouchableOpacity>
         )}
       </View>
@@ -41,7 +41,7 @@ export default function EmployeeRecentAttendance({
           <Ionicons
             name="calendar-outline"
             size={40}
-            color="#CBD5E1"
+            color="#C4D2D6"
           />
           <Text style={styles.emptyTitle}>
             No Records Found
@@ -100,7 +100,7 @@ export default function EmployeeRecentAttendance({
                   <Ionicons
                     name="time-outline"
                     size={14}
-                    color="#64748B"
+                    color="#5A6A70"
                   />
 
                   <Text style={styles.time}>
@@ -142,8 +142,8 @@ const styles = StyleSheet.create({
     padding:20,
     marginBottom:22,
     borderWidth:1,
-    borderColor:"#E8EDF5",
-    shadowColor:"#0F172A",
+    borderColor:"#E3ECEF",
+    shadowColor:"#132026",
     shadowOpacity:.05,
     shadowRadius:14,
     shadowOffset:{
@@ -160,12 +160,12 @@ const styles = StyleSheet.create({
   title:{
     fontSize:18,
     fontWeight:"700",
-    color:"#0F172A",
+    color:"#132026",
   },
 
   subtitle:{
     marginTop:4,
-    color:"#64748B",
+    color:"#5A6A70",
     fontSize:13,
   },
 
@@ -177,13 +177,13 @@ const styles = StyleSheet.create({
   emptyTitle:{
     marginTop:12,
     fontWeight:"700",
-    color:"#0F172A",
+    color:"#132026",
     fontSize:15,
   },
 
   emptySubtitle:{
     marginTop:6,
-    color:"#94A3B8",
+    color:"#8A9AA0",
     fontSize:12,
   },
 
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   line:{
     flex:1,
     width:2,
-    backgroundColor:"#E2E8F0",
+    backgroundColor:"#DCE6E9",
     marginTop:2,
   },
 
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     marginLeft:14,
     paddingBottom:12,
     borderBottomWidth:1,
-    borderBottomColor:"#F1F5F9",
+    borderBottomColor:"#ECF3F5",
   },
 
   topRow:{
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   date:{
     fontSize:15,
     fontWeight:"700",
-    color:"#0F172A",
+    color:"#132026",
   },
 
   badge:{
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   time:{
     marginLeft:6,
     fontSize:13,
-    color:"#64748B",
+    color:"#5A6A70",
     fontWeight:"600",
   },
 

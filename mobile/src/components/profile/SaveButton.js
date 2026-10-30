@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B6E8E",
 
     flexDirection: "row",
 
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
 
     marginTop: 24,
 
-    shadowColor: "#173B8C",
+    shadowColor: "#0B6E8E",
 
     shadowOpacity: 0.25,
 
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   },
 
   disabledButton: {
-    backgroundColor: "#94A3B8",
+    backgroundColor: "#8A9AA0",
 
     shadowOpacity: 0,
 

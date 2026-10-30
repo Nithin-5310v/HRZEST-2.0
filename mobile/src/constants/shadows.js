@@ -37,7 +37,7 @@ const SHADOWS = {
 
   // Floating Action Button
   floating: {
-    shadowColor: "#2563EB",
+    shadowColor: "#0B6E8E",
     shadowOpacity: 0.25,
     shadowRadius: 14,
     shadowOffset: {

@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   leftCard: {
     flex: 1,
 
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B6E8E",
 
     borderRadius: 24,
 
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
 
     paddingVertical: 24,
 
-    shadowColor: "#173B8C",
+    shadowColor: "#0B6E8E",
     shadowOpacity: 0.18,
     shadowRadius: 12,
     shadowOffset: {
@@ -195,18 +195,18 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#132026",
   },
 
   label: {
     marginTop: 2,
-    color: "#64748B",
+    color: "#5A6A70",
     fontWeight: "600",
   },
 
   divider: {
     height: 1,
-    backgroundColor: "#EEF2F7",
+    backgroundColor: "#E9F1F3",
     marginVertical: 16,
   },
 });

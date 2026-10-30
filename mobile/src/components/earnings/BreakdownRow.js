@@ -10,9 +10,9 @@ export default function BreakdownRow({
   icon,
   label,
   value,
-  color = "#173B8C",
-  background = "#EEF4FF",
-  valueColor = "#0F172A",
+  color = "#0B6E8E",
+  background = "#E3F2F5",
+  valueColor = "#132026",
 }) {
   return (
     <View style={styles.container}>
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
 
     borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F7",
+    borderBottomColor: "#E9F1F3",
   },
 
   iconContainer: {
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "600",
 
-    color: "#334155",
+    color: "#2E3D43",
   },
 
   value: {

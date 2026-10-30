@@ -25,7 +25,7 @@ export default function OnboardingStatusCard({
 
   return (
     <LinearGradient
-      colors={["#173B8C", "#2955C8"]}
+      colors={["#0B6E8E", "#2955C8"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -35,7 +35,7 @@ export default function OnboardingStatusCard({
           <Ionicons
             name="person"
             size={44}
-            color="#173B8C"
+            color="#0B6E8E"
           />
         </View>
 
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     padding: 22,
     marginBottom: 24,
     elevation: 6,
-    shadowColor: "#173B8C",
+    shadowColor: "#0B6E8E",
     shadowOpacity: 0.25,
     shadowRadius: 18,
     shadowOffset: {
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
 
   progressLabel: {
-    color: "#E2E8F0",
+    color: "#DCE6E9",
     fontSize: 11,
     marginTop: 2,
   },
