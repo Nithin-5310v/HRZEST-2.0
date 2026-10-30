@@ -186,14 +186,14 @@ export default function PerformanceScreen({ navigation }) {
           </View>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#173B8C" style={{ marginTop: 30 }} />
+            <ActivityIndicator size="large" color="#0B5CAD" style={{ marginTop: 30 }} />
           ) : filteredReviews.length === 0 ? (
             <View style={{ padding: 32, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderRadius: 16, marginTop: 12, borderWidth: 1, borderColor: colors.border }}>
               <Ionicons name="ribbon-outline" size={48} color={colors.textLight} />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "#334155", marginTop: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: "700", color: "#2E3A4A", marginTop: 12 }}>
                 No Performance Reviews Found
               </Text>
-              <Text style={{ fontSize: 13, color: "#64748B", textAlign: "center", marginTop: 4 }}>
+              <Text style={{ fontSize: 13, color: "#5A6678", textAlign: "center", marginTop: 4 }}>
                 Performance appraisal cycles and KPI reviews will appear here once initiated.
               </Text>
             </View>
@@ -280,17 +280,17 @@ export default function PerformanceScreen({ navigation }) {
         <Modal visible={reviewModalVisible} transparent animationType="slide" onRequestClose={() => setReviewModalVisible(false)}>
           <View style={{ flex: 1, backgroundColor: "rgba(15, 23, 42, 0.8)", justifyContent: "flex-end" }}>
             <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: "85%" }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#EDF2F8" }}>
                 <Text style={{ fontSize: 17, fontWeight: "800", color: colors.text }}>
                   Q{CURRENT_QUARTER} {CURRENT_YEAR} Review -- {reviewTarget?.employeeName}
                 </Text>
                 <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
-                  <Ionicons name="close-circle" size={26} color="#64748B" />
+                  <Ionicons name="close-circle" size={26} color="#5A6678" />
                 </TouchableOpacity>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 4 }}>REVIEWER FEEDBACK</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 4 }}>REVIEWER FEEDBACK</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4, minHeight: 90, textAlignVertical: "top" }}
                   placeholder="Summarize this quarter's performance..."
@@ -305,14 +305,14 @@ export default function PerformanceScreen({ navigation }) {
 
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 22, marginBottom: 10 }}>
                   <TouchableOpacity
-                    style={{ flex: 1, backgroundColor: "#F1F5F9", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
+                    style={{ flex: 1, backgroundColor: "#EDF2F8", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
                     onPress={() => handleSubmitReview("Draft")}
                     disabled={submittingReview}
                   >
-                    <Text style={{ fontWeight: "800", color: "#334155" }}>Save Draft</Text>
+                    <Text style={{ fontWeight: "800", color: "#2E3A4A" }}>Save Draft</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={{ flex: 1, backgroundColor: "#173B8C", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
+                    style={{ flex: 1, backgroundColor: "#0B5CAD", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
                     onPress={() => handleSubmitReview("Completed")}
                     disabled={submittingReview}
                   >
@@ -336,7 +336,7 @@ const makeStyles = (colors) => StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 10 },
   heroCard: {
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B5CAD",
     borderRadius: 24,
     padding: 20,
     marginBottom: 18,
@@ -381,7 +381,7 @@ const makeStyles = (colors) => StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 14, fontWeight: "800", color: colors.text },
-  sectionBadge: { fontSize: 12, fontWeight: "700", color: "#173B8C" },
+  sectionBadge: { fontSize: 12, fontWeight: "700", color: "#0B5CAD" },
   reviewCard: {
     backgroundColor: colors.card,
     borderRadius: 20,
@@ -403,9 +403,9 @@ const makeStyles = (colors) => StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: { fontSize: 15, fontWeight: "800", color: "#173B8C" },
+  avatarText: { fontSize: 15, fontWeight: "800", color: "#0B5CAD" },
   empName: { fontSize: 13, fontWeight: "700", color: colors.text },
-  empRole: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  empRole: { fontSize: 12, color: "#5A6678", marginTop: 2 },
   ratingBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -415,7 +415,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 14,
   },
   ratingText: { marginLeft: 4, fontSize: 14, fontWeight: "800", color: "#B45309" },
-  cardDivider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 12 },
+  cardDivider: { height: 1, backgroundColor: "#EDF2F8", marginVertical: 12 },
   cardDetailsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   detailLabel: { fontSize: 11, color: colors.textLight, fontWeight: "600" },
   detailValue: { fontSize: 14, fontWeight: "700", color: colors.text, marginTop: 2 },

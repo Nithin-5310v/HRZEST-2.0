@@ -72,7 +72,7 @@ export default function ProfileCompletionCard({
         <Ionicons
           name="chevron-forward"
           size={18}
-          color="#94A3B8"
+          color="#8794A5"
         />
       </View>
     </View>
@@ -90,9 +90,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
 
     borderWidth: 1,
-    borderColor: "#E8EDF3",
+    borderColor: "#E3EAF3",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.05,
     shadowRadius: 12,
     shadowOffset: {
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#0F172A",
+    color: "#131C2A",
   },
 
   subtitle: {
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#64748B",
+    color: "#5A6678",
 
     lineHeight: 18,
   },
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E6EFFA",
 
     justifyContent: "center",
 
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#173B8C",
+    color: "#0B5CAD",
   },
 
   progressTrack: {
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 20,
 
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#DBE3EE",
 
     overflow: "hidden",
   },
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
 
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B5CAD",
 
     borderRadius: 20,
   },
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#0F172A",
+    color: "#131C2A",
   },
 
   remaining: {
@@ -216,6 +216,6 @@ const styles = StyleSheet.create({
 
     fontSize: 12,
 
-    color: "#64748B",
+    color: "#5A6678",
   },
 });

@@ -56,12 +56,12 @@ export default function EmployeesScreen({ navigation }) {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newEmpId, setNewEmpId] = useState("");
   const [newEmpName, setNewEmpName] = useState("");
-  const [newEmpRole, setNewEmpRole] = useState("Software Engineer");
-  const [newEmpDept, setNewEmpDept] = useState("Engineering");
+  const [newEmpRole, setNewEmpRole] = useState("");
+  const [newEmpDept, setNewEmpDept] = useState("");
   const [newEmpEmail, setNewEmpEmail] = useState("");
   const [newEmpPhone, setNewEmpPhone] = useState("");
   const [newEmpDoj, setNewEmpDoj] = useState(new Date().toISOString().split("T")[0]);
-  const [newEmpPassword, setNewEmpPassword] = useState("welcome123");
+  const [newEmpPassword, setNewEmpPassword] = useState("");
   const [newEmpPhoto, setNewEmpPhoto] = useState(null);
 
   // Edit Employee Form State -- mirrors blueprints/employees.py's
@@ -193,16 +193,19 @@ export default function EmployeesScreen({ navigation }) {
           rawList = res.data.data;
         }
       }
+      // Missing fields stay empty: the edit form is filled from these and
+      // saves them back, so a made-up email, role or joining date here
+      // would end up in the employee's real record.
       const formattedList = rawList.map((emp) => ({
         id: emp.employee_id || emp.id,
-        employee_id: emp.employee_id || emp.id || "EMP-1001",
+        employee_id: emp.employee_id || emp.id,
         name: emp.name || emp.employee_id || "Staff Member",
-        email: emp.email || `${(emp.employee_id || "emp").toLowerCase()}@company.com`,
-        role: emp.role || emp.designation || "Software Engineer",
-        department: emp.department || "Engineering",
+        email: emp.email || "",
+        role: emp.role || emp.designation || "",
+        department: emp.department || "",
         status: emp.status || "Active",
         phone: emp.phone || "",
-        date_of_joining: emp.date_of_joining || emp.doj || new Date().toISOString().split("T")[0],
+        date_of_joining: emp.date_of_joining || emp.doj || "",
         has_photo: true,
       }));
 
@@ -242,9 +245,9 @@ export default function EmployeesScreen({ navigation }) {
   const handleAddEmployeeSubmit = async () => {
     const empIdTrim = newEmpId.trim().toUpperCase();
     const empNameTrim = newEmpName.trim();
-    const empPassTrim = newEmpPassword.trim() || "welcome123";
-    if (!empIdTrim || !empNameTrim) {
-      Alert.alert("Input Required", "Employee ID and Full Name are required.");
+    const empPassTrim = newEmpPassword.trim();
+    if (!empIdTrim || !empNameTrim || !empPassTrim) {
+      Alert.alert("Input Required", "Employee ID, Full Name and Password are required.");
       return;
     }
     setSubmitting(true);
@@ -253,10 +256,10 @@ export default function EmployeesScreen({ navigation }) {
       name: empNameTrim,
       password: empPassTrim,
       role: newEmpRole.trim() || "Employee",
-      department: newEmpDept.trim() || "Engineering",
-      email: newEmpEmail.trim() || `${empIdTrim.toLowerCase()}@company.com`,
+      department: newEmpDept.trim(),
+      email: newEmpEmail.trim(),
       phone: newEmpPhone.trim() || "",
-      date_of_joining: newEmpDoj.trim() || new Date().toISOString().split("T")[0],
+      date_of_joining: newEmpDoj.trim(),
     };
 
     // Real API call first -- only treat this as a success (and only cache
@@ -317,12 +320,12 @@ export default function EmployeesScreen({ navigation }) {
     setAddModalVisible(false);
     setNewEmpId("");
     setNewEmpName("");
-    setNewEmpRole("Software Engineer");
-    setNewEmpDept("Engineering");
+    setNewEmpRole("");
+    setNewEmpDept("");
     setNewEmpEmail("");
     setNewEmpPhone("");
     setNewEmpDoj(new Date().toISOString().split("T")[0]);
-    setNewEmpPassword("welcome123");
+    setNewEmpPassword("");
     setNewEmpPhoto(null);
     setSubmitting(false);
   };
@@ -409,7 +412,10 @@ export default function EmployeesScreen({ navigation }) {
     );
   };
 
-  const departments = ["All", "Engineering", "Design", "HR", "Testing"];
+  const departments = [
+    "All",
+    ...[...new Set(employees.map((emp) => emp.department).filter(Boolean))].sort(),
+  ];
   const statuses = ["All", "Active", "On Leave", "Inactive"];
   const sortOptions = ["Name (A-Z)", "Name (Z-A)", "Role"];
 
@@ -424,7 +430,7 @@ export default function EmployeesScreen({ navigation }) {
         (emp.employee_id && emp.employee_id.toLowerCase().includes(search.toLowerCase())) ||
         (emp.role && emp.role.toLowerCase().includes(search.toLowerCase()));
 
-      const empDept = emp.department || "Engineering";
+      const empDept = emp.department || "";
       const matchesDept = selectedDept === "All" || empDept.toLowerCase() === selectedDept.toLowerCase();
 
       const empStatus = emp.status || "Active";
@@ -490,7 +496,7 @@ export default function EmployeesScreen({ navigation }) {
               <Ionicons
                 name={billingStatus.employee_count >= billingStatus.paid_employee_slots ? "lock-closed" : "people"}
                 size={16}
-                color={billingStatus.employee_count >= billingStatus.paid_employee_slots ? "#991B1B" : "#1E40AF"}
+                color={billingStatus.employee_count >= billingStatus.paid_employee_slots ? "#991B1B" : "#0A4E96"}
               />
               <Text
                 style={[
@@ -544,18 +550,18 @@ export default function EmployeesScreen({ navigation }) {
           </View>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#173B8C" style={{ marginTop: 30 }} />
+            <ActivityIndicator size="large" color="#0B5CAD" style={{ marginTop: 30 }} />
           ) : filteredEmployees.length === 0 ? (
             <View style={{ padding: 32, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderRadius: 16, marginTop: 12, borderWidth: 1, borderColor: colors.border }}>
               <Ionicons name="people-outline" size={48} color={colors.textLight} />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "#334155", marginTop: 12 }}>
+              <Text style={{ fontSize: 16, fontWeight: "700", color: "#2E3A4A", marginTop: 12 }}>
                 No Staff Members Found
               </Text>
-              <Text style={{ fontSize: 13, color: "#64748B", textAlign: "center", marginTop: 4, marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, color: "#5A6678", textAlign: "center", marginTop: 4, marginBottom: 16 }}>
                 Your directory is currently empty. Tap below to register your first staff member.
               </Text>
               <TouchableOpacity
-                style={{ backgroundColor: "#173B8C", paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12 }}
+                style={{ backgroundColor: "#0B5CAD", paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12 }}
                 onPress={() => setAddModalVisible(true)}
               >
                 <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>+ Add First Staff Member</Text>
@@ -572,7 +578,7 @@ export default function EmployeesScreen({ navigation }) {
                 {emp.photo || emp.has_photo ? (
                   <Image
                     source={{ uri: getPhotoUrl(emp.employee_id) }}
-                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: "#DBEAFE" }}
+                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: "#D3E3F7" }}
                   />
                 ) : (
                   <View style={styles.avatar}>
@@ -630,7 +636,7 @@ export default function EmployeesScreen({ navigation }) {
               {selectedEmp && (
                 <>
                   <View style={styles.modalHeader}>
-                    <View style={[styles.modalAvatar, { backgroundColor: "#173B8C" }]}>
+                    <View style={[styles.modalAvatar, { backgroundColor: "#0B5CAD" }]}>
                       <Text style={[styles.modalAvatarText, { color: "#FFFFFF", fontWeight: "900" }]}>
                         {(selectedEmp.name || "E").charAt(0).toUpperCase()}
                       </Text>
@@ -646,24 +652,24 @@ export default function EmployeesScreen({ navigation }) {
 
                   <View style={{ gap: 10, marginVertical: 6 }}>
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Ionicons name="mail-outline" size={16} color="#173B8C" />
-                      <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 8, fontWeight: "600" }}>Email:</Text>
+                      <Ionicons name="mail-outline" size={16} color="#0B5CAD" />
+                      <Text style={{ fontSize: 13, color: "#5A6678", marginLeft: 8, fontWeight: "600" }}>Email:</Text>
                       <Text style={{ fontSize: 13, color: colors.text, marginLeft: 6, fontWeight: "700" }}>
-                        {selectedEmp.email || `${selectedEmp.employee_id}@company.com`}
+                        {selectedEmp.email || "Not set"}
                       </Text>
                     </View>
 
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Ionicons name="calendar-outline" size={16} color="#173B8C" />
-                      <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 8, fontWeight: "600" }}>Joined:</Text>
+                      <Ionicons name="calendar-outline" size={16} color="#0B5CAD" />
+                      <Text style={{ fontSize: 13, color: "#5A6678", marginLeft: 8, fontWeight: "600" }}>Joined:</Text>
                       <Text style={{ fontSize: 13, color: colors.text, marginLeft: 6, fontWeight: "700" }}>
                         {selectedEmp.joining_date || selectedEmp.date_of_joining || "Recently"}
                       </Text>
                     </View>
 
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Ionicons name="shield-checkmark-outline" size={16} color="#173B8C" />
-                      <Text style={{ fontSize: 13, color: "#64748B", marginLeft: 8, fontWeight: "600" }}>Status:</Text>
+                      <Ionicons name="shield-checkmark-outline" size={16} color="#0B5CAD" />
+                      <Text style={{ fontSize: 13, color: "#5A6678", marginLeft: 8, fontWeight: "600" }}>Status:</Text>
                       <View style={{ backgroundColor: selectedEmp.status === "Active" ? "#DCFCE7" : "#FEF3C7", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginLeft: 6 }}>
                         <Text style={{ fontSize: 12, fontWeight: "700", color: selectedEmp.status === "Active" ? "#16A34A" : "#D97706" }}>
                           {selectedEmp.status || "Active"}
@@ -685,10 +691,10 @@ export default function EmployeesScreen({ navigation }) {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={{ flex: 1, backgroundColor: colors.blueBg, borderWidth: 1, borderColor: "#BFDBFE", borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
+                      style={{ flex: 1, backgroundColor: colors.blueBg, borderWidth: 1, borderColor: "#BBD5F3", borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
                       onPress={() => openEditModal(selectedEmp)}
                     >
-                      <Text style={{ color: "#1D4ED8", fontWeight: "700", fontSize: 13 }}>Edit</Text>
+                      <Text style={{ color: "#094A8C", fontWeight: "700", fontSize: 13 }}>Edit</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -704,7 +710,7 @@ export default function EmployeesScreen({ navigation }) {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={{ flex: 1, backgroundColor: "#173B8C", borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
+                      style={{ flex: 1, backgroundColor: "#0B5CAD", borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
                       onPress={() => setSelectedEmp(null)}
                     >
                       <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 13 }}>Close</Text>
@@ -723,25 +729,25 @@ export default function EmployeesScreen({ navigation }) {
         <Modal visible={editModalVisible} transparent animationType="slide" onRequestClose={() => setEditModalVisible(false)}>
           <View style={{ flex: 1, backgroundColor: "rgba(15, 23, 42, 0.8)", justifyContent: "flex-end" }}>
             <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: "90%" }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#EDF2F8" }}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons name="create-outline" size={20} color="#173B8C" style={{ marginRight: 8 }} />
+                  <Ionicons name="create-outline" size={20} color="#0B5CAD" style={{ marginRight: 8 }} />
                   <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Edit {editEmpId}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-                  <Ionicons name="close-circle" size={26} color="#64748B" />
+                  <Ionicons name="close-circle" size={26} color="#5A6678" />
                 </TouchableOpacity>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 4 }}>FULL NAME *</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 4 }}>FULL NAME *</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   value={editEmpName}
                   onChangeText={setEditEmpName}
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>EMAIL ADDRESS</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>EMAIL ADDRESS</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   value={editEmpEmail}
@@ -750,23 +756,24 @@ export default function EmployeesScreen({ navigation }) {
                   autoCapitalize="none"
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>JOB ROLE / DESIGNATION</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>JOB ROLE / DESIGNATION</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   value={editEmpRole}
                   onChangeText={setEditEmpRole}
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>DATE OF JOINING</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>DATE OF JOINING</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textLight}
                   value={editEmpDoj}
                   onChangeText={setEditEmpDoj}
                 />
 
                 <TouchableOpacity
-                  style={{ backgroundColor: "#173B8C", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 20, marginBottom: 10 }}
+                  style={{ backgroundColor: "#0B5CAD", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 20, marginBottom: 10 }}
                   onPress={handleEditEmployeeSubmit}
                   disabled={editSubmitting}
                 >
@@ -788,14 +795,14 @@ export default function EmployeesScreen({ navigation }) {
             position: "absolute",
             right: 20,
             bottom: 75,
-            backgroundColor: "#173B8C",
+            backgroundColor: "#0B5CAD",
             width: 56,
             height: 56,
             borderRadius: 28,
             justifyContent: "center",
             alignItems: "center",
             elevation: 8,
-            shadowColor: "#173B8C",
+            shadowColor: "#0B5CAD",
             shadowOpacity: 0.4,
             shadowRadius: 10,
             shadowOffset: { width: 0, height: 4 },
@@ -833,13 +840,13 @@ export default function EmployeesScreen({ navigation }) {
         <Modal visible={addModalVisible} transparent animationType="slide" onRequestClose={() => setAddModalVisible(false)}>
           <View style={{ flex: 1, backgroundColor: "rgba(15, 23, 42, 0.8)", justifyContent: "flex-end" }}>
             <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: "90%" }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#EDF2F8" }}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons name="person-add" size={20} color="#173B8C" style={{ marginRight: 8 }} />
+                  <Ionicons name="person-add" size={20} color="#0B5CAD" style={{ marginRight: 8 }} />
                   <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Add New Staff Member</Text>
                 </View>
                 <TouchableOpacity onPress={() => setAddModalVisible(false)}>
-                  <Ionicons name="close-circle" size={26} color="#64748B" />
+                  <Ionicons name="close-circle" size={26} color="#5A6678" />
                 </TouchableOpacity>
               </View>
 
@@ -856,8 +863,8 @@ export default function EmployeesScreen({ navigation }) {
                 )}
 
                 {/* Face Photo Registration Box */}
-                <View style={{ alignItems: "center", marginBottom: 16, backgroundColor: colors.background, padding: 16, borderRadius: 18, borderWidth: 2, borderColor: "#BFDBFE", borderStyle: "dashed" }}>
-                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#1E3A8A", letterSpacing: 0.8, marginBottom: 10, alignSelf: "flex-start" }}>
+                <View style={{ alignItems: "center", marginBottom: 16, backgroundColor: colors.background, padding: 16, borderRadius: 18, borderWidth: 2, borderColor: "#BBD5F3", borderStyle: "dashed" }}>
+                  <Text style={{ fontSize: 11, fontWeight: "800", color: "#0C3054", letterSpacing: 0.8, marginBottom: 10, alignSelf: "flex-start" }}>
                     FACE PHOTO REGISTRATION *
                   </Text>
                   
@@ -869,34 +876,34 @@ export default function EmployeesScreen({ navigation }) {
                       </View>
                     </View>
                   ) : (
-                    <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: colors.blueBg, borderWidth: 2, borderColor: "#DBEAFE", justifyContent: "center", alignItems: "center" }}>
-                      <Ionicons name="camera" size={32} color="#1D4ED8" />
+                    <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: colors.blueBg, borderWidth: 2, borderColor: "#D3E3F7", justifyContent: "center", alignItems: "center" }}>
+                      <Ionicons name="camera" size={32} color="#094A8C" />
                     </View>
                   )}
 
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#64748B", marginTop: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: "#5A6678", marginTop: 8 }}>
                     {newEmpPhoto ? "Photo Attached Successfully" : "No face photo selected yet"}
                   </Text>
 
                   <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
                     <TouchableOpacity
-                      style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#173B8C", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, elevation: 2 }}
+                      style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#0B5CAD", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, elevation: 2 }}
                       onPress={handleTakePhoto}
                     >
                       <Ionicons name="camera-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
                       <Text style={{ fontSize: 12, fontWeight: "800", color: "#FFFFFF" }}>📷 Camera</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.blueBg, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: "#BFDBFE" }}
+                      style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.blueBg, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: "#BBD5F3" }}
                       onPress={handlePickPhoto}
                     >
-                      <Ionicons name="image-outline" size={16} color="#1D4ED8" style={{ marginRight: 6 }} />
-                      <Text style={{ fontSize: 12, fontWeight: "800", color: "#1D4ED8" }}>🖼 Upload</Text>
+                      <Ionicons name="image-outline" size={16} color="#094A8C" style={{ marginRight: 6 }} />
+                      <Text style={{ fontSize: 12, fontWeight: "800", color: "#094A8C" }}>🖼 Upload</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 4 }}>FULL NAME *</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 4 }}>FULL NAME *</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="Ravi Kumar"
@@ -904,7 +911,7 @@ export default function EmployeesScreen({ navigation }) {
                   onChangeText={setNewEmpName}
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>EMPLOYEE ID *</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>EMPLOYEE ID *</Text>
                 <View style={{ flexDirection: "row", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <TextInput
                     style={{ flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, fontWeight: "800", letterSpacing: 0.5 }}
@@ -914,14 +921,14 @@ export default function EmployeesScreen({ navigation }) {
                     autoCapitalize="characters"
                   />
                   <TouchableOpacity
-                    style={{ backgroundColor: colors.blueBg, borderWidth: 1, borderColor: "#DBEAFE", paddingHorizontal: 12, paddingVertical: 11, borderRadius: 10 }}
+                    style={{ backgroundColor: colors.blueBg, borderWidth: 1, borderColor: "#D3E3F7", paddingHorizontal: 12, paddingVertical: 11, borderRadius: 10 }}
                     onPress={handleAutoGenerateId}
                   >
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#1D4ED8" }}>🔄 Generate</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#094A8C" }}>🔄 Generate</Text>
                   </TouchableOpacity>
                 </View>
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>EMAIL ADDRESS *</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>EMAIL ADDRESS *</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="employee@company.com"
@@ -932,7 +939,7 @@ export default function EmployeesScreen({ navigation }) {
                   autoCapitalize="none"
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>PHONE NUMBER</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>PHONE NUMBER</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="9876543210"
@@ -942,7 +949,7 @@ export default function EmployeesScreen({ navigation }) {
                   keyboardType="phone-pad"
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>DATE OF JOINING</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>DATE OF JOINING</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="YYYY-MM-DD"
@@ -950,26 +957,28 @@ export default function EmployeesScreen({ navigation }) {
                   onChangeText={setNewEmpDoj}
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>DEPARTMENT</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>DEPARTMENT</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="Engineering"
+                  placeholderTextColor={colors.textLight}
                   value={newEmpDept}
                   onChangeText={setNewEmpDept}
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>JOB ROLE / DESIGNATION</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>JOB ROLE / DESIGNATION</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
                   placeholder="Software Engineer"
+                  placeholderTextColor={colors.textLight}
                   value={newEmpRole}
                   onChangeText={setNewEmpRole}
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginTop: 10 }}>INITIAL PASSWORD</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6678", marginTop: 10 }}>INITIAL PASSWORD</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
-                  placeholder="welcome123"
+                  placeholder="At least 8 characters"
                   placeholderTextColor={colors.textLight}
                   value={newEmpPassword}
                   onChangeText={setNewEmpPassword}
@@ -977,7 +986,7 @@ export default function EmployeesScreen({ navigation }) {
                 />
 
                 <TouchableOpacity
-                  style={{ backgroundColor: "#173B8C", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 20, marginBottom: 10 }}
+                  style={{ backgroundColor: "#0B5CAD", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 20, marginBottom: 10 }}
                   onPress={handleAddEmployeeSubmit}
                   disabled={submitting}
                 >
@@ -1000,12 +1009,12 @@ export default function EmployeesScreen({ navigation }) {
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <Text style={{ fontSize: 17, fontWeight: "800", color: colors.text }}>Broadcast Email</Text>
                 <TouchableOpacity onPress={() => setBlastModalVisible(false)}>
-                  <Ionicons name="close" size={22} color="#64748B" />
+                  <Ionicons name="close" size={22} color="#5A6678" />
                 </TouchableOpacity>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", letterSpacing: 0.6, marginBottom: 8 }}>SEND TO</Text>
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "#5A6678", letterSpacing: 0.6, marginBottom: 8 }}>SEND TO</Text>
                 <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
                   {[
                     { key: "all", label: "All Staff" },
@@ -1016,7 +1025,7 @@ export default function EmployeesScreen({ navigation }) {
                       key={opt.key}
                       style={{
                         flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center",
-                        backgroundColor: blastTargetType === opt.key ? colors.primary : "#F1F5F9",
+                        backgroundColor: blastTargetType === opt.key ? colors.primary : "#EDF2F8",
                         borderWidth: 1, borderColor: blastTargetType === opt.key ? colors.primary : colors.border,
                       }}
                       onPress={() => { setBlastTargetType(opt.key); setBlastTargetValue(""); }}
@@ -1030,14 +1039,14 @@ export default function EmployeesScreen({ navigation }) {
 
                 {blastTargetType === "department" && (
                   <View style={{ marginBottom: 14 }}>
-                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", letterSpacing: 0.6, marginBottom: 8 }}>DEPARTMENT</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#5A6678", letterSpacing: 0.6, marginBottom: 8 }}>DEPARTMENT</Text>
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                       {[...new Set(employees.map((e) => e.department).filter(Boolean))].map((dept) => (
                         <TouchableOpacity
                           key={dept}
                           style={{
                             paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
-                            backgroundColor: blastTargetValue === dept ? colors.primary : "#F1F5F9",
+                            backgroundColor: blastTargetValue === dept ? colors.primary : "#EDF2F8",
                             borderWidth: 1, borderColor: blastTargetValue === dept ? colors.primary : colors.border,
                           }}
                           onPress={() => setBlastTargetValue(dept)}
@@ -1053,7 +1062,7 @@ export default function EmployeesScreen({ navigation }) {
 
                 {blastTargetType === "individual" && (
                   <View style={{ marginBottom: 14 }}>
-                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", letterSpacing: 0.6, marginBottom: 8 }}>EMPLOYEE ID</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#5A6678", letterSpacing: 0.6, marginBottom: 8 }}>EMPLOYEE ID</Text>
                     <TextInput
                       style={{ backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, fontWeight: "600", color: colors.text }}
                       placeholder="e.g. GZT001"
@@ -1064,7 +1073,7 @@ export default function EmployeesScreen({ navigation }) {
                   </View>
                 )}
 
-                <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", letterSpacing: 0.6, marginBottom: 8 }}>SUBJECT</Text>
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "#5A6678", letterSpacing: 0.6, marginBottom: 8 }}>SUBJECT</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 14 }}
                   placeholder="Announcement subject"
@@ -1072,7 +1081,7 @@ export default function EmployeesScreen({ navigation }) {
                   onChangeText={setBlastSubject}
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "800", color: "#64748B", letterSpacing: 0.6, marginBottom: 8 }}>MESSAGE</Text>
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "#5A6678", letterSpacing: 0.6, marginBottom: 8 }}>MESSAGE</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1.5, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 13, fontWeight: "600", color: colors.text, minHeight: 100, textAlignVertical: "top", marginBottom: 18 }}
                   placeholder="Write your message..."
@@ -1130,7 +1139,7 @@ const makeStyles = (colors) => StyleSheet.create({
   container: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 10 },
   heroCard: {
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B5CAD",
     borderRadius: 24,
     padding: 20,
     marginBottom: 16,
@@ -1146,14 +1155,14 @@ const makeStyles = (colors) => StyleSheet.create({
     gap: 8,
     backgroundColor: colors.blueBg,
     borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderColor: "#BBD5F3",
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginTop: 12,
   },
   seatBannerDanger: { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" },
-  seatBannerText: { flex: 1, fontSize: 12, fontWeight: "700", color: "#1E40AF" },
+  seatBannerText: { flex: 1, fontSize: 12, fontWeight: "700", color: "#0A4E96" },
   heroIconBadge: {
     width: 48,
     height: 48,
@@ -1172,12 +1181,12 @@ const makeStyles = (colors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  chipActive: { backgroundColor: "#173B8C", borderColor: "#173B8C" },
-  chipText: { fontSize: 12, fontWeight: "600", color: "#64748B" },
+  chipActive: { backgroundColor: "#0B5CAD", borderColor: "#0B5CAD" },
+  chipText: { fontSize: 12, fontWeight: "600", color: "#5A6678" },
   chipTextActive: { color: "#FFFFFF", fontWeight: "700" },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 12 },
   sectionTitle: { fontSize: 14, fontWeight: "800", color: colors.text },
-  sectionBadge: { fontSize: 12, fontWeight: "700", color: "#173B8C" },
+  sectionBadge: { fontSize: 12, fontWeight: "700", color: "#0B5CAD" },
   employeeCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1197,11 +1206,11 @@ const makeStyles = (colors) => StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: { fontSize: 15, fontWeight: "800", color: "#173B8C" },
+  avatarText: { fontSize: 15, fontWeight: "800", color: "#0B5CAD" },
   employeeInfo: { flex: 1, marginLeft: 14 },
   employeeName: { fontSize: 13, fontWeight: "700", color: colors.text },
   employeeId: { fontSize: 11, color: colors.textLight, marginTop: 2 },
-  employeeRole: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  employeeRole: { fontSize: 12, color: "#5A6678", marginTop: 2 },
   rightSection: { alignItems: "flex-end" },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   statusActive: { backgroundColor: "#DCFCE7" },
@@ -1215,14 +1224,14 @@ const makeStyles = (colors) => StyleSheet.create({
   modalCard: { width: "100%", backgroundColor: colors.card, borderRadius: 24, padding: 24, alignItems: "center", elevation: 10 },
   modalHeader: { alignItems: "center" },
   modalAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primaryLight, justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  modalAvatarText: { fontSize: 24, fontWeight: "800", color: "#173B8C" },
+  modalAvatarText: { fontSize: 24, fontWeight: "800", color: "#0B5CAD" },
   modalName: { fontSize: 20, fontWeight: "800", color: colors.text },
-  modalRole: { fontSize: 14, color: "#64748B", marginTop: 4 },
+  modalRole: { fontSize: 14, color: "#5A6678", marginTop: 4 },
   modalEmpId: { fontSize: 12, color: colors.textLight, marginTop: 2 },
-  modalDivider: { width: "100%", height: 1, backgroundColor: "#F1F5F9", marginVertical: 16 },
+  modalDivider: { width: "100%", height: 1, backgroundColor: "#EDF2F8", marginVertical: 16 },
   modalRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  modalLabel: { fontSize: 14, fontWeight: "600", color: "#64748B", marginLeft: 8 },
+  modalLabel: { fontSize: 14, fontWeight: "600", color: "#5A6678", marginLeft: 8 },
   modalValue: { fontSize: 14, fontWeight: "700", color: colors.text, marginLeft: 6 },
-  closeBtn: { width: "100%", backgroundColor: "#173B8C", paddingVertical: 14, borderRadius: 16, alignItems: "center", marginTop: 10 },
+  closeBtn: { width: "100%", backgroundColor: "#0B5CAD", paddingVertical: 14, borderRadius: 16, alignItems: "center", marginTop: 10 },
   closeBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
 });

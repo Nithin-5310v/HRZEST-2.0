@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
 
     borderWidth: 1,
-    borderColor: "#EEF2F7",
+    borderColor: "#E9EFF6",
 
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#173B8C",
+    color: "#0B5CAD",
 
     marginBottom: 14,
   },
@@ -114,6 +114,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#334155",
+    color: "#2E3A4A",
   },
 });

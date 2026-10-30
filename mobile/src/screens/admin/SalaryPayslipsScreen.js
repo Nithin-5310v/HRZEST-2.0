@@ -33,7 +33,8 @@ const MONTHS = [
 ];
 
 const now = new Date();
-const YEARS = ["2024", "2025", "2026", "2027"];
+// Two years back to one ahead of the current one.
+const YEARS = [-2, -1, 0, 1].map((offset) => String(now.getFullYear() + offset));
 
 export default function SalaryPayslipsScreen({ navigation }) {
   const { colors } = useTheme();
@@ -473,7 +474,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 22,
     padding: 20,
     elevation: 10,
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.2,
     shadowRadius: 16,
   },
@@ -506,7 +507,7 @@ const makeStyles = (colors) => StyleSheet.create({
   pickerOptionText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#334155",
+    color: "#2E3A4A",
   },
   pickerOptionTextActive: {
     fontWeight: "800",

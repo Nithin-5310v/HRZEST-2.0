@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" role="img" aria-label="HRzest">
+  <defs>
+    <linearGradient id="hz-leaf" x1="0.85" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#17A3A3"/>
+      <stop offset="0.55" stop-color="#0B7FA0"/>
+      <stop offset="1" stop-color="#0A4E96"/>
+    </linearGradient>
+    <linearGradient id="hz-green" x1="0.9" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#57C493"/>
+      <stop offset="1" stop-color="#33A77B"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#hz-leaf)" d="M240 10C150 14 54 58 36 158c-14 84 42 132 104 130 54-2 84-46 90-116 5-56 6-110 10-162z"/>
+  <path fill="url(#hz-green)" stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round" d="M128 292c4-92 66-166 166-184 4 98-58 172-166 184z"/>
+  <circle cx="160" cy="82" r="25" fill="#FFFFFF"/>
+  <path fill="#FFFFFF" d="M40 80c48 6 86 34 106 72 14-26 36-42 66-52-26 22-42 50-50 84-6 28-8 56-10 86-10-30-14-60-24-88C114 132 86 100 40 80z"/>
+</svg>

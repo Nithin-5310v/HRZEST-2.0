@@ -19,7 +19,7 @@ export default function SectionTitle({
           <Ionicons
             name={icon}
             size={22}
-            color="#173B8C"
+            color="#0B5CAD"
           />
         </View>
 
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 14,
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E6EFFA",
 
     justifyContent: "center",
     alignItems: "center",
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#131C2A",
 
     letterSpacing: -0.3,
   },
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#64748B",
+    color: "#5A6678",
 
     lineHeight: 20,
   },
@@ -98,6 +98,6 @@ const styles = StyleSheet.create({
 
     height: 1,
 
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#DBE3EE",
   },
 });

@@ -25,14 +25,16 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const YEARS = ["2024", "2025", "2026", "2027"];
+// Opens on the current month; the year list follows the calendar.
+const yearsAround = (year) => [-2, -1, 0, 1].map((offset) => String(year + offset));
 
 export default function AttendanceScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
   const [search, setSearch] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("August");
-  const [selectedYear, setSelectedYear] = useState("2026");
+  const [selectedMonth, setSelectedMonth] = useState(() => MONTHS[new Date().getMonth()]);
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
+  const years = React.useMemo(() => yearsAround(new Date().getFullYear()), []);
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedSort, setSelectedSort] = useState("Default");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -218,7 +220,7 @@ export default function AttendanceScreen({ navigation }) {
             >
               <Ionicons name="calendar-outline" size={16} color={colors.primary} />
               <Text style={styles.selectorPillText}>{selectedMonth}</Text>
-              <Ionicons name="chevron-down" size={14} color="#64748B" />
+              <Ionicons name="chevron-down" size={14} color="#5A6678" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -228,7 +230,7 @@ export default function AttendanceScreen({ navigation }) {
             >
               <Ionicons name="time-outline" size={16} color={colors.primary} />
               <Text style={styles.selectorPillText}>{selectedYear}</Text>
-              <Ionicons name="chevron-down" size={14} color="#64748B" />
+              <Ionicons name="chevron-down" size={14} color="#5A6678" />
             </TouchableOpacity>
           </View>
 
@@ -370,7 +372,7 @@ export default function AttendanceScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
               <FlatList
-                data={YEARS}
+                data={years}
                 keyExtractor={(item) => item}
                 renderItem={({ item }) => (
                   <TouchableOpacity
@@ -440,7 +442,7 @@ const makeStyles = (colors) => StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     elevation: 4,
-    shadowColor: "#0B2253",
+    shadowColor: "#0C3054",
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -501,7 +503,7 @@ const makeStyles = (colors) => StyleSheet.create({
   filterChipText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#5A6678",
   },
   filterChipTextActive: {
     color: "#FFFFFF",
@@ -530,7 +532,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 11,
-    color: "#64748B",
+    color: "#5A6678",
     marginTop: 2,
     fontWeight: "600",
   },
@@ -575,7 +577,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   employeeId: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#5A6678",
     marginTop: 2,
   },
   percentBadge: {
@@ -592,7 +594,7 @@ const makeStyles = (colors) => StyleSheet.create({
   progressBackground: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#EDF2F8",
     marginBottom: 14,
     overflow: "hidden",
   },
@@ -643,7 +645,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   chipLabel: {
     fontSize: 10,
-    color: "#64748B",
+    color: "#5A6678",
     fontWeight: "700",
   },
   modalOverlay: {
@@ -660,7 +662,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 22,
     padding: 20,
     elevation: 10,
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.2,
     shadowRadius: 16,
   },
@@ -693,7 +695,7 @@ const makeStyles = (colors) => StyleSheet.create({
   pickerOptionText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#334155",
+    color: "#2E3A4A",
   },
   pickerOptionTextActive: {
     fontWeight: "800",

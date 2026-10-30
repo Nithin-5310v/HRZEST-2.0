@@ -8,7 +8,7 @@ export default function AttendanceEmptyState() {
       <Ionicons
         name="calendar-outline"
         size={70}
-        color="#CBD5E1"
+        color="#C3CFDD"
       />
 
       <Text style={styles.title}>
@@ -34,13 +34,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 18,
     fontWeight: "700",
-    color: "#173B8C",
+    color: "#0B5CAD",
   },
 
   subtitle: {
     marginTop: 8,
     textAlign: "center",
-    color: "#64748B",
+    color: "#5A6678",
     fontSize: 14,
     lineHeight: 22,
   },

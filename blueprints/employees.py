@@ -2189,8 +2189,12 @@ def api_employees():
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT COUNT(*) FROM employees")
     total = cursor.fetchone()[0]
+    # role and date_of_joining too: the app's edit form starts from this
+    # list, and api_edit_employee() saves both as sent -- without them here
+    # an edit made in the app blanked the employee's role and joining date.
     cursor.execute("""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0)
+        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+               e.role, e.department, e.phone, e.date_of_joining
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
@@ -2201,7 +2205,9 @@ def api_employees():
     db.close()
     return jsonify({"ok": True, "total": total, "page": page, "per_page": per_page,
                     "employees": [
-                        {"employee_id": r[0], "name": r[1], "email": r[2], "salary_per_day": float(r[3])}
+                        {"employee_id": r[0], "name": r[1], "email": r[2], "salary_per_day": float(r[3]),
+                         "role": r[4] or "", "department": r[5] or "", "phone": r[6] or "",
+                         "date_of_joining": r[7].isoformat() if r[7] else ""}
                         for r in rows
                     ]})
 

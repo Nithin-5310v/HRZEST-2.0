@@ -31,6 +31,8 @@ This page splits the project into blocks, saying where each block lives and what
 
 Every folder and top-level file in the repo, grouped by the block it belongs to. The sections after this one explain each block in detail.
 
+**See it this way in VS Code:** *File → Open Workspace from File… → `HRZEST.code-workspace`*. The Explorer then lists the blocks in this order (1. UI, 2–3. CSS & JavaScript, 4–5. Back end & API, …), hides caches and virtual environments, and keeps the root files under **HRZEST** at the bottom. Nothing moves on disk.
+
 ```text
 HRZEST/
 │
@@ -115,11 +117,13 @@ HRZEST/
 ├── observability/                  logs + alerts (Alloy → Loki → Grafana)
 ├── nginx/, nginx.conf, nginx.conf.example, init-letsencrypt.sh
 ├── Containerfile, compose*.yaml, entrypoint.sh, deploy.sh, gunicorn.conf.py, Procfile
-├── requirements.txt, requirements.lock, DEPENDENCIES.txt, .python-version
+├── requirements.txt, requirements.lock, .python-version
 │
 │ ═══ 13. Docs ══════════════════════════════════════════════════════════════════════
-└── README.md, PROJECT_STRUCTURE.md, SECURITY.md, SECURITY_HARDENING.md, SOC.md,
-    RESTORE.md, MODERNIZATION.md, QA_AUDIT.md, HRzest_Project_Overview.pptx
+├── docs/                           SECURITY_HARDENING.md, SOC.md, RESTORE.md,
+│                                   MODERNIZATION.md, QA_AUDIT.md, DEPENDENCIES.txt,
+│                                   HRzest_Project_Overview.pptx
+└── README.md, PROJECT_STRUCTURE.md, SECURITY.md      (kept at the top, where GitHub looks)
 ```
 
 ---
@@ -258,7 +262,7 @@ The API is part of the back end: **193** of the server's ~506 routes start with 
 | `migrations/soc_tables.py`, `seed.py` | SOC tables, default data |
 | `migrations/runner.py`, `orchestration.py` | Runs migrations once per code version at startup, for every company schema |
 
-Backups and restore: `scripts/backup_db.sh`, `scripts/restore_test.sh`, `RESTORE.md`. Encryption-key rotation for personal data: `scripts/rotate_encryption_key.py`.
+Backups and restore: `scripts/backup_db.sh`, `scripts/restore_test.sh`, `docs/RESTORE.md`. Encryption-key rotation for personal data: `scripts/rotate_encryption_key.py`.
 
 ---
 
@@ -321,10 +325,10 @@ https://<server>/<company>/login   ──►  tenants.subdomain = "<company>"  �
 | Attendance fraud (fake GPS, replay, liveness) | `utils/punch_integrity.py`, `utils/liveness.py` |
 | Tamper-evident audit log | `migrations/audit_integrity.py`, `utils/audit_chain.py`, `utils/audit_jobs.py`, `scripts/verify_audit_chain.py` |
 | Personal data (DPDP / GDPR) | `utils/privacy.py`, `utils/privacy_jobs.py`, `utils/dlp.py`, `blueprints/privacy.py` |
-| Detection & response | `utils/detections.py`, `utils/alerts.py`, SOC console (`blueprints/soc.py`, `utils/soc_*.py`, `soc_ui/`, `SOC.md`) |
+| Detection & response | `utils/detections.py`, `utils/alerts.py`, SOC console (`blueprints/soc.py`, `utils/soc_*.py`, `soc_ui/`, `docs/SOC.md`) |
 | Decoys | `blueprints/honeypot_routes.py`, `utils/honeypot.py`, `utils/honeypot_report.py` |
 
-More detail: `SECURITY.md`, `SECURITY_HARDENING.md`.
+More detail: `SECURITY.md`, `docs/SECURITY_HARDENING.md`.
 
 ---
 
@@ -336,7 +340,7 @@ More detail: `SECURITY.md`, `SECURITY_HARDENING.md`.
 | End-to-end browser tests | `tests_e2e/` (Playwright) | see `tests_e2e/README.md` |
 | Mobile tests | `mobile/**/__tests__/` (Jest + React Native Testing Library) | `npx jest` in `mobile/` |
 | Dashboard wiring audit | `tests/dashboard_audit.py` + `tests/test_dashboard_wiring.py` (dead links, unescaped HTML, unlabeled fields…) | part of pytest |
-| QA audit baselines | `qa_audit/`, `QA_AUDIT.md` | |
+| QA audit baselines | `qa_audit/`, `docs/QA_AUDIT.md` | |
 
 ---
 
@@ -350,14 +354,16 @@ More detail: `SECURITY.md`, `SECURITY_HARDENING.md`.
 | CI (GitHub Actions) | `.github/workflows/ci-cd.yml` (lint, Bandit, pytest, Semgrep, Podman build), `security.yml`, `dast.yml`, `deploy.yml` (SSH deploy job, currently disabled); `.github/dependabot.yml` |
 | Host & backups | `scripts/host_hardening.sh`, `scripts/backup_db.sh`, `hrzest-backup.service` / `.timer`, `scripts/provision_db_roles.py` |
 | Logs & monitoring | `observability/` (Grafana Alloy → Loki → Grafana, security alert rules) |
-| Dependencies | `requirements.txt`, `requirements.lock` (hash-pinned), `requirements-dev.txt`, `DEPENDENCIES.txt`; `mobile/package.json` |
+| Dependencies | `requirements.txt`, `requirements.lock` (hash-pinned), `requirements-dev.txt`, `docs/DEPENDENCIES.txt`; `mobile/package.json` |
 | Other | `desktop_agent/wifi_posture_agent.py` (office Wi-Fi check for the employee portal), `Procfile` (PaaS hosts) |
 
 ---
 
 ## 13. Documentation
 
-`README.md` (setup) · `PROJECT_STRUCTURE.md` (this map) · `SECURITY.md` · `SECURITY_HARDENING.md` · `SOC.md` · `RESTORE.md` (backup restore) · `MODERNIZATION.md` · `QA_AUDIT.md` · `HRzest_Project_Overview.pptx`
+At the top: `README.md` (setup) · `PROJECT_STRUCTURE.md` (this map) · `SECURITY.md` (security policy).
+
+In `docs/`: `docs/SECURITY_HARDENING.md` · `docs/SOC.md` · `docs/RESTORE.md` (backup restore) · `docs/MODERNIZATION.md` · `docs/QA_AUDIT.md` · `docs/HRzest_Project_Overview.pptx`
 
 ---
 

@@ -33,7 +33,7 @@ export default function ProfileImageCard({
             <Ionicons
               name="person"
               size={38}
-              color="#173B8C"
+              color="#0B5CAD"
             />
           </View>
         )}
@@ -65,7 +65,7 @@ export default function ProfileImageCard({
         <Ionicons
           name="business-outline"
           size={13}
-          color="#173B8C"
+          color="#0B5CAD"
         />
 
         <Text style={styles.badgeText}>
@@ -91,11 +91,11 @@ export default function ProfileImageCard({
         {onViewIdCard && (
           <TouchableOpacity
             activeOpacity={0.85}
-            style={[styles.editButton, { flex: 1, backgroundColor: "#0F172A" }]}
+            style={[styles.editButton, { flex: 1, backgroundColor: "#131C2A" }]}
             onPress={onViewIdCard}
           >
-            <Ionicons name="qr-code-outline" size={16} color="#38BDF8" />
-            <Text style={[styles.editText, { color: "#38BDF8" }]}>Digital ID Card</Text>
+            <Ionicons name="qr-code-outline" size={16} color="#4C9BE8" />
+            <Text style={[styles.editText, { color: "#4C9BE8" }]}>Digital ID Card</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -113,9 +113,9 @@ card: {
   marginBottom: 16,
 
   borderWidth: 1,
-  borderColor: "#E8EDF3",
+  borderColor: "#E3EAF3",
 
-  shadowColor: "#0F172A",
+  shadowColor: "#131C2A",
   shadowOpacity: 0.04,
   shadowRadius: 8,
   shadowOffset: {
@@ -134,7 +134,7 @@ avatar: {
   width: 78,
   height: 78,
   borderRadius: 39,
-  backgroundColor: "#EEF4FF",
+  backgroundColor: "#E6EFFA",
 
   justifyContent: "center",
   alignItems: "center",
@@ -149,7 +149,7 @@ avatar: {
   height: 28,
   borderRadius: 14,
 
-  backgroundColor: "#173B8C",
+  backgroundColor: "#0B5CAD",
 
   justifyContent: "center",
   alignItems: "center",
@@ -162,14 +162,14 @@ avatar: {
   marginTop: 12,
   fontSize: 21,
   fontWeight: "700",
-  color: "#0F172A",
+  color: "#131C2A",
 },
 
   designation: {
   marginTop: 3,
   fontSize: 13,
   fontWeight: "500",
-  color: "#64748B",
+  color: "#5A6678",
 },
 
   badge: {
@@ -178,7 +178,7 @@ avatar: {
   flexDirection: "row",
   alignItems: "center",
 
-  backgroundColor: "#F8FAFC",
+  backgroundColor: "#F5F8FC",
 
   paddingHorizontal: 10,
   paddingVertical: 5,
@@ -189,7 +189,7 @@ avatar: {
   badgeText: {
     marginLeft: 6,
 
-    color: "#173B8C",
+    color: "#0B5CAD",
 
     fontWeight: "700",
 
@@ -200,7 +200,7 @@ avatar: {
   marginTop: 10,
   fontSize: 12,
   fontWeight: "500",
-  color: "#94A3B8",
+  color: "#8794A5",
 },
 
   editButton: {
@@ -211,7 +211,7 @@ avatar: {
 
   borderRadius: 12,
 
-  backgroundColor: "#173B8C",
+  backgroundColor: "#0B5CAD",
 
   flexDirection: "row",
   justifyContent: "center",

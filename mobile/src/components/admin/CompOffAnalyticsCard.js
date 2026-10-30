@@ -22,8 +22,8 @@ export default function CompOffAnalyticsCard({
       title: "Weekly OT",
       value: `${weeklyHours}h`,
       icon: "calendar-outline",
-      color: "#2563EB",
-      background: "#EEF4FF",
+      color: "#0B5CAD",
+      background: "#E6EFFA",
     },
 
     {
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
 
     width: "48%",
 
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F8FC",
 
     borderRadius: 20,
 

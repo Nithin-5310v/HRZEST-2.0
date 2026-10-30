@@ -263,7 +263,10 @@ class TestSeatCapConcurrency:
     concurrent signups at a tenant with exactly one seat free and asserts
     only one of them wins, regardless of how the two threads interleave."""
 
-    def test_concurrent_signups_at_cap_only_one_succeeds(self, db_engine, seat_cap):
+    def test_concurrent_signups_at_cap_only_one_succeeds(self, client, seed_admin, db_engine, seat_cap):
+        token = client.post("/api/login", json={
+            "username": seed_admin["username"], "password": seed_admin["password"],
+        }).get_json()["token"]
         cur = db_engine.cursor()
         cur.execute("SELECT COUNT(*) FROM employees")
         baseline = cur.fetchone()[0]
@@ -278,7 +281,7 @@ class TestSeatCapConcurrency:
                 resp = c.post("/api/employee/signup", json={
                     "employee_id": emp_id, "name": "Race Test",
                     "password": "RacePass@1",
-                })
+                }, headers={"Authorization": f"Bearer {token}"})
                 results[emp_id] = (resp.status_code, resp.get_json())
 
         threads = [threading.Thread(target=_signup, args=(eid,)) for eid in emp_ids]

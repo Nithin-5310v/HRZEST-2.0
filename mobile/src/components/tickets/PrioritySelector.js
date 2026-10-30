@@ -63,7 +63,7 @@ export default function PrioritySelector({
 
                   borderColor: active
                     ? item.color
-                    : "#E2E8F0",
+                    : "#DBE3EE",
                 },
               ]}
               onPress={() =>
@@ -76,7 +76,7 @@ export default function PrioritySelector({
                 color={
                   active
                     ? item.color
-                    : "#94A3B8"
+                    : "#8794A5"
                 }
               />
 
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#131C2A",
     marginBottom: 14,
   },
 
@@ -153,6 +153,6 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#475569",
+    color: "#455163",
   },
 });

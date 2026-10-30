@@ -14,7 +14,7 @@ able to read or write these rows.
 
 The trigger is a speed bump against the application role, not a defence
 against a database owner; for that, ship these rows off-box with the rest of
-the audit stream (see SECURITY_HARDENING.md).
+the audit stream (see docs/SECURITY_HARDENING.md).
 """
 
 SOC_ROLES = ("viewer", "analyst", "admin")

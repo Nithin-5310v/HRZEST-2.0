@@ -1,42 +1,44 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
-// The website's sign-in / sign-up look (static/landing_v2.css tokens and
-// templates/admin_login.html / create_org.html at phone width), for the
-// app's logged-out screens -- so the app and the website read as one
-// product. Light theme only, like those pages.
+// The HRzest Material You look for the app's logged-out screens, shared
+// with the website (static/landing_v2.css tokens): the logo's blue
+// as primary, navy for headings, soft blue surfaces, pill buttons.
+// Light theme only, like those pages.
 
 export const WEB = {
-  brand: "#4F46E5",          // --accent-cyan
-  brandDark: "#4338CA",      // --accent-blue
-  text: "#0F172A",           // --text-main
-  textMuted: "#475569",      // --text-muted
-  textSubtle: "#94A3B8",     // --text-subtle
+  brand: "#0B5CAD",          // --accent-cyan: the logo's blue
+  brandDark: "#0C3054",      // --accent-blue: the wordmark's navy
+  brandGreen: "#3CB484",     // the logo's green leaf
+  text: "#131C2A",           // --text-main
+  textMuted: "#455163",      // --text-muted
+  textSubtle: "#8794A5",     // --text-subtle
   card: "#FFFFFF",           // --bg-card
-  field: "#F8FAFC",          // --bg-secondary
-  fieldAlt: "#F1F5F9",       // --bg-tertiary
+  field: "#EDF2F8",          // --bg-tertiary: Material filled field
+  fieldAlt: "#E3EAF3",
   border: "rgba(15,23,42,0.08)",      // --border-color
-  borderGlow: "rgba(79,70,229,0.35)", // --border-color-glow
-  brandTint: "rgba(79,70,229,0.06)",
+  borderGlow: "rgba(11,92,173,0.35)", // --border-color-glow
+  brandTint: "rgba(11,92,173,0.06)",
   success: "#059669",        // --accent-emerald
   error: "#E11D48",          // --accent-rose
-  radiusSm: 8,
-  radiusMd: 14,
-  radiusLg: 20,
+  radiusSm: 12,
+  radiusMd: 16,
+  radiusLg: 28,
+  radiusPill: 999,
 };
 
-// --gradient-brand: linear-gradient(135deg, #4F46E5, #4338CA)
+// --gradient-brand: the logo leaf, linear-gradient(135deg, #1E6FD0, #0A4E96)
 export const WEB_BRAND_GRADIENT = {
-  colors: [WEB.brand, WEB.brandDark],
+  colors: ["#1E6FD0", "#0A4E96"],
   start: { x: 0, y: 0 },
   end: { x: 1, y: 1 },
 };
 
-// The page background: linear-gradient(160deg, #FDF3E3 0%, #F7ECF7 28%, #EAF0FC 56%, #F8FAFC 100%)
+// The page background: linear-gradient(160deg, #EAF2FC 0%, #EEF4FB 28%, #F2F6FC 56%, #F5F8FC 100%)
 export const WEB_PAGE_GRADIENT = {
-  colors: ["#FDF3E3", "#F7ECF7", "#EAF0FC", "#F8FAFC"],
+  colors: ["#EAF2FC", "#EEF4FB", "#F2F6FC", "#F5F8FC"],
   locations: [0, 0.28, 0.56, 1],
   start: { x: 0.33, y: 0 },
   end: { x: 0.67, y: 1 },
@@ -51,16 +53,14 @@ export function WebPage({ children, style }) {
   );
 }
 
-/** The website's top bar: the HRzest badge and name, with an optional
+/** The website's top bar: the HRzest logo and wordmark, with an optional
  *  button on the right (e.g. "Register a Company" on the login page). */
 export function WebTopBar({ right, style }) {
   return (
     <View style={[webAuthStyles.topBar, style]}>
-      <View style={webAuthStyles.brandRow}>
-        <LinearGradient {...WEB_BRAND_GRADIENT} style={webAuthStyles.brandBadge}>
-          <Ionicons name="shield-checkmark" size={18} color="#FFFFFF" />
-        </LinearGradient>
-        <Text style={webAuthStyles.brandName}>HRzest</Text>
+      <View style={webAuthStyles.brandRow} accessibilityRole="header" accessibilityLabel="HRzest">
+        <Image source={require("../../assets/favicon.png")} style={webAuthStyles.brandLogo} />
+        <Text style={webAuthStyles.brandName}>HRZEST</Text>
       </View>
       {right}
     </View>
@@ -91,11 +91,11 @@ export function WebCardHeader({ icon, image, title, subtitle }) {
   );
 }
 
-/** The full-width brand-gradient submit button. */
+/** The full-width filled (Material) submit button. */
 export function WebButton({ title, onPress, loading, disabled, icon = "arrow-forward", style }) {
   return (
     <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.85} style={style}>
-      <LinearGradient {...WEB_BRAND_GRADIENT} style={webAuthStyles.button}>
+      <View style={webAuthStyles.button}>
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
@@ -104,19 +104,19 @@ export function WebButton({ title, onPress, loading, disabled, icon = "arrow-for
             {icon ? <Ionicons name={icon} size={16} color="#FFFFFF" style={{ marginLeft: 8 }} /> : null}
           </>
         )}
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
 
-/** The small gradient button in the top bar (the website's .nav-link-btn). */
+/** The small tonal button in the top bar (the website's .nav-link-btn). */
 export function WebNavButton({ title, icon, onPress }) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
-      <LinearGradient {...WEB_BRAND_GRADIENT} style={webAuthStyles.navButton}>
-        {icon ? <Ionicons name={icon} size={14} color="#FFFFFF" style={{ marginRight: 6 }} /> : null}
+      <View style={webAuthStyles.navButton}>
+        {icon ? <Ionicons name={icon} size={14} color={WEB.brandDark} style={{ marginRight: 6 }} /> : null}
         <Text style={webAuthStyles.navButtonText}>{title}</Text>
-      </LinearGradient>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -128,21 +128,21 @@ export const webAuthStyles = StyleSheet.create({
   topBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingVertical: 14,
-    backgroundColor: "rgba(255,255,255,0.65)",
-    shadowColor: "#0F172A", shadowOpacity: 0.05, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+    backgroundColor: "rgba(245,250,251,0.9)",
   },
   brandRow: { flexDirection: "row", alignItems: "center" },
-  brandBadge: { width: 36, height: 36, borderRadius: WEB.radiusSm, justifyContent: "center", alignItems: "center" },
-  brandName: { marginLeft: 10, fontSize: 20, fontWeight: "800", color: WEB.text },
+  brandLogo: { width: 38, height: 38, resizeMode: "contain" },
+  brandName: { marginLeft: 8, fontSize: 21, fontWeight: "800", letterSpacing: 1.2, color: WEB.brandDark },
   navButton: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 9, borderRadius: WEB.radiusSm,
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: WEB.radiusPill,
+    backgroundColor: "#D3E3F7",
   },
-  navButtonText: { fontSize: 12.5, fontWeight: "700", color: "#FFFFFF" },
+  navButtonText: { fontSize: 13, fontWeight: "700", color: WEB.brandDark },
 
   card: {
-    backgroundColor: WEB.card, borderRadius: WEB.radiusLg, borderWidth: 1, borderColor: WEB.border,
+    backgroundColor: WEB.card, borderRadius: WEB.radiusLg,
     paddingHorizontal: 24, paddingTop: 34, paddingBottom: 26, overflow: "hidden",
-    shadowColor: "#0F172A", shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 16 }, elevation: 6,
+    shadowColor: "#0C3054", shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 2,
   },
   cardBar: { position: "absolute", top: 0, left: 0, right: 0, height: 4 },
   cardHeader: { alignItems: "center", marginBottom: 26 },
@@ -150,7 +150,7 @@ export const webAuthStyles = StyleSheet.create({
     width: 64, height: 64, borderRadius: WEB.radiusMd, justifyContent: "center", alignItems: "center",
     marginBottom: 16, overflow: "hidden",
   },
-  title: { fontSize: 22, fontWeight: "800", letterSpacing: -0.4, color: WEB.text, textAlign: "center", marginBottom: 6 },
+  title: { fontSize: 24, fontWeight: "700", letterSpacing: -0.2, color: WEB.brandDark, textAlign: "center", marginBottom: 6 },
   subtitle: { fontSize: 13.5, fontWeight: "600", color: WEB.textMuted, textAlign: "center", lineHeight: 19 },
 
   label: {
@@ -159,15 +159,15 @@ export const webAuthStyles = StyleSheet.create({
   },
   field: { marginBottom: 18 },
   input: {
-    backgroundColor: WEB.field, borderWidth: 1, borderColor: WEB.border, borderRadius: WEB.radiusSm,
-    paddingHorizontal: 15, paddingVertical: 12, fontSize: 14, color: WEB.text,
+    backgroundColor: WEB.field, borderWidth: 1, borderColor: "transparent", borderRadius: WEB.radiusSm,
+    paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: WEB.text,
   },
   inputFocused: { backgroundColor: WEB.card, borderColor: WEB.brand },
   hint: { fontSize: 12, color: WEB.textSubtle, marginTop: 5, lineHeight: 17 },
 
   button: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingVertical: 15, borderRadius: WEB.radiusSm, marginTop: 4,
+    paddingVertical: 16, borderRadius: WEB.radiusPill, marginTop: 4, backgroundColor: WEB.brand,
   },
   buttonText: { fontSize: 14.5, fontWeight: "700", letterSpacing: 0.2, color: "#FFFFFF" },
 

@@ -72,6 +72,17 @@
   letter-spacing: 0.5px;
 }
 
+/* The HRzest logo: the mark (static/favicon.svg) and the HRZEST wordmark
+   beside it, in the logo's navy. Only on logo placements -- .hrzest-brand
+   above stays the in-text brand name. */
+.brand-mark { width: 40px; height: 40px; display: block; flex-shrink: 0; }
+.brand-wordmark {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #0C3054;
+}
+
 /* Reset & Base */
 * {
   margin: 0;

@@ -13,8 +13,8 @@ const COMPOFF_THEME = {
   colors: {
     success: "#16A34A",
     successLight: "#DCFCE7",
-    textPrimary: "#0F172A",
-    textMuted: "#64748B",
+    textPrimary: "#131C2A",
+    textMuted: "#5A6678",
   },
 };
 
@@ -122,28 +122,6 @@ export default function CompOffHeaderCard({
               h
             </Text>
           </Text>
-
-          <View style={styles.trendRow}>
-
-            <View style={styles.trendChip}>
-
-              <Ionicons
-                name="trending-up"
-                size={14}
-                color="#22C55E"
-              />
-
-              <Text style={styles.trendText}>
-                +12%
-              </Text>
-
-            </View>
-
-            <Text style={styles.compareText}>
-              vs last month
-            </Text>
-
-          </View>
 
         </View>
                   {/* Floating Balance Card */}
@@ -343,7 +321,7 @@ export default function CompOffHeaderCard({
 const styles = StyleSheet.create({
 
   card: {
-    backgroundColor: "#1E3A8A",
+    backgroundColor: "#0C3054",
 
     borderRadius: 30,
 
@@ -357,7 +335,7 @@ const styles = StyleSheet.create({
 
     overflow: "hidden",
 
-    shadowColor: "#1E3A8A",
+    shadowColor: "#0C3054",
 
     shadowOpacity: 0.28,
 

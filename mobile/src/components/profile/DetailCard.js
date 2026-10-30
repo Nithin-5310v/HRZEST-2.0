@@ -9,8 +9,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 export default function DetailCard({
   icon = "person-outline",
-  iconColor = "#173B8C",
-  iconBackground = "#EEF4FF",
+  iconColor = "#0B5CAD",
+  iconBackground = "#E6EFFA",
   label = "Full Name",
   value = "John Doe",
   editable = false,
@@ -61,7 +61,7 @@ export default function DetailCard({
           <Ionicons
             name="create-outline"
             size={18}
-            color="#173B8C"
+            color="#0B5CAD"
           />
         </View>
       )}
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E8EDF3",
+    borderColor: "#E3EAF3",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
 
     shadowOpacity: 0.04,
 
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "600",
 
-    color: "#94A3B8",
+    color: "#8794A5",
 
     textTransform: "uppercase",
 
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#0F172A",
+    color: "#131C2A",
 
     lineHeight: 22,
   },
@@ -159,11 +159,11 @@ const styles = StyleSheet.create({
 
     borderRadius: 12,
 
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F8FC",
 
     borderWidth: 1,
 
-    borderColor: "#E8EDF3",
+    borderColor: "#E3EAF3",
 
     justifyContent: "center",
 

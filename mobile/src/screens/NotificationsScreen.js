@@ -143,7 +143,11 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ProfileHeader title="Alerts & Announcements" showBack={false} />
+      <ProfileHeader
+        title="Alerts & Announcements"
+        subtitle={isAdmin ? (user?.company || "Admin Portal").toUpperCase() : undefined}
+        showBack={false}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -152,8 +156,8 @@ export default function NotificationsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#173B8C"]}
-            tintColor="#173B8C"
+            colors={["#0B5CAD"]}
+            tintColor="#0B5CAD"
           />
         }
       >
@@ -170,7 +174,7 @@ export default function NotificationsScreen() {
 
           {canBroadcast && (
             <TouchableOpacity style={styles.broadcastBtn} onPress={() => setBroadcastVisible(true)}>
-              <Ionicons name="mega-phone-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Ionicons name="megaphone-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
               <Text style={styles.broadcastBtnText}>Send Broadcast</Text>
             </TouchableOpacity>
           )}
@@ -183,7 +187,7 @@ export default function NotificationsScreen() {
         />
 
         {loading ? (
-          <ActivityIndicator size="large" color="#173B8C" style={{ marginVertical: 30 }} />
+          <ActivityIndicator size="large" color="#0B5CAD" style={{ marginVertical: 30 }} />
         ) : filteredNotifications.length > 0 ? (
           filteredNotifications.map((notification) => (
             <NotificationCard
@@ -328,7 +332,7 @@ const makeStyles = (colors) => StyleSheet.create({
   input: {
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: "#C3CFDD",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -346,12 +350,12 @@ const makeStyles = (colors) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#EDF2F8",
   },
   cancelBtnText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#5A6678",
   },
   submitBtn: {
     paddingHorizontal: 18,

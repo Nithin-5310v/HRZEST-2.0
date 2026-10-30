@@ -20,10 +20,10 @@ export default function AppLockScreen() {
   }, []);
 
   return (
-    <LinearGradient colors={["#0F172A", "#1E3A8A", "#173B8C"]} style={styles.bg}>
+    <LinearGradient colors={["#131C2A", "#0C3054", "#0B5CAD"]} style={styles.bg}>
       <View style={styles.center}>
         <View style={styles.iconCircle}>
-          <Ionicons name="lock-closed" size={36} color="#173B8C" />
+          <Ionicons name="lock-closed" size={36} color="#0B5CAD" />
         </View>
         <Text style={styles.title}>App Locked</Text>
         <Text style={styles.subtitle}>
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   },
   unlockBtn: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B5CAD",
     paddingHorizontal: 28, paddingVertical: 14,
     borderRadius: 14,
   },

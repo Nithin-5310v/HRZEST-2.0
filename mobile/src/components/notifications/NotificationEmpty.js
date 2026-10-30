@@ -14,7 +14,7 @@ export default function NotificationEmpty() {
         <Ionicons
           name="notifications-off-outline"
           size={70}
-          color="#CBD5E1"
+          color="#C3CFDD"
         />
       </View>
 
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
 
     borderWidth: 1,
-    borderColor: "#E8EDF3",
+    borderColor: "#E3EAF3",
 
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 60,
 
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F8FC",
 
     justifyContent: "center",
     alignItems: "center",
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#131C2A",
   },
 
   description: {
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
 
     textAlign: "center",
 
-    color: "#64748B",
+    color: "#5A6678",
 
     paddingHorizontal: 12,
   },

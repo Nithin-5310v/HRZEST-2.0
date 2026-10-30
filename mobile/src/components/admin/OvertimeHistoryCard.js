@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   reasonCard: {
     marginTop: 8,
 
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F8FC",
 
     borderRadius: 16,
 

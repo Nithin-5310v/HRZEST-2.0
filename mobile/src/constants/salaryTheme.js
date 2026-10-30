@@ -1,16 +1,16 @@
 const SALARY_THEME = {
   colors: {
-    background: "#F8FAFC",
+    background: "#F5F8FC",
 
     surface: "#FFFFFF",
 
-    border: "#E2E8F0",
+    border: "#DBE3EE",
 
-    divider: "#EEF2F7",
+    divider: "#E9EFF6",
 
-    primary: "#0B2253",
+    primary: "#0C3054",
 
-    primaryLight: "#EEF4FF",
+    primaryLight: "#E6EFFA",
 
     success: "#16A34A",
 
@@ -28,21 +28,21 @@ const SALARY_THEME = {
 
     purpleLight: "#EDE9FE",
 
-    textPrimary: "#0F172A",
+    textPrimary: "#131C2A",
 
-    textSecondary: "#475569",
+    textSecondary: "#455163",
 
-    textMuted: "#64748B",
+    textMuted: "#5A6678",
 
-    textLight: "#94A3B8",
+    textLight: "#8794A5",
 
     white: "#FFFFFF",
 
     black: "#000000",
 
-    chipBackground: "#F1F5F9",
+    chipBackground: "#EDF2F8",
 
-    iconBackground: "#F8FAFC",
+    iconBackground: "#F5F8FC",
   },
 
   typography: {
@@ -116,7 +116,7 @@ const SALARY_THEME = {
   },
 
   shadow: {
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
 
     shadowOffset: {
       width: 0,

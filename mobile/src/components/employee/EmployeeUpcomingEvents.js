@@ -15,8 +15,8 @@ const EVENTS = [
     subtitle: "Independence Day",
     date: "15 Aug",
     icon: "flag-outline",
-    color: "#2563EB",
-    bg: "#EEF4FF",
+    color: "#0B5CAD",
+    bg: "#E6EFFA",
   },
 
   {
@@ -59,20 +59,20 @@ export default function EmployeeUpcomingEvents({
             style={{ flexDirection: "row", alignItems: "center" }}
             onPress={() => navigation.navigate("Holidays")}
           >
-            <Text style={{ color: "#173B8C", fontWeight: "700", fontSize: 13, marginRight: 2 }}>
+            <Text style={{ color: "#0B5CAD", fontWeight: "700", fontSize: 13, marginRight: 2 }}>
               View All
             </Text>
-            <Ionicons name="chevron-forward" size={16} color="#173B8C" />
+            <Ionicons name="chevron-forward" size={16} color="#0B5CAD" />
           </TouchableOpacity>
         ) : (
-          <Ionicons name="calendar-outline" size={20} color="#173B8C" />
+          <Ionicons name="calendar-outline" size={20} color="#0B5CAD" />
         )}
       </View>
 
       {events.length === 0 ? (
-        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#E2E8F0" }}>
-          <Ionicons name="calendar-outline" size={36} color="#94A3B8" />
-          <Text style={{ fontSize: 14, fontWeight: "600", color: "#64748B", marginTop: 8 }}>
+        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DBE3EE" }}>
+          <Ionicons name="calendar-outline" size={36} color="#8794A5" />
+          <Text style={{ fontSize: 14, fontWeight: "600", color: "#5A6678", marginTop: 8 }}>
             No Upcoming Events Scheduled
           </Text>
         </View>
@@ -147,9 +147,9 @@ const styles = StyleSheet.create({
 
     borderWidth:1,
 
-    borderColor:"#E8EDF5",
+    borderColor:"#E3EAF3",
 
-    shadowColor:"#0F172A",
+    shadowColor:"#131C2A",
 
     shadowOpacity:.05,
 
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
 
     fontWeight:"700",
 
-    color:"#0F172A",
+    color:"#131C2A",
 
   },
 
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
 
     fontSize:13,
 
-    color:"#64748B",
+    color:"#5A6678",
 
   },
 
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
 
     borderBottomWidth:1,
 
-    borderBottomColor:"#EEF2F7",
+    borderBottomColor:"#E9EFF6",
 
   },
 
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
 
     fontWeight:"700",
 
-    color:"#0F172A",
+    color:"#131C2A",
 
   },
 
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
 
     marginTop:4,
 
-    color:"#64748B",
+    color:"#5A6678",
 
     fontSize:12,
 
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
 
   dateBox:{
 
-    backgroundColor:"#F8FAFC",
+    backgroundColor:"#F5F8FC",
 
     paddingHorizontal:12,
 
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
 
   date:{
 
-    color:"#173B8C",
+    color:"#0B5CAD",
 
     fontWeight:"700",
 

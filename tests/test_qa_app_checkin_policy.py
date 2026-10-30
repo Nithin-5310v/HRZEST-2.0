@@ -7,7 +7,7 @@ the QR/face/fingerprint combinations allowed_checkin_combos() permits, but
 this endpoint never asked, so it skipped the face or QR check a company
 requires.
 
-Owner decision (QA_AUDIT.md §0.1): it follows the company policy. A
+Owner decision (docs/QA_AUDIT.md §0.1): it follows the company policy. A
 company setting (company_settings.app_gps_checkin) decides; left unset,
 location-only check-in is allowed only when the company has no QR, face
 or fingerprint method enabled. The current app's check-in buttons all go

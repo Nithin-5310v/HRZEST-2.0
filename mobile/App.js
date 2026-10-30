@@ -4,6 +4,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider, useAuth } from "./src/store/AuthContext";
 import { ThemeProvider } from "./src/store/ThemeContext";
@@ -87,17 +88,22 @@ function RootNavigator() {
   return <AuthNavigator />;
 }
 
+// SafeAreaProvider at the root, not just the one each navigator adds: the
+// launch and app-lock screens render outside any navigator, and on web the
+// safe-area SafeAreaView throws without a provider above it.
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <AuthProvider>
-          <NavigationContainer>
-            <StatusBar style="light" />
-            <RootNavigator />
-          </NavigationContainer>
-        </AuthProvider>
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider>
+          <AuthProvider>
+            <NavigationContainer>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </NavigationContainer>
+          </AuthProvider>
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

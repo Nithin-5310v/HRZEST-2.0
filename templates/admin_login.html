@@ -174,8 +174,8 @@
     <header class="top-nav">
       <div class="top-nav-inner">
         <a href="/" class="brand-logo">
-          <div class="logo-badge"><i class="ti ti-shield-check"></i></div>
-          <span>HRzest</span>
+          <img class="brand-mark" src="{{ static_url('favicon.svg') }}" alt="" width="40" height="40">
+          <span class="brand-wordmark">HRZEST</span>
         </a>
         <a href="/create_org" class="nav-link-btn">
           <i class="ti ti-building"></i> Register a Company
@@ -191,11 +191,15 @@
           {% if co and co.logo_url %}
             <img src="{{ co.logo_url }}" alt="{{ co.company_name }}" style="width:100%;height:100%;object-fit:contain;" onerror="this.outerHTML='<i class=\'ti ti-shield-check\'></i>'" />
           {% else %}
-            <i class="ti ti-shield-check"></i>
+            <img src="{{ static_url('favicon.svg') }}" alt="HRzest" width="44" height="44">
           {% endif %}
         </div>
         <h1>Sign In to Your Workspace</h1>
+        {% if pick_company %}
+        <p>Which company are you signing in to?</p>
+        {% else %}
         <p>{{ co.company_name if co and co.company_name else "HRzest Enterprise Governance" }}</p>
+        {% endif %}
       </div>
 
       {% if error %}
@@ -208,6 +212,29 @@
         </div>
         {% endfor %}
       {% endwith %}
+
+      {% if pick_company %}
+      {# Company step (auth.py's admin_login): a bare /login has no company to
+         sign in to, so ask which one and go to its /<company>/login. #}
+      <form action="{{ url_for('auth.admin_login') }}" method="GET" autocomplete="on">
+        <div class="field-group">
+          <label class="field-label" for="login_company">Company URL or name</label>
+          <input class="field-input" type="text" id="login_company" name="company" value="{{ company }}"
+                 placeholder="{{ request.host }}/your-company"
+                 required autofocus autocapitalize="none" spellcheck="false" />
+          <div class="field-hint" style="font-size:12px;color:#94a3b8;margin-top:4px;">
+            The address your company signs in at, e.g. {{ request.host }}/acme-corp, or just the company's name.
+          </div>
+        </div>
+        <button type="submit" class="btn-submit">
+          <span>Continue</span> <i class="ti ti-arrow-right"></i>
+        </button>
+      </form>
+
+      <div class="hint">
+        <strong>New to HRzest?</strong> <a href="/create_org">Register your company</a> to get your own sign-in page.
+      </div>
+      {% else %}
 
       {# Google/Microsoft sign-in only for providers with keys configured (oauth_signup.py) #}
       {% if oauth_providers %}
@@ -272,6 +299,7 @@
       <div class="hint">
         <strong>Sign In Help</strong> — Use your <strong>username</strong> or <strong>employee ID</strong> to continue.
       </div>
+      {% endif %}
     </div>
     </main>
   </body>

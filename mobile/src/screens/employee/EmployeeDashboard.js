@@ -284,7 +284,7 @@ export default function EmployeeDashboard({ navigation }) {
 
   return (
     <LinearGradient
-      colors={["#F8FAFC", "#F3F7FD", "#EDF4FF"]}
+      colors={["#F5F8FC", "#F3F7FD", "#EDF4FF"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -333,8 +333,8 @@ export default function EmployeeDashboard({ navigation }) {
               setRefreshing(true);
               loadDashboard();
             }}
-            colors={["#173B8C"]}
-            tintColor="#173B8C"
+            colors={["#0B5CAD"]}
+            tintColor="#0B5CAD"
           />
         }
       >
@@ -394,14 +394,14 @@ export default function EmployeeDashboard({ navigation }) {
           position: "absolute",
           right: 20,
           bottom: 75,
-          backgroundColor: "#173B8C",
+          backgroundColor: "#0B5CAD",
           width: 56,
           height: 56,
           borderRadius: 28,
           justifyContent: "center",
           alignItems: "center",
           elevation: 8,
-          shadowColor: "#173B8C",
+          shadowColor: "#0B5CAD",
           shadowOpacity: 0.4,
           shadowRadius: 10,
           shadowOffset: { width: 0, height: 4 },
@@ -453,7 +453,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   syncBannerLink: {
     fontSize: 13,
-    color: "#1D4ED8",
+    color: "#094A8C",
     fontWeight: "700",
     marginLeft: 12,
   },

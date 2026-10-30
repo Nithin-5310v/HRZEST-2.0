@@ -1,0 +1,54 @@
+// VS Code workspace that shows the project block by block, in the order of
+// PROJECT_STRUCTURE.md: File > Open Workspace from File... > HRZEST.code-workspace.
+// Nothing on disk moves -- each block below is the real folder, just listed
+// and named in that order. "HRZEST" (last) is the repo root itself: the
+// top-level files (app.py, wsgi.py, database.py, configs, docs) and every
+// folder not listed above it.
+{
+  "folders": [
+    { "name": "1. UI - pages (templates)", "path": "templates" },
+    { "name": "2-3. CSS & front-end JavaScript (static)", "path": "static" },
+    { "name": "2-3. SOC console UI (soc_ui)", "path": "soc_ui" },
+    { "name": "4-5. Back end & API - routes (blueprints)", "path": "blueprints" },
+    { "name": "4-5. Back end - helpers (utils)", "path": "utils" },
+    { "name": "6-7. Database - migrations", "path": "migrations" },
+    { "name": "8. Mobile app (mobile)", "path": "mobile" },
+    { "name": "11. Tests (tests)", "path": "tests" },
+    { "name": "11. Browser tests (tests_e2e)", "path": "tests_e2e" },
+    { "name": "12. Deployment - scripts", "path": "scripts" },
+    { "name": "12. CI workflows (.github)", "path": ".github" },
+    { "name": "12. Logs & monitoring (observability)", "path": "observability" },
+    { "name": "13. Docs (docs)", "path": "docs" },
+    { "name": "HRZEST", "path": "." }
+  ],
+  "settings": {
+    "files.exclude": {
+      // Clutter: caches, virtual environments, tool folders.
+      "**/__pycache__": true,
+      "**/.mypy_cache": true,
+      "**/.pytest_cache": true,
+      "**/.ruff_cache": true,
+      "**/node_modules": true,
+      ".venv": true,
+      ".venv_test": true,
+      ".claude": true,
+      // Already shown as their own block above, so the root doesn't list them twice.
+      "templates": true,
+      "static": true,
+      "soc_ui": true,
+      "blueprints": true,
+      "utils": true,
+      "migrations": true,
+      "mobile": true,
+      "tests": true,
+      "tests_e2e": true,
+      "scripts": true,
+      ".github": true,
+      "observability": true,
+      "docs": true
+    },
+    // Python imports (from utils..., from blueprints..., import database) resolve
+    // from the repo root, whichever block a file is opened from.
+    "python.analysis.extraPaths": ["${workspaceFolder:HRZEST}"]
+  }
+}

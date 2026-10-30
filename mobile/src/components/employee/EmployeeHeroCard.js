@@ -68,7 +68,7 @@ export default function EmployeeHeroCard({
 
   return (
     <LinearGradient
-      colors={["#0B2253", "#173B8C"]}
+      colors={["#0C3054", "#0B5CAD"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.card}
@@ -91,7 +91,7 @@ export default function EmployeeHeroCard({
               resizeMode="cover"
             />
           ) : (
-            <Ionicons name="business" size={14} color="#38BDF8" style={{ marginRight: 6 }} />
+            <Ionicons name="business" size={14} color="#4C9BE8" style={{ marginRight: 6 }} />
           )}
           <Text style={styles.brandText} numberOfLines={1}>
             {companyName}
@@ -130,7 +130,7 @@ export default function EmployeeHeroCard({
 
           <View style={styles.metaRow}>
             <View style={styles.roleTag}>
-              <Ionicons name="shield-checkmark" size={12} color="#38BDF8" style={{ marginRight: 4 }} />
+              <Ionicons name="shield-checkmark" size={12} color="#4C9BE8" style={{ marginRight: 4 }} />
               <Text style={styles.roleText} numberOfLines={1}>
                 {displayRole}
               </Text>
@@ -153,7 +153,7 @@ export default function EmployeeHeroCard({
           <View
             style={[
               styles.statusDot,
-              { backgroundColor: completed ? "#94A3B8" : checkedIn ? "#4ADE80" : "#FBBF24" },
+              { backgroundColor: completed ? "#8794A5" : checkedIn ? "#4ADE80" : "#FBBF24" },
             ]}
           />
           <Text style={styles.statusTitle}>
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 18,
     elevation: 6,
-    shadowColor: "#0B2253",
+    shadowColor: "#0C3054",
     shadowOpacity: 0.35,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   initialText: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#173B8C",
+    color: "#0B5CAD",
   },
   onlineDot: {
     position: "absolute",
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#4ADE80",
     borderWidth: 2,
-    borderColor: "#0B2253",
+    borderColor: "#0C3054",
   },
   userInfo: {
     flex: 1,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   roleText: {
-    color: "#E2E8F0",
+    color: "#DBE3EE",
     fontSize: 11,
     fontWeight: "700",
   },
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   idText: {
-    color: "#38BDF8",
+    color: "#4C9BE8",
     fontSize: 11,
     fontWeight: "800",
   },

@@ -80,7 +80,6 @@ ALLOWED_UNGUARDED = {
     "core.api_logout": "revokes the presented Bearer token",
     "core.api_employee_login": "mobile employee login",
     "core.api_employee_logout": "revokes the presented Bearer token",
-    "core.api_employee_signup": "employee self-signup (rate-limited, domain-checked)",
     "core.mobile_bridge_login": "single-use, 5-minute, hashed bridge token minted only for MFA'd tokens",
     "platform_admin.platform_admin_login": "super-admin login",
     "platform_admin.platform_admin_logout": "logout (POST + CSRF)",

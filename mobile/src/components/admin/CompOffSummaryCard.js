@@ -5,8 +5,8 @@ import COMPOFF_THEME from "../../constants/compOffTheme";
 
 const theme = COMPOFF_THEME || {
   colors: {
-    textPrimary: "#0F172A",
-    textMuted: "#64748B",
+    textPrimary: "#131C2A",
+    textMuted: "#5A6678",
   },
 };
 
@@ -23,8 +23,8 @@ export default function CompOffSummaryCard({
       subtitle: "All Records",
       value: `${Number(totalHours).toFixed(1)}h`,
       icon: "time-outline",
-      color: "#2563EB",
-      background: "#EEF4FF",
+      color: "#0B5CAD",
+      background: "#E6EFFA",
       badge: "Live",
       badgeColor: "#DCFCE7",
       badgeText: "#16A34A",
@@ -132,7 +132,7 @@ export default function CompOffSummaryCard({
             <Ionicons
               name="chevron-forward"
               size={18}
-              color="#94A3B8"
+              color="#8794A5"
             />
           </View>
         </View>
@@ -159,8 +159,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#EEF2F7",
-    shadowColor: "#0F172A",
+    borderColor: "#E9EFF6",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.06,
     shadowRadius: 18,
     shadowOffset: {
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
 
   divider: {
     height: 1,
-    backgroundColor: "#EEF2F7",
+    backgroundColor: "#E9EFF6",
     marginTop: 18,
     marginBottom: 14,
   },
@@ -253,6 +253,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 12,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#5A6678",
   },
 });

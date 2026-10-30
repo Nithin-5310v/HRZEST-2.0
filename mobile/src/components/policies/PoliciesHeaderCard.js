@@ -14,7 +14,7 @@ export default function PoliciesHeaderCard() {
           <Ionicons
             name="document-text-outline"
             size={34}
-            color="#173B8C"
+            color="#0B5CAD"
           />
         </View>
 
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E6EFFA",
 
     justifyContent: "center",
     alignItems: "center",
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#131C2A",
   },
 
   subtitle: {
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
 
     lineHeight: 22,
 
-    color: "#64748B",
+    color: "#5A6678",
   },
 
   badge: {

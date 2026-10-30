@@ -17,7 +17,7 @@ export default function EmptyTickets({
         <Ionicons
           name="ticket-outline"
           size={70}
-          color="#173B8C"
+          color="#0B5CAD"
         />
       </View>
 
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
 
     borderWidth: 1,
-    borderColor: "#E8EDF3",
+    borderColor: "#E3EAF3",
 
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 55,
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E6EFFA",
 
     justifyContent: "center",
     alignItems: "center",
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#131C2A",
 
     marginBottom: 10,
   },
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
 
     lineHeight: 24,
 
-    color: "#64748B",
+    color: "#5A6678",
 
     textAlign: "center",
 
@@ -120,14 +120,14 @@ const styles = StyleSheet.create({
 
     justifyContent: "center",
 
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B5CAD",
 
     borderRadius: 16,
 
     paddingHorizontal: 24,
     paddingVertical: 14,
 
-    shadowColor: "#173B8C",
+    shadowColor: "#0B5CAD",
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: {

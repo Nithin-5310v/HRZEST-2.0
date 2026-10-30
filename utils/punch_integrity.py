@@ -38,7 +38,7 @@ LIVENESS_MODE=enforce).
 Honest limits: a client that lies about `mocked`/`device_id`, a video
 replay of the real employee doing the requested action, or a real-time
 face swap, are not defeated here -- see utils/liveness.py and
-SECURITY_HARDENING.md ("Attendance integrity") for what covers those.
+docs/SECURITY_HARDENING.md ("Attendance integrity") for what covers those.
 """
 import hashlib
 import io

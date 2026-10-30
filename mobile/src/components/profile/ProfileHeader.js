@@ -54,7 +54,7 @@ export default function ProfileHeader({
           <Ionicons
             name={showBack ? "arrow-back-sharp" : "menu-sharp"}
             size={22}
-            color="#0F172A"
+            color="#131C2A"
           />
         </TouchableOpacity>
 
@@ -84,7 +84,7 @@ export default function ProfileHeader({
                 <Ionicons
                   name="person-sharp"
                   size={18}
-                  color="#173B8C"
+                  color="#0B5CAD"
                 />
               </View>
             </TouchableOpacity>
@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-    shadowColor: "#0F172A",
+    borderBottomColor: "#EDF2F8",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.03,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -116,11 +116,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F8FC",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#DBE3EE",
   },
   titleSection: {
     flex: 1,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   tagBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E6EFFA",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -139,13 +139,13 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#173B8C",
+    color: "#0B5CAD",
     letterSpacing: 0.8,
   },
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#131C2A",
     letterSpacing: -0.3,
   },
   rightGroup: {
@@ -160,10 +160,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E6EFFA",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "#DBEAFE",
+    borderColor: "#D3E3F7",
   },
 });

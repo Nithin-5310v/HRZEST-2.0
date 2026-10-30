@@ -169,9 +169,9 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E2E8F0",
+    borderColor: "#DBE3EE",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
 
     shadowOpacity: 0.05,
 

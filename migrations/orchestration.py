@@ -98,7 +98,7 @@ def _migrate_tenant(schema):
                 app_log.warning(
                     "SEC-07 repair: tenant schema %s lacked table(s) %s -- created them. Rows this "
                     "company wrote to those tables before now are in public.<table>, mixed with the "
-                    "default company's (see QA_AUDIT.md SEC-07).", schema, ", ".join(created))
+                    "default company's (see docs/QA_AUDIT.md SEC-07).", schema, ", ".join(created))
         return recorder.tables, after
     finally:
         cursor.close()

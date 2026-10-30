@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
 
   skeleton: {
 
-    backgroundColor: '#E8EDF5',
+    backgroundColor: '#E3EAF3',
 
   },
 

@@ -97,7 +97,8 @@ export default function EarningsScreen() {
             />
 
             <View style={styles.chipContainer}>
-              <StatChip label="Salary Credited" color="#16A34A" background="#DCFCE7" />
+              {/* A live estimate (/api/employee/salary), not a payment record. */}
+              <StatChip label="Estimated from attendance" color="#B45309" background="#FEF3C7" />
               <StatChip label="Payslip Available" color={colors.primary} background={colors.primaryLight} />
             </View>
 
@@ -171,7 +172,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
 
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: {
@@ -196,7 +197,7 @@ const makeStyles = (colors) => StyleSheet.create({
 
     marginBottom: 18,
 
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: {
@@ -289,7 +290,7 @@ const makeStyles = (colors) => StyleSheet.create({
 
     marginTop: 20,
 
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: {

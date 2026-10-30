@@ -46,7 +46,7 @@ export default function PolicyFooter({
         <Ionicons
           name="document-lock-outline"
           size={22}
-          color="#173B8C"
+          color="#0B5CAD"
         />
 
         <Text style={styles.title}>
@@ -58,7 +58,7 @@ export default function PolicyFooter({
         icon="layers-outline"
         label="Version"
         value={version}
-        color="#2563EB"
+        color="#0B5CAD"
       />
 
       <FooterRow
@@ -86,7 +86,7 @@ export default function PolicyFooter({
         <Ionicons
           name="information-circle-outline"
           size={18}
-          color="#64748B"
+          color="#5A6678"
         />
 
         <Text style={styles.noteText}>
@@ -110,9 +110,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
 
     borderWidth: 1,
-    borderColor: "#E8EDF3",
+    borderColor: "#E3EAF3",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#131C2A",
   },
 
   row: {
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
 
     borderBottomWidth: 1,
 
-    borderBottomColor: "#EEF2F7",
+    borderBottomColor: "#E9EFF6",
   },
 
   left: {
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "600",
 
-    color: "#475569",
+    color: "#455163",
   },
 
   value: {
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#173B8C",
+    color: "#0B5CAD",
   },
 
   note: {
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
 
     alignItems: "flex-start",
 
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F8FC",
 
     padding: 14,
 
@@ -200,6 +200,6 @@ const styles = StyleSheet.create({
 
     lineHeight: 20,
 
-    color: "#64748B",
+    color: "#5A6678",
   },
 });

@@ -48,7 +48,7 @@ export default function SaasFilterSheet({
               <Text style={styles.title}>{title}</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={20} color={THEME.colors.textPrimary || "#0F172A"} />
+              <Ionicons name="close" size={20} color={THEME.colors.textPrimary || "#131C2A"} />
             </TouchableOpacity>
           </View>
 
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 5,
     borderRadius: 3,
-    backgroundColor: "#CBD5E1",
+    backgroundColor: "#C3CFDD",
     alignSelf: "center",
     marginBottom: 16,
   },
@@ -196,19 +196,19 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#DBE3EE",
   },
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#131C2A",
     marginLeft: 10,
   },
   closeBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#EDF2F8",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#475569",
+    color: "#455163",
     marginBottom: 10,
   },
   chipsContainer: {
@@ -229,9 +229,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 24,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5F8FC",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#DBE3EE",
     marginRight: 8,
     marginBottom: 8,
   },
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#334155",
+    color: "#2E3A4A",
   },
   chipTextActive: {
     color: "#FFFFFF",
@@ -254,20 +254,20 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: "#DBE3EE",
   },
   resetBtn: {
     width: "32%",
     height: 50,
     borderRadius: 14,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#EDF2F8",
     justifyContent: "center",
     alignItems: "center",
   },
   resetText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#334155",
+    color: "#2E3A4A",
   },
   applyBtn: {
     width: "64%",

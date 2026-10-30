@@ -398,7 +398,7 @@ const makeStyles = (colors) => StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: "#0F172A",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
