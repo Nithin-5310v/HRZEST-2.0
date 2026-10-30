@@ -12,7 +12,7 @@ const client = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
 // Company URL -- and sends every API call under it. Sign-up calls belong to
 // no company yet, so they never get one.
 let companySlug = '';
-const COMPANYLESS_PATHS = ['/api/create_org'];
+const COMPANYLESS_PATHS = ['/api/create_org', '/api/company/resolve'];
 
 export const setCompanySlug = (slug) => {
   companySlug = slug || '';
@@ -88,6 +88,16 @@ client.interceptors.response.use(
 // Step 1: password. When the server requires login MFA this returns
 // { ok, mfa_required: true, challenge_id } instead of a token, and the
 // one-time code is emailed to the account.
+// The company someone typed on the sign-in screen -- its URL or its name --
+// as { ok, slug }; 404 { ok: false, msg } when there's no such company.
+export const resolveCompany = (q) => client.get('/api/company/resolve', { params: { q } });
+
+// The one sign-in box (blueprints/core.py's /api/signin): the server decides
+// admin or employee, like the website's /login. Answers like adminLogin or
+// employeeLogin, plus account: 'admin' | 'employee'.
+export const signInAccount = (identifier, password) =>
+  client.post('/api/signin', { identifier, password });
+
 export const adminLogin = (username, password) =>
   client.post('/api/login', { username, password });
 

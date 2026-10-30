@@ -6,6 +6,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchEmployeeSalary } from "../../api/client";
 import { useTheme } from "../../store/ThemeContext";
+import { useAuth } from "../../store/AuthContext";
+import AppTopBar from "../../components/AppTopBar";
 
 const MONTHS = ["January","February","March","April","May","June",
                  "July","August","September","October","November","December"];
@@ -64,6 +66,7 @@ const makeRow = (colors) => StyleSheet.create({
 
 export default function PayslipsScreen({ navigation }) {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
   const now = new Date();
   const [year, setYear]     = useState(now.getFullYear());
@@ -91,13 +94,7 @@ export default function PayslipsScreen({ navigation }) {
 
   return (
     <LinearGradient colors={colors.screenGradient} style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payslips</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <AppTopBar title="Payslips" subtitle={user?.company} onBack={() => navigation.goBack()} />
 
       <ScrollView
         contentContainerStyle={styles.scroll}

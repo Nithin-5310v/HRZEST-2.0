@@ -33,6 +33,7 @@ import LoadingSkeleton from "../../components/ui/LoadingSkeleton";
 import EmptyState from "../../components/ui/EmptyState";
 import AttendanceScannerModal from "../AttendanceScannerModal";
 
+import AppTopBar from "../../components/AppTopBar";
 import EmployeeHeroCard from "../../components/employee/EmployeeHeroCard";
 import EmployeeAttendanceCard from "../../components/employee/EmployeeAttendanceCard";
 import EmployeeSummaryCards from "../../components/employee/EmployeeSummaryCards";
@@ -289,6 +290,17 @@ export default function EmployeeDashboard({ navigation }) {
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
+      <AppTopBar
+        title="Home"
+        subtitle={data?.company_name || user?.company || "HRZEST"}
+        actions={[{
+          icon: "notifications-outline",
+          label: "Notifications",
+          badge: data?.unread_notifications || 0,
+          onPress: () => navigation.navigate("Notifications"),
+        }]}
+        onCompanyPress={() => navigation.navigate("Profile")}
+      />
       <AttendanceScannerModal
         visible={showScanner}
         onClose={() => setShowScanner(false)}
@@ -429,7 +441,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 55,
+    paddingTop: 16,
     paddingBottom: 120,
   },
   bottomSpacing: {

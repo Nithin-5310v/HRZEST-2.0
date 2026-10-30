@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import React from "react";
+import { View, Image, Text, ActivityIndicator } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { StatusBar } from "expo-status-bar";
@@ -20,8 +20,8 @@ import { initCrashReporting } from "./src/utils/crashReporting";
 
 initCrashReporting();
 
-// Only the logged-out flow needs real stack navigation (Login <-> company
-// signup, with back-navigation) -- the post-login
+// Only the logged-out flow needs real stack navigation (landing page ->
+// Login <-> company signup, with back-navigation) -- the post-login
 // AdminDrawerNavigator/EmployeeDrawerNavigator trees are untouched below.
 // Signup is one screen: its code step signs the new admin in, which swaps
 // this whole tree for the admin one, where the registration checklist
@@ -30,7 +30,8 @@ const AuthStack = createStackNavigator();
 
 function AuthNavigator() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Navigator initialRouteName="Landing" screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Landing" component={LaunchCountdownScreen} />
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="CompanySignup" component={CompanySignupScreen} />
     </AuthStack.Navigator>
@@ -39,31 +40,23 @@ function AuthNavigator() {
 
 function RootNavigator() {
   const { user, loading, locked } = useAuth();
-  const [showLaunch, setShowLaunch] = useState(true);
 
   if (loading) {
+    // Carries on from the phone's own opening screen (app.json's white
+    // expo-splash-screen with the logo) while the saved session loads.
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#0F172A",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color="#FFFFFF" />
+      <View style={{ flex: 1, backgroundColor: "#FFFFFF", justifyContent: "center", alignItems: "center", gap: 16 }}>
+        <Image source={require("./assets/favicon.png")} style={{ width: 112, height: 112 }} accessibilityLabel="HRZEST" />
+        <Text style={{ fontSize: 34, fontWeight: "900", letterSpacing: 0.4, color: "#0C3054" }}>
+          HR<Text style={{ color: "#0B7FA0" }}>ZEST</Text>
+        </Text>
+        <Text style={{ fontSize: 15, color: "#455163" }}>HR, attendance and payroll</Text>
+        <ActivityIndicator color="#0B5CAD" style={{ marginTop: 24 }} />
       </View>
     );
   }
 
   if (!user) {
-    if (showLaunch) {
-      return (
-        <LaunchCountdownScreen
-          onContinue={() => setShowLaunch(false)}
-        />
-      );
-    }
     return <AuthNavigator />;
   }
 

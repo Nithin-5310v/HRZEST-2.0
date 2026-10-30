@@ -105,6 +105,21 @@ def _find_company_slug(typed):
     return row[0] if row else None
 
 
+@auth_bp.route("/api/company/resolve", methods=["GET"])
+@limiter.limit("30 per minute")
+def api_company_resolve():
+    """The app's sign-in screen: which company did the person type -- its URL
+    (acme-corp, hrzest.com/acme-corp/login, https://...) or its name? The same
+    lookup as /login's company step (_find_company_slug), so the app can tell
+    "no such company" apart from a wrong password: an unknown /<slug>/ prefix
+    never reaches a login route at all. Public like every company's own
+    /<slug>/login page, and rate-limited."""
+    slug = _find_company_slug(request.args.get("q", ""))
+    if not slug:
+        return jsonify({"ok": False, "msg": "We couldn't find that company. Check the company URL in your welcome email."}), 404
+    return jsonify({"ok": True, "slug": slug})
+
+
 def _kyc_verification_blocks_login():
     """True if this tenant's company-KYC review (blueprints/org.py's
     automated/manual document-verification pipeline) REJECTED its
