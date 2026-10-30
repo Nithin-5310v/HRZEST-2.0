@@ -2334,6 +2334,7 @@
           <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('instructions')" id="ptab-instructions">📌 Instructions</button>
           <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('posh')" id="ptab-posh">🛡️ POSH</button>
           <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('resignation')" id="ptab-resignation">🚪 Resignation</button>
+          <button class="u-d-none u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('other')" id="ptab-other">📂 Other</button>
         </div>
 
         <!-- Policy content is fetched from /api/employee/policies and rendered
@@ -2382,6 +2383,10 @@
           </div>
           <div id="policy-resignation-body" style="white-space:pre-line;">Loading…</div>
         </div>
+
+        <!-- Policies filed under a company's own custom category (anything
+             outside POLICY_CATEGORIES below); the tab stays hidden if none. -->
+        <div class="u-d-none u-lh-1d8 u-c-334155" id="policy-other"></div>
       </div><!-- /view-policies -->
 
 
@@ -2487,7 +2492,7 @@
          static/employee_sidebar.js, shared with the standalone
          my_performance/my_compoff/my_onboarding pages. ── */
       function showPolicy(tab) {
-        var tabs = ['terms','rules','limitations','instructions','posh','resignation'];
+        var tabs = ['terms','rules','limitations','instructions','posh','resignation','other'];
         tabs.forEach(function(t) {
           var el = document.getElementById('policy-' + t);
           var btn = document.getElementById('ptab-' + t);
@@ -2513,7 +2518,33 @@
           .then(function(r) { return r.json(); })
           .then(function(d) {
             var byCategory = {};
-            (d.policies || []).forEach(function(p) { byCategory[p.category] = p; });
+            var custom = [];
+            (d.policies || []).forEach(function(p) {
+              if (POLICY_CATEGORIES.indexOf(p.category) === -1) custom.push(p);
+              else byCategory[p.category] = p;
+            });
+            var otherEl = document.getElementById('policy-other');
+            var otherTab = document.getElementById('ptab-other');
+            if (otherEl && otherTab && custom.length) {
+              otherTab.classList.remove('u-d-none');
+              custom.forEach(function(p) {
+                var head = document.createElement('div');
+                head.className = 'u-bg-eff6ff u-bdl-4-solid-3b82f6 u-p-14-18 u-br-0-10-10-0 u-mb-22';
+                var strong = document.createElement('strong');
+                strong.textContent = p.title;
+                var cat = document.createElement('div');
+                cat.className = 'u-fs-13 u-c-64748b';
+                cat.textContent = p.category;
+                head.appendChild(strong);
+                head.appendChild(cat);
+                var body = document.createElement('div');
+                body.className = 'u-mb-22';
+                body.style.whiteSpace = 'pre-line';
+                body.textContent = p.body;
+                otherEl.appendChild(head);
+                otherEl.appendChild(body);
+              });
+            }
             POLICY_CATEGORIES.forEach(function(cat) {
               var titleEl = document.getElementById('policy-' + cat + '-title');
               var bodyEl  = document.getElementById('policy-' + cat + '-body');

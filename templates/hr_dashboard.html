@@ -336,7 +336,9 @@
               <option value="instructions">Instructions</option>
               <option value="posh">POSH Policy</option>
               <option value="resignation">Resignation Policy</option>
+              <option value="other">Other (custom)…</option>
             </select>
+            <input aria-label="Custom category name" class="hr-search" style="max-width:220px; display:none;" type="text" name="custom_category" id="hrPolicyCustomCat" maxlength="50" placeholder="Custom category name" />
             <input aria-label="Title" class="hr-search" style="max-width:280px;" type="text" name="title" placeholder="Title" required />
           </div>
           <textarea aria-label="Policy text…" class="hr-search" style="max-width:100%; min-height:80px;" name="body" placeholder="Policy text…" required></textarea>
@@ -479,6 +481,18 @@
       });
     }
   }
+
+  (function() {
+    var sel = document.querySelector('#hrPolicyForm select[name="category"]');
+    var custom = document.getElementById('hrPolicyCustomCat');
+    if (!sel || !custom) return;
+    sel.addEventListener('change', function() {
+      var isOther = sel.value === 'other';
+      custom.style.display = isOther ? '' : 'none';
+      custom.required = isOther;
+      if (isOther) custom.focus();
+    });
+  })();
 
   window._hrTogglePolicyForm = function() {
     var f = document.getElementById('hrPolicyForm');
