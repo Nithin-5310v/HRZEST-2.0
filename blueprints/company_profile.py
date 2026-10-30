@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Company Admin "Profile / Account" page -- four tabs (Company Info,
-Subscription & Billing, Payment History, Support Tickets) giving a company
-admin one place to see their own subscription status, full payment history,
-and support-ticket history, none of which had a single home before this.
+"""Company Admin "Organization" page (sidebar label; routes stay at /profile) -- tabs for
+Organization Details, Policies, Payment History and Support Tickets. Anything
+Settings already manages (work schedule, office location, billing, admin
+email) lives there only, not duplicated here.
 
 Every route is @role_required("admin") (same gate as /settings) and every
 query resolves the tenant server-side from g.tenant_db -- never from a
@@ -17,15 +17,15 @@ from flask import Blueprint, request, session, redirect, render_template, flash,
 from database import get_db_connection, get_master_db
 from utils.auth import role_required
 from utils.helpers import (
-    tpath, get_company_settings, coerce_datetime,
+    tpath, get_company_settings,
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
 )
-from utils.plan_limits import get_billing_snapshot, format_price_inr
 from utils.payment_history import get_payment_history, get_payment_row
 from utils.receipt_pdf import build_receipt_pdf
 from utils.ticket_constants import TICKET_STATUSES, TICKET_PRIORITIES
 from utils.csv_export import csv_response
 from blueprints.org import _load_own_tenant_application
+from migrations.column_migrations import _POLICY_SEED_CONTENT
 
 company_profile_bp = Blueprint("company_profile", __name__)
 
@@ -53,9 +53,13 @@ def profile_company_info():
     co = get_company_settings()
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT email FROM admin_users WHERE username=%s", (session.get("admin_username"),))
-    _admin_row = cursor.fetchone()
-    admin_recovery_email = _admin_row[0] if _admin_row else ""
+    cursor.execute(
+        "SELECT COUNT(DISTINCT department) FROM employees "
+        "WHERE department IS NOT NULL AND department <> ''"
+    )
+    department_count = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM company_policies WHERE is_published=1")
+    published_policy_count = cursor.fetchone()[0]
     cursor.close()
     db.close()
 
@@ -63,10 +67,11 @@ def profile_company_info():
     seat_cap = TRIAL_EMPLOYEE_CAP if _tenant_is_trialing() else co.get("paid_employee_slots")
 
     return render_template(
-        "profile.html", active_nav="profile", active_tab="company",
-        co=co, admin_recovery_email=admin_recovery_email,
-        application=application, seat_cap=seat_cap,
-        email_ok=request.args.get("email_ok") == "1",
+        "profile.html", active_nav="profile",
+        # Overview / Legal / Contact share this route; the side menu picks one.
+        active_tab=request.args.get("section") if request.args.get("section") in ("legal", "contact") else "company",
+        co=co, application=application, seat_cap=seat_cap,
+        department_count=department_count, published_policy_count=published_policy_count,
     )
 
 
@@ -86,40 +91,51 @@ def profile_update_company_info():
     db.close()
     invalidate_settings_cache()
     flash("Company contact details updated.", "success")
-    return redirect(tpath("/profile"))
+    return redirect(tpath("/profile?section=contact"))
 
 
-# ── Subscription & Billing tab (read-only) ───────────────────────────────────
+# ── Policies tab ─────────────────────────────────────────────────────────────
+# Add/edit/publish/delete post to blueprints/policies.py's routes, which
+# redirect admin sessions back here.
+POLICY_CATEGORIES = [
+    ("terms", "Terms & Conditions"),
+    ("rules", "Rules & Regulations"),
+    ("limitations", "Limitations"),
+    ("instructions", "Instructions"),
+    ("posh", "POSH Policy"),
+    ("resignation", "Resignation Policy"),
+]
+
+
+@company_profile_bp.route("/profile/policies", methods=["GET"])
+@role_required("admin")
+def profile_policies():
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "SELECT id, category, title, body, is_published, updated_at FROM company_policies "
+        "ORDER BY sort_order, id"
+    )
+    policies = [dict(zip(["id", "category", "title", "body", "is_published", "updated_at"], r))
+                for r in cursor.fetchall()]
+    cursor.close()
+    db.close()
+    return render_template(
+        "profile.html", active_nav="profile", active_tab="policies",
+        policies=policies, policy_categories=POLICY_CATEGORIES,
+        # Ready-made starting points for the Add Policy form -- new companies
+        # no longer get these seeded, so they're offered here instead.
+        policy_templates=[{"category": c, "title": t, "body": b} for c, t, b in _POLICY_SEED_CONTENT],
+    )
+
+
+# ── Subscription & Billing ───────────────────────────────────────────────────
+# Lives in Settings -> Billing; this old tab URL just forwards there so
+# existing links and bookmarks keep working.
 @company_profile_bp.route("/profile/billing", methods=["GET"])
 @role_required("admin")
 def profile_billing():
-    snapshot = get_billing_snapshot(g.tenant_db)
-    invoices = [
-        {**inv, "amount_display": format_price_inr(inv["amount_paise"]),
-         "rate_display": format_price_inr(inv["rate_paise"]) if inv["rate_paise"] else None}
-        for inv in snapshot["invoices"]
-    ]
-
-    mconn = get_master_db()
-    mcur = mconn.cursor(buffered=True)
-    mcur.execute("SELECT trial_end_date, subscription_status FROM tenants WHERE db_name=%s", (g.tenant_db,))
-    row = mcur.fetchone()
-    mcur.close()
-    mconn.close()
-    trial_end_date = coerce_datetime(row[0]) if row else None
-    subscription_status = row[1] if row else "active"
-    trial_days_remaining = None
-    if subscription_status == "trialing" and trial_end_date:
-        trial_days_remaining = max(0, (trial_end_date - datetime.datetime.utcnow()).days)
-
-    return render_template(
-        "profile.html", active_nav="profile", active_tab="billing",
-        co=get_company_settings(), auto_debit_status=snapshot["auto_debit"], invoices=invoices,
-        trial_end_date=trial_end_date, subscription_status=subscription_status,
-        trial_days_remaining=trial_days_remaining, employee_seat_cap=(
-            TRIAL_EMPLOYEE_CAP if subscription_status == "trialing" else get_company_settings().get("paid_employee_slots")
-        ),
-    )
+    return redirect(tpath("/settings?tab=billing"))
 
 
 # ── Payment History tab ──────────────────────────────────────────────────────

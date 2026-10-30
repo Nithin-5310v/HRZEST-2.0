@@ -27,13 +27,23 @@ def _policies_redirect():
     redirecting an admin session there would just 403."""
     if session.get("admin_role") == HR_ROLE:
         return redirect(tpath("/hr_dashboard#policies"))
-    return redirect(tpath("/admin"))
+    return redirect(tpath("/profile/policies"))
+
+
+def _form_category():
+    """The submitted category. The 'other' choice means the admin typed
+    their own category name in custom_category -- stored as-is, so a
+    company isn't limited to the built-in categories."""
+    category = request.form.get("category", "").strip()
+    if category == "other":
+        category = request.form.get("custom_category", "").strip()[:50]
+    return category
 
 
 @policies_bp.route("/policies/add", methods=["POST"])
 @role_required("admin", HR_ROLE)
 def add_policy():
-    category = request.form.get("category", "").strip()
+    category = _form_category()
     title = request.form.get("title", "").strip()
     body = request.form.get("body", "").strip()
     if not category or not title or not body:
@@ -58,7 +68,7 @@ def add_policy():
 @policies_bp.route("/policies/<int:policy_id>/edit", methods=["POST"])
 @role_required("admin", HR_ROLE)
 def edit_policy(policy_id):
-    category = request.form.get("category", "").strip()
+    category = _form_category()
     title = request.form.get("title", "").strip()
     body = request.form.get("body", "").strip()
     if not category or not title or not body:

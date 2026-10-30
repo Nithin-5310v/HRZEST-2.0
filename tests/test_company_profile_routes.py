@@ -79,7 +79,7 @@ class TestCompanyInfoTab:
         _admin_session(client, seed_admin["username"])
         resp = client.get("/profile")
         assert resp.status_code == 200
-        assert b"Company Details" in resp.data
+        assert b"Organization details" in resp.data
 
     def test_update_contact_details_persists(self, client, seed_admin, own_tenant, db_engine):
         _admin_session(client, seed_admin["username"])
@@ -96,26 +96,12 @@ class TestCompanyInfoTab:
 
 
 class TestBillingTab:
-    def test_renders_without_error(self, client, seed_admin, own_tenant):
+    def test_redirects_to_settings_billing(self, client, seed_admin, own_tenant):
+        # Billing lives in Settings only; the old tab URL forwards there.
         _admin_session(client, seed_admin["username"])
         resp = client.get("/profile/billing")
-        assert resp.status_code == 200
-        assert b"Plan Status" in resp.data
-
-    def test_matches_settings_billing_snapshot(self, client, seed_admin, own_tenant):
-        """Both pages must read get_billing_snapshot() the same way --
-        regression against the two ever silently drifting apart."""
-        _admin_session(client, seed_admin["username"])
-        from utils.plan_limits import get_billing_snapshot
-        snapshot = get_billing_snapshot(TENANT_SCHEMA)
-        resp = client.get("/profile/billing")
-        assert resp.status_code == 200
-        settings_resp = client.get("/settings?tab=billing")
-        assert settings_resp.status_code == 200
-        # Both pages render the same auto_debit status badge text (or lack
-        # thereof) for the same underlying snapshot.
-        if snapshot["auto_debit"]:
-            assert snapshot["auto_debit"]["status"].replace("_", " ").encode() in resp.data
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/settings?tab=billing")
 
 
 class TestPaymentHistoryTab:
