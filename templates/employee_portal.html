@@ -6,11 +6,6 @@
          (app.py's _normalize_loopback_host), before login sets any cookie. -->
     <script>
       (function(){
-        var s = localStorage.getItem('dm');
-        if(s === '1' || (s === null && window.matchMedia('(prefers-color-scheme: dark)').matches)){
-          document.documentElement.classList.add('dark-mode');
-          document.addEventListener('DOMContentLoaded', function(){ document.body.classList.add('dark-mode'); });
-        }
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -421,7 +416,14 @@
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('employee_sidebar.css') }}" />
   <link rel="stylesheet" href="{{ static_url('animate-core.min.css') }}" />
-  </head>
+    <!-- Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles -->
+  <link rel="stylesheet" href="{{ static_url('employee-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
+  <link rel="stylesheet" href="{{ static_url('dashboard-unify.css') }}" />
+  <script src="{{ static_url('ribbon.js') }}" defer></script>
+</head>
   <body>
 
     {% set sb_mode = 'portal' %}
@@ -439,6 +441,23 @@
 
     <div class="app-content" id="appContent">
 
+      <!-- Portal search (top of the content, below the blue banner -- same
+           layout as the admin dashboard): employee features and settings,
+           engine static/portal-search.js with the employee feature list. -->
+      <link rel="stylesheet" href="{{ static_url('portal-search.css') }}" />
+      <div class="emp-search-row">
+        <div class="admin-search-wrap emp-search" id="adminSearchWrap" role="search">
+          <i class="ti ti-search admin-search-icon" aria-hidden="true"></i>
+          <input type="text" id="adminSearchInput" class="admin-search-input"
+                 placeholder="Search attendance, leave, payslips, profile…" aria-label="Search the employee portal"
+                 autocomplete="off" spellcheck="false"
+                 role="combobox" aria-expanded="false" aria-controls="adminSearchResults"
+                 data-index="employee" data-base="{{ tpath('/') }}" />
+          <div class="admin-search-results" id="adminSearchResults" role="listbox"></div>
+        </div>
+      </div>
+      <script src="{{ static_url('portal-search.js') }}" defer></script>
+
       {% if leave_sent %}
       <div class="flash-banner flash-banner-green">✅ Leave request submitted! Admin has been notified by email.</div>
       {% endif %}
@@ -454,7 +473,6 @@
       <div class="page-header u-d-flex u-ai-flex-start u-jc-space-between u-gap-12 u-fxw-wrap">
         <div>
           <h1>Welcome, <span data-scramble>{{ emp[1] }}</span>! 👋</h1>
-          <p>{{ today }} &nbsp;|&nbsp; <span id="clock"></span></p>
         </div>
         {% if session.get('_hr_return_username') %}
         <form action="{{ tpath('/switch_back_to_hr_panel') }}" method="POST" style="margin:0;">
@@ -2463,13 +2481,7 @@
         if (e.target === this) closePayslipModal();
       });
 
-      function updateClock() {
-        const now = new Date();
-        document.getElementById("clock").innerText =
-          now.toLocaleTimeString("en-IN", {hour12: true});
-      }
-      setInterval(updateClock, 1000);
-      updateClock();
+      // (date + time now shown in the blue top banner -- static/employee-topbar.js)
 
       /* ── SIDEBAR TOGGLE: toggleSidebar()/closeSidebar() now come from
          static/employee_sidebar.js, shared with the standalone
@@ -3831,21 +3843,6 @@
       startFpEnroll();
     }
 
-    function toggleTheme() {
-      var isDark = document.body.classList.toggle('dark-mode');
-      localStorage.setItem('employee_theme', isDark ? 'dark' : 'light');
-      var btn = document.getElementById('themeToggleBtn');
-      if (btn) btn.textContent = isDark ? '☀️' : '🌙';
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-      var saved = localStorage.getItem('employee_theme');
-      if (saved === 'dark') {
-        document.body.classList.add('dark-mode');
-        var btn = document.getElementById('themeToggleBtn');
-        if (btn) btn.textContent = '☀️';
-      }
-    });
   </script>
 </body>
 </html>

@@ -11,14 +11,18 @@ existing reverse-direction pattern in blueprints/platform_admin.py's
 _tenant_schema_for_id() and blueprints/org.py's _load_own_tenant_application().
 """
 import datetime
+import hashlib
+import os
 
-from flask import Blueprint, request, session, redirect, render_template, flash, g, Response
+from flask import Blueprint, request, session, redirect, render_template, flash, g, Response, current_app, send_file
+from PIL import Image, UnidentifiedImageError
 
 from database import get_db_connection, get_master_db
 from utils.auth import role_required
 from utils.helpers import (
     tpath, get_company_settings, coerce_datetime,
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
+    _validate_image_file,
 )
 from utils.plan_limits import get_billing_snapshot, format_price_inr
 from utils.payment_history import get_payment_history, get_payment_row
@@ -44,6 +48,59 @@ def _resolve_own_tenant_id():
     cur.close()
     conn.close()
     return row[0] if row else None
+
+
+# ── Admin profile photo (top-banner avatar) ─────────────────────────────────
+def admin_photo_path(username=None):
+    """Where the logged-in admin's own profile photo lives: one JPEG per
+    company + admin username, under UPLOAD_FOLDER/admin_photos. The name is
+    a hash, so an email username never ends up in a file path. Also read by
+    app.py's inject_admin_avatar() for the banner avatar."""
+    username = username or session.get("admin_username") or ""
+    key = hashlib.sha256(f"{g.tenant_db}:{username}".encode()).hexdigest()[:40]
+    return os.path.join(current_app.config["UPLOAD_FOLDER"], "admin_photos", key + ".jpg")
+
+
+@company_profile_bp.route("/profile/photo", methods=["GET"])
+@role_required("admin")
+def profile_photo():
+    path = admin_photo_path()
+    if not os.path.exists(path):
+        return "", 404
+    return send_file(path, mimetype="image/jpeg", max_age=0)
+
+
+@company_profile_bp.route("/profile/photo", methods=["POST"])
+@role_required("admin")
+def profile_photo_upload():
+    file = request.files.get("photo")
+    ok, err = _validate_image_file(file)
+    if not ok:
+        flash(err, "error")
+        return redirect(tpath("/profile"))
+    try:
+        img = Image.open(file.stream)
+        img.thumbnail((400, 400))
+        img = img.convert("RGB")
+    except (UnidentifiedImageError, OSError):
+        flash("That file isn't a readable image.", "error")
+        return redirect(tpath("/profile"))
+    path = admin_photo_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    img.save(path, "JPEG", quality=88)
+    flash("Profile photo updated.", "success")
+    return redirect(tpath("/profile"))
+
+
+@company_profile_bp.route("/profile/photo/remove", methods=["POST"])
+@role_required("admin")
+def profile_photo_remove():
+    try:
+        os.remove(admin_photo_path())
+    except FileNotFoundError:
+        pass
+    flash("Profile photo removed.", "success")
+    return redirect(tpath("/profile"))
 
 
 # ── Company Info tab ─────────────────────────────────────────────────────────

@@ -6,107 +6,22 @@
   <style>
     .al-header {
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
-      background: #fff; border: 1px solid #e2e8f0; border-radius: 18px;
-      padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(15,23,42,0.05);
+      background: #fff; border: 1px solid #e6e9ef; border-radius: 12px;
+      padding: 18px 22px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(16,24,40,0.04);
     }
-    .al-header h1 { font-size: 19px; font-weight: 800; letter-spacing: -.2px; display: flex; align-items: center; gap: 10px; margin: 0; }
-    .al-header h1 i { color: #3538cd; }
-    .al-intro { font-size: 12.5px; color: #64748b; margin: -8px 0 16px; line-height: 1.6; }
-    .al-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
-    .al-filter-bar input[type="search"] {
-      background: #fff; border: 1px solid #e2e8f0; color: #0f172a;
-      border-radius: 10px; padding: 8px 12px; font-size: 13px; min-width: 260px;
-    }
-    .al-filter-bar select {
-      background: #fff; border: 1px solid #e2e8f0; color: #0f172a;
-      border-radius: 10px; padding: 8px 10px; font-size: 13px;
-    }
-    .al-filter-bar input:focus, .al-filter-bar select:focus { border-color: #3538cd; box-shadow: 0 0 0 3px #eef0fd; outline: none; }
-    .al-btn {
-      background: #3538cd; border: 1px solid #3538cd; color: #fff; border-radius: 10px;
-      padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: none;
-      display: inline-flex; align-items: center; gap: 6px;
-    }
-    .al-btn:hover { background: #23268f; }
-    .al-btn-link { background: #f8f9fc; border-color: #e2e8f0; color: #64748b; }
-    .al-btn-link:hover { background: #e2e8f0; }
-    .al-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 20px; overflow-x: auto; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
-    .al-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .al-card th { text-align: left; padding: 11px 12px; color: #94a3b8; font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; font-weight: 800; background: #f8f9fc; border-bottom: 1px solid #e2e8f0; }
-    .al-card td { padding: 12px; border-bottom: 1px solid #f0f1f6; vertical-align: middle; }
-    .al-card tbody tr:hover td { background: #f8f9fc; }
-    .al-when { color: #64748b; font-size: 12px; white-space: nowrap; }
-    .al-detail { color: #0f172a; max-width: 420px; }
-    .al-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; letter-spacing: .3px; background: #f8f9fc; color: #64748b; border: 1px solid #e2e8f0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .al-actor-type { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
-    .al-actor-type.admin { background: #eef0fd; color: #3538cd; }
-    .al-actor-type.employee { background: #ecfdf5; color: #15803d; }
-    .al-empty { text-align: center; padding: 40px; color: #94a3b8; }
-    .al-pagination { display: flex; align-items: center; gap: 12px; justify-content: center; margin-top: 16px; }
-    .al-pagination-info { font-size: 12px; color: #94a3b8; }
-    .al-btn-disabled { opacity: .4; pointer-events: none; }
+    .al-header h1 { font-size: 19px; font-weight: 700; letter-spacing: -.2px; display: flex; align-items: center; gap: 10px; margin: 0; }
+    .al-header h1 i { color: #2563eb; }
+    .al-header a { font-size: 12.5px; font-weight: 600; color: #2563eb; text-decoration: none; }
   </style>
 {% endblock %}
 
 {% block main %}
   <div class="al-header">
     <h1><i class="ti ti-history"></i> Activity Log</h1>
+    <a href="{{ tpath('/admin_tools') }}?tab=activity_log"><i class="ti ti-tool"></i> Open in Admin Tools</a>
   </div>
 
-  <p class="al-intro">
-    Every sensitive action taken on your account -- salary changes, payroll lock/unlock, leave and
-    resignation approvals, disbursement changes, document uploads, employee removal -- in one searchable
-    place. {{ total }} matching entr{{ 'y' if total == 1 else 'ies' }}.
-  </p>
-
-  <form class="al-filter-bar" method="GET" action="{{ tpath('/activity_log') }}">
-    <input type="search" name="q" value="{{ q }}" placeholder="Search detail, actor, or record ID…" aria-label="Search activity log" />
-    <select name="action" aria-label="Filter by action">
-      <option value="" {% if not action_filter %}selected{% endif %}>All actions</option>
-      {% for a in all_actions %}
-      <option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="al-btn"><i class="ti ti-search"></i> Search</button>
-    {% if q or action_filter %}<a href="{{ tpath('/activity_log') }}" class="al-btn al-btn-link">Clear</a>{% endif %}
-  </form>
-
-  <div class="al-card">
-    {% if entries %}
-    <table>
-      <thead>
-        <tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Detail</th><th>IP</th></tr>
-      </thead>
-      <tbody>
-        {% for e in entries %}
-        <tr>
-          <td class="al-when">{{ e.created_at.strftime('%Y-%m-%d %H:%M:%S') if e.created_at else '—' }}</td>
-          <td>{{ e.actor }} <span class="al-actor-type {{ e.actor_type }}">{{ e.actor_type }}</span></td>
-          <td><span class="al-badge">{{ e.action }}</span></td>
-          <td class="al-when">{{ e.target_table or '—' }}{% if e.target_id %} · {{ e.target_id }}{% endif %}</td>
-          <td class="al-detail">{{ e.detail or '—' }}</td>
-          <td class="al-when">{{ e.ip_address or '—' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% if total_pages > 1 %}
-    <div class="al-pagination">
-      {% if page > 1 %}
-      <a class="al-btn al-btn-link" href="{{ tpath('/activity_log') }}?q={{ q | urlencode }}&amp;action={{ action_filter | urlencode }}&amp;page={{ page - 1 }}">&laquo; Prev</a>
-      {% else %}
-      <span class="al-btn al-btn-link al-btn-disabled">&laquo; Prev</span>
-      {% endif %}
-      <span class="al-pagination-info">Page {{ page }} of {{ total_pages }}</span>
-      {% if page < total_pages %}
-      <a class="al-btn al-btn-link" href="{{ tpath('/activity_log') }}?q={{ q | urlencode }}&amp;action={{ action_filter | urlencode }}&amp;page={{ page + 1 }}">Next &raquo;</a>
-      {% else %}
-      <span class="al-btn al-btn-link al-btn-disabled">Next &raquo;</span>
-      {% endif %}
-    </div>
-    {% endif %}
-    {% else %}
-    <div class="al-empty"><i class="ti ti-history" style="font-size:32px;"></i><p style="margin-top:8px;">No matching activity.</p></div>
-    {% endif %}
-  </div>
+  {% set al_url = tpath('/activity_log') %}
+  {% set al_tab = '' %}
+  {% include "_activity_log_panel.html" %}
 {% endblock %}

@@ -463,6 +463,13 @@ def activity_log_page():
     events only), not this one. Mirrors that page's search/filter/
     pagination shape, tenant-scoped and admin-only instead of platform-
     operator-only."""
+    return render_template("activity_log.html", active_nav="admin_tools", **_load_activity_log())
+
+
+def _load_activity_log():
+    """Query + filter + paginate audit_logs from the current request's
+    q / action / page args. Shared by /activity_log and the Activity Log tab
+    of /admin_tools, so both views always show the same data."""
     q = request.args.get("q", "").strip()
     action_filter = request.args.get("action", "").strip()
     try:
@@ -503,10 +510,9 @@ def activity_log_page():
          "target_id": r[4], "detail": r[5], "ip_address": r[6], "created_at": r[7]}
         for r in rows
     ]
-    return render_template(
-        "activity_log.html", entries=entries, q=q, action_filter=action_filter,
+    return dict(
+        entries=entries, q=q, action_filter=action_filter,
         all_actions=all_actions, page=page, total_pages=total_pages, total=total,
-        active_nav="activity_log",
     )
 
 
@@ -2576,6 +2582,7 @@ def admin_tools():
                            pending_leaves=pending_leaves, pending_resignations=pending_resignations,
                            pending_tickets=pending_tickets,
                            active_nav="admin_tools",
+                           **_load_activity_log(),
                            )
 
 

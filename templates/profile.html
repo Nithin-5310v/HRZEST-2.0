@@ -33,6 +33,10 @@
     border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none;
   }
   .p-btn.secondary { background: #fff; color: #1e3a8a; border: 1px solid #1e3a8a; }
+  .p-photo-row { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+  .p-photo { width: 84px; height: 84px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; }
+  .p-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .p-photo-form { flex: 1; min-width: 220px; }
   .badge-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: capitalize; }
   .badge-success { background: #dcfce7; color: #15803d; }
   .badge-pending { background: #fef9c3; color: #854d0e; }
@@ -83,6 +87,26 @@
 
   {# ══════════════════════ COMPANY INFO ══════════════════════ #}
   {% if active_tab == 'company' %}
+    <div class="p-card">
+      <h2>Profile Photo</h2>
+      <div class="sub">Shown on your profile button at the top right of every page.</div>
+      <div class="p-photo-row">
+        <span class="p-photo" aria-hidden="true">{% if admin_avatar_url %}<img src="{{ admin_avatar_url }}" alt="" />{% else %}{{ (session.admin_username or 'A')[:2]|upper }}{% endif %}</span>
+        <form method="POST" action="{{ tpath('/profile/photo') }}" enctype="multipart/form-data" class="p-photo-form">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <label class="field-label" for="p-photo-input">Upload a photo (JPG, PNG or WEBP)</label>
+          <input class="p-input" type="file" id="p-photo-input" name="photo" accept=".jpg,.jpeg,.png,.webp" required>
+          <button class="p-btn" type="submit">Save Photo</button>
+        </form>
+        {% if admin_avatar_url %}
+        <form method="POST" action="{{ tpath('/profile/photo/remove') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <button class="p-btn secondary" type="submit">Remove</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
     <div class="p-card">
       <h2>Company Details</h2>
       <div class="sub">Your company's profile as it appears across HRZEST.</div>

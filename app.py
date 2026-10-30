@@ -342,6 +342,33 @@ def inject_registration_checklist():
     return {"registration_checklist": steps}
 
 
+@app.context_processor
+def inject_admin_avatar():
+    """Photo for the profile avatar in templates/admin_base.html's top
+    banner. HR and manager accounts log in with their employee ID, so they
+    get their employee photo (served by employees.py's admin-only
+    /dataset/<file>); the company admin gets the photo uploaded on its
+    Profile page (blueprints/company_profile.py). No photo: initials."""
+    if not session.get("admin_logged_in"):
+        return {}
+    username = session.get("admin_username") or ""
+    if session.get("admin_role", "admin") == "admin":
+        from blueprints.company_profile import admin_photo_path
+        try:
+            version = int(os.path.getmtime(admin_photo_path(username)))
+        except (OSError, AttributeError):
+            return {}
+        return {"admin_avatar_url": _tpath("/profile/photo") + f"?v={version}"}
+    if not username or os.path.basename(username) != username:
+        return {}
+    path = os.path.join(app.config["UPLOAD_FOLDER"], username + ".jpg")
+    try:
+        version = int(os.path.getmtime(path))
+    except OSError:
+        return {}
+    return {"admin_avatar_url": _tpath(f"/dataset/{username}.jpg") + f"?v={version}"}
+
+
 _SESSION_MAX_AGE = 8 * 3600  # 8 hours absolute -- stolen cookie cannot be used indefinitely
 # How often _resolve_tenant() re-checks tenants.status for an
 # already-session-cached tenant. Bounds how long a platform-admin

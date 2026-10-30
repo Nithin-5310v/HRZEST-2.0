@@ -28,6 +28,11 @@
     .status-link { display: inline-block; margin-top: 18px; font-size: 13px; color: var(--accent-cyan); text-decoration: none; font-weight: 600; }
     .status-link:hover { text-decoration: underline; }
   </style>
+  <!-- Shared Zoho-style public theme (blue, clean light canvas), loaded last -->
+  <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
   <div class="card">

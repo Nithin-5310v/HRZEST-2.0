@@ -1,0 +1,149 @@
+/* ==========================================================================
+   HRzest - Super Admin (platform operator) console theme layer
+
+   Loaded LAST by every templates/super_admin_*.html page. Those pages each
+   declare the same design tokens in their own :root (--primary: #3538cd
+   indigo, ...); redefining them here moves the whole console onto the same
+   Zoho-People-style look as the rest of the app (admin-theme.css,
+   employee-theme.css, public-theme.css): one primary blue, clean light-grey
+   canvas, neutral borders, Inter.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/static/fonts/inter-var.woff2') format('woff2-variations'), url('/static/fonts/inter-var.woff2') format('woff2');
+  font-weight: 400 800; font-style: normal; font-display: swap;
+}
+
+:root {
+  --bg-main: #f4f6f9;
+  --bg-card: #ffffff;
+  --surface-2: #f9fafb;
+  --border-color: #e6e9ef;
+  --border-strong: #d0d5dd;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #3b82f6;
+  --primary-soft: #eef4ff;
+  --primary-soft-border: #c7d7fe;
+  --text-bright: #101828;
+  --text-muted: #475467;
+  --text-dim: #98a2b3;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .05);
+  --shadow-md: 0 8px 20px -8px rgba(16, 24, 40, .14);
+  --radius-lg: 12px;
+  --radius-md: 8px;
+}
+
+/* Inter everywhere; icon font (.ti) is !important, code stays monospace */
+body, body *:not(pre):not(code):not(kbd):not(samp):not(.a-ip):not(.pay-modal-mono) {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+body {
+  background: var(--bg-main) !important;
+  background-image: none !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Page header card: neutral top edge instead of a thick indigo bar */
+.header { border-top: 1px solid var(--border-color) !important; }
+.header h1 { font-weight: 700; }
+
+/* Table header + row hover: neutral grey instead of indigo tint */
+th { color: #475467 !important; font-weight: 600 !important; letter-spacing: .04em !important; }
+tbody tr:hover td { background: #fafbfc !important; }
+
+/* Badges / pills that hard-coded the indigo tint */
+.badge-open, .badge-normal, .badge-low, .badge-resolved, .badge-closed,
+.console-badge, .mfa-badge {
+  background: var(--primary-soft) !important;
+  color: var(--primary-dark) !important;
+  border-color: var(--primary-soft-border) !important;
+}
+
+/* Super Admin login page: indigo gradients -> solid blue */
+.logo-hdr, .shield-icon, .btn-cyber {
+  background: var(--primary) !important;
+  background-image: none !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .08) !important;
+}
+.btn-cyber:hover { background: var(--primary-dark) !important; box-shadow: 0 4px 12px rgba(37, 99, 235, .25) !important; }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .14) !important;
+}
+
+/* ==========================================================================
+   Platform Admin: the page header becomes the same full-width blue banner
+   as the admin and employee portals (page title left; date + actions right).
+   The date chip is added by static/platform-topbar.js.
+   ========================================================================== */
+body:has(.container > .header) { padding-top: 88px !important; }
+html body .container > .header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 950;
+  height: 64px; margin: 0 !important; padding: 0 24px !important;
+  border: none !important; border-radius: 0 !important;
+  background: linear-gradient(120deg, #0b3a9e 0%, #1d4ed8 42%, #2563eb 68%, #4338ca 100%) !important;
+  box-shadow: 0 10px 28px -16px rgba(29, 78, 216, .75) !important;
+  color: #fff; flex-wrap: nowrap !important;
+}
+html body .container > .header h1 { color: #fff !important; font-size: 17px !important; font-weight: 700 !important; white-space: nowrap; }
+html body .container > .header h1 i { color: #fff !important; }
+html body .container > .header h1 .icon-photo-lg { border-color: rgba(255,255,255,.4); }
+html body .container > .header > div,
+html body .container > .header > form { display: flex; align-items: center; gap: 8px; }
+html body .container > .header .logout-btn,
+html body .container > .header .back-link,
+html body .container > .header > a,
+html body .container > .header > div > a,
+html body .container > .header > div > button,
+html body .container > .header form > button {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.12) !important; border: 1px solid rgba(255,255,255,.25) !important;
+  color: #fff !important; border-radius: 9px !important; padding: 7px 12px !important;
+  font-size: 12.5px !important; font-weight: 600 !important; text-decoration: none !important;
+}
+html body .container > .header .logout-btn:hover,
+html body .container > .header .back-link:hover,
+html body .container > .header > a:hover,
+html body .container > .header > div > a:hover,
+html body .container > .header > div > button:hover,
+html body .container > .header form > button:hover { background: rgba(255,255,255,.22) !important; color: #fff !important; }
+.pa-actions { display: flex; align-items: center; gap: 8px; }
+.pa-date {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 9px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); color: #fff;
+  font-size: 12.5px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.pa-date i { font-size: 15px; opacity: .9; }
+@media (max-width: 900px) { .pa-date { display: none; } html body .container > .header h1 { font-size: 15px !important; } }
+
+/* ── Platform Admin sidebar (templates/_platform_sidebar.html) -- same look
+   as the admin dashboard's sidebar, fixed below the 64px blue banner ── */
+.pa-sidebar {
+  position: fixed; top: 64px; left: 0; bottom: 0; z-index: 900; width: 248px; overflow-y: auto;
+  padding: 16px 12px; background: #fff; border-right: 1px solid #e6e9ef;
+  display: flex; flex-direction: column; gap: 1px;
+}
+body:has(.pa-sidebar) { padding-left: calc(248px + 24px) !important; }
+.pa-nav-form { margin: 0; }
+.pa-nav-item {
+  position: relative; display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border-radius: 8px; border: none; background: transparent;
+  color: #475467; font-size: 13px; font-weight: 500; text-decoration: none; text-align: left; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.pa-nav-item:hover { background: #f2f4f7; color: #101828; }
+.pa-nav-item.active { background: #eef4ff; color: #1d4ed8; font-weight: 600; }
+.pa-nav-item.active::before { content: ""; position: absolute; left: -12px; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0; background: #2563eb; }
+.pa-nav-icon { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #667085; font-size: 17px; transition: color .15s, transform .3s cubic-bezier(.34, 1.56, .64, 1); }
+.pa-nav-item:hover .pa-nav-icon { color: #344054; transform: translateX(2px) scale(1.12); }
+.pa-nav-item.active .pa-nav-icon { color: #2563eb; }
+.pa-nav-form { margin-top: auto; padding-top: 8px; border-top: 1px solid #eef0f3; }
+.pa-nav-form .pa-nav-item, .pa-nav-form .pa-nav-icon { color: #d92d20; }
+.pa-nav-form .pa-nav-item:hover { background: #fef3f2; }
+@media (max-width: 900px) {
+  .pa-sidebar { position: static; width: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid #e6e9ef; margin: -24px -24px 16px; }
+  body:has(.pa-sidebar) { padding-left: 24px !important; }
+  .pa-nav-form { margin-top: 0; border-top: none; padding-top: 0; }
+}

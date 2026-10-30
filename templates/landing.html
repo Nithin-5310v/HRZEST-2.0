@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HRzest.com - Enterprise HR & Biometric Platform</title>
-  <meta name="description" content="Unified enterprise HR platform featuring Face Recognition, WebAuthn Passkeys, GPS Geo-fencing, Automated Payroll Engine, and Employee Governance.">
+  <title>HRzest.com - HR, Attendance & Payroll Platform</title>
+  <meta name="description" content="HR platform for attendance (face recognition, QR, GPS geo-fencing), leave, overtime, payroll and payslips, onboarding and performance reviews.">
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="canonical" href="{{ seo_base_url }}/">
   {% if google_site_verification %}<meta name="google-site-verification" content="{{ google_site_verification }}">{% endif %}
@@ -12,12 +12,12 @@
   <!-- Social sharing previews (Slack, WhatsApp, LinkedIn, etc.) -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="HRzest">
-  <meta property="og:title" content="HRzest.com - Enterprise HR & Biometric Platform">
-  <meta property="og:description" content="Face recognition and passkey check-ins, GPS geo-fencing, automated payroll, and multi-tenant security — built for teams that need it to just work.">
+  <meta property="og:title" content="HRzest.com - HR, Attendance & Payroll Platform">
+  <meta property="og:description" content="Lead your workforce with clarity. HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.">
   <meta property="og:url" content="https://www.hrzest.com/">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="HRzest.com - Enterprise HR & Biometric Platform">
-  <meta name="twitter:description" content="Face recognition and passkey check-ins, GPS geo-fencing, automated payroll, and multi-tenant security — built for teams that need it to just work.">
+  <meta name="twitter:title" content="HRzest.com - HR, Attendance & Payroll Platform">
+  <meta name="twitter:description" content="Lead your workforce with clarity. HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.">
 
   <script type="application/ld+json">
   {
@@ -26,7 +26,7 @@
     "name": "HRzest",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
-    "description": "Unified enterprise HR platform featuring face recognition attendance, WebAuthn passkeys, GPS geo-fencing, and automated payroll.",
+    "description": "HR platform for attendance (face recognition, QR, GPS geo-fencing), leave, overtime, payroll and payslips, onboarding and performance reviews.",
     "offers": {
       "@type": "Offer",
       "price": "{{ per_employee_paise // 100 }}",
@@ -40,6 +40,11 @@
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}">
   <!-- Stylesheet -->
   <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}">
+  <!-- Shared Zoho-style public theme (blue, clean light canvas), loaded last -->
+  <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
 
@@ -53,7 +58,6 @@
 
       <ul class="nav-links">
         <li><a href="#features" class="nav-link">Features</a></li>
-        <li><a href="#sandbox" class="nav-link">Live Demo</a></li>
         <li><a href="#security" class="nav-link">Security</a></li>
         <li><a href="#pricing" class="nav-link">Pricing</a></li>
         <li><a href="#contact" class="nav-link">Contact</a></li>
@@ -81,7 +85,7 @@
           HR, attendance, and payroll <span class="accent-text">on one secure platform</span>
         </h1>
         <p class="hero-subtitle">
-          Face recognition and passkey check-ins, GPS geo-fencing, automated payroll, and multi-tenant security — built for teams that need it to just work.
+          <strong>Lead your workforce with clarity.</strong> HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.
         </p>
 
         <div class="hero-ctas">
@@ -125,7 +129,6 @@
           <div class="widget-title-group">
             <span class="widget-title">Face Check-In</span>
           </div>
-          <span class="widget-badge"><i class="ti ti-shield-check"></i> Live Demo</span>
         </div>
 
         <!-- Scanner Viewport -->
@@ -145,9 +148,6 @@
           <button class="btn btn-primary scan-btn" id="triggerScanBtn">
             <i class="ti ti-camera"></i> Scan Face
           </button>
-          <button class="btn btn-secondary scan-btn" id="triggerPasskeyBtn">
-            <i class="ti ti-key"></i> Use Passkey
-          </button>
         </div>
       </div>
     </div>
@@ -157,7 +157,6 @@
   <section class="sandbox-section" id="sandbox">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag"><i class="ti ti-terminal-2"></i> LIVE DEMO</span>
         <h2 class="section-title">Try <span class="hrzest-brand">HRzest</span> right here</h2>
         <p class="section-subtitle">No sign-up required — explore attendance, payroll, leave, and ID badges with sample data.</p>
       </div>
@@ -168,7 +167,7 @@
         <button class="sandbox-tab module-card active" data-tab="tab-attendance">
           <div class="module-card-icon"><i class="ti ti-clock-check"></i></div>
           <span class="module-card-title">Attendance</span>
-          <p class="module-card-desc">Face recognition, passkeys, and GPS check-ins — verified automatically.</p>
+          <p class="module-card-desc">Face recognition, QR and GPS check-ins, recorded automatically.</p>
           <span class="module-card-cta">Try it <i class="ti ti-arrow-right"></i></span>
         </button>
         <button class="sandbox-tab module-card" data-tab="tab-payroll">
@@ -208,7 +207,7 @@
             <div class="attendance-demo-grid">
               <div>
                 <h3>Live Attendance Feed</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Every check-in verified automatically — face, passkey, or QR.</p>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Every check-in recorded automatically — face, QR, or GPS.</p>
                 
                 <table class="log-table">
                   <thead>
@@ -230,7 +229,7 @@
                     </tr>
                     <tr>
                       <td><strong>Alex Rivera</strong><br><small style="color:var(--text-subtle)">Product Designer</small></td>
-                      <td><span class="badge badge-passkey"><i class="ti ti-key"></i> TouchID Passkey</span></td>
+                      <td><span class="badge badge-passkey"><i class="ti ti-face-id"></i> Face Recognition</span></td>
                       <td>Remote (London Branch)</td>
                       <td>09:02 AM</td>
                       <td><span style="color:var(--accent-emerald)"><i class="ti ti-circle-check"></i> Verified</span></td>
@@ -251,15 +250,15 @@
                 <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span>Liveness Detection</span>
-                    <span style="color:var(--accent-emerald); font-weight:700;">Active (99.9%)</span>
+                    <span style="color:var(--accent-emerald); font-weight:700;">Enabled</span>
                   </div>
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span>Geo-Fence Radius</span>
-                    <span style="color:var(--accent-cyan); font-weight:700;">100 Meters</span>
+                    <span style="color:var(--accent-cyan); font-weight:700;">Configurable</span>
                   </div>
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>Passkey Protocol</span>
-                    <span style="color:var(--accent-purple); font-weight:700;">FIDO2 / WebAuthn</span>
+                    <span>QR Check-in</span>
+                    <span style="color:var(--accent-purple); font-weight:700;">Dynamic QR</span>
                   </div>
                 </div>
               </div>
@@ -432,21 +431,20 @@
     <div class="container">
       <div class="chapter">
         <div>
-          <span class="chapter-eyebrow">Attendance</span>
           <h2 class="chapter-heading">Attendance that verifies itself</h2>
-          <p class="chapter-copy">Liveness-checked face recognition and WebAuthn passkeys end buddy-punching for good — no badges, no passwords, no manual review.</p>
+          <p class="chapter-copy">Face recognition, dynamic QR codes and GPS geo-fencing record who checked in, when and where — no badges and no manual registers.</p>
           <ul class="chapter-checklist">
             <li><i class="ti ti-circle-check"></i> Face recognition check-in</li>
-            <li><i class="ti ti-circle-check"></i> Passkeys &amp; WebAuthn</li>
+            <li><i class="ti ti-circle-check"></i> Bulk &amp; manual attendance correction</li>
             <li><i class="ti ti-circle-check"></i> GPS geo-fencing</li>
             <li><i class="ti ti-circle-check"></i> Dynamic QR check-in</li>
           </ul>
         </div>
         <div class="chapter-media wash-warm">
           <div class="chapter-panel">
-            <div class="chapter-panel-row"><span>Liveness Detection</span><span style="color:var(--accent-emerald);">Active (99.9%)</span></div>
-            <div class="chapter-panel-row"><span>Geo-Fence Radius</span><span style="color:var(--accent-cyan);">100 Meters</span></div>
-            <div class="chapter-panel-row"><span>Passkey Protocol</span><span style="color:var(--accent-purple);">FIDO2 / WebAuthn</span></div>
+            <div class="chapter-panel-row"><span>Liveness Detection</span><span style="color:var(--accent-emerald);">Enabled</span></div>
+            <div class="chapter-panel-row"><span>Geo-Fence Radius</span><span style="color:var(--accent-cyan);">Configurable</span></div>
+            <div class="chapter-panel-row"><span>QR Check-in</span><span style="color:var(--accent-purple);">Dynamic QR</span></div>
             <div class="chapter-panel-row"><span>Today's Check-Ins</span><span style="color:var(--text-main);">3 Verified</span></div>
           </div>
         </div>
@@ -459,7 +457,6 @@
     <div class="container">
       <div class="chapter chapter-reverse">
         <div>
-          <span class="chapter-eyebrow">Payroll</span>
           <h2 class="chapter-heading">Payroll that runs itself</h2>
           <p class="chapter-copy">Custom salary structures, tax and statutory deductions, and payslips generated automatically — no spreadsheets, no manual math.</p>
           <ul class="chapter-checklist">
@@ -505,7 +502,6 @@
     <div class="container">
       <div class="chapter">
         <div>
-          <span class="chapter-eyebrow">Security</span>
           <h2 class="chapter-heading">Security you don't have to think about</h2>
           <p class="chapter-copy"><span class="hrzest-brand">HRzest</span> keeps every organization's data isolated, encrypted, and logged — by default, not as an add-on.</p>
           <ul class="chapter-checklist">
@@ -522,9 +518,9 @@
               <span class="badge badge-face"><i class="ti ti-circle-check"></i> Operational</span>
             </div>
             <div class="chapter-panel-row"><span>Field Encryption</span><span style="color:var(--accent-emerald);">AES-256, Active</span></div>
-            <div class="chapter-panel-row"><span>Tenant Isolation</span><span style="color:var(--accent-cyan);">Schema-Per-Company</span></div>
-            <div class="chapter-panel-row"><span>Passkey / MFA</span><span style="color:var(--accent-purple);">FIDO2 / WebAuthn</span></div>
-            <div class="chapter-panel-row"><span>Audit Trail</span><span style="color:var(--accent-amber);">Immutable Log</span></div>
+            <div class="chapter-panel-row"><span>Tenant Isolation</span><span style="color:var(--accent-cyan);">Company-Scoped Data</span></div>
+            <div class="chapter-panel-row"><span>Login MFA</span><span style="color:var(--accent-purple);">Email Verification</span></div>
+            <div class="chapter-panel-row"><span>Audit Trail</span><span style="color:var(--accent-amber);">Admin Activity Log</span></div>
           </div>
         </div>
       </div>
@@ -535,7 +531,6 @@
   <section class="chapter-section" id="pricing">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag"><i class="ti ti-receipt-2"></i> SIMPLE PRICING</span>
         <h2 class="section-title">One plan. Every feature. No surprises.</h2>
         <p class="section-subtitle">No tiers to compare, no features locked behind a paywall, no employee caps — just a flat rate per person.</p>
       </div>
@@ -567,7 +562,6 @@
   <section class="contact-section" id="register">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag"><i class="ti ti-building"></i> REGISTER YOUR COMPANY</span>
         <h2 class="section-title" style="margin-bottom: 0.25rem;">Create your company account</h2>
         <p class="section-subtitle">Name your company and create your admin account. Verify your email with a code and you're straight into your dashboard.</p>
       </div>
@@ -663,7 +657,6 @@
   <section class="chapter-section" id="faq" style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag"><i class="ti ti-help-circle"></i> QUESTIONS</span>
         <h2 class="section-title">Frequently asked questions</h2>
       </div>
 
@@ -700,7 +693,6 @@
   <section class="contact-section" id="contact">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">Get in Touch</span>
         <h2 class="section-title" style="margin-bottom: 0.25rem;">Contact <span class="hrzest-brand" style="color:var(--accent-cyan);">HRzest</span></h2>
         <p class="section-subtitle">Questions about deployment, pricing, or integrations? We usually reply within a few hours.</p>
       </div>
@@ -782,7 +774,6 @@
   <section class="feedback-section" id="feedback">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">Your Voice Matters</span>
         <h2 class="section-title">Feedback &amp; Suggestions</h2>
         <p class="section-subtitle">Tell us what's working, what isn't, and what you'd like to see next in <span class="hrzest-brand">HRzest</span>.</p>
       </div>
@@ -884,7 +875,7 @@
           <h4 style="margin-bottom: 1rem;">Platform</h4>
           <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.5rem;">
             <li><a href="#features">Biometrics</a></li>
-            <li><a href="#sandbox">WebAuthn Passkeys</a></li>
+            <li><a href="#sandbox">Face &amp; QR Check-in</a></li>
             <li><a href="#sandbox">Payroll Engine</a></li>
             <li><a href="#pricing">Pricing</a></li>
           </ul>
@@ -942,7 +933,7 @@
           </div>
         </div>
 
-        <p id="leadFormError" style="display:none; color:var(--accent-rose); font-size:0.85rem; margin-top:0.75rem;"></p>
+        <p id="leadFormError" style="display:none; color:#E11D48; font-size:0.85rem; margin-top:0.75rem;"></p>
 
         <button type="submit" class="btn btn-primary form-submit-btn" style="margin-top: 0.5rem;">
           <i class="ti ti-calendar-check"></i> Request Demo

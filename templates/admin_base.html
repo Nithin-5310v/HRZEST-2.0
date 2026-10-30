@@ -4,11 +4,10 @@
   <meta charset="UTF-8" />
   <script>
     (function(){
-      var s = localStorage.getItem('dm');
-      if(s === '1' || (s === null && window.matchMedia('(prefers-color-scheme: dark)').matches)){
-        document.documentElement.classList.add('dark-mode');
-        document.addEventListener('DOMContentLoaded', function(){ document.body.classList.add('dark-mode'); });
-      }
+      // Light theme only (the dark theme was removed).
+      // The sidebar collapse button was removed: always show the full sidebar
+      // and forget any collapsed state saved earlier.
+      try { localStorage.removeItem('sbc'); } catch (e) {}
     })();
     // Raw-IP loopback → localhost normalization now happens server-side
     // (app.py's _normalize_loopback_host), before login sets any cookie.
@@ -21,37 +20,186 @@
   <link rel="stylesheet" href="{{ static_url('chat.css') }}" />
   <script src="{{ static_url('toast.js') }}"></script>
   <style>
-    /* ── Reset & base ── */
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
-    body { background: #eff6ff; min-height: 100vh; display: flex; }
-
-    /* ── Sidebar ── */
-    .sidebar {
-      width: 240px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-      background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
-      padding: 22px 14px; color: white;
-      display: flex; flex-direction: column; flex-shrink: 0;
-      box-shadow: 4px 0 20px rgba(0,0,0,0.18);
+    /* ── Font: Inter, self-hosted (CSP is font-src 'self') ── */
+    @font-face {
+      font-family: 'Inter';
+      src: url('/static/fonts/inter-var.woff2') format('woff2-variations'), url('/static/fonts/inter-var.woff2') format('woff2');
+      font-weight: 400 800; font-style: normal; font-display: swap;
     }
-    .brand-wrap { display: flex; align-items: center; gap: 11px; margin-bottom: 28px; padding: 0 4px; }
-    .brand-icon { width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, #3b82f6, #6366f1); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-    .brand     { font-size: 15px; font-weight: 800; color: #fff; line-height: 1.2; }
-    .brand-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+
+    /* ── Reset & base ── */
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Inter", "Segoe UI", system-ui, sans-serif; }
+    body { background: #f4f6f9; min-height: 100vh; display: flex; color: #101828; -webkit-font-smoothing: antialiased; }
+
+    /* ── Sidebar (light, Zoho-People-style) ── */
+    .sidebar {
+      width: 248px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+      background: #ffffff; border-right: 1px solid #e6e9ef;
+      padding: 18px 12px; color: #344054;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .brand-wrap { display: flex; align-items: center; gap: 11px; margin: 0 0 18px; padding: 4px 6px 16px; border-bottom: 1px solid #eef0f3; }
+    .brand-icon { width: 36px; height: 36px; border-radius: 10px; background: #fff; border: 1px solid #e6e9ef; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .brand     { font-size: 14.5px; font-weight: 700; color: #101828; line-height: 1.25; }
+    .brand-sub { font-size: 11px; color: #667085; margin-top: 2px; }
+    .brand-sub span { background: #eef4ff !important; color: #1d4ed8 !important; }
     /* Base definition so every page gets this for free -- several child
        templates used to copy-paste this rule individually into their own
        page_css block, and the ones that didn't (admin_tools, onboarding,
        performance, org_chart, compoff, etc.) rendered the sidebar-footer
        clock at full-opacity/default size instead of dimmed and small,
        inconsistent with pages that did copy it. */
-    .sidebar-footer { margin-top: auto; font-size: 11px; color: rgba(255,255,255,0.4); padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 7px; }
-    .nav-item  { display: flex; align-items: center; gap: 9px; padding: 7px 9px; margin: 1px 0; color: rgba(255,255,255,0.75); text-decoration: none; border-radius: 9px; font-size: 12.5px; font-weight: 500; transition: 0.18s; position: relative; }
-    .nav-item:hover  { background: rgba(255,255,255,0.1); color: #fff; }
-    .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 700; }
-    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 3px; border-radius: 2px; background: #60a5fa; }
-    .nav-icon { width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); font-size: 13px; }
-    .nav-item.active .nav-icon { background: rgba(96,165,250,0.2); }
-    .nav-item:hover  .nav-icon { background: rgba(255,255,255,0.12); }
-    .badge-count { margin-left: auto; background: #ef4444; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; }
+    .sidebar-footer { margin-top: auto; font-size: 11px; color: #98a2b3; padding-top: 14px; border-top: 1px solid #eef0f3; display: flex; align-items: center; gap: 7px; }
+    .nav-item  { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 1px 0; color: #475467; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500; transition: background 0.15s, color 0.15s; position: relative; }
+    .nav-item:hover  { background: #f2f4f7; color: #101828; }
+    .nav-item.active { background: #eef4ff; color: #1d4ed8; font-weight: 600; }
+    .nav-item.active::before { content: ''; position: absolute; left: -12px; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0; background: #2563eb; }
+    .nav-icon { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: transparent; color: #667085; font-size: 17px; }
+    .nav-item:hover  .nav-icon { color: #344054; }
+    .nav-item.active .nav-icon { color: #2563eb; }
+    .badge-count { margin-left: auto; background: #f04438; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; }
+
+    /* ── Right-hand column: top bar + page ── */
+    .app-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .app-topbar {
+      position: sticky; top: 0; z-index: 900;
+      height: 56px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 0 24px; background: #ffffff; border-bottom: 1px solid #e6e9ef;
+    }
+    .app-crumb { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: #667085; }
+    .app-crumb .crumb-co { white-space: nowrap; }
+    .app-crumb .crumb-page { color: #101828; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .app-crumb i { font-size: 14px; color: #98a2b3; }
+    .app-top-actions { display: flex; align-items: center; gap: 8px; }
+    .app-clock { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: #f9fafb; border: 1px solid #eaecf0; font-size: 12px; color: #475467; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .app-icon-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #eaecf0; background: #fff; color: #475467; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: background 0.15s; }
+    .app-icon-btn:hover { background: #f2f4f7; color: #101828; }
+    .app-user { display: flex; align-items: center; gap: 9px; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid #eaecf0; background: #fff; }
+    .app-avatar { width: 30px; height: 30px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+    .app-user-name { font-size: 12.5px; font-weight: 600; color: #101828; line-height: 1.15; }
+    .app-user-role { font-size: 11px; color: #667085; line-height: 1.15; }
+
+    /* ── Top bar as the blue brand banner (logo, search, date, bell, profile) ── */
+    html body .app-topbar.app-topbar--brand {
+      height: 64px; padding: 0 22px; gap: 18px; border-bottom: none !important;
+      background: linear-gradient(120deg, #0b3a9e 0%, #1d4ed8 42%, #2563eb 68%, #4338ca 100%) !important;
+      box-shadow: 0 10px 28px -16px rgba(29, 78, 216, .75);
+      color: #fff;
+    }
+    body.dark-mode .app-topbar.app-topbar--brand { background: linear-gradient(120deg, #0b1f4d 0%, #142a66 55%, #1e1b4b 100%) !important; }
+    .app-brand { display: flex; align-items: center; gap: 10px; min-width: 0; color: #fff; text-decoration: none; flex-shrink: 0; }
+    .app-brand-logo { width: 36px; height: 36px; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+    .app-brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .app-brand-logo i { color: #2563eb; font-size: 19px; }
+    .app-brand-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+    .app-brand-name { font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+    .app-brand-sub { font-size: 11px; color: rgba(255,255,255,.78); white-space: nowrap; margin-top: 2px; }
+    .app-brand-plan { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px; background: rgba(255,255,255,.18); color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .4px; }
+
+    /* Full-width banner: fixed across the very top (above the sidebar too);
+       the sidebar and page start just below it. */
+    :root { --app-top-h: 64px; }
+    html body .app-topbar.app-topbar--brand { position: fixed; top: 0; left: 0; right: 0; z-index: 950; }
+    html body .app-col { padding-top: var(--app-top-h); }
+    html body .sidebar { top: var(--app-top-h) !important; height: calc(100vh - var(--app-top-h)) !important; padding-top: 16px !important; }
+    @media (max-width: 768px) {
+      html body .app-topbar.app-topbar--brand { position: sticky; }
+      html body .app-col { padding-top: 0; }
+      html body .sidebar { top: 0 !important; height: auto !important; }
+      body { padding-top: 0; }
+    }
+    /* Search: solid white box on the blue banner (Microsoft 365 / Zoho style) */
+    .app-topbar--brand .admin-search-wrap { flex: 0 1 420px; max-width: 420px; margin: 0 auto; }
+    .app-topbar--brand .admin-search-input {
+      height: 36px; padding: 0 14px 0 38px; border-radius: 8px !important;
+      background: #ffffff !important; border: 1px solid #ffffff !important;
+      color: #101828 !important; font-size: 13px; font-weight: 400;
+      box-shadow: 0 1px 2px rgba(16,24,40,.12) !important;
+      transition: box-shadow .2s ease;
+    }
+    .app-topbar--brand .admin-search-input::placeholder { color: #667085 !important; }
+    .app-topbar--brand .admin-search-icon { color: #667085; left: 13px; z-index: 2; }
+    .app-topbar--brand .admin-search-input:focus {
+      border-color: #ffffff !important;
+      box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 8px 22px -10px rgba(0,0,0,.35) !important;
+    }
+    .app-topbar--brand .admin-search-wrap:focus-within .admin-search-icon { color: #2563eb; }
+    .app-date { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 9px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); font-size: 12.5px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .app-date i { font-size: 15px; opacity: .9; }
+    .app-date-sep { opacity: .6; }
+    .app-topbar--brand .app-icon-btn { background: rgba(255,255,255,.12) !important; border-color: rgba(255,255,255,.22) !important; color: #fff !important; }
+    .app-topbar--brand .app-icon-btn:hover { background: rgba(255,255,255,.22) !important; }
+    .app-topbar--brand .app-notif-count { border-color: #1d4ed8; }
+    /* profile button + menu */
+    .app-user-menu { position: relative; }
+    .app-topbar--brand .app-user { cursor: pointer; background: rgba(255,255,255,.12) !important; border: 1px solid rgba(255,255,255,.22) !important; color: #fff; font: inherit; padding: 3px; }
+    .app-topbar--brand .app-avatar { width: 36px; height: 36px; font-size: 13px; }
+    .app-avatar { overflow: hidden; flex-shrink: 0; }
+    .app-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; background: #fff; }
+    .app-topbar--brand .app-user:hover { background: rgba(255,255,255,.2) !important; }
+    .app-topbar--brand .app-avatar { background: #fff; color: #1d4ed8; }
+    .app-user-meta { display: flex; flex-direction: column; text-align: left; }
+    .app-topbar--brand .app-user-name { color: #fff !important; }
+    .app-topbar--brand .app-user-role { color: rgba(255,255,255,.75) !important; }
+    .app-user-caret { font-size: 14px; opacity: .8; transition: transform .2s; }
+    .app-user[aria-expanded="true"] .app-user-caret { transform: rotate(180deg); }
+    .app-user-panel {
+      position: absolute; top: calc(100% + 10px); right: 0; z-index: 1200; width: 250px;
+      background: #fff; color: #101828; border: 1px solid #e4e7ec; border-radius: 14px;
+      box-shadow: 0 20px 44px -12px rgba(16,24,40,.28); padding: 6px; animation: app-pop .18s cubic-bezier(.16,1,.3,1);
+    }
+    .app-user-panel-head { display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 4px; border-bottom: 1px solid #f2f4f7; }
+    .app-avatar-lg { width: 38px; height: 38px; font-size: 13px; background: #2563eb !important; color: #fff !important; }
+    .app-user-panel-name { display: block; font-size: 13.5px; font-weight: 700; color: #101828; }
+    .app-user-panel-role { display: block; font-size: 11.5px; color: #667085; margin-top: 1px; }
+    .app-user-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 8px; border: none; background: none; font: inherit; font-size: 13px; font-weight: 500; color: #344054; text-decoration: none; cursor: pointer; text-align: left; }
+    .app-user-item i { font-size: 16px; color: #667085; }
+    .app-user-item:hover { background: #f2f4f7; color: #101828; }
+    .app-user-item.danger, .app-user-item.danger i { color: #d92d20; }
+    .app-user-item.danger:hover { background: #fef3f2; }
+    .app-user-logout { margin: 4px 0 0; padding-top: 4px; border-top: 1px solid #f2f4f7; }
+    body.dark-mode .app-user-panel { background: #161b22 !important; border-color: #30363d !important; }
+    body.dark-mode .app-user-panel-name, body.dark-mode .app-user-item { color: #e6edf3 !important; }
+    body.dark-mode .app-user-item:hover { background: #21262d !important; }
+    @media (max-width: 1100px) { .app-date { display: none; } }
+    @media (max-width: 768px) { .app-brand-name, .app-user-meta, .app-user-caret { display: none; } .app-topbar.app-topbar--brand { padding: 0 12px; } }
+
+    /* ── Top bar: notifications bell + theme button ── */
+    .app-icon-btn { position: relative; }
+    .app-notif { position: relative; }
+    .app-notif-count {
+      position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px;
+      border-radius: 9px; background: #f04438; color: #fff; border: 2px solid #fff;
+      font: 700 9.5px/13px "Inter", "Segoe UI", sans-serif; text-align: center;
+    }
+    .app-notif-btn.has-unread i { animation: app-bell 1.6s ease 1; transform-origin: 50% 10%; }
+    @keyframes app-bell { 0%,100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(8deg); } 60% { transform: rotate(-5deg); } }
+    .app-notif-panel {
+      position: absolute; top: calc(100% + 10px); right: -6px; z-index: 1200; width: 360px; max-width: calc(100vw - 24px);
+      background: #fff; border: 1px solid #e4e7ec; border-radius: 14px; box-shadow: 0 20px 44px -12px rgba(16,24,40,.25);
+      overflow: hidden; transform-origin: top right; animation: app-pop .18s cubic-bezier(.16,1,.3,1);
+    }
+    @keyframes app-pop { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+    .app-notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #f2f4f7; font-size: 13.5px; font-weight: 700; color: #101828; }
+    .app-notif-markall { background: none; border: none; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+    .app-notif-markall:hover { background: #eef4ff; }
+    .app-notif-list { max-height: 380px; overflow-y: auto; }
+    .app-notif-item { display: flex; gap: 10px; padding: 11px 14px; border-bottom: 1px solid #f2f4f7; }
+    .app-notif-item:last-child { border-bottom: none; }
+    .app-notif-item.unread { background: #f8faff; }
+    .app-notif-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: transparent; flex-shrink: 0; }
+    .app-notif-item.unread .app-notif-dot { background: #2563eb; }
+    .app-notif-title { font-size: 13px; font-weight: 600; color: #101828; }
+    .app-notif-msg { font-size: 12px; color: #475467; margin-top: 2px; line-height: 1.45; }
+    .app-notif-time { font-size: 11px; color: #98a2b3; margin-top: 4px; }
+    .app-notif-empty { padding: 28px 14px; text-align: center; font-size: 12.5px; color: #98a2b3; }
+    body.dark-mode .app-notif-panel { background: #161b22 !important; border-color: #30363d !important; }
+    body.dark-mode .app-notif-head, body.dark-mode .app-notif-item { border-color: #30363d !important; color: #e6edf3 !important; }
+    body.dark-mode .app-notif-item.unread { background: #1c2330 !important; }
+    body.dark-mode .app-notif-title { color: #e6edf3 !important; }
+    body.dark-mode .app-notif-count { border-color: #161b22; }
+
     /* A nav-item that has to be a <button type="submit"> (inside its own
        tiny <form>, for CSRF) instead of a plain <a> -- e.g. "My Profile"'s
        POST to /switch_to_my_employee_portal -- needs its native button
@@ -75,12 +223,25 @@
     body.dark-mode .main { background: #0d1117 !important; color: #cdd9e5 !important; }
     body.dark-mode .flash-success { background: #14532d !important; border-color: #166534 !important; color: #4ade80 !important; }
     body.dark-mode .flash-error   { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+    body.dark-mode .sidebar, body.dark-mode .app-topbar { background: #161b22 !important; border-color: #30363d !important; }
+    body.dark-mode .brand-wrap, body.dark-mode .sidebar-footer { border-color: #30363d !important; }
+    body.dark-mode .brand, body.dark-mode .app-crumb .crumb-page, body.dark-mode .app-user-name { color: #e6edf3 !important; }
+    body.dark-mode .nav-item { color: #9da7b3 !important; }
+    body.dark-mode .nav-item:hover { background: #21262d !important; color: #e6edf3 !important; }
+    body.dark-mode .nav-item.active { background: rgba(56,139,253,0.15) !important; color: #79b8ff !important; }
+    body.dark-mode .nav-item.active .nav-icon { color: #79b8ff !important; }
+    body.dark-mode .brand-icon, body.dark-mode .app-clock, body.dark-mode .app-icon-btn, body.dark-mode .app-user { background: #0d1117 !important; border-color: #30363d !important; color: #c9d1d9 !important; }
 
     /* ── Responsive ── */
     @media (max-width: 768px) {
       body { flex-direction: column; }
-      .sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; padding: 10px; }
+      .sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; padding: 10px; border-right: none; border-bottom: 1px solid #e6e9ef; }
       .sidebar .brand, .sidebar .brand-sub, .sidebar-footer { display: none; }
+      .brand-wrap { border-bottom: none; margin: 0; padding: 0 6px 0 0; }
+      .nav-item.active::before { display: none; }
+      .app-topbar { padding: 0 14px; }
+      .app-clock, .app-user-meta, .app-crumb, .admin-search-kbd { display: none; }
+      .admin-search-wrap { min-width: 0; }
     }
 
     /* ── Accessibility ──
@@ -109,6 +270,14 @@
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('enterprise-ui.css') }}" />
   {% block page_css %}{% endblock %}
+  <!-- Light professional theme layer: loaded AFTER each page's own CSS so
+       cards, tables, inputs and buttons look the same on every admin page. -->
+  <link rel="stylesheet" href="{{ static_url('admin-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
+  <link rel="stylesheet" href="{{ static_url('dashboard-unify.css') }}" />
+  <script src="{{ static_url('ribbon.js') }}" defer></script>
 </head>
 <body>
 
@@ -118,24 +287,7 @@
 <div class="sidebar" role="navigation" aria-label="Primary">
   {% set _is_hr = session.admin_role == 'hr' %}
   {% set _is_manager = session.admin_role == 'manager' %}
-  <div class="brand-wrap">
-    <div class="brand-icon" style="overflow:hidden;background:#fff;">
-      {% if co.logo_url %}
-        <img src="{{ co.logo_url }}" alt="{{ co.company_name }}" style="width:100%;height:100%;object-fit:contain;" onerror="this.outerHTML='<i class=\'ti ti-building u-fs-18\' style=\'color:#6366f1;\'></i>'" />
-      {% else %}
-        <i class="ti ti-building u-fs-18" style="color:#6366f1;"></i>
-      {% endif %}
-    </div>
-    <div>
-      <div class="brand">{{ co.company_name }}</div>
-      <div class="brand-sub">
-        {{ co.company_code|default('HQ') }} &middot; {{ 'HR Panel' if _is_hr else ('Manager Panel' if _is_manager else 'Admin Panel') }}
-        <span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:9px;font-weight:800;background:rgba(255,255,255,0.18);color:#60a5fa;margin-left:4px;letter-spacing:0.5px;">
-          {{ monthly_bill_display|default('₹0') }}/MO
-        </span>
-      </div>
-    </div>
-  </div>
+  {# Company logo / name / plan now live in the blue top banner (below). #}
 
   {% set _tp = (pending_leaves|default(0)) + (pending_resignations|default(0)) + (pending_tickets|default(0)) %}
 
@@ -185,9 +337,6 @@
   <a class="nav-item {{ 'active' if active_nav == 'admin_tools' }}" href="{{ tpath('/admin_tools') }}" {{ 'aria-current=page' if active_nav == 'admin_tools' }}>
     <span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools
   </a>
-  <a class="nav-item {{ 'active' if active_nav == 'activity_log' }}" href="{{ tpath('/activity_log') }}" {{ 'aria-current=page' if active_nav == 'activity_log' }}>
-    <span class="nav-icon"><i class="ti ti-history"></i></span>Activity Log
-  </a>
   <a class="nav-item {{ 'active' if active_nav == 'settings' }}" href="{{ tpath('/settings') }}" {{ 'aria-current=page' if active_nav == 'settings' }}>
     <span class="nav-icon"><i class="ti ti-settings"></i></span>Settings
   </a>
@@ -202,8 +351,72 @@
     </button>
   </form>
 
-  <div class="sidebar-footer"><i class="ti ti-clock u-fs-13"></i> <span class="sb-live-clock"></span></div>
 </div>
+
+<div class="app-col">
+<!-- ── TOP BAR ── -->
+<header class="app-topbar app-topbar--brand">
+  <!-- Company logo + name -->
+  <a class="app-brand" href="{{ tpath('/hr_dashboard') if _is_hr else tpath('/admin') }}" aria-label="{{ co.company_name }} – dashboard">
+    <span class="app-brand-logo">
+      {% if co.logo_url %}
+        <img src="{{ co.logo_url }}" alt="" />
+      {% else %}
+        <i class="ti ti-building" aria-hidden="true"></i>
+      {% endif %}
+    </span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">{{ co.company_name }}</span>
+    </span>
+  </a>
+  <!-- Search (filled by pages that offer it -- the admin dashboard) -->
+  {% block topbar_search %}{% endblock %}
+  <div class="app-top-actions">
+    <!-- Date + live time (time ticks via darkmode.min.js's .sb-live-clock) -->
+    <span class="app-date" aria-label="Today">
+      <i class="ti ti-calendar" aria-hidden="true"></i>
+      <span id="appTopDate"></span><span class="app-date-sep" aria-hidden="true">·</span><span id="appTopTime"></span>
+    </span>
+    <!-- Notifications: admin feed from /web/admin/notifications/list -->
+    <div class="app-notif" id="appNotif"
+         data-list-url="{{ tpath('/web/admin/notifications/list') }}"
+         data-read-url="{{ tpath('/web/admin/notifications/mark_read') }}">
+      <button type="button" class="app-icon-btn app-notif-btn" id="appNotifBtn" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" title="Notifications">
+        <i class="ti ti-bell"></i><span class="app-notif-count" id="appNotifCount" hidden></span>
+      </button>
+      <div class="app-notif-panel" id="appNotifPanel" role="dialog" aria-label="Notifications" hidden>
+        <div class="app-notif-head">
+          <span>Notifications</span>
+          <button type="button" class="app-notif-markall" id="appNotifMarkAll">Mark all as read</button>
+        </div>
+        <div class="app-notif-list" id="appNotifList"><div class="app-notif-empty">Loading…</div></div>
+      </div>
+    </div>
+    {% set _uname = session.admin_username or 'Admin' %}
+    {% set _urole = 'HR' if _is_hr else ('Manager' if _is_manager else 'Administrator') %}
+    {% set _uphoto = admin_avatar_url %}
+    <!-- Admin profile menu (Profile / Settings / Logout) -->
+    <div class="app-user-menu" id="appUserMenu">
+      <button type="button" class="app-user" id="appUserBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu for {{ _uname }}">
+        <span class="app-avatar" aria-hidden="true">{% if _uphoto %}<img src="{{ _uphoto }}" alt="" />{% else %}{{ _uname[:2]|upper }}{% endif %}</span>
+      </button>
+      <div class="app-user-panel" id="appUserPanel" role="menu" hidden>
+        <div class="app-user-panel-head">
+          <span class="app-avatar app-avatar-lg" aria-hidden="true">{% if _uphoto %}<img src="{{ _uphoto }}" alt="" />{% else %}{{ _uname[:2]|upper }}{% endif %}</span>
+          <span><span class="app-user-panel-name">{{ _uname }}</span><span class="app-user-panel-role">{{ _urole }} · {{ co.company_name }}</span></span>
+        </div>
+        {% if not _is_hr and not _is_manager %}
+        <a class="app-user-item" role="menuitem" href="{{ tpath('/profile') }}"><i class="ti ti-id-badge-2"></i> Profile</a>
+        <a class="app-user-item" role="menuitem" href="{{ tpath('/settings') }}"><i class="ti ti-settings"></i> Settings</a>
+        {% endif %}
+        <form action="{{ tpath('/logout') }}" method="POST" class="app-user-logout">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="app-user-item danger" role="menuitem"><i class="ti ti-logout"></i> Logout</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</header>
 
 <!-- ── MAIN ── -->
 <div class="main" id="main-content" role="main" tabindex="-1">
@@ -240,9 +453,10 @@
 
   {% block main %}{% endblock %}
 </div>
+</div><!-- /.app-col -->
 
 <script src="{{ static_url('darkmode.min.js') }}"></script>
-<script>
+<script src="{{ static_url('admin-topbar.js') }}"></script><script>
   (function() {
     let _lastLate = null;
     let _lastPresent = null;

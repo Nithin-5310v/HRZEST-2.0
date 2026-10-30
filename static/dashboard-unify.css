@@ -1,0 +1,68 @@
+/* ==========================================================================
+   HRzest - one colour system for every dashboard (admin, HR, manager,
+   employee). Loaded last. Blue (#2563eb) is the only accent; text is one
+   colour (#101828). Inline status colours (Present/Absent pills etc.) are
+   left alone on purpose.
+   ========================================================================== */
+
+/* ── Announcement ribbon (static/ribbon.js) ── */
+.hz-ribbon { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: #2563eb; color: #fff; font: 600 13px/1.4 "Inter", "Segoe UI", sans-serif; position: relative; z-index: 950; }
+.hz-ribbon-high { background: #1d4ed8; }
+.hz-ribbon i { font-size: 17px; flex-shrink: 0; }
+.hz-ribbon-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.hz-ribbon-text b { font-weight: 700; }
+.hz-ribbon-x { background: none; border: 0; color: #fff; font-size: 20px; line-height: 1; cursor: pointer; opacity: .8; padding: 0 4px; }
+.hz-ribbon-x:hover { opacity: 1; }
+body.dark-mode .hz-ribbon { background: #1e3a8a; }
+.hz-ribbon { flex: 0 0 auto; }
+@media (min-width: 769px) {
+  body { flex-wrap: wrap; }
+  .hz-ribbon { flex: 0 0 100%; }
+}
+
+/* ── One blue ── */
+body:not(.dark-mode) .hbtn-green,
+body:not(.dark-mode) .main .hbtn-green { background: #2563eb !important; color: #fff !important; border-color: #2563eb !important; }
+body:not(.dark-mode) .si-green,
+body:not(.dark-mode) .si-yellow,
+body:not(.dark-mode) .si-red { background: #dbeafe !important; }
+body:not(.dark-mode) .si-green i,
+body:not(.dark-mode) .si-yellow i,
+body:not(.dark-mode) .si-red i { color: #2563eb !important; }
+.brand-icon i, .nav-icon i { color: #2563eb; }
+body:not(.dark-mode) .nav-icon { color: #2563eb; }
+
+/* ── One font colour (not on the blue banner / buttons / ribbon) ── */
+body:not(.dark-mode) .main :is(h1,h2,h3,h4,h5,h6,p,label,td,th,li,small,.sub,.stat-label,.stat-sub):not(.page-header *):not(.hbtn):not(.btn-blue):not(.btn-primary):not(.badge-count),
+body:not(.dark-mode) .app-content :is(h1,h2,h3,h4,h5,h6,p,label,td,th,li,small):not(.page-header *):not(.hbtn):not(.btn-blue):not(.btn-primary) { color: #101828; }
+
+/* ==========================================================================
+   Visibility safety net - every text/background pair stays readable in BOTH
+   themes. Page CSS sets plenty of hard-coded dark text (#334155, #0f172a ...)
+   and light panels that only some pages override for dark mode; this layer
+   catches the rest. Status pills / coloured buttons keep their own colours.
+   ========================================================================== */
+
+/* ── Dark mode: text ── */
+body.dark-mode :is(.main, .app-content) :is(h1,h2,h3,h4,h5,h6,p,label,li,td,th,small,dt,dd,legend,.sub,.stat-lbl,.stat-sub,.section-title,.confirm-label,.payslip-hint,.reasons-label,.ticket-history-label,.notif-item,.ai-msg):not([style*="color"]):not(.hbtn):not(.btn):not(.btn-blue):not(.btn-primary):not(.badge):not([class*="badge"]):not(.page-header *) {
+  color: #cdd9e5 !important;
+}
+body.dark-mode :is(.main, .app-content) :is(.sub, .stat-lbl, .stat-sub, small, .payslip-hint):not([style*="color"]) { color: #9da7b3 !important; }
+/* inline dark text colours written straight into markup */
+body.dark-mode :is(.main, .app-content, .sidebar) :is([style*="color:#1e3a8a"],[style*="color: #1e3a8a"],[style*="color:#1e293b"],[style*="color: #1e293b"],[style*="color:#0f172a"],[style*="color: #0f172a"],[style*="color:#111827"],[style*="color:#334155"],[style*="color:#475569"],[style*="color:#101828"],[style*="color:#1e40af"],[style*="color: #1e40af"]) { color: #93c5fd !important; }
+/* inline light panels */
+body.dark-mode :is(.main, .app-content) :is([style*="background:#fff"],[style*="background: #fff"],[style*="background:#ffffff"],[style*="background:#f8fafc"],[style*="background:#f1f5f9"],[style*="background:#f9fafb"]) { background: #161b22 !important; border-color: #30363d !important; }
+
+/* ── Dark mode: surfaces and form controls the page CSS left light ── */
+body.dark-mode :is(.main, .app-content) :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]),
+body.dark-mode .ticket-input { background: #0d1117 !important; color: #cdd9e5 !important; border-color: #30363d !important; }
+body.dark-mode :is(.main, .app-content) :is(input, textarea)::placeholder { color: #768390 !important; }
+body.dark-mode :is(.main, .app-content) th { background: #1c2128 !important; border-color: #30363d !important; }
+body.dark-mode :is(.main, .app-content) td { border-color: #30363d !important; }
+body.dark-mode :is(.main, .app-content) tr:hover td { background: #1c2128 !important; }
+body.dark-mode .ai-msg, body.dark-mode .notif-item { background: #161b22 !important; border-color: #30363d !important; }
+
+/* ── Light mode: nothing may inherit pale text on a pale surface ── */
+body:not(.dark-mode) :is(.main, .app-content) :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]) { color: #101828; }
+body:not(.dark-mode) :is(.main, .app-content) :is(input, textarea)::placeholder { color: #667085; }
+body:not(.dark-mode) :is(.main, .app-content) :is([style*="color:#cdd9e5"],[style*="color:#e6edf3"],[style*="color:#9da7b3"],[style*="color:#768390"],[style*="color:#c9d1d9"]) { color: #475467 !important; }

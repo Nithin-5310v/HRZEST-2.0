@@ -1,0 +1,297 @@
+/* ==========================================================================
+   HRzest - Admin light theme layer (Zoho-People-inspired)
+
+   Loaded by templates/admin_base.html AFTER every page's own page_css, so
+   the 35 admin pages share one calm, professional look without editing
+   each template:
+     - soft grey canvas, white cards with a thin neutral border
+     - neutral table headers, consistent inputs
+     - one primary blue for main actions (semantic green/red kept for
+       approve / reject / delete)
+     - no "jumping" hover transforms
+
+   Every rule is scoped to body:not(.dark-mode): the dark theme (moon toggle
+   in the top bar) keeps using darkmode.min.js's own colours untouched. The
+   extra specificity also lets these rules win over page_css without
+   !important; inline style="" colours on individual elements still win,
+   which is deliberate (status colours that depend on data).
+   ========================================================================== */
+
+body:not(.dark-mode) {
+  --ui-bg: #f4f6f9;
+  --ui-surface: #ffffff;
+  --ui-border: #e6e9ef;
+  --ui-border-strong: #d0d5dd;
+  --ui-text: #101828;
+  --ui-text-2: #475467;
+  --ui-text-3: #667085;
+  --ui-primary: #2563eb;
+  --ui-primary-hover: #1d4ed8;
+  --ui-primary-soft: #eef4ff;
+  --ui-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --ui-shadow-hover: 0 4px 14px rgba(16, 24, 40, 0.07);
+  background: var(--ui-bg) !important;
+}
+
+/* ── Typography: Inter everywhere (the .ti icon font is !important, so
+   icons are unaffected) ─────────────────────────────────────────────── */
+body:not(.dark-mode),
+body:not(.dark-mode) *:not(pre):not(code):not(kbd):not(samp) {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────
+   25 admin pages still carry a copy of the old navy sidebar in their own
+   page_css; these rules (higher specificity, loaded last) give every page
+   the same light sidebar defined in admin_base.html. */
+body:not(.dark-mode) .sidebar {
+  background: #ffffff !important;
+  background-image: none !important;
+  border-right: 1px solid var(--ui-border) !important;
+  box-shadow: none !important;
+  color: #344054 !important;
+  width: 248px; padding: 18px 12px;
+}
+body:not(.dark-mode) .sidebar .brand-wrap { margin: 0 0 18px; padding: 4px 6px 16px; border-bottom: 1px solid #eef0f3; }
+body:not(.dark-mode) .sidebar .brand-icon { width: 36px; height: 36px; border-radius: 10px; background: #fff !important; border: 1px solid var(--ui-border); }
+body:not(.dark-mode) .sidebar .brand { color: var(--ui-text) !important; font-size: 14.5px; font-weight: 700; }
+body:not(.dark-mode) .sidebar .brand-sub { color: var(--ui-text-3) !important; font-size: 11px; }
+body:not(.dark-mode) .sidebar .nav-item {
+  color: var(--ui-text-2) !important;
+  background: transparent;
+  padding: 8px 10px; margin: 1px 0; gap: 10px;
+  border-radius: 8px; font-size: 13px; font-weight: 500;
+}
+body:not(.dark-mode) .sidebar .nav-item:hover { background: #f2f4f7 !important; color: var(--ui-text) !important; }
+body:not(.dark-mode) .sidebar .nav-item.active { background: var(--ui-primary-soft) !important; color: var(--ui-primary-hover) !important; font-weight: 600; }
+body:not(.dark-mode) .sidebar .nav-item.active::before { left: -12px; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0; background: var(--ui-primary); }
+body:not(.dark-mode) .sidebar .nav-icon { width: 22px; height: 22px; background: transparent !important; color: var(--ui-text-3) !important; font-size: 17px; border-radius: 0; }
+body:not(.dark-mode) .sidebar .nav-item:hover .nav-icon { color: #344054 !important; }
+body:not(.dark-mode) .sidebar .nav-item.active .nav-icon { color: var(--ui-primary) !important; }
+body:not(.dark-mode) .sidebar .sidebar-footer { color: #98a2b3 !important; border-top-color: #eef0f3 !important; }
+@media (max-width: 768px) {
+  body:not(.dark-mode) .sidebar { width: 100%; border-right: none !important; border-bottom: 1px solid var(--ui-border) !important; padding: 10px; }
+  body:not(.dark-mode) .sidebar .brand-wrap { border-bottom: none; margin: 0; padding: 0 6px 0 0; }
+}
+
+/* ── Page header ─────────────────────────────────────────────────────── */
+body:not(.dark-mode) .main .page-header h1,
+body:not(.dark-mode) .main > h1,
+body:not(.dark-mode) .main .topbar h1,
+body:not(.dark-mode) .main .page-title {
+  color: var(--ui-text);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+/* ── Cards / sections ───────────────────────────────────────────────── */
+body:not(.dark-mode) .main .section,
+body:not(.dark-mode) .main .card,
+body:not(.dark-mode) .main .stat-card,
+body:not(.dark-mode) .main .panel {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  box-shadow: var(--ui-shadow);
+}
+body:not(.dark-mode) .main .section:hover,
+body:not(.dark-mode) .main .card:hover,
+body:not(.dark-mode) .main .stat-card:hover {
+  transform: none;
+  border-color: var(--ui-border-strong);
+  box-shadow: var(--ui-shadow-hover);
+}
+body:not(.dark-mode) .main .section-title {
+  color: var(--ui-text);
+  font-weight: 600;
+}
+body:not(.dark-mode) .main .section-title i { color: var(--ui-text-3); }
+
+/* KPI tiles */
+body:not(.dark-mode) .main .stat-val,
+body:not(.dark-mode) .main .stat-card .num {
+  color: var(--ui-text) !important;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+body:not(.dark-mode) .main .stat-lbl { color: var(--ui-text-3); font-weight: 500; }
+body:not(.dark-mode) .main .stat-icon { border-radius: 10px; }
+
+/* Dashboard tiles built from utility classes (module shortcuts, onboarding
+   overview boxes): white tiles with a neutral border; the coloured icon
+   chip keeps each module recognisable. */
+body:not(.dark-mode) .main .section [class*="u-bd-1d5-solid-"][class*="u-br-1"] {
+  background: var(--ui-surface) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 10px !important;
+}
+body:not(.dark-mode) .main .section a > [class*="u-bd-1d5-solid-"]:hover {
+  border-color: #b2ccff !important;
+  background: #fafcff !important;
+}
+body:not(.dark-mode) .main .section a > [class*="u-bd-1d5-solid-"] .u-fw-800 {
+  color: var(--ui-text) !important;
+  font-weight: 600 !important;
+}
+
+/* ── Tables ──────────────────────────────────────────────────────────── */
+body:not(.dark-mode) .main .table-wrap,
+body:not(.dark-mode) .main .table-enterprise-wrap {
+  border-color: var(--ui-border);
+  border-radius: 10px;
+}
+body:not(.dark-mode) .main table thead th {
+  background: #f9fafb;
+  color: var(--ui-text-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #eaecf0;
+}
+body:not(.dark-mode) .main table tbody td {
+  border-bottom-color: #f2f4f7;
+  color: #344054;
+}
+body:not(.dark-mode) .main table tbody tr:hover td { background: #fafbfc; }
+
+/* ── Form controls ───────────────────────────────────────────────────── */
+body:not(.dark-mode) .main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="submit"]):not([type="button"]),
+body:not(.dark-mode) .main select,
+body:not(.dark-mode) .main textarea,
+body:not(.dark-mode) .main .search-box {
+  background-color: #fff;
+  border-color: var(--ui-border-strong);
+  border-radius: 8px;
+  color: var(--ui-text);
+}
+body:not(.dark-mode) .main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+body:not(.dark-mode) .main select:focus,
+body:not(.dark-mode) .main textarea:focus,
+body:not(.dark-mode) .main .search-box:focus {
+  border-color: var(--ui-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  outline: none;
+}
+body:not(.dark-mode) .main input::placeholder,
+body:not(.dark-mode) .main textarea::placeholder { color: #98a2b3; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+/* Main actions: one primary blue instead of green / purple / navy /
+   orange gradients that used to vary page by page. */
+body:not(.dark-mode) .main .btn-blue,
+body:not(.dark-mode) .main .btn-indigo,
+body:not(.dark-mode) .main .btn-green,
+body:not(.dark-mode) .main .btn-add,
+body:not(.dark-mode) .main .btn-leave-cal,
+body:not(.dark-mode) .main .btn-respond,
+body:not(.dark-mode) .main .btn-email-all,
+body:not(.dark-mode) .main .btn-import,
+body:not(.dark-mode) .main .btn-primary,
+body:not(.dark-mode) .main .hbtn-blue,
+body:not(.dark-mode) .main .hbtn-green {
+  background: var(--ui-primary) !important;
+  background-image: none !important;
+  color: #fff !important;
+  border: 1px solid var(--ui-primary) !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06) !important;
+  font-weight: 600;
+}
+body:not(.dark-mode) .main .btn-blue:hover,
+body:not(.dark-mode) .main .btn-indigo:hover,
+body:not(.dark-mode) .main .btn-green:hover,
+body:not(.dark-mode) .main .btn-add:hover,
+body:not(.dark-mode) .main .btn-leave-cal:hover,
+body:not(.dark-mode) .main .btn-respond:hover,
+body:not(.dark-mode) .main .btn-email-all:hover,
+body:not(.dark-mode) .main .btn-import:hover,
+body:not(.dark-mode) .main .btn-primary:hover,
+body:not(.dark-mode) .main .hbtn-blue:hover,
+body:not(.dark-mode) .main .hbtn-green:hover {
+  background: var(--ui-primary-hover) !important;
+  border-color: var(--ui-primary-hover) !important;
+  filter: none;
+}
+/* The dashboard's header actions (Export Month / Email Absentees): both
+   primary blue with white text in every state -- rest, hover, focus, click.
+   (A white hover background here once left the white text invisible.) */
+body:not(.dark-mode) .main .header-actions .hbtn,
+body:not(.dark-mode) .main .header-actions .hbtn i {
+  background: var(--ui-primary) !important; color: #fff !important; border-color: var(--ui-primary) !important;
+}
+body:not(.dark-mode) .main .header-actions .hbtn i { background: transparent !important; }
+body:not(.dark-mode) .main .header-actions .hbtn:hover,
+body:not(.dark-mode) .main .header-actions .hbtn:focus-visible,
+body:not(.dark-mode) .main .header-actions .hbtn:active {
+  background: var(--ui-primary-hover) !important; color: #fff !important; border-color: var(--ui-primary-hover) !important;
+}
+
+/* Pagination: the active page keeps its dark fill on hover (the page's own
+   .btn-page:hover light fill used to sit under the active page's white text) */
+body:not(.dark-mode) .main .btn-page.active,
+body:not(.dark-mode) .main .btn-page.active:hover { background: var(--ui-primary) !important; color: #fff !important; border-color: var(--ui-primary) !important; }
+
+/* Secondary / neutral buttons */
+body:not(.dark-mode) .main .btn-print,
+body:not(.dark-mode) .main .btn-profile,
+body:not(.dark-mode) .main .btn-secondary {
+  background: #fff;
+  color: #344054;
+  border-color: var(--ui-border-strong);
+}
+
+/* Calm hover everywhere: no lifting/jumping buttons */
+body:not(.dark-mode) .main .btn:hover,
+body:not(.dark-mode) .main .tbl-btn:hover,
+body:not(.dark-mode) .main .btn-action:hover,
+body:not(.dark-mode) .main .hbtn:hover,
+body:not(.dark-mode) .main .btn-email-all:hover {
+  transform: none;
+}
+
+/* Small row-action buttons in tables: neutral outline; colour only on hover
+   (delete keeps its red so it still reads as destructive). */
+body:not(.dark-mode) .main .btn-edit,
+body:not(.dark-mode) .main .tbl-btn-edit,
+body:not(.dark-mode) .main .btn-qr,
+body:not(.dark-mode) .main .btn-photo,
+body:not(.dark-mode) .main .btn-idcard {
+  background: #fff;
+  color: #475467;
+  border: 1px solid var(--ui-border-strong);
+}
+body:not(.dark-mode) .main .btn-edit:hover,
+body:not(.dark-mode) .main .tbl-btn-edit:hover,
+body:not(.dark-mode) .main .btn-qr:hover,
+body:not(.dark-mode) .main .btn-photo:hover,
+body:not(.dark-mode) .main .btn-idcard:hover {
+  background: var(--ui-primary-soft);
+  color: var(--ui-primary);
+  border-color: #b2ccff;
+}
+body:not(.dark-mode) .main .btn-del,
+body:not(.dark-mode) .main .tbl-btn-delete {
+  background: #fff;
+  color: #d92d20;
+  border: 1px solid #fda29b;
+}
+body:not(.dark-mode) .main .btn-del:hover,
+body:not(.dark-mode) .main .tbl-btn-delete:hover { background: #fef3f2; }
+
+/* ── Flash messages ──────────────────────────────────────────────────── */
+body:not(.dark-mode) .flash-msg { border-radius: 10px; font-weight: 500; }
+
+/* ── Dashboard search row (admin + HR dashboards), below the blue banner ── */
+body .main .page-header--toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
+body .main .admin-search-wrap.dash-search { position: relative; flex: 1 1 520px; max-width: 560px; min-width: 240px; }
+body .main .dash-search .admin-search-input {
+  width: 100%; height: 42px; padding: 0 16px 0 42px; border-radius: 10px;
+  background: #fff; border: 1px solid #d0d5dd; font-size: 13.5px; color: #101828;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+}
+body .main .dash-search .admin-search-input::placeholder { color: #667085; }
+body .main .dash-search .admin-search-input:hover { border-color: #98a2b3; }
+body .main .dash-search .admin-search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, .12); outline: none; }
+body .main .dash-search .admin-search-icon { position: absolute; top: 50%; transform: translateY(-50%); left: 15px; font-size: 18px; color: #667085; z-index: 2; }
+body .main .dash-search:focus-within .admin-search-icon { color: #2563eb; }
+@media (max-width: 768px) { body .main .admin-search-wrap.dash-search { flex-basis: 100%; max-width: none; } }

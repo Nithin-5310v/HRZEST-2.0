@@ -1782,7 +1782,6 @@
         </button>
         <div class="subnav-dd-menu" id="dd-sys">
           <button class="subnav-dd-item active" id="ddi-email"      onclick="switchSub('sys','email')">      <i class="ti ti-mail"></i>       Email</button>
-          <button class="subnav-dd-item"        id="ddi-appearance" onclick="switchSub('sys','appearance')"> <i class="ti ti-palette"></i>    Appearance</button>
         </div>
       </div>
     </div>
@@ -1991,17 +1990,6 @@
             </div>
           </div>
 
-          <!-- APPEARANCE -->
-          <div class="s3-section" id="ss-appearance">
-            <div class="section">
-              <div class="section-title">🌙 Theme</div>
-              <div class="feat-card">
-                <div class="feat-icon u-bg-fef9c3 u-fs-20">🌙</div>
-                <div class="feat-body"><div class="feat-name">Dark Mode</div><div class="feat-desc">Switch the admin panel between light and dark theme</div></div>
-                <label class="toggle"><input type="checkbox" id="dmToggle" onchange="toggleDarkMode(this.checked)" /><span class="toggle-slider"></span></label>
-              </div>
-            </div>
-          </div>
 
     </div>
 
@@ -2212,10 +2200,9 @@
 
   <script>
     /* ── 3-TAB + DROPDOWN SUB-NAV ── */
-    var groupMap  = { company:'sys', attendance:'org',payroll:'fin',salary:'fin',disbursement:'fin',billing:'fin',email:'sys',appearance:'sys' };
+    var groupMap  = { company:'sys', attendance:'org',payroll:'fin',salary:'fin',disbursement:'fin',billing:'fin',email:'sys' };
     var firstSub  = { org:'attendance', fin:'payroll', sys:'company' };
     var crumbData = {
-      appearance: { icon:'<i class="ti ti-palette u-c-7c3aed"></i>',     bg:'#f5f3ff', title:'Appearance',     sub:'Theme and display' },
       attendance: { icon:'<i class="ti ti-fingerprint u-c-16a34a"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
       company:    { icon:'<i class="ti ti-building u-c-1e3a8a"></i>',    bg:'#eff6ff', title:'Company',        sub:'Company management' },
       payroll:    { icon:'<i class="ti ti-coin u-c-ca8a04"></i>',        bg:'#fefce8', title:'Payroll',        sub:'Salary rules' },
@@ -2834,18 +2821,6 @@
     }
 
     // ── Settings page company modals ──
-    /* ── DARK MODE TOGGLE (settings page) ── */
-    function toggleDarkMode(on) {
-      document.body.classList.toggle('dark-mode', on);
-      localStorage.setItem('dm', on ? '1' : '0');
-    }
-    document.addEventListener('DOMContentLoaded', function() {
-      var saved = localStorage.getItem('dm');
-      var isDark = saved === '1' || (saved === null && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      var chk = document.getElementById('dmToggle');
-      if (chk) chk.checked = isDark;
-      if (isDark) document.body.classList.add('dark-mode');
-    });
 
     function toggleAuthMethod(method, on) {
       var csrf = document.querySelector('meta[name="csrf-token"]');

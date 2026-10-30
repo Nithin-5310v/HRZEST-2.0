@@ -1,0 +1,55 @@
+{#
+  Employee top banner -- the same blue, full-width banner as the admin side
+  (templates/admin_base.html): company logo + name on the left; date/time,
+  notifications bell and the employee's profile menu on the right.
+  Included at the top of _employee_sidebar.html, so all 4 employee pages get
+  it. Uses the sidebar's variables (sb_mode, sb_name, sb_role, sb_id,
+  sb_has_photo, sb_photo_url). Behaviour: static/employee-topbar.js; styles:
+  static/employee_sidebar.css. On employee_portal.html the page's own bell
+  (#notifBell, with its panel) is moved into #empTopBell by that script.
+#}
+<header class="emp-topbar" id="empTopbar">
+  <a class="emp-brand" href="{{ tpath('/employee_portal#dashboard') }}" aria-label="{{ co.company_name }} – my dashboard">
+    <span class="emp-brand-logo">
+      {% if co.logo_url %}<img src="{{ co.logo_url }}" alt="" />{% else %}<i class="ti ti-building" aria-hidden="true"></i>{% endif %}
+    </span>
+    <span class="emp-brand-name">{{ co.company_name }}</span>
+  </a>
+  <div class="emp-top-actions">
+    <span class="emp-date" aria-label="Today">
+      <i class="ti ti-calendar" aria-hidden="true"></i>
+      <span id="empTopDate"></span><span class="emp-date-sep" aria-hidden="true">·</span><span id="empTopTime"></span>
+    </span>
+    <span class="emp-top-bell" id="empTopBell"></span>
+    <div class="emp-user-menu" id="empUserMenu">
+      <button type="button" class="emp-user" id="empUserBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu for {{ sb_name }}">
+        <span class="emp-avatar" aria-hidden="true">
+          {% if sb_has_photo %}<img src="{{ sb_photo_url }}" alt="" onerror="this.remove()" />{% endif %}
+          <span>{% for w in (sb_name or 'E').split()[:2] %}{{ w[0] | upper }}{% endfor %}</span>
+        </span>
+      </button>
+      <div class="emp-user-panel" id="empUserPanel" role="menu" hidden>
+        <div class="emp-user-panel-head">
+          <span class="emp-user-panel-name">{{ sb_name }}</span>
+          <span class="emp-user-panel-sub">{{ sb_role or 'Employee' }} · ID {{ sb_id }}</span>
+        </div>
+        {% if sb_mode == 'portal' %}
+        <button type="button" class="emp-user-item" role="menuitem" onclick="showView('my-profile')"><i class="ti ti-user-circle"></i> My Profile</button>
+        {% else %}
+        <a class="emp-user-item" role="menuitem" href="{{ tpath('/employee_portal#my-profile') }}"><i class="ti ti-user-circle"></i> My Profile</a>
+        {% endif %}
+        {% if session.get('_hr_return_username') %}
+        <form action="{{ tpath('/switch_back_to_hr_panel') }}" method="POST" class="emp-user-form">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="emp-user-item" role="menuitem"><i class="ti ti-arrow-back-up"></i> Back to HR Dashboard</button>
+        </form>
+        {% endif %}
+        <form action="{{ tpath('/employee_logout') }}" method="POST" class="emp-user-form emp-user-logout">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="emp-user-item danger" role="menuitem"><i class="ti ti-logout"></i> Logout</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</header>
+<script src="{{ static_url('employee-topbar.js') }}" defer></script>

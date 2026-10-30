@@ -1,0 +1,23 @@
+{#
+  Platform Admin (Super Admin) sidebar -- same light sidebar as the admin
+  dashboard (templates/admin_base.html): an icon per item, the current page in
+  soft blue with a blue bar on the left. Included right after <body> by every
+  templates/super_admin_*.html console page; styled in static/platform-theme.css
+  (it sits below the fixed blue banner).
+#}
+{% set _p = request.path %}
+<nav class="pa-sidebar" aria-label="Platform admin">
+  <a class="pa-nav-item {{ 'active' if _p == '/super_admin' or _p.startswith('/super_admin/companies') }}" href="/super_admin"><span class="pa-nav-icon"><i class="ti ti-home"></i></span>Console</a>
+  <a class="pa-nav-item {{ 'active' if _p.startswith('/super_admin/applications') }}" href="/super_admin/applications"><span class="pa-nav-icon"><i class="ti ti-clipboard-check"></i></span>Applications</a>
+  <a class="pa-nav-item {{ 'active' if _p.startswith('/super_admin/duplicate-alerts') }}" href="/super_admin/duplicate-alerts"><span class="pa-nav-icon"><i class="ti ti-copy"></i></span>Duplicate Alerts</a>
+  <a class="pa-nav-item {{ 'active' if _p.startswith('/super_admin/audit-log') }}" href="/super_admin/audit-log"><span class="pa-nav-icon"><i class="ti ti-history"></i></span>Audit Log</a>
+  <a class="pa-nav-item {{ 'active' if _p.startswith('/super_admin/tickets') }}" href="/super_admin/tickets"><span class="pa-nav-icon"><i class="ti ti-headset"></i></span>Support Tickets</a>
+  {% if soc_dashboard_configured %}
+  <a class="pa-nav-item {{ 'active' if _p.startswith('/super_admin/soc') }}" href="/super_admin/soc"><span class="pa-nav-icon"><i class="ti ti-shield-lock"></i></span>SOC</a>
+  {% endif %}
+  <a class="pa-nav-item" href="/create_org?free=1" target="_blank" rel="noopener"><span class="pa-nav-icon"><i class="ti ti-plus"></i></span>New Company (Free)</a>
+  <form action="/super_admin/logout" method="POST" class="pa-nav-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+    <button type="submit" class="pa-nav-item"><span class="pa-nav-icon"><i class="ti ti-logout"></i></span>Sign Out</button>
+  </form>
+</nav>

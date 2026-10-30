@@ -1,0 +1,127 @@
+/* ==========================================================================
+   HRzest - Employee pages light theme layer (Zoho-People-inspired)
+
+   Loaded last (just before </head>) by employee_portal.html, my_compoff.html,
+   my_performance.html and my_onboarding.html, so it sits on top of each
+   page's own <style>. Same visual language as the admin side
+   (static/admin-theme.css): soft grey canvas, white cards with a thin
+   neutral border, Inter, calm hovers.
+
+   Scoped to body:not(.dark-mode) so the moon toggle's dark theme keeps its
+   own colours. Inline style="" colours (status pills, data-driven values)
+   still win on purpose.
+   ========================================================================== */
+
+body:not(.dark-mode) {
+  --ui-bg: #f4f6f9;
+  --ui-surface: #ffffff;
+  --ui-border: #e6e9ef;
+  --ui-border-strong: #d0d5dd;
+  --ui-text: #101828;
+  --ui-text-2: #475467;
+  --ui-text-3: #667085;
+  --ui-primary: #2563eb;
+  --ui-primary-hover: #1d4ed8;
+  --ui-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --ui-shadow-hover: 0 4px 14px rgba(16, 24, 40, 0.07);
+  background: var(--ui-bg) !important;
+  color: var(--ui-text);
+}
+
+/* Inter everywhere; the .ti icon font is !important so icons are safe */
+body:not(.dark-mode),
+body:not(.dark-mode) *:not(pre):not(code):not(kbd):not(samp) {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+body:not(.dark-mode) { -webkit-font-smoothing: antialiased; }
+
+/* ── Page headings ───────────────────────────────────────────────────── */
+body:not(.dark-mode) h1 { font-weight: 700; letter-spacing: -0.015em; }
+
+/* Header banner on My Performance / Comp-off: was a navy gradient with white
+   text; now a white header card like the rest of the light theme. */
+body:not(.dark-mode) .hero {
+  background: var(--ui-surface);
+  background-image: none;
+  color: var(--ui-text);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  box-shadow: var(--ui-shadow);
+}
+body:not(.dark-mode) .hero h2 { color: var(--ui-text); font-weight: 700; }
+body:not(.dark-mode) .hero p { color: var(--ui-text-3); opacity: 1; }
+body:not(.dark-mode) .hero .u-op-d75,
+body:not(.dark-mode) .hero .u-op-d4 { color: var(--ui-text-3); opacity: 1; }
+/* data-coloured numbers that were tuned for the dark banner */
+body:not(.dark-mode) .hero [style*="#4ade80"] { color: #16a34a !important; }
+body:not(.dark-mode) .hero [style*="rgba(255,255,255"] { color: #98a2b3 !important; }
+
+/* ── Cards / panels ──────────────────────────────────────────────────── */
+body:not(.dark-mode) .card,
+body:not(.dark-mode) .stat-card,
+body:not(.dark-mode) .section,
+body:not(.dark-mode) .panel,
+body:not(.dark-mode) .box {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  box-shadow: var(--ui-shadow);
+}
+body:not(.dark-mode) .stat-card:hover,
+body:not(.dark-mode) .card:hover {
+  transform: none;
+  border-color: var(--ui-border-strong);
+  box-shadow: var(--ui-shadow-hover);
+}
+body:not(.dark-mode) .card-title { color: var(--ui-text-3); font-weight: 600; }
+body:not(.dark-mode) .stat-num { letter-spacing: -0.02em; font-weight: 700; }
+body:not(.dark-mode) .stat-lbl { color: var(--ui-text-3); }
+body:not(.dark-mode) .stat-icon { border-radius: 10px; }
+
+/* Profile block */
+body:not(.dark-mode) .profile-avatar { background: var(--ui-primary); border-color: #eef4ff; }
+body:not(.dark-mode) .profile-name { color: var(--ui-text); }
+body:not(.dark-mode) .profile-row { border-bottom-color: #f2f4f7; }
+body:not(.dark-mode) .profile-row .lbl { color: #98a2b3; }
+body:not(.dark-mode) .badge-role { background: #eef4ff; color: #1d4ed8; border-color: #c7d7fe; }
+
+/* ── Tables ──────────────────────────────────────────────────────────── */
+body:not(.dark-mode) table thead th {
+  background: #f9fafb;
+  color: var(--ui-text-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #eaecf0;
+}
+body:not(.dark-mode) table tbody td { border-bottom-color: #f2f4f7; }
+body:not(.dark-mode) table tbody tr:hover td { background: #fafbfc; }
+
+/* ── Form controls ───────────────────────────────────────────────────── */
+body:not(.dark-mode) input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="submit"]):not([type="button"]),
+body:not(.dark-mode) select,
+body:not(.dark-mode) textarea {
+  border-color: var(--ui-border-strong);
+  border-radius: 8px;
+}
+body:not(.dark-mode) input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+body:not(.dark-mode) select:focus,
+body:not(.dark-mode) textarea:focus {
+  border-color: var(--ui-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  outline: none;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+body:not(.dark-mode) .btn-submit,
+body:not(.dark-mode) .btn-primary {
+  background: var(--ui-primary);
+  background-image: none;
+  color: #fff;
+}
+body:not(.dark-mode) .btn-submit:hover,
+body:not(.dark-mode) .btn-primary:hover { background: var(--ui-primary-hover); }
+
+/* ── Flash banners ───────────────────────────────────────────────────── */
+body:not(.dark-mode) .flash-banner { border-radius: 10px; font-weight: 500; }

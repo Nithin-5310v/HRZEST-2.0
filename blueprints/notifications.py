@@ -14,7 +14,7 @@ Migrated from app.py (lines 13255–13354). Routes:
 """
 from flask import Blueprint, jsonify, session, request, g as _g
 from database import get_db_connection
-from utils.auth import api_required, api_role_required, employee_api_required, employee_required
+from utils.auth import admin_required, any_user_required, api_required, api_role_required, employee_api_required, employee_required
 from utils.helpers import post_announcement
 from utils.push_utils import register_push_token
 
@@ -196,3 +196,72 @@ def web_employee_notifications_list():
     cursor.close()
     db.close()
     return jsonify({"ok": True, "notifications": [_fmt(r) for r in rows]})
+
+
+# ── Announcement ribbon (session; admin + employee dashboards) ────────────────
+
+@notifications_bp.route("/web/ribbon", methods=["GET"])
+@any_user_required
+def web_announcement_ribbon():
+    """Latest announcement (last 14 days) for the slim ribbon at the top of
+    every dashboard. Admin sessions see public announcements; an employee
+    also sees private ones addressed to them."""
+    emp_id = None if session.get("admin_logged_in") else session.get("employee_id")
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute("""
+            SELECT id, title, content, priority, created_at FROM announcements
+            WHERE (COALESCE(visibility,'public') = 'public'
+                   OR (visibility = 'private' AND target_employee_id = %s))
+              AND created_at >= NOW() - INTERVAL '14 days'
+            ORDER BY created_at DESC LIMIT 1
+        """, (emp_id,))
+        row = cursor.fetchone()
+    finally:
+        cursor.close()
+        db.close()
+    if not row:
+        return jsonify({"ok": True, "ribbon": None})
+    text = (row[2] or "").strip().replace("\n", " ")
+    return jsonify({"ok": True, "ribbon": {
+        "id": row[0], "title": row[1], "text": text[:160],
+        "priority": row[3] or "Normal",
+    }})
+
+
+# ── Admin notifications (session; the admin top bar's bell) ──────────────────
+
+@notifications_bp.route("/web/admin/notifications/list")
+@admin_required
+def web_admin_notifications_list():
+    """Same admin feed as GET /api/notifications, for the web session -- the
+    bell in templates/admin_base.html's top bar."""
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute(
+            "SELECT id, title, message, is_read, created_at FROM notifications "
+            "WHERE recipient_type='admin' ORDER BY created_at DESC LIMIT 20"
+        )
+        rows = cursor.fetchall()
+        cursor.execute("SELECT COUNT(*) FROM notifications WHERE recipient_type='admin' AND NOT COALESCE(is_read, FALSE)")
+        unread = cursor.fetchone()[0]
+    finally:
+        cursor.close()
+        db.close()
+    return jsonify({"ok": True, "unread": unread, "notifications": [_fmt(r) for r in rows]})
+
+
+@notifications_bp.route("/web/admin/notifications/mark_read", methods=["POST"])
+@admin_required
+def web_admin_notifications_mark_read():
+    db = get_db_connection()
+    cursor = db.cursor()
+    try:
+        cursor.execute("UPDATE notifications SET is_read=TRUE WHERE recipient_type='admin' AND NOT COALESCE(is_read, FALSE)")
+        db.commit()
+    finally:
+        cursor.close()
+        db.close()
+    return jsonify({"ok": True})

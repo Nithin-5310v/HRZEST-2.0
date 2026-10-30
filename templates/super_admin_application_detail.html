@@ -68,8 +68,15 @@
       .badge-rejected { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
       .badge-approved, .badge-approved_pending_payment, .badge-provisioned { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
     </style>
-  </head>
+    <!-- Shared Zoho-style console theme (blue, clean light canvas), loaded last -->
+  <link rel="stylesheet" href="{{ static_url('platform-theme.css') }}" />
+  <script src="{{ static_url('platform-topbar.js') }}" defer></script>
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
+</head>
   <body>
+    {% include "_platform_sidebar.html" %}
     <div class="container">
       <div class="header">
         <h1>{{ application.company_name or application.admin_email }} <span class="badge badge-{{ application.status }}">{{ application.status.replace('_', ' ') }}</span></h1>
