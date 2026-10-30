@@ -27,12 +27,11 @@ def _cleanup_policy(db_engine, title):
 
 
 class TestPolicyMigration:
-    def test_company_policies_table_exists_and_seeded(self, db_engine):
+    def test_company_policies_table_exists(self, db_engine):
+        # No starter rows are seeded -- each company writes its own.
         cur = db_engine.cursor()
         cur.execute("SELECT to_regclass('company_policies')")
         assert cur.fetchone()[0] is not None
-        cur.execute("SELECT COUNT(*) FROM company_policies")
-        assert cur.fetchone()[0] >= 6  # the 6 seeded starter categories
         cur.close()
 
 

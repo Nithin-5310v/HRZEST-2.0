@@ -16,7 +16,6 @@ def _run_schema_migrations(cursor, db):
     _run_qr_signing_migration(cursor, db)
     _run_index_migrations(cursor, db)
     _run_data_integrity_migrations(cursor, db)
-    _run_company_policies_seed(cursor, db)
     _run_company_policies_seed_v2(cursor, db)
     _run_push_tokens_table_migration(cursor, db)
     _run_auth_hardening_migration(cursor, db)
@@ -1115,33 +1114,11 @@ _POLICY_SEED_CONTENT = [
 ]
 
 
-def _run_company_policies_seed(cursor, db):
-    """One-time, per-tenant-schema seed of company_policies with starter
-    content (see _POLICY_SEED_CONTENT above) so a brand-new Policies tab
-    isn't just an empty list -- HR/admin can then edit each one for real
-    via blueprints/policies.py. Guarded like every other one-off migration
-    in this file; a tenant that already has any company_policies rows
-    (e.g. HR already started editing) is left alone."""
-    try:
-        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='company_policies_seed_v1'")
-        if cursor.fetchone():
-            return
-        cursor.execute("SELECT COUNT(*) FROM company_policies")
-        if cursor.fetchone()[0] == 0:
-            for i, (category, title, body) in enumerate(_POLICY_SEED_CONTENT):
-                cursor.execute(
-                    "INSERT INTO company_policies (category, title, body, is_published, sort_order) "
-                    "VALUES (%s,%s,%s,1,%s)",
-                    (category, title, body, i)
-                )
-        cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('company_policies_seed_v1')")
-        db.commit()
-    except Exception as exc:
-        app_log.warning("Migration 'company_policies_seed_v1' failed: %s", exc, exc_info=True)
-
-
 def _run_company_policies_seed_v2(cursor, db):
-    """One-time follow-up to company_policies_seed_v1: that seed shipped
+    """One-time follow-up to company_policies_seed_v1 (since removed --
+    new companies now start with no policies and write their own from
+    Organization -> Policies; this v2 still upgrades older tenants that got
+    the v1 starters). That seed shipped
     with only a one-paragraph placeholder per category (now
     _POLICY_SEED_CONTENT_V1_LEGACY) because templates/employee_portal.html
     still showed its own hardcoded rich text at the time and nothing read

@@ -1,21 +1,13 @@
 {% extends "admin_base.html" %}
 
-{% block title %}Profile{% endblock %}
+{% block title %}Organization{% endblock %}
 
 {% block page_css %}
 <style>
-  .profile-tabs { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
-  .profile-tab {
-    padding: 10px 18px; border-radius: 10px; background: #fff; border: 1px solid #e2e8f0;
-    color: #475569; font-weight: 600; font-size: 13px; text-decoration: none;
-    display: flex; align-items: center; gap: 8px; transition: 0.15s;
-  }
-  .profile-tab:hover { border-color: #93c5fd; color: #1e3a8a; }
-  .profile-tab.active { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
 
   .p-card {
-    max-width: 780px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
-    padding: 28px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); margin-bottom: 20px;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+    padding: 24px; margin-bottom: 20px;
   }
   .p-card h2 { font-size: 17px; color: #0f172a; margin-bottom: 4px; }
   .p-card .sub { font-size: 13px; color: #64748b; margin-bottom: 20px; }
@@ -74,19 +66,171 @@
   .ticket-row .t-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
   .ticket-row .t-subject { font-weight: 700; color: #0f172a; font-size: 13.5px; }
   .ticket-row .t-meta { font-size: 11.5px; color: #94a3b8; }
+
+  .p-btn.danger { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; }
+  textarea.p-input { font-family: inherit; resize: vertical; }
+  .policy-item { border-bottom: 1px solid #f1f5f9; }
+  .policy-item:last-child { border-bottom: none; }
+  .policy-item summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; cursor: pointer; list-style: none; }
+  .policy-item summary::-webkit-details-marker { display: none; }
+  .policy-item[open] summary { margin-bottom: 8px; }
+  .policy-item[open] { padding-bottom: 16px; }
+  .policy-title { display: block; font-weight: 700; color: #0f172a; font-size: 13.5px; }
+  .policy-meta { display: block; font-size: 11.5px; color: #94a3b8; margin-top: 2px; }
+  .policy-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .policy-right { display: inline-flex; align-items: center; gap: 12px; }
+  .policy-chev { color: #94a3b8; font-size: 16px; transition: transform 0.15s; }
+  .policy-item[open] .policy-chev { transform: rotate(180deg); }
+  .policy-item summary:hover .policy-title { color: #1e3a8a; }
+  .policy-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .policy-tpl { padding: 6px 12px; border-radius: 20px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .policy-tpl:hover { border-color: #93c5fd; color: #1e3a8a; }
+  .policy-tpl.active { background: #1e3a8a; border-color: #1e3a8a; color: #fff; }
+  .policy-add { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
+  .policy-add > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+  .policy-add > summary::-webkit-details-marker { display: none; }
+  .policy-add[open] > summary { margin-bottom: 16px; background: #fff; color: #1e3a8a; border: 1px solid #1e3a8a; }
+
+  /* ── Organization page ── */
+  .org-page { width: 100%; }
+
+  .org-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 28px; align-items: start; }
+  .org-side { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+  .org-ident { display: flex; align-items: center; gap: 12px; padding: 18px 16px; border-bottom: 1px solid #f0f1f3; }
+  .org-mark { width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; background: #1e3a8a; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; letter-spacing: 0.5px; overflow: hidden; }
+  .org-mark img { width: 100%; height: 100%; object-fit: contain; padding: 4px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; }
+  .org-ident-text { min-width: 0; }
+  .org-ident-name { font-size: 14px; font-weight: 700; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .org-ident-sub { font-size: 12px; color: #6b7280; margin-top: 1px; }
+  .org-menu { padding: 8px; }
+  .org-menu-label { font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; padding: 12px 10px 6px; }
+  .org-menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13.5px; font-weight: 500;
+    color: #374151; text-decoration: none; transition: background 0.12s, color 0.12s; }
+  .org-menu-item i { font-size: 17px; color: #9ca3af; }
+  .org-menu-item:hover { background: #f3f4f6; color: #111827; }
+  .org-menu-item.active { background: #eef2ff; color: #1e3a8a; font-weight: 600; }
+  .org-menu-item.active i { color: #1e3a8a; }
+  .org-side-foot { display: flex; align-items: center; gap: 8px; padding: 13px 18px; border-top: 1px solid #f0f1f3; font-size: 13px; font-weight: 500;
+    color: #6b7280; text-decoration: none; background: #f9fafb; }
+  .org-side-foot:hover { color: #1e3a8a; }
+  .org-side-foot i:last-child { margin-left: auto; font-size: 14px; }
+  .org-content { min-width: 0; }
+  .org-page-head { margin: 4px 0 18px; }
+  .org-page-head h1 { font-size: 22px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.3px; }
+  .org-page-head p { font-size: 13.5px; color: #6b7280; margin: 4px 0 0; }
+  .org-inline-link { margin-left: 10px; font-size: 13px; font-weight: 600; color: #1e3a8a; text-decoration: none; }
+  .org-inline-link:hover { text-decoration: underline; }
+  .org-summary .s a { color: #1e3a8a; font-weight: 600; text-decoration: none; }
+
+  .org-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 1px solid #d1d5db; background: #fff; color: #374151; text-decoration: none; cursor: pointer; font-family: inherit;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.05); transition: background 0.15s, border-color 0.15s; }
+  .org-btn:hover { background: #f9fafb; border-color: #9ca3af; }
+  .org-btn.primary { background: #1e3a8a; border-color: #1e3a8a; color: #fff; }
+  .org-btn.primary:hover { background: #1e40af; }
+  .org-btn i { font-size: 15px; }
+
+  .org-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 20px; }
+  .org-summary > div { padding: 18px 24px; }
+  .org-summary > div + div { border-left: 1px solid #f0f1f3; }
+  .org-summary .l { font-size: 12.5px; font-weight: 500; color: #6b7280; display: flex; align-items: center; gap: 6px; }
+  .org-summary .l i { font-size: 15px; color: #9ca3af; }
+  .org-summary .v { font-size: 26px; font-weight: 700; color: #111827; margin-top: 6px; letter-spacing: -0.5px; line-height: 1.1; }
+  .org-summary .v small { font-size: 14px; font-weight: 500; color: #6b7280; letter-spacing: 0; }
+  .org-summary .s { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+  .org-panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+  .org-panel-head { display: flex; align-items: center; gap: 16px; padding: 18px 24px; }
+  .org-panel-head h2 { font-size: 15px; font-weight: 600; color: #111827; margin: 0; }
+  .org-panel-head p { font-size: 13px; color: #6b7280; margin: 3px 0 0; }
+  .org-panel-head .org-btn, .org-panel-head .badge-pill { margin-left: auto; flex-shrink: 0; }
+  .org-rows { margin: 0; }
+  .org-row { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; padding: 14px 24px; border-top: 1px solid #f0f1f3; align-items: center; }
+  .org-row dt { font-size: 13px; color: #6b7280; font-weight: 500; }
+  .org-row dd { margin: 0; font-size: 14px; color: #111827; font-weight: 500; word-break: break-word; }
+  .org-row dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; letter-spacing: 0.4px; }
+  .org-row .empty { color: #9ca3af; font-weight: 400; font-family: "Segoe UI", sans-serif; font-size: 14px; letter-spacing: 0; }
+  .org-panel-foot { display: flex; align-items: center; gap: 10px; padding: 14px 24px; border-top: 1px solid #f0f1f3; background: #f9fafb; font-size: 13px; color: #6b7280; }
+  .org-panel-foot .org-btn { margin-left: auto; }
+  .org-panel-foot a.text { color: #1e3a8a; font-weight: 600; text-decoration: none; }
+  .org-panel-foot a.text:hover { text-decoration: underline; }
+  .org-edit { display: none; padding: 18px 24px 22px; border-top: 1px solid #f0f1f3; }
+  .org-panel.editing .org-edit { display: block; }
+  .org-panel.editing .org-rows, .org-panel.editing [data-edit-toggle] { display: none; }
+  .org-form-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; }
+  .org-form-actions { display: flex; gap: 8px; }
+  .p-btn.sm { padding: 7px 14px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+
+  @media (max-width: 980px) {
+    .org-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  }
+  @media (max-width: 900px) {
+    .org-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .org-form-row { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .org-summary { grid-template-columns: minmax(0, 1fr); }
+    .org-summary > div + div { border-left: none; border-top: 1px solid #f0f1f3; }
+  }
+
+  body.dark-mode .org-side, body.dark-mode .org-summary, body.dark-mode .org-panel, body.dark-mode .p-card { background: #161b22; border-color: #30363d; }
+  body.dark-mode .org-ident, body.dark-mode .org-side-foot, body.dark-mode .org-summary > div + div, body.dark-mode .org-row,
+  body.dark-mode .org-edit, body.dark-mode .org-panel-foot { border-color: #30363d; }
+  body.dark-mode .org-panel-foot { background: #0d1117; }
+  body.dark-mode .org-side-foot { background: #0d1117; }
+  body.dark-mode .org-menu-item { color: #c9d1d9; }
+  body.dark-mode .org-menu-item:hover { background: #21262d; color: #e6edf3; }
+  body.dark-mode .org-menu-item.active { background: #1f2a44; color: #93c5fd; }
+  body.dark-mode .org-menu-item.active i { color: #93c5fd; }
+  body.dark-mode .org-ident-name, body.dark-mode .org-page-head h1, body.dark-mode .org-summary .v,
+  body.dark-mode .org-panel-head h2, body.dark-mode .org-row dd { color: #e6edf3; }
+  body.dark-mode .org-btn { background: #21262d; border-color: #30363d; color: #c9d1d9; }
+  body.dark-mode .org-btn.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
 </style>
 {% endblock %}
 
 {% block main %}
-  <div class="profile-tabs">
-    <a class="profile-tab {{ 'active' if active_tab == 'company' }}" href="{{ tpath('/profile') }}"><i class="ti ti-building"></i> Company Info</a>
-    <a class="profile-tab {{ 'active' if active_tab == 'billing' }}" href="{{ tpath('/profile/billing') }}"><i class="ti ti-credit-card"></i> Subscription &amp; Billing</a>
-    <a class="profile-tab {{ 'active' if active_tab == 'payments' }}" href="{{ tpath('/profile/payments') }}"><i class="ti ti-receipt"></i> Payment History</a>
-    <a class="profile-tab {{ 'active' if active_tab == 'tickets' }}" href="{{ tpath('/profile/tickets') }}"><i class="ti ti-headset"></i> Support Tickets</a>
-  </div>
+<div class="org-page">
+  {% set _words = (co.company_name or 'O').split() %}
+  {% set na %}<span class="empty">Not provided</span>{% endset %}
+  {% set _menu = [
+      ('company',  tpath('/profile'),                  'ti-layout-dashboard', 'Overview'),
+      ('legal',    tpath('/profile?section=legal'),    'ti-certificate',      'Legal & compliance'),
+      ('contact',  tpath('/profile?section=contact'),  'ti-address-book',     'Contact'),
+      ('policies', tpath('/profile/policies'),         'ti-file-text',        'Policies'),
+      ('payments', tpath('/profile/payments'),         'ti-receipt',          'Payment history'),
+      ('tickets',  tpath('/profile/tickets'),          'ti-headset',          'Support tickets'),
+  ] %}
+  <div class="org-layout">
+    <aside class="org-side">
+      <div class="org-ident">
+        <div class="org-mark">
+          {% if co.logo_url or co.company_logo %}<img src="{{ co.logo_url or co.company_logo }}" alt="{{ co.company_name }} logo">
+          {% else %}{{ (_words[0][:1] ~ (_words[1][:1] if _words|length > 1 else ''))|upper }}{% endif %}
+        </div>
+        <div class="org-ident-text">
+          <div class="org-ident-name">{{ co.company_name }}</div>
+          <div class="org-ident-sub">{{ co.company_code or 'Organization' }}</div>
+        </div>
+      </div>
+      <nav class="org-menu" aria-label="Organization sections">
+        <div class="org-menu-label">Organization</div>
+        {% for key, href, icon, label in _menu %}
+          {% if key == 'policies' %}<div class="org-menu-label">Account</div>{% endif %}
+          <a class="org-menu-item {{ 'active' if active_tab == key }}" href="{{ href }}" {{ 'aria-current=page' if active_tab == key }}><i class="ti {{ icon }}"></i>{{ label }}</a>
+        {% endfor %}
+      </nav>
+      <a class="org-side-foot" href="{{ tpath('/settings') }}"><i class="ti ti-settings"></i> Go to Settings <i class="ti ti-arrow-up-right"></i></a>
+    </aside>
 
-  {# ══════════════════════ COMPANY INFO ══════════════════════ #}
+    <div class="org-content">
+  {# ══════════════════════ OVERVIEW ══════════════════════ #}
   {% if active_tab == 'company' %}
+    <div class="org-page-head">
+      <h1>Overview</h1>
+      <p>Your organization at a glance.</p>
+    </div>
     <div class="p-card">
       <h2>Profile Photo</h2>
       <div class="sub">Shown on your profile button at the top right of every page.</div>
@@ -107,112 +251,122 @@
       </div>
     </div>
 
-    <div class="p-card">
-      <h2>Company Details</h2>
-      <div class="sub">Your company's profile as it appears across HRZEST.</div>
-      <div class="p-row"><span class="p-label">Company name</span><span class="p-value">{{ co.company_name }}</span></div>
-      <div class="p-row">
-        <span class="p-label">Document verification</span>
-        <span class="p-value">
-          {% if not application %}<span class="badge-pill badge-neutral">Not required</span>
-          {% elif application.doc_review_status == 'approved' %}<span class="badge-pill badge-success">Verified</span>
-          {% elif application.doc_review_status == 'rejected' %}<span class="badge-pill badge-failed">Rejected</span>
-          {% elif application.doc_review_status == 'pending_review' %}<span class="badge-pill badge-pending">Under review</span>
-          {% else %}<span class="badge-pill badge-pending">Documents pending</span>{% endif %}
-        </span>
+    <div class="org-summary">
+      <div>
+        <div class="l"><i class="ti ti-users"></i> Employees</div>
+        <div class="v">{{ employee_count }}{% if seat_cap is not none %}<small> / {{ seat_cap }}</small>{% endif %}</div>
+        <div class="s">{{ 'Unlimited plan' if seat_cap is none else 'Seats in use' }}</div>
       </div>
-      {% if application and application.doc_review_status != 'pending_review' %}
-      <div class="p-row">
-        <span class="p-label">&nbsp;</span>
-        <span class="p-value"><a class="p-btn secondary" href="{{ tpath('/settings/company_verification') }}" style="padding:6px 14px;font-size:12px;">{{ 'Re-upload documents' if application.doc_review_status == 'rejected' else 'Upload documents' }}</a></span>
+      <div>
+        <div class="l"><i class="ti ti-sitemap"></i> Departments</div>
+        <div class="v">{{ department_count }}</div>
+        <div class="s">Across all employees</div>
       </div>
-      {% endif %}
-      <div class="p-row"><span class="p-label">Account created</span><span class="p-value">{{ application.tenant_created_at.strftime('%d %b %Y') if application and application.tenant_created_at else '—' }}</span></div>
-      <div class="p-row">
-        <span class="p-label">Employees</span>
-        <span class="p-value">{{ employee_count }}{% if seat_cap is not none %} / {{ seat_cap }}{% else %} (unlimited plan){% endif %}</span>
+      <div>
+        <div class="l"><i class="ti ti-file-text"></i> Published policies</div>
+        <div class="v">{{ published_policy_count }}</div>
+        <div class="s"><a href="{{ tpath('/profile/policies') }}">Manage policies</a></div>
       </div>
-      <div class="p-row"><span class="p-label">GST number</span><span class="p-value">{{ application.gst_number if application and application.gst_number else '—' }}</span></div>
     </div>
 
-    <div class="p-card">
-      <h2>Contact Details</h2>
-      <div class="sub">Only these fields can be edited here — company name and business documents go through verification instead.</div>
-      {% if email_ok %}<div class="banner info"><i class="ti ti-circle-check"></i> Contact email updated.</div>{% endif %}
-      <form method="POST" action="{{ tpath('/admin_set_recovery_email') }}">
-        <input type="hidden" name="return_to" value="profile">
-        <label class="field-label" for="p-recovery-email">Admin contact email</label>
-        <input class="p-input" type="email" id="p-recovery-email" name="recovery_email" value="{{ admin_recovery_email }}" placeholder="you@company.com">
-        <button class="p-btn" type="submit">Save Email</button>
-      </form>
-    </div>
-
-    <div class="p-card">
-      <form method="POST" action="{{ tpath('/profile/company_info') }}">
-        <label class="field-label" for="p-contact-phone">Contact phone</label>
-        <input class="p-input" type="tel" id="p-contact-phone" name="contact_phone" value="{{ co.contact_phone }}" placeholder="+91 98765 43210">
-        <label class="field-label" for="p-address">Address</label>
-        <input class="p-input" type="text" id="p-address" name="address" value="{{ co.address }}" placeholder="Registered office address">
-        <button class="p-btn" type="submit">Save Details</button>
-      </form>
-    </div>
+    <section class="org-panel">
+      <div class="org-panel-head">
+        <div><h2>Organization details</h2><p>Basic information about your organization.</p></div>
+      </div>
+      <dl class="org-rows">
+        <div class="org-row"><dt>Organization name</dt><dd>{{ co.company_name }}</dd></div>
+        <div class="org-row"><dt>Organization code</dt><dd class="mono">{{ co.company_code or na }}</dd></div>
+        <div class="org-row"><dt>Tagline</dt><dd>{{ co.company_tagline or na }}</dd></div>
+        <div class="org-row"><dt>Subdomain</dt><dd>{{ application.subdomain if application and application.subdomain else na }}</dd></div>
+        <div class="org-row"><dt>Email domain</dt><dd>{{ co.email_domain or na }}</dd></div>
+        <div class="org-row"><dt>Member since</dt><dd>{{ application.tenant_created_at.strftime('%d %B %Y') if application and application.tenant_created_at else na }}</dd></div>
+        <div class="org-row"><dt>Verification</dt><dd>{% if not application %}<span class="badge-pill badge-neutral">Not required</span>
+        {% elif application.doc_review_status == 'approved' %}<span class="badge-pill badge-success">Verified</span>
+        {% elif application.doc_review_status == 'rejected' %}<span class="badge-pill badge-failed">Rejected</span>
+        {% elif application.doc_review_status == 'pending_review' %}<span class="badge-pill badge-pending">Under review</span>
+        {% else %}<span class="badge-pill badge-pending">Documents pending</span>{% endif %} <a class="org-inline-link" href="{{ tpath('/profile?section=legal') }}">View details</a></dd></div>
+      </dl>
+    </section>
   {% endif %}
 
-  {# ══════════════════════ SUBSCRIPTION & BILLING ══════════════════════ #}
-  {% if active_tab == 'billing' %}
-    {% if subscription_status == 'trialing' %}
-      <div class="banner info"><i class="ti ti-hourglass"></i> You're on a free trial{% if trial_days_remaining is not none %} — {{ trial_days_remaining }} day{{ 's' if trial_days_remaining != 1 else '' }} remaining{% endif %}{% if trial_end_date %} (ends {{ trial_end_date.strftime('%d %b %Y') }}){% endif %}.</div>
-    {% elif subscription_status == 'past_due' %}
-      <div class="banner danger"><i class="ti ti-alert-triangle"></i> Your last payment failed or is overdue — see <a href="{{ tpath('/settings?tab=billing') }}" style="color:inherit;">Settings &rarr; Billing</a> to resolve auto-debit.</div>
-    {% endif %}
-
-    <div class="p-card">
-      <h2>Plan Status</h2>
-      <div class="p-row"><span class="p-label">Status</span><span class="p-value"><span class="badge-pill {{ 'badge-success' if subscription_status == 'active' else ('badge-pending' if subscription_status == 'trialing' else 'badge-failed') }}">{{ subscription_status.replace('_', ' ') }}</span></span></div>
-      <div class="p-row">
-        <span class="p-label">Employees</span>
-        <span class="p-value">{{ employee_count }}{% if employee_seat_cap is not none %} / {{ employee_seat_cap }}{% else %} (unlimited plan){% endif %}</span>
-      </div>
-      <div class="p-row"><span class="p-label">Rate per employee</span><span class="p-value">{{ per_employee_paise // 100 }} / month</span></div>
-      <div class="p-row"><span class="p-label">Estimated next charge</span><span class="p-value">{{ monthly_bill_display }}</span></div>
-      <div class="p-row">
-        <span class="p-label">Auto-debit</span>
-        <span class="p-value">
-          {% if auto_debit_status %}<span class="badge-pill {{ 'badge-success' if auto_debit_status.status == 'active' else ('badge-failed' if auto_debit_status.status == 'cancelled' else 'badge-pending') }}">{{ auto_debit_status.status.replace('_', ' ') }}</span>
-          {% else %}<span class="badge-pill badge-neutral">Not enabled</span>{% endif %}
-        </span>
-      </div>
-      <div class="p-row">
-        <span class="p-label">&nbsp;</span>
-        <span class="p-value"><a class="p-btn" href="{{ tpath('/settings?tab=billing') }}">Manage Plan</a></span>
-      </div>
+  {# ══════════════════════ LEGAL & COMPLIANCE ══════════════════════ #}
+  {% if active_tab == 'legal' %}
+    <div class="org-page-head">
+      <h1>Legal &amp; compliance</h1>
+      <p>Registration identifiers on file. These are updated through document verification.</p>
     </div>
-
-    <div class="p-card">
-      <h2>Recent Charges</h2>
-      <div class="sub">Your last {{ invoices|length }} recurring charges. See the Payment History tab for your complete record.</div>
-      {% if invoices %}
-      <table class="p-table">
-        <thead><tr><th>Period</th><th>Employees</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody>
-        {% for inv in invoices %}
-          <tr>
-            <td>{{ inv.billing_period.strftime('%b %Y') if inv.billing_period else '—' }}</td>
-            <td>{{ inv.employee_count }}</td>
-            <td>{{ inv.amount_display }}</td>
-            <td><span class="badge-pill {{ 'badge-success' if inv.status == 'paid' else ('badge-failed' if inv.status == 'failed' else 'badge-pending') }}">{{ inv.status }}</span></td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div class="empty-state">No recurring charges yet.</div>
+    <section class="org-panel">
+      <div class="org-panel-head">
+        <div><h2>Verification status</h2><p>Business documents reviewed by HRZEST.</p></div>
+        {% if not application %}<span class="badge-pill badge-neutral">Not required</span>
+        {% elif application.doc_review_status == 'approved' %}<span class="badge-pill badge-success">Verified</span>
+        {% elif application.doc_review_status == 'rejected' %}<span class="badge-pill badge-failed">Rejected</span>
+        {% elif application.doc_review_status == 'pending_review' %}<span class="badge-pill badge-pending">Under review</span>
+        {% else %}<span class="badge-pill badge-pending">Documents pending</span>{% endif %}
+      </div>
+      {% if application and application.doc_review_status not in ('pending_review', 'approved') %}
+      <div class="org-panel-foot">
+        <span>{{ 'Your documents were rejected. Upload corrected copies to get verified.' if application.doc_review_status == 'rejected' else 'Upload your business documents to get verified.' }}</span>
+        <a class="org-btn primary" href="{{ tpath('/settings/company_verification') }}"><i class="ti ti-upload"></i> {{ 'Re-upload documents' if application.doc_review_status == 'rejected' else 'Upload documents' }}</a>
+      </div>
       {% endif %}
+    </section>
+    <section class="org-panel">
+      <div class="org-panel-head">
+        <div><h2>Registration identifiers</h2><p>Tax and company registration numbers.</p></div>
+      </div>
+      <dl class="org-rows">
+        <div class="org-row"><dt>GSTIN</dt><dd class="mono">{{ application.gst_number if application and application.gst_number else na }}</dd></div>
+        <div class="org-row"><dt>PAN</dt><dd class="mono">{{ application.pan if application and application.pan else na }}</dd></div>
+        <div class="org-row"><dt>CIN</dt><dd class="mono">{{ application.cin if application and application.cin else na }}</dd></div>
+      </dl>
+    </section>
+  {% endif %}
+
+  {# ══════════════════════ CONTACT ══════════════════════ #}
+  {% if active_tab == 'contact' %}
+    <div class="org-page-head">
+      <h1>Contact</h1>
+      <p>How employees and HRZEST can reach your organization.</p>
     </div>
+    <section class="org-panel" id="org-contact">
+      <div class="org-panel-head">
+        <div><h2>Contact information</h2><p>Phone number and registered office address.</p></div>
+        <button type="button" class="org-btn" data-edit-toggle><i class="ti ti-pencil"></i> Edit</button>
+      </div>
+      <dl class="org-rows">
+        <div class="org-row"><dt>Phone</dt><dd>{{ co.contact_phone or na }}</dd></div>
+        <div class="org-row"><dt>Registered address</dt><dd>{{ co.address or na }}</dd></div>
+      </dl>
+      <form class="org-edit" method="POST" action="{{ tpath('/profile/company_info') }}">
+        <div class="org-form-row">
+          <div>
+            <label class="field-label" for="p-contact-phone">Phone</label>
+            <input class="p-input" type="tel" id="p-contact-phone" name="contact_phone" value="{{ co.contact_phone }}" placeholder="+91 98765 43210">
+          </div>
+          <div>
+            <label class="field-label" for="p-address">Registered address</label>
+            <input class="p-input" type="text" id="p-address" name="address" value="{{ co.address }}" placeholder="Registered office address">
+          </div>
+        </div>
+        <div class="org-form-actions">
+          <button class="org-btn primary" type="submit">Save changes</button>
+          <button class="org-btn" type="button" data-edit-cancel>Cancel</button>
+        </div>
+      </form>
+      <div class="org-panel-foot">
+        <i class="ti ti-info-circle"></i>
+        <span>Admin email, work schedule and office location are managed in <a class="text" href="{{ tpath('/settings') }}">Settings</a>.</span>
+      </div>
+    </section>
   {% endif %}
 
   {# ══════════════════════ PAYMENT HISTORY ══════════════════════ #}
   {% if active_tab == 'payments' %}
+    <div class="org-page-head">
+      <h1>Payment history</h1>
+      <p>Every payment made for your HRZEST subscription.</p>
+    </div>
     <form class="p-filters" method="GET" action="{{ tpath('/profile/payments') }}">
       <div>
         <label for="pf-status">Status</label>
@@ -260,8 +414,94 @@
     {% endif %}
   {% endif %}
 
+  {# ══════════════════════ POLICIES ══════════════════════ #}
+  {% if active_tab == 'policies' %}
+    <div class="org-page-head">
+      <h1>Policies</h1>
+      <p>Your organization's own workplace policies, shown to HR and employees.</p>
+    </div>
+    {% set cat_labels = dict(policy_categories) %}
+    <div class="p-card">
+      <h2>All policies</h2>
+      <div class="sub">{% if policies %}{{ policies|length }} polic{{ 'y' if policies|length == 1 else 'ies' }}, {{ policies|selectattr('is_published')|list|length }} published. {% endif %}New policies are visible to employees as soon as they're saved. Use Unpublish to hide one.</div>
+      <details class="policy-add">
+        <summary class="p-btn"><i class="ti ti-plus"></i> Add Policy</summary>
+        <form method="POST" action="{{ tpath('/policies/add') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <label class="field-label">Start from a template</label>
+          <div class="policy-templates">
+            <button type="button" class="policy-tpl active" data-tpl="">Blank</button>
+            {% for t in policy_templates %}<button type="button" class="policy-tpl" data-tpl="{{ loop.index0 }}">{{ t.title }}</button>{% endfor %}
+          </div>
+          <label class="field-label" for="pol-category">Category</label>
+          <select class="p-input policy-cat" id="pol-category" name="category" required>
+            {% for key, label in policy_categories %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            <option value="other">Other (custom)…</option>
+          </select>
+          <div class="policy-custom" hidden>
+            <label class="field-label" for="pol-custom">Custom category name</label>
+            <input class="p-input" type="text" id="pol-custom" name="custom_category" maxlength="50" placeholder="e.g. Travel Policy, IT &amp; Security">
+          </div>
+          <label class="field-label" for="pol-title">Title</label>
+          <input class="p-input" type="text" id="pol-title" name="title" placeholder="e.g. Leave Policy 2026" required>
+          <label class="field-label" for="pol-body">Policy text</label>
+          <textarea class="p-input" id="pol-body" name="body" rows="5" placeholder="Write the policy here…" required></textarea>
+          <button class="p-btn" type="submit">Save &amp; Publish</button>
+        </form>
+      </details>
+      {% for p in policies %}
+        <details class="policy-item">
+          <summary>
+            <span>
+              <span class="policy-title">{{ p.title }}</span>
+              <span class="policy-meta">{{ cat_labels.get(p.category, p.category) }}{% if p.updated_at %} · updated {{ p.updated_at.strftime('%d %b %Y') if p.updated_at.strftime is defined else p.updated_at }}{% endif %}</span>
+            </span>
+            <span class="policy-right">
+              <span class="badge-pill {{ 'badge-success' if p.is_published else 'badge-neutral' }}">{{ 'Published' if p.is_published else 'Unpublished' }}</span>
+              <i class="ti ti-chevron-down policy-chev"></i>
+            </span>
+          </summary>
+          <form method="POST" action="{{ tpath('/policies/' ~ p.id ~ '/edit') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <label class="field-label" for="pol-cat-{{ p.id }}">Category</label>
+            {% set is_custom = p.category not in cat_labels %}
+            <select class="p-input policy-cat" id="pol-cat-{{ p.id }}" name="category" required>
+              {% for key, label in policy_categories %}<option value="{{ key }}" {{ 'selected' if key == p.category }}>{{ label }}</option>{% endfor %}
+              <option value="other" {{ 'selected' if is_custom }}>Other (custom)…</option>
+            </select>
+            <div class="policy-custom" {{ '' if is_custom else 'hidden' }}>
+              <label class="field-label" for="pol-custom-{{ p.id }}">Custom category name</label>
+              <input class="p-input" type="text" id="pol-custom-{{ p.id }}" name="custom_category" maxlength="50" value="{{ p.category if is_custom else '' }}" placeholder="e.g. Travel Policy, IT &amp; Security">
+            </div>
+            <label class="field-label" for="pol-title-{{ p.id }}">Title</label>
+            <input class="p-input" type="text" id="pol-title-{{ p.id }}" name="title" value="{{ p.title }}" required>
+            <label class="field-label" for="pol-body-{{ p.id }}">Policy text</label>
+            <textarea class="p-input" id="pol-body-{{ p.id }}" name="body" rows="6" required>{{ p.body }}</textarea>
+            <button class="p-btn" type="submit">Save Changes</button>
+          </form>
+          <div class="policy-actions">
+            <form method="POST" action="{{ tpath('/policies/' ~ p.id ~ ('/unpublish' if p.is_published else '/publish')) }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+              <button class="p-btn secondary" type="submit">{{ 'Unpublish' if p.is_published else 'Publish' }}</button>
+            </form>
+            <form method="POST" action="{{ tpath('/policies/' ~ p.id ~ '/delete') }}" onsubmit="return confirm('Delete this policy?');">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+              <button class="p-btn danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </details>
+      {% else %}
+        <div class="empty-state">No policies yet. Click <strong>Add Policy</strong> to write your organization's first policy.</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   {# ══════════════════════ SUPPORT TICKETS ══════════════════════ #}
   {% if active_tab == 'tickets' %}
+    <div class="org-page-head">
+      <h1>Support tickets</h1>
+      <p>Questions and issues you've raised with HRZEST support.</p>
+    </div>
     <div class="p-card">
       <h2>Raise a New Ticket</h2>
       <form method="POST" action="{{ tpath('/profile/tickets') }}">
@@ -293,4 +533,61 @@
       {% endif %}
     </div>
   {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if active_tab == 'contact' %}
+<script>
+(function () {
+  var panel = document.getElementById('org-contact');
+  if (!panel) return;
+  panel.querySelector('[data-edit-toggle]').addEventListener('click', function () {
+    panel.classList.add('editing');
+    document.getElementById('p-contact-phone').focus();
+  });
+  panel.querySelector('[data-edit-cancel]').addEventListener('click', function () {
+    panel.querySelector('form').reset();
+    panel.classList.remove('editing');
+  });
+})();
+</script>
+{% endif %}
+{% if active_tab == 'policies' %}
+<script>
+(function () {
+  var templates = {{ policy_templates|tojson }};
+  var cat = document.getElementById('pol-category');
+  var title = document.getElementById('pol-title');
+  var body = document.getElementById('pol-body');
+  function syncCustom(select) {
+    var box = select.parentNode.querySelector('.policy-custom');
+    var input = box.querySelector('input');
+    box.hidden = select.value !== 'other';
+    input.required = !box.hidden;
+  }
+  document.querySelectorAll('.policy-cat').forEach(function (select) {
+    syncCustom(select);
+    select.addEventListener('change', function () {
+      syncCustom(select);
+      if (select.value === 'other') select.parentNode.querySelector('.policy-custom input').focus();
+    });
+  });
+  document.querySelectorAll('.policy-tpl').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (body.value.trim() && !confirm('Replace what you have written with this template?')) return;
+      var t = btn.dataset.tpl === '' ? null : templates[+btn.dataset.tpl];
+      cat.value = t ? t.category : cat.options[0].value;
+      title.value = t ? t.title : '';
+      body.value = t ? t.body : '';
+      syncCustom(cat);
+      document.querySelectorAll('.policy-tpl').forEach(function (b) { b.classList.toggle('active', b === btn); });
+      (t ? body : title).focus();
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}
