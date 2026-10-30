@@ -24,7 +24,7 @@
 .auth-promo-title {
   font-family: var(--font-heading);
   font-size: 34px; line-height: 1.15; font-weight: 800; letter-spacing: -0.8px;
-  margin: 18px 0 14px;
+  margin: 0 0 14px;
 }
 .auth-promo-title span {
   display: block;

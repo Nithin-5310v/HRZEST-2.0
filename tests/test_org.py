@@ -19,7 +19,6 @@ Run with:
 """
 import pytest
 
-from extensions import app as flask_app
 from tests.signup_flow import (
     MOBILE, application_id_from, capture_codes, company_slug, random_gst, save_company_details, signup_company,
     signup_verified, start_signup, submit_profile, upload_documents, verify_email,
@@ -237,16 +236,13 @@ class TestOneStepSignupPage:
             assert f'name="{field}"' not in page, field
         assert "wizard-step" not in page
 
-    def test_portal_preview_uses_this_servers_address(self, client):
-        """The company URL preview shows where the portal really lives --
-        this server's own address (APP_URL, the live server's IP
-        address there) -- not a hard-coded www.hrzest.com, which is another
-        server."""
-        from utils.helpers import _safe_app_url
-        with flask_app.test_request_context("/create_org"):
-            base = _safe_app_url()
+    def test_no_portal_url_hint_on_signup(self, client):
+        """The "Your team's portal: .../your-company/login" hint under
+        Company Name was removed from the sign-up page on request; it must
+        not come back, and no hard-coded www.hrzest.com address either."""
         page = client.get("/create_org").get_data(as_text=True)
-        assert f"{base}/your-company/login" in page
+        assert "Your team's portal" not in page
+        assert "/your-company/login</strong>" not in page
         assert "www.hrzest.com/your-company" not in page
 
     def test_code_entry_is_the_signup_page_with_the_details_locked_in(self, client, monkeypatch):

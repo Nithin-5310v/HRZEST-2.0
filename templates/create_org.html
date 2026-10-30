@@ -63,6 +63,13 @@
     .entered-change { display: inline-block; margin-top: 6px; font-size: 11.5px; font-weight: 600; color: var(--accent-cyan); text-decoration: none; }
     .entered-change:hover { text-decoration: underline; }
     .otp-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+    .otp-hint {
+      display: flex; gap: 8px; align-items: flex-start; margin: -2px 0 10px;
+      padding: 9px 11px; border-radius: 10px; background: #eef4ff; border: 1px solid #c7d7fe;
+      font-size: 12px; line-height: 1.5; color: #1e3a8a;
+    }
+    .otp-hint i { font-size: 15px; margin-top: 1px; color: #2563eb; flex-shrink: 0; }
+    .otp-hint strong { font-weight: 700; word-break: break-all; }
     .otp-input {
       width: 100%; padding: 14px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 10px;
       background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
@@ -154,6 +161,11 @@
     }
     .oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
   </style>
+  <!-- Shared Zoho-style public theme (blue, clean light canvas), loaded last -->
+  <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
 
@@ -184,7 +196,7 @@
       {% elif code_step %}
       <div class="intro-icon"><i class="ti ti-mail-check"></i></div>
       <h1>Start Your Organisation</h1>
-      <p>Enter the 6-digit code we emailed to <strong>{{ application.admin_email }}</strong>. It expires in 5 minutes.</p>
+      {# the "code sent to <email>, expires in 5 minutes" note sits by the code box below #}
       {% else %}
       <div class="intro-icon"><i class="ti ti-rocket"></i></div>
       <h1>Start Your Organisation</h1>
@@ -223,8 +235,13 @@
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
         <input type="hidden" name="application_id" value="{{ application.id }}" />
         <label class="otp-label" for="otp_code_input">Verification code</label>
+        <p class="otp-hint" id="otp_code_hint">
+          <i class="ti ti-mail" aria-hidden="true"></i>
+          <span>Enter the 6-digit code sent to <strong>{{ application.admin_email }}</strong>. It expires in 5 minutes.</span>
+        </p>
         <input class="otp-input" type="text" name="otp_code" id="otp_code_input" inputmode="numeric" pattern="[0-9]{6}"
-               maxlength="6" placeholder="••••••" required autofocus autocomplete="one-time-code" />
+               maxlength="6" placeholder="••••••" required autofocus autocomplete="one-time-code"
+               aria-describedby="otp_code_hint" />
         <button type="submit" class="btn-submit">
           <span>{% if free_registration %}Verify &amp; Create the Company{% else %}Verify &amp; Open My Dashboard{% endif %}</span>
           <i class="ti ti-arrow-right"></i>
@@ -290,7 +307,6 @@
           <input class="field-input" type="text" name="company_name" id="company_name_input"
                  placeholder="e.g. Acme Corporation" required maxlength="200" autocomplete="organization"
                  oninput="previewCompanyUrl(this.value)" />
-          <div class="field-hint">Your team's portal: <strong id="companyUrlPreview" style="color: var(--accent-cyan);">{{ portal_base }}/your-company/login</strong></div>
         </div>
 
         <div class="field-group">
@@ -433,8 +449,10 @@
 
   // Mirrors org.py's _slug_for_company(); the server adds -2, -3 ... if the URL is taken.
   function previewCompanyUrl(name) {
+    const preview = document.getElementById('companyUrlPreview');
+    if (!preview) return; // the portal-URL hint is not shown on this page
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
-    document.getElementById('companyUrlPreview').textContent = PORTAL_BASE + '/' + (slug || 'your-company') + '/login';
+    preview.textContent = PORTAL_BASE + '/' + (slug || 'your-company') + '/login';
   }
   </script>
 </body>

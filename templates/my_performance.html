@@ -73,6 +73,11 @@
     body.dark-mode .empty-state h3{color:#cdd9e5!important}
     body.dark-mode .empty-state p{color:#768390!important}
   </style>
+  <!-- Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles -->
+  <link rel="stylesheet" href="{{ static_url('employee-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
 

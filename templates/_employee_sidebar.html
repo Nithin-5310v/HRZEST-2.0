@@ -14,86 +14,66 @@
     sb_name, sb_role, sb_id, sb_has_photo, sb_photo_url   profile block
     sb_show_brand           (optional bool) show the company logo header
 #}
+{# Blue top banner (company, date, bell, profile menu) -- same as the admin side #}
+{% include "_employee_topbar.html" %}
+
 <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
 <button type="button" class="sb-toggle" id="sbToggleBtn" onclick="toggleSidebar()" aria-label="Toggle menu"><i class="ti ti-menu-2"></i></button>
 
 <nav class="sidebar" id="sidebar">
-  {% if sb_show_brand and co.logo_url %}
-  <div class="sb-brand">
-    <div class="sb-brand-logo">
-      <img src="{{ co.logo_url }}" alt="{{ co.company_name }}" onerror="this.parentNode.style.display='none'" />
-    </div>
-    <div class="sb-brand-name">{{ co.company_name }}</div>
-  </div>
-  {% endif %}
-  <div class="sb-profile">
-    <div class="sb-avatar">
-      {% if sb_has_photo %}
-        <img src="{{ sb_photo_url }}" alt="{{ sb_name }}" onerror="this.parentNode.innerHTML='{{ sb_name[0] | upper }}'" />
-      {% else %}
-        {{ sb_name[0] | upper }}
-      {% endif %}
-    </div>
-    <div>
-      <div class="sb-name">{{ sb_name }}</div>
-      <div class="sb-role">{{ sb_role or 'Employee' }}</div>
-      <div class="sb-id">ID: {{ sb_id }}</div>
-    </div>
-  </div>
-
+  {# Company name/logo and the employee's name/role now live in the top banner;
+     the portal search sits at the top of employee_portal.html's content. #}
   <div class="sb-scroll-nav">
     <div class="sb-nav-label">Main</div>
     {% if sb_mode == 'portal' %}
-      <button type="button" class="sb-item" id="sbn-dashboard" onclick="showView('dashboard')">Dashboard</button>
-      <button type="button" class="sb-item" id="sbn-attendance" onclick="showView('attendance')">Attendance</button>
-      <button type="button" class="sb-item" id="sbn-apply-leave" onclick="showView('apply-leave')">Apply Leave</button>
-      <button type="button" class="sb-item" id="sbn-earnings" onclick="showView('earnings')">Earnings</button>
-      <button type="button" class="sb-item" id="sbn-holidays" onclick="showView('holidays')">Holidays</button>
+      <button type="button" class="sb-item" id="sbn-dashboard" onclick="showView('dashboard')"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</button>
+      <button type="button" class="sb-item" id="sbn-attendance" onclick="showView('attendance')"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</button>
+      <button type="button" class="sb-item" id="sbn-apply-leave" onclick="showView('apply-leave')"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Apply Leave</button>
+      <button type="button" class="sb-item" id="sbn-earnings" onclick="showView('earnings')"><span class="nav-icon"><i class="ti ti-coin"></i></span>Earnings</button>
+      <button type="button" class="sb-item" id="sbn-holidays" onclick="showView('holidays')"><span class="nav-icon"><i class="ti ti-beach"></i></span>Holidays</button>
     {% else %}
-      <a href="{{ tpath('/employee_portal#dashboard') }}" class="sb-item u-tdec-none">Dashboard</a>
-      <a href="{{ tpath('/employee_portal#attendance') }}" class="sb-item u-tdec-none">Attendance</a>
-      <a href="{{ tpath('/employee_portal#apply-leave') }}" class="sb-item u-tdec-none">Apply Leave</a>
-      <a href="{{ tpath('/employee_portal#earnings') }}" class="sb-item u-tdec-none">Earnings</a>
-      <a href="{{ tpath('/employee_portal#holidays') }}" class="sb-item u-tdec-none">Holidays</a>
+      <a href="{{ tpath('/employee_portal#dashboard') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+      <a href="{{ tpath('/employee_portal#attendance') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
+      <a href="{{ tpath('/employee_portal#apply-leave') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Apply Leave</a>
+      <a href="{{ tpath('/employee_portal#earnings') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-coin"></i></span>Earnings</a>
+      <a href="{{ tpath('/employee_portal#holidays') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-beach"></i></span>Holidays</a>
     {% endif %}
 
     <div class="sb-nav-label">Account</div>
-    <a href="{{ tpath('/my_compoff') }}" class="sb-item u-tdec-none{{ ' active' if sb_active == 'compoff' else '' }}">Comp-off / OT</a>
-    <a href="{{ tpath('/my_performance') }}" class="sb-item u-tdec-none{{ ' active' if sb_active == 'performance' else '' }}">My Performance</a>
-    <a href="{{ tpath('/my_onboarding') }}" class="sb-item u-tdec-none{{ ' active' if sb_active == 'onboarding' else '' }}">My Onboarding</a>
+    <a href="{{ tpath('/my_compoff') }}" class="sb-item u-tdec-none{{ ' active' if sb_active == 'compoff' else '' }}"><span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>Comp-off / OT</a>
+    <a href="{{ tpath('/my_performance') }}" class="sb-item u-tdec-none{{ ' active' if sb_active == 'performance' else '' }}"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>My Performance</a>
+    <a href="{{ tpath('/my_onboarding') }}" class="sb-item u-tdec-none{{ ' active' if sb_active == 'onboarding' else '' }}"><span class="nav-icon"><i class="ti ti-checklist"></i></span>My Onboarding</a>
     {% if sb_mode == 'portal' %}
-      <button type="button" class="sb-item" id="sbn-tickets" onclick="showView('tickets')">Support Tickets</button>
-      <button type="button" class="sb-item" id="sbn-my-profile" onclick="showView('my-profile')">My Profile</button>
+      <button type="button" class="sb-item" id="sbn-tickets" onclick="showView('tickets')"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Support Tickets</button>
+      <button type="button" class="sb-item" id="sbn-my-profile" onclick="showView('my-profile')"><span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Profile</button>
     {% else %}
-      <a href="{{ tpath('/employee_portal#tickets') }}" class="sb-item u-tdec-none">Support Tickets</a>
-      <a href="{{ tpath('/employee_portal#my-profile') }}" class="sb-item u-tdec-none">My Profile</a>
+      <a href="{{ tpath('/employee_portal#tickets') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Support Tickets</a>
+      <a href="{{ tpath('/employee_portal#my-profile') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Profile</a>
     {% endif %}
 
     <div class="sb-nav-label">Policies</div>
     {% if sb_mode == 'portal' %}
-      <button type="button" class="sb-item" id="sbn-policies" onclick="showView('policies')">Policies &amp; Guidelines</button>
+      <button type="button" class="sb-item" id="sbn-policies" onclick="showView('policies')"><span class="nav-icon"><i class="ti ti-file-text"></i></span>Policies &amp; Guidelines</button>
     {% else %}
-      <a href="{{ tpath('/employee_portal#policies') }}" class="sb-item u-tdec-none">Policies &amp; Guidelines</a>
+      <a href="{{ tpath('/employee_portal#policies') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-file-text"></i></span>Policies &amp; Guidelines</a>
     {% endif %}
   </div><!-- /sb-scroll-nav -->
 
   <div class="sb-bottom">
     {% if sb_mode == 'portal' %}
-      <button type="button" class="sb-item danger" id="sbn-resign" onclick="openResignGate()">Resignation</button>
+      <button type="button" class="sb-item danger" id="sbn-resign" onclick="openResignGate()"><span class="nav-icon"><i class="ti ti-door-exit"></i></span>Resignation</button>
     {% else %}
-      <a href="{{ tpath('/employee_portal#resign') }}" class="sb-item danger u-tdec-none">Resignation</a>
+      <a href="{{ tpath('/employee_portal#resign') }}" class="sb-item danger u-tdec-none"><span class="nav-icon"><i class="ti ti-door-exit"></i></span>Resignation</a>
     {% endif %}
     {% if session.get('_hr_return_username') %}
     <form action="{{ tpath('/switch_back_to_hr_panel') }}" method="POST" style="margin:0;">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-      <button type="submit" class="sb-item" aria-label="Back to HR Dashboard"><i class="ti ti-arrow-back-up"></i>&nbsp;Back to HR Dashboard</button>
+      <button type="submit" class="sb-item" aria-label="Back to HR Dashboard"><span class="nav-icon"><i class="ti ti-arrow-back-up"></i></span>Back to HR Dashboard</button>
     </form>
     {% endif %}
     <form action="{{ tpath('/employee_logout') }}" method="POST" class="u-m-0">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-      <button type="submit" class="sb-item danger">Logout</button>
+      <button type="submit" class="sb-item danger"><span class="nav-icon"><i class="ti ti-logout"></i></span>Logout</button>
     </form>
-
-    <div class="sb-footer"><i class="ti ti-clock u-fs-13"></i> <span class="sb-live-clock"></span></div>
   </div>
 </nav>

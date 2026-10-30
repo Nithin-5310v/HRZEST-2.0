@@ -12,6 +12,21 @@
   .page-header h1 { font-size: 24px; font-weight: 800; color: #0f172a; }
   .page-header .sub { font-size: 13px; color: #64748b; margin-top: 3px; }
   .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  /* toolbar under the blue banner: search on the left, actions on the right */
+  .page-header--toolbar { justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px; }
+  .admin-search-wrap.dash-search { flex: 1 1 520px; max-width: 560px; min-width: 240px; }
+  body .main .dash-search .admin-search-input {
+    height: 42px; padding: 0 16px 0 42px; border-radius: 10px;
+    background: #fff; border: 1px solid #d0d5dd; font-size: 13.5px; color: #101828;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
+  }
+  .dash-search .admin-search-input::placeholder { color: #667085; }
+  .dash-search .admin-search-input:hover { border-color: #98a2b3; }
+  body .main .dash-search .admin-search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, .12); }
+  .dash-search .admin-search-icon { left: 15px; font-size: 18px; color: #667085; z-index: 2; }
+  .dash-search:focus-within .admin-search-icon { color: #2563eb; }
+  .page-header--toolbar .header-actions .hbtn { height: 42px; padding: 0 16px; border-radius: 10px; font-size: 13px; }
+  @media (max-width: 768px) { .dash-search { flex-basis: 100%; max-width: none; } }
   .hbtn {
     padding: 7px 14px; border: none; border-radius: 8px;
     font-size: 12px; font-weight: 700; cursor: pointer;
@@ -22,46 +37,6 @@
   .hbtn-green  { background: #16a34a; color: white; }
   .hbtn-blue   { background: #2563eb; color: white; }
 
-  /* ── ADMIN SEARCH ── */
-  .admin-search-wrap { position: relative; flex: 1; min-width: 220px; max-width: 420px; }
-  .admin-search-icon {
-    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-    color: #94a3b8; font-size: 16px; pointer-events: none;
-  }
-  .admin-search-input {
-    width: 100%; padding: 10px 14px 10px 38px; border: 1px solid #e2e8f0; border-radius: 10px;
-    font-size: 13px; font-family: inherit; background: #fff; color: #0f172a; outline: none; transition: 0.15s;
-  }
-  .admin-search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
-  .admin-search-results {
-    position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 500;
-    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 16px 40px rgba(15,23,42,0.18);
-    max-height: 420px; overflow-y: auto; display: none;
-  }
-  .admin-search-results.open { display: block; }
-  .asr-group-label {
-    padding: 8px 14px 4px; font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.5px; color: #94a3b8;
-  }
-  .asr-item {
-    display: flex; align-items: center; gap: 10px; padding: 9px 14px;
-    text-decoration: none; color: inherit; cursor: pointer;
-  }
-  .asr-item:hover, .asr-item.active { background: #eff6ff; }
-  .asr-icon {
-    width: 30px; height: 30px; border-radius: 8px; background: #eef2f7; color: #2563eb;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px;
-  }
-  .asr-label { font-size: 13px; font-weight: 600; color: #1e293b; }
-  .asr-sub { font-size: 11.5px; color: #64748b; margin-top: 1px; }
-  .asr-empty { padding: 20px 14px; text-align: center; color: #94a3b8; font-size: 12.5px; }
-  body.dark-mode .admin-search-input { background: #22272e; border-color: #444c56; color: #cdd9e5 !important; }
-  body.dark-mode .admin-search-results { background: #22272e; border-color: #444c56; }
-  body.dark-mode .asr-item:hover, body.dark-mode .asr-item.active { background: #2d333b; }
-  body.dark-mode .asr-label { color: #cdd9e5; }
-  body.dark-mode .asr-sub { color: #8b949e; }
-  body.dark-mode .asr-icon { background: #2d333b; }
-  @media (max-width: 900px) { .admin-search-wrap { order: 3; max-width: 100%; flex-basis: 100%; } }
 
   /* ── STAT CARDS ── */
   .stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-bottom: 24px; }
@@ -231,23 +206,30 @@
   body.dark-mode .field input { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
   body.dark-mode .hbtn { opacity: 0.92; }
 </style>
+<link rel="stylesheet" href="{{ static_url('portal-search.css') }}" />
 {% endblock %}
+
 
 {% block main %}
 
   <!-- PAGE HEADER -->
-  <div class="page-header">
-    <div>
-      <h1>Admin Dashboard</h1>
-      <div class="sub">{{ today }} &nbsp;·&nbsp; <span id="clock"></span></div>
-    </div>
-    <div class="admin-search-wrap" id="adminSearchWrap">
-      <i class="ti ti-search admin-search-icon"></i>
+  <div class="page-header page-header--toolbar">
+    <!-- Dashboard search (top of the content, below the blue banner): sidebar
+         menus, every feature / tab / setting inside them, and live employees /
+         tickets / leave requests from /api/admin/search
+         (engine: static/portal-search.js). -->
+    {% set _srch_role = 'hr' if session.admin_role == 'hr' else ('manager' if session.admin_role == 'manager' else 'admin') %}
+    <div class="admin-search-wrap dash-search" id="adminSearchWrap" role="search">
+      <i class="ti ti-search admin-search-icon" aria-hidden="true"></i>
       <input type="text" id="adminSearchInput" class="admin-search-input"
-             placeholder="Search employees, tickets, leaves, pages…"
-             title="Admin search" autocomplete="off" />
-      <div class="admin-search-results" id="adminSearchResults"></div>
+             placeholder="Search menus, features, employees, tickets…"
+             aria-label="Search the admin portal" autocomplete="off" spellcheck="false"
+             role="combobox" aria-expanded="false" aria-controls="adminSearchResults"
+             data-index="admin" data-endpoint="/api/admin/search" data-base="{{ tpath('/') }}"
+             data-role="{{ _srch_role }}" />
+      <div class="admin-search-results" id="adminSearchResults" role="listbox"></div>
     </div>
+    <script src="{{ static_url('portal-search.js') }}" defer></script>
     <div class="header-actions">
       <a href="/monthly_report_export?month={{ now_month }}&year={{ now_year }}" class="hbtn hbtn-green"><i class="ti ti-download"></i> Export Month</a>
       <button type="button" onclick="sendAbsenteeReport()" class="hbtn hbtn-blue"><i class="ti ti-mail"></i> Email Absentees</button>
@@ -542,12 +524,6 @@
        dashboard render immediately. -->
   <script src="{{ static_url('chart.umd.min.js') }}"></script>
   <script>
-    /* ── CLOCK ── */
-    function updateClock() {
-      document.getElementById("clock").textContent = new Date().toLocaleTimeString("en-IN", {hour12:true});
-    }
-    setInterval(updateClock, 1000); updateClock();
-
     /* ── EMAIL ABSENTEES ── */
     async function sendAbsenteeReport() {
       const btn = event.currentTarget;
@@ -771,134 +747,4 @@
     scheduleChartRefresh();
   </script>
 
-  <!-- ADMIN SEARCH -->
-  <script>
-  (function() {
-    var STATIC_PAGES = [
-      {label: 'Dashboard', sub: 'Admin home', url: '/admin', icon: 'home'},
-      {label: 'Employees', sub: 'Manage employees', url: '/employees', icon: 'users'},
-      {label: 'Attendance', sub: 'Monthly attendance report', url: '/monthly_report', icon: 'calendar-check'},
-      {label: 'Mark Attendance', sub: 'Bulk mark attendance', url: '/bulk_mark_attendance', icon: 'pencil-check'},
-      {label: 'Salary & Payslips', sub: 'Payroll & payslips', url: '/salary_report', icon: 'coin'},
-      {label: 'Leaves & Holidays', sub: 'Leave requests, holidays', url: '/leave_holidays', icon: 'calendar-event'},
-      {label: 'OT & Comp-off', sub: 'Overtime, comp-off', url: '/overtime', icon: 'clock-bolt'},
-      {label: 'Performance & Comms', sub: 'Reviews, KPIs, hikes', url: '/performance', icon: 'chart-line'},
-      {label: 'Onboarding', sub: 'New-hire onboarding', url: '/onboarding', icon: 'checklist'},
-      {label: 'Analytics', sub: 'Charts & insights', url: '/analytics', icon: 'chart-bar'},
-      {label: 'Org Chart', sub: 'Reporting structure', url: '/org_chart', icon: 'hierarchy'},
-      {label: 'Admin Tools', sub: 'System tools', url: '/admin_tools', icon: 'tool'},
-      {label: 'Settings', sub: 'Company settings', url: '/settings', icon: 'settings'},
-      {label: 'Companies', sub: 'Manage companies', url: '/companies', icon: 'building'},
-      {label: 'Tickets', sub: 'Support tickets', url: '/leave_holidays?tab=tickets', icon: 'ticket'},
-    ];
-    var GROUP_LABELS = {employee: 'Employees', ticket: 'Tickets', leave: 'Leave Requests', page: 'Pages'};
-    var GROUP_ICONS  = {employee: 'user', ticket: 'ticket', leave: 'calendar-event', page: 'apps'};
-
-    var input   = document.getElementById('adminSearchInput');
-    var results = document.getElementById('adminSearchResults');
-    var wrap    = document.getElementById('adminSearchWrap');
-    var debounceTimer = null;
-    var flatItems = [];
-    var activeIndex = -1;
-
-    function el(tag, cls, text) {
-      var e = document.createElement(tag);
-      if (cls) e.className = cls;
-      if (text !== undefined) e.textContent = text;
-      return e;
-    }
-
-    function renderGroups(groups) {
-      flatItems = [];
-      activeIndex = -1;
-      results.innerHTML = '';
-      var any = false;
-      groups.forEach(function(g) {
-        if (!g.items.length) return;
-        any = true;
-        results.appendChild(el('div', 'asr-group-label', GROUP_LABELS[g.type]));
-        g.items.forEach(function(item) {
-          var idx = flatItems.length;
-          flatItems.push(item);
-          var a = el('a', 'asr-item');
-          a.href = item.url;
-          a.dataset.idx = idx;
-          var icon = el('span', 'asr-icon');
-          icon.innerHTML = '<i class="ti ti-' + GROUP_ICONS[g.type] + '"></i>';
-          var textWrap = el('span');
-          textWrap.appendChild(el('div', 'asr-label', item.label));
-          if (item.sub) textWrap.appendChild(el('div', 'asr-sub', item.sub));
-          a.appendChild(icon);
-          a.appendChild(textWrap);
-          results.appendChild(a);
-        });
-      });
-      if (!any) results.appendChild(el('div', 'asr-empty', 'No matches found.'));
-      results.classList.add('open');
-    }
-
-    function setActive(idx) {
-      var items = results.querySelectorAll('.asr-item');
-      items.forEach(function(it) { it.classList.remove('active'); });
-      if (idx >= 0 && idx < items.length) {
-        items[idx].classList.add('active');
-        items[idx].scrollIntoView({block: 'nearest'});
-        activeIndex = idx;
-      }
-    }
-
-    function search(q) {
-      var qLower = q.toLowerCase();
-      var pageMatches = STATIC_PAGES.filter(function(p) {
-        return p.label.toLowerCase().indexOf(qLower) !== -1 || p.sub.toLowerCase().indexOf(qLower) !== -1;
-      }).slice(0, 6);
-
-      fetch('/api/admin/search?q=' + encodeURIComponent(q))
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          var byType = {employee: [], ticket: [], leave: []};
-          (data.results || []).forEach(function(r) { if (byType[r.type]) byType[r.type].push(r); });
-          renderGroups([
-            {type: 'employee', items: byType.employee},
-            {type: 'ticket', items: byType.ticket},
-            {type: 'leave', items: byType.leave},
-            {type: 'page', items: pageMatches},
-          ]);
-        })
-        .catch(function() {
-          renderGroups([{type: 'page', items: pageMatches}]);
-        });
-    }
-
-    input.addEventListener('input', function() {
-      var q = input.value.trim();
-      clearTimeout(debounceTimer);
-      if (q.length < 2) { results.classList.remove('open'); return; }
-      debounceTimer = setTimeout(function() { search(q); }, 220);
-    });
-
-    input.addEventListener('keydown', function(e) {
-      if (!results.classList.contains('open')) return;
-      if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(activeIndex + 1, flatItems.length - 1)); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(activeIndex - 1, 0)); }
-      else if (e.key === 'Enter') {
-        e.preventDefault();
-        var target = flatItems[activeIndex >= 0 ? activeIndex : 0];
-        if (target) window.location.href = target.url;
-      } else if (e.key === 'Escape') {
-        results.classList.remove('open');
-        input.blur();
-      }
-    });
-
-    input.addEventListener('focus', function() {
-      if (input.value.trim().length >= 2 && flatItems.length) results.classList.add('open');
-    });
-
-    document.addEventListener('click', function(e) {
-      if (!wrap.contains(e.target)) results.classList.remove('open');
-    });
-  })();
-  </script>
-  <!-- /ADMIN SEARCH -->
 {% endblock %}

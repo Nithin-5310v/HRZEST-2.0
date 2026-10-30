@@ -105,8 +105,7 @@ export default function LaunchCountdownScreen({ onContinue }) {
           <Text style={styles.title}>HR, attendance, and payroll</Text>
           <Text style={[styles.title, styles.titleBrand]}>on one secure platform</Text>
           <Text style={styles.lead}>
-            Face recognition and passkey check-ins, GPS geo-fencing, automated payroll, and multi-tenant
-            security — built for teams that need it to just work.
+            <Text style={styles.leadStrong}>Lead your workforce with clarity.</Text> HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.
           </Text>
 
           {/* Live clock, in a web card */}
@@ -170,6 +169,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, lineHeight: 35, fontWeight: "800", letterSpacing: -0.8, color: WEB.text },
   titleBrand: { color: WEB.brand },
   lead: { fontSize: 14.5, lineHeight: 22, color: WEB.textMuted, marginTop: 12, marginBottom: 22 },
+  leadStrong: { fontWeight: "700", color: WEB.text },
 
   clockCard: { alignItems: "center", paddingTop: 26, paddingBottom: 20, marginBottom: 20 },
   clockHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },

@@ -40,6 +40,14 @@ from utils import chat_utils
 
 platform_admin_bp = Blueprint("platform_admin", __name__)
 
+
+@platform_admin_bp.context_processor
+def _inject_soc_flag():
+    """templates/_platform_sidebar.html is on every console page, and only
+    links the SOC page when it's configured."""
+    return {"soc_dashboard_configured": bool(os.environ.get("SOC_DASHBOARD_URL"))}
+
+
 _MFA_OTP_TTL_SEC = 300  # 5 minutes, same window every other emailed-OTP login uses
 _IDLE_TIMEOUT_SEC = 30 * 60  # 30 minutes of inactivity
 # Short-TTL cache for the dashboard's per-tenant employee counts -- each

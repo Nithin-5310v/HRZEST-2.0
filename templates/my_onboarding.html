@@ -98,6 +98,11 @@
     body.dark-mode .flash-error{background:#7f1d1d!important;border-color:#991b1b!important;color:#f87171!important}
     body.dark-mode .badge-blue{background:#1e3a8a!important;color:#60a5fa!important}
   </style>
+  <!-- Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles -->
+  <link rel="stylesheet" href="{{ static_url('employee-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
 

@@ -14,6 +14,8 @@ that is blocked from fetching a page never sees its noindex header, so the URL
 could still show up in results as a bare link.
 """
 import os
+import re
+from urllib.parse import urlsplit
 from xml.sax.saxutils import escape  # nosec B406 -- escapes sitemap output; nothing here parses XML
 
 from flask import Blueprint, Response, request
@@ -37,7 +39,13 @@ _ROBOTS_DISALLOW = ("/api/", "/webhooks/", "/csp-report", "/super_admin")
 def _base_url():
     """Canonical site origin. Deliberately from config, never the Host header --
     that header is attacker-controlled and would let anyone poison the sitemap."""
-    return os.environ.get("APP_URL", "").strip().rstrip("/") or _DEFAULT_BASE_URL
+    url = os.environ.get("APP_URL", "").strip().rstrip("/")
+    # A raw IP / localhost APP_URL (local dev) must never leak into the
+    # landing page's canonical link or the sitemap.
+    host = urlsplit(url).hostname or ""
+    if not url or host == "localhost" or re.fullmatch(r"[\d.]+|[0-9a-f:]+", host):
+        return _DEFAULT_BASE_URL
+    return url
 
 
 @seo_bp.route("/robots.txt")

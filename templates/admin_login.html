@@ -164,7 +164,12 @@
       }
       .oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
     </style>
-  </head>
+    <!-- Shared Zoho-style public theme (blue, clean light canvas), loaded last -->
+  <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
+</head>
   <body>
     <header class="top-nav">
       <div class="top-nav-inner">

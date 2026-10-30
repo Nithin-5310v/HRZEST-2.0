@@ -1,0 +1,137 @@
+/* ==========================================================================
+   HRzest - Public pages theme layer (Zoho-People-style, matches the app)
+
+   Loaded LAST by the landing page and every login / password / sign-up page
+   (the pages that use landing_v2.css + auth_split.css), so the whole product
+   shares one look with the admin (admin-theme.css) and employee
+   (employee-theme.css) screens:
+     - one primary blue (#2563eb) instead of indigo/purple
+     - clean white / light-grey canvas instead of pastel peach-pink gradients
+     - neutral borders, softer neutral shadows
+     - a dark slate footer instead of the purple one
+
+   It works mostly by redefining landing_v2.css's own design tokens
+   (--accent-cyan, --gradient-brand, ...), so every component that uses
+   them changes together; the few hard-coded indigo values are overridden
+   below by class.
+   ========================================================================== */
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f4f6f9;
+  --bg-tertiary: #eef1f5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f9fafb;
+  --border-color: #e6e9ef;
+  --border-color-glow: #c7d7fe;
+
+  --text-main: #101828;
+  --text-muted: #475467;
+  --text-subtle: #98a2b3;
+
+  --accent-cyan: #2563eb;      /* primary (the old token name is kept) */
+  --accent-blue: #1d4ed8;      /* primary hover */
+  --accent-purple: #667085;
+
+  --gradient-brand: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --gradient-glow: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 8px 20px -8px rgba(16, 24, 40, 0.12);
+  --shadow-lg: 0 20px 40px -18px rgba(16, 24, 40, 0.18);
+  --shadow-glow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+}
+
+/* ── Canvas ──────────────────────────────────────────────────────────── */
+body {
+  background: var(--bg-secondary) !important;
+  background-image: none !important;
+}
+body.landing-body,
+body:has(> .navbar) { background: #ffffff !important; }
+
+/* Ambient indigo glow orbs on the landing page -> off (cleaner, Zoho-like) */
+.glow-orb, .glow-orb-1, .glow-orb-2, .glow-orb-3 { display: none !important; }
+
+/* ── Primary buttons & brand marks: solid blue, neutral shadow ─────── */
+.btn-primary,
+.nav-link-btn,
+.logo-icon,
+.brand-icon,
+.logo-badge,
+.intro-icon,
+.modal-logo-icon {
+  background: var(--gradient-brand) !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08) !important;
+}
+.btn-primary:hover,
+.nav-link-btn:hover {
+  background: #1d4ed8 !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+  transform: none !important;
+}
+.btn-secondary { border-color: #d0d5dd; color: #344054; }
+/* hover / click / keyboard focus: keep dark text on the light background
+   (landing_v2.css turns the text white on hover, expecting a dark fill) */
+.btn-secondary:hover, .btn-secondary:focus, .btn-secondary:focus-visible, .btn-secondary:active {
+  border-color: #98a2b3; background: #f2f4f7; color: #101828 !important;
+}
+.btn-secondary:hover i, .btn-secondary:focus i, .btn-secondary:active i { color: #101828 !important; }
+
+/* Inputs: blue focus ring instead of indigo */
+.field-input:focus,
+.form-control:focus,
+.otp-input:focus,
+.subdomain-container:focus-within,
+input:focus, select:focus, textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
+}
+.oauth-btn:hover { border-color: #2563eb !important; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10) !important; }
+.plan-option.selected { border-color: #2563eb !important; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important; }
+.verify-note, .badge { border-color: #c7d7fe !important; }
+
+/* Cards on auth pages: thin neutral border, top accent in blue */
+.card { border-color: var(--border-color); box-shadow: var(--shadow-md); }
+
+/* ── Landing page sections ───────────────────────────────────────────── */
+.navbar { background: rgba(255, 255, 255, 0.92) !important; border-bottom: 1px solid transparent; }
+.navbar.scrolled { border-bottom-color: var(--border-color); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05) !important; }
+
+.hero-section {
+  background: linear-gradient(180deg, #f5f8ff 0%, #ffffff 100%) !important;
+}
+.section-tag {
+  background: #eef4ff !important;
+  border-color: #c7d7fe !important;
+  color: #1d4ed8 !important;
+}
+.chapter-media.wash-warm { background: linear-gradient(160deg, #f5f8ff 0%, #eef4ff 100%) !important; }
+.chapter-media.wash-cool { background: linear-gradient(160deg, #f4f6f9 0%, #eef1f5 100%) !important; }
+.chapter-media.wash-mint { background: linear-gradient(160deg, #f0fdf8 0%, #ecfdf3 100%) !important; }
+
+.cta-banner {
+  background: #eef4ff !important;
+  border-color: #c7d7fe !important;
+  box-shadow: none !important;
+}
+
+.footer {
+  --text-main: #f8fafc;
+  --text-muted: #98a2b3;
+  --border-color: rgba(255, 255, 255, 0.10);
+  background: #0f172a !important;
+}
+.footer a:hover { color: #ffffff; }
+
+/* Auth promo panel (left side of login / sign-up) */
+.auth-promo-eyebrow {
+  background: #eef4ff !important;
+  border-color: #c7d7fe !important;
+  color: #1d4ed8 !important;
+}
+.auth-promo-title span { background: none !important; -webkit-text-fill-color: #2563eb; color: #2563eb !important; }
+.auth-promo-trust span { background: #ffffff !important; }
+
+/* Dark mode toggle (if a page offers it) keeps its own colours */
+body.dark-mode { background: #0d1117 !important; }

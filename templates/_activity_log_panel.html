@@ -1,0 +1,104 @@
+{#- Activity Log: filters + table + pagination over audit_logs.
+    Included by activity_log.html and by admin_tools.html's Activity Log tab.
+    Expects blueprints/admin_views.py's _load_activity_log() variables, plus:
+      al_url  -- page the filter form / pagination links point at
+      al_tab  -- optional ?tab= value to keep (admin_tools: "activity_log") -#}
+{% set _al_tab_q = ('tab=' ~ al_tab ~ '&') if al_tab else '' %}
+<style>
+  .al-intro { font-size: 12.5px; color: #64748b; margin: 0 0 16px; line-height: 1.6; }
+  .al-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+  .al-filter-bar input[type="search"] {
+    background: #fff; border: 1px solid #e2e8f0; color: #0f172a;
+    border-radius: 10px; padding: 8px 12px; font-size: 13px; min-width: 260px;
+  }
+  .al-filter-bar select {
+    background: #fff; border: 1px solid #e2e8f0; color: #0f172a;
+    border-radius: 10px; padding: 8px 10px; font-size: 13px;
+  }
+  .al-filter-bar input:focus, .al-filter-bar select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.14); outline: none; }
+  .al-btn {
+    background: #2563eb; border: 1px solid #2563eb; color: #fff; border-radius: 10px;
+    padding: 7px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .al-btn:hover { background: #1d4ed8; }
+  .al-btn-link { background: #fff; border-color: #d0d5dd; color: #344054; }
+  .al-btn-link:hover { background: #f9fafb; }
+  .al-card { background: #fff; border: 1px solid #e6e9ef; border-radius: 12px; padding: 20px; overflow-x: auto; box-shadow: 0 1px 2px rgba(16,24,40,0.04); }
+  .al-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .al-card th { text-align: left; padding: 11px 12px; color: #475467; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; background: #f9fafb; border-bottom: 1px solid #eaecf0; }
+  .al-card td { padding: 12px; border-bottom: 1px solid #f2f4f7; vertical-align: middle; }
+  .al-card tbody tr:hover td { background: #fafbfc; }
+  .al-when { color: #64748b; font-size: 12px; white-space: nowrap; }
+  .al-detail { color: #0f172a; max-width: 420px; }
+  .al-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; letter-spacing: .3px; background: #f8f9fc; color: #64748b; border: 1px solid #e2e8f0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .al-actor-type { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+  .al-actor-type.admin { background: #eef4ff; color: #1d4ed8; }
+  .al-actor-type.employee { background: #ecfdf5; color: #15803d; }
+  .al-empty { text-align: center; padding: 40px; color: #94a3b8; }
+  .al-pagination { display: flex; align-items: center; gap: 12px; justify-content: center; margin-top: 16px; }
+  .al-pagination-info { font-size: 12px; color: #94a3b8; }
+  .al-btn-disabled { opacity: .4; pointer-events: none; }
+  body.dark-mode .al-card { background: #161b22 !important; border-color: #30363d !important; }
+  body.dark-mode .al-card th { background: #0d1117 !important; color: #9da7b3 !important; border-color: #30363d !important; }
+  body.dark-mode .al-card td { border-color: #30363d !important; }
+  body.dark-mode .al-detail { color: #e6edf3 !important; }
+</style>
+
+<p class="al-intro">
+  Every sensitive action taken on your account -- salary changes, payroll lock/unlock, leave and
+  resignation approvals, disbursement changes, document uploads, employee removal -- in one searchable
+  place. {{ total }} matching entr{{ 'y' if total == 1 else 'ies' }}.
+</p>
+
+<form class="al-filter-bar" method="GET" action="{{ al_url }}">
+  {% if al_tab %}<input type="hidden" name="tab" value="{{ al_tab }}" />{% endif %}
+  <input type="search" name="q" value="{{ q }}" placeholder="Search detail, actor, or record ID…" aria-label="Search activity log" />
+  <select name="action" aria-label="Filter by action">
+    <option value="" {% if not action_filter %}selected{% endif %}>All actions</option>
+    {% for a in all_actions %}
+    <option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="al-btn"><i class="ti ti-search"></i> Search</button>
+  {% if q or action_filter %}<a href="{{ al_url }}{% if al_tab %}?tab={{ al_tab }}{% endif %}" class="al-btn al-btn-link">Clear</a>{% endif %}
+</form>
+
+<div class="al-card">
+  {% if entries %}
+  <table>
+    <thead>
+      <tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Detail</th><th>IP</th></tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr>
+        <td class="al-when">{{ e.created_at.strftime('%Y-%m-%d %H:%M:%S') if e.created_at else '—' }}</td>
+        <td>{{ e.actor }} <span class="al-actor-type {{ e.actor_type }}">{{ e.actor_type }}</span></td>
+        <td><span class="al-badge">{{ e.action }}</span></td>
+        <td class="al-when">{{ e.target_table or '—' }}{% if e.target_id %} · {{ e.target_id }}{% endif %}</td>
+        <td class="al-detail">{{ e.detail or '—' }}</td>
+        <td class="al-when">{{ e.ip_address or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if total_pages > 1 %}
+  <div class="al-pagination">
+    {% if page > 1 %}
+    <a class="al-btn al-btn-link" href="{{ al_url }}?{{ _al_tab_q }}q={{ q | urlencode }}&amp;action={{ action_filter | urlencode }}&amp;page={{ page - 1 }}">&laquo; Prev</a>
+    {% else %}
+    <span class="al-btn al-btn-link al-btn-disabled">&laquo; Prev</span>
+    {% endif %}
+    <span class="al-pagination-info">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a class="al-btn al-btn-link" href="{{ al_url }}?{{ _al_tab_q }}q={{ q | urlencode }}&amp;action={{ action_filter | urlencode }}&amp;page={{ page + 1 }}">Next &raquo;</a>
+    {% else %}
+    <span class="al-btn al-btn-link al-btn-disabled">Next &raquo;</span>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="al-empty"><i class="ti ti-history" style="font-size:32px;"></i><p style="margin-top:8px;">No matching activity.</p></div>
+  {% endif %}
+</div>

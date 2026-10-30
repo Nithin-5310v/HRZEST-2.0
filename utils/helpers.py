@@ -1770,7 +1770,9 @@ def _error_page(code, icon, title, subtitle, hint):
   }}
   a.sec:hover {{ background: var(--bg-tertiary); }}
   @media (max-width: 480px) {{ .box {{ padding: 36px 26px 30px; }} }}
-</style></head><body>
+</style>
+<link rel="stylesheet" href="{static_url('public-theme.css')}" />
+</head><body>
 <div class="box">
   <div class="icon">{icon}</div>
   <div class="code">Error {code}</div>

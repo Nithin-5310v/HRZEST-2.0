@@ -118,6 +118,9 @@
     /* TAB PANELS */
     .tab-panel{display:none;flex:1;flex-direction:column;overflow:hidden}
     .tab-panel.active{display:flex}
+    /* Activity Log tab: a normal scrolling page inside this full-height layout */
+    .al-tab-panel{display:none;overflow-y:auto;padding:22px 24px 32px}
+    .al-tab-panel.active{display:block}
 
     @media(max-width:768px){
       .sidebar{display:none}
@@ -200,14 +203,24 @@
     <div class="topbar-heading">
       <div>
         <h1><i class="ti ti-tool u-c-6366f1"></i> Admin Tools</h1>
-        <div class="sub">Org Chart</div>
+        <div class="sub">Org Chart · Activity Log</div>
       </div>
     </div>
     <div class="tabs">
       <button class="tab-btn {% if tab == 'org_chart' %}active{% endif %}" onclick="switchTab('org_chart')">
         <i class="ti ti-hierarchy"></i> Org Chart
       </button>
+      <button class="tab-btn {% if tab == 'activity_log' %}active{% endif %}" onclick="switchTab('activity_log')">
+        <i class="ti ti-history"></i> Activity Log
+      </button>
     </div>
+  </div>
+
+  <!-- ACTIVITY LOG TAB (audit trail; same panel as /activity_log) -->
+  <div id="tab-activity_log" class="tab-panel al-tab-panel {% if tab == 'activity_log' %}active{% endif %}">
+    {% set al_url = tpath('/admin_tools') %}
+    {% set al_tab = 'activity_log' %}
+    {% include "_activity_log_panel.html" %}
   </div>
 
   <!-- ORG CHART TAB -->

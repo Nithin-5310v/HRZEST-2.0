@@ -45,6 +45,11 @@
     .alert-error { background: rgba(225, 29, 72, 0.08); border: 1px solid rgba(225, 29, 72, 0.25); color: var(--accent-rose); }
     .alert-success { background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(5, 150, 105, 0.25); color: var(--accent-emerald); }
   </style>
+  <!-- Shared Zoho-style public theme (blue, clean light canvas), loaded last -->
+  <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
   <main class="auth-split auth-split--top">

@@ -1,6 +1,6 @@
 {% extends "admin_base.html" %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}HR Dashboard{% endblock %}
 
 {% block page_css %}
     <style>
@@ -71,9 +71,21 @@
 
 {% block main %}
 
-  <div class="page-header">
-    <h1><i class="ti ti-home u-c-1e3a8a"></i> HR Dashboard</h1>
-    <p>A consolidated overview of your assigned employees.</p>
+  <!-- Search row below the blue banner -- same as the admin dashboard
+       (static/portal-search.js; HR sessions see HR-allowed entries only). -->
+  <link rel="stylesheet" href="{{ static_url('portal-search.css') }}" />
+  <div class="page-header page-header--toolbar">
+    <div class="admin-search-wrap dash-search" id="adminSearchWrap" role="search">
+      <i class="ti ti-search admin-search-icon" aria-hidden="true"></i>
+      <input type="text" id="adminSearchInput" class="admin-search-input"
+             placeholder="Search menus, features, employees, tickets…"
+             aria-label="Search the HR portal" autocomplete="off" spellcheck="false"
+             role="combobox" aria-expanded="false" aria-controls="adminSearchResults"
+             data-index="admin" data-endpoint="/api/admin/search" data-base="{{ tpath('/') }}"
+             data-role="{{ 'manager' if session.admin_role == 'manager' else 'hr' }}" />
+      <div class="admin-search-results" id="adminSearchResults" role="listbox"></div>
+    </div>
+    <script src="{{ static_url('portal-search.js') }}" defer></script>
   </div>
 
   <div class="hr-tabs">

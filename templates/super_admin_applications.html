@@ -63,8 +63,15 @@
       .mini-btn-link:hover { background: var(--primary-dark); }
       .empty-state { text-align: center; padding: 40px; color: var(--text-dim); }
     </style>
-  </head>
+    <!-- Shared Zoho-style console theme (blue, clean light canvas), loaded last -->
+  <link rel="stylesheet" href="{{ static_url('platform-theme.css') }}" />
+  <script src="{{ static_url('platform-topbar.js') }}" defer></script>
+  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
+  <script src="{{ static_url('ui-motion.js') }}"></script>
+</head>
   <body>
+    {% include "_platform_sidebar.html" %}
     <div class="container">
       <div class="header">
         <h1><i class="ti ti-clipboard-check"></i> Company Applications</h1>

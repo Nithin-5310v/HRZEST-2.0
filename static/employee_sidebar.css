@@ -3,95 +3,211 @@
    color) across employee_portal.html, my_performance.html, my_compoff.html
    and my_onboarding.html; the 3 standalone pages never had a working
    mobile toggle even though employee_portal.html's own CSS referenced
-   .sb-toggle/.app-header without ever rendering that button. */
+   .sb-toggle/.app-header without ever rendering that button.
 
-.sb-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 250; }
+   Light, Zoho-People-style theme (matches the admin sidebar in
+   admin_base.html / static/admin-theme.css): white panel, grey text, the
+   current page in soft blue with a blue bar on the left. */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/static/fonts/inter-var.woff2') format('woff2-variations'), url('/static/fonts/inter-var.woff2') format('woff2');
+  font-weight: 400 800; font-style: normal; font-display: swap;
+}
+
+.sb-overlay { display: none; position: fixed; inset: 0; background: rgba(16,24,40,0.45); z-index: 250; }
 .sb-overlay.open { display: block; }
 
 .sb-toggle {
   display: none; position: fixed; top: 14px; left: 14px; z-index: 260;
   width: 40px; height: 40px; align-items: center; justify-content: center;
-  background: #1a3a8f; color: #fff; border: none; border-radius: 10px;
-  font-size: 20px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  background: #fff; color: #344054; border: 1px solid #e4e7ec; border-radius: 10px;
+  font-size: 20px; cursor: pointer; box-shadow: 0 4px 14px rgba(16,24,40,0.12);
 }
 
 .sidebar {
-  width: 224px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
-  background: linear-gradient(180deg, #0f2460 0%, #1a3a8f 100%);
-  padding: 14px 12px; color: white;
+  width: 236px; height: 100vh; position: sticky; top: 0; overflow-y: auto;
+  background: #ffffff; border-right: 1px solid #e6e9ef;
+  padding: 16px 12px; color: #344054;
   display: flex; flex-direction: column; flex-shrink: 0;
-  box-shadow: 4px 0 20px rgba(0,0,0,0.18); z-index: 300;
-  transition: transform 0.28s ease;
+  z-index: 300; transition: transform 0.28s ease;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
 }
+.sidebar * { font-family: inherit; }
+.sidebar .ti { font-family: "tabler-icons" !important; }
 .sb-brand {
   display: flex; align-items: center; gap: 8px;
-  padding-bottom: 10px; margin-bottom: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding: 0 4px 12px; margin-bottom: 12px;
+  border-bottom: 1px solid #eef0f3;
 }
 .sb-brand-logo {
-  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
-  background: #fff; overflow: hidden;
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: #fff; border: 1px solid #e6e9ef; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
 }
 .sb-brand-logo img { width: 100%; height: 100%; object-fit: contain; }
-.sb-brand-name { font-size: 13px; font-weight: 700; color: #fff; line-height: 1.2; }
+.sb-brand-name { font-size: 13.5px; font-weight: 700; color: #101828; line-height: 1.2; }
 .sb-profile {
   display: flex; align-items: center; gap: 10px;
-  padding-bottom: 12px; margin-bottom: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding: 4px 4px 14px; margin-bottom: 10px;
+  border-bottom: 1px solid #eef0f3;
 }
 .sb-avatar {
-  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-  background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4);
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: #2563eb; border: 2px solid #eef4ff;
   overflow: hidden; display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 700; color: white;
+  font-size: 15px; font-weight: 700; color: #fff;
 }
 .sb-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.sb-name { font-size: 13px; font-weight: 700; color: #fff; line-height: 1.2; }
-.sb-role { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 2px; }
-.sb-id   { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+.sb-name { font-size: 13.5px; font-weight: 700; color: #101828; line-height: 1.25; }
+.sb-role { font-size: 11.5px; color: #667085; margin-top: 2px; }
+.sb-id   { font-size: 10.5px; color: #98a2b3; margin-top: 1px; }
 .sb-nav-label {
-  font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.35);
-  text-transform: uppercase; letter-spacing: 1px;
-  padding: 0 8px; margin: 8px 0 3px;
+  font-size: 10.5px; font-weight: 700; color: #98a2b3;
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 0 10px; margin: 12px 0 4px;
 }
 .sb-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 7px 8px; margin: 1px 0;
-  color: rgba(255,255,255,0.75);
-  border-radius: 8px; font-size: 13px; font-weight: 500; transition: 0.18s;
+  padding: 8px 10px; margin: 1px 0;
+  color: #475467;
+  border-radius: 8px; font-size: 13px; font-weight: 500;
+  transition: background .15s, color .15s;
   position: relative; border: none; background: none; width: 100%;
-  text-align: left; cursor: pointer; font-family: inherit; text-decoration: none;
+  text-align: left; cursor: pointer; text-decoration: none;
   -webkit-tap-highlight-color: transparent;
 }
-.sb-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
-.sb-item.active {
-  background: rgba(255,255,255,0.15); color: #fff; font-weight: 700;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
-}
+.sb-item:hover { background: #f2f4f7; color: #101828; }
+.sb-item.active { background: #eef4ff; color: #1d4ed8; font-weight: 600; box-shadow: none; }
 .sb-item.active::before {
-  content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
-  width: 3px; border-radius: 2px; background: #60a5fa;
+  content: ''; position: absolute; left: -12px; top: 18%; bottom: 18%;
+  width: 3px; border-radius: 0 3px 3px 0; background: #2563eb;
 }
-.sb-item.danger { color: rgba(252,165,165,0.85); }
-.sb-item.danger:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
-.sb-sep { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 8px 0; }
+.sb-item.danger { color: #d92d20; }
+.sb-item.danger:hover { background: #fef3f2; color: #b42318; }
+.sb-sep { border: none; border-top: 1px solid #eef0f3; margin: 8px 0; }
 .sb-scroll-nav { flex: 1; }
-.sidebar::-webkit-scrollbar { width: 3px; }
-.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
-.sb-bottom { flex-shrink: 0; padding-top: 4px; }
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: #e4e7ec; border-radius: 2px; }
+.sb-bottom { flex-shrink: 0; padding-top: 6px; border-top: 1px solid #eef0f3; margin-top: 8px; }
 .sb-footer {
-  padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  font-size: 11px; color: rgba(255,255,255,0.4);
+  padding: 10px 4px 0;
+  font-size: 11px; color: #98a2b3;
   display: flex; align-items: center; gap: 6px;
 }
 
+/* Dark theme (moon toggle) */
+body.dark-mode .sidebar { background: #161b22 !important; border-color: #30363d !important; color: #c9d1d9 !important; }
+body.dark-mode .sb-brand, body.dark-mode .sb-profile, body.dark-mode .sb-bottom { border-color: #30363d !important; }
+body.dark-mode .sb-name, body.dark-mode .sb-brand-name { color: #e6edf3 !important; }
+body.dark-mode .sb-item { color: #9da7b3 !important; }
+body.dark-mode .sb-item:hover { background: #21262d !important; color: #e6edf3 !important; }
+body.dark-mode .sb-item.active { background: rgba(56,139,253,0.15) !important; color: #79b8ff !important; }
+body.dark-mode .sb-toggle { background: #161b22; color: #e6edf3; border-color: #30363d; }
+
 @media (max-width: 768px) {
   .sidebar {
-    position: fixed; left: 0; top: 0; height: 100dvh; width: 260px;
+    position: fixed; left: 0; top: 0; height: 100dvh; width: 264px;
     transform: translateX(-100%);
+    box-shadow: 0 20px 50px rgba(16,24,40,0.25);
   }
   .sidebar.open { transform: translateX(0); }
   .sb-toggle { display: flex; }
 }
+
+/* ==========================================================================
+   Employee top banner (templates/_employee_topbar.html) -- same blue,
+   full-width banner as the admin side; the sidebar and page sit below it.
+   ========================================================================== */
+:root { --emp-top-h: 64px; }
+body:has(.emp-topbar) { padding-top: var(--emp-top-h); }
+body:has(.emp-topbar) .sidebar { top: var(--emp-top-h); height: calc(100vh - var(--emp-top-h)); padding-top: 16px; }
+.emp-topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 950; height: var(--emp-top-h);
+  display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 22px;
+  background: linear-gradient(120deg, #0b3a9e 0%, #1d4ed8 42%, #2563eb 68%, #4338ca 100%);
+  box-shadow: 0 10px 28px -16px rgba(29, 78, 216, .75); color: #fff;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+.emp-topbar * { font-family: inherit; }
+.emp-topbar .ti { font-family: "tabler-icons" !important; }
+.emp-brand { display: flex; align-items: center; gap: 10px; min-width: 0; color: #fff; text-decoration: none; }
+.emp-brand-logo { width: 36px; height: 36px; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.emp-brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+.emp-brand-logo i { color: #2563eb; font-size: 19px; }
+.emp-brand-name { font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+.emp-top-actions { display: flex; align-items: center; gap: 8px; }
+.emp-date { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 9px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); font-size: 12.5px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.emp-date i { font-size: 15px; opacity: .9; }
+.emp-date-sep { opacity: .6; }
+/* the portal's own bell, moved into the banner by employee-topbar.js */
+.emp-top-bell:empty { display: none; }
+.emp-top-bell #notifBell {
+  position: relative !important; top: auto !important; right: auto !important;
+  width: 36px !important; height: 36px !important; border-radius: 9px !important;
+  background: rgba(255,255,255,.12) !important; border: 1px solid rgba(255,255,255,.22) !important;
+  color: #fff !important; box-shadow: none !important; font-size: 17px !important;
+}
+.emp-top-bell #notifBell:hover { background: rgba(255,255,255,.22) !important; transform: none !important; }
+.emp-top-bell #notifBadge { box-shadow: 0 0 0 2px #1d4ed8 !important; }
+#notifPanel { top: calc(var(--emp-top-h) + 8px) !important; z-index: 1200 !important; }
+/* profile menu */
+.emp-user-menu { position: relative; }
+.emp-user { display: flex; align-items: center; gap: 9px; padding: 3px; border-radius: 999px; cursor: pointer; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); color: #fff; font: inherit; }
+.emp-user:hover { background: rgba(255,255,255,.2); }
+.emp-avatar { position: relative; width: 36px; height: 36px; border-radius: 50%; background: #fff; color: #1d4ed8; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; overflow: hidden; }
+.emp-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.emp-user-meta { display: flex; flex-direction: column; text-align: left; line-height: 1.15; }
+.emp-user-name { font-size: 12.5px; font-weight: 600; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emp-user-role { font-size: 11px; color: rgba(255,255,255,.78); }
+.emp-user-caret { font-size: 14px; opacity: .8; transition: transform .2s; }
+.emp-user[aria-expanded="true"] .emp-user-caret { transform: rotate(180deg); }
+.emp-user-panel { position: absolute; top: calc(100% + 10px); right: 0; z-index: 1200; width: 250px; background: #fff; color: #101828; border: 1px solid #e4e7ec; border-radius: 14px; box-shadow: 0 20px 44px -12px rgba(16,24,40,.28); padding: 6px; }
+.emp-user-panel-head { padding: 10px; margin-bottom: 4px; border-bottom: 1px solid #f2f4f7; }
+.emp-user-panel-name { display: block; font-size: 13.5px; font-weight: 700; color: #101828; }
+.emp-user-panel-sub { display: block; font-size: 11.5px; color: #667085; margin-top: 1px; }
+.emp-user-form { margin: 0; }
+.emp-user-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 8px; border: none; background: none; font-size: 13px; font-weight: 500; color: #344054; text-decoration: none; cursor: pointer; text-align: left; }
+.emp-user-item i { font-size: 16px; color: #667085; }
+.emp-user-item:hover { background: #f2f4f7; color: #101828; }
+.emp-user-item.danger, .emp-user-item.danger i { color: #d92d20; }
+.emp-user-item.danger:hover { background: #fef3f2; }
+.emp-user-logout { margin-top: 4px; padding-top: 4px; border-top: 1px solid #f2f4f7; }
+body.dark-mode .emp-user-panel { background: #161b22; border-color: #30363d; }
+body.dark-mode .emp-user-item, body.dark-mode .emp-user-panel-name { color: #e6edf3; }
+body.dark-mode .emp-topbar { background: linear-gradient(120deg, #0b1f4d 0%, #142a66 55%, #1e1b4b 100%); }
+
+/* search row at the top of the portal content (same as the admin dashboard) */
+.emp-search-row { display: flex; align-items: center; margin: 0 0 16px; }
+.admin-search-wrap.emp-search { flex: 1 1 520px; max-width: 560px; min-width: 220px; }
+body .emp-search .admin-search-input {
+  height: 42px; padding: 0 16px 0 42px; border-radius: 10px; background: #fff;
+  border: 1px solid #d0d5dd; font-size: 13.5px; color: #101828; box-shadow: 0 1px 2px rgba(16,24,40,.05);
+}
+body .emp-search .admin-search-input::placeholder { color: #667085; }
+body .emp-search .admin-search-input:hover { border-color: #98a2b3; }
+body .emp-search .admin-search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.12); outline: none; }
+.emp-search .admin-search-icon { left: 15px; font-size: 18px; color: #667085; z-index: 2; }
+.emp-search:focus-within .admin-search-icon { color: #2563eb; }
+
+@media (max-width: 1000px) { .emp-date { display: none; } }
+@media (max-width: 768px) {
+  .emp-topbar { padding: 0 12px 0 64px; }
+  .emp-user-meta, .emp-user-caret, .emp-brand-name { display: none; }
+  .sb-toggle { top: 12px; z-index: 960; }
+  body:has(.emp-topbar) .sidebar { top: 0; height: 100dvh; padding-top: 16px; z-index: 970; }
+  .admin-search-wrap.emp-search { flex-basis: 100%; max-width: none; }
+}
+
+/* ── Sidebar items with icons -- identical to the admin sidebar ─────────── */
+.sidebar { width: 248px; }
+.sb-item .nav-icon {
+  width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  color: #667085; font-size: 17px; transition: color .15s, transform .3s cubic-bezier(.34, 1.56, .64, 1);
+}
+.sb-item:hover .nav-icon { color: #344054; transform: translateX(2px) scale(1.12); }
+.sb-item.active .nav-icon { color: #2563eb; }
+.sb-item.danger .nav-icon { color: #d92d20; }
+html body .sidebar .sb-item:hover { transform: none; }
+body.dark-mode .sb-item .nav-icon { color: #9da7b3; }
+body.dark-mode .sb-item.active .nav-icon { color: #79b8ff; }
