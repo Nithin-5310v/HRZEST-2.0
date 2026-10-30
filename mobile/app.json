@@ -67,6 +67,15 @@
     "owner": "knithin47",
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ea22ee12-1283-4435-8965-bcafec381509",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "enabled": true
     }
   }
 }
