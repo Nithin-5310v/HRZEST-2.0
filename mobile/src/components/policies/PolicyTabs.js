@@ -44,7 +44,7 @@ export default function PolicyTabs({
             <Ionicons
               name={TAB_ICONS[tab]}
               size={18}
-              color={active ? "#FFFFFF" : "#0B6E8E"}
+              color={active ? "#FFFFFF" : "#0B5CAD"}
             />
 
             <Text
@@ -102,9 +102,9 @@ const styles = StyleSheet.create({
   },
 
   activeTab: {
-    backgroundColor: "#0B6E8E",
+    backgroundColor: "#0B5CAD",
 
-    borderColor: "#0B6E8E",
+    borderColor: "#0B5CAD",
   },
 
   text: {
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#0B6E8E",
+    color: "#0B5CAD",
   },
 
   activeText: {

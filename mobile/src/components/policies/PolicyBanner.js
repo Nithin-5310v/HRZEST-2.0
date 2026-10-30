@@ -40,18 +40,18 @@ export default function PolicyBanner({
 
       case "primary":
         return {
-          background: "#E3F2F5",
-          border: "#0B6E8E",
+          background: "#E6EFFA",
+          border: "#0B5CAD",
           icon: "shield-checkmark",
-          color: "#0B6E8E",
+          color: "#0B5CAD",
         };
 
       default:
         return {
-          background: "#F5FAFB",
-          border: "#C4D2D6",
+          background: "#F5F8FC",
+          border: "#C3CFDD",
           icon: "information-circle",
-          color: "#44555B",
+          color: "#455163",
         };
     }
   };
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
 
     lineHeight: 23,
 
-    color: "#44555B",
+    color: "#455163",
 
     fontWeight: "500",
   },

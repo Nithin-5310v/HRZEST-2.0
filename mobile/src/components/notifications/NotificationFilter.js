@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
 
     borderWidth: 1,
-    borderColor: "#DCE6E9",
+    borderColor: "#DBE3EE",
 
     shadowColor: "#000",
     shadowOpacity: 0.03,
@@ -80,14 +80,14 @@ const styles = StyleSheet.create({
   },
 
   activeChip: {
-    backgroundColor: "#0B6E8E",
-    borderColor: "#0B6E8E",
+    backgroundColor: "#0B5CAD",
+    borderColor: "#0B5CAD",
   },
 
   chipText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#44555B",
+    color: "#455163",
   },
 
   activeChipText: {

@@ -154,7 +154,7 @@ export default function ResignationsScreen() {
                 setRefreshing(true);
                 loadData();
               }}
-              tintColor="#0B6E8E"
+              tintColor="#0B5CAD"
             />
           }
         >
@@ -208,7 +208,7 @@ export default function ResignationsScreen() {
           {/* Loading Indicator */}
           {loading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#0B6E8E" />
+              <ActivityIndicator size="large" color="#0B5CAD" />
               <Text style={styles.loadingText}>Loading requests...</Text>
             </View>
           ) : filtered.length === 0 ? (
@@ -231,7 +231,7 @@ export default function ResignationsScreen() {
                   <View style={styles.cardHeader}>
                     <View style={styles.userGroup}>
                       <View style={styles.avatarCircle}>
-                        <Ionicons name="person" size={18} color="#0B6E8E" />
+                        <Ionicons name="person" size={18} color="#0B5CAD" />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.empName}>{empName}</Text>
@@ -265,7 +265,7 @@ export default function ResignationsScreen() {
 
                   {!!item.requested_at && (
                     <View style={styles.submittedRow}>
-                      <Ionicons name="time-outline" size={14} color="#5A6A70" />
+                      <Ionicons name="time-outline" size={14} color="#5A6678" />
                       <Text style={styles.submittedText}>
                         Submitted on {item.requested_at?.slice(0, 10)}
                       </Text>
@@ -349,7 +349,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     borderLeftWidth: 4,
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -363,7 +363,7 @@ const makeStyles = (colors) => StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#5A6A70",
+    color: "#5A6678",
     marginTop: 2,
   },
   tabContainer: {
@@ -389,7 +389,7 @@ const makeStyles = (colors) => StyleSheet.create({
   tabText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   tabTextActive: {
     color: colors.text,
@@ -402,7 +402,7 @@ const makeStyles = (colors) => StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 12,
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   emptyCard: {
     backgroundColor: colors.card,
@@ -421,7 +421,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 12,
-    color: "#5A6A70",
+    color: "#5A6678",
     textAlign: "center",
     marginTop: 4,
   },
@@ -432,7 +432,7 @@ const makeStyles = (colors) => StyleSheet.create({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -466,7 +466,7 @@ const makeStyles = (colors) => StyleSheet.create({
   empIdBadge: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#5A6A70",
+    color: "#5A6678",
     marginTop: 1,
   },
   statusChip: {
@@ -482,7 +482,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#ECF3F5",
+    backgroundColor: "#EDF2F8",
     marginVertical: 12,
   },
   detailRow: {
@@ -501,7 +501,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   detailLabel: {
     fontSize: 11,
-    color: "#5A6A70",
+    color: "#5A6678",
     fontWeight: "500",
   },
   detailValueDate: {
@@ -516,7 +516,7 @@ const makeStyles = (colors) => StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#ECF3F5",
+    borderColor: "#EDF2F8",
   },
   reasonLabel: {
     fontSize: 9,
@@ -527,7 +527,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   reasonText: {
     fontSize: 13,
-    color: "#2E3D43",
+    color: "#2E3A4A",
     lineHeight: 18,
   },
   submittedRow: {
@@ -538,7 +538,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   submittedText: {
     fontSize: 11,
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   actionRow: {
     flexDirection: "row",

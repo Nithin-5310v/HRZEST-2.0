@@ -23,7 +23,7 @@ export default function HolidaySummaryCard({
           <Ionicons
             name="sparkles-outline"
             size={22}
-            color="#0B6E8E"
+            color="#0B5CAD"
           />
         </View>
 
@@ -48,7 +48,7 @@ export default function HolidaySummaryCard({
         <Ionicons
           name="calendar-outline"
           size={18}
-          color="#5A6A70"
+          color="#5A6678"
         />
 
         <Text style={styles.infoText}>
@@ -60,7 +60,7 @@ export default function HolidaySummaryCard({
         <Ionicons
           name="flag-outline"
           size={18}
-          color="#5A6A70"
+          color="#5A6678"
         />
 
         <Text style={styles.infoText}>
@@ -100,9 +100,9 @@ const styles = StyleSheet.create({
     padding: 20,
 
     borderWidth: 1,
-    borderColor: "#E3ECEF",
+    borderColor: "#E3EAF3",
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 15,
 
-    backgroundColor: "#E3F2F5",
+    backgroundColor: "#E6EFFA",
 
     justifyContent: "center",
     alignItems: "center",
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#132026",
+    color: "#131C2A",
   },
 
   subtitle: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     fontWeight: "500",
   },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
 
-    backgroundColor: "#E9F1F3",
+    backgroundColor: "#E9EFF6",
 
     marginVertical: 18,
   },
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0B6E8E",
+    color: "#0B5CAD",
   },
 
   infoRow: {
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
 
     fontSize: 15,
 
-    color: "#44555B",
+    color: "#455163",
 
     fontWeight: "600",
   },
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   daysCard: {
     marginTop: 22,
 
-    backgroundColor: "#0B6E8E",
+    backgroundColor: "#0B5CAD",
 
     borderRadius: 18,
 

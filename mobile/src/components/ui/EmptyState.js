@@ -31,7 +31,7 @@ export default function EmptyState({
         <Ionicons
           name={icon}
           size={54}
-          color="#0B6E8E"
+          color="#0B5CAD"
         />
 
       </View>
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 46,
 
-    backgroundColor: '#E3F2F5',
+    backgroundColor: '#E6EFFA',
 
     justifyContent: 'center',
 
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
 
     fontSize: 14,
 
-    color: '#5A6A70',
+    color: '#5A6678',
 
     lineHeight: 22,
 

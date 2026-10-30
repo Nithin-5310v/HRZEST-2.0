@@ -195,22 +195,22 @@ const COMPOFF_THEME = {
   colors: {
     // Primary
     primary: "#0C3054",
-    primaryLight: "#CDEBF2",
+    primaryLight: "#D3E3F7",
 
     // Secondary
-    secondary: "#1B8AA6",
+    secondary: "#2E7BD1",
 
     // Backgrounds
-    background: "#F5FAFB",
+    background: "#F5F8FC",
 
     // Text
-    textPrimary: "#132026",
-    textSecondary: "#44555B",
-    textMuted: "#5A6A70",
+    textPrimary: "#131C2A",
+    textSecondary: "#455163",
+    textMuted: "#5A6678",
 
     // Borders & Dividers
-    border: "#DCE6E9",
-    divider: "#E9F1F3",
+    border: "#DBE3EE",
+    divider: "#E9EFF6",
 
     // Status
     success: "#22C55E",

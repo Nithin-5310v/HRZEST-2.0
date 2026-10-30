@@ -12,8 +12,8 @@ const DATA = [
     title: "Overtime",
     subtitle: "Hours Worked",
     icon: "time-outline",
-    color: "#0B6E8E",
-    bg: "#E3F2F5",
+    color: "#0B5CAD",
+    bg: "#E6EFFA",
   },
   {
     key: "availableDays",
@@ -83,7 +83,7 @@ export default function CompOffStatsGrid({
               <Ionicons
                 name="ellipsis-horizontal"
                 size={15}
-                color="#8A9AA0"
+                color="#8794A5"
               />
             </View>
           </View>
@@ -118,7 +118,7 @@ export default function CompOffStatsGrid({
             <Ionicons
               name="arrow-forward"
               size={14}
-              color="#C4D2D6"
+              color="#C3CFDD"
             />
           </View>
         </View>
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#EDF2F7",
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: {
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 8,
 
-    backgroundColor: "#F5FAFB",
+    backgroundColor: "#F5F8FC",
 
     justifyContent: "center",
 
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
 
     letterSpacing: -0.4,
   },
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#2E3D43",
+    color: "#2E3A4A",
   },
 
   subtitle: {
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
 
     fontSize: 11,
 
-    color: "#8A9AA0",
+    color: "#8794A5",
 
     fontWeight: "600",
   },
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
 
     borderTopWidth: 1,
 
-    borderTopColor: "#ECF3F5",
+    borderTopColor: "#EDF2F8",
   },
     footerLeft: {
     flexDirection: "row",
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 11,
 
-    color: "#8A9AA0",
+    color: "#8794A5",
 
     fontWeight: "600",
   },
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     top: 14,
     right: 14,
 
-    backgroundColor: "#F5FAFB",
+    backgroundColor: "#F5F8FC",
 
     borderRadius: 20,
 
@@ -284,13 +284,13 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#5A6A70",
+    color: "#5A6678",
   },
 
   divider: {
     height: 1,
 
-    backgroundColor: "#ECF3F5",
+    backgroundColor: "#EDF2F8",
 
     marginVertical: 12,
   },
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 12,
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     fontWeight: "600",
   },
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   metricNumber: {
     fontSize: 18,
 
-    color: "#132026",
+    color: "#131C2A",
 
     fontWeight: "800",
   },

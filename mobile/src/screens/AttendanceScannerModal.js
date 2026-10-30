@@ -517,7 +517,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
             <TouchableOpacity onPress={onClose} style={styles.methodClose}>
               <Ionicons name="close" size={22} color="rgba(255,255,255,0.6)" />
             </TouchableOpacity>
-            <Ionicons name="shield-checkmark-outline" size={48} color="#1B8AA6" style={{ marginBottom: 12 }} />
+            <Ionicons name="shield-checkmark-outline" size={48} color="#2E7BD1" style={{ marginBottom: 12 }} />
             <Text style={styles.methodTitle}>Choose Verification Method</Text>
             <Text style={styles.methodSub}>Select any two-factor combination</Text>
 
@@ -533,7 +533,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
                   }}
                 >
                   <View style={styles.comboIcon}>
-                    <Ionicons name={c.icon} size={22} color={authMethod === id ? '#fff' : '#1B8AA6'} />
+                    <Ionicons name={c.icon} size={22} color={authMethod === id ? '#fff' : '#2E7BD1'} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.comboLabel}>{c.label}</Text>
@@ -611,7 +611,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
             <TouchableOpacity
               activeOpacity={0.85}
               style={{
-                backgroundColor: "#0B6E8E",
+                backgroundColor: "#0B5CAD",
                 paddingHorizontal: 20,
                 paddingVertical: 12,
                 borderRadius: 24,
@@ -664,7 +664,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
             </TouchableOpacity>
 
             <View style={styles.fpIconWrap}>
-              <Ionicons name="finger-print" size={64} color="#1B8AA6" />
+              <Ionicons name="finger-print" size={64} color="#2E7BD1" />
             </View>
 
             <Text style={styles.fpTitle}>Fingerprint Verification</Text>
@@ -684,7 +684,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
             </Text>
 
             {processing ? (
-              <ActivityIndicator color="#1B8AA6" size="large" style={{ marginTop: 28 }} />
+              <ActivityIndicator color="#2E7BD1" size="large" style={{ marginTop: 28 }} />
             ) : (
               <TouchableOpacity style={styles.fpBtn} onPress={handleFingerprint} activeOpacity={0.8}>
                 <Ionicons name="finger-print" size={32} color="#fff" />
@@ -764,7 +764,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
               <>
                 <TouchableOpacity style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
                   <View style={styles.captureBtnInner}>
-                    <Ionicons name="camera" size={30} color="#0B6E8E" />
+                    <Ionicons name="camera" size={30} color="#0B5CAD" />
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={captureWithPhoneCamera} style={styles.phoneCameraLink}>
@@ -910,14 +910,14 @@ const styles = StyleSheet.create({
   fpHint:  { color: 'rgba(255,255,255,0.65)', fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 8 },
   fpBtn: {
     marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#1B8AA6', borderRadius: 14,
+    backgroundColor: '#2E7BD1', borderRadius: 14,
     paddingVertical: 16, paddingHorizontal: 32,
   },
   fpBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 16 },
 
   permTitle: { color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 20, marginBottom: 10, textAlign: 'center' },
   permText:  { color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', marginBottom: 28, lineHeight: 22 },
-  permBtn:   { backgroundColor: '#0B6E8E', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
+  permBtn:   { backgroundColor: '#0B5CAD', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
   permBtnTxt:{ color: '#fff', fontWeight: '700', fontSize: 15 },
   cancelBtn: { marginTop: 16, padding: 8 },
   cancelTxt: { color: 'rgba(255,255,255,0.5)', fontSize: 14 },

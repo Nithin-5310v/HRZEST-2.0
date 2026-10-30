@@ -131,7 +131,7 @@ const makeStyles = (colors) => StyleSheet.create({
     padding: 14,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: "#CDEBF2",
+    borderColor: "#D3E3F7",
   },
   infoNoteText: {
     flex: 1,

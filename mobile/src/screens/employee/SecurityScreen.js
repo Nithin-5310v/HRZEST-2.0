@@ -272,7 +272,7 @@ const makeStyles = (colors) => StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: {
@@ -320,7 +320,7 @@ const makeStyles = (colors) => StyleSheet.create({
     alignItems: "center",
     marginBottom: 28,
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: {

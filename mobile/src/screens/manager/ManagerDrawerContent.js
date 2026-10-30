@@ -83,7 +83,7 @@ export default function ManagerDrawerContent(props) {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LinearGradient
-        colors={["#0C3054", "#0B6E8E"]}
+        colors={["#0C3054", "#0B5CAD"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}

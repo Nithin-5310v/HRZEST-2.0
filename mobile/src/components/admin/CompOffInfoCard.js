@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
 
   policyContainer: {
 
-    backgroundColor: "#F5FAFB",
+    backgroundColor: "#F5F8FC",
 
     borderRadius: 18,
 

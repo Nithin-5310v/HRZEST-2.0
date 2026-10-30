@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Animated,
   ScrollView,
+  Platform,
+  StatusBar,
 } from "react-native";
 import SafeAreaView from "../components/SafeAreaView";
 import { Ionicons } from "@expo/vector-icons";
@@ -91,6 +93,7 @@ export default function LaunchCountdownScreen({ onContinue }) {
       <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
       <SafeAreaView style={{ flex: 1 }}>
         <WebTopBar
+          style={styles.topBar}
           right={<WebNavButton title="Log In" icon="log-in-outline" onPress={onContinue} />}
         />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -154,12 +157,14 @@ export default function LaunchCountdownScreen({ onContinue }) {
 }
 
 const styles = StyleSheet.create({
+  // Android draws under the status bar (edge to edge): clear it.
+  topBar: { paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 14 : 14 },
   content: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 22, paddingTop: 24, paddingBottom: 20 },
 
   eyebrow: {
     flexDirection: "row", alignItems: "center", alignSelf: "flex-start",
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, marginBottom: 16,
-    backgroundColor: "rgba(11,110,142,0.08)", borderWidth: 1, borderColor: WEB.borderGlow,
+    backgroundColor: "rgba(11,92,173,0.08)", borderWidth: 1, borderColor: WEB.borderGlow,
   },
   eyebrowText: { marginLeft: 6, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, color: WEB.brand },
   title: { fontSize: 30, lineHeight: 35, fontWeight: "800", letterSpacing: -0.8, color: WEB.text },

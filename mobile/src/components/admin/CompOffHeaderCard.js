@@ -13,8 +13,8 @@ const COMPOFF_THEME = {
   colors: {
     success: "#16A34A",
     successLight: "#DCFCE7",
-    textPrimary: "#132026",
-    textMuted: "#5A6A70",
+    textPrimary: "#131C2A",
+    textMuted: "#5A6678",
   },
 };
 

@@ -68,7 +68,7 @@ export default function EmployeeHeroCard({
 
   return (
     <LinearGradient
-      colors={["#0C3054", "#0B6E8E"]}
+      colors={["#0C3054", "#0B5CAD"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.card}
@@ -91,7 +91,7 @@ export default function EmployeeHeroCard({
               resizeMode="cover"
             />
           ) : (
-            <Ionicons name="business" size={14} color="#3FB8C4" style={{ marginRight: 6 }} />
+            <Ionicons name="business" size={14} color="#4C9BE8" style={{ marginRight: 6 }} />
           )}
           <Text style={styles.brandText} numberOfLines={1}>
             {companyName}
@@ -130,7 +130,7 @@ export default function EmployeeHeroCard({
 
           <View style={styles.metaRow}>
             <View style={styles.roleTag}>
-              <Ionicons name="shield-checkmark" size={12} color="#3FB8C4" style={{ marginRight: 4 }} />
+              <Ionicons name="shield-checkmark" size={12} color="#4C9BE8" style={{ marginRight: 4 }} />
               <Text style={styles.roleText} numberOfLines={1}>
                 {displayRole}
               </Text>
@@ -153,7 +153,7 @@ export default function EmployeeHeroCard({
           <View
             style={[
               styles.statusDot,
-              { backgroundColor: completed ? "#8A9AA0" : checkedIn ? "#4ADE80" : "#FBBF24" },
+              { backgroundColor: completed ? "#8794A5" : checkedIn ? "#4ADE80" : "#FBBF24" },
             ]}
           />
           <Text style={styles.statusTitle}>
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   initialText: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#0B6E8E",
+    color: "#0B5CAD",
   },
   onlineDot: {
     position: "absolute",
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   roleText: {
-    color: "#DCE6E9",
+    color: "#DBE3EE",
     fontSize: 11,
     fontWeight: "700",
   },
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   idText: {
-    color: "#3FB8C4",
+    color: "#4C9BE8",
     fontSize: 11,
     fontWeight: "800",
   },

@@ -236,7 +236,7 @@ export default function AttendanceScreen() {
               setRefreshing(true);
               loadAttendance();
             }}
-            colors={["#0B6E8E"]}
+            colors={["#0B5CAD"]}
           />
         }
       >
