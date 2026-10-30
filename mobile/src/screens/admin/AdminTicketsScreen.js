@@ -25,15 +25,15 @@ const STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
 const getStatusBadge = (status) => {
   switch (status) {
     case "Open":
-      return { bg: "#E8F5F7", color: "#0B6E8E", icon: "help-circle-outline" };
+      return { bg: "#EBF2FB", color: "#0B5CAD", icon: "help-circle-outline" };
     case "In Progress":
       return { bg: "#FFF7ED", color: "#EA580C", icon: "time-outline" };
     case "Resolved":
       return { bg: "#ECFDF5", color: "#059669", icon: "checkmark-circle-outline" };
     case "Closed":
-      return { bg: "#ECF3F5", color: "#5A6A70", icon: "archive-outline" };
+      return { bg: "#EDF2F8", color: "#5A6678", icon: "archive-outline" };
     default:
-      return { bg: "#ECF3F5", color: "#5A6A70", icon: "ellipse-outline" };
+      return { bg: "#EDF2F8", color: "#5A6678", icon: "ellipse-outline" };
   }
 };
 
@@ -42,7 +42,7 @@ const getPriorityBadge = (priority) => {
     case "High":
       return { bg: "#FEE2E2", color: "#DC2626", label: "High Priority" };
     case "Low":
-      return { bg: "#ECF3F5", color: "#5A6A70", label: "Low" };
+      return { bg: "#EDF2F8", color: "#5A6678", label: "Low" };
     default:
       return { bg: "#FEF3C7", color: "#D97706", label: "Medium" };
   }
@@ -108,7 +108,7 @@ function TicketCard({ ticket, onUpdate }) {
         <Text style={styles.subjectText}>{ticket.subject}</Text>
 
         <View style={styles.metaRow}>
-          <Ionicons name="person-outline" size={13} color="#5A6A70" />
+          <Ionicons name="person-outline" size={13} color="#5A6678" />
           <Text style={styles.metaText}>
             {ticket.name || "Employee"} ({ticket.employee_id || "EMP"})
           </Text>
@@ -129,7 +129,7 @@ function TicketCard({ ticket, onUpdate }) {
             <Ionicons
               name={expanded ? "chevron-up" : "chevron-down"}
               size={14}
-              color="#0B6E8E"
+              color="#0B5CAD"
               style={{ marginLeft: 2 }}
             />
           </View>
@@ -274,13 +274,13 @@ export default function AdminTicketsScreen() {
                 setRefreshing(true);
                 loadData();
               }}
-              tintColor="#0B6E8E"
+              tintColor="#0B5CAD"
             />
           }
         >
           {/* Stats Metric Row */}
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { borderLeftColor: "#0B6E8E" }]}>
+            <View style={[styles.statCard, { borderLeftColor: "#0B5CAD" }]}>
               <Text style={styles.statNumber}>{openCount}</Text>
               <Text style={styles.statLabel}>Open</Text>
             </View>
@@ -329,7 +329,7 @@ export default function AdminTicketsScreen() {
           {/* Tickets List */}
           {loading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#0B6E8E" />
+              <ActivityIndicator size="large" color="#0B5CAD" />
               <Text style={styles.loadingText}>Loading support tickets...</Text>
             </View>
           ) : filtered.length === 0 ? (
@@ -370,7 +370,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     borderLeftWidth: 4,
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -384,7 +384,7 @@ const makeStyles = (colors) => StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#5A6A70",
+    color: "#5A6678",
     marginTop: 2,
   },
   filterScroll: {
@@ -399,7 +399,7 @@ const makeStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.border,
   },
   filterChipActive: {
-    backgroundColor: "#0B6E8E",
+    backgroundColor: "#0B5CAD",
   },
   filterChipText: {
     fontSize: 12,
@@ -417,7 +417,7 @@ const makeStyles = (colors) => StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 13,
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   emptyCard: {
     backgroundColor: colors.card,
@@ -436,7 +436,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 13,
-    color: "#5A6A70",
+    color: "#5A6678",
     textAlign: "center",
     marginTop: 4,
   },
@@ -447,7 +447,7 @@ const makeStyles = (colors) => StyleSheet.create({
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -463,7 +463,7 @@ const makeStyles = (colors) => StyleSheet.create({
     marginBottom: 8,
   },
   ticketIdBadge: {
-    backgroundColor: "#ECF3F5",
+    backgroundColor: "#EDF2F8",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -519,7 +519,7 @@ const makeStyles = (colors) => StyleSheet.create({
   categoryText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#0B6E8E",
+    color: "#0B5CAD",
   },
   bottomMetaRow: {
     flexDirection: "row",
@@ -529,7 +529,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   dateText: {
     fontSize: 11,
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   expandToggle: {
     flexDirection: "row",
@@ -538,18 +538,18 @@ const makeStyles = (colors) => StyleSheet.create({
   expandToggleText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#0B6E8E",
+    color: "#0B5CAD",
   },
   expandedBody: {
     marginTop: 14,
     borderTopWidth: 1,
-    borderTopColor: "#ECF3F5",
+    borderTopColor: "#EDF2F8",
     paddingTop: 14,
   },
   sectionLabel: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#5A6A70",
+    color: "#5A6678",
     letterSpacing: 0.6,
     marginBottom: 6,
   },
@@ -559,11 +559,11 @@ const makeStyles = (colors) => StyleSheet.create({
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#ECF3F5",
+    borderColor: "#EDF2F8",
   },
   descText: {
     fontSize: 13,
-    color: "#2E3D43",
+    color: "#2E3A4A",
     lineHeight: 19,
   },
   existingResponseBox: {
@@ -572,12 +572,12 @@ const makeStyles = (colors) => StyleSheet.create({
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#CDEBF2",
+    borderColor: "#D3E3F7",
   },
   responseLabel: {
     fontSize: 9,
     fontWeight: "800",
-    color: "#0B6E8E",
+    color: "#0B5CAD",
     letterSpacing: 0.6,
     marginBottom: 2,
   },
@@ -595,21 +595,21 @@ const makeStyles = (colors) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: "#ECF3F5",
+    backgroundColor: "#EDF2F8",
     borderWidth: 1,
     borderColor: colors.border,
   },
   chipActive: {
     backgroundColor: colors.blueBg,
-    borderColor: "#0B6E8E",
+    borderColor: "#0B5CAD",
   },
   chipText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   chipTextActive: {
-    color: "#0B6E8E",
+    color: "#0B5CAD",
     fontWeight: "700",
   },
   responseInput: {
@@ -625,7 +625,7 @@ const makeStyles = (colors) => StyleSheet.create({
     marginBottom: 14,
   },
   btnSave: {
-    backgroundColor: "#0B6E8E",
+    backgroundColor: "#0B5CAD",
     borderRadius: 10,
     height: 44,
     flexDirection: "row",

@@ -68,7 +68,7 @@ export default function DashboardHeroCard({
             </Text>
             {slug ? (
               <View style={styles.tenantMetaRow}>
-                <Ionicons name="globe-outline" size={10} color="#3FB8C4" style={{ marginRight: 3 }} />
+                <Ionicons name="globe-outline" size={10} color="#4C9BE8" style={{ marginRight: 3 }} />
                 <Text style={styles.companyBannerTenant} numberOfLines={1}>
                   {PORTAL_HOST}/{slug}
                 </Text>
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
 
     marginBottom: 24,
 
-    shadowColor: "#0B6E8E",
+    shadowColor: "#0B5CAD",
 
     shadowOpacity: 0.25,
 
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: "#3FB8C4",
+    borderColor: "#4C9BE8",
     backgroundColor: "#0C3054",
   },
   companyBannerName: {
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   companyBannerTenant: {
-    color: "#A6DDE8",
+    color: "#A9CBF2",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.6,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   },
   companySub: {
     marginTop: 2,
-    color: "#A6DDE8",
+    color: "#A9CBF2",
     fontSize: 12,
     fontWeight: "700",
   },

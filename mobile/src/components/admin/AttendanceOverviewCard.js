@@ -79,7 +79,7 @@ export default function AttendanceOverviewCard({
       value: onLeave,
       icon: "airplane",
       color: "#0C3054",
-      bg: "#E8F5F7",
+      bg: "#EBF2FB",
     },
   ];
 
@@ -93,7 +93,7 @@ export default function AttendanceOverviewCard({
     >
       {/* Real-time Clock Banner */}
       <LinearGradient
-        colors={["#0C3054", "#0B6E8E"]}
+        colors={["#0C3054", "#0B5CAD"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.clockBanner}
@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#DCE6E9",
-    shadowColor: "#132026",
+    borderColor: "#DBE3EE",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#132026",
+    color: "#131C2A",
   },
   subtitle: {
     marginTop: 2,
     fontSize: 12,
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   scoreBox: {
     alignItems: "flex-end",
@@ -259,13 +259,13 @@ const styles = StyleSheet.create({
   scoreLabel: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#5A6A70",
+    color: "#5A6678",
     marginTop: 1,
   },
   progressTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#ECF3F5",
+    backgroundColor: "#EDF2F8",
     overflow: "hidden",
     marginBottom: 16,
   },
@@ -297,11 +297,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#2E3D43",
+    color: "#2E3A4A",
   },
   value: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#132026",
+    color: "#131C2A",
   },
 });

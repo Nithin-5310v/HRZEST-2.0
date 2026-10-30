@@ -18,7 +18,7 @@ export default function AttendanceCalendar({
       if (!item.date) return;
 
       const statusStr = (item.status || item.attendance_type || item.login_status || "").toLowerCase();
-      let color = "#C4D2D6";
+      let color = "#C3CFDD";
 
       if (statusStr.includes("present") || statusStr.includes("full day")) {
         color = "#22C55E";
@@ -33,7 +33,7 @@ export default function AttendanceCalendar({
       } else if (statusStr.includes("leave")) {
         color = "#A855F7";
       } else {
-        color = "#C4D2D6";
+        color = "#C3CFDD";
       }
 
       marks[item.date] = {
@@ -67,7 +67,7 @@ export default function AttendanceCalendar({
         theme={{
           calendarBackground: "#FFFFFF",
 
-          monthTextColor: "#0B6E8E",
+          monthTextColor: "#0B5CAD",
           textMonthFontWeight: "800",
           textMonthFontSize: 18,
 
@@ -77,15 +77,15 @@ export default function AttendanceCalendar({
           textDayHeaderFontWeight: "700",
           textDayHeaderFontSize: 13,
 
-          textSectionTitleColor: "#8A9AA0",
+          textSectionTitleColor: "#8794A5",
 
-          dayTextColor: "#132026",
+          dayTextColor: "#131C2A",
 
-          todayTextColor: "#0B6E8E",
+          todayTextColor: "#0B5CAD",
 
           selectedDayTextColor: "#FFFFFF",
 
-          arrowColor: "#0B6E8E",
+          arrowColor: "#0B5CAD",
 
           textDisabledColor: "#D1D5DB",
         }}
@@ -125,12 +125,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#132026",
+    color: "#131C2A",
   },
 
   subtitle: {
     marginTop: 4,
-    color: "#5A6A70",
+    color: "#5A6678",
     fontSize: 13,
     fontWeight: "600",
   },

@@ -4,23 +4,23 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
 // The HRzest Material You look for the app's logged-out screens, shared
-// with the website (static/landing_v2.css tokens): the logo's teal-blue
-// as primary, navy for headings, soft teal surfaces, pill buttons.
+// with the website (static/landing_v2.css tokens): the logo's blue
+// as primary, navy for headings, soft blue surfaces, pill buttons.
 // Light theme only, like those pages.
 
 export const WEB = {
-  brand: "#0B6E8E",          // --accent-cyan: the logo's teal-blue
+  brand: "#0B5CAD",          // --accent-cyan: the logo's blue
   brandDark: "#0C3054",      // --accent-blue: the wordmark's navy
   brandGreen: "#3CB484",     // the logo's green leaf
-  text: "#132026",           // --text-main
-  textMuted: "#44555B",      // --text-muted
-  textSubtle: "#8A9AA0",     // --text-subtle
+  text: "#131C2A",           // --text-main
+  textMuted: "#455163",      // --text-muted
+  textSubtle: "#8794A5",     // --text-subtle
   card: "#FFFFFF",           // --bg-card
-  field: "#ECF3F5",          // --bg-tertiary: Material filled field
-  fieldAlt: "#E3ECEF",
+  field: "#EDF2F8",          // --bg-tertiary: Material filled field
+  fieldAlt: "#E3EAF3",
   border: "rgba(15,23,42,0.08)",      // --border-color
-  borderGlow: "rgba(11,110,142,0.35)", // --border-color-glow
-  brandTint: "rgba(11,110,142,0.06)",
+  borderGlow: "rgba(11,92,173,0.35)", // --border-color-glow
+  brandTint: "rgba(11,92,173,0.06)",
   success: "#059669",        // --accent-emerald
   error: "#E11D48",          // --accent-rose
   radiusSm: 12,
@@ -29,16 +29,16 @@ export const WEB = {
   radiusPill: 999,
 };
 
-// --gradient-brand: the logo leaf, linear-gradient(135deg, #0B8AA0, #0A4E96)
+// --gradient-brand: the logo leaf, linear-gradient(135deg, #1E6FD0, #0A4E96)
 export const WEB_BRAND_GRADIENT = {
-  colors: ["#0B8AA0", "#0A4E96"],
+  colors: ["#1E6FD0", "#0A4E96"],
   start: { x: 0, y: 0 },
   end: { x: 1, y: 1 },
 };
 
-// The page background: linear-gradient(160deg, #EAF6F8 0%, #EEF7F2 28%, #F2F8FA 56%, #F5FAFB 100%)
+// The page background: linear-gradient(160deg, #EAF2FC 0%, #EEF4FB 28%, #F2F6FC 56%, #F5F8FC 100%)
 export const WEB_PAGE_GRADIENT = {
-  colors: ["#EAF6F8", "#EEF7F2", "#F2F8FA", "#F5FAFB"],
+  colors: ["#EAF2FC", "#EEF4FB", "#F2F6FC", "#F5F8FC"],
   locations: [0, 0.28, 0.56, 1],
   start: { x: 0.33, y: 0 },
   end: { x: 0.67, y: 1 },
@@ -135,7 +135,7 @@ export const webAuthStyles = StyleSheet.create({
   brandName: { marginLeft: 8, fontSize: 21, fontWeight: "800", letterSpacing: 1.2, color: WEB.brandDark },
   navButton: {
     flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: WEB.radiusPill,
-    backgroundColor: "#CDEBF2",
+    backgroundColor: "#D3E3F7",
   },
   navButtonText: { fontSize: 13, fontWeight: "700", color: WEB.brandDark },
 

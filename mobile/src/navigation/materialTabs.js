@@ -3,14 +3,14 @@ import { View, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 // The Material You bottom bar shared by the admin, employee and manager
-// tab navigators: a teal-tinted bar, a pill behind the active icon, navy
+// tab navigators: a blue-tinted bar, a pill behind the active icon, navy
 // labels -- the logo's palette (see theme/webAuthStyle.js's WEB).
 export const NAV = {
-  bar: "#E8F1F3",
-  pill: "#CDEBF2",
+  bar: "#E7EEF7",
+  pill: "#D3E3F7",
   active: "#0C3054",
-  inactive: "#44555B",
-  accent: "#0B6E8E",
+  inactive: "#455163",
+  accent: "#0B5CAD",
 };
 
 /** Screen options for a Tab.Navigator; spread them in, then add tabBarIcon. */

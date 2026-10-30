@@ -13,7 +13,7 @@ export default function HeaderCard({
 }) {
   return (
     <LinearGradient
-      colors={["#0C3054", "#0B6E8E"]}
+      colors={["#0C3054", "#0B5CAD"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}

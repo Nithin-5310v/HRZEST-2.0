@@ -54,7 +54,7 @@ export default function TicketStatsCard({
         <Ionicons
           name="stats-chart-outline"
           size={22}
-          color="#0B6E8E"
+          color="#0B5CAD"
         />
 
         <Text style={styles.title}>
@@ -75,8 +75,8 @@ export default function TicketStatsCard({
           icon="sync"
           title="In Progress"
           value={inProgress}
-          color="#0B6E8E"
-          background="#E3F2F5"
+          color="#0B5CAD"
+          background="#E6EFFA"
         />
 
         <StatCard
@@ -91,8 +91,8 @@ export default function TicketStatsCard({
           icon="archive"
           title="Closed"
           value={closed}
-          color="#5A6A70"
-          background="#ECF3F5"
+          color="#5A6678"
+          background="#EDF2F8"
         />
       </View>
     </View>
@@ -110,9 +110,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
 
     borderWidth: 1,
-    borderColor: "#E3ECEF",
+    borderColor: "#E3EAF3",
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.05,
     shadowRadius: 12,
     shadowOffset: {
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
   },
 
   grid: {
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   statCard: {
     width: "48%",
 
-    backgroundColor: "#F5FAFB",
+    backgroundColor: "#F5F8FC",
 
     borderRadius: 18,
 
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
 
     borderWidth: 1,
-    borderColor: "#E9F1F3",
+    borderColor: "#E9EFF6",
   },
 
   iconContainer: {
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
   },
 
   label: {
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     textAlign: "center",
   },

@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#132026",
+    color: "#131C2A",
     marginBottom: 16,
     letterSpacing: -0.3,
   },
