@@ -65,6 +65,46 @@ _INJECTION_PATTERN_RE = re.compile(
 _MFA_OTP_TTL_SEC = 300
 
 
+def _login_needs_company():
+    """True when /login has no company to sign in to: LOGIN_ASKS_FOR_COMPANY
+    is on (a multi-company server) and neither the URL (/<company>/login)
+    nor this session names one. Off, a bare /login keeps signing in to the
+    default single-company database, as local dev and the tests use it."""
+    if os.environ.get("LOGIN_ASKS_FOR_COMPANY", "").strip().lower() not in ("1", "true", "yes"):
+        return False
+    return not (request.environ.get("hrz.tenant_slug") or session.get("tenant_slug"))
+
+
+def _find_company_slug(typed):
+    """The active company a person typed on /login's company step: its URL
+    (acme-corp, hrzest.com/acme-corp/login, https://...) or its name
+    (Acme Corp). None if nothing matches."""
+    typed = (typed or "").strip()[:200]
+    if not typed:
+        return None
+    parts = [p for p in re.sub(r"^[a-z]+://", "", typed, flags=re.I).split("/") if p]
+    if parts and ("." in parts[0] or ":" in parts[0]):
+        parts = parts[1:]  # the host part of a pasted address
+    candidates = [re.sub(r"[^a-z0-9]+", "-", typed.lower()).strip("-")]
+    if parts:
+        candidates.insert(0, parts[0].lower())
+    from database import get_master_db
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    try:
+        cur.execute(
+            "SELECT subdomain FROM tenants WHERE status='active' "
+            "AND (subdomain = ANY(%s) OR LOWER(company_name) = LOWER(%s)) "
+            "ORDER BY subdomain = %s DESC LIMIT 1",
+            (candidates, typed, candidates[0])
+        )
+        row = cur.fetchone()
+    finally:
+        cur.close()
+        conn.close()
+    return row[0] if row else None
+
+
 def _kyc_verification_blocks_login():
     """True if this tenant's company-KYC review (blueprints/org.py's
     automated/manual document-verification pipeline) REJECTED its
@@ -429,6 +469,18 @@ def admin_login():
         return redirect(tpath("/admin"))
     if session.get("employee_id"):
         return redirect(tpath("/employee_portal"))
+    if _login_needs_company():
+        # Which company first (a GET form: ?company=), then that company's
+        # own /<company>/login -- a bare /login has no company to sign in to.
+        typed = request.args.get("company")
+        error = None
+        if typed is not None:
+            slug = _find_company_slug(typed)
+            if slug:
+                return redirect(f"/{slug}/login")
+            error = "We couldn't find that company. Check the company URL in your welcome email."
+        return render_template("admin_login.html", co=co, pick_company=True, error=error,
+                               company=typed or "")
     if request.method == "POST":
         identifier = request.form.get("identifier", "").strip()
         password = request.form.get("password", "").strip()
