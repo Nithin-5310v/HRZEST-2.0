@@ -185,7 +185,7 @@ export default function LeaveRequestsScreen({ navigation }) {
           </View>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#173B8C" style={{ marginTop: 30 }} />
+            <ActivityIndicator size="large" color="#0B6E8E" style={{ marginTop: 30 }} />
           ) : (
             filteredRequests.map((item) => (
               <View key={item.id} style={styles.requestCard}>
@@ -226,7 +226,7 @@ export default function LeaveRequestsScreen({ navigation }) {
 
                 <View style={styles.detailsBox}>
                   <View style={styles.detailRow}>
-                    <Ionicons name="calendar-outline" size={16} color="#64748B" />
+                    <Ionicons name="calendar-outline" size={16} color="#5A6A70" />
                     <Text style={styles.detailText}>
                       {item.start_date === item.end_date || !item.end_date || item.end_date === "N/A"
                         ? `Leave Date: ${item.leave_date}`
@@ -235,7 +235,7 @@ export default function LeaveRequestsScreen({ navigation }) {
                   </View>
                   {item.reason && (
                     <View style={[styles.detailRow, { marginTop: 6 }]}>
-                      <Ionicons name="chatbox-ellipses-outline" size={16} color="#64748B" />
+                      <Ionicons name="chatbox-ellipses-outline" size={16} color="#5A6A70" />
                       <Text style={styles.detailText}>"{item.reason}"</Text>
                     </View>
                   )}
@@ -308,12 +308,12 @@ const makeStyles = (colors) => StyleSheet.create({
     alignItems: "center",
   },
   statNumber: { fontSize: 18, fontWeight: "800", color: colors.text },
-  statLabel: { fontSize: 11, color: "#64748B", fontWeight: "600", marginTop: 2 },
+  statLabel: { fontSize: 11, color: "#5A6A70", fontWeight: "600", marginTop: 2 },
   tabsRow: { flexDirection: "row", backgroundColor: colors.border, borderRadius: 14, padding: 4, marginVertical: 12 },
   tab: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 10 },
   tabActive: { backgroundColor: colors.card, elevation: 2 },
-  tabText: { fontSize: 12, fontWeight: "600", color: "#64748B" },
-  tabTextActive: { color: "#173B8C", fontWeight: "800" },
+  tabText: { fontSize: 12, fontWeight: "600", color: "#5A6A70" },
+  tabTextActive: { color: "#0B6E8E", fontWeight: "800" },
   requestCard: {
     backgroundColor: colors.card,
     borderRadius: 20,
@@ -325,9 +325,9 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   cardHeader: { flexDirection: "row", alignItems: "center" },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primaryLight, justifyContent: "center", alignItems: "center" },
-  avatarText: { fontSize: 15, fontWeight: "800", color: "#173B8C" },
+  avatarText: { fontSize: 15, fontWeight: "800", color: "#0B6E8E" },
   empName: { fontSize: 13, fontWeight: "700", color: colors.text },
-  leaveType: { fontSize: 12, color: "#173B8C", fontWeight: "600", marginTop: 2 },
+  leaveType: { fontSize: 12, color: "#0B6E8E", fontWeight: "600", marginTop: 2 },
   statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   pillApproved: { backgroundColor: "#DCFCE7" },
   pillRejected: { backgroundColor: "#FEE2E2" },
@@ -338,7 +338,7 @@ const makeStyles = (colors) => StyleSheet.create({
   textPending: { color: "#B45309" },
   detailsBox: { backgroundColor: colors.background, borderRadius: 12, padding: 12, marginTop: 12 },
   detailRow: { flexDirection: "row", alignItems: "center" },
-  detailText: { fontSize: 13, color: "#334155", marginLeft: 8, flex: 1 },
+  detailText: { fontSize: 13, color: "#2E3D43", marginLeft: 8, flex: 1 },
   actionsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 14 },
   rejectBtn: { flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center", backgroundColor: "#FFF5F5", borderWidth: 1, borderColor: "#FEE2E2", paddingVertical: 10, borderRadius: 14, marginRight: 8 },
   rejectBtnText: { color: colors.danger, fontWeight: "700", marginLeft: 6 },

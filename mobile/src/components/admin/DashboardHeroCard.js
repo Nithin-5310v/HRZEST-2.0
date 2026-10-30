@@ -38,7 +38,7 @@ export default function DashboardHeroCard({
   return (
 
     <LinearGradient
-      colors={["#0F2460", "#1A3A8F"]}
+      colors={["#0C3054", "#0A4E96"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
@@ -68,7 +68,7 @@ export default function DashboardHeroCard({
             </Text>
             {slug ? (
               <View style={styles.tenantMetaRow}>
-                <Ionicons name="globe-outline" size={10} color="#38BDF8" style={{ marginRight: 3 }} />
+                <Ionicons name="globe-outline" size={10} color="#3FB8C4" style={{ marginRight: 3 }} />
                 <Text style={styles.companyBannerTenant} numberOfLines={1}>
                   {PORTAL_HOST}/{slug}
                 </Text>
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
 
     marginBottom: 24,
 
-    shadowColor: "#2563EB",
+    shadowColor: "#0B6E8E",
 
     shadowOpacity: 0.25,
 
@@ -262,8 +262,8 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: "#38BDF8",
-    backgroundColor: "#0B2253",
+    borderColor: "#3FB8C4",
+    backgroundColor: "#0C3054",
   },
   companyBannerName: {
     color: "#FFFFFF",
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   companyBannerTenant: {
-    color: "#93C5FD",
+    color: "#A6DDE8",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.6,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   },
   companySub: {
     marginTop: 2,
-    color: "#93C5FD",
+    color: "#A6DDE8",
     fontSize: 12,
     fontWeight: "700",
   },

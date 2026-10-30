@@ -18,12 +18,12 @@ export default function AdminDrawerNavigator() {
         overlayColor: "rgba(15, 23, 42, 0.4)",
         drawerStyle: {
           width: 320,
-          backgroundColor: "#F8FAFC",
+          backgroundColor: "#F5FAFB",
           borderTopRightRadius: 24,
           borderBottomRightRadius: 24,
         },
         sceneContainerStyle: {
-          backgroundColor: "#F8FAFC",
+          backgroundColor: "#F5FAFB",
         },
       }}
     >

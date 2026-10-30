@@ -384,7 +384,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <Ionicons
                     name={tab.icon}
                     size={16}
-                    color={isActive ? "#FFFFFF" : "#64748B"}
+                    color={isActive ? "#FFFFFF" : "#5A6A70"}
                   />
                   <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
                     {tab.label}
@@ -549,8 +549,8 @@ export default function SettingsScreen({ navigation, route }) {
                 <Switch
                   value={geofenceEnabled}
                   onValueChange={(v) => handleToggleFeature("geo_enabled", v, setGeofenceEnabled)}
-                  trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                  thumbColor={geofenceEnabled ? colors.primary : "#F1F5F9"}
+                  trackColor={{ false: "#C4D2D6", true: "#A6DDE8" }}
+                  thumbColor={geofenceEnabled ? colors.primary : "#ECF3F5"}
                 />
               </View>
 
@@ -597,8 +597,8 @@ export default function SettingsScreen({ navigation, route }) {
                 <Switch
                   value={faceRecog}
                   onValueChange={(v) => handleToggleFeature("face_auth_enabled", v, setFaceRecog)}
-                  trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                  thumbColor={faceRecog ? colors.primary : "#F1F5F9"}
+                  trackColor={{ false: "#C4D2D6", true: "#A6DDE8" }}
+                  thumbColor={faceRecog ? colors.primary : "#ECF3F5"}
                 />
               </View>
 
@@ -701,7 +701,7 @@ export default function SettingsScreen({ navigation, route }) {
                 <Text style={styles.cardHeaderTitle}>Notification Preferences & Alerts</Text>
               </View>
 
-              <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>
+              <Text style={{ fontSize: 12, color: "#5A6A70", marginBottom: 4 }}>
                 Choose which events send an email to admins. Each toggle saves immediately.
               </Text>
 
@@ -713,8 +713,8 @@ export default function SettingsScreen({ navigation, route }) {
                 <Switch
                   value={notifyLeave}
                   onValueChange={(v) => handleToggleFeature("notify_leave", v, setNotifyLeave)}
-                  trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                  thumbColor={notifyLeave ? colors.primary : "#F1F5F9"}
+                  trackColor={{ false: "#C4D2D6", true: "#A6DDE8" }}
+                  thumbColor={notifyLeave ? colors.primary : "#ECF3F5"}
                 />
               </View>
 
@@ -726,8 +726,8 @@ export default function SettingsScreen({ navigation, route }) {
                 <Switch
                   value={notifyPayslip}
                   onValueChange={(v) => handleToggleFeature("notify_payslip", v, setNotifyPayslip)}
-                  trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                  thumbColor={notifyPayslip ? colors.primary : "#F1F5F9"}
+                  trackColor={{ false: "#C4D2D6", true: "#A6DDE8" }}
+                  thumbColor={notifyPayslip ? colors.primary : "#ECF3F5"}
                 />
               </View>
 
@@ -739,8 +739,8 @@ export default function SettingsScreen({ navigation, route }) {
                 <Switch
                   value={notifyResignation}
                   onValueChange={(v) => handleToggleFeature("notify_resignation", v, setNotifyResignation)}
-                  trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                  thumbColor={notifyResignation ? colors.primary : "#F1F5F9"}
+                  trackColor={{ false: "#C4D2D6", true: "#A6DDE8" }}
+                  thumbColor={notifyResignation ? colors.primary : "#ECF3F5"}
                 />
               </View>
 
@@ -752,8 +752,8 @@ export default function SettingsScreen({ navigation, route }) {
                 <Switch
                   value={notifyDocExpiry}
                   onValueChange={(v) => handleToggleFeature("notify_doc_expiry", v, setNotifyDocExpiry)}
-                  trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                  thumbColor={notifyDocExpiry ? colors.primary : "#F1F5F9"}
+                  trackColor={{ false: "#C4D2D6", true: "#A6DDE8" }}
+                  thumbColor={notifyDocExpiry ? colors.primary : "#ECF3F5"}
                 />
               </View>
             </View>
@@ -796,8 +796,8 @@ export default function SettingsScreen({ navigation, route }) {
                 <Switch
                   value={holidayPay === "paid"}
                   onValueChange={(v) => setHolidayPay(v ? "paid" : "unpaid")}
-                  trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                  thumbColor={holidayPay === "paid" ? colors.primary : "#F1F5F9"}
+                  trackColor={{ false: "#C4D2D6", true: "#A6DDE8" }}
+                  thumbColor={holidayPay === "paid" ? colors.primary : "#ECF3F5"}
                 />
               </View>
 
@@ -809,8 +809,8 @@ export default function SettingsScreen({ navigation, route }) {
                 <Switch
                   value={leavePay === "exclude"}
                   onValueChange={(v) => setLeavePay(v ? "exclude" : "absent")}
-                  trackColor={{ false: "#CBD5E1", true: "#93C5FD" }}
-                  thumbColor={leavePay === "exclude" ? colors.primary : "#F1F5F9"}
+                  trackColor={{ false: "#C4D2D6", true: "#A6DDE8" }}
+                  thumbColor={leavePay === "exclude" ? colors.primary : "#ECF3F5"}
                 />
               </View>
 
@@ -838,7 +838,7 @@ export default function SettingsScreen({ navigation, route }) {
               {/* Profile Top Banner Card */}
               <View style={styles.profileCard}>
                 <LinearGradient
-                  colors={["#0F2460", "#0B2253"]}
+                  colors={["#0C3054", "#0C3054"]}
                   style={styles.profileHeaderBanner}
                 >
                   <View style={styles.avatarLarge}>
@@ -948,7 +948,7 @@ export default function SettingsScreen({ navigation, route }) {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Create New Work Shift</Text>
                 <TouchableOpacity onPress={() => setAddShiftModal(false)}>
-                  <Ionicons name="close" size={22} color="#64748B" />
+                  <Ionicons name="close" size={22} color="#5A6A70" />
                 </TouchableOpacity>
               </View>
 
@@ -1018,7 +1018,7 @@ const makeStyles = (colors) => StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#ECF3F5",
     marginRight: 8,
   },
   tabButtonActive: {
@@ -1027,7 +1027,7 @@ const makeStyles = (colors) => StyleSheet.create({
   tabText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#5A6A70",
     marginLeft: 6,
   },
   tabTextActive: {
@@ -1048,7 +1048,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     elevation: 3,
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -1078,7 +1078,7 @@ const makeStyles = (colors) => StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#64748B",
+    color: "#5A6A70",
     letterSpacing: 0.6,
     marginBottom: 6,
   },
@@ -1105,10 +1105,10 @@ const makeStyles = (colors) => StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#ECF3F5",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: "#C4D2D6",
   },
   chipBtnActive: {
     backgroundColor: colors.primary,
@@ -1148,7 +1148,7 @@ const makeStyles = (colors) => StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#ECF3F5",
   },
   settingRowTitle: {
     fontSize: 13,
@@ -1157,7 +1157,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   settingRowSub: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
   divider: {
@@ -1206,7 +1206,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   shiftTiming: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
   activeTag: {
@@ -1292,7 +1292,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   profileEmail: {
     fontSize: 13,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
   roleBadgeRow: {
@@ -1351,20 +1351,20 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   statLbl: {
     fontSize: 11,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
   statSep: {
     width: 1,
     height: 24,
-    backgroundColor: "#CBD5E1",
+    backgroundColor: "#C4D2D6",
   },
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#ECF3F5",
   },
   actionIconBox: {
     width: 38,
@@ -1381,7 +1381,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   actionSub: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
   logoutBtn: {

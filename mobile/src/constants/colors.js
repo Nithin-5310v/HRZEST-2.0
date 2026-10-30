@@ -1,21 +1,21 @@
 const COLORS = {
   // Primary Brand
-  primary: "#0B2253",
-  primaryDark: "#08183D",
-  primaryLight: "#EEF4FF",
+  primary: "#0C3054",
+  primaryDark: "#082640",
+  primaryLight: "#E3F2F5",
 
   // Backgrounds
-  background: "#F8FAFC",
+  background: "#F5FAFB",
   surface: "#FFFFFF",
   card: "#FFFFFF",
 
   // Text
-  text: "#0F172A",
-  textSecondary: "#475569",
-  textLight: "#94A3B8",
+  text: "#132026",
+  textSecondary: "#44555B",
+  textLight: "#8A9AA0",
 
   // Borders
-  border: "#E2E8F0",
+  border: "#DCE6E9",
 
   // Status
   success: "#22C55E",
@@ -24,14 +24,14 @@ const COLORS = {
   info: "#06B6D4",
 
   // Dashboard Cards
-  employee: "#3B82F6",
+  employee: "#1B8AA6",
   attendance: "#22C55E",
   absent: "#EF4444",
   payroll: "#8B5CF6",
   analytics: "#F97316",
 
   // Icon Backgrounds
-  blueBg: "#EFF6FF",
+  blueBg: "#E8F5F7",
   greenBg: "#ECFDF5",
   redBg: "#FEF2F2",
   yellowBg: "#FFFBEB",

@@ -52,7 +52,7 @@ export default function DigitalIdCardModal({ visible, employee, onClose }) {
         <View style={styles.cardContainer}>
           <LinearGradient colors={["#0F2027", "#203A43", "#2C5364"]} style={styles.cardHeader}>
             <View style={styles.headerRow}>
-              <Ionicons name="business" size={22} color="#38BDF8" />
+              <Ionicons name="business" size={22} color="#3FB8C4" />
               <Text style={styles.companyName}>{companyName}</Text>
             </View>
             <Text style={styles.cardSubtitle}>OFFICIAL IDENTIFICATION CARD</Text>
@@ -96,12 +96,12 @@ export default function DigitalIdCardModal({ visible, employee, onClose }) {
                 />
               ) : qrFailed ? (
                 <View style={styles.qrUnavailable}>
-                  <Ionicons name="qr-code-outline" size={32} color="#94A3B8" />
+                  <Ionicons name="qr-code-outline" size={32} color="#8A9AA0" />
                   <Text style={styles.qrUnavailableText}>QR unavailable</Text>
                 </View>
               ) : (
                 <View style={styles.qrUnavailable}>
-                  <ActivityIndicator size="small" color="#94A3B8" />
+                  <ActivityIndicator size="small" color="#8A9AA0" />
                 </View>
               )}
               <Text style={styles.qrText}>Scan for Digital Verification</Text>
@@ -123,25 +123,25 @@ const styles = StyleSheet.create({
   cardHeader: { paddingVertical: 18, paddingHorizontal: 20, alignItems: "center" },
   headerRow: { flexDirection: "row", alignItems: "center" },
   companyName: { fontSize: 15, fontWeight: "800", color: "#FFFFFF", marginLeft: 8, letterSpacing: 0.5 },
-  cardSubtitle: { fontSize: 10, fontWeight: "700", color: "#94A3B8", letterSpacing: 1.2, marginTop: 4 },
+  cardSubtitle: { fontSize: 10, fontWeight: "700", color: "#8A9AA0", letterSpacing: 1.2, marginTop: 4 },
   cardBody: { alignItems: "center", padding: 20 },
-  avatarBorder: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: "#38BDF8", justifyContent: "center", alignItems: "center", marginTop: -40, backgroundColor: "#FFFFFF", elevation: 4 },
+  avatarBorder: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: "#3FB8C4", justifyContent: "center", alignItems: "center", marginTop: -40, backgroundColor: "#FFFFFF", elevation: 4 },
   avatarImage: { width: 84, height: 84, borderRadius: 42 },
-  avatarFallback: { width: 84, height: 84, borderRadius: 42, backgroundColor: "#173B8C", justifyContent: "center", alignItems: "center" },
+  avatarFallback: { width: 84, height: 84, borderRadius: 42, backgroundColor: "#0B6E8E", justifyContent: "center", alignItems: "center" },
   avatarText: { fontSize: 24, fontWeight: "800", color: "#FFFFFF" },
-  empName: { fontSize: 16, fontWeight: "800", color: "#0F172A", marginTop: 10 },
-  empRole: { fontSize: 12, fontWeight: "600", color: "#64748B", marginTop: 2 },
+  empName: { fontSize: 16, fontWeight: "800", color: "#132026", marginTop: 10 },
+  empRole: { fontSize: 12, fontWeight: "600", color: "#5A6A70", marginTop: 2 },
   badgeRow: { marginTop: 8 },
   deptBadge: { backgroundColor: "#E0F2FE", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   deptBadgeText: { fontSize: 11, fontWeight: "700", color: "#0369A1" },
-  detailsTable: { width: "100%", marginTop: 16, borderTopWidth: 1, borderTopColor: "#F1F5F9", paddingTop: 12 },
+  detailsTable: { width: "100%", marginTop: 16, borderTopWidth: 1, borderTopColor: "#ECF3F5", paddingTop: 12 },
   detailRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  detailLabel: { fontSize: 12, fontWeight: "700", color: "#64748B" },
-  detailValue: { fontSize: 12, fontWeight: "700", color: "#0F172A" },
-  qrContainer: { alignItems: "center", marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#F1F5F9", width: "100%" },
-  qrText: { fontSize: 11, color: "#94A3B8", marginTop: 4 },
-  qrUnavailable: { width: 120, height: 120, borderRadius: 12, backgroundColor: "#F8FAFC", justifyContent: "center", alignItems: "center", gap: 6 },
-  qrUnavailableText: { fontSize: 10, color: "#94A3B8", fontWeight: "600" },
-  closeBtn: { backgroundColor: "#F1F5F9", paddingVertical: 14, alignItems: "center" },
-  closeBtnText: { color: "#64748B", fontWeight: "700", fontSize: 13 },
+  detailLabel: { fontSize: 12, fontWeight: "700", color: "#5A6A70" },
+  detailValue: { fontSize: 12, fontWeight: "700", color: "#132026" },
+  qrContainer: { alignItems: "center", marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#ECF3F5", width: "100%" },
+  qrText: { fontSize: 11, color: "#8A9AA0", marginTop: 4 },
+  qrUnavailable: { width: 120, height: 120, borderRadius: 12, backgroundColor: "#F5FAFB", justifyContent: "center", alignItems: "center", gap: 6 },
+  qrUnavailableText: { fontSize: 10, color: "#8A9AA0", fontWeight: "600" },
+  closeBtn: { backgroundColor: "#ECF3F5", paddingVertical: 14, alignItems: "center" },
+  closeBtnText: { color: "#5A6A70", fontWeight: "700", fontSize: 13 },
 });

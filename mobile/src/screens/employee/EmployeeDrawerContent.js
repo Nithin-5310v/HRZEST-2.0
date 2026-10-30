@@ -185,7 +185,7 @@ export default function EmployeeDrawerContent(props) {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Executive Hero Header */}
       <LinearGradient
-        colors={["#0B2253", "#173B8C"]}
+        colors={["#0C3054", "#0B6E8E"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -221,7 +221,7 @@ export default function EmployeeDrawerContent(props) {
             </Text>
             <View style={styles.roleBadgeRow}>
               <View style={styles.roleBadge}>
-                <Ionicons name="shield-checkmark" size={12} color="#38BDF8" style={{ marginRight: 4 }} />
+                <Ionicons name="shield-checkmark" size={12} color="#3FB8C4" style={{ marginRight: 4 }} />
                 <Text style={styles.roleText}>Verified Staff</Text>
               </View>
             </View>
@@ -270,7 +270,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderBottomLeftRadius: 26,
     borderBottomRightRadius: 26,
     elevation: 10,
-    shadowColor: "#0B2253",
+    shadowColor: "#0C3054",
     shadowOpacity: 0.35,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
@@ -300,7 +300,7 @@ const makeStyles = (colors) => StyleSheet.create({
   avatarText: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#0B2253",
+    color: "#0C3054",
   },
   onlineDot: {
     position: "absolute",
@@ -385,7 +385,7 @@ const makeStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
     elevation: 6,
-    shadowColor: "#0B2253",
+    shadowColor: "#0C3054",
     shadowOpacity: 0.35,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

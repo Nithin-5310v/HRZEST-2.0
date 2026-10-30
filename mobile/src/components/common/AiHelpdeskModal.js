@@ -79,7 +79,7 @@ export default function AiHelpdeskModal({ visible, onClose }) {
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close-circle" size={26} color="#64748B" />
+              <Ionicons name="close-circle" size={26} color="#5A6A70" />
             </TouchableOpacity>
           </View>
 
@@ -105,7 +105,7 @@ export default function AiHelpdeskModal({ visible, onClose }) {
             ))}
             {loading && (
               <View style={[styles.msgBubble, styles.botBubble, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
-                <ActivityIndicator size="small" color="#173B8C" />
+                <ActivityIndicator size="small" color="#0B6E8E" />
                 <Text style={styles.botMsgText}>AI Assistant thinking...</Text>
               </View>
             )}
@@ -116,7 +116,7 @@ export default function AiHelpdeskModal({ visible, onClose }) {
             <TextInput
               style={styles.textInput}
               placeholder="Ask about leave rules, payslips, or holidays..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor="#8A9AA0"
               value={input}
               onChangeText={setInput}
               onSubmitEditing={handleSend}
@@ -134,19 +134,19 @@ export default function AiHelpdeskModal({ visible, onClose }) {
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(15, 23, 42, 0.75)", justifyContent: "flex-end" },
   modalCard: { height: "78%", backgroundColor: "#FFFFFF", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#F1F5F9", paddingBottom: 14 },
-  botIconCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#173B8C", justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: "#0F172A" },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#ECF3F5", paddingBottom: 14 },
+  botIconCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#0B6E8E", justifyContent: "center", alignItems: "center" },
+  headerTitle: { fontSize: 16, fontWeight: "700", color: "#132026" },
   headerSub: { fontSize: 11, color: "#10B981", fontWeight: "600" },
   closeBtn: { padding: 2 },
   chatArea: { flex: 1 },
   msgBubble: { maxWidth: "82%", borderRadius: 18, padding: 12, marginBottom: 10 },
-  userBubble: { alignSelf: "flex-end", backgroundColor: "#173B8C", borderBottomRightRadius: 4 },
-  botBubble: { alignSelf: "flex-start", backgroundColor: "#F1F5F9", borderBottomLeftRadius: 4 },
+  userBubble: { alignSelf: "flex-end", backgroundColor: "#0B6E8E", borderBottomRightRadius: 4 },
+  botBubble: { alignSelf: "flex-start", backgroundColor: "#ECF3F5", borderBottomLeftRadius: 4 },
   msgText: { fontSize: 14, lineHeight: 20 },
   userMsgText: { color: "#FFFFFF" },
-  botMsgText: { color: "#0F172A" },
-  inputContainer: { flexDirection: "row", alignItems: "center", borderTopWidth: 1, borderTopColor: "#F1F5F9", paddingTop: 10 },
-  textInput: { flex: 1, backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14 },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#173B8C", justifyContent: "center", alignItems: "center", marginLeft: 8 },
+  botMsgText: { color: "#132026" },
+  inputContainer: { flexDirection: "row", alignItems: "center", borderTopWidth: 1, borderTopColor: "#ECF3F5", paddingTop: 10 },
+  textInput: { flex: 1, backgroundColor: "#F5FAFB", borderWidth: 1, borderColor: "#DCE6E9", borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14 },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: "#0B6E8E", justifyContent: "center", alignItems: "center", marginLeft: 8 },
 });

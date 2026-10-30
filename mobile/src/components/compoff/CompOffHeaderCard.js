@@ -15,7 +15,7 @@ export default function CompOffHeaderCard({
 }) {
   return (
     <LinearGradient
-      colors={["#173B8C", "#214AA8"]}
+      colors={["#0B6E8E", "#214AA8"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.card}
@@ -33,7 +33,7 @@ export default function CompOffHeaderCard({
             <Ionicons
               name="person"
               size={26}
-              color="#173B8C"
+              color="#0B6E8E"
             />
           </View>
 
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
 
     marginBottom: 20,
 
-    shadowColor: "#173B8C",
+    shadowColor: "#0B6E8E",
     shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: {

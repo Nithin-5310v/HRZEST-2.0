@@ -68,7 +68,7 @@ export default function AttendanceHistoryCard({
             <Ionicons
               name="log-in-outline"
               size={16}
-              color="#173B8C"
+              color="#0B6E8E"
             />
 
             <Text style={styles.time}>
@@ -78,7 +78,7 @@ export default function AttendanceHistoryCard({
             <Ionicons
               name="log-out-outline"
               size={16}
-              color="#173B8C"
+              color="#0B6E8E"
               style={{ marginLeft: 18 }}
             />
 
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#132026",
     marginBottom: 18,
   },
 
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E3F2F5",
 
     justifyContent: "center",
     alignItems: "center",
@@ -189,13 +189,13 @@ const styles = StyleSheet.create({
   day: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#173B8C",
+    color: "#0B6E8E",
   },
 
   month: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
 
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
 
   time: {
     marginLeft: 6,
-    color: "#0F172A",
+    color: "#132026",
     fontWeight: "700",
     fontSize: 14,
   },
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
 
   hours: {
-    color: "#64748B",
+    color: "#5A6A70",
     fontWeight: "600",
     fontSize: 14,
   },

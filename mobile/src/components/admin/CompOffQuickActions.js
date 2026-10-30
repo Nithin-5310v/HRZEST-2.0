@@ -22,8 +22,8 @@ export default function CompOffQuickActions({
       title: "Apply OT",
       subtitle: "New OT Entry",
       icon: "time-outline",
-      color: "#2563EB",
-      background: "#EEF4FF",
+      color: "#0B6E8E",
+      background: "#E3F2F5",
       onPress: onApplyOT,
     },
     {

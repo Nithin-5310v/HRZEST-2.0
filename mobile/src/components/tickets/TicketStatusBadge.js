@@ -21,8 +21,8 @@ export default function TicketStatusBadge({
 
       case "In Progress":
         return {
-          color: "#2563EB",
-          background: "#EEF4FF",
+          color: "#0B6E8E",
+          background: "#E3F2F5",
           icon: "sync",
         };
 
@@ -35,8 +35,8 @@ export default function TicketStatusBadge({
 
       case "Closed":
         return {
-          color: "#64748B",
-          background: "#F1F5F9",
+          color: "#5A6A70",
+          background: "#ECF3F5",
           icon: "archive",
         };
 
@@ -49,8 +49,8 @@ export default function TicketStatusBadge({
 
       default:
         return {
-          color: "#64748B",
-          background: "#F8FAFC",
+          color: "#5A6A70",
+          background: "#F5FAFB",
           icon: "ellipse",
         };
     }

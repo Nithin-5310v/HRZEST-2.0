@@ -18,7 +18,7 @@ export default function EmployeePerformanceCard({
         <Ionicons
           name="person"
           size={42}
-          color="#173B8C"
+          color="#0B6E8E"
         />
       </View>
 
@@ -39,7 +39,7 @@ export default function EmployeePerformanceCard({
           <Ionicons
             name="card-outline"
             size={14}
-            color="#173B8C"
+            color="#0B6E8E"
           />
 
           <Text style={styles.badgeText}>
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
 
     borderWidth: 1,
-    borderColor: "#E8EDF3",
+    borderColor: "#E3ECEF",
 
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 41,
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E3F2F5",
 
     justifyContent: "center",
     alignItems: "center",
@@ -101,20 +101,20 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#132026",
   },
 
   designation: {
     marginTop: 6,
     fontSize: 16,
     fontWeight: "700",
-    color: "#173B8C",
+    color: "#0B6E8E",
   },
 
   department: {
     marginTop: 4,
     fontSize: 14,
-    color: "#64748B",
+    color: "#5A6A70",
     fontWeight: "600",
   },
 
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
 
-    backgroundColor: "#EEF4FF",
+    backgroundColor: "#E3F2F5",
 
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   badgeText: {
     marginLeft: 6,
 
-    color: "#173B8C",
+    color: "#0B6E8E",
 
     fontWeight: "700",
 

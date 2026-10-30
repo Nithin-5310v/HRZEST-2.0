@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     flexDirection: "row", alignItems: "center", alignSelf: "flex-start",
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, marginBottom: 16,
-    backgroundColor: "rgba(79,70,229,0.08)", borderWidth: 1, borderColor: WEB.borderGlow,
+    backgroundColor: "rgba(11,110,142,0.08)", borderWidth: 1, borderColor: WEB.borderGlow,
   },
   eyebrowText: { marginLeft: 6, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, color: WEB.brand },
   title: { fontSize: 30, lineHeight: 35, fontWeight: "800", letterSpacing: -0.8, color: WEB.text },

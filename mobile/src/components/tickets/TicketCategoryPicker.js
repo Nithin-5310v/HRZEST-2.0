@@ -13,8 +13,8 @@ const categories = [
     id: "hr",
     title: "HR",
     icon: "people-outline",
-    color: "#2563EB",
-    background: "#EEF4FF",
+    color: "#0B6E8E",
+    background: "#E3F2F5",
   },
   {
     id: "it",
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#0F172A",
+    color: "#132026",
     marginBottom: 14,
   },
 
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#334155",
+    color: "#2E3D43",
   },
 
   check: {

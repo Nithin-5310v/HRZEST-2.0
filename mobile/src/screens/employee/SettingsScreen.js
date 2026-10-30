@@ -343,7 +343,7 @@ const makeStyles = (colors) => StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.04,
     shadowRadius: 8,
     shadowOffset: {

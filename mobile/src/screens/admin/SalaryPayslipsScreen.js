@@ -474,7 +474,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 22,
     padding: 20,
     elevation: 10,
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.2,
     shadowRadius: 16,
   },
@@ -507,7 +507,7 @@ const makeStyles = (colors) => StyleSheet.create({
   pickerOptionText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#334155",
+    color: "#2E3D43",
   },
   pickerOptionTextActive: {
     fontWeight: "800",

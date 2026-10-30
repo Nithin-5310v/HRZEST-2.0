@@ -40,10 +40,10 @@ export default function HighlightCard({
 
       default:
         return {
-          background: "#EEF4FF",
-          border: "#2563EB",
+          background: "#E3F2F5",
+          border: "#0B6E8E",
           icon: "information-circle",
-          color: "#173B8C",
+          color: "#0B6E8E",
         };
     }
   };
@@ -132,6 +132,6 @@ const styles = StyleSheet.create({
 
     lineHeight: 22,
 
-    color: "#475569",
+    color: "#44555B",
   },
 });

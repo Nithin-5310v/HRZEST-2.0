@@ -60,7 +60,7 @@ export default function AnalyticsScreen({ navigation }) {
         const d = e.department || "General";
         deptMap[d] = (deptMap[d] || 0) + 1;
       });
-      const deptColors = ["#10B981", "#2563EB", "#F59E0B", "#8B5CF6", "#EC4899"];
+      const deptColors = ["#10B981", "#0B6E8E", "#F59E0B", "#8B5CF6", "#EC4899"];
       const totalEmp = empList.length || 1;
       const dynamicDepts = Object.keys(deptMap).map((name, i) => ({
         name,
@@ -85,7 +85,7 @@ export default function AnalyticsScreen({ navigation }) {
       const unexcusedAbsences = dash.absent || 0;
       const dynamicAlerts = [];
       if (pendingLeaves > 0) {
-        dynamicAlerts.push({ title: `${pendingLeaves} Leave Requests Pending`, subtitle: "Requires manager sign-off", icon: "document-text-outline", color: "#2563EB" });
+        dynamicAlerts.push({ title: `${pendingLeaves} Leave Requests Pending`, subtitle: "Requires manager sign-off", icon: "document-text-outline", color: "#0B6E8E" });
       }
       if (unexcusedAbsences > 0) {
         dynamicAlerts.push({ title: `${unexcusedAbsences} Absences Recorded`, subtitle: "Review attendance logs", icon: "warning-outline", color: "#EF4444" });
@@ -177,10 +177,10 @@ export default function AnalyticsScreen({ navigation }) {
               disabled={exporting}
             >
               {exporting ? (
-                <ActivityIndicator size="small" color="#173B8C" />
+                <ActivityIndicator size="small" color="#0B6E8E" />
               ) : (
                 <>
-                  <Ionicons name="download-outline" size={16} color="#173B8C" />
+                  <Ionicons name="download-outline" size={16} color="#0B6E8E" />
                   <Text style={styles.exportBtnText}>Export</Text>
                 </>
               )}
@@ -228,7 +228,7 @@ export default function AnalyticsScreen({ navigation }) {
             <View style={styles.kpiCard}>
               <View style={styles.kpiTopRow}>
                 <View style={[styles.kpiIconBox, { backgroundColor: colors.primaryLight }]}>
-                  <Ionicons name="people" size={20} color="#173B8C" />
+                  <Ionicons name="people" size={20} color="#0B6E8E" />
                 </View>
                 <View style={styles.kpiTag}>
                   <Text style={styles.kpiTagText}>Total</Text>
@@ -295,7 +295,7 @@ export default function AnalyticsScreen({ navigation }) {
 
             {departments.length === 0 ? (
               <View style={{ padding: 20, alignItems: "center" }}>
-                <Text style={{ fontSize: 13, color: "#64748B", fontWeight: "600" }}>
+                <Text style={{ fontSize: 13, color: "#5A6A70", fontWeight: "600" }}>
                   No Department Data Available
                 </Text>
               </View>
@@ -328,12 +328,12 @@ export default function AnalyticsScreen({ navigation }) {
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Active Staff</Text>
-              <Ionicons name="people-outline" size={20} color="#173B8C" />
+              <Ionicons name="people-outline" size={20} color="#0B6E8E" />
             </View>
 
             {performers.length === 0 ? (
               <View style={{ padding: 20, alignItems: "center" }}>
-                <Text style={{ fontSize: 13, color: "#64748B", fontWeight: "600" }}>
+                <Text style={{ fontSize: 13, color: "#5A6A70", fontWeight: "600" }}>
                   No Active Staff Yet
                 </Text>
                 <Text style={{ fontSize: 12, color: colors.textLight, marginTop: 4 }}>
@@ -407,12 +407,12 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 12,
   },
   periodPillActive: {
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B6E8E",
   },
   periodText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#5A6A70",
   },
   periodTextActive: {
     color: "#FFFFFF",
@@ -431,7 +431,7 @@ const makeStyles = (colors) => StyleSheet.create({
   exportBtnText: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#173B8C",
+    color: "#0B6E8E",
     marginLeft: 6,
   },
 
@@ -444,7 +444,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     elevation: 3,
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -457,7 +457,7 @@ const makeStyles = (colors) => StyleSheet.create({
   heroLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#64748B",
+    color: "#5A6A70",
     letterSpacing: 0.8,
   },
   heroValue: {
@@ -483,7 +483,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   heroSubText: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 6,
     lineHeight: 17,
   },
@@ -556,7 +556,7 @@ const makeStyles = (colors) => StyleSheet.create({
   kpiTagText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#173B8C",
+    color: "#0B6E8E",
   },
   kpiNumber: {
     fontSize: 20,
@@ -573,7 +573,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   kpiSub: {
     fontSize: 11,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
 
@@ -600,11 +600,11 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
   badgePill: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#ECF3F5",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -631,14 +631,14 @@ const makeStyles = (colors) => StyleSheet.create({
   barValText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#173B8C",
+    color: "#0B6E8E",
     marginBottom: 6,
   },
   barTrack: {
     height: 125,
     justifyContent: "flex-end",
     width: 18,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#ECF3F5",
     borderRadius: 9,
     overflow: "hidden",
   },
@@ -649,7 +649,7 @@ const makeStyles = (colors) => StyleSheet.create({
   barLabel: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 8,
   },
 
@@ -681,7 +681,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   deptProgressTrack: {
     height: 7,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#ECF3F5",
     borderRadius: 4,
     overflow: "hidden",
     marginBottom: 4,
@@ -701,7 +701,7 @@ const makeStyles = (colors) => StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#ECF3F5",
   },
   performerRankBox: {
     width: 32,
@@ -723,7 +723,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   performerSub: {
     fontSize: 12,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
   scoreBadge: {
@@ -744,7 +744,7 @@ const makeStyles = (colors) => StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#ECF3F5",
   },
   alertIconBox: {
     width: 38,
@@ -760,7 +760,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   alertSub: {
     fontSize: 11,
-    color: "#64748B",
+    color: "#5A6A70",
     marginTop: 2,
   },
 });

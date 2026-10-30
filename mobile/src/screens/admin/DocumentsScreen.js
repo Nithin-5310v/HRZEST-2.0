@@ -184,7 +184,7 @@ export default function DocumentsScreen({ navigation }) {
           </ScrollView>
 
           {loading ? (
-            <ActivityIndicator size="large" color="#173B8C" style={{ marginTop: 24 }} />
+            <ActivityIndicator size="large" color="#0B6E8E" style={{ marginTop: 24 }} />
           ) : docs.length === 0 ? (
             <View style={styles.emptyCard}>
               <Ionicons name="document-text-outline" size={44} color={colors.textLight} />
@@ -195,7 +195,7 @@ export default function DocumentsScreen({ navigation }) {
             docs.map((doc) => (
               <View key={doc.id} style={styles.docCard}>
                 <View style={styles.docIcon}>
-                  <Ionicons name="document-text" size={22} color="#173B8C" />
+                  <Ionicons name="document-text" size={22} color="#0B6E8E" />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.docType}>{doc.doc_type} — {doc.employee_name}</Text>
@@ -218,15 +218,15 @@ export default function DocumentsScreen({ navigation }) {
         <Modal visible={uploadModalVisible} transparent animationType="slide" onRequestClose={() => setUploadModalVisible(false)}>
           <View style={{ flex: 1, backgroundColor: "rgba(15, 23, 42, 0.8)", justifyContent: "flex-end" }}>
             <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: "85%" }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#ECF3F5" }}>
                 <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Upload Document</Text>
                 <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
-                  <Ionicons name="close-circle" size={26} color="#64748B" />
+                  <Ionicons name="close-circle" size={26} color="#5A6A70" />
                 </TouchableOpacity>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginBottom: 6 }}>EMPLOYEE ID *</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6A70", marginBottom: 6 }}>EMPLOYEE ID *</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginBottom: 16 }}
                   placeholder="EMP-1001"
@@ -235,31 +235,31 @@ export default function DocumentsScreen({ navigation }) {
                   autoCapitalize="characters"
                 />
 
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#64748B", marginBottom: 6 }}>DOCUMENT TYPE</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#5A6A70", marginBottom: 6 }}>DOCUMENT TYPE</Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                   {DOC_TYPES.map((t) => (
                     <TouchableOpacity
                       key={t}
                       onPress={() => setDocType(t)}
-                      style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: docType === t ? "#173B8C" : "#F1F5F9" }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: docType === t ? "#0B6E8E" : "#ECF3F5" }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: docType === t ? "#FFFFFF" : "#334155" }}>{t}</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: docType === t ? "#FFFFFF" : "#2E3D43" }}>{t}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
 
                 <TouchableOpacity
                   onPress={handlePickPhoto}
-                  style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: "#BFDBFE", borderStyle: "dashed", borderRadius: 14, padding: 20, alignItems: "center", marginBottom: 16 }}
+                  style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: "#B5DFE8", borderStyle: "dashed", borderRadius: 14, padding: 20, alignItems: "center", marginBottom: 16 }}
                 >
-                  <Ionicons name={photoUri ? "checkmark-circle" : "image-outline"} size={32} color={photoUri ? "#16A34A" : "#1D4ED8"} />
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: "#334155", marginTop: 8 }}>
+                  <Ionicons name={photoUri ? "checkmark-circle" : "image-outline"} size={32} color={photoUri ? "#16A34A" : "#0A5878"} />
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: "#2E3D43", marginTop: 8 }}>
                     {photoUri ? "Photo Attached — Tap to Change" : "Tap to Attach a Photo"}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={{ backgroundColor: "#173B8C", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+                  style={{ backgroundColor: "#0B6E8E", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                   onPress={handleUpload}
                   disabled={uploading}
                 >
@@ -279,15 +279,15 @@ const makeStyles = (colors) => StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 10 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
   sectionTitle: { fontSize: 15, fontWeight: "800", color: colors.text },
-  addBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#173B8C", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  addBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#0B6E8E", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   addBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 12, marginLeft: 4 },
-  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "#F1F5F9", marginRight: 8 },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "#ECF3F5", marginRight: 8 },
   filterChipActive: { backgroundColor: colors.primary },
-  filterChipText: { fontSize: 12, fontWeight: "700", color: "#64748B" },
+  filterChipText: { fontSize: 12, fontWeight: "700", color: "#5A6A70" },
   filterChipTextActive: { color: "#FFFFFF" },
   emptyCard: { backgroundColor: colors.card, borderRadius: 20, padding: 32, alignItems: "center", borderWidth: 1, borderColor: colors.border },
-  emptyTitle: { fontSize: 15, fontWeight: "700", color: "#334155", marginTop: 10 },
-  emptySub: { fontSize: 12, color: "#64748B", textAlign: "center", marginTop: 4 },
+  emptyTitle: { fontSize: 15, fontWeight: "700", color: "#2E3D43", marginTop: 10 },
+  emptySub: { fontSize: 12, color: "#5A6A70", textAlign: "center", marginTop: 4 },
   docCard: { flexDirection: "row", alignItems: "center", backgroundColor: colors.card, borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: colors.border },
   docIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.primaryLight, justifyContent: "center", alignItems: "center" },
   docType: { fontSize: 13, fontWeight: "700", color: colors.text },

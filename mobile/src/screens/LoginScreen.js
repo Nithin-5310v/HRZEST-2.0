@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     backgroundColor: WEB.card,
-    shadowColor: "#0F172A", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    shadowColor: "#132026", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   tabText: { marginLeft: 6, fontSize: 13, fontWeight: "700", color: WEB.textSubtle },
   tabTextActive: { color: WEB.brand },

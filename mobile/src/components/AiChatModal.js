@@ -81,12 +81,12 @@ export default function AiChatModal({ visible, onClose }) {
         >
           {/* Header */}
           <LinearGradient
-            colors={["#0F172A", "#1E293B"]}
+            colors={["#132026", "#1E293B"]}
             style={styles.header}
           >
             <View style={styles.headerLeft}>
               <View style={styles.botAvatar}>
-                <Ionicons name="sparkles" size={18} color="#38BDF8" />
+                <Ionicons name="sparkles" size={18} color="#3FB8C4" />
               </View>
               <View style={{ marginLeft: 10 }}>
                 <Text style={styles.headerTitle}>AI HR Assistant</Text>
@@ -94,7 +94,7 @@ export default function AiChatModal({ visible, onClose }) {
               </View>
             </View>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <Ionicons name="close" size={24} color="#94A3B8" />
+              <Ionicons name="close" size={24} color="#8A9AA0" />
             </TouchableOpacity>
           </LinearGradient>
 
@@ -150,7 +150,7 @@ export default function AiChatModal({ visible, onClose }) {
             <TextInput
               style={styles.textInput}
               placeholder="Ask AI HR anything..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor="#8A9AA0"
               value={input}
               onChangeText={setInput}
               onSubmitEditing={() => handleSend()}
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     height: "82%",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5FAFB",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: "hidden",
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: "#8A9AA0",
     marginTop: 1,
   },
   closeBtn: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: "#DCE6E9",
   },
   promptChip: {
     flexDirection: "row",
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderBottomLeftRadius: 2,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#DCE6E9",
   },
   msgText: {
     fontSize: 13,
@@ -276,16 +276,16 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: "#DCE6E9",
   },
   textInput: {
     flex: 1,
     height: 44,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#ECF3F5",
     borderRadius: 22,
     paddingHorizontal: 16,
     fontSize: 13,
-    color: "#0F172A",
+    color: "#132026",
     marginRight: 10,
   },
   sendBtn: {

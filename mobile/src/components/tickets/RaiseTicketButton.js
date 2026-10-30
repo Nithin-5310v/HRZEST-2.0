@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B6E8E",
 
     flexDirection: "row",
 
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
 
     marginBottom: 24,
 
-    shadowColor: "#173B8C",
+    shadowColor: "#0B6E8E",
     shadowOpacity: 0.30,
     shadowRadius: 14,
     shadowOffset: {

@@ -42,7 +42,7 @@ export default function PayslipCard({
         <Ionicons
           name="document-text-outline"
           size={22}
-          color="#173B8C"
+          color="#0B6E8E"
         />
 
         <Text style={styles.headerTitle}>
@@ -130,9 +130,9 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E8EDF3",
+    borderColor: "#E3ECEF",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: {
@@ -156,14 +156,14 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#132026",
   },
 
   subtitle: {
     marginTop: 6,
     marginBottom: 20,
 
-    color: "#64748B",
+    color: "#5A6A70",
 
     fontSize: 14,
 
@@ -177,13 +177,13 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#334155",
+    color: "#2E3D43",
   },
 
   pickerContainer: {
     borderWidth: 1,
 
-    borderColor: "#E2E8F0",
+    borderColor: "#DCE6E9",
 
     borderRadius: 14,
 
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
 
     overflow: "hidden",
 
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F5FAFB",
   },
 
   button: {
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 16,
 
-    backgroundColor: "#173B8C",
+    backgroundColor: "#0B6E8E",
 
     flexDirection: "row",
 
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
 
     marginTop: 8,
 
-    shadowColor: "#173B8C",
+    shadowColor: "#0B6E8E",
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: {

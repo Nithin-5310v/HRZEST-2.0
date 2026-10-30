@@ -48,7 +48,7 @@ function ContactRow({
       <Ionicons
         name="chevron-forward"
         size={20}
-        color="#CBD5E1"
+        color="#C4D2D6"
       />
     </TouchableOpacity>
   );
@@ -61,7 +61,7 @@ export default function ContactInfoCard() {
         <Ionicons
           name="call-outline"
           size={22}
-          color="#173B8C"
+          color="#0B6E8E"
         />
 
         <Text style={styles.headerTitle}>
@@ -79,16 +79,16 @@ export default function ContactInfoCard() {
         icon="people-outline"
         title="Human Resources"
         subtitle="hr@company.com"
-        color="#173B8C"
-        background="#EEF4FF"
+        color="#0B6E8E"
+        background="#E3F2F5"
       />
 
       <ContactRow
         icon="desktop-outline"
         title="IT Support"
         subtitle="support@company.com"
-        color="#2563EB"
-        background="#EEF4FF"
+        color="#0B6E8E"
+        background="#E3F2F5"
       />
 
       <ContactRow
@@ -121,9 +121,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
 
     borderWidth: 1,
-    borderColor: "#E8EDF3",
+    borderColor: "#E3ECEF",
 
-    shadowColor: "#0F172A",
+    shadowColor: "#132026",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {
@@ -149,13 +149,13 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#132026",
   },
 
   description: {
     fontSize: 14,
 
-    color: "#64748B",
+    color: "#5A6A70",
 
     lineHeight: 22,
 
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
 
     borderBottomWidth: 1,
 
-    borderBottomColor: "#EEF2F7",
+    borderBottomColor: "#E9F1F3",
   },
 
   iconContainer: {
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#0F172A",
+    color: "#132026",
   },
 
   subtitle: {
@@ -204,6 +204,6 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#64748B",
+    color: "#5A6A70",
   },
 });

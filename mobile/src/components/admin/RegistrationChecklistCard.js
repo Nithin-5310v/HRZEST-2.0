@@ -104,14 +104,14 @@ export default function RegistrationChecklistCard({ navigation, onVerification }
 const makeStyles = (colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface, borderRadius: 18, padding: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: "rgba(79,70,229,0.25)",
-    shadowColor: "#4F46E5", shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 3,
+    borderWidth: 1, borderColor: "rgba(11,110,142,0.25)",
+    shadowColor: "#0B6E8E", shadowOpacity: 0.1, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 3,
   },
   head: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   title: { flex: 1, marginLeft: 8, fontSize: 15, fontWeight: "800", color: colors.text },
-  count: { fontSize: 12, fontWeight: "700", color: "#4F46E5" },
-  barTrack: { height: 6, borderRadius: 3, backgroundColor: "rgba(79,70,229,0.12)", overflow: "hidden", marginBottom: 12 },
-  barFill: { height: "100%", borderRadius: 3, backgroundColor: "#4F46E5" },
+  count: { fontSize: 12, fontWeight: "700", color: "#0B6E8E" },
+  barTrack: { height: 6, borderRadius: 3, backgroundColor: "rgba(11,110,142,0.12)", overflow: "hidden", marginBottom: 12 },
+  barFill: { height: "100%", borderRadius: 3, backgroundColor: "#0B6E8E" },
   step: {
     flexDirection: "row", padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginTop: 8,
   },
@@ -119,11 +119,11 @@ const makeStyles = (colors) => StyleSheet.create({
   stepRejected: { backgroundColor: "rgba(220,38,38,0.06)", borderColor: "rgba(220,38,38,0.3)" },
   num: {
     width: 24, height: 24, borderRadius: 12, justifyContent: "center", alignItems: "center",
-    backgroundColor: "rgba(79,70,229,0.12)", marginRight: 10, marginTop: 1,
+    backgroundColor: "rgba(11,110,142,0.12)", marginRight: 10, marginTop: 1,
   },
   numDone: { backgroundColor: "#16A34A" },
   numRejected: { backgroundColor: "#DC2626" },
-  numText: { fontSize: 12, fontWeight: "800", color: "#4338CA" },
+  numText: { fontSize: 12, fontWeight: "800", color: "#0C3054" },
   numTextOn: { color: "#FFFFFF" },
   stepBody: { flex: 1 },
   stepTitle: { fontSize: 13.5, fontWeight: "700", color: colors.text },
@@ -132,7 +132,7 @@ const makeStyles = (colors) => StyleSheet.create({
   reviewText: { fontSize: 12, fontWeight: "700", color: "#A16207", marginTop: 6 },
   action: {
     alignSelf: "flex-start", flexDirection: "row", alignItems: "center", marginTop: 8,
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: "#4F46E5",
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: "#0B6E8E",
   },
   actionText: { fontSize: 12, fontWeight: "700", color: "#FFFFFF", marginRight: 5 },
 });

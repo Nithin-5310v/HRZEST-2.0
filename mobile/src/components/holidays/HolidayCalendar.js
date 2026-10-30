@@ -92,7 +92,7 @@ export default function HolidayCalendar({
             selectedDate === day;
 
           let background = "#FFFFFF";
-          let textColor = "#0F172A";
+          let textColor = "#132026";
 
           if (holiday) {
             background =
@@ -100,7 +100,7 @@ export default function HolidayCalendar({
                 ? "#FEE2E2"
                 : holiday.type ===
                   "Company"
-                ? "#DBEAFE"
+                ? "#CDEBF2"
                 : "#F3E8FF";
 
             textColor =
@@ -108,7 +108,7 @@ export default function HolidayCalendar({
                 ? "#DC2626"
                 : holiday.type ===
                   "Company"
-                ? "#173B8C"
+                ? "#0B6E8E"
                 : "#7C3AED";
           }
 
@@ -118,7 +118,7 @@ export default function HolidayCalendar({
           }
 
           if (isSelected) {
-            background = "#173B8C";
+            background = "#0B6E8E";
             textColor = "#FFFFFF";
           }
 
@@ -159,7 +159,7 @@ export default function HolidayCalendar({
                           ? "#EF4444"
                           : holiday.type ===
                             "Company"
-                          ? "#2563EB"
+                          ? "#0B6E8E"
                           : "#7C3AED",
                     },
                   ]}
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E8EDF3",
+    borderColor: "#E3ECEF",
 
     shadowColor: "#000",
 
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0F172A",
+    color: "#132026",
 
     marginBottom: 18,
   },
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#475569",
+    color: "#44555B",
   },
 
   sundayText: {
