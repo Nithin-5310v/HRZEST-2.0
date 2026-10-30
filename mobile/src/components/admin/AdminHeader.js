@@ -83,7 +83,7 @@ export default function AdminHeader({
           <Ionicons
             name="menu-sharp"
             size={22}
-            color="#132026"
+            color="#131C2A"
           />
         </TouchableOpacity>
 
@@ -109,7 +109,7 @@ export default function AdminHeader({
             <Ionicons
               name="notifications-outline"
               size={20}
-              color="#132026"
+              color="#131C2A"
             />
             {notificationCount > 0 && (
               <View style={styles.badge}>
@@ -132,7 +132,7 @@ export default function AdminHeader({
                 resizeMode="cover"
               />
             ) : (
-              <View style={[styles.avatarFallback, { backgroundColor: "#0B6E8E" }]}>
+              <View style={[styles.avatarFallback, { backgroundColor: "#0B5CAD" }]}>
                 <Text style={{ color: "#FFFFFF", fontWeight: "900", fontSize: 14 }}>
                   {(user?.company || user?.name || "A").charAt(0).toUpperCase()}
                 </Text>
@@ -155,8 +155,8 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#ECF3F5",
-    shadowColor: "#132026",
+    borderBottomColor: "#EDF2F8",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.03,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -166,11 +166,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#F5FAFB",
+    backgroundColor: "#F5F8FC",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#DCE6E9",
+    borderColor: "#DBE3EE",
   },
   titleSection: {
     flex: 1,
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   },
   tagBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "#E8F5F7",
+    backgroundColor: "#EBF2FB",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -189,13 +189,13 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 10,
     fontWeight: "800",
-    color: "#0B6E8E",
+    color: "#0B5CAD",
     letterSpacing: 0.8,
   },
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#132026",
+    color: "#131C2A",
     letterSpacing: -0.3,
   },
   rightGroup: {
@@ -231,16 +231,16 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#DCE6E9",
+    borderColor: "#DBE3EE",
   },
   avatarFallback: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#E8F5F7",
+    backgroundColor: "#EBF2FB",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "#CDEBF2",
+    borderColor: "#D3E3F7",
   },
 });

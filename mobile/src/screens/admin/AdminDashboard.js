@@ -182,7 +182,7 @@ export default function AdminDashboard({ navigation }) {
                 ListEmptyComponent={
                   <View style={{ padding: 24, alignItems: "center" }}>
                     <Ionicons name="notifications-off-outline" size={36} color={colors.textLight} />
-                    <Text style={{ fontSize: 14, fontWeight: "600", color: "#5A6A70", marginTop: 8 }}>
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: "#5A6678", marginTop: 8 }}>
                       No Company Announcements Yet
                     </Text>
                   </View>
@@ -190,14 +190,14 @@ export default function AdminDashboard({ navigation }) {
                 renderItem={({ item }) => (
                   <View style={styles.announcementItem}>
                     <View style={[styles.itemIconBox, { backgroundColor: item.bg || colors.blueBg }]}>
-                      <Ionicons name={item.icon || "megaphone-outline"} size={22} color={item.color || "#0B6E8E"} />
+                      <Ionicons name={item.icon || "megaphone-outline"} size={22} color={item.color || "#0B5CAD"} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 14 }}>
                       <View style={styles.itemMetaRow}>
                         <Text style={styles.itemTitle}>{item.title}</Text>
                         {item.category ? (
                           <View style={[styles.categoryBadge, { backgroundColor: item.bg || colors.blueBg }]}>
-                            <Text style={[styles.categoryText, { color: item.color || "#0B6E8E" }]}>
+                            <Text style={[styles.categoryText, { color: item.color || "#0B5CAD" }]}>
                               {item.category}
                             </Text>
                           </View>
@@ -242,15 +242,15 @@ export default function AdminDashboard({ navigation }) {
                 ListEmptyComponent={
                   <View style={{ padding: 24, alignItems: "center" }}>
                     <Ionicons name="time-outline" size={36} color={colors.textLight} />
-                    <Text style={{ fontSize: 14, fontWeight: "600", color: "#5A6A70", marginTop: 8 }}>
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: "#5A6678", marginTop: 8 }}>
                       No System Activities Logged Yet
                     </Text>
                   </View>
                 }
                 renderItem={({ item }) => (
                   <View style={styles.announcementItem}>
-                    <View style={[styles.itemIconBox, { backgroundColor: "#ECF3F5" }]}>
-                      <Ionicons name={item.icon || "list"} size={20} color={item.color || "#0B6E8E"} />
+                    <View style={[styles.itemIconBox, { backgroundColor: "#EDF2F8" }]}>
+                      <Ionicons name={item.icon || "list"} size={20} color={item.color || "#0B5CAD"} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 14 }}>
                       <Text style={styles.itemTitle}>{item.title}</Text>
@@ -340,7 +340,7 @@ const makeStyles = (colors) => StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "#ECF3F5",
+    backgroundColor: "#EDF2F8",
     justifyContent: "center",
     alignItems: "center",
   },

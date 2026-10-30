@@ -7,6 +7,8 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
+  StatusBar,
 } from "react-native";
 import SafeAreaView from "../components/SafeAreaView";
 import { Ionicons } from "@expo/vector-icons";
@@ -136,7 +138,8 @@ const makeStyles = (colors) =>
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 16,
-      paddingVertical: 14,
+      paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 14 : 14,
+      paddingBottom: 14,
       backgroundColor: colors.card,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,

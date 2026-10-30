@@ -18,12 +18,12 @@ export default function ManagerDrawerNavigator() {
         overlayColor: "rgba(15, 23, 42, 0.4)",
         drawerStyle: {
           width: 320,
-          backgroundColor: "#F5FAFB",
+          backgroundColor: "#F5F8FC",
           borderTopRightRadius: 24,
           borderBottomRightRadius: 24,
         },
         sceneContainerStyle: {
-          backgroundColor: "#F5FAFB",
+          backgroundColor: "#F5F8FC",
         },
       }}
     >

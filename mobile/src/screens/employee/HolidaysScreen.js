@@ -232,7 +232,7 @@ const makeStyles = (colors) => StyleSheet.create({
 
     borderColor: colors.border,
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {
@@ -402,7 +402,7 @@ const makeStyles = (colors) => StyleSheet.create({
 
     borderColor: colors.border,
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {
@@ -456,7 +456,7 @@ const makeStyles = (colors) => StyleSheet.create({
 
     borderColor: colors.border,
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.03,
     shadowRadius: 8,
     shadowOffset: {

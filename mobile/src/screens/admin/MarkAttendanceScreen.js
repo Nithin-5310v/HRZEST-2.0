@@ -48,12 +48,12 @@ const STATUS_COLORS = {
   "Half Day": { bg: "#FEE2E2", text: "#DC2626", border: "#FCA5A5" },
   "Absent": { bg: "#FEE2E2", text: "#B91C1C", border: "#FCA5A5" },
   "Leave": { bg: "#F5F3FF", text: "#6D28D9", border: "#C4B5FD" },
-  "Holiday": { bg: "#ECF3F5", text: "#44555B", border: "#C4D2D6" },
-  "Week Off": { bg: "#ECF3F5", text: "#44555B", border: "#C4D2D6" },
+  "Holiday": { bg: "#EDF2F8", text: "#455163", border: "#C3CFDD" },
+  "Week Off": { bg: "#EDF2F8", text: "#455163", border: "#C3CFDD" },
 };
 
 const WORK_MODE_COLORS = {
-  office: { bg: "#CDEBF2", text: "#0A4E96" },
+  office: { bg: "#D3E3F7", text: "#0A4E96" },
   remote: { bg: "#DCFCE7", text: "#15803D" },
   hybrid: { bg: "#FEF9C3", text: "#854D0E" },
 };
@@ -368,14 +368,14 @@ export default function MarkAttendanceScreen({ navigation }) {
             style={styles.timeInput}
             onPress={() => openTimePicker(item.employee_id, "login")}
           >
-            <Ionicons name="time-outline" size={16} color="#5A6A70" />
+            <Ionicons name="time-outline" size={16} color="#5A6678" />
             <Text style={styles.timeText}>{att.login || "—"}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.timeInput}
             onPress={() => openTimePicker(item.employee_id, "logout")}
           >
-            <Ionicons name="time-outline" size={16} color="#5A6A70" />
+            <Ionicons name="time-outline" size={16} color="#5A6678" />
             <Text style={styles.timeText}>{att.logout || "—"}</Text>
           </TouchableOpacity>
         </View>
@@ -449,7 +449,7 @@ export default function MarkAttendanceScreen({ navigation }) {
             </View>
           ) : filteredEmployees.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="people" size={48} color="#C4D2D6" />
+              <Ionicons name="people" size={48} color="#C3CFDD" />
               <Text style={styles.emptyText}>No employees found.</Text>
               <Text style={styles.emptySubtext}>
                 Try adjusting your search.
@@ -533,7 +533,7 @@ const makeStyles = (colors) => StyleSheet.create({
     padding: 18,
     marginBottom: 18,
     borderWidth: 1.5,
-    borderColor: "#CDEBF2",
+    borderColor: "#D3E3F7",
     shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -543,7 +543,7 @@ const makeStyles = (colors) => StyleSheet.create({
   dateLabel: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#5A6A70",
+    color: "#5A6678",
     marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -557,7 +557,7 @@ const makeStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: "#CDEBF2",
+    borderColor: "#D3E3F7",
   },
   dateText: {
     flex: 1,
@@ -568,7 +568,7 @@ const makeStyles = (colors) => StyleSheet.create({
   empCount: {
     marginTop: 10,
     fontSize: 13,
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   empCountBold: {
     fontWeight: "700",
@@ -622,7 +622,7 @@ const makeStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#CDEBF2",
+    borderColor: "#D3E3F7",
   },
 
   // Employee Card
@@ -672,7 +672,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   empRole: {
     fontSize: 11,
-    color: "#C4D2D6",
+    color: "#C3CFDD",
     marginTop: 1,
     textTransform: "capitalize",
   },
@@ -693,7 +693,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   empNA: {
     fontSize: 12,
-    color: "#C4D2D6",
+    color: "#C3CFDD",
   },
 
   // Shift & Mode
@@ -716,12 +716,12 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   shiftTime: {
     fontSize: 11,
-    color: "#5A6A70",
+    color: "#5A6678",
     fontWeight: "500",
   },
   noShift: {
     fontSize: 12,
-    color: "#C4D2D6",
+    color: "#C3CFDD",
   },
   modeBadge: {
     borderRadius: 6,
@@ -751,7 +751,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   noRecords: {
     fontSize: 11,
-    color: "#C4D2D6",
+    color: "#C3CFDD",
     marginBottom: 14,
   },
 
@@ -799,7 +799,7 @@ const makeStyles = (colors) => StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   emptyContainer: {
     alignItems: "center",
@@ -814,7 +814,7 @@ const makeStyles = (colors) => StyleSheet.create({
   emptySubtext: {
     marginTop: 6,
     fontSize: 13,
-    color: "#C4D2D6",
+    color: "#C3CFDD",
   },
 
   // Footer
@@ -830,7 +830,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   footerCount: {
     fontSize: 13,
-    color: "#5A6A70",
+    color: "#5A6678",
     fontWeight: "600",
   },
   saveButton: {
@@ -841,7 +841,7 @@ const makeStyles = (colors) => StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: colors.employee,
     borderRadius: 12,
-    shadowColor: "#1B8AA6",
+    shadowColor: "#2E7BD1",
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

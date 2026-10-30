@@ -142,7 +142,7 @@ const makeStyles = (colors) => StyleSheet.create({
   intro: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 14 },
   card: {
     backgroundColor: colors.surface, borderRadius: 16, padding: 16,
-    shadowColor: "#132026", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+    shadowColor: "#131C2A", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
   fact: {
     flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12,

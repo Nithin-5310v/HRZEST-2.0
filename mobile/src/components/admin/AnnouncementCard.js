@@ -19,8 +19,8 @@ function getIcon(type) {
     case "holiday":
       return {
         icon: "airplane",
-        color: "#0B6E8E",
-        bg: "#CDEBF2",
+        color: "#0B5CAD",
+        bg: "#D3E3F7",
       };
 
     case "meeting":
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
 
   },
 
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E3ECEF",
+    borderColor: "#E3EAF3",
 
     shadowColor: "#000",
 
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#132026",
+    color: "#131C2A",
 
   },
 
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     lineHeight: 18,
 
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
 
     fontSize: 12,
 
-    color: "#8A9AA0",
+    color: "#8794A5",
 
     fontWeight: "600",
 

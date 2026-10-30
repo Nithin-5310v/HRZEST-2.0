@@ -185,7 +185,7 @@ export default function EmployeeDrawerContent(props) {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Executive Hero Header */}
       <LinearGradient
-        colors={["#0C3054", "#0B6E8E"]}
+        colors={["#0C3054", "#0B5CAD"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -221,7 +221,7 @@ export default function EmployeeDrawerContent(props) {
             </Text>
             <View style={styles.roleBadgeRow}>
               <View style={styles.roleBadge}>
-                <Ionicons name="shield-checkmark" size={12} color="#3FB8C4" style={{ marginRight: 4 }} />
+                <Ionicons name="shield-checkmark" size={12} color="#4C9BE8" style={{ marginRight: 4 }} />
                 <Text style={styles.roleText}>Verified Staff</Text>
               </View>
             </View>

@@ -13,8 +13,8 @@ const ANNOUNCEMENTS = [
     title: "Monthly All Hands Meeting",
     message: "Friday • 10:00 AM • Conference Hall",
     icon: "megaphone-outline",
-    color: "#0B6E8E",
-    bg: "#E3F2F5",
+    color: "#0B5CAD",
+    bg: "#E6EFFA",
   },
 
   {
@@ -47,14 +47,14 @@ export default function EmployeeAnnouncementCard({
         <Ionicons
           name="notifications-outline"
           size={20}
-          color="#0B6E8E"
+          color="#0B5CAD"
         />
       </View>
 
       {announcements.length === 0 ? (
-        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DCE6E9" }}>
-          <Ionicons name="notifications-off-outline" size={36} color="#8A9AA0" />
-          <Text style={{ fontSize: 14, fontWeight: "600", color: "#5A6A70", marginTop: 8 }}>
+        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DBE3EE" }}>
+          <Ionicons name="notifications-off-outline" size={36} color="#8794A5" />
+          <Text style={{ fontSize: 14, fontWeight: "600", color: "#5A6678", marginTop: 8 }}>
             No Active Company Announcements
           </Text>
         </View>
@@ -120,9 +120,9 @@ const styles = StyleSheet.create({
 
     borderWidth:1,
 
-    borderColor:"#E3ECEF",
+    borderColor:"#E3EAF3",
 
-    shadowColor:"#132026",
+    shadowColor:"#131C2A",
 
     shadowOpacity:.05,
 
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
 
     fontWeight:"700",
 
-    color:"#132026",
+    color:"#131C2A",
 
   },
 
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
 
     borderBottomWidth:1,
 
-    borderBottomColor:"#E9F1F3",
+    borderBottomColor:"#E9EFF6",
 
   },
 
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
 
     fontWeight:"700",
 
-    color:"#132026",
+    color:"#131C2A",
 
   },
 
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
 
     marginTop:5,
 
-    color:"#5A6A70",
+    color:"#5A6678",
 
     lineHeight:20,
 

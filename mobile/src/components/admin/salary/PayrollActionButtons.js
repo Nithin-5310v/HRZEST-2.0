@@ -67,7 +67,7 @@ export default function PayrollActionButtons({
           title="Generate"
           icon="flash-outline"
           color={SALARY_THEME.colors.primary}
-          background="#E8F5F7"
+          background="#EBF2FB"
           onPress={onGenerate}
         />
 

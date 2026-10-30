@@ -1,0 +1,69 @@
+name: Mobile app update
+
+# Publishes the app's JavaScript to the EAS Update "preview" channel whenever a
+# change under mobile/ lands on main, so installed preview APKs download it in
+# the background and run it on their next launch -- no new APK to install.
+#
+# Native changes (new packages, permissions, app.json plugins) change the
+# app's runtime fingerprint (app.json "runtimeVersion": fingerprint), and EAS
+# only serves an update to builds with the same fingerprint, so those still
+# need `eas build`; phones on an older build simply keep what they have.
+#
+# Needs the EXPO_TOKEN repository secret (expo.dev > Account settings > Access
+# tokens); without it the job skips with a warning instead of failing.
+
+on:
+  push:
+    branches: [main]
+    paths: ["mobile/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-update
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to the preview channel
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Check for EXPO_TOKEN
+        id: token
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::warning::EXPO_TOKEN secret not set -- skipping the app update."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.token.outputs.skip != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        if: steps.token.outputs.skip != 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install
+        if: steps.token.outputs.skip != 'true'
+        working-directory: mobile
+        run: npm ci
+
+      # mobile/.env.production sets the live server (https://hrzest.com) for
+      # this production bundle; --clear-cache so a stale Metro cache can't
+      # carry an old address into the update.
+      - name: Publish update
+        if: steps.token.outputs.skip != 'true'
+        working-directory: mobile
+        run: npx --yes eas-cli@25.0.0 update --channel preview --auto --non-interactive --clear-cache

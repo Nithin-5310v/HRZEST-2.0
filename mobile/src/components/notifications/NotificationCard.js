@@ -76,7 +76,7 @@ export default function NotificationCard({
             <Ionicons
               name="time-outline"
               size={14}
-              color="#8A9AA0"
+              color="#8794A5"
             />
 
             <Text style={styles.time}>
@@ -87,7 +87,7 @@ export default function NotificationCard({
           <Ionicons
             name="chevron-forward"
             size={18}
-            color="#8A9AA0"
+            color="#8794A5"
           />
         </View>
       </View>
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
 
     borderWidth: 1,
-    borderColor: "#E3ECEF",
+    borderColor: "#E3EAF3",
 
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
 
   unreadCard: {
     borderLeftWidth: 5,
-    borderLeftColor: "#0B6E8E",
+    borderLeftColor: "#0B5CAD",
   },
 
   iconContainer: {
@@ -158,11 +158,11 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
   },
 
   newBadge: {
-    backgroundColor: "#E3F2F5",
+    backgroundColor: "#E6EFFA",
 
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
 
   newText: {
-    color: "#0B6E8E",
+    color: "#0B5CAD",
 
     fontWeight: "800",
 
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
 
     lineHeight: 22,
 
-    color: "#5A6A70",
+    color: "#5A6678",
   },
 
   bottomRow: {
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#8A9AA0",
+    color: "#8794A5",
 
     fontWeight: "600",
   },
@@ -226,6 +226,6 @@ const styles = StyleSheet.create({
 
     borderRadius: 5,
 
-    backgroundColor: "#0B6E8E",
+    backgroundColor: "#0B5CAD",
   },
 });

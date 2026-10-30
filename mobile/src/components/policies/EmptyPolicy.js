@@ -20,7 +20,7 @@ export default function EmptyPolicy({
         <Ionicons
           name="document-text-outline"
           size={70}
-          color="#0B6E8E"
+          color="#0B5CAD"
         />
       </View>
 
@@ -63,9 +63,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
 
     borderWidth: 1,
-    borderColor: "#E3ECEF",
+    borderColor: "#E3EAF3",
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 55,
 
-    backgroundColor: "#E3F2F5",
+    backgroundColor: "#E6EFFA",
 
     justifyContent: "center",
     alignItems: "center",
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
 
     textAlign: "center",
 
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
 
     lineHeight: 24,
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     textAlign: "center",
 
@@ -123,14 +123,14 @@ const styles = StyleSheet.create({
 
     justifyContent: "center",
 
-    backgroundColor: "#0B6E8E",
+    backgroundColor: "#0B5CAD",
 
     paddingHorizontal: 26,
     paddingVertical: 14,
 
     borderRadius: 16,
 
-    shadowColor: "#0B6E8E",
+    shadowColor: "#0B5CAD",
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: {

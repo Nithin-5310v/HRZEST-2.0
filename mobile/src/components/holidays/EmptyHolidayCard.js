@@ -16,7 +16,7 @@ export default function EmptyHolidayCard({
         <Ionicons
           name="calendar-clear-outline"
           size={58}
-          color="#0B6E8E"
+          color="#0B5CAD"
         />
       </View>
 
@@ -32,7 +32,7 @@ export default function EmptyHolidayCard({
         <Ionicons
           name="information-circle-outline"
           size={18}
-          color="#0B6E8E"
+          color="#0B5CAD"
         />
 
         <Text style={styles.tipText}>
@@ -58,9 +58,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
 
     borderWidth: 1,
-    borderColor: "#E3ECEF",
+    borderColor: "#E3EAF3",
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 46,
 
-    backgroundColor: "#E3F2F5",
+    backgroundColor: "#E6EFFA",
 
     justifyContent: "center",
     alignItems: "center",
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
   },
 
   subtitle: {
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
 
     textAlign: "center",
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     fontSize: 15,
 
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
 
     width: "100%",
 
-    backgroundColor: "#E3F2F5",
+    backgroundColor: "#E6EFFA",
 
     borderRadius: 16,
 
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
 
     marginLeft: 10,
 
-    color: "#44555B",
+    color: "#455163",
 
     fontSize: 14,
 

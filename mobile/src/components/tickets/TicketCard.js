@@ -71,7 +71,7 @@ export default function TicketCard({
         <Ionicons
           name="folder-open-outline"
           size={18}
-          color="#0B6E8E"
+          color="#0B5CAD"
         />
 
         <Text style={styles.infoText}>
@@ -107,7 +107,7 @@ export default function TicketCard({
           <Ionicons
             name="time-outline"
             size={16}
-            color="#8A9AA0"
+            color="#8794A5"
           />
 
           <Text style={styles.footerText}>
@@ -118,7 +118,7 @@ export default function TicketCard({
         <Ionicons
           name="chevron-forward"
           size={20}
-          color="#8A9AA0"
+          color="#8794A5"
         />
       </View>
     </TouchableOpacity>
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
 
     borderWidth: 1,
-    borderColor: "#E3ECEF",
+    borderColor: "#E3EAF3",
 
     shadowColor: "#000",
     shadowOpacity: 0.05,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#0B6E8E",
+    color: "#0B5CAD",
   },
 
   date: {
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#8A9AA0",
+    color: "#8794A5",
   },
 
   subject: {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
 
     marginBottom: 18,
 
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "600",
 
-    color: "#44555B",
+    color: "#455163",
   },
 
   priority: {
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
 
     borderTopWidth: 1,
 
-    borderTopColor: "#E9F1F3",
+    borderTopColor: "#E9EFF6",
 
     flexDirection: "row",
 
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   footerText: {
     marginLeft: 6,
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     fontWeight: "600",
 

@@ -220,7 +220,7 @@ export default function AttendanceScreen({ navigation }) {
             >
               <Ionicons name="calendar-outline" size={16} color={colors.primary} />
               <Text style={styles.selectorPillText}>{selectedMonth}</Text>
-              <Ionicons name="chevron-down" size={14} color="#5A6A70" />
+              <Ionicons name="chevron-down" size={14} color="#5A6678" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -230,7 +230,7 @@ export default function AttendanceScreen({ navigation }) {
             >
               <Ionicons name="time-outline" size={16} color={colors.primary} />
               <Text style={styles.selectorPillText}>{selectedYear}</Text>
-              <Ionicons name="chevron-down" size={14} color="#5A6A70" />
+              <Ionicons name="chevron-down" size={14} color="#5A6678" />
             </TouchableOpacity>
           </View>
 
@@ -503,7 +503,7 @@ const makeStyles = (colors) => StyleSheet.create({
   filterChipText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#5A6A70",
+    color: "#5A6678",
   },
   filterChipTextActive: {
     color: "#FFFFFF",
@@ -532,7 +532,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 11,
-    color: "#5A6A70",
+    color: "#5A6678",
     marginTop: 2,
     fontWeight: "600",
   },
@@ -577,7 +577,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   employeeId: {
     fontSize: 12,
-    color: "#5A6A70",
+    color: "#5A6678",
     marginTop: 2,
   },
   percentBadge: {
@@ -594,7 +594,7 @@ const makeStyles = (colors) => StyleSheet.create({
   progressBackground: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#ECF3F5",
+    backgroundColor: "#EDF2F8",
     marginBottom: 14,
     overflow: "hidden",
   },
@@ -645,7 +645,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   chipLabel: {
     fontSize: 10,
-    color: "#5A6A70",
+    color: "#5A6678",
     fontWeight: "700",
   },
   modalOverlay: {
@@ -662,7 +662,7 @@ const makeStyles = (colors) => StyleSheet.create({
     borderRadius: 22,
     padding: 20,
     elevation: 10,
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.2,
     shadowRadius: 16,
   },
@@ -695,7 +695,7 @@ const makeStyles = (colors) => StyleSheet.create({
   pickerOptionText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#2E3D43",
+    color: "#2E3A4A",
   },
   pickerOptionTextActive: {
     fontWeight: "800",

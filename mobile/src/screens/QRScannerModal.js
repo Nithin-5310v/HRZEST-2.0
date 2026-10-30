@@ -407,7 +407,7 @@ export default function QRScannerModal({ visible, onClose }) {
               <>
                 <TouchableOpacity style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
                   <View style={styles.captureBtnInner}>
-                    <Ionicons name="camera" size={30} color="#0B6E8E" />
+                    <Ionicons name="camera" size={30} color="#0B5CAD" />
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={captureWithPhoneCamera} style={styles.phoneCameraLink}>
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     textAlign: 'center', marginBottom: 28, lineHeight: 22,
   },
   permBtn: {
-    backgroundColor: '#0B6E8E', borderRadius: 12,
+    backgroundColor: '#0B5CAD', borderRadius: 12,
     paddingVertical: 14, paddingHorizontal: 32,
   },
   permBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 15 },

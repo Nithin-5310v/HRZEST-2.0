@@ -9,8 +9,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 export default function ProfileMenuCard({
   icon = "person-outline",
-  iconColor = "#0B6E8E",
-  iconBackground = "#E3F2F5",
+  iconColor = "#0B5CAD",
+  iconBackground = "#E6EFFA",
   title = "Personal Information",
   subtitle = "Manage your personal details",
   badge = "",
@@ -65,7 +65,7 @@ export default function ProfileMenuCard({
         <Ionicons
           name="chevron-forward"
           size={20}
-          color="#8A9AA0"
+          color="#8794A5"
         />
       </View>
     </TouchableOpacity>
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
 
     borderWidth: 1,
-    borderColor: "#E3ECEF",
+    borderColor: "#E3EAF3",
 
     flexDirection: "row",
 
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
 
     justifyContent: "space-between",
 
-    shadowColor: "#132026",
+    shadowColor: "#131C2A",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: {
@@ -127,13 +127,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#132026",
+    color: "#131C2A",
   },
 
   subtitle: {
     marginTop: 4,
     fontSize: 13,
-    color: "#5A6A70",
+    color: "#5A6678",
     lineHeight: 18,
   },
 

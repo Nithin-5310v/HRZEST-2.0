@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, StatusBar } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import SafeAreaView from "./SafeAreaView";
@@ -47,7 +47,7 @@ export default function MoreGrid({ navigation, title = "More", subtitle, groups,
             <TouchableOpacity key={row.route} style={styles.row} onPress={() => navigation.navigate(row.route)} accessibilityRole="button">
               <Text style={styles.rowLabel}>{row.label}</Text>
               {row.detail ? <Text style={styles.rowDetail}>{row.detail}</Text> : null}
-              <Ionicons name="chevron-forward" size={18} color="#8A9AA0" />
+              <Ionicons name="chevron-forward" size={18} color="#8794A5" />
             </TouchableOpacity>
           ))}
           <TouchableOpacity style={styles.row} onPress={onSignOut} accessibilityRole="button">
@@ -60,29 +60,30 @@ export default function MoreGrid({ navigation, title = "More", subtitle, groups,
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F5FAFB" },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  eyebrow: { fontSize: 13, fontWeight: "600", color: "#44555B" },
-  title: { fontSize: 30, fontWeight: "400", color: "#132026" },
+  page: { flex: 1, backgroundColor: "#F5F8FC" },
+  // Android draws under the status bar (edge to edge): clear it, like AdminHeader.
+  header: { paddingHorizontal: 20, paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 12 : 12, paddingBottom: 8 },
+  eyebrow: { fontSize: 13, fontWeight: "600", color: "#455163" },
+  title: { fontSize: 30, fontWeight: "400", color: "#131C2A" },
   content: { paddingHorizontal: 20, paddingBottom: 120, gap: 18 },
   group: { gap: 10 },
-  groupTitle: { fontSize: 12, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase", color: "#44555B" },
+  groupTitle: { fontSize: 12, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase", color: "#455163" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tile: {
     width: "22.8%",
     minHeight: 84,
     borderRadius: 20,
-    backgroundColor: "#E8F1F3",
+    backgroundColor: "#E7EEF7",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 4,
     gap: 6,
   },
-  tileIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#CDEBF2", alignItems: "center", justifyContent: "center" },
-  tileLabel: { fontSize: 11.5, fontWeight: "600", color: "#132026", textAlign: "center", lineHeight: 15 },
-  list: { backgroundColor: "#E8F1F3", borderRadius: 20, overflow: "hidden" },
+  tileIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#D3E3F7", alignItems: "center", justifyContent: "center" },
+  tileLabel: { fontSize: 11.5, fontWeight: "600", color: "#131C2A", textAlign: "center", lineHeight: 15 },
+  list: { backgroundColor: "#E7EEF7", borderRadius: 20, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", minHeight: 52, paddingHorizontal: 16, gap: 8 },
-  rowLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: "#132026" },
-  rowDetail: { fontSize: 13, color: "#44555B" },
+  rowLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: "#131C2A" },
+  rowDetail: { fontSize: 13, color: "#455163" },
   signOut: { color: "#B42318" },
 });

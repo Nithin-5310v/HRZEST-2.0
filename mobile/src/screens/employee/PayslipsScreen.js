@@ -121,7 +121,7 @@ export default function PayslipsScreen({ navigation }) {
         ) : (
           <>
             {/* Net Pay Hero */}
-            <LinearGradient colors={["#0C3054", "#0B6E8E"]} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <LinearGradient colors={["#0C3054", "#0B5CAD"]} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
               <Text style={styles.heroLabel}>Net Pay — {data.month_name}</Text>
               <Text style={styles.heroAmount}>{fmt(s.net)}</Text>
               <Text style={styles.heroSub}>{s.name} · {s.emp_id}</Text>

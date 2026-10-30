@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   },
   title: { color: "#fff", fontSize: 18, fontWeight: "700", marginTop: 14, marginBottom: 8 },
   text: { color: "rgba(255,255,255,0.65)", fontSize: 14, textAlign: "center", lineHeight: 21, marginBottom: 24 },
-  primaryBtn: { backgroundColor: "#0B6E8E", borderRadius: 10, paddingVertical: 13, paddingHorizontal: 30 },
+  primaryBtn: { backgroundColor: "#0B5CAD", borderRadius: 10, paddingVertical: 13, paddingHorizontal: 30 },
   primaryTxt: { color: "#fff", fontWeight: "700", fontSize: 15 },
   secondaryBtn: {
     flexDirection: "row", alignItems: "center", marginTop: 12, paddingVertical: 11, paddingHorizontal: 22,

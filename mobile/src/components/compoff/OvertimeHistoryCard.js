@@ -18,7 +18,7 @@ export default function OvertimeHistoryCard({
 }) {
   const renderItem = ({ item }) => {
     const color =
-      STATUS_COLORS[item.status] || "#5A6A70";
+      STATUS_COLORS[item.status] || "#5A6678";
 
     return (
       <View style={styles.card}>
@@ -65,7 +65,7 @@ export default function OvertimeHistoryCard({
             <Ionicons
               name="time-outline"
               size={18}
-              color="#0B6E8E"
+              color="#0B5CAD"
             />
 
             <Text style={styles.label}>
@@ -83,7 +83,7 @@ export default function OvertimeHistoryCard({
             <Ionicons
               name="calendar-outline"
               size={18}
-              color="#0B6E8E"
+              color="#0B5CAD"
             />
 
             <Text style={styles.label}>
@@ -101,7 +101,7 @@ export default function OvertimeHistoryCard({
             <Ionicons
               name="person-outline"
               size={18}
-              color="#0B6E8E"
+              color="#0B5CAD"
             />
 
             <Text style={styles.label}>
@@ -138,14 +138,14 @@ export default function OvertimeHistoryCard({
           <View style={{ height: 16 }} />
         )}
         ListEmptyComponent={() => (
-          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 18, padding: 22, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DCE6E9" }}>
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#ECF3F5", justifyContent: "center", alignItems: "center", marginBottom: 8 }}>
-              <Ionicons name="time-outline" size={24} color="#0B6E8E" />
+          <View style={{ backgroundColor: "#FFFFFF", borderRadius: 18, padding: 22, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DBE3EE" }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#EDF2F8", justifyContent: "center", alignItems: "center", marginBottom: 8 }}>
+              <Ionicons name="time-outline" size={24} color="#0B5CAD" />
             </View>
-            <Text style={{ fontSize: 15, fontWeight: "700", color: "#132026" }}>
+            <Text style={{ fontSize: 15, fontWeight: "700", color: "#131C2A" }}>
               No Overtime Records Found
             </Text>
-            <Text style={{ fontSize: 13, fontWeight: "500", color: "#5A6A70", marginTop: 4, textAlign: "center" }}>
+            <Text style={{ fontSize: 13, fontWeight: "500", color: "#5A6678", marginTop: 4, textAlign: "center" }}>
               Your approved overtime logs will be listed here.
             </Text>
           </View>
@@ -163,13 +163,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#132026",
+    color: "#131C2A",
   },
 
   subtitle: {
     marginTop: 2,
     marginBottom: 12,
-    color: "#5A6A70",
+    color: "#5A6678",
     fontSize: 13,
     fontWeight: "600",
   },
@@ -212,13 +212,13 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
   },
 
   day: {
     marginTop: 4,
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     fontSize: 13,
   },
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
 
-    backgroundColor: "#E9F1F3",
+    backgroundColor: "#E9EFF6",
 
     marginVertical: 18,
   },
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   label: {
     marginLeft: 10,
 
-    color: "#5A6A70",
+    color: "#5A6678",
 
     fontSize: 14,
 
@@ -276,6 +276,6 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#132026",
+    color: "#131C2A",
   },
 });
