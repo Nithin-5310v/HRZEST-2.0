@@ -9,6 +9,7 @@ _free_registration_allowed)."""
 import time
 
 from tests.signup_flow import (
+    finish_org_setup,
     PASSWORD, application_id_from, capture_codes, start_signup, verify_email,
 )
 from tests.test_org import _drop_schema
@@ -112,7 +113,8 @@ class TestFreeRegistrationFlow:
             with client.session_transaction() as sess:
                 sess.clear()
             client.post("/free-reg-live/login", data={"identifier": "owner@freereglive.test", "password": PASSWORD})
-            page = client.get("/free-reg-live/admin").get_data(as_text=True)
+            finish_org_setup(db_engine, schema_name)
+            page = client.get("/free-reg-live/profile").get_data(as_text=True)
             assert "Complete your registration" in page and "0 of 2 done" in page
             assert "/free-reg-live/settings?tab=billing" not in page
         finally:

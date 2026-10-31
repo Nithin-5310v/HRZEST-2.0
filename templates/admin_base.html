@@ -15,6 +15,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Admin{% endblock %} — {{ co.company_name }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
+  <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
+  <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('favicon.svg') }}"></script>
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('toast.css') }}" />
   <link rel="stylesheet" href="{{ static_url('chat.css') }}" />
@@ -133,6 +135,7 @@
     .app-topbar--brand .app-notif-count { border-color: #1d4ed8; }
     /* profile button + menu */
     .app-user-menu { position: relative; }
+    .sidebar--locked a.nav-item:not(.active) { opacity: .45; pointer-events: none; }
     .app-topbar--brand .app-user { cursor: pointer; background: rgba(255,255,255,.12) !important; border: 1px solid rgba(255,255,255,.22) !important; color: #fff; font: inherit; padding: 3px; }
     .app-topbar--brand .app-avatar { width: 36px; height: 36px; font-size: 13px; }
     .app-avatar { overflow: hidden; flex-shrink: 0; }
@@ -284,7 +287,8 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 
 <!-- ── SIDEBAR ── -->
-<div class="sidebar" role="navigation" aria-label="Primary">
+{% set _org_locked = co.org_profile_pending and session.admin_role not in ('hr', 'manager') %}
+<div class="sidebar{{ ' sidebar--locked' if _org_locked }}" role="navigation" aria-label="Primary">
   {% set _is_hr = session.admin_role == 'hr' %}
   {% set _is_manager = session.admin_role == 'manager' %}
   {# Company logo / name / plan now live in the blue top banner (below). #}
@@ -392,17 +396,18 @@
         <div class="app-notif-list" id="appNotifList"><div class="app-notif-empty">Loading…</div></div>
       </div>
     </div>
-    {% set _uname = session.admin_username or 'Admin' %}
+    {% set _uname = admin_display_name or session.admin_username or 'Admin' %}
     {% set _urole = 'HR' if _is_hr else ('Manager' if _is_manager else 'Administrator') %}
     {% set _uphoto = admin_avatar_url %}
+    {% set _uinit = admin_initials or _uname[:2]|upper %}
     <!-- Admin profile menu (Profile / Settings / Logout) -->
     <div class="app-user-menu" id="appUserMenu">
       <button type="button" class="app-user" id="appUserBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu for {{ _uname }}">
-        <span class="app-avatar" aria-hidden="true">{% if _uphoto %}<img src="{{ _uphoto }}" alt="" />{% else %}{{ _uname[:2]|upper }}{% endif %}</span>
+        <span class="app-avatar" aria-hidden="true">{% if _uphoto %}<img src="{{ _uphoto }}" alt="" />{% else %}{{ _uinit }}{% endif %}</span>
       </button>
       <div class="app-user-panel" id="appUserPanel" role="menu" hidden>
         <div class="app-user-panel-head">
-          <span class="app-avatar app-avatar-lg" aria-hidden="true">{% if _uphoto %}<img src="{{ _uphoto }}" alt="" />{% else %}{{ _uname[:2]|upper }}{% endif %}</span>
+          <span class="app-avatar app-avatar-lg" aria-hidden="true">{% if _uphoto %}<img src="{{ _uphoto }}" alt="" />{% else %}{{ _uinit }}{% endif %}</span>
           <span><span class="app-user-panel-name">{{ _uname }}</span><span class="app-user-panel-role">{{ _urole }} · {{ co.company_name }}</span></span>
         </div>
         {% if not _is_hr and not _is_manager %}
@@ -434,9 +439,6 @@
     </span>
     <a href="{{ tpath('/pay_overdue_bill') }}" style="background:{% if billing_lock_status.state == 'locked' %}#dc2626{% else %}#b45309{% endif %};color:#fff;padding:6px 14px;border-radius:8px;text-decoration:none;font-weight:700;white-space:nowrap;">Pay Now</a>
   </div>
-  {% endif %}
-  {% if registration_checklist %}
-  {% include "_registration_checklist.html" %}
   {% endif %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

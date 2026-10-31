@@ -201,6 +201,11 @@ flask_app.config["MANDATORY_ADMIN_MFA"] = False
 # (tests/test_login_mfa.py) re-enable it locally.
 flask_app.config["MANDATORY_LOGIN_MFA"] = False
 
+# Same for the new-company Organization profile gate (app.py's
+# _enforce_org_profile): tests for it (tests/test_company_profile_routes.py)
+# re-enable it locally.
+flask_app.config["MANDATORY_ORG_PROFILE"] = False
+
 # Disable the platform (super-admin) console's mandatory-MFA gate and the
 # Email Settings TOTP step-up gate for the same reason as the two flags
 # above -- both now default on (app.py), and most of the suite logs a

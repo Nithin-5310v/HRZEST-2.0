@@ -1,0 +1,29 @@
+{# Compact "Complete your registration" for the Organization side menu; the
+   Dashboard has the pop-up (_registration_popup.html). #}
+{% from "_registration_steps.html" import step_info with context %}
+{% set finished = registration_checklist | selectattr('status', 'in', ['done', 'review']) | list | length %}
+<section class="org-reg" aria-labelledby="orgRegTitle">
+  <div class="org-reg-head">
+    <h2 id="orgRegTitle">Complete your registration</h2>
+    <span class="org-reg-count">{{ finished }} of {{ registration_checklist | length }} done</span>
+  </div>
+  <div class="org-reg-bar" role="progressbar" aria-label="Registration progress" aria-valuemin="0"
+       aria-valuemax="{{ registration_checklist | length }}" aria-valuenow="{{ finished }}">
+    <div class="org-reg-fill" style="width: {{ (finished * 100 / (registration_checklist | length)) | round | int }}%;"></div>
+  </div>
+  <ul class="org-reg-steps">
+    {% for step in registration_checklist %}
+    {% set info = step_info[step.key] %}
+    <li class="{{ step.status }}">
+      {% if step.status == 'done' %}
+      <span class="org-reg-dot"><i class="ti ti-check"></i></span><span>{{ info.title }}</span>
+      {% elif step.status == 'review' %}
+      <span class="org-reg-dot"><i class="ti ti-clock"></i></span><span>{{ info.title }}<small>Under review</small></span>
+      {% else %}
+      <span class="org-reg-dot">{{ '!' if step.status == 'rejected' else loop.index }}</span>
+      <a href="{{ info.url }}">{{ info.title }}{% if step.status == 'rejected' %}<small>Re-upload documents</small>{% endif %}</a>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>

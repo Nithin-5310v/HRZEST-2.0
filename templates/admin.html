@@ -3,6 +3,7 @@
 {% block title %}Admin Dashboard{% endblock %}
 
 {% block page_css %}
+{% if registration_checklist %}<link rel="stylesheet" href="{{ static_url('registration-popup.css') }}" />{% endif %}
 <style>
   /* ── PAGE HEADER ── */
   .page-header {
@@ -211,6 +212,7 @@
 
 
 {% block main %}
+{% if registration_checklist %}{% include "_registration_popup.html" %}{% endif %}
 
   <!-- PAGE HEADER -->
   <div class="page-header page-header--toolbar">
