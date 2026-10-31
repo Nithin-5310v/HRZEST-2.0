@@ -24,7 +24,7 @@ from utils.helpers import (
     get_company_settings, _safe_app_url, company_today,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
-from utils.email_utils import get_email_config, send_email_smtp, support_inbox
+from utils.email_utils import get_email_config, send_email_smtp, public_contact_email
 from utils.session_risk import is_session_compromised, ensure_session_id
 
 core_bp = Blueprint("core", __name__)
@@ -167,7 +167,7 @@ def home():
         registration_failed=registration_failed,
         show_captcha=turnstile_enabled(),
         turnstile_site_key=_TURNSTILE_SITE_KEY,
-        support_email=support_inbox(),
+        support_email=public_contact_email(),
     )
 
 
