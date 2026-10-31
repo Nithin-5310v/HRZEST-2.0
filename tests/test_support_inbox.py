@@ -114,6 +114,14 @@ class TestLandingPage:
         assert html.count("help@example.test") >= 6
         assert 'id="contactFormError"' in html
 
+    def test_contact_thank_you_reads_as_one_sentence(self, client, monkeypatch):
+        # The banner is a flex row: the text must be one item next to the icon,
+        # or the sentence, the address and the full stop land on separate lines.
+        monkeypatch.setenv("SUPPORT_EMAIL", "help@example.test")
+        html = client.get("/").get_data(as_text=True)
+        assert ('<i class="ti ti-circle-check"></i> <span>Thank you! Your message has been sent to '
+                '<strong>help@example.test</strong>.</span>') in html
+
 
 def test_enquiry_email_skips_empty_rows():
     body = org._enquiry_email("H", [("Name", "A"), ("Phone", None), ("Email", "a@b.test")], None)
