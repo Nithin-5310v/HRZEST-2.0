@@ -6,8 +6,8 @@
     <style>
       .main { padding: 28px; }
       .page-header { margin-bottom: 20px; }
-      .page-header h1 { font-size: 24px; color: #1e293b; display: flex; align-items: center; gap: 10px; }
-      .page-header p  { font-size: 13px; color: #64748b; margin-top: 4px; }
+      .page-header h1 { font-size: 26px; color: #1e293b; display: flex; align-items: center; gap: 10px; }
+      .page-header p  { font-size: 15px; color: #64748b; margin-top: 4px; }
 
       .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
       .stat-card { background: #fff; border: 1px solid #dbeafe; border-radius: 14px; padding: 18px 20px; display: flex; align-items: center; gap: 14px; transition: 0.18s; text-decoration: none; }
@@ -17,15 +17,15 @@
       .stat-icon.active   { background: #dcfce7; color: #16a34a; }
       .stat-icon.onleave  { background: #fef9c3; color: #b45309; }
       .stat-icon.resigned { background: #fee2e2; color: #dc2626; }
-      .stat-val { font-size: 26px; font-weight: 800; color: #1e293b; line-height: 1; }
-      .stat-lbl { font-size: 12px; color: #64748b; margin-top: 2px; font-weight: 600; }
+      .stat-val { font-size: 28px; font-weight: 800; color: #1e293b; line-height: 1; }
+      .stat-lbl { font-size: 14px; color: #64748b; margin-top: 2px; font-weight: 600; }
 
-      .quick-link { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 10px; background: #fff; border: 1px solid #dbeafe; color: #1e3a8a; font-size: 13px; font-weight: 700; text-decoration: none; }
+      .quick-link { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 10px; background: #fff; border: 1px solid #dbeafe; color: #1e3a8a; font-size: 15px; font-weight: 700; text-decoration: none; }
       .quick-link:hover { border-color: #93c5fd; background: #eff6ff; }
 
       /* Internal tab strip -- separate from admin_base.html's outer sidebar nav */
       .hr-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid #dbeafe; margin-bottom: 20px; }
-      .hr-tab { padding: 10px 16px; border: none; background: none; font-size: 13px; font-weight: 700; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+      .hr-tab { padding: 10px 16px; border: none; background: none; font-size: 15px; font-weight: 700; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
       .hr-tab:hover { color: #1e3a8a; }
       .hr-tab.active { color: #1e3a8a; border-bottom-color: #1e3a8a; }
       .hr-view { display: none; }
@@ -33,25 +33,25 @@
 
       .hr-section { background: #fff; border: 1px solid #dbeafe; border-radius: 14px; padding: 0; overflow: hidden; margin-bottom: 16px; }
       .hr-section-hd { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-      .hr-section-hd h3 { font-size: 14px; color: #1e293b; }
-      .hr-section-hd a { font-size: 12px; font-weight: 700; color: #1e3a8a; text-decoration: none; }
+      .hr-section-hd h3 { font-size: 16px; color: #1e293b; }
+      .hr-section-hd a { font-size: 14px; font-weight: 700; color: #1e3a8a; text-decoration: none; }
       .hr-section-hd a:hover { text-decoration: underline; }
       .hr-table-wrap { overflow-x: auto; }
-      .hr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-      .hr-table th { background: #f8fafc; color: #475569; padding: 9px 14px; text-align: left; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+      .hr-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+      .hr-table th { background: #f8fafc; color: #475569; padding: 9px 14px; text-align: left; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
       .hr-table td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; color: #1e293b; white-space: nowrap; }
       .hr-table tr:last-child td { border-bottom: none; }
       .hr-table tr:hover td { background: #f8faff; }
-      .hr-empty { text-align: center; padding: 30px; color: #94a3b8; font-size: 13px; }
-      .hr-loading { text-align: center; padding: 30px; color: #94a3b8; font-size: 13px; }
-      .hr-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+      .hr-empty { text-align: center; padding: 30px; color: #94a3b8; font-size: 15px; }
+      .hr-loading { text-align: center; padding: 30px; color: #94a3b8; font-size: 15px; }
+      .hr-badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 13px; font-weight: 700; }
       .hr-badge.present { background: #dcfce7; color: #16a34a; }
       .hr-badge.late    { background: #fef9c3; color: #b45309; }
       .hr-badge.absent  { background: #fee2e2; color: #dc2626; }
       .hr-badge.active  { background: #dcfce7; color: #16a34a; }
       .hr-badge.onleave { background: #fef9c3; color: #b45309; }
       .hr-badge.resigned{ background: #fee2e2; color: #dc2626; }
-      .hr-search { width: 100%; max-width: 320px; padding: 8px 12px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fafc; font-size: 13px; outline: none; }
+      .hr-search { width: 100%; max-width: 320px; padding: 8px 12px; border: 1px solid #dbeafe; border-radius: 9px; background: #f8fafc; font-size: 15px; outline: none; }
       .hr-search:focus { border-color: #93c5fd; background: #fff; }
 
       body.dark-mode .page-header h1 { color: #cdd9e5 !important; }
@@ -253,17 +253,17 @@
   <div class="hr-view" id="hrview-reports">
     <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px; margin-bottom:16px;">
       <div class="hr-section" style="padding:18px;">
-        <h3 style="font-size:14px; color:#1e293b; margin-bottom:12px;">Attendance Rate -- Last 6 Months</h3>
+        <h3 style="font-size:16px; color:#1e293b; margin-bottom:12px;">Attendance Rate -- Last 6 Months</h3>
         <div style="position:relative; height:220px;"><canvas id="hrAttChart"></canvas></div>
       </div>
       <div class="hr-section" style="padding:18px;">
-        <h3 style="font-size:14px; color:#1e293b; margin-bottom:12px;">Department Breakdown</h3>
+        <h3 style="font-size:16px; color:#1e293b; margin-bottom:12px;">Department Breakdown</h3>
         <div style="position:relative; height:220px;"><canvas id="hrDeptChart"></canvas></div>
         <div id="hrDeptEmpty" class="hr-empty" style="display:none;">No department data.</div>
       </div>
     </div>
     <div class="hr-section" style="padding:18px;">
-      <h3 style="font-size:14px; color:#1e293b; margin-bottom:12px;">Headcount Trend -- Last 6 Months</h3>
+      <h3 style="font-size:16px; color:#1e293b; margin-bottom:12px;">Headcount Trend -- Last 6 Months</h3>
       <div style="position:relative; height:200px;"><canvas id="hrHeadcountChart"></canvas></div>
     </div>
   </div>
@@ -537,7 +537,7 @@
         '<td><span class="hr-badge ' + _hrStatusBadgeClass(r.status) + '">' + esc(r.status) + '</span></td>' +
         '<td>' + esc(r.login_time || '--') + '</td>' +
         '<td>' + esc(r.logout_time || '--') + '</td>' +
-        '<td><a href="' + esc(r.detail_url) + '" style="color:#1e3a8a;text-decoration:none;font-size:12px;font-weight:700;">View <i class="ti ti-arrow-right"></i></a></td>' +
+        '<td><a href="' + esc(r.detail_url) + '" style="color:#1e3a8a;text-decoration:none;font-size:14px;font-weight:700;">View <i class="ti ti-arrow-right"></i></a></td>' +
         '</tr>';
     }).join('');
   }
@@ -566,7 +566,7 @@
         '<td>' + esc(r.late_days) + '</td><td>' + esc(r.absent) + '</td>' +
         '<td>' + esc(r.gross) + '</td><td>' + esc(r.deduction) + '</td>' +
         '<td style="font-weight:700;">' + esc(r.net) + '</td>' +
-        '<td><a href="' + esc(r.payslip_url) + '" target="_blank" style="color:#1e3a8a;text-decoration:none;font-size:12px;font-weight:700;">Payslip <i class="ti ti-arrow-right"></i></a></td>' +
+        '<td><a href="' + esc(r.payslip_url) + '" target="_blank" style="color:#1e3a8a;text-decoration:none;font-size:14px;font-weight:700;">Payslip <i class="ti ti-arrow-right"></i></a></td>' +
         '</tr>';
     }).join('');
   }
@@ -579,7 +579,7 @@
         '<td>' + esc(r.name) + '</td><td>' + esc(r.date) + '</td>' +
         '<td>' + esc(r.ot_minutes) + '</td><td>' + esc(r.ot_pay) + '</td>' +
         '<td><span class="hr-badge ' + (r.status === 'Approved' ? 'active' : (r.status === 'Rejected' ? 'resigned' : 'onleave')) + '">' + esc(r.status) + '</span></td>' +
-        '<td><a href="{{ tpath('/overtime?tab=ot') }}" style="color:#1e3a8a;text-decoration:none;font-size:12px;font-weight:700;">Manage <i class="ti ti-arrow-right"></i></a></td>' +
+        '<td><a href="{{ tpath('/overtime?tab=ot') }}" style="color:#1e3a8a;text-decoration:none;font-size:14px;font-weight:700;">Manage <i class="ti ti-arrow-right"></i></a></td>' +
         '</tr>';
     }).join('');
   }
@@ -651,7 +651,7 @@
         '<td>' + esc(r.due_date || '--') + (r.is_overdue ? ' <span class="hr-badge resigned">Overdue</span>' : '') + '</td>' +
         '<td>' + esc(r.progress_pct) + '%</td>' +
         '<td><span class="hr-badge ' + (r.status === 'Completed' ? 'active' : 'onleave') + '">' + esc(r.status) + '</span></td>' +
-        '<td><a href="' + esc(r.detail_url) + '" style="color:#1e3a8a;text-decoration:none;font-size:12px;font-weight:700;">View <i class="ti ti-arrow-right"></i></a></td>' +
+        '<td><a href="' + esc(r.detail_url) + '" style="color:#1e3a8a;text-decoration:none;font-size:14px;font-weight:700;">View <i class="ti ti-arrow-right"></i></a></td>' +
         '</tr>';
     }).join('');
   }
@@ -664,7 +664,7 @@
         '<td>' + esc(r.name) + '</td><td>' + esc(r.department || '--') + '</td>' +
         '<td>' + (r.rating > 0 ? esc(r.rating) + ' / 5' : '--') + '</td>' +
         '<td><span class="hr-badge ' + (r.status === 'Completed' || r.status === 'Submitted' ? 'active' : 'onleave') + '">' + esc(r.status) + '</span></td>' +
-        '<td><a href="' + esc(r.review_url) + '" style="color:#1e3a8a;text-decoration:none;font-size:12px;font-weight:700;">Review <i class="ti ti-arrow-right"></i></a></td>' +
+        '<td><a href="' + esc(r.review_url) + '" style="color:#1e3a8a;text-decoration:none;font-size:14px;font-weight:700;">Review <i class="ti ti-arrow-right"></i></a></td>' +
         '</tr>';
     }).join('');
   }
@@ -685,7 +685,7 @@
     return '<form action="{{ tpath("/policies/") }}' + policyId + '/' + action + '" method="POST" style="display:inline;margin-left:6px;"' +
       (danger ? ' onsubmit="return confirm(\'Delete this policy?\');"' : '') + '>' +
       '<input type="hidden" name="_csrf_token" value="' + CSRF_TOKEN + '" />' +
-      '<button type="submit" style="background:none;border:none;padding:0;cursor:pointer;color:' + (danger ? '#dc2626' : '#1e3a8a') + ';font-size:12px;font-weight:700;">' + label + '</button>' +
+      '<button type="submit" style="background:none;border:none;padding:0;cursor:pointer;color:' + (danger ? '#dc2626' : '#1e3a8a') + ';font-size:14px;font-weight:700;">' + label + '</button>' +
       '</form>';
   }
 

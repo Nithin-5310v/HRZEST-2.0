@@ -18,38 +18,38 @@
       .app-content:has(.empty-state) { display: flex; }
 
     .page-hdr{margin-bottom:22px}
-    .page-hdr h1{font-size:22px;font-weight:800;color:#1e293b}
-    .page-hdr p{font-size:13px;color:#64748b;margin-top:4px}
+    .page-hdr h1{font-size:24px;font-weight:800;color:#1e293b}
+    .page-hdr p{font-size:15px;color:#64748b;margin-top:4px}
     .card{background:#fff;border:1px solid #dbeafe;border-radius:16px;padding:22px;margin-bottom:18px}
     .hero{background:linear-gradient(135deg,#0f2460,#1e3a8a);color:#fff;border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
-    .hero h2{font-size:20px;font-weight:800;margin-bottom:4px}
-    .hero p{font-size:13px;opacity:.75}
-    .sec-title{font-size:12px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .hero h2{font-size:22px;font-weight:800;margin-bottom:4px}
+    .hero p{font-size:15px;opacity:.75}
+    .sec-title{font-size:14px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
     .review-block{border:1.5px solid #dbeafe;border-radius:14px;margin-bottom:16px;overflow:hidden}
     .review-hdr{background:#dbeafe;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
-    .review-hdr .q-label{font-size:14px;font-weight:800;color:#1e3a8a}
+    .review-hdr .q-label{font-size:16px;font-weight:800;color:#1e3a8a}
     .star-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
-    .star-row .stars{font-size:20px;color:#f59e0b}
+    .star-row .stars{font-size:22px;color:#f59e0b}
     .star-row .star-e{color:#e2e8f0}
     .kpi-row{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:8px}
-    .kpi-name{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px}
-    .kpi-meta{display:flex;gap:14px;font-size:12px;color:#64748b;margin-bottom:8px;flex-wrap:wrap}
+    .kpi-name{font-size:15px;font-weight:700;color:#1e293b;margin-bottom:6px}
+    .kpi-meta{display:flex;gap:14px;font-size:14px;color:#64748b;margin-bottom:8px;flex-wrap:wrap}
     .progress-wrap{background:#e2e8f0;border-radius:20px;height:6px;overflow:hidden}
     .progress-fill{height:100%;border-radius:20px}
-    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:700}
     .b-submitted{background:#dbeafe;color:#1e3a8a}
     .b-draft{background:#f1f5f9;color:#64748b}
     .b-acknowledged{background:#dcfce7;color:#15803d}
-    .comment-form textarea{width:100%;padding:10px 13px;border:1.5px solid #dbeafe;border-radius:9px;font-size:13px;color:#1e293b;background:#f8fafc;outline:none;resize:vertical}
+    .comment-form textarea{width:100%;padding:10px 13px;border:1.5px solid #dbeafe;border-radius:9px;font-size:15px;color:#1e293b;background:#f8fafc;outline:none;resize:vertical}
     .comment-form textarea:focus{border-color:#3b82f6}
-    .btn{padding:8px 16px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+    .btn{padding:8px 16px;border:none;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
     .btn-primary{background:#1e3a8a;color:#fff}
-    .flash-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:10px 16px;border-radius:10px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .flash-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:10px 16px;border-radius:10px;font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
     .empty-state{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:64px 32px}
     .empty-state-icon{width:64px;height:64px;margin:0 auto 20px;border-radius:16px;background:#dbeafe;display:flex;align-items:center;justify-content:center}
     .empty-state-icon i{font-size:28px;color:#1d4ed8}
-    .empty-state h3{font-size:16px;font-weight:800;color:#0f172a;margin-bottom:8px}
-    .empty-state p{font-size:13.5px;color:#64748b;max-width:340px;margin:0 auto;line-height:1.6}
+    .empty-state h3{font-size:18px;font-weight:800;color:#0f172a;margin-bottom:8px}
+    .empty-state p{font-size:15.5px;color:#64748b;max-width:340px;margin:0 auto;line-height:1.6}
 
     /* ── Dark mode ── */
     body.dark-mode{background:#0d1117!important}
@@ -139,7 +139,7 @@
           {% if rating and rating > 0 %}
           <span>
             {% for i in range(1,6) %}
-            <span style="font-size:16px;color:{% if i <= rating %}#f59e0b{% else %}#e2e8f0{% endif %};">★</span>
+            <span style="font-size:18px;color:{% if i <= rating %}#f59e0b{% else %}#e2e8f0{% endif %};">★</span>
             {% endfor %}
           </span>
           {% endif %}
@@ -164,7 +164,7 @@
           <div class="u-d-flex u-ai-center u-gap-10">
             <span>
               {% for i in range(1,6) %}
-              <span style="font-size:15px;color:{% if i <= kpi_rating %}#f59e0b{% else %}#e2e8f0{% endif %};">★</span>
+              <span style="font-size:17px;color:{% if i <= kpi_rating %}#f59e0b{% else %}#e2e8f0{% endif %};">★</span>
               {% endfor %}
             </span>
             <span class="u-fw-700 u-c-f59e0b">{{ kpi_rating }}/5</span>

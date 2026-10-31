@@ -89,7 +89,7 @@ body:not(.dark-mode) .badge-role { background: #eef4ff; color: #1d4ed8; border-c
 body:not(.dark-mode) table thead th {
   background: #f9fafb;
   color: var(--ui-text-2);
-  font-size: 11.5px;
+  font-size: 13.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
