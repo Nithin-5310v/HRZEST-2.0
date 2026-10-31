@@ -11,7 +11,7 @@
 <header class="emp-topbar" id="empTopbar">
   <a class="emp-brand" href="{{ tpath('/employee_portal#dashboard') }}" aria-label="{{ co.company_name }} – my dashboard">
     <span class="emp-brand-logo">
-      {% if co.logo_url %}<img src="{{ co.logo_url }}" alt="" />{% else %}<i class="ti ti-building" aria-hidden="true"></i>{% endif %}
+      {% if co.logo_url %}<img src="{{ co.logo_url }}" alt="" />{% else %}<img src="{{ static_url('brand/hrzest-mark.svg') }}" alt="" />{% endif %}
     </span>
     <span class="emp-brand-name">{{ co.company_name }}</span>
   </a>

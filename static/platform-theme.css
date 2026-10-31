@@ -109,6 +109,18 @@ html body .container > .header > a:hover,
 html body .container > .header > div > a:hover,
 html body .container > .header > div > button:hover,
 html body .container > .header form > button:hover { background: rgba(255,255,255,.22) !important; color: #fff !important; }
+/* HRZest logo at the left of the banner (added by static/platform-topbar.js) */
+html body .container > .header > a.pa-brand {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 18px; padding: 0 18px 0 0 !important;
+  background: none !important; border: none !important; border-right: 1px solid rgba(255,255,255,.25) !important; border-radius: 0 !important;
+  color: #fff !important; text-decoration: none !important;
+}
+html body .container > .header > a.pa-brand:hover { background: none !important; }
+.pa-brand-logo { width: 36px; height: 36px; border-radius: 10px; background: #fff; padding: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.pa-brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+.pa-brand-name { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+html body .container > .header > h1 { margin-right: auto !important; }
+@media (max-width: 640px) { .pa-brand-name { display: none; } }
 .pa-actions { display: flex; align-items: center; gap: 8px; }
 .pa-date {
   display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 9px;

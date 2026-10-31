@@ -12,14 +12,14 @@
   var MIN_MS = 2500;
 
   var script = document.currentScript;
-  var logo = (script && script.getAttribute('data-logo')) || '/static/favicon.svg';
+  var logo = (script && script.getAttribute('data-logo')) || '/static/brand/hrzest-mark.svg';
 
   function show() {
     var el = document.createElement('div');
     el.id = 'hrzLoginLoader';
     el.setAttribute('role', 'status');
     el.setAttribute('aria-label', 'Loading');
-    el.innerHTML = '<div class="hrz-ll-brand"><div class="hrz-ll-mark"><img alt="" src="' + logo + '"></div><span class="hrz-ll-word">HRZEST</span></div><div class="hrz-ll-bar"></div><p class="hrz-ll-note">Preparing your workspace</p>';
+    el.innerHTML = '<div class="hrz-ll-brand"><div class="hrz-ll-mark"><img alt="" src="' + logo + '"></div><span class="hrz-ll-word">HRZest</span></div><div class="hrz-ll-bar"></div><p class="hrz-ll-note">Preparing your workspace</p>';
     document.documentElement.appendChild(el);
     return el;
   }
