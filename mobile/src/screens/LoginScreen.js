@@ -173,13 +173,16 @@ export default function LoginScreen({ navigation }) {
       }
       Alert.alert("Sign-in Failed", data?.msg && !/invalid credentials/i.test(data.msg) ? data.msg : signInErrorMessage(null));
     } catch (err) {
-      // Keep a specific server message (e.g. a password reset by the admin);
-      // replace the generic ones with what actually went wrong.
-      const serverMsg = err?.response?.data?.msg;
+      // Keep a specific server message (a password reset by the admin, or
+      // access ended after the last working day); replace the generic ones
+      // with what actually went wrong.
+      const body = err?.response?.data || {};
+      const serverMsg = body.msg;
       const status = err?.response?.status;
-      const generic = !serverMsg || (!err?.response?.data?.password_change_required &&
+      const specific = body.password_change_required || body.access_ended;
+      const generic = !serverMsg || (!specific &&
         ([403, 404, 429].includes(status) || /invalid (employee )?credentials/i.test(serverMsg)));
-      Alert.alert("Sign-in Failed", generic ? signInErrorMessage(err) : serverMsg);
+      Alert.alert(body.access_ended ? "Access Ended" : "Sign-in Failed", generic ? signInErrorMessage(err) : serverMsg);
     }
     setLoading(false);
   };

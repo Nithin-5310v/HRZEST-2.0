@@ -775,13 +775,14 @@ def api_employee_portal():
     if not emp_id:
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
-            from utils.auth import _hash_token, _TOKEN_NOT_STALE_SQL
+            from utils.auth import _hash_token, _TOKEN_NOT_STALE_SQL, _employment_ended_sql, access_cutoff_date
             token_hash = _hash_token(auth[7:])
             with _db() as (cursor, _conn):
                 cursor.execute(
                     "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type='employee' "
-                    f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
-                    (token_hash,)
+                    f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL} "
+                    f"AND NOT {_employment_ended_sql('t.identity')}",  # nosec B608 -- fixed module constants
+                    (token_hash, access_cutoff_date())
                 )
                 row = cursor.fetchone()
                 if row:

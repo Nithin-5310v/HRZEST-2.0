@@ -22,7 +22,7 @@ from utils.auth import (
     CAPTCHA_AFTER_ATTEMPTS, _TURNSTILE_SITE_KEY, HR_ROLE, MANAGER_ROLE,
     api_required, validate_new_password, verify_and_update_password, _mask_identifier,
     dummy_password_check, record_password_change, stamp_password_version, _TOKEN_NOT_STALE_SQL,
-    session_account_ok,
+    session_account_ok, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
 from utils.helpers import tpath, get_company_settings, _audit, _db, _safe_app_url
@@ -283,6 +283,10 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
     session and /force_change_pin exactly as before this existed, and the
     HR check only applies on a later login once that's done.
 
+    An employee past the last working day of an accepted resignation gets
+    no session at all -- checked here too, not just at the password step,
+    because a code emailed before that day can be entered after it.
+
     Otherwise: if this employee's role is exactly "HR" (see
     _HR_EMPLOYEE_ROLE), auto-provisions and logs into the backing
     admin_users HR account instead of a normal employee session, landing
@@ -290,6 +294,11 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
     admin_users role='hr' login already reaches. Every other employee gets
     the unchanged normal employee session and /employee_portal.
     """
+    ended_on = employment_ended_on(employee_id)
+    if ended_on:
+        session.clear()
+        return render_template("admin_login.html", co=get_company_settings(), error=access_ended_message(ended_on))
+
     if force_pin_change:
         session.clear()
         session["employee_id"] = employee_id
@@ -574,6 +583,11 @@ def admin_login():
                     show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY,
                 )
             _clear_login_failures(identifier)
+            # An HR/manager employee's admin account is named after their
+            # employee ID: it ends with their employment too.
+            ended_on = employment_ended_on(identifier)
+            if ended_on:
+                return render_template("admin_login.html", co=co, error=access_ended_message(ended_on))
             if _kyc_verification_blocks_login():
                 return render_template("admin_login.html", co=co, error=_KYC_REJECTED_LOGIN_MSG)
             # Upgrade legacy hash to bcrypt on first successful login
@@ -614,6 +628,11 @@ def admin_login():
                 return render_template("admin_login.html", co=co, error="Invalid credentials. Check your ID and password.",
                                        show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
             _clear_login_failures(identifier)
+            # Past the last working day of an accepted resignation: the right
+            # password, but no access (and no emailed code). Records are kept.
+            ended_on = employment_ended_on(emp_row[0])
+            if ended_on:
+                return render_template("admin_login.html", co=co, error=access_ended_message(ended_on))
             # Upgrade legacy hash to bcrypt on first successful login
             if stored_pwd and not stored_pwd.startswith("$2"):
                 with _db() as (_uc, _ud):
