@@ -1,11 +1,30 @@
 /* ==========================================================================
-   HRzest - Platform Admin banner: adds a live date + time chip to the page
-   header (which static/platform-theme.css turns into the full-width blue
-   banner), next to the page's own buttons (Sign Out / Back to Console).
+   HRzest - Platform Admin banner: puts the HRZest logo at the left of the
+   page header (which static/platform-theme.css turns into the full-width blue
+   banner) and adds a live date + time chip next to the page's own buttons
+   (Sign Out / Back to Console).
    ========================================================================== */
 (function () {
   var header = document.querySelector('.container > .header');
   if (!header) return;
+
+  // HRZest logo: the mark on a white tile (its navy would vanish on the blue)
+  var brand = document.createElement('a');
+  brand.className = 'pa-brand';
+  brand.href = '/super_admin';
+  brand.setAttribute('aria-label', 'HRZest platform console');
+  var tile = document.createElement('span');
+  tile.className = 'pa-brand-logo';
+  var mark = document.createElement('img');
+  mark.src = '/static/brand/hrzest-mark.svg';
+  mark.alt = '';
+  tile.appendChild(mark);
+  var word = document.createElement('span');
+  word.className = 'pa-brand-name';
+  word.textContent = 'HRZest';
+  brand.appendChild(tile);
+  brand.appendChild(word);
+  header.insertBefore(brand, header.firstChild);
 
   // group the right-hand side: date chip + whatever the page already has there
   var right = header.lastElementChild && header.lastElementChild.tagName !== 'H1' ? header.lastElementChild : null;
