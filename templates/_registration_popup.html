@@ -1,0 +1,45 @@
+{# "Complete your registration" pop-up on the admin dashboard, one step at a
+   time. Steps and their status come from blueprints/org.py's
+   registration_checklist(), via app.py's inject_registration_checklist().
+   Behaviour: static/registration-popup.js; styles: static/registration-popup.css.
+   The Organization side menu has the compact version
+   (_registration_checklist_side.html). #}
+{% from "_registration_steps.html" import step_info with context %}
+{% set finished = registration_checklist | selectattr('status', 'in', ['done', 'review']) | list | length %}
+<dialog class="reg-modal" id="regModal" aria-labelledby="regModalTitle" data-finished="{{ finished }}" data-login="{{ session.get('_session_created', '') }}">
+  <button type="button" class="reg-modal-close" data-reg-close aria-label="Close"><i class="ti ti-x" aria-hidden="true"></i></button>
+  <div class="reg-modal-head">
+    <h2 id="regModalTitle">Complete your registration</h2>
+    <p>Step <span id="regStepNum">1</span> of {{ registration_checklist | length }}</p>
+    <div class="reg-dots" aria-hidden="true">
+      {% for step in registration_checklist %}<span class="reg-dot {{ step.status }}"></span>{% endfor %}
+    </div>
+  </div>
+  {% for step in registration_checklist %}
+  {% set info = step_info[step.key] %}
+  <section class="reg-panel {{ step.status }}" data-step="{{ loop.index0 }}" data-status="{{ step.status }}" hidden>
+    <span class="reg-panel-icon"><i class="ti ti-{{ 'check' if step.status == 'done' else info.icon }}" aria-hidden="true"></i></span>
+    <h3>{{ info.title }}</h3>
+    <p>
+      {% if step.status == 'rejected' %}Not approved{% if step.reason %}: {{ step.reason }}{% endif %}. Please upload corrected documents.
+      {% elif step.status == 'review' %}Submitted. We're reviewing your documents, usually within a minute.
+      {% else %}{{ info.detail }}{% endif %}
+    </p>
+    {% if step.status == 'done' %}
+    <span class="reg-panel-state"><i class="ti ti-circle-check" aria-hidden="true"></i> Done</span>
+    {% elif step.status == 'review' %}
+    <span class="reg-panel-state review"><i class="ti ti-clock" aria-hidden="true"></i> Under review</span>
+    {% else %}
+    <a class="reg-panel-action" href="{{ info.url }}">{{ 'Re-upload documents' if step.status == 'rejected' else info.action }} <i class="ti ti-arrow-right" aria-hidden="true"></i></a>
+    {% endif %}
+  </section>
+  {% endfor %}
+  <div class="reg-modal-foot">
+    <button type="button" class="reg-modal-later" data-reg-close>Remind me later</button>
+    <div class="reg-modal-nav">
+      <button type="button" class="reg-modal-later" id="regBack">Back</button>
+      <button type="button" class="reg-modal-next" id="regNext">Next</button>
+    </div>
+  </div>
+</dialog>
+<script src="{{ static_url('registration-popup.js') }}" defer></script>

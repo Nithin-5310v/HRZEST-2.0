@@ -1,0 +1,43 @@
+/* "Complete your registration" pop-up on the admin dashboard. */
+.reg-modal { position: fixed; inset: 0; margin: auto; height: fit-content; width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: none; border-radius: 16px; background: #fff; color: #101828; box-shadow: 0 24px 60px -12px rgba(16, 24, 40, 0.35); overflow: auto; }
+.reg-modal::backdrop { background: rgba(16, 24, 40, 0.5); }
+.reg-modal[open] { animation: reg-modal-in 0.18s ease-out; }
+.reg-modal-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 8px; background: transparent; color: #667085; font-size: 20px; cursor: pointer; }
+.reg-modal-close:hover { background: #f2f4f7; color: #101828; }
+
+.reg-modal-head { padding: 24px 56px 0 24px; }
+.reg-modal-head h2 { margin: 0; font-size: 20px; font-weight: 700; color: #101828; }
+.reg-modal-head p { margin: 4px 0 12px; font-size: 15px; color: #667085; }
+.reg-dots { display: flex; gap: 6px; }
+.reg-dot { height: 5px; flex: 1; border-radius: 3px; background: #eaecf0; }
+.reg-dot.done, .reg-dot.review { background: #16a34a; }
+.reg-dot.rejected { background: #d92d20; }
+.reg-dot.current { background: #2563eb; }
+
+.reg-panel { padding: 28px 24px; text-align: center; }
+.reg-panel[hidden] { display: none; }
+.reg-panel-icon { width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 14px; background: #eef4ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.reg-panel.done .reg-panel-icon { background: #ecfdf3; color: #16a34a; }
+.reg-panel.rejected .reg-panel-icon { background: #fef3f2; color: #d92d20; }
+.reg-panel h3 { margin: 0 0 6px; font-size: 18px; font-weight: 700; color: #101828; }
+.reg-panel p { margin: 0 auto 18px; max-width: 400px; font-size: 15.5px; line-height: 1.5; color: #475467; }
+.reg-panel-action { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; background: #2563eb; color: #fff; font-size: 16px; font-weight: 600; text-decoration: none; }
+.reg-panel-action:hover { background: #1d4ed8; color: #fff; }
+.reg-panel-state { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: #15803d; }
+.reg-panel-state.review { color: #a16207; }
+
+.reg-modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px; border-top: 1px solid #f0f1f3; background: #f9fafb; }
+.reg-modal-nav { display: flex; gap: 8px; }
+.reg-modal-later, .reg-modal-next { padding: 8px 14px; border-radius: 8px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.reg-modal-later { border: 1px solid #d0d5dd; background: #fff; color: #344054; }
+.reg-modal-later:hover { background: #f2f4f7; }
+.reg-modal-later[hidden] { display: none; }
+.reg-modal-next { border: 1px solid #2563eb; background: #2563eb; color: #fff; }
+.reg-modal-next:hover { background: #1d4ed8; }
+
+@keyframes reg-modal-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .reg-modal[open] { animation: none; } }
+body.dark-mode .reg-modal { background: #161b22; color: #e6edf3; }
+body.dark-mode .reg-modal-head h2, body.dark-mode .reg-panel h3 { color: #e6edf3; }
+body.dark-mode .reg-panel p { color: #8b949e; }
+body.dark-mode .reg-modal-foot { background: #0d1117; border-color: #30363d; }

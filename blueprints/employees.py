@@ -2075,7 +2075,7 @@ def _build_id_card_buf(emp_id):
             _co_name = _co.get("company_name")
             company_name = _co_name if _co_name and _co_name != "My Company" else company_name
         if not logo_path:
-            _co_logo = (_co.get("logo_url") or "").strip().lstrip("/")
+            _co_logo = (_co.get("logo_url") or "").split("?")[0].strip().lstrip("/")
             if _co_logo.startswith("static/"):
                 _co_logo = _co_logo[len("static/"):]
             logo_path = _co_logo or None

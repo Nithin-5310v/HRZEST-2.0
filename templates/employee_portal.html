@@ -11,6 +11,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Portal — {{ emp[1] }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
+    <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
+    <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('favicon.svg') }}"></script>
     <!-- defer: jsQR() is only ever called from inside the camera-scan loop,
          well after user interaction starts a scan -- nothing needs this
          130KB library synchronously during initial parse, so deferring it

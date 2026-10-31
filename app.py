@@ -343,6 +343,34 @@ def inject_registration_checklist():
 
 
 @app.context_processor
+def inject_admin_name():
+    """Name and initials for templates/admin_base.html's profile menu: the
+    company admin's name from the Organization page, an HR or manager's name
+    from their employee record, else the login username. Fail-soft, like the
+    other banner lookups above."""
+    if not session.get("admin_logged_in"):
+        return {}
+    username = session.get("admin_username") or ""
+    name = None
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        if session.get("admin_role", "admin") == "admin":
+            cursor.execute("SELECT display_name FROM admin_users WHERE username=%s", (username,))
+        else:
+            cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (username,))
+        row = cursor.fetchone()
+        name = row[0] if row else None
+        cursor.close()
+        db.close()
+    except Exception:
+        app_log.warning("inject_admin_name: lookup failed", exc_info=True)
+    words = (name or "").split()
+    initials = "".join(w[0] for w in words[:2]) if len(words) > 1 else (name or username or "Admin")[:2]
+    return {"admin_display_name": name, "admin_initials": initials.upper()}
+
+
+@app.context_processor
 def inject_admin_avatar():
     """Photo for the profile avatar in templates/admin_base.html's top
     banner. HR and manager accounts log in with their employee ID, so they
@@ -574,6 +602,27 @@ def _restamp_tenant_session(response):
     return response
 
 
+_LOGIN_LOADER_LANDINGS = {"admin", "employee_portal", "hr_dashboard", "leave_holidays"}
+
+
+@app.after_request
+def _flag_login_success(response):
+    """Drops a 30-second hrz_login_ok cookie on the redirect that follows a
+    login whose credentials (and MFA, if on) were accepted, so
+    static/login-loader.js shows the HRZest loader on the dashboard it lands
+    on -- and never after a rejected attempt, which re-renders the form (200)
+    or redirects back to login/MFA. Readable by JS on purpose (the script
+    deletes it); it carries no data."""
+    if (request.method == "POST" and response.status_code in (301, 302, 303)
+            and request.path.rstrip("/").rsplit("/", 1)[-1] in ("login", "mfa_verify")
+            and (session.get("admin_logged_in") or session.get("employee_id"))):
+        landing = urlsplit(response.headers.get("Location", "")).path.rstrip("/").rsplit("/", 1)[-1]
+        if landing in _LOGIN_LOADER_LANDINGS:
+            response.set_cookie("hrz_login_ok", "1", max_age=30, path="/", samesite="Lax",
+                                secure=request.is_secure)
+    return response
+
+
 # Exempt from the billing-lock write-block below: the pages/actions a
 # locked tenant must still be able to reach to pay their way back out
 # (blueprints/billing_dunning.py), plus the universal login/logout/static
@@ -782,6 +831,7 @@ _MANDATORY_MFA_EXEMPT_PATHS = {
 # every boot, so those fallback defaults were dead code, not a real
 # secure-by-default posture).
 app.config["MANDATORY_ADMIN_MFA"] = os.environ.get("MANDATORY_ADMIN_MFA", "True").lower() in ("true", "1", "yes")
+app.config["MANDATORY_ORG_PROFILE"] = os.environ.get("MANDATORY_ORG_PROFILE", "True").lower() in ("true", "1", "yes")
 app.config["MANDATORY_LOGIN_MFA"] = os.environ.get("MANDATORY_LOGIN_MFA", "True").lower() in ("true", "1", "yes")
 app.config["MANDATORY_PLATFORM_ADMIN_MFA"] = os.environ.get("MANDATORY_PLATFORM_ADMIN_MFA", "True").lower() in ("true", "1", "yes")
 # Email Settings step-up gate (utils/auth.py's require_email_2fa) -- same
@@ -824,6 +874,36 @@ def _enforce_admin_mfa_enrollment():
         return jsonify({"ok": False, "msg": "MFA enrollment required before continuing.",
                         "redirect": "/admin/mfa-required"}), 403
     return redirect("/admin/mfa-required")
+
+
+# What a new company's admin can still reach while its Organization profile
+# is pending. /api/ and /web/ are left to their own auth: the mobile app signs
+# up through Bearer-token routes, and a locked page never calls the others.
+_ORG_PROFILE_EXEMPT_PREFIXES = ("/static/", "/profile", "/api/", "/web/", "/admin/mfa-required")
+_ORG_PROFILE_EXEMPT_PATHS = {"/healthz", "/welcome", "/logout", "/pay_overdue_bill", "/csp-report"}
+
+
+@app.before_request
+def _enforce_org_profile():
+    """A newly registered company's admin can reach nothing but the
+    Organization page until its mandatory form is saved (company_profile.py's
+    profile_details_save clears the flag). Read through the cached settings,
+    so this adds no query per request, and fail-soft for the same reason the
+    banner lookups are: it must never be what takes a dashboard down. Only
+    the company admin is held here: HR and managers can't fill this form."""
+    if not current_app.config["MANDATORY_ORG_PROFILE"]:
+        return
+    if not session.get("admin_logged_in") or session.get("admin_role", "admin") != "admin":
+        return
+    if request.path in _ORG_PROFILE_EXEMPT_PATHS or request.path.startswith(_ORG_PROFILE_EXEMPT_PREFIXES):
+        return
+    try:
+        pending = get_company_settings().get("org_profile_pending")
+    except Exception:
+        app_log.warning("_enforce_org_profile: settings lookup failed", exc_info=True)
+        return
+    if pending:
+        return redirect(_tpath("/profile"))
 
 
 @app.before_request

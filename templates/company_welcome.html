@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <noscript><meta http-equiv="refresh" content="3;url={{ next_url }}" /></noscript>
+  <title>Setting up your workspace — HRzest</title>
+  <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
+  <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
+  <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('favicon.svg') }}"></script>
+  <style>
+    :root { --hz-blue: #2563eb; --hz-text: #101828; --hz-muted: #667085; --hz-ring: #e4e7ec; --hz-bg: #f5f7fb; }
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; align-items: center; justify-content: center; background: var(--hz-bg); color: var(--hz-text); font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+    .hz-loader { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 24px; text-align: center; }
+    .hz-mark { position: relative; width: 112px; height: 112px; display: flex; align-items: center; justify-content: center; }
+    .hz-mark img { width: 60px; height: 60px; animation: hz-pulse 1.6s ease-in-out infinite; }
+    .hz-mark::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--hz-ring); border-top-color: var(--hz-blue); animation: hz-spin 1s linear infinite; }
+    .hz-title { font-size: 18px; font-weight: 700; margin: 0; }
+    .hz-sub { font-size: 14px; color: var(--hz-muted); margin: 6px 0 0; }
+    @keyframes hz-spin { to { transform: rotate(360deg); } }
+    @keyframes hz-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+    @media (prefers-reduced-motion: reduce) { .hz-mark img, .hz-mark::before { animation: none; } }
+  </style>
+</head>
+<body>
+  <main class="hz-loader" role="status" aria-live="polite">
+    <div class="hz-mark"><img src="{{ static_url('favicon.svg') }}" alt="HRzest" width="60" height="60" /></div>
+    <div>
+      <p class="hz-title">Setting up your workspace</p>
+      <p class="hz-sub">Taking you to your organization profile…</p>
+    </div>
+  </main>
+  <script>window.hrzLoaderThen({{ next_url|tojson }});</script>
+</body>
+</html>

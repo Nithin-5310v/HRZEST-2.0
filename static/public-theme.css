@@ -117,12 +117,14 @@ input:focus, select:focus, textarea:focus {
 }
 
 .footer {
-  --text-main: #f8fafc;
-  --text-muted: #98a2b3;
-  --border-color: rgba(255, 255, 255, 0.10);
-  background: #0f172a !important;
+  --text-main: #0c3054;
+  --text-muted: #475467;
+  --border-color: #d9e2f5;
+  background: #f4f7ff !important;
+  border-top: 1px solid #d9e2f5;
 }
-.footer a:hover { color: #ffffff; }
+.footer a:hover { color: #2563eb; }
+.footer-bottom .footer-credit { font-weight: 600; color: var(--text-main); }
 
 /* Auth promo panel (left side of login / sign-up) */
 .auth-promo-eyebrow {
