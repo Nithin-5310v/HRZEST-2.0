@@ -60,7 +60,11 @@ pipeline {
     }
 
     stage('Deploy to development') {
-      when { branch 'develop' }
+      // beforeAgent: skip the checkout on the other branch.
+      when {
+        beforeAgent true
+        branch 'develop'
+      }
       agent any
       steps {
         powershell '.\\ci\\jenkins\\deploy_dev.ps1 -Commit $env:DEPLOY_SHA'
@@ -87,7 +91,11 @@ pipeline {
     }
 
     stage('Deploy to production') {
-      when { branch 'main' }
+      // beforeAgent: skip the checkout on the other branch.
+      when {
+        beforeAgent true
+        branch 'main'
+      }
       agent any
       steps {
         powershell '.\\ci\\jenkins\\deploy_prod.ps1 -Commit $env:DEPLOY_SHA -Hotfix:([bool]::Parse($env:HOTFIX))'
