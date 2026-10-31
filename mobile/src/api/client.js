@@ -204,6 +204,31 @@ export const saveCompanyDetails = (formData) =>
 export const uploadRegistrationDocuments = (formData) =>
   client.post('/api/admin/registration/documents', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 
+// ── Organization (Admin > More > Organization) ─────────────────────────
+// The company's details as on the website's Organization page: name,
+// tagline, phone, email, website, address. A logo goes as multipart.
+export const fetchOrganization = () => client.get('/api/admin/organization');
+
+export const saveOrganization = (fields) => client.post('/api/admin/organization', fields);
+
+export const uploadOrganizationLogo = (formData) =>
+  client.post('/api/admin/organization', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+
+// The company's own terms and policies. Admin and HR tokens manage them;
+// employees read the published ones.
+export const fetchAdminPolicies = () => client.get('/api/admin/policies');
+
+export const addPolicy = (policy) => client.post('/api/admin/policies', policy);
+
+export const updatePolicy = (policyId, policy) => client.post(`/api/admin/policies/${policyId}`, policy);
+
+export const setPolicyPublished = (policyId, published) =>
+  client.post(`/api/admin/policies/${policyId}/${published ? 'publish' : 'unpublish'}`);
+
+export const deletePolicy = (policyId) => client.delete(`/api/admin/policies/${policyId}`);
+
+export const fetchCompanyPolicies = () => client.get('/api/employee/company_policies');
+
 export const uploadEmployeePhoto = (formData) =>
   client.post('/api/employee/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 

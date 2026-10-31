@@ -317,6 +317,10 @@ def _run_column_migrations(cursor, db):
         # non-sensitive fields it lets an admin edit inline.
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(30) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS address VARCHAR(500) DEFAULT NULL",
+        # The Organization page's Contact panel (and the app's Organization
+        # screen): where employees can reach the company.
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS website VARCHAR(255) DEFAULT NULL",
         # Read by utils/helpers.py's get_company_settings() as co.logo_url,
         # rendered in templates/admin_base.html's sidebar (admin + HR) and
         # templates/employee_portal.html's sidebar -- this ALTER, not
