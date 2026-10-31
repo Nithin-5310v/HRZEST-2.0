@@ -121,6 +121,7 @@
   .org-page-head p { font-size: 13.5px; color: #6b7280; margin: 4px 0 0; }
   .org-inline-link { margin-left: 10px; font-size: 13px; font-weight: 600; color: #1e3a8a; text-decoration: none; }
   .org-inline-link:hover { text-decoration: underline; }
+  .org-inline-link.flush { margin-left: 0; font-size: inherit; }
   .org-summary .s a { color: #1e3a8a; font-weight: 600; text-decoration: none; }
 
   .org-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
@@ -269,9 +270,10 @@
       </div>
     </div>
 
-    <section class="org-panel">
+    <section class="org-panel" id="org-details">
       <div class="org-panel-head">
         <div><h2>Organization details</h2><p>Basic information about your organization.</p></div>
+        <button type="button" class="org-btn" data-edit-toggle><i class="ti ti-pencil"></i> Edit</button>
       </div>
       <dl class="org-rows">
         <div class="org-row"><dt>Organization name</dt><dd>{{ co.company_name }}</dd></div>
@@ -286,6 +288,29 @@
         {% elif application.doc_review_status == 'pending_review' %}<span class="badge-pill badge-pending">Under review</span>
         {% else %}<span class="badge-pill badge-pending">Documents pending</span>{% endif %} <a class="org-inline-link" href="{{ tpath('/profile?section=legal') }}">View details</a></dd></div>
       </dl>
+      <form class="org-edit" method="POST" action="{{ tpath('/profile/organization') }}" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <div class="org-form-row">
+          <div>
+            <label class="field-label" for="p-company-name">Organization name</label>
+            <input class="p-input" type="text" id="p-company-name" name="company_name" value="{{ co.company_name }}" maxlength="200" required>
+          </div>
+          <div>
+            <label class="field-label" for="p-tagline">Tagline</label>
+            <input class="p-input" type="text" id="p-tagline" name="company_tagline" value="{{ co.company_tagline }}" maxlength="300" placeholder="A short line about your organization">
+          </div>
+        </div>
+        <label class="field-label" for="p-logo">Logo (PNG, JPG or WEBP) &mdash; leave empty to keep the current one</label>
+        <input class="p-input" type="file" id="p-logo" name="logo" accept=".png,.jpg,.jpeg,.webp">
+        <div class="org-form-actions">
+          <button class="org-btn primary" type="submit">Save changes</button>
+          <button class="org-btn" type="button" data-edit-cancel>Cancel</button>
+        </div>
+      </form>
+      <div class="org-panel-foot">
+        <i class="ti ti-info-circle"></i>
+        <span>The organization code, work schedule and office location are managed in <a class="text" href="{{ tpath('/settings') }}">Settings</a>.</span>
+      </div>
     </section>
   {% endif %}
 
@@ -331,11 +356,13 @@
     </div>
     <section class="org-panel" id="org-contact">
       <div class="org-panel-head">
-        <div><h2>Contact information</h2><p>Phone number and registered office address.</p></div>
+        <div><h2>Contact information</h2><p>Phone, email, website and registered office address.</p></div>
         <button type="button" class="org-btn" data-edit-toggle><i class="ti ti-pencil"></i> Edit</button>
       </div>
       <dl class="org-rows">
         <div class="org-row"><dt>Phone</dt><dd>{{ co.contact_phone or na }}</dd></div>
+        <div class="org-row"><dt>Email</dt><dd>{% if co.contact_email %}<a class="org-inline-link flush" href="mailto:{{ co.contact_email }}">{{ co.contact_email }}</a>{% else %}{{ na }}{% endif %}</dd></div>
+        <div class="org-row"><dt>Website</dt><dd>{% if co.website %}<a class="org-inline-link flush" href="{{ co.website }}" target="_blank" rel="noopener noreferrer">{{ co.website }}</a>{% else %}{{ na }}{% endif %}</dd></div>
         <div class="org-row"><dt>Registered address</dt><dd>{{ co.address or na }}</dd></div>
       </dl>
       <form class="org-edit" method="POST" action="{{ tpath('/profile/company_info') }}">
@@ -345,8 +372,18 @@
             <input class="p-input" type="tel" id="p-contact-phone" name="contact_phone" value="{{ co.contact_phone }}" placeholder="+91 98765 43210">
           </div>
           <div>
+            <label class="field-label" for="p-contact-email">Email</label>
+            <input class="p-input" type="email" id="p-contact-email" name="contact_email" value="{{ co.contact_email }}" maxlength="255" placeholder="hr@yourcompany.com">
+          </div>
+        </div>
+        <div class="org-form-row">
+          <div>
+            <label class="field-label" for="p-website">Website</label>
+            <input class="p-input" type="text" id="p-website" name="website" value="{{ co.website }}" maxlength="255" placeholder="www.yourcompany.com">
+          </div>
+          <div>
             <label class="field-label" for="p-address">Registered address</label>
-            <input class="p-input" type="text" id="p-address" name="address" value="{{ co.address }}" placeholder="Registered office address">
+            <input class="p-input" type="text" id="p-address" name="address" value="{{ co.address }}" maxlength="500" placeholder="Registered office address">
           </div>
         </div>
         <div class="org-form-actions">
@@ -539,18 +576,22 @@
 {% endblock %}
 
 {% block scripts %}
-{% if active_tab == 'contact' %}
+{% if active_tab in ('company', 'contact') %}
 <script>
 (function () {
-  var panel = document.getElementById('org-contact');
-  if (!panel) return;
-  panel.querySelector('[data-edit-toggle]').addEventListener('click', function () {
-    panel.classList.add('editing');
-    document.getElementById('p-contact-phone').focus();
-  });
-  panel.querySelector('[data-edit-cancel]').addEventListener('click', function () {
-    panel.querySelector('form').reset();
-    panel.classList.remove('editing');
+  document.querySelectorAll('.org-panel').forEach(function (panel) {
+    var toggle = panel.querySelector('[data-edit-toggle]');
+    if (!toggle) return;
+    var form = panel.querySelector('form.org-edit');
+    toggle.addEventListener('click', function () {
+      panel.classList.add('editing');
+      var first = form.querySelector('input:not([type=hidden])');
+      if (first) first.focus();
+    });
+    panel.querySelector('[data-edit-cancel]').addEventListener('click', function () {
+      form.reset();
+      panel.classList.remove('editing');
+    });
   });
 })();
 </script>

@@ -13,16 +13,21 @@ _tenant_schema_for_id() and blueprints/org.py's _load_own_tenant_application().
 import datetime
 import hashlib
 import os
+import re
+import time
+from urllib.parse import urlsplit
 
-from flask import Blueprint, request, session, redirect, render_template, flash, g, Response, current_app, send_file
+from flask import (
+    Blueprint, request, session, redirect, render_template, flash, g, Response, current_app, send_file, jsonify,
+)
 from PIL import Image, UnidentifiedImageError
 
 from database import get_db_connection, get_master_db
-from utils.auth import role_required
+from utils.auth import role_required, api_required, api_role_required
 from utils.helpers import (
     tpath, get_company_settings,
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
-    _validate_image_file,
+    _validate_image_file, save_uploaded_logo,
 )
 from utils.payment_history import get_payment_history, get_payment_row
 from utils.receipt_pdf import build_receipt_pdf
@@ -103,6 +108,113 @@ def profile_photo_remove():
     return redirect(tpath("/profile"))
 
 
+# ── Organization details (web Overview + Contact panels, and the app) ───────
+# What an admin can change about their company. Legal identifiers (GSTIN,
+# PAN, CIN) stay out: they go through document verification instead.
+ORG_FIELDS = ("company_name", "company_tagline", "contact_phone", "contact_email", "website", "address")
+_ORG_MAX = {"company_name": 200, "company_tagline": 300, "contact_phone": 30,
+            "contact_email": 255, "website": 255, "address": 500}
+_ORG_LABELS = {"company_name": "Company name", "company_tagline": "Tagline", "contact_phone": "Phone",
+               "contact_email": "Email", "website": "Website", "address": "Address"}
+_PHONE_RE = re.compile(r"^\+?[0-9][0-9 ()-]{5,29}$")
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_HOST_RE = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$")
+
+
+def _clean_website(value):
+    """'acme.com' -> 'https://acme.com'. Only http(s) links with a real
+    host name -- the value is rendered as a link, so no javascript: etc.
+    Returns (url, error)."""
+    url = value if "://" in value else "https://" + value
+    try:
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+    except ValueError:
+        host = ""
+    if url.split("://", 1)[0].lower() not in ("http", "https") or not _HOST_RE.match(host):
+        return None, "Enter a valid website, e.g. www.yourcompany.com."
+    return url, None
+
+
+def clean_org_fields(data):
+    """Validate whichever ORG_FIELDS appear in `data` (a form or JSON dict).
+    Fields left out are not touched; a blank value clears the field (except
+    the company name, which is required). Returns (updates, error)."""
+    updates = {}
+    for field in ORG_FIELDS:
+        if field not in data:
+            continue
+        value = str(data.get(field) or "").strip()
+        if len(value) > _ORG_MAX[field]:
+            return None, f"{_ORG_LABELS[field]} must be at most {_ORG_MAX[field]} characters."
+        if field == "company_name" and len(value) < 2:
+            return None, "Company name is required."
+        if value and field == "contact_phone" and not _PHONE_RE.match(value):
+            return None, "Enter a valid phone number, e.g. +91 98765 43210."
+        if value and field == "contact_email" and not _EMAIL_RE.match(value):
+            return None, "Enter a valid email address."
+        if value and field == "website":
+            value, error = _clean_website(value)
+            if error:
+                return None, error
+        updates[field] = value or None
+    return updates, None
+
+
+def save_org_fields(updates):
+    if not updates:
+        return
+    db = get_db_connection()
+    cursor = db.cursor()
+    # Column names come from ORG_FIELDS only, never from the request.
+    cursor.execute(
+        "UPDATE company_settings SET " + ", ".join(f"{col}=%s" for col in updates),
+        tuple(updates.values()),
+    )
+    db.commit()
+    cursor.close()
+    db.close()
+    invalidate_settings_cache()
+
+
+def _resolve_own_tenant_slug():
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    cur.execute("SELECT subdomain FROM tenants WHERE db_name=%s", (g.tenant_db,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row[0] if row else None
+
+
+def save_org_logo(logo_file):
+    """Store a new company logo; returns an error message or None. Each
+    upload gets a fresh file name so browsers don't keep showing the old
+    logo from cache (logo_url is also read as a file path, so it can't
+    carry a ?v= query)."""
+    slug = _resolve_own_tenant_slug() or g.tenant_db
+    logo_path, error = save_uploaded_logo(logo_file, f"{slug}-{int(time.time())}")
+    if error:
+        return f"Company logo: {error}"
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE company_settings SET logo_url=%s", (f"/static/{logo_path}",))
+    db.commit()
+    cursor.close()
+    db.close()
+    invalidate_settings_cache()
+    return None
+
+
+def org_details():
+    """The company's editable details, as the app's Organization screen shows them."""
+    co = get_company_settings()
+    details = {field: co.get(field) or "" for field in ORG_FIELDS}
+    details["company_code"] = co.get("company_code") or ""
+    details["logo_url"] = co.get("logo_url") or ""
+    return details
+
+
 # ── Company Info tab ─────────────────────────────────────────────────────────
 @company_profile_bp.route("/profile", methods=["GET"])
 @role_required("admin")
@@ -135,20 +247,60 @@ def profile_company_info():
 @company_profile_bp.route("/profile/company_info", methods=["POST"])
 @role_required("admin")
 def profile_update_company_info():
-    contact_phone = (request.form.get("contact_phone") or "").strip()[:30]
-    address = (request.form.get("address") or "").strip()[:500]
-    db = get_db_connection()
-    cursor = db.cursor()
-    cursor.execute(
-        "UPDATE company_settings SET contact_phone=%s, address=%s",
-        (contact_phone or None, address or None),
-    )
-    db.commit()
-    cursor.close()
-    db.close()
-    invalidate_settings_cache()
+    """The Contact panel: phone, email, website, address."""
+    contact_keys = ("contact_phone", "contact_email", "website", "address")
+    updates, error = clean_org_fields({k: request.form[k] for k in contact_keys if k in request.form})
+    if error:
+        flash(error, "error")
+        return redirect(tpath("/profile?section=contact"))
+    save_org_fields(updates)
     flash("Company contact details updated.", "success")
     return redirect(tpath("/profile?section=contact"))
+
+
+@company_profile_bp.route("/profile/organization", methods=["POST"])
+@role_required("admin")
+def profile_update_organization():
+    """The Overview's Organization details panel: name, tagline, logo."""
+    updates, error = clean_org_fields(
+        {k: request.form[k] for k in ("company_name", "company_tagline") if k in request.form})
+    logo = request.files.get("logo")
+    if not error and logo and logo.filename:
+        error = save_org_logo(logo)
+    if error:
+        flash(error, "error")
+        return redirect(tpath("/profile"))
+    save_org_fields(updates)
+    flash("Organization details updated.", "success")
+    return redirect(tpath("/profile"))
+
+
+@company_profile_bp.route("/api/admin/organization", methods=["GET"])
+@api_required
+@api_role_required("admin")
+def api_admin_organization():
+    application = _load_own_tenant_application()
+    return jsonify({
+        "ok": True, "organization": org_details(),
+        "gst_number": (application or {}).get("gst_number") or "",
+        "verification": (application or {}).get("doc_review_status") or "",
+    })
+
+
+@company_profile_bp.route("/api/admin/organization", methods=["POST"])
+@api_required
+@api_role_required("admin")
+def api_admin_update_organization():
+    """JSON (details only) or multipart (details plus an optional `logo` file)."""
+    data = (request.get_json(silent=True) if request.is_json else request.form) or {}
+    updates, error = clean_org_fields(data)
+    logo = request.files.get("logo")
+    if not error and logo and logo.filename:
+        error = save_org_logo(logo)
+    if error:
+        return jsonify({"ok": False, "msg": error}), 400
+    save_org_fields(updates)
+    return jsonify({"ok": True, "msg": "Organization details saved.", "organization": org_details()})
 
 
 # ── Policies tab ─────────────────────────────────────────────────────────────

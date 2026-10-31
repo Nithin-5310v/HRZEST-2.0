@@ -42,7 +42,7 @@ export default function PolicyTabs({
             onPress={() => onSelectTab(tab)}
           >
             <Ionicons
-              name={TAB_ICONS[tab]}
+              name={TAB_ICONS[tab] || "document-outline"}
               size={18}
               color={active ? "#FFFFFF" : "#0B5CAD"}
             />

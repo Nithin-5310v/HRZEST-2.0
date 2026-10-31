@@ -23,6 +23,7 @@ import LeavesHolidaysScreen from "../screens/admin/LeavesHolidaysScreen";
 import SeatsBillingScreen from "../screens/admin/SeatsBillingScreen";
 import RegistrationCompanyScreen from "../screens/admin/RegistrationCompanyScreen";
 import RegistrationDocumentsScreen from "../screens/admin/RegistrationDocumentsScreen";
+import OrganizationScreen from "../screens/admin/OrganizationScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import DocumentsScreen from "../screens/admin/DocumentsScreen";
 import IdCardScreen from "../screens/IdCardScreen";
@@ -148,6 +149,13 @@ export default function AdminBottomNavigator() {
       <Tab.Screen
         name="RegistrationDocuments"
         component={RegistrationDocumentsScreen}
+        options={{ tabBarItemStyle: { display: "none" } }}
+      />
+
+      {/* More > Organization: company details and its terms & policies */}
+      <Tab.Screen
+        name="Organization"
+        component={OrganizationScreen}
         options={{ tabBarItemStyle: { display: "none" } }}
       />
 
