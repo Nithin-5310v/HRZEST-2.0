@@ -126,6 +126,11 @@
       .b-red { background: #fee2e2; color: #dc2626; }
 
       .rules-box { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 14px; padding: 18px 22px; font-size: 14.5px; line-height: 2; color: #475569; margin-top: 6px; }
+      .rules-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+      .rules-list li { display: flex; align-items: flex-start; gap: 10px; }
+      .rules-list i { color: #2563eb; font-size: 19px; line-height: 1.3; flex-shrink: 0; }
+      .rules-note { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #eaecf0; color: #667085; font-size: 14px; }
+      .rules-note i { color: #2563eb; font-size: 16px; vertical-align: -2px; }
       .rules-box .rb-title { font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
 
       /* Action buttons */
@@ -187,6 +192,7 @@
       body.dark-mode tr:hover td { background: #1c2530 !important; }
       body.dark-mode .total-row td { background: #1e3a8a !important; color: #93c5fd !important; border-color: #30363d !important; }
       body.dark-mode .rules-box { background: #1c2128 !important; border-color: #30363d !important; color: #768390 !important; }
+      body.dark-mode .rules-note { border-color: #30363d; color: #8b949e; }
       body.dark-mode .rules-box .rb-title { color: #cdd9e5 !important; }
       body.dark-mode .emp-email { color: #818cf8 !important; }
       body.dark-mode .btn-group { border-color: #21262d !important; }
@@ -202,8 +208,8 @@
           <h1><span class="page-icon"><i class="ti ti-currency-rupee"></i></span>Salary Report <span class="month-tag">— {{ month_name }}</span></h1>
           <p>
             <span class="rule-chip">⏱ Late Login {{ late_rate }}%</span>
-            <span class="rule-chip">🌓 Half Day {{ half_rate }}%</span>
-            <span class="rule-chip">🚫 Absent 100%</span>
+            <span class="rule-chip"><i class="ti ti-clock" aria-hidden="true"></i> Half Day {{ half_rate }}%</span>
+            <span class="rule-chip"><i class="ti ti-circle-x" aria-hidden="true"></i> Absent 100%</span>
           </p>
         </div>
         <div class="u-d-flex u-ai-center u-gap-10 u-mt-32 u-fxw-wrap">
@@ -264,7 +270,7 @@
 
       {% if is_locked %}
       <div class="u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-10 u-p-11-16 u-mb-16 u-d-flex u-ai-center u-gap-10 u-fs-13 u-c-1e40af">
-        🔒 <strong>Payroll locked</strong> — processed by <strong>{{ lock_info.by }}</strong>
+        <i class="ti ti-lock" aria-hidden="true"></i> <strong>Payroll locked</strong> — processed by <strong>{{ lock_info.by }}</strong>
         on {{ lock_info.at.strftime('%d %b %Y at %H:%M') }}
         ({{ lock_info.count }} payslip{{ 's' if lock_info.count != 1 else '' }} sent).
         Re-sending will overwrite this record.
@@ -335,7 +341,7 @@
               </tr>
               <tr>
                 <th>Full</th><th>Late</th><th>Half</th><th>Absent</th>
-                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th class="u-c-16a34a">🏆 Incentive</th><th class="u-c-dc2626">PF/PT/TDS</th><th>Net Payable</th>
+                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th class="u-c-16a34a"><i class="ti ti-trophy" aria-hidden="true"></i> Incentive</th><th class="u-c-dc2626">PF/PT/TDS</th><th>Net Payable</th>
               </tr>
             </thead>
             <tbody id="salaryTbody">
@@ -346,7 +352,7 @@
                      title="View day-by-day attendance">{{ e.name }}</a><br>
                   <span class="emp-id">{{ e.emp_id }}</span><br>
                   {% if e.email %}
-                  <span class="emp-email">✉ {{ e.email }}</span>
+                  <span class="emp-email"><i class="ti ti-mail" aria-hidden="true"></i> {{ e.email }}</span>
                   {% else %}
                   <span class="no-email">no email set</span>
                   {% endif %}
@@ -356,8 +362,8 @@
                   {{ e.billable }}
                   {% if (e.holiday_days | default(0)) > 0 or (e.leave_days | default(0)) > 0 %}
                   <br><span class="u-fs-11 u-c-64748b">
-                    {% if (e.holiday_days | default(0)) > 0 %}🎉 {{ e.holiday_days }}h{% endif %}
-                    {% if (e.leave_days | default(0)) > 0 %} 📋 {{ e.leave_days }}l{% endif %}
+                    {% if (e.holiday_days | default(0)) > 0 %}<i class="ti ti-calendar-event" aria-hidden="true"></i> {{ e.holiday_days }}h{% endif %}
+                    {% if (e.leave_days | default(0)) > 0 %} <i class="ti ti-calendar-off" aria-hidden="true"></i> {{ e.leave_days }}l{% endif %}
                   </span>
                   {% endif %}
                 </td>
@@ -453,14 +459,16 @@
       <!-- DEDUCTION RULES -->
       <div class="rules-box">
         <div class="rb-title"><i class="ti ti-info-circle"></i> Salary Rules for {{ month_name }}</div>
-        ✅ <strong>Full Day</strong> — Login ≤ 9:00 AM + Logout ≥ 6:00 PM → No deduction (100% pay)<br>
-        ⚠️ <strong>Late – Full Day</strong> — Login 9:00 AM–1:00 PM + Logout ≥ 6:00 PM → {{ late_rate }}% deduction<br>
-        ⚠️ <strong>Half Day</strong> — Login after 1:00 PM OR Logout before 1:00 PM OR Logout 1:00–6:00 PM → {{ half_rate }}% deduction<br>
-        ❌ <strong>Absent</strong> — No attendance record → 100% deduction (no pay)<br>
-        🎉 <strong>Holiday</strong> — Public holiday → Paid as Full Day (no attendance required)<br>
-        📋 <strong>Leave (Approved)</strong> — Approved leave day → Not counted as a working day (no pay, no deduction)<br>
-        🧾 <strong>PF, PT &amp; TDS</strong> — From Payroll Settings, deducted from the earnings above → Net Payable is what is paid and what the payslip shows<br>
-        <em>Work Days column: 🎉 = holiday days included, 📋 = leave days excluded</em>
+        <ul class="rules-list">
+          <li><i class="ti ti-circle-check" aria-hidden="true"></i><span><strong>Full Day</strong> — Login ≤ 9:00 AM + Logout ≥ 6:00 PM → No deduction (100% pay)</span></li>
+          <li><i class="ti ti-clock-exclamation" aria-hidden="true"></i><span><strong>Late – Full Day</strong> — Login 9:00 AM–1:00 PM + Logout ≥ 6:00 PM → {{ late_rate }}% deduction</span></li>
+          <li><i class="ti ti-clock" aria-hidden="true"></i><span><strong>Half Day</strong> — Login after 1:00 PM OR Logout before 1:00 PM OR Logout 1:00–6:00 PM → {{ half_rate }}% deduction</span></li>
+          <li><i class="ti ti-circle-x" aria-hidden="true"></i><span><strong>Absent</strong> — No attendance record → 100% deduction (no pay)</span></li>
+          <li><i class="ti ti-calendar-event" aria-hidden="true"></i><span><strong>Holiday</strong> — Public holiday → Paid as Full Day (no attendance required)</span></li>
+          <li><i class="ti ti-calendar-off" aria-hidden="true"></i><span><strong>Leave (Approved)</strong> — Approved leave day → Not counted as a working day (no pay, no deduction)</span></li>
+          <li><i class="ti ti-receipt" aria-hidden="true"></i><span><strong>PF, PT &amp; TDS</strong> — From Payroll Settings, deducted from the earnings above → Net Payable is what is paid and what the payslip shows</span></li>
+        </ul>
+        <p class="rules-note">Work Days column: <i class="ti ti-calendar-event" aria-hidden="true"></i> holiday days included, <i class="ti ti-calendar-off" aria-hidden="true"></i> leave days excluded</p>
       </div>
 
 {% endblock %}
