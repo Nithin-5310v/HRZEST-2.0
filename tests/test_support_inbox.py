@@ -116,11 +116,14 @@ class TestLandingPage:
 
     def test_contact_thank_you_reads_as_one_sentence(self, client, monkeypatch):
         # The banner is a flex row: the text must be one item next to the icon,
-        # or the sentence, the address and the full stop land on separate lines.
-        monkeypatch.setenv("SUPPORT_EMAIL", "help@example.test")
+        # or its pieces land on separate lines. It names no inbox -- without
+        # SUPPORT_EMAIL that would be noreply@, which reads as a dead end.
+        for name in ("SUPPORT_EMAIL", "EMAIL_FROM_EMAIL", "SMTP_FROM_EMAIL"):
+            monkeypatch.delenv(name, raising=False)
         html = client.get("/").get_data(as_text=True)
-        assert ('<i class="ti ti-circle-check"></i> <span>Thank you! Your message has been sent to '
-                '<strong>help@example.test</strong>.</span>') in html
+        assert ('<i class="ti ti-circle-check"></i> <span>Thank you! We\'ve received your message '
+                'and will reply to the email address you gave us.</span>') in html
+        assert "has been sent to" not in html
 
 
 def test_enquiry_email_skips_empty_rows():
