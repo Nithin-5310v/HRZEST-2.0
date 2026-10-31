@@ -8,7 +8,6 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, DrawerActions } from "@react-navigation/native";
 import { useAuth } from "../../store/AuthContext";
 
 export default function EmployeeHeroCard({
@@ -26,22 +25,7 @@ export default function EmployeeHeroCard({
   onOpenIdCard,
   onOpenAiHelpdesk,
 }) {
-  const navigation = useNavigation();
   const { user } = useAuth();
-  const companyName = (user?.company || "EMPLOYEE PORTAL").toUpperCase();
-  const logoUri = user?.logo;
-
-  const handleMenu = () => {
-    if (typeof onMenu === "function") {
-      try {
-        onMenu();
-      } catch (e) {
-        navigation.dispatch(DrawerActions.openDrawer());
-      }
-    } else {
-      navigation.dispatch(DrawerActions.openDrawer());
-    }
-  };
 
   const loginTime = attendance?.login_time || attendance?.check_in || (attendance?.status === "Checked In" ? "Present" : null);
   const logoutTime = attendance?.logout_time || attendance?.check_out;
@@ -73,40 +57,6 @@ export default function EmployeeHeroCard({
       end={{ x: 1, y: 1 }}
       style={styles.card}
     >
-      {/* Top Header Row */}
-      <View style={styles.topRow}>
-        <TouchableOpacity
-          onPress={handleMenu}
-          activeOpacity={0.8}
-          style={styles.menuBtn}
-        >
-          <Ionicons name="menu-outline" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <View style={styles.brandingBadge}>
-          {logoUri ? (
-            <Image
-              source={{ uri: logoUri }}
-              style={styles.brandLogo}
-              resizeMode="cover"
-            />
-          ) : (
-            <Ionicons name="business" size={14} color="#4C9BE8" style={{ marginRight: 6 }} />
-          )}
-          <Text style={styles.brandText} numberOfLines={1}>
-            {companyName}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={onLogout}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="log-out-outline" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
       {/* User Welcome Row */}
       <View style={styles.userRow}>
         <View style={styles.avatarWrapper}>
@@ -182,50 +132,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
-  },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  menuBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  brandingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    maxWidth: "60%",
-  },
-  brandLogo: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    marginRight: 6,
-    backgroundColor: "#FFFFFF",
-  },
-  brandText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  logoutBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   userRow: {
     flexDirection: "row",

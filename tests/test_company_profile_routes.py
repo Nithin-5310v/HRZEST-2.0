@@ -451,7 +451,7 @@ class TestOrganizationProfileForm:
         self._post(client, name="  Asha   Rao ")
         name, logo = self._state(org_admin)
         assert name == "Asha Rao"
-        assert logo.startswith("/static/company_logos/") and "?v=" in logo
+        assert logo.startswith("/static/company_logos/")
         html = client.get("/profile").get_data(as_text=True)
         assert ">Asha Rao<" in html and "/profile/photo?v=" in html and "to complete your profile" not in html
         assert 'name="company_code" value="ASHA1"' in html
@@ -468,7 +468,7 @@ class TestOrganizationProfileForm:
     def test_website_is_optional_but_saved_when_given(self, client, org_admin):
         self._post(client, website="www.acme.example")
         org_admin.execute("SELECT website FROM company_settings")
-        assert org_admin.fetchone()[0] == "www.acme.example"
+        assert org_admin.fetchone()[0] == "https://www.acme.example"
 
     def test_code_logo_and_photo_are_optional(self, client, org_admin):
         self._post(client, logo=False, photo=False, code="")

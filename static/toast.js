@@ -13,6 +13,12 @@ const TOAST_TYPES = ['success', 'error', 'alert', 'info'];
 const TOAST_DEFAULT_ICONS = { success: 'circle-check', error: 'alert-triangle', alert: 'alert-triangle', info: 'info-circle' };
 
 function showToast(message, type = 'info', icon = null) {
+  // Right after login the HRZest loader (static/login-loader.js) owns the
+  // screen: hold the toast until it has finished, then show it.
+  if (document.getElementById('hrzLoginLoader')) {
+    window.addEventListener('hrz-loader-done', () => showToast(message, type, icon), { once: true });
+    return;
+  }
   let container = document.getElementById('toast-container');
   if (!container) {
     container = document.createElement('div');

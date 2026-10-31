@@ -955,7 +955,6 @@ def get_company_settings():
                 "org_profile_pending": bool(row_dict.get("org_profile_pending")),
                 "industry": row_dict.get("industry") or "",
                 "company_size": row_dict.get("company_size") or "",
-                "website": row_dict.get("website") or "",
                 "city": row_dict.get("city") or "",
                 "state": row_dict.get("state") or "",
                 "postal_code": row_dict.get("postal_code") or "",
@@ -970,6 +969,8 @@ def get_company_settings():
                 "paid_employee_slots": row_dict.get("paid_employee_slots"),
                 "contact_phone": row_dict.get("contact_phone") or "",
                 "address": row_dict.get("address") or "",
+                "contact_email": row_dict.get("contact_email") or "",
+                "website": row_dict.get("website") or "",
                 # Per-company shift and payroll rules, read via utils/config.py's
                 # shift_rules()/salary_rules(). Stored as plain JSON-safe values
                 # (times as "HH:MM:SS") so the Redis cache path can hold them.
@@ -989,7 +990,7 @@ def get_company_settings():
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
             "setup_done": False, "company_code": "", "session_timeout": 30, "logo_url": "", "plan": "basic",
             "email_domain": "", "paid_employee_slots": None, "contact_phone": "", "address": "",
-            **_rule_settings({})}
+            "contact_email": "", "website": "", **_rule_settings({})}
 
 
 def _rule_settings(row_dict):

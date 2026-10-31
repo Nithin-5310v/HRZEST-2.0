@@ -21,6 +21,11 @@ export const WEB = {
   border: "rgba(15,23,42,0.08)",      // --border-color
   borderGlow: "rgba(11,92,173,0.35)", // --border-color-glow
   brandTint: "rgba(11,92,173,0.06)",
+  page: "#F5F8FC",           // the signed-in screens' background
+  tint: "#D3E3F7",           // tonal buttons, chips, the active tab's pill
+  tile: "#E7EEF7",           // icon tiles
+  line: "#E3E9F1",           // card and bar hairlines
+  danger: "#B42318",
   success: "#059669",        // --accent-emerald
   error: "#E11D48",          // --accent-rose
   radiusSm: 12,
@@ -91,6 +96,52 @@ export function WebCardHeader({ icon, image, title, subtitle }) {
   );
 }
 
+/** "HRZEST" in the logo's colours: navy HR, teal ZEST. */
+export function Wordmark({ size = 19 }) {
+  return (
+    <Text style={[webAuthStyles.wordmark, { fontSize: size }]} accessibilityRole="header">
+      HR<Text style={webAuthStyles.wordmarkZest}>ZEST</Text>
+    </Text>
+  );
+}
+
+const BUTTON_KINDS = {
+  primary: { bg: WEB.brand, fg: "#FFFFFF", border: WEB.brand },
+  outline: { bg: "#FFFFFF", fg: WEB.brand, border: WEB.textSubtle },
+  tonal: { bg: "#D3E3F7", fg: WEB.brandDark, border: "#D3E3F7" },
+  danger: { bg: "#FFFFFF", fg: "#B42318", border: "#C3CFDD" },
+};
+
+/** The app's one button: a full-width pill, 52 tall. kind: primary (the
+ *  screen's main action), outline (the second action), tonal (extras),
+ *  danger (sign out, reject). */
+export function AppButton({ title, onPress, kind = "primary", icon, loading, disabled, height = 52, style }) {
+  const k = BUTTON_KINDS[kind] || BUTTON_KINDS.primary;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled || loading}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!(disabled || loading) }}
+      style={[
+        webAuthStyles.appButton,
+        { height, borderRadius: height / 2, backgroundColor: k.bg, borderColor: k.border, opacity: disabled ? 0.6 : 1 },
+        style,
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={k.fg} />
+      ) : (
+        <>
+          {icon ? <Ionicons name={icon} size={20} color={k.fg} style={{ marginRight: 8 }} /> : null}
+          <Text style={[webAuthStyles.appButtonText, { color: k.fg }]}>{title}</Text>
+        </>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 /** The full-width filled (Material) submit button. */
 export function WebButton({ title, onPress, loading, disabled, icon = "arrow-forward", style }) {
   return (
@@ -133,6 +184,10 @@ export const webAuthStyles = StyleSheet.create({
   brandRow: { flexDirection: "row", alignItems: "center" },
   brandLogo: { width: 38, height: 38, resizeMode: "contain" },
   brandName: { marginLeft: 8, fontSize: 21, fontWeight: "800", letterSpacing: 1.2, color: WEB.brandDark },
+  wordmark: { fontWeight: "900", letterSpacing: 0.4, color: WEB.brandDark },
+  wordmarkZest: { color: "#0B7FA0" },
+  appButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1, paddingHorizontal: 16 },
+  appButtonText: { fontSize: 15, fontWeight: "700" },
   navButton: {
     flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: WEB.radiusPill,
     backgroundColor: "#D3E3F7",

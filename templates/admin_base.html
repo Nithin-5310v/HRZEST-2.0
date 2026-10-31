@@ -42,8 +42,8 @@
     }
     .brand-wrap { display: flex; align-items: center; gap: 11px; margin: 0 0 18px; padding: 4px 6px 16px; border-bottom: 1px solid #eef0f3; }
     .brand-icon { width: 36px; height: 36px; border-radius: 10px; background: #fff; border: 1px solid #e6e9ef; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-    .brand     { font-size: 14.5px; font-weight: 700; color: #101828; line-height: 1.25; }
-    .brand-sub { font-size: 11px; color: #667085; margin-top: 2px; }
+    .brand     { font-size: 16.5px; font-weight: 700; color: #101828; line-height: 1.25; }
+    .brand-sub { font-size: 13px; color: #667085; margin-top: 2px; }
     .brand-sub span { background: #eef4ff !important; color: #1d4ed8 !important; }
     /* Base definition so every page gets this for free -- several child
        templates used to copy-paste this rule individually into their own
@@ -51,15 +51,15 @@
        performance, org_chart, compoff, etc.) rendered the sidebar-footer
        clock at full-opacity/default size instead of dimmed and small,
        inconsistent with pages that did copy it. */
-    .sidebar-footer { margin-top: auto; font-size: 11px; color: #98a2b3; padding-top: 14px; border-top: 1px solid #eef0f3; display: flex; align-items: center; gap: 7px; }
-    .nav-item  { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 1px 0; color: #475467; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: 500; transition: background 0.15s, color 0.15s; position: relative; }
+    .sidebar-footer { margin-top: auto; font-size: 13px; color: #98a2b3; padding-top: 14px; border-top: 1px solid #eef0f3; display: flex; align-items: center; gap: 7px; }
+    .nav-item  { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 1px 0; color: #475467; text-decoration: none; border-radius: 8px; font-size: 15px; font-weight: 500; transition: background 0.15s, color 0.15s; position: relative; }
     .nav-item:hover  { background: #f2f4f7; color: #101828; }
     .nav-item.active { background: #eef4ff; color: #1d4ed8; font-weight: 600; }
     .nav-item.active::before { content: ''; position: absolute; left: -12px; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0; background: #2563eb; }
     .nav-icon { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: transparent; color: #667085; font-size: 17px; }
     .nav-item:hover  .nav-icon { color: #344054; }
     .nav-item.active .nav-icon { color: #2563eb; }
-    .badge-count { margin-left: auto; background: #f04438; color: white; border-radius: 20px; padding: 1px 7px; font-size: 10px; font-weight: 700; }
+    .badge-count { margin-left: auto; background: #f04438; color: white; border-radius: 20px; padding: 1px 7px; font-size: 12px; font-weight: 700; }
 
     /* ── Right-hand column: top bar + page ── */
     .app-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -69,18 +69,18 @@
       display: flex; align-items: center; justify-content: space-between; gap: 16px;
       padding: 0 24px; background: #ffffff; border-bottom: 1px solid #e6e9ef;
     }
-    .app-crumb { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: #667085; }
+    .app-crumb { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; color: #667085; }
     .app-crumb .crumb-co { white-space: nowrap; }
     .app-crumb .crumb-page { color: #101828; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .app-crumb i { font-size: 14px; color: #98a2b3; }
+    .app-crumb i { font-size: 16px; color: #98a2b3; }
     .app-top-actions { display: flex; align-items: center; gap: 8px; }
-    .app-clock { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: #f9fafb; border: 1px solid #eaecf0; font-size: 12px; color: #475467; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .app-clock { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: #f9fafb; border: 1px solid #eaecf0; font-size: 14px; color: #475467; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .app-icon-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #eaecf0; background: #fff; color: #475467; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer; transition: background 0.15s; }
     .app-icon-btn:hover { background: #f2f4f7; color: #101828; }
     .app-user { display: flex; align-items: center; gap: 9px; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid #eaecf0; background: #fff; }
     .app-avatar { width: 30px; height: 30px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
-    .app-user-name { font-size: 12.5px; font-weight: 600; color: #101828; line-height: 1.15; }
-    .app-user-role { font-size: 11px; color: #667085; line-height: 1.15; }
+    .app-user-name { font-size: 14.5px; font-weight: 600; color: #101828; line-height: 1.15; }
+    .app-user-role { font-size: 13px; color: #667085; line-height: 1.15; }
 
     /* ── Top bar as the blue brand banner (logo, search, date, bell, profile) ── */
     html body .app-topbar.app-topbar--brand {
@@ -95,9 +95,9 @@
     .app-brand-logo img { width: 100%; height: 100%; object-fit: contain; }
     .app-brand-logo i { color: #2563eb; font-size: 19px; }
     .app-brand-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
-    .app-brand-name { font-size: 15.5px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
-    .app-brand-sub { font-size: 11px; color: rgba(255,255,255,.78); white-space: nowrap; margin-top: 2px; }
-    .app-brand-plan { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px; background: rgba(255,255,255,.18); color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .4px; }
+    .app-brand-name { font-size: 17.5px; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+    .app-brand-sub { font-size: 13px; color: rgba(255,255,255,.78); white-space: nowrap; margin-top: 2px; }
+    .app-brand-plan { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px; background: rgba(255,255,255,.18); color: #fff; font-size: 11.5px; font-weight: 800; letter-spacing: .4px; }
 
     /* Full-width banner: fixed across the very top (above the sidebar too);
        the sidebar and page start just below it. */
@@ -116,7 +116,7 @@
     .app-topbar--brand .admin-search-input {
       height: 36px; padding: 0 14px 0 38px; border-radius: 8px !important;
       background: #ffffff !important; border: 1px solid #ffffff !important;
-      color: #101828 !important; font-size: 13px; font-weight: 400;
+      color: #101828 !important; font-size: 15px; font-weight: 400;
       box-shadow: 0 1px 2px rgba(16,24,40,.12) !important;
       transition: box-shadow .2s ease;
     }
@@ -127,8 +127,8 @@
       box-shadow: 0 0 0 3px rgba(255,255,255,.35), 0 8px 22px -10px rgba(0,0,0,.35) !important;
     }
     .app-topbar--brand .admin-search-wrap:focus-within .admin-search-icon { color: #2563eb; }
-    .app-date { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 9px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); font-size: 12.5px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .app-date i { font-size: 15px; opacity: .9; }
+    .app-date { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 9px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); font-size: 14.5px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .app-date i { font-size: 17px; opacity: .9; }
     .app-date-sep { opacity: .6; }
     .app-topbar--brand .app-icon-btn { background: rgba(255,255,255,.12) !important; border-color: rgba(255,255,255,.22) !important; color: #fff !important; }
     .app-topbar--brand .app-icon-btn:hover { background: rgba(255,255,255,.22) !important; }
@@ -145,7 +145,7 @@
     .app-user-meta { display: flex; flex-direction: column; text-align: left; }
     .app-topbar--brand .app-user-name { color: #fff !important; }
     .app-topbar--brand .app-user-role { color: rgba(255,255,255,.75) !important; }
-    .app-user-caret { font-size: 14px; opacity: .8; transition: transform .2s; }
+    .app-user-caret { font-size: 16px; opacity: .8; transition: transform .2s; }
     .app-user[aria-expanded="true"] .app-user-caret { transform: rotate(180deg); }
     .app-user-panel {
       position: absolute; top: calc(100% + 10px); right: 0; z-index: 1200; width: 250px;
@@ -154,10 +154,10 @@
     }
     .app-user-panel-head { display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 4px; border-bottom: 1px solid #f2f4f7; }
     .app-avatar-lg { width: 38px; height: 38px; font-size: 13px; background: #2563eb !important; color: #fff !important; }
-    .app-user-panel-name { display: block; font-size: 13.5px; font-weight: 700; color: #101828; }
-    .app-user-panel-role { display: block; font-size: 11.5px; color: #667085; margin-top: 1px; }
-    .app-user-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 8px; border: none; background: none; font: inherit; font-size: 13px; font-weight: 500; color: #344054; text-decoration: none; cursor: pointer; text-align: left; }
-    .app-user-item i { font-size: 16px; color: #667085; }
+    .app-user-panel-name { display: block; font-size: 15.5px; font-weight: 700; color: #101828; }
+    .app-user-panel-role { display: block; font-size: 13.5px; color: #667085; margin-top: 1px; }
+    .app-user-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 8px; border: none; background: none; font: inherit; font-size: 15px; font-weight: 500; color: #344054; text-decoration: none; cursor: pointer; text-align: left; }
+    .app-user-item i { font-size: 18px; color: #667085; }
     .app-user-item:hover { background: #f2f4f7; color: #101828; }
     .app-user-item.danger, .app-user-item.danger i { color: #d92d20; }
     .app-user-item.danger:hover { background: #fef3f2; }
@@ -184,8 +184,8 @@
       overflow: hidden; transform-origin: top right; animation: app-pop .18s cubic-bezier(.16,1,.3,1);
     }
     @keyframes app-pop { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
-    .app-notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #f2f4f7; font-size: 13.5px; font-weight: 700; color: #101828; }
-    .app-notif-markall { background: none; border: none; color: #2563eb; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+    .app-notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #f2f4f7; font-size: 15.5px; font-weight: 700; color: #101828; }
+    .app-notif-markall { background: none; border: none; color: #2563eb; font-size: 14px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
     .app-notif-markall:hover { background: #eef4ff; }
     .app-notif-list { max-height: 380px; overflow-y: auto; }
     .app-notif-item { display: flex; gap: 10px; padding: 11px 14px; border-bottom: 1px solid #f2f4f7; }
@@ -193,10 +193,10 @@
     .app-notif-item.unread { background: #f8faff; }
     .app-notif-dot { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: transparent; flex-shrink: 0; }
     .app-notif-item.unread .app-notif-dot { background: #2563eb; }
-    .app-notif-title { font-size: 13px; font-weight: 600; color: #101828; }
-    .app-notif-msg { font-size: 12px; color: #475467; margin-top: 2px; line-height: 1.45; }
-    .app-notif-time { font-size: 11px; color: #98a2b3; margin-top: 4px; }
-    .app-notif-empty { padding: 28px 14px; text-align: center; font-size: 12.5px; color: #98a2b3; }
+    .app-notif-title { font-size: 15px; font-weight: 600; color: #101828; }
+    .app-notif-msg { font-size: 14px; color: #475467; margin-top: 2px; line-height: 1.45; }
+    .app-notif-time { font-size: 13px; color: #98a2b3; margin-top: 4px; }
+    .app-notif-empty { padding: 28px 14px; text-align: center; font-size: 14.5px; color: #98a2b3; }
     body.dark-mode .app-notif-panel { background: #161b22 !important; border-color: #30363d !important; }
     body.dark-mode .app-notif-head, body.dark-mode .app-notif-item { border-color: #30363d !important; color: #e6edf3 !important; }
     body.dark-mode .app-notif-item.unread { background: #1c2330 !important; }
@@ -215,7 +215,7 @@
 
     /* ── Flash messages ── */
     .flash-list { list-style: none; margin-bottom: 14px; }
-    .flash-msg  { padding: 10px 14px; border-radius: 9px; font-size: 13px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .flash-msg  { padding: 10px 14px; border-radius: 9px; font-size: 15px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
     .flash-success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
     .flash-error   { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
     .flash-warning { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
@@ -262,7 +262,7 @@
     .skip-link {
       position: absolute; left: -9999px; top: 0; z-index: 10050;
       background: #1e3a8a; color: #fff; padding: 10px 18px; border-radius: 0 0 8px 0;
-      font-size: 13px; font-weight: 700; text-decoration: none;
+      font-size: 15px; font-weight: 700; text-decoration: none;
     }
     .skip-link:focus { left: 0; }
     :focus-visible {
@@ -427,7 +427,7 @@
 <div class="main" id="main-content" role="main" tabindex="-1">
   {% if billing_lock_status %}
   <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
-              padding:12px 18px;border-radius:10px;margin-bottom:14px;font-size:13px;font-weight:600;
+              padding:12px 18px;border-radius:10px;margin-bottom:14px;font-size:15px;font-weight:600;
               {% if billing_lock_status.state == 'locked' %}background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;
               {% else %}background:#fef9c3;border:1px solid #fde68a;color:#854d0e;{% endif %}">
     <span>

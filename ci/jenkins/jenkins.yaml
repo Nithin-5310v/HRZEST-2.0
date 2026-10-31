@@ -1,0 +1,80 @@
+# Jenkins configuration as code for the HRZEST pipeline (loaded at startup
+# by the configuration-as-code plugin; install-jenkins.ps1 sets the
+# ${...} environment variables). Edit this file, not the Jenkins UI --
+# the UI settings are overwritten on the next restart.
+jenkins:
+  systemMessage: >-
+    HRZEST: develop deploys to the development copy (http://localhost:5050) after its tests pass;
+    main waits for your approval, then deploys to production.
+  numExecutors: 2
+  mode: NORMAL
+  # No inbound agents: everything runs on this PC.
+  slaveAgentPort: -1
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          name: "HRZEST admin"
+          password: "${readFile:${JENKINS_ADMIN_PASSWORD_FILE}}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "HRZEST_CI_HOME"
+            value: "${HRZEST_CI_HOME}"
+          - key: "HRZEST_DEV_HOME"
+            value: "${HRZEST_DEV_HOME}"
+          - key: "HRZEST_ENV_FILE"
+            value: "${HRZEST_DEV_HOME}\\.env"
+          - key: "HRZEST_PYTHON"
+            value: "${HRZEST_PYTHON}"
+          - key: "HRZEST_PLINK"
+            value: "${HRZEST_PLINK}"
+          - key: "HRZEST_PROD_HOST"
+            value: "${HRZEST_PROD_HOST}"
+          - key: "HRZEST_PROD_HOSTKEY"
+            value: "${HRZEST_PROD_HOSTKEY}"
+          - key: "HRZEST_PROD_SSH_KEY"
+            value: "${HRZEST_PROD_SSH_KEY}"
+
+unclassified:
+  location:
+    url: "http://localhost:${JENKINS_PORT}/"
+
+jobs:
+  - script: |
+      multibranchPipelineJob('HRZEST') {
+        displayName('HRZEST')
+        description('develop: tests, then the development copy. main: tests, your approval, then production. See ci/jenkins/README.md.')
+        branchSources {
+          branchSource {
+            source {
+              git {
+                id('hrzest-2-0')
+                remote('https://github.com/Nithin-5310v/HRZEST-2.0.git')
+                traits {
+                  gitBranchDiscovery()
+                  headWildcardFilter {
+                    includes('develop main')
+                    excludes('')
+                  }
+                }
+              }
+            }
+          }
+        }
+        // GitHub can't reach this PC, so Jenkins looks for new commits itself.
+        triggers {
+          periodicFolderTrigger {
+            interval('5m')
+          }
+        }
+        orphanedItemStrategy {
+          discardOldItems {
+            numToKeep(5)
+          }
+        }
+      }

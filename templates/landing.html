@@ -683,7 +683,7 @@
         </details>
         <details class="faq-item">
           <summary>How do I get support if I have an issue?</summary>
-          <p>Email <a href="mailto:contact@hrzest.com" style="color:var(--accent-cyan); text-decoration:underline;">contact@hrzest.com</a> or use the contact form below — we usually reply within a few hours.</p>
+          <p>Email <a href="mailto:{{ support_email }}" style="color:var(--accent-cyan); text-decoration:underline;">{{ support_email }}</a> or use the contact form below — we usually reply within a few hours.</p>
         </details>
       </div>
     </div>
@@ -710,7 +710,7 @@
             <div class="contact-icon cyan"><i class="ti ti-mail"></i></div>
             <div>
               <span class="contact-detail-label">Email</span>
-              <a href="mailto:contact@hrzest.com" class="contact-detail-value">contact@hrzest.com</a>
+              <a href="mailto:{{ support_email }}" class="contact-detail-value">{{ support_email }}</a>
             </div>
           </div>
 
@@ -726,7 +726,7 @@
             <div class="contact-icon purple"><i class="ti ti-shield-half"></i></div>
             <div>
               <span class="contact-detail-label">Security Questions</span>
-              <a href="mailto:contact@hrzest.com" class="contact-detail-value">contact@hrzest.com</a>
+              <a href="mailto:{{ support_email }}" class="contact-detail-value">{{ support_email }}</a>
             </div>
           </div>
         </div>
@@ -757,13 +757,14 @@
               <textarea id="contactMessage" class="form-control" rows="4" placeholder="Tell us about your organization's requirements..." required></textarea>
             </div>
 
+            <p id="contactFormError" role="alert" style="display:none; color:#E11D48; font-size:0.85rem; margin-bottom:0.75rem;"></p>
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.9rem;">
               <i class="ti ti-send"></i> Submit Inquiry
             </button>
           </form>
 
           <div id="contactSuccessMsg" class="form-success-banner" style="display: none;">
-            <i class="ti ti-circle-check"></i> Thank you! Your message has been sent to <strong>contact@hrzest.com</strong>.
+            <i class="ti ti-circle-check"></i> Thank you! Your message has been sent to <strong>{{ support_email }}</strong>.
           </div>
         </div>
       </div>
@@ -863,7 +864,7 @@
           <p style="margin-bottom: 1.25rem;">Biometric attendance and payroll, built for security, speed, and privacy.</p>
           <div style="display: flex; flex-direction: column; gap: 0.4rem;">
             <p style="font-size: 0.9rem; color: var(--text-muted);">
-              <i class="ti ti-mail" style="margin-right: 0.4rem; color: var(--accent-cyan);"></i> <a href="mailto:contact@hrzest.com" style="color: var(--text-main); text-decoration: underline;">contact@hrzest.com</a>
+              <i class="ti ti-mail" style="margin-right: 0.4rem; color: var(--accent-cyan);"></i> <a href="mailto:{{ support_email }}" style="color: var(--text-main); text-decoration: underline;">{{ support_email }}</a>
             </p>
             <p style="font-size: 0.9rem; color: var(--text-muted);">
               <i class="ti ti-phone-call" style="margin-right: 0.4rem; color: var(--accent-cyan);"></i> <a href="tel:+918919901489" style="color: var(--text-main); text-decoration: underline;">+91 89199 01489</a>
@@ -886,7 +887,7 @@
           <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.5rem;">
             <li><a href="#contact">Contact Us</a></li>
             <li><a href="#feedback">Product Feedback</a></li>
-            <li><a href="mailto:contact@hrzest.com">contact@hrzest.com</a></li>
+            <li><a href="mailto:{{ support_email }}">{{ support_email }}</a></li>
           </ul>
         </div>
       </div>

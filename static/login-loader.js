@@ -42,7 +42,10 @@
     var wait = Math.max(0, MIN_MS - (Date.now() - start));
     setTimeout(function () {
       el.classList.add('hrz-hide');
-      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 700);
+      setTimeout(function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+        window.dispatchEvent(new Event('hrz-loader-done')); // toast.js shows any held popups
+      }, 700);
     }, wait);
   }
   if (document.readyState === 'complete') hide();

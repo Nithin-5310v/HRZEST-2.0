@@ -46,11 +46,11 @@
       }
       .console-badge {
         display: inline-flex; align-items: center; gap: 7px;
-        font-size: 12px; font-weight: 700; color: #23268f;
+        font-size: 14px; font-weight: 700; color: #23268f;
         background: #eef0fd; border: 1px solid #c7ccf5;
         padding: 7px 14px; border-radius: 20px;
       }
-      .console-badge i { font-size: 14px; }
+      .console-badge i { font-size: 16px; }
       .card {
         width: 100%; max-width: 420px;
         background: #ffffff;
@@ -67,32 +67,32 @@
         font-size: 30px; color: #fff;
         box-shadow: 0 10px 24px rgba(35, 38, 143, .28);
       }
-      .field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; color: #8991a6; margin-bottom: 8px; letter-spacing: 0.6px; }
+      .field-label { display: block; font-size: 13px; font-weight: 700; text-transform: uppercase; color: #8991a6; margin-bottom: 8px; letter-spacing: 0.6px; }
       .field-input {
         width: 100%; padding: 13px 16px;
         background: #fff; border: 1.5px solid #e3e5ec;
-        border-radius: 10px; color: #0b1220; font-size: 15px; outline: none; transition: 0.2s; margin-bottom: 20px;
+        border-radius: 10px; color: #0b1220; font-size: 17px; outline: none; transition: 0.2s; margin-bottom: 20px;
       }
       .field-input:focus { border-color: #3538cd; box-shadow: 0 0 0 3px #eef0fd; }
       .field-input.otp-input {
-        font-size: 20px; text-align: center; letter-spacing: 6px; font-weight: 800;
+        font-size: 22px; text-align: center; letter-spacing: 6px; font-weight: 800;
       }
       .btn-cyber {
         width: 100%; padding: 14px; border: none; border-radius: 10px;
         background: linear-gradient(135deg, #3538cd, #23268f);
-        color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.2s;
+        color: #fff; font-size: 17px; font-weight: 700; cursor: pointer; transition: 0.2s;
         box-shadow: 0 6px 20px rgba(35, 38, 143, .28);
         display: flex; align-items: center; justify-content: center; gap: 8px;
       }
       .btn-cyber:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(35, 38, 143, .36); }
       .error-box {
         background: #fef2f2; border: 1px solid #fecaca;
-        color: #b91c1c; border-radius: 10px; padding: 12px 16px; font-size: 13px; font-weight: 600; margin-bottom: 20px;
+        color: #b91c1c; border-radius: 10px; padding: 12px 16px; font-size: 15px; font-weight: 600; margin-bottom: 20px;
         display: flex; align-items: center; gap: 8px;
       }
       .mfa-badge {
         display: inline-block; background: #eef0fd; border: 1px solid #c7ccf5;
-        color: #23268f; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 16px;
+        color: #23268f; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 16px;
       }
     </style>
     <!-- Shared Zoho-style public theme (blue, clean light canvas), loaded last -->
@@ -120,7 +120,7 @@
       {% if mfa_step %}
       <div class="logo-hdr">
         <div class="shield-icon"><i class="ti ti-mail-check"></i></div>
-        <h1 style="font-size: 22px; font-weight: 800;">Check Your Email</h1>
+        <h1 style="font-size: 24px; font-weight: 800;">Check Your Email</h1>
       </div>
 
       {% if error %}
@@ -129,7 +129,7 @@
 
       <div style="text-align: center; margin-bottom: 16px;">
         <span class="mfa-badge">Step 2: Email Verification</span>
-        <p style="font-size: 13px; color: #475569; margin-top: 6px;">We emailed a 6-digit code to the platform admin address on file. Enter it below — it expires in 5 minutes.</p>
+        <p style="font-size: 15px; color: #475569; margin-top: 6px;">We emailed a 6-digit code to the platform admin address on file. Enter it below — it expires in 5 minutes.</p>
       </div>
 
       <form action="/super_admin/login" method="POST">
@@ -139,14 +139,14 @@
         <button type="submit" class="btn-cyber">Verify &amp; Enter Console →</button>
       </form>
 
-      <div style="margin-top: 24px; text-align: center; font-size: 13px;">
+      <div style="margin-top: 24px; text-align: center; font-size: 15px;">
         <a href="/super_admin/login?restart=1" style="color: #64748b; text-decoration: none;">← Start over</a>
       </div>
       {% else %}
       <div class="logo-hdr">
         <div class="shield-icon"><i class="ti ti-building-fortress"></i></div>
-        <h1 style="font-size: 22px; font-weight: 800;">Platform Admin</h1>
-        <p style="font-size: 13px; color: #94a3b8; margin-top: 4px;">SaaS Operator Console — every tenant, one place</p>
+        <h1 style="font-size: 24px; font-weight: 800;">Platform Admin</h1>
+        <p style="font-size: 15px; color: #94a3b8; margin-top: 4px;">SaaS Operator Console — every tenant, one place</p>
       </div>
 
       {% if error %}
@@ -170,7 +170,7 @@
         <button type="submit" class="btn-cyber"><i class="ti ti-lock"></i> Sign In</button>
       </form>
 
-      <div style="margin-top: 20px; text-align: center; font-size: 12px;">
+      <div style="margin-top: 20px; text-align: center; font-size: 14px;">
         <a href="/login" style="color: #64748b; text-decoration: none;">← Return to Standard Admin Portal</a>
       </div>
       {% endif %}

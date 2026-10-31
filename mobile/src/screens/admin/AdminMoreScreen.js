@@ -42,7 +42,10 @@ const GROUPS = [
   },
 ];
 
-const FOOTER = [{ label: "Company settings", detail: "Shifts, geofence, billing", route: "Settings" }];
+const FOOTER = [
+  { label: "Organization", detail: "Company details, terms & policies", route: "Organization" },
+  { label: "Company settings", detail: "Shifts, geofence, billing", route: "Settings" },
+];
 
 export default function AdminMoreScreen({ navigation }) {
   const { signOut } = useAuth();

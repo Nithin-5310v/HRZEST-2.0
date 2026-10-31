@@ -87,7 +87,7 @@ html body .container > .header {
   box-shadow: 0 10px 28px -16px rgba(29, 78, 216, .75) !important;
   color: #fff; flex-wrap: nowrap !important;
 }
-html body .container > .header h1 { color: #fff !important; font-size: 17px !important; font-weight: 700 !important; white-space: nowrap; }
+html body .container > .header h1 { color: #fff !important; font-size: 19px !important; font-weight: 700 !important; white-space: nowrap; }
 html body .container > .header h1 i { color: #fff !important; }
 html body .container > .header h1 .icon-photo-lg { border-color: rgba(255,255,255,.4); }
 html body .container > .header > div,
@@ -113,10 +113,10 @@ html body .container > .header form > button:hover { background: rgba(255,255,25
 .pa-date {
   display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 9px;
   background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); color: #fff;
-  font-size: 12.5px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums;
+  font-size: 14.5px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.pa-date i { font-size: 15px; opacity: .9; }
-@media (max-width: 900px) { .pa-date { display: none; } html body .container > .header h1 { font-size: 15px !important; } }
+.pa-date i { font-size: 17px; opacity: .9; }
+@media (max-width: 900px) { .pa-date { display: none; } html body .container > .header h1 { font-size: 17px !important; } }
 
 /* ── Platform Admin sidebar (templates/_platform_sidebar.html) -- same look
    as the admin dashboard's sidebar, fixed below the 64px blue banner ── */
@@ -130,7 +130,7 @@ body:has(.pa-sidebar) { padding-left: calc(248px + 24px) !important; }
 .pa-nav-item {
   position: relative; display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 8px 10px; border-radius: 8px; border: none; background: transparent;
-  color: #475467; font-size: 13px; font-weight: 500; text-decoration: none; text-align: left; cursor: pointer;
+  color: #475467; font-size: 15px; font-weight: 500; text-decoration: none; text-align: left; cursor: pointer;
   transition: background .15s, color .15s;
 }
 .pa-nav-item:hover { background: #f2f4f7; color: #101828; }

@@ -6,21 +6,21 @@
 <style>
   .cv-wrap { max-width: 640px; margin: 0 auto; padding: 8px 0 32px; }
   .cv-header { margin-bottom: 22px; }
-  .cv-header h1 { font-size: 21px; font-weight: 800; }
-  .cv-header p { font-size: 13px; color: var(--text-muted, #64748b); margin-top: 4px; }
+  .cv-header h1 { font-size: 23px; font-weight: 800; }
+  .cv-header p { font-size: 15px; color: var(--text-muted, #64748b); margin-top: 4px; }
   .cv-card { background: var(--bg-card, #fff); border: 1px solid var(--border-color, #e2e8f0); border-radius: 14px; padding: 26px; }
-  .cv-status { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 20px; }
+  .cv-status { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; font-size: 14px; font-weight: 700; margin-bottom: 20px; }
   .cv-status.pending_documents { background: #e0f2fe; color: #075985; }
   .cv-status.pending_review { background: #fef9c3; color: #854d0e; }
   .cv-status.approved { background: #dcfce7; color: #166534; }
   .cv-status.rejected { background: #fee2e2; color: #991b1b; }
-  .cv-reason { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 14px; border-radius: 6px; font-size: 13px; color: #7f1d1d; margin-bottom: 20px; }
+  .cv-reason { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 14px; border-radius: 6px; font-size: 15px; color: #7f1d1d; margin-bottom: 20px; }
   .cv-field { margin-bottom: 18px; }
-  .cv-label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-  .cv-hint { font-size: 12px; color: var(--text-muted, #64748b); margin-bottom: 8px; }
-  .cv-input { width: 100%; padding: 11px 14px; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; font-size: 13.5px; background: var(--bg-secondary, #f8fafc); }
-  .cv-existing { font-size: 12px; color: #16a34a; margin-top: 4px; }
-  .cv-submit { width: 100%; padding: 13px; border: none; border-radius: 8px; background: #1d4ed8; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 6px; }
+  .cv-label { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .cv-hint { font-size: 14px; color: var(--text-muted, #64748b); margin-bottom: 8px; }
+  .cv-input { width: 100%; padding: 11px 14px; border: 1px solid var(--border-color, #e2e8f0); border-radius: 8px; font-size: 15.5px; background: var(--bg-secondary, #f8fafc); }
+  .cv-existing { font-size: 14px; color: #16a34a; margin-top: 4px; }
+  .cv-submit { width: 100%; padding: 13px; border: none; border-radius: 8px; background: #1d4ed8; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 6px; }
   body.dark-mode .cv-card { background: #161b22; border-color: #30363d; }
   body.dark-mode .cv-header p, body.dark-mode .cv-hint { color: #8b949e; }
 </style>
@@ -46,7 +46,7 @@
     {% endif %}
 
     {% if application.doc_review_status == 'approved' %}
-      <p style="font-size:13px;color:var(--text-muted,#64748b);">Your company documents have been verified. No further action is needed here.</p>
+      <p style="font-size:15px;color:var(--text-muted,#64748b);">Your company documents have been verified. No further action is needed here.</p>
     {% else %}
       <form method="POST" action="{{ tpath('/settings/company_verification') }}" enctype="multipart/form-data">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />

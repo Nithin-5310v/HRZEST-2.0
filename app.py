@@ -733,7 +733,7 @@ def _enforce_ip_ban():
 # Not a real exposure either way -- every one of these routes only ever
 # uses the identifier in a parameterized query, never executes or reflects
 # it -- so exempting them costs no actual protection.
-_WAF_EXEMPT_PATHS = {"/login", "/admin_login", "/employee_login", "/api/login", "/api/employee/login"}
+_WAF_EXEMPT_PATHS = {"/login", "/admin_login", "/employee_login", "/api/login", "/api/employee/login", "/api/signin"}
 
 
 @app.before_request

@@ -14,7 +14,7 @@ from utils.auth import (
     api_required, check_password_hash, generate_password_hash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
-    turnstile_enabled, _TURNSTILE_SITE_KEY,
+    turnstile_enabled, _TURNSTILE_SITE_KEY, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge
 from utils.totp import send_mfa_login_email
@@ -24,7 +24,7 @@ from utils.helpers import (
     get_company_settings, _safe_app_url, company_today,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
-from utils.email_utils import get_email_config, send_email_smtp
+from utils.email_utils import get_email_config, send_email_smtp, support_inbox
 from utils.session_risk import is_session_compromised, ensure_session_id
 
 core_bp = Blueprint("core", __name__)
@@ -167,6 +167,7 @@ def home():
         registration_failed=registration_failed,
         show_captcha=turnstile_enabled(),
         turnstile_site_key=_TURNSTILE_SITE_KEY,
+        support_email=support_inbox(),
     )
 
 
@@ -232,8 +233,11 @@ def api_login():
     /api/login/verify. The response then carries only an opaque
     challenge_id; the code itself goes to the account's email."""
     data = request.get_json(silent=True) or {}
-    username = str(data.get("username") or "")
-    password = str(data.get("password") or "")
+    return _api_admin_login(str(data.get("username") or ""), str(data.get("password") or ""))
+
+
+def _api_admin_login(username, password):
+    """The body of /api/login, shared with /api/signin."""
     if "\x00" in username or "\x00" in password or not username or not password:
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     locked, _until = _check_login_lockout(username)
@@ -271,6 +275,11 @@ def api_login():
         _record_login_failure(username)
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     _clear_login_failures(username)
+    # An HR/manager employee's admin account is named after their employee
+    # ID: it ends with their employment too.
+    ended_on = employment_ended_on(username)
+    if ended_on:
+        return jsonify({"ok": False, "access_ended": True, "msg": access_ended_message(ended_on)}), 403
 
     if not current_app.config["MANDATORY_LOGIN_MFA"]:
         token = _issue_admin_api_token(username, mfa_verified=False)
@@ -633,11 +642,14 @@ def api_admin_profile():
 @limiter.limit("20 per hour")
 def api_employee_login():
     data = request.get_json(silent=True) or {}
-    emp_id = str(data.get("employee_id") or "").strip()
     # Passwords are used exactly as typed (no strip) -- and both fields are
     # validated BEFORE any lookup, so a missing password can't produce a
     # different answer for a real employee ID than for a made-up one.
-    password = str(data.get("password") or "")
+    return _api_employee_login(str(data.get("employee_id") or "").strip(), str(data.get("password") or ""))
+
+
+def _api_employee_login(emp_id, password):
+    """The body of /api/employee/login, shared with /api/signin."""
     if not emp_id or not password:
         return jsonify({"ok": False, "msg": "Employee ID and password are required."}), 400
     # Check lockout before hitting the DB with credentials
@@ -659,6 +671,11 @@ def api_employee_login():
         _record_login_failure(emp_id, "employee")
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     _clear_login_failures(emp_id, "employee")
+    # Past the last working day of an accepted resignation: the right
+    # password, but no token. Records are kept (utils/auth.py).
+    ended_on = employment_ended_on(emp_id)
+    if ended_on:
+        return jsonify({"ok": False, "access_ended": True, "msg": access_ended_message(ended_on)}), 403
     # An admin-issued temporary password (blueprints/employees.py reset)
     # must be replaced before it can mint a 24h token; the app has no
     # change-password screen that works without one, so send them to the
@@ -686,6 +703,50 @@ def api_employee_login():
         "ok": True, "token": token, "employee_id": emp_id,
         "name": row[0], "email": row[1],
     })
+
+
+@core_bp.route("/api/signin", methods=["POST"])
+@limiter.limit("5 per minute")
+@limiter.limit("20 per hour")
+def api_signin():
+    """The app's one sign-in box, with the website /login's rules
+    (auth.admin_login): an admin, HR or manager account whose username --
+    or lowercased email -- and password match signs in as that; anything
+    else is tried as an employee ID. The answer is /api/login's or
+    /api/employee/login's, plus "account": "admin" | "employee"."""
+    data = request.get_json(silent=True) or {}
+    identifier = str(data.get("identifier") or "").strip()
+    password = str(data.get("password") or "")
+    if "\x00" in identifier or "\x00" in password or not identifier or not password:
+        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    if _admin_password_matches(identifier, password):
+        account, result = "admin", _api_admin_login(identifier, password)
+    else:
+        account, result = "employee", _api_employee_login(identifier.upper(), password)
+    resp, status = result if isinstance(result, tuple) else (result, 200)
+    body = resp.get_json(silent=True)
+    if isinstance(body, dict) and body.get("ok"):
+        body["account"] = account
+        return jsonify(body), status
+    return resp, status
+
+
+def _admin_password_matches(identifier, password):
+    """True when an active admin account (by username, or by the lowercased
+    email sign-up admins use) has this password. Records nothing: the login
+    that follows does its own lockout and failure bookkeeping."""
+    candidates = [identifier]
+    if "@" in identifier and identifier != identifier.lower():
+        candidates.append(identifier.lower())
+    with _db() as (cursor, _conn):
+        for username in candidates:
+            cursor.execute(
+                "SELECT password, COALESCE(is_active,1) FROM admin_users WHERE username=%s", (username,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return bool(row[0]) and bool(row[1]) and check_password_hash(row[0], password)
+    return False
 
 
 @core_bp.route("/api/employee/logout", methods=["POST"])

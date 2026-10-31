@@ -10,15 +10,15 @@
     display: flex; align-items: center; justify-content: space-between;
     flex-wrap: wrap; gap: 14px; margin-bottom: 24px;
   }
-  .page-header h1 { font-size: 24px; font-weight: 800; color: #0f172a; }
-  .page-header .sub { font-size: 13px; color: #64748b; margin-top: 3px; }
+  .page-header h1 { font-size: 26px; font-weight: 800; color: #0f172a; }
+  .page-header .sub { font-size: 15px; color: #64748b; margin-top: 3px; }
   .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
   /* toolbar under the blue banner: search on the left, actions on the right */
   .page-header--toolbar { justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px; }
   .admin-search-wrap.dash-search { flex: 1 1 520px; max-width: 560px; min-width: 240px; }
   body .main .dash-search .admin-search-input {
     height: 42px; padding: 0 16px 0 42px; border-radius: 10px;
-    background: #fff; border: 1px solid #d0d5dd; font-size: 13.5px; color: #101828;
+    background: #fff; border: 1px solid #d0d5dd; font-size: 15.5px; color: #101828;
     box-shadow: 0 1px 2px rgba(16, 24, 40, .05);
   }
   .dash-search .admin-search-input::placeholder { color: #667085; }
@@ -26,11 +26,11 @@
   body .main .dash-search .admin-search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, .12); }
   .dash-search .admin-search-icon { left: 15px; font-size: 18px; color: #667085; z-index: 2; }
   .dash-search:focus-within .admin-search-icon { color: #2563eb; }
-  .page-header--toolbar .header-actions .hbtn { height: 42px; padding: 0 16px; border-radius: 10px; font-size: 13px; }
+  .page-header--toolbar .header-actions .hbtn { height: 42px; padding: 0 16px; border-radius: 10px; font-size: 15px; }
   @media (max-width: 768px) { .dash-search { flex-basis: 100%; max-width: none; } }
   .hbtn {
     padding: 7px 14px; border: none; border-radius: 8px;
-    font-size: 12px; font-weight: 700; cursor: pointer;
+    font-size: 14px; font-weight: 700; cursor: pointer;
     text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
     transition: 0.2s;
   }
@@ -56,8 +56,8 @@
   .si-green  { background: #dcfce7; }
   .si-red    { background: #fee2e2; }
   .si-yellow { background: #fef9c3; }
-  .stat-num  { font-size: 32px; font-weight: 800; line-height: 1; }
-  .stat-lbl  { font-size: 12px; color: #64748b; margin-top: 3px; font-weight: 500; }
+  .stat-num  { font-size: 34px; font-weight: 800; line-height: 1; }
+  .stat-lbl  { font-size: 14px; color: #64748b; margin-top: 3px; font-weight: 500; }
   .sn-blue   { color: #2563eb; }
   .sn-green  { color: #16a34a; }
   .sn-red    { color: #dc2626; }
@@ -70,7 +70,7 @@
     color: #0f172a;
   }
   .section-title {
-    font-size: 15px; font-weight: 700; color: #0f172a;
+    font-size: 17px; font-weight: 700; color: #0f172a;
     display: flex; align-items: center; gap: 8px; margin-bottom: 18px;
   }
   .section-title span.live-dot {
@@ -80,15 +80,15 @@
 
   /* ── TABLE ── */
   .table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e2e8f0; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
   th { background: #f8fafc; color: #475569; padding: 10px 14px; text-align: left; font-weight: 600; white-space: nowrap; border-bottom: 2px solid #e2e8f0; }
   td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; color: #334155; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: #f8fafc; }
-  .empty-row td { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
+  .empty-row td { text-align: center; padding: 40px; color: #94a3b8; font-size: 16px; }
 
   /* ── BADGES ── */
-  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
   .badge-green  { background: #dcfce7; color: #15803d; }
   .badge-yellow { background: #fef9c3; color: #854d0e; }
   .badge-red    { background: #fee2e2; color: #dc2626; }
@@ -97,7 +97,7 @@
 
   /* ── ACTION BUTTONS in table ── */
   .tbl-btn {
-    padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+    padding: 4px 10px; border-radius: 6px; font-size: 14px; cursor: pointer;
     font-weight: 600; transition: 0.15s; border: 1px solid;
   }
   .tbl-btn-edit   { border-color: #bfdbfe; background: #eff6ff; color: #1e40af; }
@@ -117,13 +117,13 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 13px; margin-bottom: 10px; flex-shrink: 0;
   }
-  .action-card h4   { font-size: 13px; font-weight: 700; margin-bottom: 2px; color: #0f172a; }
-  .action-card .sub { font-size: 11px; color: #94a3b8; margin-bottom: 12px; }
+  .action-card h4   { font-size: 15px; font-weight: 700; margin-bottom: 2px; color: #0f172a; }
+  .action-card .sub { font-size: 13px; color: #94a3b8; margin-bottom: 12px; }
   .action-card form { flex: 1; display: flex; flex-direction: column; }
   .action-card input {
     width: 100%; padding: 8px 11px;
     border: 1px solid #dbeafe; border-radius: 8px;
-    background: #fff; color: #0f172a; font-size: 13px;
+    background: #fff; color: #0f172a; font-size: 15px;
     margin-bottom: 7px; outline: none; transition: 0.2s;
   }
   .action-card input::placeholder { color: #94a3b8; }
@@ -134,13 +134,13 @@
   .reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
   .field { margin-bottom: 14px; }
   .field label {
-    display: block; font-size: 11px; font-weight: 700; color: #64748b;
+    display: block; font-size: 13px; font-weight: 700; color: #64748b;
     text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;
   }
   .field input, .field select, .field textarea {
     width: 100%; padding: 10px 13px;
     border: 1px solid #e2e8f0; border-radius: 9px;
-    background: #f8fafc; color: #0f172a; font-size: 14px;
+    background: #f8fafc; color: #0f172a; font-size: 16px;
     outline: none; transition: 0.2s; font-family: inherit;
   }
   .field input::placeholder, .field textarea::placeholder { color: #94a3b8; }
@@ -148,7 +148,7 @@
   .field textarea { resize: vertical; min-height: 70px; }
 
   /* ── BUTTONS ── */
-  .btn { width: 100%; padding: 8px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 12.5px; transition: 0.2s; }
+  .btn { width: 100%; padding: 8px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 14.5px; transition: 0.2s; }
   .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
   .btn-green  { background: #16a34a; color: white; }
   .btn-indigo { background: #6366f1; color: white; }
@@ -293,8 +293,8 @@
         <div class="u-fs-11 u-c-64748b u-fw-600 u-mt-2">Completed</div>
       </div>
       <div style="background:{% if ob_overdue > 0 %}#fff5f5{% else %}#f8fafc{% endif %};border:1.5px solid {% if ob_overdue > 0 %}#fca5a5{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;text-align:center;">
-        <div style="font-size:24px;font-weight:800;color:{% if ob_overdue > 0 %}#dc2626{% else %}#64748b{% endif %};">{{ ob_overdue }}</div>
-        <div style="font-size:11px;color:{% if ob_overdue > 0 %}#dc2626{% else %}#64748b{% endif %};font-weight:600;margin-top:2px;">Overdue</div>
+        <div style="font-size:26px;font-weight:800;color:{% if ob_overdue > 0 %}#dc2626{% else %}#64748b{% endif %};">{{ ob_overdue }}</div>
+        <div style="font-size:13px;color:{% if ob_overdue > 0 %}#dc2626{% else %}#64748b{% endif %};font-weight:600;margin-top:2px;">Overdue</div>
       </div>
     </div>
     {% if ob_overdue_list %}

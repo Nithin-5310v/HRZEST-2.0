@@ -12,7 +12,7 @@ const client = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
 // Company URL -- and sends every API call under it. Sign-up calls belong to
 // no company yet, so they never get one.
 let companySlug = '';
-const COMPANYLESS_PATHS = ['/api/create_org'];
+const COMPANYLESS_PATHS = ['/api/create_org', '/api/company/resolve'];
 
 export const setCompanySlug = (slug) => {
   companySlug = slug || '';
@@ -88,6 +88,16 @@ client.interceptors.response.use(
 // Step 1: password. When the server requires login MFA this returns
 // { ok, mfa_required: true, challenge_id } instead of a token, and the
 // one-time code is emailed to the account.
+// The company someone typed on the sign-in screen -- its URL or its name --
+// as { ok, slug }; 404 { ok: false, msg } when there's no such company.
+export const resolveCompany = (q) => client.get('/api/company/resolve', { params: { q } });
+
+// The one sign-in box (blueprints/core.py's /api/signin): the server decides
+// admin or employee, like the website's /login. Answers like adminLogin or
+// employeeLogin, plus account: 'admin' | 'employee'.
+export const signInAccount = (identifier, password) =>
+  client.post('/api/signin', { identifier, password });
+
 export const adminLogin = (username, password) =>
   client.post('/api/login', { username, password });
 
@@ -193,6 +203,31 @@ export const saveCompanyDetails = (formData) =>
 
 export const uploadRegistrationDocuments = (formData) =>
   client.post('/api/admin/registration/documents', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+
+// ── Organization (Admin > More > Organization) ─────────────────────────
+// The company's details as on the website's Organization page: name,
+// tagline, phone, email, website, address. A logo goes as multipart.
+export const fetchOrganization = () => client.get('/api/admin/organization');
+
+export const saveOrganization = (fields) => client.post('/api/admin/organization', fields);
+
+export const uploadOrganizationLogo = (formData) =>
+  client.post('/api/admin/organization', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+
+// The company's own terms and policies. Admin and HR tokens manage them;
+// employees read the published ones.
+export const fetchAdminPolicies = () => client.get('/api/admin/policies');
+
+export const addPolicy = (policy) => client.post('/api/admin/policies', policy);
+
+export const updatePolicy = (policyId, policy) => client.post(`/api/admin/policies/${policyId}`, policy);
+
+export const setPolicyPublished = (policyId, published) =>
+  client.post(`/api/admin/policies/${policyId}/${published ? 'publish' : 'unpublish'}`);
+
+export const deletePolicy = (policyId) => client.delete(`/api/admin/policies/${policyId}`);
+
+export const fetchCompanyPolicies = () => client.get('/api/employee/company_policies');
 
 export const uploadEmployeePhoto = (formData) =>
   client.post('/api/employee/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });

@@ -15,12 +15,15 @@ import hashlib
 import os
 import re
 import time
+from urllib.parse import urlsplit
 
-from flask import Blueprint, request, session, redirect, render_template, flash, g, Response, current_app, send_file
+from flask import (
+    Blueprint, request, session, redirect, render_template, flash, g, Response, current_app, send_file, jsonify,
+)
 from PIL import Image, UnidentifiedImageError
 
 from database import get_db_connection, get_master_db
-from utils.auth import role_required
+from utils.auth import role_required, api_required, api_role_required
 from utils.helpers import (
     tpath, get_company_settings,
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
@@ -30,7 +33,7 @@ from utils.payment_history import get_payment_history, get_payment_row
 from utils.receipt_pdf import build_receipt_pdf
 from utils.ticket_constants import TICKET_STATUSES, TICKET_PRIORITIES
 from utils.csv_export import csv_response
-from blueprints.org import _EMAIL_RE, _MOBILE_RE, _clean_mobile, _load_own_tenant_application
+from blueprints.org import _MOBILE_RE, _clean_mobile, _load_own_tenant_application
 from migrations.column_migrations import _POLICY_SEED_CONTENT
 
 company_profile_bp = Blueprint("company_profile", __name__)
@@ -61,7 +64,6 @@ INDUSTRIES = (
 )
 COMPANY_SIZES = ("1-10", "11-50", "51-200", "201-500", "501-1000", "1000+")
 _POSTAL_RE = re.compile(r"[A-Za-z0-9 -]{3,12}")
-_WEBSITE_RE = re.compile(r"(https?://)?[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(/\S*)?")
 
 
 def admin_photo_path(username=None):
@@ -91,15 +93,6 @@ def company_welcome():
     return render_template("company_welcome.html", next_url=tpath("/profile"))
 
 
-def _store_logo(logo_file):
-    """Saves an uploaded company logo: (logo_url, error). The saved filename
-    is fixed per company; ?v= stops browsers showing the old logo."""
-    logo_path, err = save_uploaded_logo(logo_file, getattr(g, "tenant_slug", None) or g.tenant_db)
-    if err:
-        return None, err
-    return f"/static/{logo_path}?v={int(time.time())}", None
-
-
 @company_profile_bp.route("/profile/logo", methods=["POST"])
 @role_required("admin")
 def profile_logo_upload():
@@ -108,17 +101,10 @@ def profile_logo_upload():
     if not logo_file or not logo_file.filename:
         flash("Please choose a logo file.", "error")
         return redirect(tpath("/profile"))
-    logo_url, err = _store_logo(logo_file)
+    err = save_org_logo(logo_file)
     if err:
-        flash(f"Company logo: {err}", "error")
+        flash(err, "error")
         return redirect(tpath("/profile"))
-    db = get_db_connection()
-    cursor = db.cursor()
-    cursor.execute("UPDATE company_settings SET logo_url=%s", (logo_url,))
-    db.commit()
-    cursor.close()
-    db.close()
-    invalidate_settings_cache()
     flash("Company logo updated.", "success")
     return redirect(tpath("/profile"))
 
@@ -148,6 +134,113 @@ def profile_photo_remove():
     return redirect(tpath("/profile"))
 
 
+# ── Organization details (web Overview + Contact panels, and the app) ───────
+# What an admin can change about their company. Legal identifiers (GSTIN,
+# PAN, CIN) stay out: they go through document verification instead.
+ORG_FIELDS = ("company_name", "company_tagline", "contact_phone", "contact_email", "website", "address")
+_ORG_MAX = {"company_name": 200, "company_tagline": 300, "contact_phone": 30,
+            "contact_email": 255, "website": 255, "address": 500}
+_ORG_LABELS = {"company_name": "Company name", "company_tagline": "Tagline", "contact_phone": "Phone",
+               "contact_email": "Email", "website": "Website", "address": "Address"}
+_PHONE_RE = re.compile(r"^\+?[0-9][0-9 ()-]{5,29}$")
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_HOST_RE = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$")
+
+
+def _clean_website(value):
+    """'acme.com' -> 'https://acme.com'. Only http(s) links with a real
+    host name -- the value is rendered as a link, so no javascript: etc.
+    Returns (url, error)."""
+    url = value if "://" in value else "https://" + value
+    try:
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+    except ValueError:
+        host = ""
+    if url.split("://", 1)[0].lower() not in ("http", "https") or not _HOST_RE.match(host):
+        return None, "Enter a valid website, e.g. www.yourcompany.com."
+    return url, None
+
+
+def clean_org_fields(data):
+    """Validate whichever ORG_FIELDS appear in `data` (a form or JSON dict).
+    Fields left out are not touched; a blank value clears the field (except
+    the company name, which is required). Returns (updates, error)."""
+    updates = {}
+    for field in ORG_FIELDS:
+        if field not in data:
+            continue
+        value = str(data.get(field) or "").strip()
+        if len(value) > _ORG_MAX[field]:
+            return None, f"{_ORG_LABELS[field]} must be at most {_ORG_MAX[field]} characters."
+        if field == "company_name" and len(value) < 2:
+            return None, "Company name is required."
+        if value and field == "contact_phone" and not _PHONE_RE.match(value):
+            return None, "Enter a valid phone number, e.g. +91 98765 43210."
+        if value and field == "contact_email" and not _EMAIL_RE.match(value):
+            return None, "Enter a valid email address."
+        if value and field == "website":
+            value, error = _clean_website(value)
+            if error:
+                return None, error
+        updates[field] = value or None
+    return updates, None
+
+
+def save_org_fields(updates):
+    if not updates:
+        return
+    db = get_db_connection()
+    cursor = db.cursor()
+    # Column names come from ORG_FIELDS only, never from the request.
+    cursor.execute(
+        "UPDATE company_settings SET " + ", ".join(f"{col}=%s" for col in updates),
+        tuple(updates.values()),
+    )
+    db.commit()
+    cursor.close()
+    db.close()
+    invalidate_settings_cache()
+
+
+def _resolve_own_tenant_slug():
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    cur.execute("SELECT subdomain FROM tenants WHERE db_name=%s", (g.tenant_db,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row[0] if row else None
+
+
+def save_org_logo(logo_file):
+    """Store a new company logo; returns an error message or None. Each
+    upload gets a fresh file name so browsers don't keep showing the old
+    logo from cache (logo_url is also read as a file path, so it can't
+    carry a ?v= query)."""
+    slug = _resolve_own_tenant_slug() or g.tenant_db
+    logo_path, error = save_uploaded_logo(logo_file, f"{slug}-{int(time.time())}")
+    if error:
+        return f"Company logo: {error}"
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE company_settings SET logo_url=%s", (f"/static/{logo_path}",))
+    db.commit()
+    cursor.close()
+    db.close()
+    invalidate_settings_cache()
+    return None
+
+
+def org_details():
+    """The company's editable details, as the app's Organization screen shows them."""
+    co = get_company_settings()
+    details = {field: co.get(field) or "" for field in ORG_FIELDS}
+    details["company_code"] = co.get("company_code") or ""
+    details["logo_url"] = co.get("logo_url") or ""
+    return details
+
+
 @company_profile_bp.route("/profile/details", methods=["POST"])
 @role_required("admin")
 def profile_details_save():
@@ -162,7 +255,7 @@ def profile_details_save():
     name = " ".join((request.form.get("display_name") or "").split())[:100]
     text = {key: " ".join((request.form.get(key) or "").split())[:limit] for key, limit in (
         ("job_title", 100), ("address", 500), ("city", 100), ("state", 100), ("postal_code", 12), ("country", 100),
-        ("website", 200), ("email", 150),
+        ("email", 150),
     )}
     mobile = _clean_mobile(request.form.get("mobile"))
     industry = request.form.get("industry")
@@ -178,13 +271,14 @@ def profile_details_save():
     if not name:
         flash("Please enter your name.", "error")
         return redirect(tpath("/profile"))
-    error = None
-    if industry not in INDUSTRIES:
+    org_updates, error = clean_org_fields({key: request.form[key] for key in ("company_name", "company_tagline", "website")
+                                           if key in request.form})
+    if error:
+        pass
+    elif industry not in INDUSTRIES:
         error = "Please select your industry."
     elif company_size not in COMPANY_SIZES:
         error = "Please select your company size."
-    elif text["website"] and not _WEBSITE_RE.fullmatch(text["website"]):
-        error = "Please enter a valid website address."
     elif not text["address"]:
         error = "Please enter your office address."
     elif text["postal_code"] and not _POSTAL_RE.fullmatch(text["postal_code"]):
@@ -214,11 +308,10 @@ def profile_details_save():
             flash("Profile photo: that file isn't a readable image.", "error")
             return redirect(tpath("/profile"))
 
-    logo_url = None
     if has_logo:
-        logo_url, err = _store_logo(logo_file)
+        err = save_org_logo(logo_file)
         if err:
-            flash(f"Company logo: {err}", "error")
+            flash(err, "error")
             return redirect(tpath("/profile"))
 
     if img:
@@ -231,16 +324,15 @@ def profile_details_save():
     # Every mandatory field is in place by here, so this unlocks the dashboard
     # for a new company (app.py's _enforce_org_profile).
     cursor.execute(
-        "UPDATE company_settings SET company_code=%s, industry=%s, company_size=%s, website=%s, address=%s, city=%s, "
+        "UPDATE company_settings SET company_code=%s, industry=%s, company_size=%s, address=%s, city=%s, "
         "state=%s, postal_code=%s, country=%s, org_profile_pending=0",
-        (code or None, industry, company_size, text["website"] or None, text["address"], text["city"] or None,
+        (code or None, industry, company_size, text["address"], text["city"] or None,
          text["state"] or None, text["postal_code"] or None, text["country"] or None),
     )
-    if logo_url:
-        cursor.execute("UPDATE company_settings SET logo_url=%s", (logo_url,))
     db.commit()
     cursor.close()
     db.close()
+    save_org_fields(org_updates)
     invalidate_settings_cache()
     flash("Organization profile saved.", "success")
     return redirect(tpath("/admin" if was_pending else "/profile"))
@@ -286,20 +378,60 @@ def profile_company_info():
 @company_profile_bp.route("/profile/company_info", methods=["POST"])
 @role_required("admin")
 def profile_update_company_info():
-    contact_phone = (request.form.get("contact_phone") or "").strip()[:30]
-    address = (request.form.get("address") or "").strip()[:500]
-    db = get_db_connection()
-    cursor = db.cursor()
-    cursor.execute(
-        "UPDATE company_settings SET contact_phone=%s, address=%s",
-        (contact_phone or None, address or None),
-    )
-    db.commit()
-    cursor.close()
-    db.close()
-    invalidate_settings_cache()
+    """The Contact panel: phone, email, website, address."""
+    contact_keys = ("contact_phone", "contact_email", "website", "address")
+    updates, error = clean_org_fields({k: request.form[k] for k in contact_keys if k in request.form})
+    if error:
+        flash(error, "error")
+        return redirect(tpath("/profile?section=contact"))
+    save_org_fields(updates)
     flash("Company contact details updated.", "success")
     return redirect(tpath("/profile?section=contact"))
+
+
+@company_profile_bp.route("/profile/organization", methods=["POST"])
+@role_required("admin")
+def profile_update_organization():
+    """The Overview's Organization details panel: name, tagline, logo."""
+    updates, error = clean_org_fields(
+        {k: request.form[k] for k in ("company_name", "company_tagline") if k in request.form})
+    logo = request.files.get("logo")
+    if not error and logo and logo.filename:
+        error = save_org_logo(logo)
+    if error:
+        flash(error, "error")
+        return redirect(tpath("/profile"))
+    save_org_fields(updates)
+    flash("Organization details updated.", "success")
+    return redirect(tpath("/profile"))
+
+
+@company_profile_bp.route("/api/admin/organization", methods=["GET"])
+@api_required
+@api_role_required("admin")
+def api_admin_organization():
+    application = _load_own_tenant_application()
+    return jsonify({
+        "ok": True, "organization": org_details(),
+        "gst_number": (application or {}).get("gst_number") or "",
+        "verification": (application or {}).get("doc_review_status") or "",
+    })
+
+
+@company_profile_bp.route("/api/admin/organization", methods=["POST"])
+@api_required
+@api_role_required("admin")
+def api_admin_update_organization():
+    """JSON (details only) or multipart (details plus an optional `logo` file)."""
+    data = (request.get_json(silent=True) if request.is_json else request.form) or {}
+    updates, error = clean_org_fields(data)
+    logo = request.files.get("logo")
+    if not error and logo and logo.filename:
+        error = save_org_logo(logo)
+    if error:
+        return jsonify({"ok": False, "msg": error}), 400
+    save_org_fields(updates)
+    return jsonify({"ok": True, "msg": "Organization details saved.", "organization": org_details()})
 
 
 # ── Policies tab ─────────────────────────────────────────────────────────────
