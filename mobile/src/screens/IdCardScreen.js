@@ -7,10 +7,8 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
-  StatusBar,
 } from "react-native";
-import SafeAreaView from "../components/SafeAreaView";
+import AppTopBar from "../components/AppTopBar";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -80,20 +78,12 @@ export default function IdCardScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {isViewingOther ? `${empName || empId}'s ID Card` : "My ID Card"}
-        </Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <AppTopBar
+        title={isViewingOther ? `${empName || empId}'s ID card` : "ID card"}
+        subtitle="Show at the gate"
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
@@ -126,26 +116,13 @@ export default function IdCardScreen({ navigation, route }) {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const makeStyles = (colors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 14 : 14,
-      paddingBottom: 14,
-      backgroundColor: colors.card,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    backButton: { width: 24 },
-    headerTitle: { flex: 1, textAlign: "center", fontSize: 16, fontWeight: "800", color: colors.text },
     content: { padding: 20, alignItems: "center" },
     cardImage: { width: "100%", aspectRatio: 500 / 820, maxWidth: 420, borderRadius: 12 },
     saveButton: {

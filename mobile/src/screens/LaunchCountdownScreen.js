@@ -1,201 +1,145 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-  ScrollView,
-  Platform,
-  StatusBar,
-} from "react-native";
-import SafeAreaView from "../components/SafeAreaView";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import AppTopBar from "../components/AppTopBar";
 import QRScannerModal from "./QRScannerModal";
-import { WEB, WebPage, WebTopBar, WebNavButton, WebCard, WebButton } from "../theme/webAuthStyle";
+import { WEB, Wordmark, AppButton } from "../theme/webAuthStyle";
 
-// The screen the app opens on, styled as the website's landing hero
-// (templates/landing.html at phone width).
-
-export default function LaunchCountdownScreen({ onContinue }) {
-  const [timeStr, setTimeStr] = useState("");
-  const [dateStr, setDateStr] = useState("");
-  const [countdown, setCountdown] = useState(3);
-  const [autoNavigate, setAutoNavigate] = useState(false);
+// The landing page the app opens on (design: "Final app" board "Landing
+// page"): the app's top bar, the website's headline, a live clock, what
+// the app does, then Sign in / Register / the attendance kiosk.
+export default function LaunchCountdownScreen({ navigation, onContinue }) {
+  const insets = useSafeAreaInsets();
+  const [now, setNow] = useState(new Date());
   const [showScanner, setShowScanner] = useState(false);
 
-  const pulseAnim = useState(new Animated.Value(1))[0];
-
   useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      setTimeStr(
-        now.toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        })
-      );
-      setDateStr(
-        now
-          .toLocaleDateString("en-US", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })
-          .toUpperCase()
-      );
-    };
-
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
+    const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Pulsing ring animation
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.15,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
+  const signIn = onContinue || (() => navigation.navigate("Login"));
+  const register = () => (navigation ? navigation.navigate("CompanySignup") : signIn());
 
-  // Auto countdown logic
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setAutoNavigate(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+  const [clock, meridiem] = time.split(" ");
+  const date = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <WebPage>
+    <View style={styles.page}>
       <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
-      <SafeAreaView style={{ flex: 1 }}>
-        <WebTopBar
-          style={styles.topBar}
-          right={<WebNavButton title="Log In" icon="log-in-outline" onPress={onContinue} />}
-        />
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* The website's hero (templates/landing.html) */}
-          <View style={styles.eyebrow}>
-            <Ionicons name="shield-checkmark" size={12} color={WEB.brand} />
-            <Text style={styles.eyebrowText}>HRZEST.COM</Text>
-          </View>
-          <Text style={styles.title}>HR, attendance, and payroll</Text>
-          <Text style={[styles.title, styles.titleBrand]}>on one secure platform</Text>
-          <Text style={styles.lead}>
-            <Text style={styles.leadStrong}>Lead your workforce with clarity.</Text> HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.
-          </Text>
-
-          {/* Live clock, in a web card */}
-          <WebCard style={styles.clockCard}>
-            <View style={styles.clockHeader}>
-              <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-              <Text style={styles.clockHeaderLabel}>LIVE TIME SYNC</Text>
-            </View>
-            <Text style={styles.liveTime}>{timeStr || "12:00:00 AM"}</Text>
-            <Text style={styles.liveDate}>{dateStr}</Text>
-            <View style={styles.clockFooter}>
-              <View style={styles.footerItem}>
-                <Ionicons name="finger-print-outline" size={13} color={WEB.success} />
-                <Text style={styles.footerText}>Biometric Enabled</Text>
-              </View>
-              <View style={styles.footerItem}>
-                <Ionicons name="location-outline" size={13} color={WEB.brand} />
-                <Text style={styles.footerText}>GPS Geofence</Text>
-              </View>
-            </View>
-          </WebCard>
-
-          <WebButton
-            title={countdown > 0 ? `Enter Portal (${countdown}s)` : "Enter Portal"}
-            onPress={onContinue}
-          />
-          <TouchableOpacity activeOpacity={0.85} style={styles.qrBtn} onPress={() => setShowScanner(true)}>
-            <Ionicons name="qr-code-outline" size={17} color={WEB.brand} />
-            <Text style={styles.qrBtnText}>Quick Attendance QR Scan</Text>
+      <AppTopBar
+        titleNode={<Wordmark />}
+        showCompany={false}
+        right={
+          <TouchableOpacity onPress={signIn} accessibilityRole="button" style={styles.topLink}>
+            <Text style={styles.topLinkText}>Sign in</Text>
           </TouchableOpacity>
+        }
+      />
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 20 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.eyebrow}>
+          <Ionicons name="shield-checkmark-outline" size={13} color={WEB.brandDark} />
+          <Text style={styles.eyebrowText}>HRZEST.COM</Text>
+        </View>
+        <Text style={styles.title}>
+          HR, attendance and payroll <Text style={styles.titleBrand}>on one secure platform</Text>
+        </Text>
+        <Text style={styles.lead}>
+          <Text style={styles.leadStrong}>Lead your workforce with clarity.</Text> Check in, apply for leave and get
+          your payslip — with the same account you use on the website.
+        </Text>
 
-          {/* The website hero's trust chips */}
-          <View style={styles.trustRow}>
-            {[["lock-closed-outline", "AES-256 Encryption"], ["shield-checkmark-outline", "Role-Based Access"],
-              ["time-outline", "Full Audit Trail"]].map(([icon, label]) => (
-              <View key={label} style={styles.trustChip}>
-                <Ionicons name={icon} size={12} color={WEB.success} />
-                <Text style={styles.trustText}>{label}</Text>
-              </View>
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Text style={styles.label}>LIVE TIME</Text>
+            <View style={styles.okChip}><Text style={styles.okChipText}>In sync</Text></View>
+          </View>
+          <Text style={styles.time}>
+            {clock} <Text style={styles.meridiem}>{meridiem}</Text>
+          </Text>
+          <Text style={styles.date}>{date}</Text>
+          <View style={styles.chips}>
+            {["Face check-in", "GPS geofence", "QR"].map((c) => (
+              <View key={c} style={styles.chip}><Text style={styles.chipText}>{c}</Text></View>
             ))}
           </View>
+        </View>
 
-          <Text style={styles.copyRightText}>© 2026 HRzest.com • All Rights Reserved</Text>
-        </ScrollView>
-      </SafeAreaView>
-    </WebPage>
+        <View style={styles.features}>
+          {[["scan-outline", "Check in"], ["calendar-outline", "Leave"], ["cash-outline", "Payslips"]].map(([icon, label]) => (
+            <View key={label} style={styles.feature}>
+              <View style={styles.featureIcon}><Ionicons name={icon} size={18} color={WEB.brand} /></View>
+              <Text style={styles.featureText}>{label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.buttons}>
+          <AppButton title="Sign in" onPress={signIn} />
+          <AppButton title="Register your company" kind="outline" onPress={register} />
+          <AppButton title="Quick attendance QR scan" kind="tonal" icon="scan-outline" onPress={() => setShowScanner(true)} />
+        </View>
+
+        <View style={styles.trust}>
+          {[["lock-closed-outline", "Encrypted"], ["cloud-outline", "Daily backups"], ["shield-outline", "Audit log"]].map(([icon, label]) => (
+            <View key={label} style={styles.trustItem}>
+              <Ionicons name={icon} size={13} color={WEB.textMuted} />
+              <Text style={styles.trustText}>{label}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={{ flex: 1 }} />
+        <Text style={styles.copyright}>© {now.getFullYear()} HRZEST.com · All rights reserved</Text>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Android draws under the status bar (edge to edge): clear it.
-  topBar: { paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 14 : 14 },
-  content: { flexGrow: 1, justifyContent: "center", paddingHorizontal: 22, paddingTop: 24, paddingBottom: 20 },
+  page: { flex: 1, backgroundColor: WEB.page },
+  topLink: { paddingHorizontal: 4, paddingVertical: 8 },
+  topLinkText: { fontSize: 14, fontWeight: "700", color: WEB.brand },
+  content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 16, gap: 14 },
 
   eyebrow: {
-    flexDirection: "row", alignItems: "center", alignSelf: "flex-start",
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, marginBottom: 16,
-    backgroundColor: "rgba(11,92,173,0.08)", borderWidth: 1, borderColor: WEB.borderGlow,
+    flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: WEB.tint,
   },
-  eyebrowText: { marginLeft: 6, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, color: WEB.brand },
-  title: { fontSize: 30, lineHeight: 35, fontWeight: "800", letterSpacing: -0.8, color: WEB.text },
+  eyebrowText: { fontSize: 12, fontWeight: "700", letterSpacing: 0.5, color: WEB.brandDark },
+  title: { fontSize: 28, lineHeight: 34, fontWeight: "700", color: WEB.text },
   titleBrand: { color: WEB.brand },
-  lead: { fontSize: 14.5, lineHeight: 22, color: WEB.textMuted, marginTop: 12, marginBottom: 22 },
+  lead: { fontSize: 15, lineHeight: 22, color: WEB.textMuted },
   leadStrong: { fontWeight: "700", color: WEB.text },
 
-  clockCard: { alignItems: "center", paddingTop: 26, paddingBottom: 20, marginBottom: 20 },
-  clockHeader: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: WEB.success },
-  clockHeaderLabel: { marginLeft: 7, fontSize: 10.5, fontWeight: "800", letterSpacing: 0.8, color: WEB.textMuted },
-  liveTime: { fontSize: 32, fontWeight: "800", letterSpacing: 1, color: WEB.text },
-  liveDate: { fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: WEB.textSubtle, marginTop: 4 },
-  clockFooter: {
-    flexDirection: "row", justifyContent: "space-between", alignSelf: "stretch",
-    marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: WEB.border,
-  },
-  footerItem: { flexDirection: "row", alignItems: "center" },
-  footerText: { marginLeft: 5, fontSize: 11.5, fontWeight: "600", color: WEB.textMuted },
+  card: { backgroundColor: WEB.card, borderRadius: 20, borderWidth: 1, borderColor: WEB.line, padding: 16, gap: 8 },
+  cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  label: { fontSize: 12, fontWeight: "700", letterSpacing: 0.6, color: WEB.textMuted },
+  okChip: { backgroundColor: "#DDF4E6", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  okChipText: { fontSize: 12, fontWeight: "700", color: "#0B6B3A" },
+  time: { fontSize: 38, fontWeight: "700", color: WEB.brandDark, fontVariant: ["tabular-nums"] },
+  meridiem: { fontSize: 18, fontWeight: "500", color: WEB.textMuted },
+  date: { fontSize: 14, color: WEB.textMuted },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
+  chip: { backgroundColor: WEB.tint, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  chipText: { fontSize: 12, fontWeight: "700", color: WEB.brandDark },
 
-  qrBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 12, paddingVertical: 13,
-    borderRadius: WEB.radiusSm, borderWidth: 1.5, borderColor: WEB.borderGlow, backgroundColor: WEB.card,
+  features: { flexDirection: "row", gap: 10 },
+  feature: {
+    flex: 1, alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 16,
+    backgroundColor: WEB.card, borderWidth: 1, borderColor: WEB.line,
   },
-  qrBtnText: { marginLeft: 8, fontSize: 13.5, fontWeight: "700", color: WEB.brand },
+  featureIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: WEB.tile, alignItems: "center", justifyContent: "center" },
+  featureText: { fontSize: 13, fontWeight: "500", color: WEB.text },
 
-  trustRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 20 },
-  trustChip: {
-    flexDirection: "row", alignItems: "center", margin: 4, paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 999, backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 1, borderColor: WEB.border,
-  },
-  trustText: { marginLeft: 5, fontSize: 11.5, fontWeight: "600", color: WEB.textMuted },
-
-  copyRightText: { fontSize: 10.5, color: WEB.textSubtle, textAlign: "center", marginTop: 20 },
+  buttons: { gap: 10 },
+  trust: { flexDirection: "row", justifyContent: "center", gap: 16 },
+  trustItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  trustText: { fontSize: 12, fontWeight: "500", color: WEB.textMuted },
+  copyright: { fontSize: 11, color: WEB.textMuted, textAlign: "center", marginTop: 8 },
 });

@@ -1,8 +1,8 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, StatusBar } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import SafeAreaView from "./SafeAreaView";
+import AppTopBar from "./AppTopBar";
 import { useAuth } from "../store/AuthContext";
 
 // The "More" tab (admin and employee): every screen that isn't a bottom
@@ -13,11 +13,8 @@ export default function MoreGrid({ navigation, title = "More", subtitle, groups,
   const { user } = useAuth();
 
   return (
-    <SafeAreaView style={styles.page}>
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>{subtitle || user?.company || "HRzest"}</Text>
-        <Text style={styles.title}>{title}</Text>
-      </View>
+    <View style={styles.page}>
+      <AppTopBar title={title} subtitle={subtitle || user?.company || "HRZEST"} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {groups.map((group) => (
           <View key={group.title} style={styles.group}>
@@ -33,7 +30,7 @@ export default function MoreGrid({ navigation, title = "More", subtitle, groups,
                   onPress={() => navigation.navigate(item.route)}
                 >
                   <View style={styles.tileIcon}>
-                    <Ionicons name={item.icon} size={20} color="#0C3054" />
+                    <Ionicons name={item.icon} size={20} color="#0B5CAD" />
                   </View>
                   <Text style={styles.tileLabel} numberOfLines={2}>{item.label}</Text>
                 </TouchableOpacity>
@@ -55,33 +52,31 @@ export default function MoreGrid({ navigation, title = "More", subtitle, groups,
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#F5F8FC" },
-  // Android draws under the status bar (edge to edge): clear it, like AdminHeader.
-  header: { paddingHorizontal: 20, paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 12 : 12, paddingBottom: 8 },
-  eyebrow: { fontSize: 13, fontWeight: "600", color: "#455163" },
-  title: { fontSize: 30, fontWeight: "400", color: "#131C2A" },
-  content: { paddingHorizontal: 20, paddingBottom: 120, gap: 18 },
+  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120, gap: 18 },
   group: { gap: 10 },
   groupTitle: { fontSize: 12, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase", color: "#455163" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tile: {
     width: "22.8%",
     minHeight: 84,
-    borderRadius: 20,
-    backgroundColor: "#E7EEF7",
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E3E9F1",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 4,
     gap: 6,
   },
-  tileIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#D3E3F7", alignItems: "center", justifyContent: "center" },
+  tileIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#E7EEF7", alignItems: "center", justifyContent: "center" },
   tileLabel: { fontSize: 11.5, fontWeight: "600", color: "#131C2A", textAlign: "center", lineHeight: 15 },
-  list: { backgroundColor: "#E7EEF7", borderRadius: 20, overflow: "hidden" },
+  list: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E3E9F1", borderRadius: 20, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", minHeight: 52, paddingHorizontal: 16, gap: 8 },
   rowLabel: { flex: 1, fontSize: 15, fontWeight: "600", color: "#131C2A" },
   rowDetail: { fontSize: 13, color: "#455163" },

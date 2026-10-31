@@ -67,6 +67,7 @@ ALLOWED_UNGUARDED = {
 
     # ── authentication endpoints themselves ──
     "auth.admin_login": "login",
+    "auth.api_company_resolve": "company lookup for the app's sign-in (public, like each /<company>/login page)",
     "auth.mfa_verify": "login step 2; server-side challenge",
     "auth.logout": "logout (POST + CSRF)",
     "auth.employee_logout": "logout (POST + CSRF)",
@@ -79,6 +80,7 @@ ALLOWED_UNGUARDED = {
     "core.api_login_verify": "mobile login step 2; server-side challenge",
     "core.api_logout": "revokes the presented Bearer token",
     "core.api_employee_login": "mobile employee login",
+    "core.api_signin": "mobile one-box sign-in (admin or employee, like the web /login)",
     "core.api_employee_logout": "revokes the presented Bearer token",
     "core.mobile_bridge_login": "single-use, 5-minute, hashed bridge token minted only for MFA'd tokens",
     "platform_admin.platform_admin_login": "super-admin login",

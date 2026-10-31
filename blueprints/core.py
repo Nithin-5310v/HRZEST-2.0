@@ -232,8 +232,11 @@ def api_login():
     /api/login/verify. The response then carries only an opaque
     challenge_id; the code itself goes to the account's email."""
     data = request.get_json(silent=True) or {}
-    username = str(data.get("username") or "")
-    password = str(data.get("password") or "")
+    return _api_admin_login(str(data.get("username") or ""), str(data.get("password") or ""))
+
+
+def _api_admin_login(username, password):
+    """The body of /api/login, shared with /api/signin."""
     if "\x00" in username or "\x00" in password or not username or not password:
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     locked, _until = _check_login_lockout(username)
@@ -633,11 +636,14 @@ def api_admin_profile():
 @limiter.limit("20 per hour")
 def api_employee_login():
     data = request.get_json(silent=True) or {}
-    emp_id = str(data.get("employee_id") or "").strip()
     # Passwords are used exactly as typed (no strip) -- and both fields are
     # validated BEFORE any lookup, so a missing password can't produce a
     # different answer for a real employee ID than for a made-up one.
-    password = str(data.get("password") or "")
+    return _api_employee_login(str(data.get("employee_id") or "").strip(), str(data.get("password") or ""))
+
+
+def _api_employee_login(emp_id, password):
+    """The body of /api/employee/login, shared with /api/signin."""
     if not emp_id or not password:
         return jsonify({"ok": False, "msg": "Employee ID and password are required."}), 400
     # Check lockout before hitting the DB with credentials
@@ -686,6 +692,50 @@ def api_employee_login():
         "ok": True, "token": token, "employee_id": emp_id,
         "name": row[0], "email": row[1],
     })
+
+
+@core_bp.route("/api/signin", methods=["POST"])
+@limiter.limit("5 per minute")
+@limiter.limit("20 per hour")
+def api_signin():
+    """The app's one sign-in box, with the website /login's rules
+    (auth.admin_login): an admin, HR or manager account whose username --
+    or lowercased email -- and password match signs in as that; anything
+    else is tried as an employee ID. The answer is /api/login's or
+    /api/employee/login's, plus "account": "admin" | "employee"."""
+    data = request.get_json(silent=True) or {}
+    identifier = str(data.get("identifier") or "").strip()
+    password = str(data.get("password") or "")
+    if "\x00" in identifier or "\x00" in password or not identifier or not password:
+        return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    if _admin_password_matches(identifier, password):
+        account, result = "admin", _api_admin_login(identifier, password)
+    else:
+        account, result = "employee", _api_employee_login(identifier.upper(), password)
+    resp, status = result if isinstance(result, tuple) else (result, 200)
+    body = resp.get_json(silent=True)
+    if isinstance(body, dict) and body.get("ok"):
+        body["account"] = account
+        return jsonify(body), status
+    return resp, status
+
+
+def _admin_password_matches(identifier, password):
+    """True when an active admin account (by username, or by the lowercased
+    email sign-up admins use) has this password. Records nothing: the login
+    that follows does its own lockout and failure bookkeeping."""
+    candidates = [identifier]
+    if "@" in identifier and identifier != identifier.lower():
+        candidates.append(identifier.lower())
+    with _db() as (cursor, _conn):
+        for username in candidates:
+            cursor.execute(
+                "SELECT password, COALESCE(is_active,1) FROM admin_users WHERE username=%s", (username,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return bool(row[0]) and bool(row[1]) and check_password_hash(row[0], password)
+    return False
 
 
 @core_bp.route("/api/employee/logout", methods=["POST"])

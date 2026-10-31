@@ -66,3 +66,19 @@ def test_company_login_page_is_the_normal_form(client, asks_for_company):
     html = client.get(f"/{SLUG}/login").get_data(as_text=True)
     assert 'name="identifier"' in html
     assert 'name="company"' not in html
+
+
+# The app's sign-in screen resolves the typed company first
+# (/api/company/resolve), so "no such company" isn't reported as a wrong password.
+@pytest.mark.parametrize("typed", [SLUG, f"https://hrzest.com/{SLUG}/login", "Test Co"])
+def test_api_resolves_a_company_url_or_name(client, typed):
+    resp = client.get("/api/company/resolve", query_string={"q": typed})
+    assert resp.status_code == 200
+    assert resp.get_json() == {"ok": True, "slug": SLUG}
+
+
+def test_api_unknown_company_is_404_with_a_message(client):
+    resp = client.get("/api/company/resolve", query_string={"q": "no-such-company-xyz"})
+    assert resp.status_code == 404
+    body = resp.get_json()
+    assert body["ok"] is False and "couldn't find that company" in body["msg"]
