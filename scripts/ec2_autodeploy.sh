@@ -38,6 +38,12 @@ STATE_DIR="${HRZEST_STATE_DIR:-$HOME/.local/state/hrzest-autodeploy}"
 
 log() { echo "$*"; }   # stdout lands in the journal under the systemd unit
 
+# Jenkins mode (install_ec2_autodeploy.sh --jenkins): only deploy a commit
+# Jenkins names, never by timer, even if the timer gets switched back on.
+if [ -z "${HRZEST_DEPLOY_SHA:-}" ] && [ -e /etc/hrzest/jenkins-deploys ]; then
+  exit 0
+fi
+
 mkdir -p "$STATE_DIR"
 exec 9>"$STATE_DIR/lock"
 flock -n 9 || { log "another deploy is already running; skipping"; exit 0; }
