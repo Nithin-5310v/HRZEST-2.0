@@ -12,8 +12,15 @@ real att_master.tenants row (via tenant_id), which doesn't exist for
 each test that needs it, following the exact pattern tests/test_platform_admin.py's
 TestCompanyProfile.crm_tenant fixture already uses for its own tenant.
 """
+import base64
+import io
 import os
+
 import pytest
+from flask import g
+
+from blueprints.company_profile import admin_photo_path
+from utils.helpers import invalidate_settings_cache
 
 TENANT_SCHEMA = os.environ["DB_NAME"]  # the suite's default tenant schema (see conftest)
 
@@ -79,7 +86,7 @@ class TestCompanyInfoTab:
         _admin_session(client, seed_admin["username"])
         resp = client.get("/profile")
         assert resp.status_code == 200
-        assert b"Organization details" in resp.data
+        assert b"Company details" in resp.data
 
     def test_update_contact_details_persists(self, client, seed_admin, own_tenant, db_engine):
         _admin_session(client, seed_admin["username"])
@@ -379,3 +386,205 @@ class TestPlatformAdminReplyNotifiesCorrectTenant:
         cur.close()
         assert row is not None
         assert "Needs platform reply" in row[0]
+
+
+# Every text field the Organization profile form requires.
+FORM_FIELDS = {
+    "industry": "Manufacturing", "company_size": "11-50", "address": "12 MG Road", "city": "Hyderabad",
+    "state": "Telangana", "postal_code": "500001", "country": "India", "job_title": "HR Manager",
+    "email": "asha@example.com", "mobile": "+91 98765 43210",
+}
+
+
+class TestOrganizationProfileForm:
+    PNG = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    )
+
+    @pytest.fixture
+    def org_admin(self, client, db_engine):
+        """A real admin row (the session check rejects accounts that don't
+        exist) with no name, photo or logo yet; yields a function to change
+        its role."""
+        cur = db_engine.cursor()
+        cur.execute("SELECT logo_url, company_code, address FROM company_settings")
+        before, before_code, before_address = cur.fetchone()
+        cur.execute(
+            "INSERT INTO admin_users (username, password, role, display_name) "
+            "VALUES ('org_admin', 'x', 'admin', NULL) "
+            "ON CONFLICT (username) DO UPDATE SET role='admin', display_name=NULL"
+        )
+        cur.execute("UPDATE company_settings SET logo_url=NULL, company_code='OLD'")
+        db_engine.commit()
+        invalidate_settings_cache()
+        with client.application.test_request_context():
+            g.tenant_db = TENANT_SCHEMA
+            photo = admin_photo_path("org_admin")
+        if os.path.exists(photo):
+            os.remove(photo)
+        _admin_session(client, "org_admin")
+        yield cur
+        if os.path.exists(photo):
+            os.remove(photo)
+        cur.execute("DELETE FROM admin_users WHERE username='org_admin'")
+        cur.execute("UPDATE company_settings SET logo_url=%s, company_code=%s, address=%s",
+                    (before, before_code, before_address))
+        db_engine.commit()
+        cur.close()
+        invalidate_settings_cache()
+
+    def _post(self, client, name="Asha Rao", logo=True, photo=True, code="asha1", **fields):
+        data = {**FORM_FIELDS, "display_name": name, "company_code": code, **fields}
+        if logo:
+            data["logo"] = (io.BytesIO(self.PNG), "logo.png")
+        if photo:
+            data["photo"] = (io.BytesIO(self.PNG), "me.png")
+        return client.post("/profile/details", data=data, content_type="multipart/form-data")
+
+    def _state(self, cur):
+        cur.execute("SELECT display_name FROM admin_users WHERE username='org_admin'")
+        name = cur.fetchone()[0]
+        cur.execute("SELECT logo_url FROM company_settings")
+        return name, cur.fetchone()[0]
+
+    def test_saves_all_three_and_shows_them(self, client, org_admin):
+        self._post(client, name="  Asha   Rao ")
+        name, logo = self._state(org_admin)
+        assert name == "Asha Rao"
+        assert logo.startswith("/static/company_logos/") and "?v=" in logo
+        html = client.get("/profile").get_data(as_text=True)
+        assert ">Asha Rao<" in html and "/profile/photo?v=" in html and "to complete your profile" not in html
+        assert 'name="company_code" value="ASHA1"' in html
+        assert 'value="HR Manager"' in html and 'value="asha@example.com"' in html and 'value="+919876543210"' in html
+        assert 'value="Manufacturing" selected' in html and "<dd>12 MG Road</dd>" in html
+        assert 'class="org-tabs"' in html and 'class="org-side"' not in html
+
+    def test_header_logo_button_saves_straight_away(self, client, org_admin):
+        self._post(client, logo=False, photo=False)
+        client.post("/profile/logo", data={"logo": (io.BytesIO(self.PNG), "logo.png")},
+                    content_type="multipart/form-data")
+        assert self._state(org_admin)[1].startswith("/static/company_logos/")
+
+    def test_website_is_optional_but_saved_when_given(self, client, org_admin):
+        self._post(client, website="www.acme.example")
+        org_admin.execute("SELECT website FROM company_settings")
+        assert org_admin.fetchone()[0] == "www.acme.example"
+
+    def test_code_logo_and_photo_are_optional(self, client, org_admin):
+        self._post(client, logo=False, photo=False, code="")
+        assert self._state(org_admin) == ("Asha Rao", None)
+        org_admin.execute("SELECT company_code FROM company_settings")
+        assert org_admin.fetchone()[0] is None
+
+    def test_only_the_address_line_is_mandatory_in_the_office_address(self, client, org_admin):
+        self._post(client, city="", state="", postal_code="", country="")
+        assert self._state(org_admin)[0] == "Asha Rao"
+        org_admin.execute("SELECT address, city, state, postal_code, country FROM company_settings")
+        assert org_admin.fetchone() == ("12 MG Road", None, None, None, None)
+
+    def test_logo_and_photo_can_be_removed(self, client, org_admin):
+        self._post(client)
+        assert b"/profile/photo?v=" in client.get("/profile").data
+        client.post("/profile/logo/remove")
+        client.post("/profile/photo/remove")
+        assert self._state(org_admin)[1] is None
+        assert b"/profile/photo?v=" not in client.get("/profile").data
+
+    def test_each_field_is_mandatory_on_first_save(self, client, org_admin):
+        for kwargs in ({"name": "   "}, {"code": "A"},
+                       {"code": "HAS SPACE"}, {"code": "TOOLONGCODE1"}, {"industry": "Nonsense"},
+                       {"company_size": ""}, {"address": ""}, {"postal_code": "1"}, {"job_title": ""}, {"email": "not-an-email"}, {"mobile": "12345"},
+                       {"website": "not a site"}):
+            self._post(client, **kwargs)
+            assert self._state(org_admin) == (None, None)
+
+    def test_saved_values_stay_editable_without_reuploading(self, client, org_admin):
+        self._post(client)
+        _, logo = self._state(org_admin)
+        self._post(client, name="Asha R", logo=False, photo=False, code="NEW2")
+        assert self._state(org_admin) == ("Asha R", logo)
+        org_admin.execute("SELECT company_code FROM company_settings")
+        assert org_admin.fetchone()[0] == "NEW2"
+
+    def test_hr_cannot_save(self, client, org_admin):
+        org_admin.execute("UPDATE admin_users SET role='hr' WHERE username='org_admin'")
+        org_admin.connection.commit()
+        _admin_session(client, "org_admin", role="hr")
+        assert self._post(client).status_code in (302, 403)
+        assert self._state(org_admin) == (None, None)
+
+
+class TestNewCompanyGate:
+    PNG = TestOrganizationProfileForm.PNG
+
+    @pytest.fixture
+    def pending_admin(self, client, db_engine, monkeypatch):
+        """A real admin at a company whose Organization profile is pending,
+        with the gate switched on (conftest switches it off for the suite)."""
+        monkeypatch.setitem(client.application.config, "MANDATORY_ORG_PROFILE", True)
+        cur = db_engine.cursor()
+        cur.execute("SELECT logo_url, company_code, address FROM company_settings")
+        before = cur.fetchone()
+        cur.execute(
+            "INSERT INTO admin_users (username, password, role, display_name) "
+            "VALUES ('gate_admin', 'x', 'admin', NULL) "
+            "ON CONFLICT (username) DO UPDATE SET role='admin', display_name=NULL"
+        )
+        cur.execute("UPDATE company_settings SET org_profile_pending=1, logo_url=NULL")
+        db_engine.commit()
+        invalidate_settings_cache()
+        with client.application.test_request_context():
+            g.tenant_db = TENANT_SCHEMA
+            photo = admin_photo_path("gate_admin")
+        _admin_session(client, "gate_admin")
+        yield cur
+        if os.path.exists(photo):
+            os.remove(photo)
+        cur.execute("DELETE FROM admin_users WHERE username='gate_admin'")
+        cur.execute("UPDATE company_settings SET org_profile_pending=0, logo_url=%s, company_code=%s, address=%s", before)
+        db_engine.commit()
+        cur.close()
+        invalidate_settings_cache()
+
+    def _save(self, client):
+        return client.post("/profile/details", data={
+            **FORM_FIELDS, "company_code": "GATE1", "display_name": "Asha Rao",
+            "logo": (io.BytesIO(self.PNG), "logo.png"), "photo": (io.BytesIO(self.PNG), "me.png"),
+        }, content_type="multipart/form-data")
+
+    def test_dashboard_pages_go_to_the_organization_page(self, client, pending_admin):
+        for path in ("/admin", "/employees", "/settings", "/admin_tools"):
+            resp = client.get(path)
+            assert resp.status_code == 302 and resp.headers["Location"].endswith("/profile"), path
+
+    def test_organization_page_and_loader_stay_open(self, client, pending_admin):
+        page = client.get("/profile").data
+        assert b"Complete this form to open your dashboard" in page and b"Save &amp; Continue" in page
+        assert b'class="org-side"' in page and b"/profile/policies" in page
+        assert b"org-summary" not in page.split(b"</style>")[-1]
+        welcome = client.get("/welcome")
+        assert welcome.status_code == 200 and b'content="3;url=/profile"' in welcome.data
+
+    def test_incomplete_save_keeps_the_lock(self, client, pending_admin):
+        client.post("/profile/details", data={**FORM_FIELDS, "company_code": "GATE1", "display_name": ""},
+                    content_type="multipart/form-data")
+        assert client.get("/admin").status_code == 302
+
+    def test_saving_opens_the_dashboard(self, client, pending_admin):
+        resp = self._save(client)
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
+        assert client.get("/admin").status_code == 200
+        assert client.get("/employees").status_code == 200
+
+    def test_existing_company_is_not_locked(self, client, pending_admin):
+        pending_admin.execute("UPDATE company_settings SET org_profile_pending=0")
+        pending_admin.connection.commit()
+        invalidate_settings_cache()
+        assert client.get("/admin").status_code == 200
+
+    def test_hr_is_not_held_by_the_gate(self, client, pending_admin):
+        pending_admin.execute("UPDATE admin_users SET role='hr' WHERE username='gate_admin'")
+        pending_admin.connection.commit()
+        _admin_session(client, "gate_admin", role="hr")
+        location = client.get("/hr_dashboard").headers.get("Location", "")
+        assert not location.endswith("/profile")

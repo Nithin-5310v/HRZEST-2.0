@@ -21,14 +21,45 @@
     margin-bottom: 16px;
   }
   .p-btn {
-    display: inline-block; background: #1e3a8a; color: #fff; border: none; padding: 9px 18px;
+    display: inline-block; background: #2563eb; color: #fff; border: none; padding: 9px 18px;
     border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; text-decoration: none;
   }
-  .p-btn.secondary { background: #fff; color: #1e3a8a; border: 1px solid #1e3a8a; }
-  .p-photo-row { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
-  .p-photo { width: 84px; height: 84px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; }
-  .p-photo img { width: 100%; height: 100%; object-fit: cover; }
-  .p-photo-form { flex: 1; min-width: 220px; }
+  .p-btn.secondary { background: #fff; color: #2563eb; border: 1px solid #2563eb; }
+  .zf { margin-bottom: 20px; }
+  .zf .banner { margin-bottom: 16px; }
+  .zf-req { color: #d92d20; font-weight: 700; }
+  .zf-hero { display: flex; align-items: center; gap: 20px; padding: 20px 24px; }
+  .zf-company { font-size: 20px; font-weight: 700; color: #101828; margin: 0 0 4px; letter-spacing: -0.2px; overflow-wrap: anywhere; }
+  .zf-card-head { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid #f0f1f3; }
+  .zf-card-head h2 { font-size: 15px; font-weight: 600; color: #101828; margin: 0; }
+  .zf-card-head p { font-size: 13px; color: #667085; margin: 2px 0 0; }
+  .zf-card-icon { width: 34px; height: 34px; flex-shrink: 0; border-radius: 9px; background: #eef4ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .zf-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; padding: 20px 24px 24px; }
+  .zf-photo-row { display: flex; align-items: center; gap: 16px; padding: 20px 24px 0; }
+  .zf-f { min-width: 0; }
+  .zf-wide { grid-column: 1 / -1; }
+  .zf-label { display: block; font-size: 13px; font-weight: 500; color: #344054; margin-bottom: 6px; }
+  .zf-input { display: block; width: 100%; height: 42px; margin-bottom: 0; background: #fff; border-color: #d0d5dd; }
+  .zf-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+  .zf-code { text-transform: uppercase; letter-spacing: 0.04em; }
+  .zf-code::placeholder { text-transform: none; letter-spacing: 0; }
+  .zf-foot { position: sticky; bottom: 12px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 6px 18px rgba(16, 24, 40, 0.08); font-size: 13px; color: #667085; }
+  .zf-foot { padding-right: 96px; justify-content: flex-end; }
+  .zf-link-danger { margin-left: 12px; padding: 0; border: none; background: none; color: #d92d20 !important; font: inherit; font-size: 13px; }
+  .zf-upload { position: relative; width: 72px; height: 72px; flex-shrink: 0; border-radius: 50%; background: #2563eb; color: #fff !important; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; cursor: pointer; }
+  .zf-upload img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+  .zf-upload-logo { border-radius: 14px; background: #f2f4f7; color: #667085 !important; border: 1px solid #e4e7ec; }
+  .zf-upload-logo img { object-fit: contain; background: #fff; padding: 6px; }
+  .zf-upload-badge { position: absolute; right: -4px; bottom: -4px; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #2563eb; border: 1px solid #e4e7ec; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 1px 2px rgba(16,24,40,0.12); }
+  .zf-upload:hover .zf-upload-badge { background: #eef4ff; }
+  .zf-upload-text { position: relative; min-width: 0; }
+  /* Visually hidden, not display:none: the browser must still be able to flag a required file. */
+  .zf-file { position: absolute; left: 0; top: 18px; width: 1px; height: 1px; opacity: 0; }
+  .zf-file:focus-visible + .zf-link { outline: 2px solid #2563eb; outline-offset: 2px; }
+  .zf-link { display: inline-block; font-size: 13px; font-weight: 600; color: #1d4ed8; cursor: pointer; }
+  .zf-link:hover { text-decoration: underline; }
+  .zf-hint { display: block; font-size: 12px; color: #667085; margin-top: 3px; overflow-wrap: anywhere; }
+  @media (max-width: 640px) { .zf-grid { grid-template-columns: 1fr; } .zf-foot { flex-direction: column; align-items: stretch; padding-right: 24px !important; } }
   .badge-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: capitalize; }
   .badge-success { background: #dcfce7; color: #15803d; }
   .badge-pending { background: #fef9c3; color: #854d0e; }
@@ -57,7 +88,7 @@
   .p-filters label { font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 4px; }
   .p-filters select, .p-filters input { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 7px; font-size: 12.5px; }
   .pager { display: flex; gap: 8px; align-items: center; margin-top: 16px; font-size: 13px; }
-  .pager a { color: #1e3a8a; text-decoration: none; font-weight: 600; }
+  .pager a { color: #2563eb; text-decoration: none; font-weight: 600; }
   .empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 13px; }
 
   .ticket-row { display: block; padding: 14px 16px; border-bottom: 1px solid #f1f5f9; text-decoration: none; color: inherit; }
@@ -81,54 +112,87 @@
   .policy-right { display: inline-flex; align-items: center; gap: 12px; }
   .policy-chev { color: #94a3b8; font-size: 16px; transition: transform 0.15s; }
   .policy-item[open] .policy-chev { transform: rotate(180deg); }
-  .policy-item summary:hover .policy-title { color: #1e3a8a; }
+  .policy-item summary:hover .policy-title { color: #2563eb; }
   .policy-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
   .policy-tpl { padding: 6px 12px; border-radius: 20px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 600; cursor: pointer; }
-  .policy-tpl:hover { border-color: #93c5fd; color: #1e3a8a; }
-  .policy-tpl.active { background: #1e3a8a; border-color: #1e3a8a; color: #fff; }
+  .policy-tpl:hover { border-color: #93c5fd; color: #2563eb; }
+  .policy-tpl.active { background: #2563eb; border-color: #2563eb; color: #fff; }
   .policy-add { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; }
   .policy-add > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; }
   .policy-add > summary::-webkit-details-marker { display: none; }
-  .policy-add[open] > summary { margin-bottom: 16px; background: #fff; color: #1e3a8a; border: 1px solid #1e3a8a; }
+  .policy-add[open] > summary { margin-bottom: 16px; background: #fff; color: #2563eb; border: 1px solid #2563eb; }
 
   /* ── Organization page ── */
   .org-page { width: 100%; }
 
   .org-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 28px; align-items: start; }
   .org-side { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
-  .org-ident { display: flex; align-items: center; gap: 12px; padding: 18px 16px; border-bottom: 1px solid #f0f1f3; }
-  .org-mark { width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; background: #1e3a8a; color: #fff;
-    display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; letter-spacing: 0.5px; overflow: hidden; }
-  .org-mark img { width: 100%; height: 100%; object-fit: contain; padding: 4px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; }
-  .org-ident-text { min-width: 0; }
-  .org-ident-name { font-size: 14px; font-weight: 700; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .org-ident-sub { font-size: 12px; color: #6b7280; margin-top: 1px; }
   .org-menu { padding: 8px; }
   .org-menu-label { font-size: 11px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.6px; padding: 12px 10px 6px; }
   .org-menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13.5px; font-weight: 500;
     color: #374151; text-decoration: none; transition: background 0.12s, color 0.12s; }
   .org-menu-item i { font-size: 17px; color: #9ca3af; }
   .org-menu-item:hover { background: #f3f4f6; color: #111827; }
-  .org-menu-item.active { background: #eef2ff; color: #1e3a8a; font-weight: 600; }
-  .org-menu-item.active i { color: #1e3a8a; }
-  .org-side-foot { display: flex; align-items: center; gap: 8px; padding: 13px 18px; border-top: 1px solid #f0f1f3; font-size: 13px; font-weight: 500;
-    color: #6b7280; text-decoration: none; background: #f9fafb; }
-  .org-side-foot:hover { color: #1e3a8a; }
-  .org-side-foot i:last-child { margin-left: auto; font-size: 14px; }
+  .org-menu-item.active { background: #eef2ff; color: #2563eb; font-weight: 600; }
+  .org-menu-item.active i { color: #2563eb; }
   .org-content { min-width: 0; }
+  .org-layout--tabs { grid-template-columns: minmax(0, 1fr); }
+  .org-top { margin-bottom: 18px; }
+  .org-hero { display: flex; align-items: center; gap: 16px; padding: 22px 24px; flex-wrap: wrap; }
+  .org-hero-mark { width: 68px; height: 68px; flex-shrink: 0; border-radius: 14px; background: #eef4ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; overflow: hidden; }
+  .org-hero-mark img { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 6px; border: 1px solid #e5e7eb; border-radius: 14px; }
+  .org-hero-text { flex: 1; min-width: 220px; }
+  .org-hero-text h2 { margin: 0; font-size: 22px; font-weight: 700; color: #101828; letter-spacing: -0.3px; overflow-wrap: anywhere; }
+  .org-hero-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 13px; color: #475467; }
+  .org-hero-meta i { margin-right: 5px; color: #98a2b3; }
+  .org-tabs { display: flex; gap: 24px; padding: 0 24px; border-top: 1px solid #f0f1f3; overflow-x: auto; }
+  .org-tabs a { padding: 13px 0; font-size: 13.5px; font-weight: 500; color: #475467; text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .org-tabs a:hover { color: #101828; }
+  .org-tabs a.active { color: #1d4ed8; font-weight: 600; border-bottom-color: #2563eb; }
+  .org-cols { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+  .org-rail .org-panel { margin-bottom: 18px; }
+  .org-rail .org-reg { border-top: none; padding: 18px 20px; }
+  .org-glance { padding: 18px 20px 10px; }
+  .org-glance h2 { margin: 0 0 8px; font-size: 14.5px; font-weight: 700; color: #101828; }
+  .org-glance div { display: flex; justify-content: space-between; padding: 9px 0; border-top: 1px solid #f2f4f7; font-size: 13px; color: #475467; }
+  .org-glance b { color: #101828; }
+  .zf-card-head > div:nth-child(2) { flex: 1; }
+  .zf-edit { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: none; background: none; color: #2563eb; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .zf-view { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 20px; margin: 0; padding: 18px 24px 22px; }
+  .zf-view dt { font-size: 12.5px; color: #667085; margin-bottom: 3px; }
+  .zf-view dd { margin: 0; font-size: 14px; font-weight: 500; color: #101828; overflow-wrap: anywhere; }
+  .zf-view .empty { color: #98a2b3; font-weight: 400; }
+  .zf-card.editing .zf-view, .zf-card:not(.editing) .zf-grid, .zf-card:not(.editing) .zf-photo-row { display: none; }
+  .zf.is-editing .zf-edit { visibility: hidden; }
+  .zf:not(.is-editing) .zf-foot { display: none; }
+  .zf-foot .org-btn { margin-left: 0; }
+  @media (max-width: 1100px) { .org-cols { grid-template-columns: minmax(0, 1fr); } .zf-view { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .org-reg { padding: 14px 16px 16px; border-top: 1px solid #f0f1f3; }
+  .org-reg-head h2 { font-size: 13.5px; font-weight: 700; color: #101828; margin: 0; }
+  .org-reg-count { display: block; font-size: 12px; font-weight: 600; color: #1d4ed8; margin-top: 2px; }
+  .org-reg-bar { height: 5px; border-radius: 3px; background: #eaecf0; overflow: hidden; margin: 10px 0 12px; }
+  .org-reg-fill { height: 100%; background: #2563eb; border-radius: 3px; }
+  .org-reg-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .org-reg-steps li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; font-weight: 500; color: #344054; }
+  .org-reg-steps a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+  .org-reg-steps a:hover { text-decoration: underline; }
+  .org-reg-steps small { display: block; font-size: 11.5px; font-weight: 500; color: #667085; margin-top: 1px; }
+  .org-reg-dot { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; background: #eef4ff; color: #1d4ed8; }
+  .org-reg-steps .done .org-reg-dot { background: #16a34a; color: #fff; }
+  .org-reg-steps .rejected .org-reg-dot { background: #dc2626; color: #fff; }
   .org-page-head { margin: 4px 0 18px; }
   .org-page-head h1 { font-size: 22px; font-weight: 700; color: #111827; margin: 0; letter-spacing: -0.3px; }
   .org-page-head p { font-size: 13.5px; color: #6b7280; margin: 4px 0 0; }
-  .org-inline-link { margin-left: 10px; font-size: 13px; font-weight: 600; color: #1e3a8a; text-decoration: none; }
+  .org-inline-link { margin-left: 10px; font-size: 13px; font-weight: 600; color: #2563eb; text-decoration: none; }
   .org-inline-link:hover { text-decoration: underline; }
-  .org-summary .s a { color: #1e3a8a; font-weight: 600; text-decoration: none; }
+  .org-summary .s a { color: #2563eb; font-weight: 600; text-decoration: none; }
 
   .org-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
     border: 1px solid #d1d5db; background: #fff; color: #374151; text-decoration: none; cursor: pointer; font-family: inherit;
     box-shadow: 0 1px 2px rgba(16,24,40,0.05); transition: background 0.15s, border-color 0.15s; }
   .org-btn:hover { background: #f9fafb; border-color: #9ca3af; }
-  .org-btn.primary { background: #1e3a8a; border-color: #1e3a8a; color: #fff; }
-  .org-btn.primary:hover { background: #1e40af; }
+  .org-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .org-btn.primary:hover { background: #1d4ed8; }
   .org-btn i { font-size: 15px; }
 
   .org-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 20px; }
@@ -153,7 +217,7 @@
   .org-row .empty { color: #9ca3af; font-weight: 400; font-family: "Segoe UI", sans-serif; font-size: 14px; letter-spacing: 0; }
   .org-panel-foot { display: flex; align-items: center; gap: 10px; padding: 14px 24px; border-top: 1px solid #f0f1f3; background: #f9fafb; font-size: 13px; color: #6b7280; }
   .org-panel-foot .org-btn { margin-left: auto; }
-  .org-panel-foot a.text { color: #1e3a8a; font-weight: 600; text-decoration: none; }
+  .org-panel-foot a.text { color: #2563eb; font-weight: 600; text-decoration: none; }
   .org-panel-foot a.text:hover { text-decoration: underline; }
   .org-edit { display: none; padding: 18px 24px 22px; border-top: 1px solid #f0f1f3; }
   .org-panel.editing .org-edit { display: block; }
@@ -175,15 +239,14 @@
   }
 
   body.dark-mode .org-side, body.dark-mode .org-summary, body.dark-mode .org-panel, body.dark-mode .p-card { background: #161b22; border-color: #30363d; }
-  body.dark-mode .org-ident, body.dark-mode .org-side-foot, body.dark-mode .org-summary > div + div, body.dark-mode .org-row,
+  body.dark-mode .org-summary > div + div, body.dark-mode .org-row,
   body.dark-mode .org-edit, body.dark-mode .org-panel-foot { border-color: #30363d; }
   body.dark-mode .org-panel-foot { background: #0d1117; }
-  body.dark-mode .org-side-foot { background: #0d1117; }
   body.dark-mode .org-menu-item { color: #c9d1d9; }
   body.dark-mode .org-menu-item:hover { background: #21262d; color: #e6edf3; }
   body.dark-mode .org-menu-item.active { background: #1f2a44; color: #93c5fd; }
   body.dark-mode .org-menu-item.active i { color: #93c5fd; }
-  body.dark-mode .org-ident-name, body.dark-mode .org-page-head h1, body.dark-mode .org-summary .v,
+  body.dark-mode .org-page-head h1, body.dark-mode .org-summary .v,
   body.dark-mode .org-panel-head h2, body.dark-mode .org-row dd { color: #e6edf3; }
   body.dark-mode .org-btn { background: #21262d; border-color: #30363d; color: #c9d1d9; }
   body.dark-mode .org-btn.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
@@ -192,7 +255,6 @@
 
 {% block main %}
 <div class="org-page">
-  {% set _words = (co.company_name or 'O').split() %}
   {% set na %}<span class="empty">Not provided</span>{% endset %}
   {% set _menu = [
       ('company',  tpath('/profile'),                  'ti-layout-dashboard', 'Overview'),
@@ -202,91 +264,215 @@
       ('payments', tpath('/profile/payments'),         'ti-receipt',          'Payment history'),
       ('tickets',  tpath('/profile/tickets'),          'ti-headset',          'Support tickets'),
   ] %}
-  <div class="org-layout">
-    <aside class="org-side">
-      <div class="org-ident">
-        <div class="org-mark">
-          {% if co.logo_url or co.company_logo %}<img src="{{ co.logo_url or co.company_logo }}" alt="{{ co.company_name }} logo">
-          {% else %}{{ (_words[0][:1] ~ (_words[1][:1] if _words|length > 1 else ''))|upper }}{% endif %}
-        </div>
-        <div class="org-ident-text">
-          <div class="org-ident-name">{{ co.company_name }}</div>
-          <div class="org-ident-sub">{{ co.company_code or 'Organization' }}</div>
+  {% set _setup = co.org_profile_pending %}
+  {% if not _setup %}
+  <section class="org-panel org-top">
+    <div class="org-hero">
+      <span class="org-hero-mark">{% if co.logo_url %}<img src="{{ co.logo_url }}" alt="" />{% else %}{{ co.company_name[:1] | upper }}{% endif %}</span>
+      <div class="org-hero-text">
+        <h2>{{ co.company_name }}</h2>
+        <div class="org-hero-meta">
+          {% if co.company_code %}<span><i class="ti ti-id-badge-2"></i>{{ co.company_code }}</span>{% endif %}
+          {% if co.industry %}<span><i class="ti ti-briefcase"></i>{{ co.industry }}</span>{% endif %}
+          {% if co.company_size %}<span><i class="ti ti-users"></i>{{ co.company_size }} employees</span>{% endif %}
+          {% if co.city or co.address %}<span><i class="ti ti-map-pin"></i>{{ co.city or co.address }}</span>{% endif %}
         </div>
       </div>
+      {% if application is defined %}
+        {% if not application %}<span class="badge-pill badge-neutral">Not required</span>
+        {% elif application.doc_review_status == 'approved' %}<span class="badge-pill badge-success">Verified</span>
+        {% elif application.doc_review_status == 'rejected' %}<span class="badge-pill badge-failed">Rejected</span>
+        {% elif application.doc_review_status == 'pending_review' %}<span class="badge-pill badge-pending">Under review</span>
+        {% else %}<span class="badge-pill badge-pending">Documents pending</span>{% endif %}
+      {% endif %}
+      <form id="org-logo-form" method="POST" action="{{ tpath('/profile/logo') }}" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <input class="zf-file" type="file" id="org-logo-file" name="logo" accept=".jpg,.jpeg,.png,.webp">
+        <label class="org-btn" for="org-logo-file"><i class="ti ti-camera"></i> {{ 'Change logo' if co.logo_url else 'Upload logo' }}</label>
+      </form>
+      {% if co.logo_url %}<button class="org-btn" type="submit" form="zf-logo-remove">Remove</button>{% endif %}
+    </div>
+    <nav class="org-tabs" aria-label="Organization sections">
+      {% for key, href, icon, label in _menu %}<a class="{{ 'active' if active_tab == key }}" href="{{ href }}" {{ 'aria-current=page' if active_tab == key }}>{{ label }}</a>{% endfor %}
+    </nav>
+  </section>
+  {% endif %}
+  <div class="org-layout{{ ' org-layout--tabs' if not _setup }}">
+    {% if _setup %}
+    <aside class="org-side">
       <nav class="org-menu" aria-label="Organization sections">
-        <div class="org-menu-label">Organization</div>
         {% for key, href, icon, label in _menu %}
           {% if key == 'policies' %}<div class="org-menu-label">Account</div>{% endif %}
           <a class="org-menu-item {{ 'active' if active_tab == key }}" href="{{ href }}" {{ 'aria-current=page' if active_tab == key }}><i class="ti {{ icon }}"></i>{{ label }}</a>
         {% endfor %}
       </nav>
-      <a class="org-side-foot" href="{{ tpath('/settings') }}"><i class="ti ti-settings"></i> Go to Settings <i class="ti ti-arrow-up-right"></i></a>
     </aside>
+    {% endif %}
 
     <div class="org-content">
   {# ══════════════════════ OVERVIEW ══════════════════════ #}
   {% if active_tab == 'company' %}
+    {% if _setup %}
     <div class="org-page-head">
-      <h1>Overview</h1>
-      <p>Your organization at a glance.</p>
+      <h1>Set up your organization</h1>
+      <p>Complete this form to open your dashboard.</p>
     </div>
-    <div class="p-card">
-      <h2>Profile Photo</h2>
-      <div class="sub">Shown on your profile button at the top right of every page.</div>
-      <div class="p-photo-row">
-        <span class="p-photo" aria-hidden="true">{% if admin_avatar_url %}<img src="{{ admin_avatar_url }}" alt="" />{% else %}{{ (session.admin_username or 'A')[:2]|upper }}{% endif %}</span>
-        <form method="POST" action="{{ tpath('/profile/photo') }}" enctype="multipart/form-data" class="p-photo-form">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-          <label class="field-label" for="p-photo-input">Upload a photo (JPG, PNG or WEBP)</label>
-          <input class="p-input" type="file" id="p-photo-input" name="photo" accept=".jpg,.jpeg,.png,.webp" required>
-          <button class="p-btn" type="submit">Save Photo</button>
-        </form>
-        {% if admin_avatar_url %}
-        <form method="POST" action="{{ tpath('/profile/photo/remove') }}">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-          <button class="p-btn secondary" type="submit">Remove</button>
-        </form>
-        {% endif %}
-      </div>
-    </div>
+    {% else %}
+    <div class="org-cols"><div>
+    {% endif %}
 
-    <div class="org-summary">
-      <div>
-        <div class="l"><i class="ti ti-users"></i> Employees</div>
-        <div class="v">{{ employee_count }}{% if seat_cap is not none %}<small> / {{ seat_cap }}</small>{% endif %}</div>
-        <div class="s">{{ 'Unlimited plan' if seat_cap is none else 'Seats in use' }}</div>
-      </div>
-      <div>
-        <div class="l"><i class="ti ti-sitemap"></i> Departments</div>
-        <div class="v">{{ department_count }}</div>
-        <div class="s">Across all employees</div>
-      </div>
-      <div>
-        <div class="l"><i class="ti ti-file-text"></i> Published policies</div>
-        <div class="v">{{ published_policy_count }}</div>
-        <div class="s"><a href="{{ tpath('/profile/policies') }}">Manage policies</a></div>
-      </div>
-    </div>
+    <form class="zf{{ ' is-editing' if _setup }}" method="POST" action="{{ tpath('/profile/details') }}" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+      {% if not admin_display_name and not _setup %}<div class="banner warn"><i class="ti ti-alert-triangle"></i> Please add your name to complete your profile.</div>{% endif %}
 
-    <section class="org-panel">
-      <div class="org-panel-head">
-        <div><h2>Organization details</h2><p>Basic information about your organization.</p></div>
+      {% if _setup %}
+      <section class="org-panel zf-hero">
+        <label class="zf-upload zf-upload-logo" for="p-logo-input" title="{{ 'Change' if co.logo_url else 'Add' }} company logo">
+          {% if co.logo_url %}<img src="{{ co.logo_url }}" alt="" />{% else %}<i class="ti ti-building"></i>{% endif %}
+          <span class="zf-upload-badge"><i class="ti ti-camera"></i></span>
+        </label>
+        <div class="zf-upload-text">
+          <h2 class="zf-company">{{ co.company_name }}</h2>
+          <input class="zf-file" type="file" id="p-logo-input" name="logo" accept=".jpg,.jpeg,.png,.webp" data-zf-name="p-logo-name">
+          <label class="zf-link" for="p-logo-input">{{ 'Change logo' if co.logo_url else 'Upload logo' }}</label>
+          <span class="zf-hint" id="p-logo-name">Optional. JPG, PNG or WEBP, shown next to your company name on every page.</span>
+        </div>
+      </section>
+      {% endif %}
+
+      <section class="org-panel zf-card{{ ' editing' if _setup }}">
+        <div class="zf-card-head"><span class="zf-card-icon"><i class="ti ti-building"></i></span><div><h2>Company details</h2><p>About your organization.</p></div>{% if not _setup %}<button type="button" class="zf-edit" data-card-edit><i class="ti ti-pencil"></i> Edit</button>{% endif %}</div>
+        <dl class="zf-view">
+          <div><dt>Industry</dt><dd>{{ co.industry or na }}</dd></div>
+          <div><dt>Company size</dt><dd>{{ co.company_size ~ ' employees' if co.company_size else na }}</dd></div>
+          <div><dt>Organization code</dt><dd>{{ co.company_code or na }}</dd></div>
+          <div><dt>Website</dt><dd>{{ co.website or na }}</dd></div>
+          <div><dt>Subdomain</dt><dd>{{ application.subdomain if application and application.subdomain else na }}</dd></div>
+          <div><dt>Email domain</dt><dd>{{ co.email_domain or na }}</dd></div>
+          <div><dt>Member since</dt><dd>{{ application.tenant_created_at.strftime('%d %B %Y') if application and application.tenant_created_at else na }}</dd></div>
+        </dl>
+        <div class="zf-grid">
+          <div class="zf-f">
+            <label class="zf-label" for="p-industry">Industry <span class="zf-req">*</span></label>
+            <select class="p-input zf-input" id="p-industry" name="industry" required>
+              <option value="">Select industry</option>
+              {% for item in industries %}<option value="{{ item }}" {{ 'selected' if co.industry == item }}>{{ item }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-size">Company size <span class="zf-req">*</span></label>
+            <select class="p-input zf-input" id="p-size" name="company_size" required>
+              <option value="">Select company size</option>
+              {% for item in company_sizes %}<option value="{{ item }}" {{ 'selected' if co.company_size == item }}>{{ item }} employees</option>{% endfor %}
+            </select>
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-code-input">Organization code</label>
+            <input class="p-input zf-input zf-code" type="text" id="p-code-input" name="company_code" value="{{ '' if _setup else co.company_code or '' }}" placeholder="e.g. ACME" minlength="2" maxlength="10" pattern="[A-Za-z0-9]{2,10}" title="2 to 10 letters or numbers" autocomplete="off">
+            <span class="zf-hint">Optional prefix for new employee IDs.</span>
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-website">Website</label>
+            <input class="p-input zf-input" type="text" id="p-website" name="website" value="{{ co.website }}" maxlength="200" placeholder="www.yourcompany.com" autocomplete="url">
+          </div>
+        </div>
+      </section>
+
+      <section class="org-panel zf-card{{ ' editing' if _setup }}">
+        <div class="zf-card-head"><span class="zf-card-icon"><i class="ti ti-map-pin"></i></span><div><h2>Office address</h2><p>Where your organization is based.</p></div>{% if not _setup %}<button type="button" class="zf-edit" data-card-edit><i class="ti ti-pencil"></i> Edit</button>{% endif %}</div>
+        <dl class="zf-view">
+          <div><dt>Address</dt><dd>{{ co.address or na }}</dd></div>
+          <div><dt>City</dt><dd>{{ co.city or na }}</dd></div>
+          <div><dt>State</dt><dd>{{ co.state or na }}</dd></div>
+          <div><dt>PIN code</dt><dd>{{ co.postal_code or na }}</dd></div>
+          <div><dt>Country</dt><dd>{{ co.country or na }}</dd></div>
+        </dl>
+        <div class="zf-grid">
+          <div class="zf-f zf-wide">
+            <label class="zf-label" for="p-address">Address <span class="zf-req">*</span></label>
+            <input class="p-input zf-input" type="text" id="p-address" name="address" value="{{ co.address }}" maxlength="500" placeholder="Building, street and area" autocomplete="street-address" required>
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-city">City</label>
+            <input class="p-input zf-input" type="text" id="p-city" name="city" value="{{ co.city }}" maxlength="100" autocomplete="address-level2">
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-state">State</label>
+            <input class="p-input zf-input" type="text" id="p-state" name="state" value="{{ co.state }}" maxlength="100" autocomplete="address-level1">
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-postal">PIN code</label>
+            <input class="p-input zf-input" type="text" id="p-postal" name="postal_code" value="{{ co.postal_code }}" minlength="3" maxlength="12" autocomplete="postal-code">
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-country">Country</label>
+            <input class="p-input zf-input" type="text" id="p-country" name="country" value="{{ co.country or 'India' }}" maxlength="100" autocomplete="country-name">
+          </div>
+        </div>
+      </section>
+
+      <section class="org-panel zf-card{{ ' editing' if _setup }}">
+        <div class="zf-card-head"><span class="zf-card-icon"><i class="ti ti-user"></i></span><div><h2>Your details</h2><p>The admin for this organization.</p></div>{% if not _setup %}<button type="button" class="zf-edit" data-card-edit><i class="ti ti-pencil"></i> Edit</button>{% endif %}</div>
+        <dl class="zf-view">
+          <div><dt>Full name</dt><dd>{{ admin_display_name or na }}</dd></div>
+          <div><dt>Job title</dt><dd>{{ admin_job_title or na }}</dd></div>
+          <div><dt>Work email</dt><dd>{{ admin_email or na }}</dd></div>
+          <div><dt>Mobile number</dt><dd>{{ admin_mobile or na }}</dd></div>
+        </dl>
+        <div class="zf-photo-row">
+          <label class="zf-upload" for="p-photo-input" title="{{ 'Change' if admin_avatar_url else 'Add' }} profile photo">
+            {% if admin_avatar_url %}<img src="{{ admin_avatar_url }}" alt="" />{% else %}{{ admin_initials }}{% endif %}
+            <span class="zf-upload-badge"><i class="ti ti-camera"></i></span>
+          </label>
+          <div class="zf-upload-text">
+            <input class="zf-file" type="file" id="p-photo-input" name="photo" accept=".jpg,.jpeg,.png,.webp" data-zf-name="p-photo-name">
+            <label class="zf-link" for="p-photo-input">{{ 'Change photo' if admin_avatar_url else 'Upload photo' }}</label>
+            {% if admin_avatar_url %}<button class="zf-link zf-link-danger" type="submit" form="zf-photo-remove">Remove</button>{% endif %}
+            <span class="zf-hint" id="p-photo-name">Optional. JPG, PNG or WEBP, shown on your profile button.</span>
+          </div>
+        </div>
+        <div class="zf-grid">
+          <div class="zf-f">
+            <label class="zf-label" for="p-name-input">Full name <span class="zf-req">*</span></label>
+            <input class="p-input zf-input" type="text" id="p-name-input" name="display_name" value="{{ admin_display_name or '' }}" maxlength="100" placeholder="Enter your full name" autocomplete="name" required>
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-job-title">Job title <span class="zf-req">*</span></label>
+            <input class="p-input zf-input" type="text" id="p-job-title" name="job_title" value="{{ admin_job_title }}" maxlength="100" placeholder="e.g. HR Manager" autocomplete="organization-title" required>
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-email">Work email <span class="zf-req">*</span></label>
+            <input class="p-input zf-input" type="email" id="p-email" name="email" value="{{ admin_email }}" maxlength="150" autocomplete="email" required>
+            <span class="zf-hint">Used for account emails. Your login stays the same.</span>
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="p-mobile">Mobile number <span class="zf-req">*</span></label>
+            <input class="p-input zf-input" type="tel" id="p-mobile" name="mobile" value="{{ admin_mobile }}" maxlength="20" placeholder="+91 98765 43210" autocomplete="tel" required>
+          </div>
+        </div>
+      </section>
+
+      <div class="zf-foot">
+        {% if not _setup %}<button type="button" class="org-btn" data-card-cancel>Cancel</button>{% endif %}
+        <button class="org-btn primary" type="submit">{{ 'Save & Continue' if _setup else 'Save Changes' }}</button>
       </div>
-      <dl class="org-rows">
-        <div class="org-row"><dt>Organization name</dt><dd>{{ co.company_name }}</dd></div>
-        <div class="org-row"><dt>Organization code</dt><dd class="mono">{{ co.company_code or na }}</dd></div>
-        <div class="org-row"><dt>Tagline</dt><dd>{{ co.company_tagline or na }}</dd></div>
-        <div class="org-row"><dt>Subdomain</dt><dd>{{ application.subdomain if application and application.subdomain else na }}</dd></div>
-        <div class="org-row"><dt>Email domain</dt><dd>{{ co.email_domain or na }}</dd></div>
-        <div class="org-row"><dt>Member since</dt><dd>{{ application.tenant_created_at.strftime('%d %B %Y') if application and application.tenant_created_at else na }}</dd></div>
-        <div class="org-row"><dt>Verification</dt><dd>{% if not application %}<span class="badge-pill badge-neutral">Not required</span>
-        {% elif application.doc_review_status == 'approved' %}<span class="badge-pill badge-success">Verified</span>
-        {% elif application.doc_review_status == 'rejected' %}<span class="badge-pill badge-failed">Rejected</span>
-        {% elif application.doc_review_status == 'pending_review' %}<span class="badge-pill badge-pending">Under review</span>
-        {% else %}<span class="badge-pill badge-pending">Documents pending</span>{% endif %} <a class="org-inline-link" href="{{ tpath('/profile?section=legal') }}">View details</a></dd></div>
-      </dl>
-    </section>
+    </form>
+    <form id="zf-logo-remove" method="POST" action="{{ tpath('/profile/logo/remove') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" /></form>
+    <form id="zf-photo-remove" method="POST" action="{{ tpath('/profile/photo/remove') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" /></form>
+
+    {% if not _setup %}
+    </div>
+    <aside class="org-rail">
+      {% if registration_checklist %}<div class="org-panel">{% include "_registration_checklist_side.html" %}</div>{% endif %}
+      <section class="org-panel org-glance">
+        <h2>At a glance</h2>
+        <div><span>Employees</span><b>{{ employee_count }}{% if seat_cap is not none %} / {{ seat_cap }}{% endif %}</b></div>
+        <div><span>Departments</span><b>{{ department_count }}</b></div>
+        <div><span>Published policies</span><b>{{ published_policy_count }}</b></div>
+      </section>
+    </aside>
+    </div>
+    {% endif %}
   {% endif %}
 
   {# ══════════════════════ LEGAL & COMPLIANCE ══════════════════════ #}
@@ -539,6 +725,54 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function () {
+  // The header's Change logo button saves as soon as a file is chosen.
+  var logo = document.getElementById('org-logo-file');
+  if (logo) logo.addEventListener('change', function () {
+    if (logo.files.length) document.getElementById('org-logo-form').submit();
+  });
+})();
+</script>
+{% if active_tab == 'company' %}
+<script>
+(function () {
+  // Cards are read-only until Edit. The whole form saves at once, so a
+  // mandatory field left blank on a closed card opens that card.
+  var form = document.querySelector('form.zf');
+  function open(card) {
+    card.classList.add('editing');
+    form.classList.add('is-editing');
+  }
+  form.querySelectorAll('[data-card-edit]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var card = btn.closest('.zf-card');
+      open(card);
+      var field = card.querySelector('.zf-input');
+      if (field) field.focus();
+    });
+  });
+  var cancel = form.querySelector('[data-card-cancel]');
+  if (cancel) cancel.addEventListener('click', function () {
+    form.reset();
+    form.querySelectorAll('.zf-card').forEach(function (card) { card.classList.remove('editing'); });
+    form.classList.remove('is-editing');
+  });
+  form.addEventListener('invalid', function (e) {
+    var card = e.target.closest('.zf-card');
+    if (card) open(card);
+  }, true);
+
+  // Organization Profile form: show the chosen file's name next to its picker.
+  document.querySelectorAll('.zf-file').forEach(function (input) {
+    input.addEventListener('change', function () {
+      var hint = document.getElementById(input.dataset.zfName);
+      if (hint && input.files.length) hint.textContent = input.files[0].name + ' selected. Save changes to apply.';
+    });
+  });
+})();
+</script>
+{% endif %}
 {% if active_tab == 'contact' %}
 <script>
 (function () {

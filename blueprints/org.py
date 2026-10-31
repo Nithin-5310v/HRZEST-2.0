@@ -305,7 +305,8 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
             logo_url = f"/static/{logo_path}"
         tcur.execute(
             "UPDATE company_settings SET company_name=%s, email_domain=%s, paid_employee_slots=%s, "
-            "logo_url=COALESCE(%s, logo_url), contact_phone=COALESCE(%s, contact_phone), setup_done=1 WHERE id=1",
+            "logo_url=COALESCE(%s, logo_url), contact_phone=COALESCE(%s, contact_phone), setup_done=1, "
+            "org_profile_pending=1 WHERE id=1",
             (company_name, clean_email_domain(email_domain) or None, employee_count, logo_url, contact_phone)
         )
         # Plain INSERT, no ON CONFLICT: the schema-existence check above
@@ -1501,6 +1502,7 @@ def _log_in_new_company_admin(application):
     from flask import current_app
     from blueprints.auth import begin_admin_session
     from database import get_master_db
+    from utils.helpers import invalidate_settings_cache
     from utils.totp import mark_totp_enabled
 
     mconn = get_master_db()
@@ -1519,12 +1521,13 @@ def _log_in_new_company_admin(application):
     session["tenant_slug"] = slug
     session["_tenant_status_checked_at"] = time.time()
     session["_billing_locked"] = False
+    invalidate_settings_cache()
     log_security_event(
         "auth.admin_login_success", f"Admin login for '{username}' (role=admin) right after registering",
         level="INFO", identifier=username, subdomain=slug,
     )
-    flash("Your company is ready. Finish registering from the checklist below.", "success")
-    return redirect(f"/{slug}/admin")
+    flash("Your company is ready. Complete your organization profile to open your dashboard.", "success")
+    return redirect(f"/{slug}/welcome")
 
 
 def _load_profile_application(application_id, access_token):
@@ -1996,7 +1999,7 @@ def company_details_save():
         flash(error, "error")
         return redirect(tpath("/settings/company_details"))
     flash("Company details saved.", "success")
-    return redirect(tpath("/admin"))
+    return redirect(tpath("/profile"))
 
 
 @org_bp.route("/create_org/pay/<int:application_id>", methods=["GET"])

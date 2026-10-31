@@ -13,6 +13,8 @@ _tenant_schema_for_id() and blueprints/org.py's _load_own_tenant_application().
 import datetime
 import hashlib
 import os
+import re
+import time
 
 from flask import Blueprint, request, session, redirect, render_template, flash, g, Response, current_app, send_file
 from PIL import Image, UnidentifiedImageError
@@ -22,13 +24,13 @@ from utils.auth import role_required
 from utils.helpers import (
     tpath, get_company_settings,
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
-    _validate_image_file,
+    _validate_image_file, save_uploaded_logo,
 )
 from utils.payment_history import get_payment_history, get_payment_row
 from utils.receipt_pdf import build_receipt_pdf
 from utils.ticket_constants import TICKET_STATUSES, TICKET_PRIORITIES
 from utils.csv_export import csv_response
-from blueprints.org import _load_own_tenant_application
+from blueprints.org import _EMAIL_RE, _MOBILE_RE, _clean_mobile, _load_own_tenant_application
 from migrations.column_migrations import _POLICY_SEED_CONTENT
 
 company_profile_bp = Blueprint("company_profile", __name__)
@@ -51,6 +53,17 @@ def _resolve_own_tenant_id():
 
 
 # ── Admin profile photo (top-banner avatar) ─────────────────────────────────
+# Choices for the Organization profile form; the form and the save both use them.
+INDUSTRIES = (
+    "Information Technology", "Manufacturing", "Healthcare", "Education", "Finance & Banking", "Retail & E-commerce",
+    "Construction & Real Estate", "Hospitality", "Logistics & Transport", "Media & Marketing",
+    "Professional Services", "Government & Non-profit", "Other",
+)
+COMPANY_SIZES = ("1-10", "11-50", "51-200", "201-500", "501-1000", "1000+")
+_POSTAL_RE = re.compile(r"[A-Za-z0-9 -]{3,12}")
+_WEBSITE_RE = re.compile(r"(https?://)?[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(/\S*)?")
+
+
 def admin_photo_path(username=None):
     """Where the logged-in admin's own profile photo lives: one JPEG per
     company + admin username, under UPLOAD_FOLDER/admin_photos. The name is
@@ -70,25 +83,57 @@ def profile_photo():
     return send_file(path, mimetype="image/jpeg", max_age=0)
 
 
-@company_profile_bp.route("/profile/photo", methods=["POST"])
+@company_profile_bp.route("/welcome", methods=["GET"])
 @role_required("admin")
-def profile_photo_upload():
-    file = request.files.get("photo")
-    ok, err = _validate_image_file(file)
-    if not ok:
-        flash(err, "error")
+def company_welcome():
+    """The loader a new company's admin sees right after registering, on the
+    way to the Organization page."""
+    return render_template("company_welcome.html", next_url=tpath("/profile"))
+
+
+def _store_logo(logo_file):
+    """Saves an uploaded company logo: (logo_url, error). The saved filename
+    is fixed per company; ?v= stops browsers showing the old logo."""
+    logo_path, err = save_uploaded_logo(logo_file, getattr(g, "tenant_slug", None) or g.tenant_db)
+    if err:
+        return None, err
+    return f"/static/{logo_path}?v={int(time.time())}", None
+
+
+@company_profile_bp.route("/profile/logo", methods=["POST"])
+@role_required("admin")
+def profile_logo_upload():
+    """The Change logo button in the Organization page's header."""
+    logo_file = request.files.get("logo")
+    if not logo_file or not logo_file.filename:
+        flash("Please choose a logo file.", "error")
         return redirect(tpath("/profile"))
-    try:
-        img = Image.open(file.stream)
-        img.thumbnail((400, 400))
-        img = img.convert("RGB")
-    except (UnidentifiedImageError, OSError):
-        flash("That file isn't a readable image.", "error")
+    logo_url, err = _store_logo(logo_file)
+    if err:
+        flash(f"Company logo: {err}", "error")
         return redirect(tpath("/profile"))
-    path = admin_photo_path()
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    img.save(path, "JPEG", quality=88)
-    flash("Profile photo updated.", "success")
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE company_settings SET logo_url=%s", (logo_url,))
+    db.commit()
+    cursor.close()
+    db.close()
+    invalidate_settings_cache()
+    flash("Company logo updated.", "success")
+    return redirect(tpath("/profile"))
+
+
+@company_profile_bp.route("/profile/logo/remove", methods=["POST"])
+@role_required("admin")
+def profile_logo_remove():
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE company_settings SET logo_url=NULL")
+    db.commit()
+    cursor.close()
+    db.close()
+    invalidate_settings_cache()
+    flash("Company logo removed.", "success")
     return redirect(tpath("/profile"))
 
 
@@ -101,6 +146,104 @@ def profile_photo_remove():
         pass
     flash("Profile photo removed.", "success")
     return redirect(tpath("/profile"))
+
+
+@company_profile_bp.route("/profile/details", methods=["POST"])
+@role_required("admin")
+def profile_details_save():
+    """The Organization page's one form: company details, office address and
+    the admin's own details. The address's city, state, PIN and country, the
+    organization code, website, logo and photo are optional; everything else
+    is mandatory. All of it stays editable: a
+    file field left empty keeps what's already saved. The code prefixes new
+    employee IDs only; existing IDs keep theirs. Everything is checked before anything is written, so a bad
+    file can't leave the form half saved."""
+    code = (request.form.get("company_code") or "").strip().upper()
+    name = " ".join((request.form.get("display_name") or "").split())[:100]
+    text = {key: " ".join((request.form.get(key) or "").split())[:limit] for key, limit in (
+        ("job_title", 100), ("address", 500), ("city", 100), ("state", 100), ("postal_code", 12), ("country", 100),
+        ("website", 200), ("email", 150),
+    )}
+    mobile = _clean_mobile(request.form.get("mobile"))
+    industry = request.form.get("industry")
+    company_size = request.form.get("company_size")
+    logo_file = request.files.get("logo")
+    photo_file = request.files.get("photo")
+    was_pending = get_company_settings().get("org_profile_pending")
+    has_logo = logo_file and logo_file.filename
+    has_photo = photo_file and photo_file.filename
+    if code and not re.fullmatch(r"[A-Z0-9]{2,10}", code):
+        flash("Organization code must be 2 to 10 letters or numbers.", "error")
+        return redirect(tpath("/profile"))
+    if not name:
+        flash("Please enter your name.", "error")
+        return redirect(tpath("/profile"))
+    error = None
+    if industry not in INDUSTRIES:
+        error = "Please select your industry."
+    elif company_size not in COMPANY_SIZES:
+        error = "Please select your company size."
+    elif text["website"] and not _WEBSITE_RE.fullmatch(text["website"]):
+        error = "Please enter a valid website address."
+    elif not text["address"]:
+        error = "Please enter your office address."
+    elif text["postal_code"] and not _POSTAL_RE.fullmatch(text["postal_code"]):
+        error = "Please enter a valid PIN or postal code."
+    elif not text["job_title"]:
+        error = "Please enter your job title."
+    elif not _EMAIL_RE.match(text["email"]):
+        error = "Please enter a valid work email."
+    elif not _MOBILE_RE.match(mobile):
+        error = "Please enter a valid mobile number."
+    if error:
+        flash(error, "error")
+        return redirect(tpath("/profile"))
+    photo_path = admin_photo_path()
+
+    img = None
+    if has_photo:
+        ok, err = _validate_image_file(photo_file)
+        if not ok:
+            flash(f"Profile photo: {err}", "error")
+            return redirect(tpath("/profile"))
+        try:
+            img = Image.open(photo_file.stream)
+            img.thumbnail((400, 400))
+            img = img.convert("RGB")
+        except (UnidentifiedImageError, OSError):
+            flash("Profile photo: that file isn't a readable image.", "error")
+            return redirect(tpath("/profile"))
+
+    logo_url = None
+    if has_logo:
+        logo_url, err = _store_logo(logo_file)
+        if err:
+            flash(f"Company logo: {err}", "error")
+            return redirect(tpath("/profile"))
+
+    if img:
+        os.makedirs(os.path.dirname(photo_path), exist_ok=True)
+        img.save(photo_path, "JPEG", quality=88)
+    db = get_db_connection()
+    cursor = db.cursor()
+    cursor.execute("UPDATE admin_users SET display_name=%s, job_title=%s, email=%s, mobile=%s WHERE username=%s",
+                   (name, text["job_title"], text["email"], mobile, session.get("admin_username")))
+    # Every mandatory field is in place by here, so this unlocks the dashboard
+    # for a new company (app.py's _enforce_org_profile).
+    cursor.execute(
+        "UPDATE company_settings SET company_code=%s, industry=%s, company_size=%s, website=%s, address=%s, city=%s, "
+        "state=%s, postal_code=%s, country=%s, org_profile_pending=0",
+        (code or None, industry, company_size, text["website"] or None, text["address"], text["city"] or None,
+         text["state"] or None, text["postal_code"] or None, text["country"] or None),
+    )
+    if logo_url:
+        cursor.execute("UPDATE company_settings SET logo_url=%s", (logo_url,))
+    db.commit()
+    cursor.close()
+    db.close()
+    invalidate_settings_cache()
+    flash("Organization profile saved.", "success")
+    return redirect(tpath("/admin" if was_pending else "/profile"))
 
 
 # ── Company Info tab ─────────────────────────────────────────────────────────
@@ -117,6 +260,9 @@ def profile_company_info():
     department_count = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM company_policies WHERE is_published=1")
     published_policy_count = cursor.fetchone()[0]
+    cursor.execute("SELECT job_title, email, mobile FROM admin_users WHERE username=%s",
+                   (session.get("admin_username"),))
+    job_title, admin_email, admin_mobile = cursor.fetchone() or (None, None, None)
     cursor.close()
     db.close()
 
@@ -129,6 +275,11 @@ def profile_company_info():
         active_tab=request.args.get("section") if request.args.get("section") in ("legal", "contact") else "company",
         co=co, application=application, seat_cap=seat_cap,
         department_count=department_count, published_policy_count=published_policy_count,
+        industries=INDUSTRIES, company_sizes=COMPANY_SIZES,
+        # Signup already asked for the email and mobile, so a new admin
+        # starts with them filled in.
+        admin_job_title=job_title or "", admin_email=admin_email or "",
+        admin_mobile=admin_mobile or co.get("contact_phone") or "",
     )
 
 

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Start Your Free Trial — HRzest Enterprise Platform</title>
   <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
+  <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
+  <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('favicon.svg') }}"></script>
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
@@ -192,7 +194,7 @@
       });
       const json = await res.json();
       if (json.ok) {
-        window.location.href = json.portal_url || '/login';
+        window.hrzLoaderThen(json.portal_url || '/login');
       } else {
         err.textContent = json.msg || 'Authorization received, but trial setup failed. Contact support.';
         err.style.display = 'flex';

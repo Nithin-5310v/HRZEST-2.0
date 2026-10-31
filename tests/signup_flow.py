@@ -74,8 +74,19 @@ def signup_verified(client, monkeypatch, email, company_name, **account):
     assert codes, "the verification code was never emailed"
     resp = verify_email(client, application_id, codes[-1])
     location = resp.headers.get("Location", "")
-    assert resp.status_code == 302 and location.endswith("/admin"), location
+    assert resp.status_code == 302 and location.endswith("/welcome"), location
     return application_id, location.split("/")[1]
+
+
+def finish_org_setup(db_engine, schema_name):
+    """Clears a new company's pending Organization profile, as saving the
+    form does -- the registration checklist stays off that setup screen."""
+    from utils.helpers import invalidate_settings_cache
+    cur = db_engine.cursor()
+    cur.execute(f'UPDATE "{schema_name}".company_settings SET org_profile_pending=0')
+    cur.close()
+    db_engine.commit()
+    invalidate_settings_cache()
 
 
 def save_company_details(client, slug, gst_number=None, **extra):
@@ -133,7 +144,7 @@ def signup_company(client, monkeypatch, email, company_name, gst_number=None, de
     assert slug == company_slug(company_name), slug
     if details:
         resp = save_company_details(client, slug, gst_number)
-        assert resp.headers.get("Location") == f"/{slug}/admin", resp.headers.get("Location")
+        assert resp.headers.get("Location") == f"/{slug}/profile", resp.headers.get("Location")
     if documents:
         resp = upload_documents(client, slug)
         assert resp.headers.get("Location") == f"/{slug}/settings/company_verification", resp.headers.get("Location")

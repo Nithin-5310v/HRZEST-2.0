@@ -311,6 +311,18 @@ def _run_column_migrations(cursor, db):
         "ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS is_half_day SMALLINT DEFAULT 0",
         "ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS half_day_session VARCHAR(10) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS company_code VARCHAR(10) DEFAULT NULL",
+        # Set at provisioning, cleared when the Organization page's mandatory
+        # form is saved. See app.py's _enforce_org_profile. Defaults to 0 so
+        # companies that already exist are never locked out by it.
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS org_profile_pending SMALLINT NOT NULL DEFAULT 0",
+        # The Organization page's company details and office address.
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS industry VARCHAR(60) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS company_size VARCHAR(20) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS website VARCHAR(200) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS city VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS state VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS postal_code VARCHAR(12) DEFAULT NULL",
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS country VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS email_domain VARCHAR(255) DEFAULT NULL",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS paid_employee_slots INT DEFAULT NULL",
         # Company Admin Profile page's Company Info tab -- the only two
@@ -412,6 +424,11 @@ def _run_column_migrations(cursor, db):
         # OAuth login looks the account up by.
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS oauth_provider VARCHAR(20) DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS oauth_subject VARCHAR(255) DEFAULT NULL",
+        # The admin's own name, set on the Organization page -- admin
+        # accounts log in with an email/username and had no name before.
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS job_title VARCHAR(100) DEFAULT NULL",
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS mobile VARCHAR(20) DEFAULT NULL",
         # Employee document verification (Company Onboarding -> Trial ->
         # Document Verification -> Subscription Activation): doc_kind
         # ('id_proof'|'address_proof', see blueprints/documents.py's

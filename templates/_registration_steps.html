@@ -1,0 +1,11 @@
+{# The registration checklist's steps, shared by the dashboard pop-up
+   (_registration_popup.html) and the Organization side menu's compact one
+   (_registration_checklist_side.html). #}
+{% set step_info = {
+  'company': {'title': 'Company details', 'detail': 'Add your GSTIN and company logo.', 'icon': 'building',
+              'url': tpath('/settings/company_details'), 'action': 'Add details'},
+  'documents': {'title': 'Business documents', 'detail': 'Registration certificate, address proof, visiting card and a name-board photo.',
+                'icon': 'file-upload', 'url': tpath('/settings/company_verification'), 'action': 'Upload documents'},
+  'payment': {'title': 'Payment', 'detail': 'Set up monthly auto-debit so your account carries on after the free trial.',
+              'icon': 'credit-card', 'url': tpath('/settings?tab=billing'), 'action': 'Set up payment'},
+} %}

@@ -20,6 +20,7 @@ Run with:
 import pytest
 
 from tests.signup_flow import (
+    finish_org_setup,
     MOBILE, application_id_from, capture_codes, company_slug, random_gst, save_company_details, signup_company,
     signup_verified, start_signup, submit_profile, upload_documents, verify_email,
 )
@@ -457,16 +458,19 @@ class TestSignupFlow:
                 assert sess.get("tenant_slug") == slug and sess.get("tenant_db") == schema_name
                 assert "org_access_token" not in sess
 
-            page = client.get(f"/{slug}/admin").get_data(as_text=True)
+            finish_org_setup(db_engine, schema_name)
+            dashboard = client.get(f"/{slug}/admin").get_data(as_text=True)
+            assert "Complete your registration" in dashboard and 'data-step="2"' in dashboard
+            page = client.get(f"/{slug}/profile").get_data(as_text=True)
             assert "Complete your registration" in page and "0 of 3 done" in page
             for path in ("/settings/company_details", "/settings/company_verification", "/settings?tab=billing"):
                 assert f'href="/{slug}{path}"' in page, path
 
-            assert save_company_details(client, slug).headers["Location"] == f"/{slug}/admin"
-            assert "1 of 3 done" in client.get(f"/{slug}/admin").get_data(as_text=True)
+            assert save_company_details(client, slug).headers["Location"] == f"/{slug}/profile"
+            assert "1 of 3 done" in client.get(f"/{slug}/profile").get_data(as_text=True)
 
             upload_documents(client, slug)   # auto-approved in tests
-            assert "2 of 3 done" in client.get(f"/{slug}/admin").get_data(as_text=True)
+            assert "2 of 3 done" in client.get(f"/{slug}/profile").get_data(as_text=True)
 
             # Payment: an active auto-debit mandate finishes the checklist.
             cur = db_engine.cursor()
@@ -474,7 +478,7 @@ class TestSignupFlow:
                         "VALUES (%s, %s, 'active')", (schema_name, company_name))
             cur.close()
             db_engine.commit()
-            assert "Complete your registration" not in client.get(f"/{slug}/admin").get_data(as_text=True)
+            assert "Complete your registration" not in client.get(f"/{slug}/profile").get_data(as_text=True)
         finally:
             cur = db_engine.cursor()
             cur.execute("DELETE FROM att_master.auto_debit_mandates WHERE tenant_schema=%s", (schema_name,))
