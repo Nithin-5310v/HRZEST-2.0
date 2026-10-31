@@ -1,0 +1,86 @@
+/* Settings page: slim tabs, sections always in view, neutral blue accents.
+   Loaded after the page's own styles in templates/settings.html; the tab and
+   section behaviour stays in that page's switchGroup()/switchSub(). */
+
+/* Page heading */
+.page-header { background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; margin-bottom: 16px !important; }
+.page-header-icon { display: none !important; }
+.page-header-text h1 { font-size: 24px; font-weight: 700; color: #101828; letter-spacing: -0.3px; }
+.page-header-text p { font-size: 15px; color: #667085; }
+
+/* Main tabs */
+.s3-nav { display: flex; gap: 28px; padding: 0 24px; margin-bottom: 18px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow-x: auto; }
+.s3-nav .s3-tab { flex: none; padding: 15px 0 13px; background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; box-shadow: none; overflow: visible; }
+.s3-nav .s3-tab:hover { background: none; box-shadow: none; transform: none; }
+.s3-nav .s3-tab.active { background: none; border-bottom-color: #2563eb; box-shadow: none; transform: none; }
+.s3-nav .s3-tab-icon, .s3-nav .s3-tab-sub, .s3-nav .s3-tab-count { display: none; }
+.s3-nav .s3-tab-title { font-size: 15.5px; font-weight: 500; color: #475467; }
+.s3-nav .s3-tab:hover .s3-tab-title { color: #101828; }
+.s3-nav .s3-tab.active .s3-tab-title { color: #1d4ed8; font-weight: 600; }
+
+/* Sections: always visible instead of behind the Sections button */
+.subnav-bar { justify-content: flex-start; margin-bottom: 16px; }
+#s3panel-org .subnav-bar, #s3panel-sys .subnav-bar { display: none; }
+.subnav-dd-btn { display: none; }
+.subnav-dd-menu { display: flex; flex-wrap: wrap; gap: 6px; position: static; min-width: 0; background: none; border: none; box-shadow: none; overflow: visible; animation: none; }
+.subnav-dd-menu .subnav-dd-item { display: inline-flex; width: auto; align-items: center; gap: 7px; padding: 8px 14px; border: none; border-radius: 8px; background: none; color: #475467; font-size: 14.5px; font-weight: 500; }
+.subnav-dd-menu .subnav-dd-item:hover { background: #f2f4f7; color: #101828; }
+.subnav-dd-menu .subnav-dd-item.active { background: #eef4ff; color: #1d4ed8; font-weight: 600; }
+.subnav-dd-menu .subnav-dd-item.active::after { content: none; }
+
+/* One accent colour for section and setting icons */
+.sec-icon, .s3-section .u-w-26.u-h-26 { background: #eef4ff !important; }
+.sec-icon i, .s3-section .u-w-26.u-h-26 i { color: #2563eb !important; }
+
+/* Switches and option groups */
+.toggle input:checked + .toggle-slider { background: #2563eb; }
+body .py-seg-track { display: none; }
+body .py-seg-btn.on { background: #2563eb; border-radius: 8px; color: #fff; }
+
+/* Finances: one card style throughout */
+.s3-section .section, .s3-section .seats-card { max-width: none; padding: 20px 24px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: none; }
+.s3-section .section-title { font-size: 16.5px; font-weight: 700; color: #101828; }
+.s3-section .section-title i { color: #2563eb; font-size: 19px; }
+.s3-section .btn-submit { padding: 9px 18px; background: #2563eb; border-radius: 8px; box-shadow: none; font-size: 15px; font-weight: 600; }
+.s3-section .btn-submit:hover { background: #1d4ed8; box-shadow: none; transform: none; }
+
+.fin-notice { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; margin-bottom: 16px; background: #fffaeb; border: 1px solid #fedf89; border-radius: 12px; }
+.fin-notice i { color: #b54708; font-size: 20px; margin-top: 1px; }
+.fin-notice strong { display: block; font-size: 15px; color: #101828; }
+.fin-notice span { display: block; font-size: 14.5px; color: #475467; margin-top: 2px; }
+
+.fin-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 36px 16px; text-align: center; font-size: 14.5px; color: #667085; }
+.fin-empty strong { font-size: 16px; color: #101828; }
+.fin-empty-icon { width: 48px; height: 48px; margin-bottom: 8px; border-radius: 12px; background: #eef4ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.fin-empty-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 9px 16px; border-radius: 8px; background: #2563eb; color: #fff; font-size: 15px; font-weight: 600; text-decoration: none; }
+.fin-empty-btn:hover { background: #1d4ed8; color: #fff; }
+
+/* Payroll */
+body .py-card, body .py-card:hover { border-color: #e5e7eb; border-radius: 12px; box-shadow: none; transform: none; }
+body .py-card--accent { border-left: 1px solid #e5e7eb; background: #fff; }
+body .py-hdr-icon { background: #eef4ff; }
+body .py-hdr-icon i { color: #2563eb; }
+body .py-save { width: auto; margin: 6px 72px 0 auto; padding: 10px 22px; border-radius: 8px; box-shadow: none; font-size: 15px; font-weight: 600; }
+body .py-save:hover { background: #1d4ed8; box-shadow: none; filter: none; transform: none; }
+
+/* Billing: use the full width */
+#ss-billing.active { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+#ss-billing > .sec-header, #ss-billing > .seats-status, #ss-billing > .seats-card[style] { grid-column: 1 / -1; }
+#ss-billing > .sec-header { margin-bottom: 0; }
+#ss-billing .seats-card { margin: 0; }
+#ss-billing .seats-card h2 { display: flex; align-items: center; gap: 8px; font-size: 16.5px; font-weight: 700; }
+#ss-billing .seats-card h2 i { color: #2563eb; font-size: 19px; }
+#ss-billing #enableAutoDebitBtn { height: 40px; padding: 0 16px; border-radius: 8px; font-size: 15px; font-weight: 600; white-space: nowrap; }
+#ss-billing .seats-status { background: #eef4ff; border-color: #c7d7fe; }
+#ss-billing .seats-status .sub { margin-bottom: 0; color: #344054; }
+@media (max-width: 1000px) { #ss-billing.active { grid-template-columns: minmax(0, 1fr); } }
+
+body.dark-mode .page-header-text h1 { color: #e6edf3; }
+body.dark-mode .s3-nav { background: #161b22; border-color: #30363d; }
+body.dark-mode .s3-nav .s3-tab-title { color: #8b949e; }
+body.dark-mode .s3-nav .s3-tab.active .s3-tab-title { color: #58a6ff; }
+body.dark-mode .s3-section .section, body.dark-mode .s3-section .seats-card { background: #161b22; border-color: #30363d; }
+body.dark-mode .s3-section .section-title, body.dark-mode .fin-notice strong, body.dark-mode .fin-empty strong { color: #e6edf3; }
+body.dark-mode .fin-notice { background: #2a2111; border-color: #5c4813; }
+body.dark-mode .fin-notice span { color: #8b949e; }
+body.dark-mode .py-card--accent { background: #161b22; border-left-color: #30363d; }

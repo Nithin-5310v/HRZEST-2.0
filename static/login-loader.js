@@ -36,7 +36,9 @@
   // ui-motion.css's page-change animation draws the banner and sidebar above
   // everything, this loader included, so the dashboard would blink first.
   window.addEventListener('pagereveal', function (e) {
-    if (e.viewTransition) e.viewTransition.skipTransition();
+    if (!e.viewTransition) return;
+    e.viewTransition.ready.catch(function () {}); // skipping rejects this promise
+    e.viewTransition.skipTransition();
   }, { once: true });
 
   var el = show();
