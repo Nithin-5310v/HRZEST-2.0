@@ -8,10 +8,10 @@
 /* ── Announcement ribbon (static/ribbon.js) ── */
 .hz-ribbon { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: #2563eb; color: #fff; font: 600 13px/1.4 "Inter", "Segoe UI", sans-serif; position: relative; z-index: 950; }
 .hz-ribbon-high { background: #1d4ed8; }
-.hz-ribbon i { font-size: 17px; flex-shrink: 0; }
+.hz-ribbon i { font-size: 19px; flex-shrink: 0; }
 .hz-ribbon-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 .hz-ribbon-text b { font-weight: 700; }
-.hz-ribbon-x { background: none; border: 0; color: #fff; font-size: 20px; line-height: 1; cursor: pointer; opacity: .8; padding: 0 4px; }
+.hz-ribbon-x { background: none; border: 0; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; opacity: .8; padding: 0 4px; }
 .hz-ribbon-x:hover { opacity: 1; }
 body.dark-mode .hz-ribbon { background: #1e3a8a; }
 .hz-ribbon { flex: 0 0 auto; }

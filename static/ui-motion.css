@@ -195,7 +195,7 @@ html.sb-collapsed body .sidebar .nav-item {
   font-size: 0 !important; justify-content: center; gap: 0; padding: 10px 0 !important; position: relative;
 }
 html.sb-collapsed body .sidebar .nav-icon { font-size: 18px !important; width: 24px; height: 24px; }
-html.sb-collapsed body .sidebar .badge-count { position: absolute; top: 3px; right: 10px; font-size: 9px !important; padding: 0 5px; }
+html.sb-collapsed body .sidebar .badge-count { position: absolute; top: 3px; right: 10px; font-size: 11px !important; padding: 0 5px; }
 html.sb-collapsed body .sidebar .nav-item.active::before { left: -10px; }
 /* hover label for the rail (a single fixed element positioned by ui-motion.js) */
 .m-sbtip {
@@ -277,7 +277,7 @@ body:not(.dark-mode) .main .section-title { position: relative; }
 }
 @media (max-width: 768px) {
   html.sb-collapsed body .sidebar { width: 100% !important; }
-  html.sb-collapsed body .sidebar .nav-item { font-size: 13px !important; }
+  html.sb-collapsed body .sidebar .nav-item { font-size: 15px !important; }
   .sb-collapse-btn { display: none !important; }
 }
 

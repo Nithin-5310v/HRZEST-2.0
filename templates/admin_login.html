@@ -49,7 +49,7 @@
       }
       .nav-link-btn {
         display: inline-flex; align-items: center; gap: 8px;
-        color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
+        color: #fff; text-decoration: none; font-size: 15px; font-weight: 600;
         padding: 10px 18px; border-radius: var(--radius-sm);
         background: var(--gradient-brand); box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
         transition: var(--transition-fast);
@@ -90,7 +90,7 @@
       .field-group { margin-bottom: 18px; }
       .field-label {
         display: block;
-        font-size: 11px; font-weight: 700;
+        font-size: 13px; font-weight: 700;
         text-transform: uppercase; letter-spacing: 0.6px;
         color: var(--text-muted);
         margin-bottom: 7px;
@@ -98,7 +98,7 @@
       .field-input {
         width: 100%; padding: 12px 15px;
         background: var(--bg-secondary); border: 1px solid var(--border-color);
-        border-radius: var(--radius-sm); color: var(--text-main); font-size: 14px; outline: none;
+        border-radius: var(--radius-sm); color: var(--text-main); font-size: 16px; outline: none;
         transition: var(--transition-fast);
       }
       .field-input::placeholder { color: var(--text-subtle); }
@@ -110,7 +110,7 @@
       .btn-submit {
         width: 100%; padding: 15px; border: none; border-radius: var(--radius-sm);
         background: var(--gradient-brand);
-        color: #ffffff; font-size: 14.5px; font-weight: 700; letter-spacing: 0.2px;
+        color: #ffffff; font-size: 16.5px; font-weight: 700; letter-spacing: 0.2px;
         cursor: pointer; transition: var(--transition-fast); box-shadow: var(--shadow-md);
         margin-top: 4px;
         display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -119,7 +119,7 @@
       .btn-submit:active { transform: translateY(0); }
 
       .alert {
-        padding: 13px 15px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+        padding: 13px 15px; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600;
         margin-bottom: 18px; display: flex; align-items: center; gap: 10px;
       }
       .alert-error { background: rgba(225, 29, 72, 0.08); border: 1px solid rgba(225, 29, 72, 0.25); color: var(--accent-rose); }
@@ -128,7 +128,7 @@
       .links {
         margin-top: 20px;
         display: flex; justify-content: space-between; align-items: center;
-        font-size: 12.5px;
+        font-size: 14.5px;
       }
       .links a { color: var(--text-subtle); text-decoration: none; transition: var(--transition-fast); }
       .links a:hover { color: var(--text-muted); }
@@ -141,7 +141,7 @@
         background: var(--bg-secondary);
         border: 1px solid var(--border-color);
         border-radius: var(--radius-sm);
-        font-size: 12px; color: var(--text-muted);
+        font-size: 14px; color: var(--text-muted);
         line-height: 1.6;
       }
       .hint strong { color: var(--text-main); }
@@ -153,13 +153,13 @@
       .oauth-btn {
         width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
         padding: 12px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-color);
-        background: var(--bg-card); color: var(--text-main); font-size: 13.5px; font-weight: 700;
+        background: var(--bg-card); color: var(--text-main); font-size: 15.5px; font-weight: 700;
         cursor: pointer; text-decoration: none; transition: var(--transition-fast); margin-bottom: 10px;
       }
       .oauth-btn:hover { border-color: var(--accent-cyan); box-shadow: 0 4px 14px rgba(79, 70, 229, 0.12); transform: translateY(-1px); }
       .oauth-divider {
         display: flex; align-items: center; gap: 10px; margin: 18px 0;
-        font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
         color: var(--text-subtle);
       }
       .oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
@@ -222,7 +222,7 @@
           <input class="field-input" type="text" id="login_company" name="company" value="{{ company }}"
                  placeholder="{{ request.host }}/your-company"
                  required autofocus autocapitalize="none" spellcheck="false" />
-          <div class="field-hint" style="font-size:12px;color:#94a3b8;margin-top:4px;">
+          <div class="field-hint" style="font-size:14px;color:#94a3b8;margin-top:4px;">
             The address your company signs in at, e.g. {{ request.host }}/acme-corp, or just the company's name.
           </div>
         </div>
@@ -276,7 +276,7 @@
           <input class="field-input" type="password" id="login_password" name="password"
                  placeholder="Enter your password"
                  autocomplete="current-password" />
-          <div class="field-hint" style="font-size:12px;color:#94a3b8;margin-top:4px;">
+          <div class="field-hint" style="font-size:14px;color:#94a3b8;margin-top:4px;">
             Admin accounts sign in with a one-time code emailed to them instead — leave this blank.
           </div>
         </div>
