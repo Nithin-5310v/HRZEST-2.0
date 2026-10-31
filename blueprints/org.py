@@ -13,7 +13,7 @@ from utils.auth import (
     validate_new_password, admin_required, api_required, api_role_required,
 )
 from utils.plan_limits import PLAN_LABEL, get_per_employee_paise, format_price_inr
-from utils.email_utils import get_email_config, send_email_async
+from utils.email_utils import get_email_config, send_email_async, notify_support
 from utils.tenant_routing import RESERVED_PATH_SEGMENTS
 from utils.helpers import clean_email_domain, validate_email_domain_format, _safe_app_url, save_application_document, tpath
 
@@ -2519,11 +2519,13 @@ def superadmin_redirect():
 @org_bp.route("/api/leads", methods=["POST"])
 @limiter.limit("5 per minute")
 def submit_lead():
-    """"Request info" form on the public landing page (templates/landing.html)
-    -- for visitors who want more details before self-registering via
-    /create_org. Stored in att_master.leads, surfaced on the Platform Admin
-    dashboard for manual follow-up. Deliberately has no admin-facing error
-    detail beyond "required" -- this is a public, unauthenticated endpoint."""
+    """"Request info" and "Contact us" forms on the public landing page
+    (templates/landing.html) -- for visitors who want more details before
+    self-registering via /create_org. Stored in att_master.leads, surfaced
+    on the Platform Admin dashboard for manual follow-up, and emailed to the
+    support inbox (utils/email_utils.py's support_inbox()). The Contact form
+    adds a subject. Deliberately has no admin-facing error detail beyond
+    "required" -- this is a public, unauthenticated endpoint."""
     if turnstile_enabled():
         token = request.form.get("cf-turnstile-response") or (request.get_json(silent=True) or {}).get("cf_turnstile_response", "")
         if not verify_turnstile(token, request.remote_addr):
@@ -2534,7 +2536,11 @@ def submit_lead():
     email = (data.get("email") or "").strip()[:200]
     phone = (data.get("phone") or "").strip()[:30] or None
     company_name = (data.get("company_name") or "").strip()[:200] or None
+    subject = (data.get("subject") or "").strip()[:200]
     message = (data.get("message") or "").strip()[:2000] or None
+    if subject:
+        # leads has no subject column: the Contact form's subject heads the message.
+        message = f"{subject}\n\n{message or ''}".strip()
 
     if not name or not email:
         return jsonify({"ok": False, "msg": "Name and email are required."}), 400
@@ -2556,7 +2562,34 @@ def submit_lead():
         app_log.error("submit_lead failed: %s", exc)
         return jsonify({"ok": False, "msg": "Could not submit right now. Please try again."}), 500
 
+    notify_support(
+        f"New enquiry: {subject or company_name or name}"[:200],
+        _enquiry_email("New enquiry from the website", [
+            ("Name", name), ("Email", email), ("Phone", phone), ("Company", company_name),
+        ], message),
+    )
     return jsonify({"ok": True, "msg": "Thanks! We'll be in touch shortly."})
+
+
+def _enquiry_email(heading, rows, message):
+    """The support inbox's copy of a landing-page form. Every value is the
+    visitor's own input, so all of it is escaped; their email is a mailto
+    link, since a reply from the noreply mailbox would otherwise go nowhere."""
+    esc = html.escape
+    cells = []
+    for label, value in rows:
+        if not value:
+            continue
+        shown = (f'<a href="mailto:{esc(str(value), quote=True)}">{esc(str(value))}</a>'
+                 if label == "Email" else esc(str(value)))
+        cells.append(f'<tr><td style="padding:4px 12px 4px 0;color:#455163">{esc(label)}</td>'
+                     f'<td style="padding:4px 0"><b>{shown}</b></td></tr>')
+    body = (f'<p style="white-space:pre-wrap;background:#F5F8FC;border-radius:8px;padding:12px">{esc(message)}</p>'
+            if message else "")
+    return (f'<div style="font-family:Arial,sans-serif;color:#131C2A">'
+            f'<h2 style="color:#0B5CAD;margin:0 0 12px">{esc(heading)}</h2>'
+            f'<table style="border-collapse:collapse;font-size:14px">{"".join(cells)}</table>{body}'
+            f'<p style="font-size:12px;color:#8794A5">Reply to the visitor at the email above.</p></div>')
 
 
 _FEEDBACK_TYPES = frozenset({"Feature Request", "User Experience", "Biometrics", "General Praise"})
@@ -2615,4 +2648,10 @@ def submit_feedback():
         app_log.error("submit_feedback failed: %s", exc)
         return jsonify({"ok": False, "msg": "Could not submit right now. Please try again."}), 500
 
+    notify_support(
+        f"New feedback: {feedback_type}" + (f" ({rating}/5)" if rating else ""),
+        _enquiry_email("New product feedback from the website", [
+            ("Type", feedback_type), ("Rating", f"{rating} of 5" if rating else None), ("Email", email),
+        ], message),
+    )
     return jsonify({"ok": True, "msg": "Thanks for the feedback! It goes straight to our product team."})

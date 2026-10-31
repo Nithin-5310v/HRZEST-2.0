@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Email sending -- SMTP + DB-backed queue with retry worker."""
+"""Email sending -- SMTP or Microsoft 365 (utils/graph_mail.py) + DB-backed queue with retry worker."""
 import os
 import re
 import ssl
@@ -17,6 +17,7 @@ from email.utils import formatdate, make_msgid
 from database import get_db_connection, get_master_db
 from extensions import app, app_log
 from utils.helpers import decrypt_pii
+from utils import graph_mail
 
 
 def _mask_email(email):
@@ -73,6 +74,11 @@ def get_email_config():
         # indication why -- now at least surfaced before falling back to
         # .env config.
         app_log.warning("get_email_config: DB lookup failed, falling back to .env config: %s", exc, exc_info=True)
+    # No company SMTP saved: .env's Microsoft 365 app (EMAIL_PROVIDER=
+    # microsoft_graph, utils/graph_mail.py) before .env's SMTP_* settings.
+    graph_cfg = graph_mail.config_from_env()
+    if graph_cfg:
+        return graph_cfg
     smtp_host = os.environ.get("SMTP_HOST", "")
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASS", "")
@@ -86,6 +92,30 @@ def get_email_config():
             "from_email": os.environ.get("SMTP_FROM_EMAIL", smtp_user),
         }
     return None
+
+
+def support_inbox():
+    """Where enquiries go and the address the website shows for contacting
+    HRZEST: SUPPORT_EMAIL, else the address mail is sent from
+    (EMAIL_FROM_EMAIL / SMTP_FROM_EMAIL), else noreply@hrzest.com."""
+    for name in ("SUPPORT_EMAIL", "EMAIL_FROM_EMAIL", "SMTP_FROM_EMAIL"):
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    return "noreply@hrzest.com"
+
+
+def notify_support(subject, html_body):
+    """Queue an email to the support inbox (support_inbox()). Never raises:
+    the enquiry is already saved, so a mail problem is only logged."""
+    try:
+        config = get_email_config()
+        if not config:
+            app_log.warning("notify_support: no email configured -- enquiry saved but not emailed")
+            return
+        send_email_async(support_inbox(), subject, html_body, config)
+    except Exception as exc:
+        app_log.error("notify_support failed: %s", exc)
 
 
 def get_admin_emails():
@@ -112,6 +142,12 @@ def _html_to_plain_text(html_body):
 
 def send_email_smtp(to_email, subject, html_body, config,
                     attachment_bytes=None, attachment_filename=None):
+    """Sends one email with whatever get_email_config() returned: SMTP, or
+    Microsoft 365 for a microsoft_graph config. Raises on failure."""
+    if config.get("provider") == graph_mail.PROVIDER:
+        graph_mail.send_mail(config, to_email, subject, html_body,
+                             attachment_bytes=attachment_bytes, attachment_filename=attachment_filename)
+        return
     from_addr = config.get("from_email") or config["user"]
     msg = MIMEMultipart("mixed")
     msg["Subject"] = subject
