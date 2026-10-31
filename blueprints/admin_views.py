@@ -47,6 +47,7 @@ from utils.helpers import (
 )
 from utils.storage import save_private, open_private, delete_private
 from utils.email_utils import get_email_config, send_email_smtp
+from utils.graph_mail import GraphMailError
 
 from utils.totp import (
     get_or_create_admin_totp_secret, mark_totp_enabled, verify_totp_code, totp_qr_data_uri,
@@ -2681,6 +2682,11 @@ def api_test_email():
     try:
         send_email_smtp(target_email, subject, html_body, cfg)   # raises on failure; returns nothing
         return jsonify({"ok": True, "msg": f"Test email successfully delivered to {target_email}!"})
+    except GraphMailError as e:
+        # Microsoft's own reason (e.g. "Authorization_RequestDenied") --
+        # never the secret or the token -- so the admin can fix the app setup.
+        app_log.warning("api_test_email: Microsoft 365 refused: %s", e)
+        return jsonify({"ok": False, "msg": f"Microsoft 365 email test failed. {e}"}), 500
     except Exception:
         app_log.exception("api_test_email: SMTP delivery exception")
         return jsonify({"ok": False,

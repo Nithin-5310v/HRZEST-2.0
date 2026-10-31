@@ -400,10 +400,44 @@ function initContactForm() {
   const contactForm = document.getElementById('contactForm');
   const contactSuccessMsg = document.getElementById('contactSuccessMsg');
 
-  contactForm?.addEventListener('submit', (e) => {
+  // Sent as an enquiry (POST /api/leads), which emails the support inbox.
+  // It used to only show the success banner, with nothing ever sent.
+  contactForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (contactForm) contactForm.style.display = 'none';
-    if (contactSuccessMsg) contactSuccessMsg.style.display = 'flex';
+    const value = (id) => document.getElementById(id)?.value?.trim() || '';
+    const errorEl = document.getElementById('contactFormError');
+    const submitBtn = contactForm.querySelector('button[type="submit"]');
+    if (errorEl) errorEl.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const resp = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: value('contactName'), email: value('contactEmail'),
+          subject: value('contactSubject'), message: value('contactMessage'),
+        }),
+      });
+      const result = await resp.json().catch(() => ({}));
+      if (!resp.ok || !result.ok) {
+        if (errorEl) {
+          errorEl.textContent = result.msg || 'Could not send right now. Please try again.';
+          errorEl.style.display = 'block';
+        }
+        return;
+      }
+      contactForm.style.display = 'none';
+      if (contactSuccessMsg) contactSuccessMsg.style.display = 'flex';
+      contactForm.reset();
+    } catch (err) {
+      if (errorEl) {
+        errorEl.textContent = 'Network error. Please check your connection and try again.';
+        errorEl.style.display = 'block';
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   });
 }
 
