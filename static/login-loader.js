@@ -33,6 +33,12 @@
   if (document.cookie.split('; ').indexOf(COOKIE + '=1') === -1) return;
   document.cookie = COOKIE + '=; Max-Age=0; path=/; SameSite=Lax';
 
+  // ui-motion.css's page-change animation draws the banner and sidebar above
+  // everything, this loader included, so the dashboard would blink first.
+  window.addEventListener('pagereveal', function (e) {
+    if (e.viewTransition) e.viewTransition.skipTransition();
+  }, { once: true });
+
   var el = show();
   var start = Date.now();
   var done = false;

@@ -6,6 +6,7 @@
   var modal = document.getElementById('regModal');
   if (!modal || typeof modal.showModal !== 'function') return;
 
+  var OPEN_DELAY_MS = 2000;
   var key = 'reg-popup-closed:' + location.pathname + ':' + modal.dataset.login;
   var finished = modal.dataset.finished;
   var panels = Array.prototype.slice.call(modal.querySelectorAll('.reg-panel'));
@@ -49,5 +50,11 @@
   });
 
   show(firstUnfinished());
-  if (closedAt() !== finished) modal.showModal();
+  if (closedAt() === finished) return;
+
+  // Never over the login loader (static/login-loader.js): wait for it to go,
+  // then give the dashboard a moment to be seen first.
+  function openSoon() { setTimeout(function () { modal.showModal(); }, OPEN_DELAY_MS); }
+  if (document.getElementById('hrzLoginLoader')) window.addEventListener('hrz-loader-done', openSoon, { once: true });
+  else openSoon();
 })();
