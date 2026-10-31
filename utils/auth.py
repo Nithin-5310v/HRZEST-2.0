@@ -14,7 +14,7 @@ from werkzeug.security import check_password_hash as _wz_check_pw
 from extensions import app_log, log_security_event
 from utils.session_risk import is_session_compromised, evaluate_session_risk
 from utils.async_writer import enqueue_write
-from utils.helpers import _db
+from utils.helpers import _db, company_today, platform_today
 
 # ── Password hashing (bcrypt with legacy pbkdf2 fallback) ────────────────────
 
@@ -451,6 +451,58 @@ def _reject_if_compromised(login_endpoint: str):
     return None
 
 
+# ── Employees whose employment has ended ──────────────────────────────────────
+# A leaver's records all stay -- attendance, payroll, documents, the
+# resignation itself -- but their access stops the day after the last
+# working day of their accepted resignation, in the company's timezone. The
+# resignation is the switch: nothing is deleted or flagged, and changing it
+# back to Declined restores access. Checked at every sign-in (web and app)
+# and on every request, like a deactivated account, so already-open
+# sessions and app tokens stop too. HR and manager employees are covered in
+# the admin panel as well: their admin_users username is their employee ID.
+def _employment_ended_sql(id_sql: str) -> str:
+    """SQL condition, true when the account id `id_sql` (a column
+    expression or %s -- a call-site literal, never request input) has an
+    accepted resignation whose last working day is before a bound %s date
+    (access_cutoff_date()). Binds: the id if id_sql is %s, then the date."""
+    return ("EXISTS (SELECT 1 FROM resignation_requests rr WHERE rr.employee_id=" + id_sql +
+            " AND rr.status='Accepted' AND rr.last_working_day < %s)")
+
+
+def access_cutoff_date():
+    """Today in the company's timezone: a last working day before this has passed."""
+    try:
+        return company_today()
+    except Exception:
+        return platform_today()
+
+
+def employment_ended_on(employee_id):
+    """The last working day of this employee's accepted resignation if it
+    has passed (so they may no longer sign in), else None. Fails open on a
+    DB error, like _account_still_active()."""
+    if not employee_id:
+        return None
+    try:
+        with _db() as (cur, _conn):
+            cur.execute(
+                "SELECT MAX(last_working_day) FROM resignation_requests "
+                "WHERE employee_id=%s AND status='Accepted' AND last_working_day < %s",
+                (employee_id, access_cutoff_date()))
+            row = cur.fetchone()
+    except Exception as e:
+        app_log.error("employment_ended_on check failed: %s", type(e).__name__)
+        return None
+    return row[0] if row and row[0] else None
+
+
+def access_ended_message(last_day) -> str:
+    """What a leaver sees when signing in with the right password."""
+    when = last_day.strftime("%d %b %Y") if hasattr(last_day, "strftime") else str(last_day)
+    return (f"Your access ended after your last working day ({when}). "
+            "Your records are kept. Contact HR if you need a payslip or other document.")
+
+
 def _account_still_active(table: str, id_column: str, id_value) -> bool:
     """Re-checks that the session's own account still exists and is
     active. api_required() (below) already gives every Bearer-token route
@@ -476,11 +528,12 @@ def _account_still_active(table: str, id_column: str, id_value) -> bool:
         from database import get_db_connection
         db = get_db_connection()
         cur = db.cursor()
-        cur.execute(f"SELECT COALESCE(is_active,1) FROM {table} WHERE {id_column}=%s", (id_value,))  # nosec B608 -- table/id_column are fixed call-site literals, never request input; id_value is %s-bound  # noqa: E501
+        cur.execute(f"SELECT COALESCE(is_active,1), {_employment_ended_sql('%s')} "  # nosec B608 -- table/id_column are fixed call-site literals, never request input; id_value is %s-bound  # noqa: E501
+                    f"FROM {table} WHERE {id_column}=%s", (id_value, access_cutoff_date(), id_value))
         row = cur.fetchone()
         cur.close()
         db.close()
-        return bool(row) and bool(row[0])
+        return bool(row) and bool(row[0]) and not row[1]
     except Exception as e:
         app_log.error("_account_still_active check failed for %s.%s: %s", table, id_column, e)
         return True
@@ -514,20 +567,21 @@ def _prime_guard_state(table: str, id_column: str, id_value) -> None:
         with _db() as (cur, _conn):
             cur.execute(
                 "SELECT (SELECT status FROM session_risk WHERE sid=%s), "  # nosec B608
-                f"a.{id_column}, COALESCE(a.is_active, 1), a.password_changed_at "
+                f"a.{id_column}, COALESCE(a.is_active, 1), a.password_changed_at, "
+                f"{_employment_ended_sql('%s')} "
                 f"FROM (SELECT 1) AS one LEFT JOIN {table} a ON a.{id_column}=%s",
-                (sid, id_value))
+                (sid, id_value, access_cutoff_date(), id_value))
             row = cur.fetchone()
     except Exception as exc:
         app_log.debug("guard-state prime failed (%s): %s", table, type(exc).__name__)
         return
     if not row:
         return
-    risk, found, active, changed_at = row
+    risk, found, active, changed_at, ended = row
     state = {
         "sid": sid, "risk": risk,
         "acct": (table, id_column, id_value),
-        "exists": found is not None, "active": active,
+        "exists": found is not None, "active": bool(active) and not ended,
     }
     if same_pwv:
         state["pwv_key"] = (table, id_value)
@@ -777,19 +831,27 @@ def api_required(f):
             _purge_expired_tokens(cursor, _conn)
             cursor.execute(
                 f"""
-                SELECT t.identity, COALESCE(u.is_active, 1), COALESCE(t.mfa_verified, 0)
+                SELECT t.identity, COALESCE(u.is_active, 1), COALESCE(t.mfa_verified, 0),
+                       {_employment_ended_sql('t.identity')}
                 FROM api_tokens t
                 LEFT JOIN admin_users u ON u.username = t.identity
                 WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW()
                   AND {_TOKEN_NOT_STALE_SQL}
-                """,  # nosec B608 -- _TOKEN_NOT_STALE_SQL is a fixed module constant
-                (token_hash,)
+                """,  # nosec B608 -- fixed module constants
+                (access_cutoff_date(), token_hash)
             )
             row = cursor.fetchone()
         if not row:
             log_security_event("access.denied", "API request with invalid or expired admin token",
                                level="WARNING", required="admin_api")
             return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
+        if row[3]:
+            # An HR/manager employee past their last working day: signed
+            # out (401), so the app drops the session.
+            log_security_event("access.denied", "API request after the account's last working day",
+                               level="WARNING", required="admin_api", identifier=row[0])
+            return jsonify({"ok": False, "access_ended": True,
+                            "msg": "Your access ended after your last working day."}), 401
         _flask_g.api_token_mfa_verified = bool(row[2])
         # Re-checked on every request (not just at login) so that
         # deactivating an account revokes its existing tokens immediately,
@@ -847,15 +909,22 @@ def employee_api_required(f):
         with _db() as (cursor, _conn):
             _purge_expired_tokens(cursor, _conn)
             cursor.execute(
-                "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type='employee' "
-                f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
-                (token_hash,)
+                f"SELECT t.identity, {_employment_ended_sql('t.identity')} FROM api_tokens t "
+                "WHERE t.token=%s AND t.token_type='employee' "
+                f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constants
+                (access_cutoff_date(), token_hash)
             )
             row = cursor.fetchone()
         if not row:
             log_security_event("access.denied", "API request with invalid or expired employee token",
                                level="WARNING", required="employee_api")
             return jsonify({"ok": False, "msg": "Invalid or expired token"}), 401
+        if row[1]:
+            # Past the last working day: signed out (401), so the app drops the session.
+            log_security_event("access.denied", "API request after the employee's last working day",
+                               level="WARNING", required="employee_api", identifier=row[0])
+            return jsonify({"ok": False, "access_ended": True,
+                            "msg": "Your access ended after your last working day."}), 401
         _flask_g.api_emp_id = row[0]
         return f(*args, **kwargs)
     wrapper._hrz_auth_guard = "employee_api"  # read by tests/test_route_auth_guards.py
@@ -890,16 +959,16 @@ def resolve_admin_identity():
     with _db() as (cursor, _conn):
         cursor.execute(
             f"""
-            SELECT t.identity, COALESCE(u.is_active, 1)
+            SELECT t.identity, COALESCE(u.is_active, 1), {_employment_ended_sql('t.identity')}
             FROM api_tokens t
             LEFT JOIN admin_users u ON u.username = t.identity
             WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW()
               AND {_TOKEN_NOT_STALE_SQL}
-            """,  # nosec B608 -- fixed module constant
-            (token_hash,)
+            """,  # nosec B608 -- fixed module constants
+            (access_cutoff_date(), token_hash)
         )
         row = cursor.fetchone()
-    if not row or not row[1]:
+    if not row or not row[1] or row[2]:
         return None
     return row[0]
 
@@ -928,8 +997,9 @@ def resolve_bearer_identity_any():
     with _db() as (cursor, _conn):
         cursor.execute(
             "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type IN ('employee','admin') "
-            f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
-            (token_hash,)
+            f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL} "
+            f"AND NOT {_employment_ended_sql('t.identity')}",  # nosec B608 -- fixed module constants
+            (token_hash, access_cutoff_date())
         )
         row = cursor.fetchone()
     return row[0] if row else None

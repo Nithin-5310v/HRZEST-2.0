@@ -156,3 +156,15 @@ it('shows the server message when an admin reset the password', async () => {
   await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
   expect(Alert.alert.mock.calls[0][1]).toBe(msg);
 });
+
+it('tells a leaver their access ended after the last working day', async () => {
+  const msg = 'Your access ended after your last working day (31 Oct 2026). Your records are kept.';
+  api.signInAccount.mockRejectedValueOnce({
+    response: { status: 403, data: { ok: false, access_ended: true, msg } },
+  });
+  const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+  await signInWith(screen, { ident: 'EMP1' });
+  await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
+  expect(Alert.alert.mock.calls[0]).toEqual(['Access Ended', msg]);
+  expect(mockSignIn).not.toHaveBeenCalled();
+});

@@ -14,7 +14,7 @@ from utils.auth import (
     api_required, check_password_hash, generate_password_hash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
-    turnstile_enabled, _TURNSTILE_SITE_KEY,
+    turnstile_enabled, _TURNSTILE_SITE_KEY, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge
 from utils.totp import send_mfa_login_email
@@ -274,6 +274,11 @@ def _api_admin_login(username, password):
         _record_login_failure(username)
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     _clear_login_failures(username)
+    # An HR/manager employee's admin account is named after their employee
+    # ID: it ends with their employment too.
+    ended_on = employment_ended_on(username)
+    if ended_on:
+        return jsonify({"ok": False, "access_ended": True, "msg": access_ended_message(ended_on)}), 403
 
     if not current_app.config["MANDATORY_LOGIN_MFA"]:
         token = _issue_admin_api_token(username, mfa_verified=False)
@@ -665,6 +670,11 @@ def _api_employee_login(emp_id, password):
         _record_login_failure(emp_id, "employee")
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
     _clear_login_failures(emp_id, "employee")
+    # Past the last working day of an accepted resignation: the right
+    # password, but no token. Records are kept (utils/auth.py).
+    ended_on = employment_ended_on(emp_id)
+    if ended_on:
+        return jsonify({"ok": False, "access_ended": True, "msg": access_ended_message(ended_on)}), 403
     # An admin-issued temporary password (blueprints/employees.py reset)
     # must be replaced before it can mint a 24h token; the app has no
     # change-password screen that works without one, so send them to the
