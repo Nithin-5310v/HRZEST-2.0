@@ -30,59 +30,12 @@ export default function LaunchCountdownScreen({ navigation, onContinue }) {
   return (
     <View style={styles.page}>
       <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
-<<<<<<< HEAD
-      <SafeAreaView style={{ flex: 1 }}>
-        <WebTopBar
-          style={styles.topBar}
-          right={<WebNavButton title="Log In" icon="log-in-outline" onPress={onContinue} />}
-        />
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {/* The website's hero (templates/landing.html) */}
-          <View style={styles.eyebrow}>
-            <Ionicons name="shield-checkmark" size={12} color={WEB.brand} />
-            <Text style={styles.eyebrowText}>HRZEST.COM</Text>
-          </View>
-          <Text style={styles.title}>HR, attendance, and payroll</Text>
-          <Text style={[styles.title, styles.titleBrand]}>on one secure platform</Text>
-          <Text style={styles.lead}>
-            <Text style={styles.leadStrong}>Lead your workforce with clarity.</Text> HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.
-          </Text>
-
-          {/* Live clock, in a web card */}
-          <WebCard style={styles.clockCard}>
-            <View style={styles.clockHeader}>
-              <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-              <Text style={styles.clockHeaderLabel}>LIVE TIME SYNC</Text>
-            </View>
-            <Text style={styles.liveTime}>{timeStr || "12:00:00 AM"}</Text>
-            <Text style={styles.liveDate}>{dateStr}</Text>
-            <View style={styles.clockFooter}>
-              <View style={styles.footerItem}>
-                <Ionicons name="finger-print-outline" size={13} color={WEB.success} />
-                <Text style={styles.footerText}>Biometric Enabled</Text>
-              </View>
-              <View style={styles.footerItem}>
-                <Ionicons name="location-outline" size={13} color={WEB.brand} />
-                <Text style={styles.footerText}>GPS Geofence</Text>
-              </View>
-            </View>
-          </WebCard>
-
-          <WebButton
-            title={countdown > 0 ? `Enter Portal (${countdown}s)` : "Enter Portal"}
-            onPress={onContinue}
-          />
-          <TouchableOpacity activeOpacity={0.85} style={styles.qrBtn} onPress={() => setShowScanner(true)}>
-            <Ionicons name="qr-code-outline" size={17} color={WEB.brand} />
-            <Text style={styles.qrBtnText}>Quick Attendance QR Scan</Text>
-=======
       <AppTopBar
         titleNode={<Wordmark />}
         showCompany={false}
         right={
           <TouchableOpacity onPress={signIn} accessibilityRole="button" style={styles.topLink}>
             <Text style={styles.topLinkText}>Sign in</Text>
->>>>>>> bea8db0 (Update mobile navigation, authentication and API tests)
           </TouchableOpacity>
         }
       />
@@ -161,11 +114,7 @@ const styles = StyleSheet.create({
   eyebrowText: { fontSize: 12, fontWeight: "700", letterSpacing: 0.5, color: WEB.brandDark },
   title: { fontSize: 28, lineHeight: 34, fontWeight: "700", color: WEB.text },
   titleBrand: { color: WEB.brand },
-<<<<<<< HEAD
-  lead: { fontSize: 14.5, lineHeight: 22, color: WEB.textMuted, marginTop: 12, marginBottom: 22 },
-=======
   lead: { fontSize: 15, lineHeight: 22, color: WEB.textMuted },
->>>>>>> bea8db0 (Update mobile navigation, authentication and API tests)
   leadStrong: { fontWeight: "700", color: WEB.text },
 
   card: { backgroundColor: WEB.card, borderRadius: 20, borderWidth: 1, borderColor: WEB.line, padding: 16, gap: 8 },
