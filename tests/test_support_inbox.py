@@ -107,20 +107,33 @@ class TestFormsEmailTheInbox:
 
 
 class TestLandingPage:
-    def test_shows_the_support_inbox_not_a_hardcoded_address(self, client, monkeypatch):
-        monkeypatch.setenv("SUPPORT_EMAIL", "help@example.test")
+    def test_shows_the_contact_email_setting(self, client, monkeypatch):
+        monkeypatch.setenv("CONTACT_EMAIL", "help@example.test")
         html = client.get("/").get_data(as_text=True)
         assert "contact@hrzest.com" not in html
         assert html.count("help@example.test") >= 6
         assert 'id="contactFormError"' in html
 
+    def test_never_shows_the_inbox_enquiries_go_to(self, client, monkeypatch):
+        # The inbox is often someone's own mailbox; visitors see noreply@
+        # unless CONTACT_EMAIL says otherwise.
+        monkeypatch.delenv("CONTACT_EMAIL", raising=False)
+        monkeypatch.setenv("SUPPORT_EMAIL", "person@example.test")
+        monkeypatch.setenv("EMAIL_FROM_EMAIL", "sender@example.test")
+        html = client.get("/").get_data(as_text=True)
+        assert "person@example.test" not in html and "sender@example.test" not in html
+        assert html.count("noreply@hrzest.com") >= 5
+
     def test_contact_thank_you_reads_as_one_sentence(self, client, monkeypatch):
         # The banner is a flex row: the text must be one item next to the icon,
-        # or the sentence, the address and the full stop land on separate lines.
-        monkeypatch.setenv("SUPPORT_EMAIL", "help@example.test")
+        # or its pieces land on separate lines. It names no inbox -- without
+        # SUPPORT_EMAIL that would be noreply@, which reads as a dead end.
+        for name in ("SUPPORT_EMAIL", "EMAIL_FROM_EMAIL", "SMTP_FROM_EMAIL"):
+            monkeypatch.delenv(name, raising=False)
         html = client.get("/").get_data(as_text=True)
-        assert ('<i class="ti ti-circle-check"></i> <span>Thank you! Your message has been sent to '
-                '<strong>help@example.test</strong>.</span>') in html
+        assert ('<i class="ti ti-circle-check"></i> <span>Thank you! We\'ve received your message '
+                'and will reply to the email address you gave us.</span>') in html
+        assert "has been sent to" not in html
 
 
 def test_enquiry_email_skips_empty_rows():
