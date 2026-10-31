@@ -147,8 +147,11 @@ class TestWebOrganization:
     def test_overview_has_the_edit_form(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
         page = client.get("/profile").data
-        assert b'action="/profile/organization"' in page or b"/profile/organization" in page
-        assert b'name="company_tagline"' in page
+        # The Organization details form (redesigned page: /profile/details,
+        # which saves through the same clean_org_fields/save_org_logo).
+        assert b'action="/profile/details"' in page
+        for field in (b'name="company_name"', b'name="company_tagline"', b'name="website"', b'name="logo"'):
+            assert field in page
 
     def test_hr_cannot_edit(self, client, db_engine, seed_hr_admin, org_settings):
         from utils.auth import HR_ROLE
