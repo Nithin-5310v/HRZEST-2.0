@@ -66,7 +66,7 @@ def _send_welcome_credentials_email(emp_id, name, email):
     db.commit()
     cursor.close()
     db.close()
-    set_url = f"{_safe_app_url()}/employee_reset_password/{token}"
+    set_url = f"{_safe_app_url()}{tpath('/employee_reset_password/' + token)}"
     html_body = (
         f"<p>Hi <strong>{name}</strong>, your account is ready.</p>"
         f"<p>Employee ID: <strong>{emp_id}</strong></p>"
