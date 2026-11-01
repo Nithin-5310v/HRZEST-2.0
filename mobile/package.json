@@ -3,16 +3,18 @@
   "version": "1.0.0",
   "main": "index.js",
   "overrides": {
+    "babel-plugin-istanbul": "^8.0.0",
     "decode-uri-component": "^0.5.0",
     "follow-redirects": "^1.16.2",
     "glob@^13.0.0": "^14.0.2",
-    "minimatch@^10.0.0": "^11.0.1",
     "jest-config": {
       "glob": "^14.0.2"
     },
     "jest-runtime": {
       "glob": "^14.0.2"
     },
+    "jest-watch-typeahead": "^3.0.1",
+    "minimatch": "^11.0.3",
     "uuid": "^11.1.1",
     "zod": "^4.6.6"
   },
