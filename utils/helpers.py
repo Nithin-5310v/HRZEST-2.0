@@ -1283,7 +1283,7 @@ def get_overdue_onboarding_count():
         cur.execute("""
             SELECT COUNT(*) FROM employee_onboarding
             WHERE status != 'Completed' AND due_date < %s
-        """, (datetime.date.today(),))
+        """, (company_today(),))
         count = cur.fetchone()[0]
         cur.close()
         db.close()
