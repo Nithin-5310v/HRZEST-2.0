@@ -1,4 +1,5 @@
 import React from "react";
+import { Alert } from "react-native";
 
 import MoreGrid from "../../components/MoreGrid";
 import { useAuth } from "../../store/AuthContext";
@@ -48,6 +49,20 @@ const FOOTER = [
 ];
 
 export default function AdminMoreScreen({ navigation }) {
-  const { signOut } = useAuth();
-  return <MoreGrid navigation={navigation} groups={GROUPS} footer={FOOTER} onSignOut={signOut} />;
+  const { user, signOut, switchToEmployeeView } = useAuth();
+  // HR staff are employees too: their own leave, payslips and attendance,
+  // like the website's "My Profile" button.
+  const switchRow = {
+    label: "My employee view",
+    detail: "Your own leave, payslips, attendance",
+    onPress: async () => {
+      try {
+        await switchToEmployeeView();
+      } catch (err) {
+        Alert.alert("Can't Switch", err?.response?.data?.msg || "Please try again.");
+      }
+    },
+  };
+  const footer = user?.adminRole === "hr" ? [switchRow, ...FOOTER] : FOOTER;
+  return <MoreGrid navigation={navigation} groups={GROUPS} footer={footer} onSignOut={signOut} />;
 }

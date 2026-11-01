@@ -58,14 +58,7 @@
   --font-brand-serif: 'Playfair Display', Georgia, serif;
 }
 
-/* Custom Magzest & HRzest Brand Serif Typography */
-.magzest-brand {
-  font-family: var(--font-brand-serif);
-  font-weight: 900;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-}
-
+/* HRzest brand serif typography */
 .hrzest-brand {
   font-family: var(--font-brand-serif);
   font-weight: 900;

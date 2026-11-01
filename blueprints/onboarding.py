@@ -1071,11 +1071,14 @@ def offer_letter_send(letter_id):
         # Secure one-time token (shared by accept/reject AND pdf view)
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
+        # The token lives in this company's database, so every link carries
+        # its /<company> prefix (tpath) -- without it the page opens in the
+        # wrong company and reports the link as invalid.
         base_url = _safe_app_url()
-        accept_url = f"{base_url}/offer_letter_respond/{token}/accept"
-        reject_url = f"{base_url}/offer_letter_respond/{token}/reject"
-        pdf_view_url = f"{base_url}/offer_letter_pdf/{token}"
-        pdf_dl_url = f"{base_url}/offer_letter_pdf/{token}?dl=1"
+        accept_url = f"{base_url}{tpath('/offer_letter_respond/' + token + '/accept')}"
+        reject_url = f"{base_url}{tpath('/offer_letter_respond/' + token + '/reject')}"
+        pdf_view_url = f"{base_url}{tpath('/offer_letter_pdf/' + token)}"
+        pdf_dl_url = f"{base_url}{tpath('/offer_letter_pdf/' + token)}?dl=1"
 
         # ── Salary breakdown helper ────────────────────────────────────────
         def fmt(n): return f"{n:,.2f}"

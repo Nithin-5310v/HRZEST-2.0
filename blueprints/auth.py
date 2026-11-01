@@ -872,7 +872,7 @@ def admin_forgot_password():
     if not cfg:
         return render_template("admin_forgot_password.html", sent=False,
                                error="Email service not configured. Go to Admin → Email Settings first.")
-    reset_url = f"{_safe_app_url()}/admin_reset_password/{token}"
+    reset_url = f"{_safe_app_url()}{tpath('/admin_reset_password/' + token)}"
     html_body = f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
   <div style="background:#1e3a8a;padding:24px 28px;color:white;">
@@ -970,7 +970,7 @@ def employee_forgot_password():
     if not cfg:
         return render_template("employee_forgot_password.html", sent=False,
                                error="Email service not configured. Please contact HR.")
-    reset_url = f"{_safe_app_url()}/employee_reset_password/{token}"
+    reset_url = f"{_safe_app_url()}{tpath('/employee_reset_password/' + token)}"
     html_body = f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
   <div style="background:#1e3a8a;padding:24px 28px;color:white;">

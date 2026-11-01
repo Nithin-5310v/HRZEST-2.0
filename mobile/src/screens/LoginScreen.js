@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,6 +26,7 @@ import {
   setCompanySlug,
 } from "../api/client";
 import { useAuth } from "../store/AuthContext";
+import { API_BASE_URL } from "../config";
 import { getLastCompanySlug } from "../utils/preferences";
 import AppTopBar from "../components/AppTopBar";
 import QRScannerModal from "./QRScannerModal";
@@ -212,14 +214,19 @@ export default function LoginScreen({ navigation }) {
     setLoading(false);
   };
 
-  // No Bearer-token-compatible password-reset endpoint exists in the
-  // backend -- only the website's forms (/admin_forgot_password,
-  // /employee_forgot_password) -- so point people there.
-  const handleForgotPassword = () => {
-    Alert.alert(
-      "Reset Your Password",
-      "Password reset is currently only available from the web login page. Please use a browser to reset your password."
-    );
+  // Resets are emailed from the website's forms, per company; open the one
+  // for this person's company (the emailed link comes back to the same
+  // company). Admins reset by email; employees -- HR staff included, who
+  // sign in with their employee ID -- by employee ID.
+  const handleForgotPassword = async () => {
+    if (!(await applyTypedCompany())) return;
+    const slug = getCompanySlug();
+    const base = `${API_BASE_URL}${slug ? `/${slug}` : ""}`;
+    Alert.alert("Reset Your Password", "How do you sign in?", [
+      { text: "Admin (email)", onPress: () => Linking.openURL(`${base}/admin_forgot_password`) },
+      { text: "Employee or HR (employee ID)", onPress: () => Linking.openURL(`${base}/employee_forgot_password`) },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   const goBack = navigation?.canGoBack?.() ? () => navigation.goBack() : undefined;
