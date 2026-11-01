@@ -96,15 +96,15 @@ export default function CompOffStatsGrid({
 
       icon: "analytics",
 
-      color: "#0B5CAD",
+      color: "#2563EB",
 
-      background: "#D3E3F7",
+      background: "#DBEAFE",
 
       badge: "Monthly",
 
-      badgeColor: "#D3E3F7",
+      badgeColor: "#DBEAFE",
 
-      badgeText: "#094A8C",
+      badgeText: "#1E40AF",
     },
 
   ];
@@ -270,9 +270,9 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E9EFF6",
+    borderColor: "#EEF1F5",
 
-    shadowColor: "#131C2A",
+    shadowColor: "#101828",
 
     shadowOpacity: 0.06,
 
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#131C2A",
+    color: "#101828",
 
     letterSpacing: -0.4,
   },
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#131C2A",
+    color: "#101828",
   },
 
   subtitle: {
@@ -373,12 +373,12 @@ const styles = StyleSheet.create({
 
     fontWeight: "600",
 
-    color: "#5A6678",
+    color: "#475467",
   },
     divider: {
     height: 1,
 
-    backgroundColor: "#E9EFF6",
+    backgroundColor: "#EEF1F5",
 
     marginTop: 18,
 
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#5A6678",
+    color: "#475467",
   },
 
   dot: {

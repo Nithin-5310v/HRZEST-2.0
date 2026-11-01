@@ -37,15 +37,15 @@ export default function PolicyBullet({
       case "info":
         return {
           icon: "information-circle",
-          color: "#0B5CAD",
-          background: "#E6EFFA",
+          color: "#2563EB",
+          background: "#EEF4FF",
         };
 
       default:
         return {
           icon: "ellipse",
-          color: "#0B5CAD",
-          background: "#E6EFFA",
+          color: "#2563EB",
+          background: "#EEF4FF",
         };
     }
   };
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
 
     lineHeight: 24,
 
-    color: "#455163",
+    color: "#475467",
 
     fontWeight: "500",
   },

@@ -135,7 +135,7 @@ export default function PolicyEditor({ policy, categories = [], templates = [], 
 const makeStyles = (colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 14,
-    shadowColor: "#131C2A", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+    shadowColor: "#101828", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
   heading: { fontSize: 16, fontWeight: "800", color: colors.text, marginBottom: 14 },
   label: { fontSize: 10.5, fontWeight: "800", color: colors.textSecondary, letterSpacing: 0.6, marginBottom: 6 },

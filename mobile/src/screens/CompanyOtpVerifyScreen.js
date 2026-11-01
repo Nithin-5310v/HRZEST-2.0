@@ -57,7 +57,7 @@ export default function CompanyOtpVerifyScreen({ navigation, route }) {
   };
 
   return (
-    <LinearGradient colors={["#0F172A", "#1E3A8A", "#173B8C"]} style={styles.bg}>
+    <LinearGradient colors={["#0F172A", "#1E3A8A", "#1E3A8A"]} style={styles.bg}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -66,7 +66,7 @@ export default function CompanyOtpVerifyScreen({ navigation, route }) {
 
           <View style={styles.header}>
             <View style={styles.logoCircle}>
-              <Ionicons name="mail-open-outline" size={30} color="#173B8C" />
+              <Ionicons name="mail-open-outline" size={30} color="#1E3A8A" />
             </View>
             <Text style={styles.title}>Verify Your Email</Text>
             <Text style={styles.subtitle}>
@@ -120,10 +120,10 @@ const makeStyles = (colors) => StyleSheet.create({
     textAlign: "center", fontSize: 26, fontWeight: "800", letterSpacing: 10, color: colors.text, marginBottom: 18,
   },
   submitBtn: {
-    height: 48, borderRadius: 14, backgroundColor: "#173B8C",
+    height: 48, borderRadius: 14, backgroundColor: "#1E3A8A",
     justifyContent: "center", alignItems: "center", marginBottom: 12,
   },
   submitBtnText: { fontSize: 13, fontWeight: "800", color: "#FFFFFF" },
   resendBtn: { alignSelf: "center", padding: 6 },
-  resendText: { fontSize: 13, fontWeight: "600", color: "#173B8C" },
+  resendText: { fontSize: 13, fontWeight: "600", color: "#1E3A8A" },
 });

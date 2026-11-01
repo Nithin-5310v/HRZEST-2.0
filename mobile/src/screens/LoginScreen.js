@@ -277,7 +277,7 @@ export default function LoginScreen({ navigation }) {
           ) : (
             <>
               <View style={styles.hero}>
-                <Image source={require("../../assets/favicon.png")} style={styles.logo} accessibilityLabel="HRZEST" />
+                <Image source={require("../../assets/favicon.png")} style={styles.logo} accessibilityLabel="HRzest" />
                 <Text style={styles.heading}>Welcome back</Text>
                 <Text style={styles.sub}>Use the same details you use on the website.</Text>
               </View>
@@ -371,7 +371,7 @@ export default function LoginScreen({ navigation }) {
 
               <View style={{ flex: 1 }} />
               <Text style={styles.footer}>
-                New to HRZEST?{" "}
+                New to HRzest?{" "}
                 <Text style={styles.footerLink} onPress={() => navigation.navigate("CompanySignup")} accessibilityRole="link">
                   Register your company
                 </Text>

@@ -25,7 +25,7 @@ export default function AttendanceStatusCard({
       ? "#F59E0B"
       : status === "Absent"
       ? "#EF4444"
-      : "#8794A5";
+      : "#667085";
 
   const statusBg =
     status === "Present" || checkedIn
@@ -34,7 +34,7 @@ export default function AttendanceStatusCard({
       ? "#FFFBEB"
       : status === "Absent"
       ? "#FEF2F2"
-      : "#EDF2F8";
+      : "#EEF1F5";
 
   return (
     <View style={styles.card}>
@@ -118,7 +118,7 @@ export default function AttendanceStatusCard({
         <Ionicons
           name="time-outline"
           size={18}
-          color="#0B5CAD"
+          color="#2563EB"
         />
 
         <View style={{ marginLeft: 10 }}>
@@ -235,13 +235,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
   },
 
   subtitle: {
     marginTop: 4,
     fontSize: 12,
-    color: "#5A6678",
+    color: "#475467",
   },
 
   liveBadge: {
@@ -274,14 +274,14 @@ const styles = StyleSheet.create({
   timeContainer: {
     flexDirection: "row",
 
-    backgroundColor: "#F5F8FC",
+    backgroundColor: "#F4F6F9",
 
     borderRadius: 18,
 
     overflow: "hidden",
 
     borderWidth: 1,
-    borderColor: "#E9EFF6",
+    borderColor: "#EEF1F5",
   },
 
   divider: {
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
 
   timeLabel: {
     marginTop: 10,
-    color: "#5A6678",
+    color: "#475467",
     fontSize: 11,
   },
 
@@ -316,13 +316,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 18,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
   },
 
   workCard: {
     marginTop: 18,
 
-    backgroundColor: "#E6EFFA",
+    backgroundColor: "#EEF4FF",
 
     borderRadius: 16,
 
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   },
 
   workLabel: {
-    color: "#5A6678",
+    color: "#475467",
     fontSize: 11,
   },
 
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 16,
     fontWeight: "800",
-    color: "#0B5CAD",
+    color: "#2563EB",
   },
 
   statusRow: {
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontWeight: "700",
     fontSize: 13,
-    color: "#131C2A",
+    color: "#101828",
   },
 
   statusBadge: {
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   },
 
   checkinBtn: {
-    backgroundColor: "#0B5CAD",
+    backgroundColor: "#2563EB",
   },
 
   checkoutBtn: {
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   },
 
   reloginBtn: {
-    backgroundColor: "#2E7BD1",
+    backgroundColor: "#3B82F6",
   },
 
   actionBtnText: {

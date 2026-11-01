@@ -285,14 +285,14 @@ export default function EmployeeDashboard({ navigation }) {
 
   return (
     <LinearGradient
-      colors={["#F5F8FC", "#F3F7FD", "#EDF4FF"]}
+      colors={["#F4F6F9", "#F3F7FD", "#EDF4FF"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.container}
     >
       <AppTopBar
         title="Home"
-        subtitle={data?.company_name || user?.company || "HRZEST"}
+        subtitle={data?.company_name || user?.company || "HRzest"}
         actions={[{
           icon: "notifications-outline",
           label: "Notifications",
@@ -345,8 +345,8 @@ export default function EmployeeDashboard({ navigation }) {
               setRefreshing(true);
               loadDashboard();
             }}
-            colors={["#0B5CAD"]}
-            tintColor="#0B5CAD"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
       >
@@ -406,14 +406,14 @@ export default function EmployeeDashboard({ navigation }) {
           position: "absolute",
           right: 20,
           bottom: 75,
-          backgroundColor: "#0B5CAD",
+          backgroundColor: "#2563EB",
           width: 56,
           height: 56,
           borderRadius: 28,
           justifyContent: "center",
           alignItems: "center",
           elevation: 8,
-          shadowColor: "#0B5CAD",
+          shadowColor: "#2563EB",
           shadowOpacity: 0.4,
           shadowRadius: 10,
           shadowOffset: { width: 0, height: 4 },
@@ -465,7 +465,7 @@ const makeStyles = (colors) => StyleSheet.create({
   },
   syncBannerLink: {
     fontSize: 13,
-    color: "#094A8C",
+    color: "#1E40AF",
     fontWeight: "700",
     marginLeft: 12,
   },

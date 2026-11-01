@@ -26,8 +26,8 @@ export default function AnalyticsOverviewCard({
       title: "Performance",
       value: performance,
       icon: "ribbon",
-      color: "#0C3054",
-      background: "#EBF2FB",
+      color: "#1D4ED8",
+      background: "#EFF6FF",
       screen: "Performance",
     },
     {
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
     marginBottom: 16,
   },
   row: {
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#DBE3EE",
-    shadowColor: "#131C2A",
+    borderColor: "#E4E7EC",
+    shadowColor: "#101828",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -112,12 +112,12 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
   },
   label: {
     marginTop: 4,
     fontSize: 12,
-    color: "#5A6678",
+    color: "#475467",
     fontWeight: "600",
   },
 });

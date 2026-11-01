@@ -22,14 +22,14 @@ export default function SubjectInput({
         <Ionicons
           name="document-text-outline"
           size={20}
-          color="#5A6678"
+          color="#475467"
         />
 
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder="Enter ticket subject"
-          placeholderTextColor="#8794A5"
+          placeholderTextColor="#667085"
           style={styles.input}
           maxLength={100}
         />
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
     marginBottom: 12,
   },
 
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
 
     borderWidth: 1,
-    borderColor: "#DBE3EE",
+    borderColor: "#E4E7EC",
 
     borderRadius: 18,
 
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
 
     fontSize: 15,
 
-    color: "#131C2A",
+    color: "#101828",
 
     fontWeight: "600",
   },
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
 
     fontSize: 12,
 
-    color: "#8794A5",
+    color: "#667085",
 
     fontWeight: "500",
   },
