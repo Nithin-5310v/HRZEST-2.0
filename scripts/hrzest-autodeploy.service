@@ -1,5 +1,5 @@
 [Unit]
-Description=HRzest.com auto-deploy: deploy origin/main once its GitHub Actions runs pass
+Description=HRzest.com deploy: check out origin/production (or origin/main) once its GitHub Actions runs pass
 # Installed by scripts/install_ec2_autodeploy.sh; the logic and its
 # assumptions (app checkout, hrzest.service, local PostgreSQL) are in
 # scripts/ec2_autodeploy.sh.
@@ -9,6 +9,9 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/hrzest-autodeploy
+# The deploy mode's settings (HRZEST_BRANCH=production), written by the
+# installer; absent = the original deploy-main-every-2-minutes mode.
+EnvironmentFile=-/etc/hrzest/autodeploy.env
 # The app user that owns the checkout and runs hrzest.service. It needs
 # passwordless sudo for `systemctl restart hrzest` and the pre-deploy
 # pg_dumpall as postgres (the default ubuntu user on EC2 has it).
