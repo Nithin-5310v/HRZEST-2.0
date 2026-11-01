@@ -96,6 +96,30 @@ jobs:
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
 
+  mobile-lockfile:
+    name: Mobile lockfile (npm ci as Expo's builds run it)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      # Expo's build machines install the app with `npm ci --include=dev`
+      # under Node 22's npm (10.x). A lockfile written by a newer npm can
+      # install fine on a laptop and still be rejected there ("package.json
+      # and package-lock.json are not in sync"), failing every APK build.
+      - name: npm ci (dry run) with Node 22's npm
+        working-directory: mobile
+        run: |
+          npm --version
+          npm ci --include=dev --dry-run --ignore-scripts --no-audit --no-fund
+
   security:
     name: Dependency & secret scan
     runs-on: ubuntu-latest
