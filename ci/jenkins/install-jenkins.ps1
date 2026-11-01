@@ -4,8 +4,7 @@
 
     powershell -ExecutionPolicy Bypass -File ci\jenkins\install-jenkins.ps1 `
       -EnvSource C:\path\to\HRZEST\.env `
-      -Python C:\path\to\Python312\python.exe `
-      -ProdHost ubuntu@<server-ip> -ProdHostKey "SHA256:..." -ProdSshKey C:\path\to\key.ppk
+      -Python C:\path\to\Python312\python.exe
 
   - Java 21 (Eclipse Temurin) and the Jenkins LTS war into <Root>, checksums
     verified; the plugins in plugins.txt.
@@ -19,10 +18,6 @@
 param(
   [Parameter(Mandatory)] [string] $EnvSource,
   [Parameter(Mandatory)] [string] $Python,
-  [string] $ProdHost = '',
-  [string] $ProdHostKey = '',
-  [string] $ProdSshKey = '',
-  [string] $Plink = 'C:\Program Files\PuTTY\plink.exe',
   [string] $Root = 'C:\Jenkins',
   [string] $DevHome = 'C:\HRZEST-dev',
   [int] $Port = 8090,
@@ -126,10 +121,6 @@ $start = "$Root\start-jenkins.ps1"
 `$env:HRZEST_CI_HOME = '$Root'
 `$env:HRZEST_DEV_HOME = '$DevHome'
 `$env:HRZEST_PYTHON = '$Python'
-`$env:HRZEST_PLINK = '$Plink'
-`$env:HRZEST_PROD_HOST = '$ProdHost'
-`$env:HRZEST_PROD_HOSTKEY = '$ProdHostKey'
-`$env:HRZEST_PROD_SSH_KEY = '$ProdSshKey'
 
 # Bring the development copy back up after a reboot.
 if (Test-Path '$DevHome\start_dev_server.ps1') {
