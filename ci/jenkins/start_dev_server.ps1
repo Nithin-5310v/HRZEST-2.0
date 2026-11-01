@@ -23,12 +23,17 @@ if (-not (Test-Path "$app\run_dev.py") -or -not (Test-Path $python) -or -not (Te
 }
 $port = (Select-String -Path "$app\.env" -Pattern '^\s*PORT\s*=\s*(\d+)' | Select-Object -Last 1).Matches.Groups[1].Value
 
-# What listens on the port, if it is a run_dev.py (ours, not something else).
+# What listens on the port: $null when nothing does, else the run_dev.py
+# process (ours). A server that was just stopped can hold the port for a
+# moment after its process is gone -- that PID no longer resolves, and it
+# counts as ours, still shutting down (Exiting). Anything else is another
+# program, which this never kills.
 function Get-PortServer {
   $owner = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $owner) { return $null }
   $proc = Get-CimInstance Win32_Process -Filter "ProcessId=$($owner.OwningProcess)"
-  if ($proc -and $proc.CommandLine -like '*run_dev.py*') { return $proc }
+  if (-not $proc) { return [pscustomobject]@{ ProcessId = $owner.OwningProcess; Exiting = $true } }
+  if ($proc.CommandLine -like '*run_dev.py*') { return [pscustomobject]@{ ProcessId = $proc.ProcessId; Exiting = $false } }
   throw "Port $port is taken by another program ($($proc.Name), PID $($owner.OwningProcess))."
 }
 
@@ -44,11 +49,12 @@ if (Test-Path $pidFile) {
     & taskkill.exe /T /F /PID $wrapper.ProcessId | Out-Null
   }
 }
-# Anything still holding the port (e.g. started by hand) goes too.
+# Anything of ours still holding the port (e.g. started by hand) goes too;
+# one that is already exiting just needs a moment.
 for ($i = 0; $i -lt 30; $i++) {
   $listening = Get-PortServer
   if (-not $listening) { break }
-  & taskkill.exe /T /F /PID $listening.ProcessId | Out-Null
+  if (-not $listening.Exiting) { & taskkill.exe /T /F /PID $listening.ProcessId | Out-Null }
   Start-Sleep -Milliseconds 500
 }
 if (Get-PortServer) { throw "Could not stop the development copy on port $port." }
