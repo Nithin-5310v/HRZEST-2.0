@@ -36,10 +36,12 @@ class TestSupportInbox:
             monkeypatch.delenv(k, raising=False)
         assert email_utils.support_inbox() == "noreply@hrzest.com"
 
-    def test_follows_the_sending_address(self, monkeypatch):
+    def test_ignores_the_sending_address(self, monkeypatch):
+        # Mail sent through someone's own mailbox mustn't pull enquiries there.
         monkeypatch.delenv("SUPPORT_EMAIL", raising=False)
-        monkeypatch.setenv("EMAIL_FROM_EMAIL", "noreply@example.test")
-        assert email_utils.support_inbox() == "noreply@example.test"
+        monkeypatch.setenv("EMAIL_FROM_EMAIL", "nithin@example.test")
+        monkeypatch.setenv("SMTP_FROM_EMAIL", "smtp-user@example.test")
+        assert email_utils.support_inbox() == "noreply@hrzest.com"
 
     def test_support_email_setting_wins(self, monkeypatch):
         monkeypatch.setenv("SUPPORT_EMAIL", "help@example.test")
