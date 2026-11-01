@@ -4,11 +4,12 @@
 // setCompanySlug) before the call, and remembered by the session
 // (signIn's companySlug).
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 import LoginScreen from '../LoginScreen';
 import * as api from '../../api/client';
+import { API_BASE_URL } from '../../config';
 
 const mockSignIn = jest.fn();
 let mockSlug = '';
@@ -167,4 +168,29 @@ it('tells a leaver their access ended after the last working day', async () => {
   await waitFor(() => expect(Alert.alert).toHaveBeenCalled());
   expect(Alert.alert.mock.calls[0]).toEqual(['Access Ended', msg]);
   expect(mockSignIn).not.toHaveBeenCalled();
+});
+describe('Forgot password', () => {
+  const choose = (label) => Alert.alert.mock.calls.at(-1)[2].find((b) => b.text === label).onPress();
+
+  beforeEach(() => jest.spyOn(Linking, 'openURL').mockResolvedValue(true));
+
+  it("opens the reset page of the company in the Company box", async () => {
+    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    await fireEvent.changeText(screen.getByPlaceholderText(COMPANY), 'acme');
+    await fireEvent.press(screen.getByText('Forgot password?'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Reset Your Password', expect.any(String), expect.any(Array)));
+    choose('Employee or HR (employee ID)');
+    expect(Linking.openURL).toHaveBeenCalledWith(`${API_BASE_URL}/acme/employee_forgot_password`);
+    choose('Admin (email)');
+    expect(Linking.openURL).toHaveBeenLastCalledWith(`${API_BASE_URL}/acme/admin_forgot_password`);
+  });
+
+  it("doesn't open anything for a company that doesn't exist", async () => {
+    api.resolveCompany.mockRejectedValueOnce({ response: { status: 404, data: { ok: false, msg: 'No such company.' } } });
+    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    await fireEvent.changeText(screen.getByPlaceholderText(COMPANY), 'nope');
+    await fireEvent.press(screen.getByText('Forgot password?'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Company Not Found', 'No such company.'));
+    expect(Linking.openURL).not.toHaveBeenCalled();
+  });
 });
