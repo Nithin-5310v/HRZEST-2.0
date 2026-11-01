@@ -115,14 +115,20 @@ class TestLandingPage:
         assert 'id="contactFormError"' in html
 
     def test_never_shows_the_inbox_enquiries_go_to(self, client, monkeypatch):
-        # The inbox is often someone's own mailbox; visitors see noreply@
-        # unless CONTACT_EMAIL says otherwise.
+        # The inbox is often someone's own mailbox; visitors see
+        # contact@hrzest.com unless CONTACT_EMAIL says otherwise -- never a
+        # noreply@ address.
         monkeypatch.delenv("CONTACT_EMAIL", raising=False)
         monkeypatch.setenv("SUPPORT_EMAIL", "person@example.test")
         monkeypatch.setenv("EMAIL_FROM_EMAIL", "sender@example.test")
         html = client.get("/").get_data(as_text=True)
         assert "person@example.test" not in html and "sender@example.test" not in html
-        assert html.count("noreply@hrzest.com") >= 5
+        assert html.count("contact@hrzest.com") >= 5
+        assert "noreply@" not in html
+
+    def test_footer_has_no_magzest_credit(self, client):
+        html = client.get("/").get_data(as_text=True)
+        assert "MagZest" not in html and "footer-credit" not in html
 
     def test_contact_thank_you_reads_as_one_sentence(self, client, monkeypatch):
         # The banner is a flex row: the text must be one item next to the icon,

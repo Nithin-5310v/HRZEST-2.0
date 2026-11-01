@@ -1,17 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" role="img" aria-label="HRzest">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -32 258 258" role="img" aria-label="HRZest">
+  <style>@media (prefers-color-scheme: dark) { .hz-navy { fill: #E2E8F0; } .hz-mid { fill: #7FB2E8; } }</style>
   <defs>
-    <linearGradient id="hz-leaf" x1="0.85" y1="0" x2="0.2" y2="1">
-      <stop offset="0" stop-color="#17A3A3"/>
-      <stop offset="0.55" stop-color="#0B7FA0"/>
-      <stop offset="1" stop-color="#0A4E96"/>
+    <linearGradient id="hz-fig" x1="0.9" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#2F80F2"/>
+      <stop offset="0.6" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#1E3FB4"/>
     </linearGradient>
-    <linearGradient id="hz-green" x1="0.9" y1="0" x2="0.2" y2="1">
-      <stop offset="0" stop-color="#57C493"/>
-      <stop offset="1" stop-color="#33A77B"/>
+    <linearGradient id="hz-wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4FA3EC"/>
+      <stop offset="1" stop-color="#7CC4F7"/>
     </linearGradient>
   </defs>
-  <path fill="url(#hz-leaf)" d="M240 10C150 14 54 58 36 158c-14 84 42 132 104 130 54-2 84-46 90-116 5-56 6-110 10-162z"/>
-  <path fill="url(#hz-green)" stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round" d="M128 292c4-92 66-166 166-184 4 98-58 172-166 184z"/>
-  <circle cx="160" cy="82" r="25" fill="#FFFFFF"/>
-  <path fill="#FFFFFF" d="M40 80c48 6 86 34 106 72 14-26 36-42 66-52-26 22-42 50-50 84-6 28-8 56-10 86-10-30-14-60-24-88C114 132 86 100 40 80z"/>
+  <path fill="url(#hz-wave)" d="M4 120C28 62 88 54 132 70c22 8 42 6 62-10l-4 24c-22 16-46 18-70 10C86 82 40 84 4 120z"/>
+  <rect x="2" y="122" width="48" height="66" rx="24" class="hz-navy" fill="#0F2557"/>
+  <rect x="61" y="100" width="47" height="88" rx="23.5" class="hz-mid" fill="#2F6DB0"/>
+  <path fill="none" stroke="url(#hz-fig)" stroke-width="30" stroke-linecap="round" d="M146 116l78-84"/>
+  <rect x="117" y="98" width="50" height="90" rx="25" fill="url(#hz-fig)"/>
+  <path fill="#2F80F2" stroke="#2F80F2" stroke-width="10" stroke-linejoin="round" d="M196 8h48v48z"/>
+  <circle cx="137" cy="36" r="27" fill="#2B78EE"/>
 </svg>

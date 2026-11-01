@@ -46,9 +46,8 @@
 #hrzLoginLoader .hrz-ll-word {
   font-weight: 700;
   font-size: 1.6rem;
-  letter-spacing: 0.28em;
-  text-indent: 0.28em;
-  color: #0c3054;
+  letter-spacing: -0.01em;
+  color: #0F2557;
 }
 #hrzLoginLoader .hrz-ll-bar {
   width: 220px;
