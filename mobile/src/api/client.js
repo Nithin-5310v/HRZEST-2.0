@@ -229,6 +229,11 @@ export const deletePolicy = (policyId) => client.delete(`/api/admin/policies/${p
 
 export const fetchCompanyPolicies = () => client.get('/api/employee/company_policies');
 
+// An HR account's own employee record, like the website's "My Profile"
+// switch: an employee token for the same person (the HR token is kept to
+// switch back).
+export const fetchMyEmployeeSession = () => client.post('/api/hr/my_employee_session');
+
 export const uploadEmployeePhoto = (formData) =>
   client.post('/api/employee/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 

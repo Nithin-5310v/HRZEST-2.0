@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { adminLogout, employeeLogout, setCompanySlug, setUnauthorizedHandler } from '../api/client';
+import {
+  adminLogout, employeeLogout, fetchMyEmployeeSession, setCompanySlug, setUnauthorizedHandler,
+} from '../api/client';
 import { secureGetItem, secureSetItem, secureMultiRemove } from '../utils/secureStorage';
 import { getBiometricLockEnabled, setLastCompanySlug } from '../utils/preferences';
 import { clearLocalEmployees } from '../utils/employeeStore';
@@ -11,7 +13,9 @@ import { registerForPushNotifications } from '../utils/pushNotifications';
 
 const AuthContext = createContext(null);
 
-const SESSION_KEYS = ['token', 'user', 'user_role', 'user_id'];
+// 'hr_return': the HR session (token + user) kept aside while an HR account
+// uses its own employee view (switchToEmployeeView), to switch back to.
+const SESSION_KEYS = ['token', 'user', 'user_role', 'user_id', 'hr_return'];
 
 // Plain (non-secure) AsyncStorage key -- not a credential, just a marker of
 // "which account last used this device," so a signOut()/kill followed by a
@@ -135,6 +139,12 @@ export function AuthProvider({ children }) {
       } else if (user?.role === 'employee') {
         await employeeLogout();
       }
+      // Signing out of the employee view signs the kept HR session out too.
+      const hrReturn = JSON.parse((await secureGetItem('hr_return')) || 'null');
+      if (hrReturn?.token) {
+        await secureSetItem('token', hrReturn.token);
+        await adminLogout();
+      }
     } catch (_) {}
     // Only now: the logout call above still had to reach this company.
     setCompanySlug('');
@@ -142,6 +152,40 @@ export function AuthProvider({ children }) {
     await clearCrossAccountCaches();
     setUser(null);
     setLocked(false);
+  };
+
+  // HR -> their own employee view (the website's "My Profile" switch). Not
+  // signIn(): it's the same person, so the account-change cache wipe
+  // (offline punches, cached employees) must not run.
+  const switchToEmployeeView = async () => {
+    const { data } = await fetchMyEmployeeSession();
+    const employeeUser = {
+      role: 'employee',
+      name: data.name,
+      employeeId: data.employee_id,
+      email: data.email,
+      companySlug: user?.companySlug,
+      company: user?.company,
+      hrReturn: true,
+    };
+    const hrToken = await secureGetItem('token');
+    await secureSetItem('hr_return', JSON.stringify({ token: hrToken, user }));
+    await secureSetItem('token', data.token);
+    await secureSetItem('user', JSON.stringify(employeeUser));
+    setUser(employeeUser);
+  };
+
+  // Back to the HR panel with the kept HR session; ends the employee token.
+  const switchBackToHr = async () => {
+    const hrReturn = JSON.parse((await secureGetItem('hr_return')) || 'null');
+    if (!hrReturn?.token) return signOut();
+    try {
+      await employeeLogout();
+    } catch (_) {}
+    await secureSetItem('token', hrReturn.token);
+    await secureSetItem('user', JSON.stringify(hrReturn.user));
+    await secureMultiRemove(['hr_return']);
+    setUser(hrReturn.user);
   };
 
   const unlockApp = async () => {
@@ -169,7 +213,9 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, locked, signIn, signOut, updateUser, unlockApp }}>
+    <AuthContext.Provider
+      value={{ user, loading, locked, signIn, signOut, updateUser, unlockApp, switchToEmployeeView, switchBackToHr }}
+    >
       {children}
     </AuthContext.Provider>
   );
