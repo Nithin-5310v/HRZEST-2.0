@@ -95,7 +95,7 @@ export default function LaunchCountdownScreen({ navigation, onContinue }) {
           ))}
         </View>
         <View style={{ flex: 1 }} />
-        <Text style={styles.copyright}>© {now.getFullYear()} HRZEST.com · All rights reserved</Text>
+        <Text style={styles.copyright}>© {now.getFullYear()} HRzest.com · All rights reserved</Text>
       </ScrollView>
     </View>
   );

@@ -14,8 +14,8 @@ export default function HolidayLegend() {
     },
     {
       title: "Company Holiday",
-      color: "#0B5CAD",
-      background: "#E6EFFA",
+      color: "#2563EB",
+      background: "#EEF4FF",
     },
     {
       title: "Optional Holiday",
@@ -29,8 +29,8 @@ export default function HolidayLegend() {
     },
     {
       title: "Working Day",
-      color: "#8794A5",
-      background: "#F5F8FC",
+      color: "#667085",
+      background: "#F4F6F9",
     },
   ];
 
@@ -81,9 +81,9 @@ const styles = StyleSheet.create({
     padding: 18,
 
     borderWidth: 1,
-    borderColor: "#E3EAF3",
+    borderColor: "#E6E9EF",
 
-    shadowColor: "#131C2A",
+    shadowColor: "#101828",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: {
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
     marginBottom: 14,
   },
 
@@ -142,6 +142,6 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#2E3A4A",
+    color: "#344054",
   },
 });

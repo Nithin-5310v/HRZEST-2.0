@@ -7,8 +7,8 @@ import {
 
 export default function StatChip({
   label,
-  color = "#0B5CAD",
-  background = "#E6EFFA",
+  color = "#2563EB",
+  background = "#EEF4FF",
 }) {
   return (
     <View

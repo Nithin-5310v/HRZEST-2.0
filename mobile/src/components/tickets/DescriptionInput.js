@@ -23,7 +23,7 @@ export default function DescriptionInput({
           <Ionicons
             name="create-outline"
             size={22}
-            color="#5A6678"
+            color="#475467"
           />
         </View>
 
@@ -31,7 +31,7 @@ export default function DescriptionInput({
           value={value}
           onChangeText={onChangeText}
           placeholder="Describe your issue in detail..."
-          placeholderTextColor="#8794A5"
+          placeholderTextColor="#667085"
           multiline
           textAlignVertical="top"
           numberOfLines={7}
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
     marginBottom: 12,
   },
 
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
 
     borderWidth: 1,
-    borderColor: "#DBE3EE",
+    borderColor: "#E4E7EC",
 
     borderRadius: 20,
 
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
 
     fontSize: 15,
 
-    color: "#131C2A",
+    color: "#101828",
 
     fontWeight: "500",
 
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
 
     fontSize: 12,
 
-    color: "#8794A5",
+    color: "#667085",
 
     fontWeight: "500",
   },
@@ -134,6 +134,6 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#5A6678",
+    color: "#475467",
   },
 });

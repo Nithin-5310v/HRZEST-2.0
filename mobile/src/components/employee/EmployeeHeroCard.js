@@ -52,7 +52,7 @@ export default function EmployeeHeroCard({
 
   return (
     <LinearGradient
-      colors={["#0C3054", "#0B5CAD"]}
+      colors={["#1D4ED8", "#2563EB"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.card}
@@ -80,7 +80,7 @@ export default function EmployeeHeroCard({
 
           <View style={styles.metaRow}>
             <View style={styles.roleTag}>
-              <Ionicons name="shield-checkmark" size={12} color="#4C9BE8" style={{ marginRight: 4 }} />
+              <Ionicons name="shield-checkmark" size={12} color="#60A5FA" style={{ marginRight: 4 }} />
               <Text style={styles.roleText} numberOfLines={1}>
                 {displayRole}
               </Text>
@@ -103,7 +103,7 @@ export default function EmployeeHeroCard({
           <View
             style={[
               styles.statusDot,
-              { backgroundColor: completed ? "#8794A5" : checkedIn ? "#4ADE80" : "#FBBF24" },
+              { backgroundColor: completed ? "#667085" : checkedIn ? "#4ADE80" : "#FBBF24" },
             ]}
           />
           <Text style={styles.statusTitle}>
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 18,
     elevation: 6,
-    shadowColor: "#0C3054",
+    shadowColor: "#1D4ED8",
     shadowOpacity: 0.35,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   initialText: {
     fontSize: 22,
     fontWeight: "900",
-    color: "#0B5CAD",
+    color: "#2563EB",
   },
   onlineDot: {
     position: "absolute",
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: "#4ADE80",
     borderWidth: 2,
-    borderColor: "#0C3054",
+    borderColor: "#1D4ED8",
   },
   userInfo: {
     flex: 1,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   roleText: {
-    color: "#DBE3EE",
+    color: "#E4E7EC",
     fontSize: 11,
     fontWeight: "700",
   },
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   idText: {
-    color: "#4C9BE8",
+    color: "#60A5FA",
     fontSize: 11,
     fontWeight: "800",
   },

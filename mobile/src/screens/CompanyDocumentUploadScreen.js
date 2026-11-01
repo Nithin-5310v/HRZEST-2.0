@@ -90,7 +90,7 @@ export default function CompanyDocumentUploadScreen({ navigation, route }) {
   };
 
   return (
-    <LinearGradient colors={["#0F172A", "#1E3A8A", "#173B8C"]} style={styles.bg}>
+    <LinearGradient colors={["#0F172A", "#1E3A8A", "#1E3A8A"]} style={styles.bg}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
@@ -98,7 +98,7 @@ export default function CompanyDocumentUploadScreen({ navigation, route }) {
 
         <View style={styles.header}>
           <View style={styles.logoCircle}>
-            <Ionicons name="cloud-upload-outline" size={30} color="#173B8C" />
+            <Ionicons name="cloud-upload-outline" size={30} color="#1E3A8A" />
           </View>
           <Text style={styles.title}>Upload Business Documents</Text>
           <Text style={styles.subtitle}>Almost there — we need these to verify {companyName} before your portal goes live.</Text>
@@ -115,7 +115,7 @@ export default function CompanyDocumentUploadScreen({ navigation, route }) {
                 activeOpacity={0.8}
               >
                 <View style={styles.docIcon}>
-                  <Ionicons name={picked ? "checkmark-circle" : slot.icon} size={22} color={picked ? "#16A34A" : "#173B8C"} />
+                  <Ionicons name={picked ? "checkmark-circle" : slot.icon} size={22} color={picked ? "#16A34A" : "#1E3A8A"} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.docLabel}>{slot.label}</Text>
@@ -159,7 +159,7 @@ const makeStyles = (colors) => StyleSheet.create({
   docLabel: { fontSize: 13, fontWeight: "700", color: colors.text },
   docHint: { fontSize: 11.5, color: colors.textLight, marginTop: 2 },
   submitBtn: {
-    height: 48, borderRadius: 14, backgroundColor: "#173B8C",
+    height: 48, borderRadius: 14, backgroundColor: "#1E3A8A",
     justifyContent: "center", alignItems: "center", marginTop: 6,
   },
   submitBtnText: { fontSize: 13, fontWeight: "800", color: "#FFFFFF" },

@@ -25,8 +25,8 @@ export default function HolidayCard({
       case "Company":
         return {
           icon: "business-outline",
-          color: "#0B5CAD",
-          background: "#E6EFFA",
+          color: "#2563EB",
+          background: "#EEF4FF",
         };
 
       case "Optional":
@@ -39,8 +39,8 @@ export default function HolidayCard({
       default:
         return {
           icon: "calendar-outline",
-          color: "#5A6678",
-          background: "#F5F8FC",
+          color: "#475467",
+          background: "#F4F6F9",
         };
     }
   };
@@ -102,7 +102,7 @@ export default function HolidayCard({
         <Ionicons
           name="calendar-outline"
           size={18}
-          color="#5A6678"
+          color="#475467"
         />
 
         <Text style={styles.infoText}>
@@ -114,7 +114,7 @@ export default function HolidayCard({
         <Ionicons
           name="information-circle-outline"
           size={18}
-          color="#5A6678"
+          color="#475467"
         />
 
         <Text style={styles.infoText}>
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E3EAF3",
+    borderColor: "#E6E9EF",
 
     shadowColor: "#000",
     shadowOpacity: 0.04,
@@ -173,13 +173,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
   },
 
   day: {
     marginTop: 2,
     fontSize: 13,
-    color: "#5A6678",
+    color: "#475467",
     fontWeight: "600",
   },
 
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
 
-    backgroundColor: "#E9EFF6",
+    backgroundColor: "#EEF1F5",
 
     marginVertical: 16,
   },
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
 
     fontSize: 14,
 
-    color: "#455163",
+    color: "#475467",
 
     fontWeight: "500",
   },

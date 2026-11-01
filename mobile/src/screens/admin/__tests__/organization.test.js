@@ -8,7 +8,7 @@ import OrganizationScreen from '../OrganizationScreen';
 import * as api from '../../../api/client';
 
 jest.mock('../../../store/ThemeContext', () => ({
-  useTheme: () => ({ colors: new Proxy({}, { get: () => '#0B5CAD' }) }),
+  useTheme: () => ({ colors: new Proxy({}, { get: () => '#2563EB' }) }),
 }));
 jest.mock('../../../components/admin/AdminHeader', () => () => null);
 jest.mock('expo-image-picker', () => ({}));

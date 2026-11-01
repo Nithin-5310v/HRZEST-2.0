@@ -15,8 +15,8 @@ const CARDS = [
     title: "Hours",
     subtitle: "Worked Today",
     icon: "time-outline",
-    color: "#0B5CAD",
-    bg: "#E6EFFA",
+    color: "#2563EB",
+    bg: "#EEF4FF",
     screen: "Attendance",
   },
 
@@ -119,7 +119,7 @@ export default function EmployeeSummaryCards({
                 <Ionicons
                   name="chevron-forward"
                   size={16}
-                  color="#C3CFDD"
+                  color="#D0D5DD"
                 />
 
               </View>
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#131C2A",
+    color: "#101828",
 
     marginBottom: 16,
 
@@ -194,9 +194,9 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E3EAF3",
+    borderColor: "#E6E9EF",
 
-    shadowColor: "#131C2A",
+    shadowColor: "#101828",
 
     shadowOpacity: 0.05,
 
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#131C2A",
+    color: "#101828",
 
     letterSpacing: -0.5,
 
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#2E3A4A",
+    color: "#344054",
 
   },
 
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
 
     fontSize: 12,
 
-    color: "#8794A5",
+    color: "#667085",
 
   },
 

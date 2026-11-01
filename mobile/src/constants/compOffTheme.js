@@ -194,23 +194,23 @@ export const yearOptions = [
 const COMPOFF_THEME = {
   colors: {
     // Primary
-    primary: "#0C3054",
-    primaryLight: "#D3E3F7",
+    primary: "#1D4ED8",
+    primaryLight: "#DBEAFE",
 
     // Secondary
-    secondary: "#2E7BD1",
+    secondary: "#3B82F6",
 
     // Backgrounds
-    background: "#F5F8FC",
+    background: "#F4F6F9",
 
     // Text
-    textPrimary: "#131C2A",
-    textSecondary: "#455163",
-    textMuted: "#5A6678",
+    textPrimary: "#101828",
+    textSecondary: "#475467",
+    textMuted: "#475467",
 
     // Borders & Dividers
-    border: "#DBE3EE",
-    divider: "#E9EFF6",
+    border: "#E4E7EC",
+    divider: "#EEF1F5",
 
     // Status
     success: "#22C55E",

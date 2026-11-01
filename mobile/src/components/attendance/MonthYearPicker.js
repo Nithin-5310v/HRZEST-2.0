@@ -52,7 +52,7 @@ export default function MonthYearPicker({
             <Ionicons
               name="chevron-back"
               size={20}
-              color="#0B5CAD"
+              color="#2563EB"
             />
           </TouchableOpacity>
 
@@ -64,7 +64,7 @@ export default function MonthYearPicker({
             <Ionicons
               name="chevron-forward"
               size={20}
-              color="#0B5CAD"
+              color="#2563EB"
             />
           </TouchableOpacity>
         </View>
@@ -76,7 +76,7 @@ export default function MonthYearPicker({
         <Ionicons
           name="calendar-outline"
           size={18}
-          color="#0B5CAD"
+          color="#2563EB"
         />
 
         <Text style={styles.badgeText}>
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
 
   smallTitle: {
     fontSize: 13,
-    color: "#5A6678",
+    color: "#475467",
     fontWeight: "600",
   },
 
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontSize: 28,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
   },
 
   navigation: {
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
 
-    backgroundColor: "#E6EFFA",
+    backgroundColor: "#EEF4FF",
 
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
 
   badgeText: {
     marginLeft: 8,
-    color: "#0B5CAD",
+    color: "#2563EB",
     fontSize: 14,
     fontWeight: "700",
   },
