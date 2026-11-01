@@ -107,10 +107,11 @@ def support_inbox():
 
 def public_contact_email():
     """The address the website shows visitors: CONTACT_EMAIL, else
-    noreply@hrzest.com. Separate from support_inbox() on purpose -- that one
-    is often a team member's own mailbox (the sending address), which
-    shouldn't be published; enquiries still reach it through the forms."""
-    return os.environ.get("CONTACT_EMAIL", "").strip() or "noreply@hrzest.com"
+    contact@hrzest.com (an alias of the team's Microsoft 365 mailbox).
+    Separate from support_inbox() on purpose -- that one is often a team
+    member's own mailbox (the sending address), which shouldn't be
+    published; enquiries still reach it through the forms."""
+    return os.environ.get("CONTACT_EMAIL", "").strip() or "contact@hrzest.com"
 
 
 def notify_support(subject, html_body):

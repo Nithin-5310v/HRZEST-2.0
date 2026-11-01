@@ -124,7 +124,6 @@ input:focus, select:focus, textarea:focus {
   border-top: 1px solid #d9e2f5;
 }
 .footer a:hover { color: #2563eb; }
-.footer-bottom .footer-credit { font-weight: 600; color: var(--text-main); }
 
 /* Auth promo panel (left side of login / sign-up) */
 .auth-promo-eyebrow {
