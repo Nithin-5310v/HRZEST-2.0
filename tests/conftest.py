@@ -8,10 +8,22 @@ instance. Set them in .env.test or export before running:
     DB_HOST=localhost DB_USER=postgres DB_PASS=secret pytest tests/
 """
 import os
+import time
 import pytest
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# The tests take "today" from the process clock (datetime.date.today()),
+# while the app uses company_today() -- Asia/Kolkata unless a company sets
+# another timezone. On a UTC machine (GitHub's runners) the two disagree
+# from 18:30 to 24:00 UTC, and every test that inserts today's attendance
+# row then fails. Run the test process on the companies' default timezone.
+# POSIX only: Windows reads TZ in its own format and would fall back to UTC
+# (the Windows machines here -- this PC, Jenkins -- are on IST anyway).
+if hasattr(time, "tzset"):
+    os.environ["TZ"] = "Asia/Kolkata"
+    time.tzset()
 
 
 def _test_db_name(environ):
