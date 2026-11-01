@@ -16,8 +16,8 @@ const DEFAULT_ACTIVITIES = [
     description: "Rahul Sharma joined Engineering.",
     time: "5 min ago",
     icon: "person-add",
-    color: "#0B5CAD",
-    bg: "#D3E3F7",
+    color: "#2563EB",
+    bg: "#DBEAFE",
   },
   {
     id: 2,
@@ -70,9 +70,9 @@ export default function RecentActivityList({
       </View>
 
       {activities.length === 0 ? (
-        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DBE3EE" }}>
-          <Ionicons name="time-outline" size={36} color="#8794A5" />
-          <Text style={{ fontSize: 14, fontWeight: "600", color: "#5A6678", marginTop: 8 }}>
+        <View style={{ backgroundColor: "#FFFFFF", borderRadius: 16, padding: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#E4E7EC" }}>
+          <Ionicons name="time-outline" size={36} color="#667085" />
+          <Text style={{ fontSize: 14, fontWeight: "600", color: "#475467", marginTop: 8 }}>
             No Recent System Activity
           </Text>
         </View>
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
   },
 
   viewAll: {
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
 
     borderWidth: 1,
 
-    borderColor: "#E3EAF3",
+    borderColor: "#E6E9EF",
 
     shadowColor: "#000",
 
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#131C2A",
+    color: "#101828",
   },
 
   description: {
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#5A6678",
+    color: "#475467",
 
     lineHeight: 18,
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
 
     fontSize: 12,
 
-    color: "#8794A5",
+    color: "#667085",
 
     fontWeight: "600",
   },

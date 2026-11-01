@@ -9,26 +9,26 @@ const ThemeContext = createContext(null);
 // deliberately NOT overridden per-theme (an accent blue reads fine on both
 // a light and a dark surface), only what actually needs to invert does.
 const LIGHT_COLORS = {
-  primary: "#0B5CAD",
-  primaryDark: "#0C3054",
-  primaryLight: "#E6EFFA",
-  background: "#F5F8FC",
+  primary: "#2563EB",
+  primaryDark: "#1D4ED8",
+  primaryLight: "#EEF4FF",
+  background: "#F4F6F9",
   surface: "#FFFFFF",
   card: "#FFFFFF",
-  text: "#131C2A",
-  textSecondary: "#455163",
-  textLight: "#8794A5",
-  border: "#DBE3EE",
+  text: "#101828",
+  textSecondary: "#475467",
+  textLight: "#667085",
+  border: "#E4E7EC",
   success: "#22C55E",
   warning: "#F59E0B",
   danger: "#EF4444",
   info: "#06B6D4",
-  employee: "#2E7BD1",
+  employee: "#3B82F6",
   attendance: "#22C55E",
   absent: "#EF4444",
   payroll: "#8B5CF6",
   analytics: "#F97316",
-  blueBg: "#EBF2FB",
+  blueBg: "#EFF6FF",
   greenBg: "#ECFDF5",
   redBg: "#FEF2F2",
   yellowBg: "#FFFBEB",
@@ -37,7 +37,7 @@ const LIGHT_COLORS = {
   black: "#000000",
   // Most screens wrap their whole body in
   // <LinearGradient colors={THEME's screenGradient}> as the page background.
-  screenGradient: ["#F5F8FC", "#EDF2F8", "#DBE3EE"],
+  screenGradient: ["#F4F6F9", "#EEF1F5", "#E4E7EC"],
 };
 
 const DARK_COLORS = {
@@ -46,8 +46,8 @@ const DARK_COLORS = {
   background: "#0B1220",
   surface: "#111A2E",
   card: "#151F35",
-  text: "#EDF2F8",
-  textSecondary: "#C3CFDD",
+  text: "#EEF1F5",
+  textSecondary: "#D0D5DD",
   textLight: "#8B96A8",
   border: "#25324A",
   blueBg: "#16233F",

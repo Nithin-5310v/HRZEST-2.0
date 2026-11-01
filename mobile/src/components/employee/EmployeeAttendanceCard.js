@@ -90,8 +90,8 @@ export default function EmployeeAttendanceCard({
                 checkedIn
                   ? "#22C55E"
                   : completed
-                  ? "#0B5CAD"
-                  : "#C3CFDD",
+                  ? "#2563EB"
+                  : "#D0D5DD",
             },
           ]}
         />
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
 
     borderColor: "#E9EEF5",
 
-    shadowColor: "#131C2A",
+    shadowColor: "#101828",
 
     shadowOpacity: 0.05,
 
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#131C2A",
+    color: "#101828",
 
   },
 
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
 
     fontSize: 13,
 
-    color: "#5A6678",
+    color: "#475467",
 
   },
 
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
 
     justifyContent: "space-between",
 
-    backgroundColor: "#F5F8FC",
+    backgroundColor: "#F4F6F9",
 
     borderRadius: 18,
 
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
 
     marginTop: 8,
 
-    color: "#5A6678",
+    color: "#475467",
 
     fontSize: 12,
 
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#131C2A",
+    color: "#101828",
 
   },
 
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
 
     fontSize: 12,
 
-    color: "#8794A5",
+    color: "#667085",
 
     marginBottom: 4,
 
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "700",
 
-    color: "#131C2A",
+    color: "#101828",
 
   },
 
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
 
   checkinButton: {
 
-    backgroundColor: "#0B5CAD",
+    backgroundColor: "#2563EB",
 
   },
 
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   },
 
   reloginButton: {
-    backgroundColor: "#2E7BD1",
+    backgroundColor: "#3B82F6",
   },
 
   completedBox: {

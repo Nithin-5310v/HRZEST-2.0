@@ -19,12 +19,12 @@ export default function EmployeeDrawerNavigator() {
         overlayColor: "rgba(15, 23, 42, 0.4)",
         drawerStyle: {
           width: 310,
-          backgroundColor: "#F5F8FC",
+          backgroundColor: "#F4F6F9",
           borderTopRightRadius: 24,
           borderBottomRightRadius: 24,
         },
         sceneContainerStyle: {
-          backgroundColor: "#F5F8FC",
+          backgroundColor: "#F4F6F9",
         },
       }}
     >

@@ -46,12 +46,10 @@ function RootNavigator() {
     // expo-splash-screen with the logo) while the saved session loads.
     return (
       <View style={{ flex: 1, backgroundColor: "#FFFFFF", justifyContent: "center", alignItems: "center", gap: 16 }}>
-        <Image source={require("./assets/favicon.png")} style={{ width: 112, height: 112 }} accessibilityLabel="HRZEST" />
-        <Text style={{ fontSize: 34, fontWeight: "900", letterSpacing: 0.4, color: "#0C3054" }}>
-          HR<Text style={{ color: "#0B7FA0" }}>ZEST</Text>
-        </Text>
-        <Text style={{ fontSize: 15, color: "#455163" }}>HR, attendance and payroll</Text>
-        <ActivityIndicator color="#0B5CAD" style={{ marginTop: 24 }} />
+        <Image source={require("./assets/favicon.png")} style={{ width: 112, height: 112 }} accessibilityLabel="HRzest" />
+        <Text style={{ fontSize: 34, fontWeight: "700", letterSpacing: -0.4, color: "#0F2557" }}>HRZest</Text>
+        <Text style={{ fontSize: 15, color: "#475467" }}>HR, attendance and payroll</Text>
+        <ActivityIndicator color="#2563EB" style={{ marginTop: 24 }} />
       </View>
     );
   }

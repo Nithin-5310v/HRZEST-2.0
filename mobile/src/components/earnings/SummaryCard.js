@@ -10,8 +10,8 @@ export default function SummaryCard({
   icon,
   title,
   value,
-  color = "#0B5CAD",
-  background = "#E6EFFA",
+  color = "#2563EB",
+  background = "#EEF4FF",
 }) {
   return (
     <View style={styles.container}>
@@ -55,9 +55,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
 
     borderWidth: 1,
-    borderColor: "#E3EAF3",
+    borderColor: "#E6E9EF",
 
-    shadowColor: "#131C2A",
+    shadowColor: "#101828",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: {
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#5A6678",
+    color: "#475467",
   },
 
   value: {
@@ -96,6 +96,6 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#131C2A",
+    color: "#101828",
   },
 });

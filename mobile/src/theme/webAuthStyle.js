@@ -9,22 +9,22 @@ import { Ionicons } from "@expo/vector-icons";
 // Light theme only, like those pages.
 
 export const WEB = {
-  brand: "#0B5CAD",          // --accent-cyan: the logo's blue
-  brandDark: "#0C3054",      // --accent-blue: the wordmark's navy
-  brandGreen: "#3CB484",     // the logo's green leaf
-  text: "#131C2A",           // --text-main
-  textMuted: "#455163",      // --text-muted
-  textSubtle: "#8794A5",     // --text-subtle
+  brand: "#2563EB",          // --accent-cyan: the website's blue
+  brandDark: "#1D4ED8",      // --accent-blue: its darker blue
+  logoNavy: "#0F2557",       // the HRZest wordmark (landing_v2.css .brand-wordmark)
+  text: "#101828",           // --text-main
+  textMuted: "#475467",      // --text-muted
+  textSubtle: "#667085",     // --text-subtle
   card: "#FFFFFF",           // --bg-card
-  field: "#EDF2F8",          // --bg-tertiary: Material filled field
-  fieldAlt: "#E3EAF3",
+  field: "#EEF1F5",          // --bg-tertiary: Material filled field
+  fieldAlt: "#E6E9EF",
   border: "rgba(15,23,42,0.08)",      // --border-color
-  borderGlow: "rgba(11,92,173,0.35)", // --border-color-glow
-  brandTint: "rgba(11,92,173,0.06)",
-  page: "#F5F8FC",           // the signed-in screens' background
-  tint: "#D3E3F7",           // tonal buttons, chips, the active tab's pill
-  tile: "#E7EEF7",           // icon tiles
-  line: "#E3E9F1",           // card and bar hairlines
+  borderGlow: "rgba(37,99,235,0.35)", // --border-color-glow
+  brandTint: "rgba(37,99,235,0.06)",
+  page: "#F4F6F9",           // the signed-in screens' background
+  tint: "#DBEAFE",           // tonal buttons, chips, the active tab's pill
+  tile: "#EEF4FF",           // icon tiles
+  line: "#E6E9EF",           // card and bar hairlines
   danger: "#B42318",
   success: "#059669",        // --accent-emerald
   error: "#E11D48",          // --accent-rose
@@ -34,16 +34,16 @@ export const WEB = {
   radiusPill: 999,
 };
 
-// --gradient-brand: the logo leaf, linear-gradient(135deg, #1E6FD0, #0A4E96)
+// --gradient-brand: linear-gradient(135deg, #2563EB, #1D4ED8)
 export const WEB_BRAND_GRADIENT = {
-  colors: ["#1E6FD0", "#0A4E96"],
+  colors: ["#2563EB", "#1D4ED8"],
   start: { x: 0, y: 0 },
   end: { x: 1, y: 1 },
 };
 
-// The page background: linear-gradient(160deg, #EAF2FC 0%, #EEF4FB 28%, #F2F6FC 56%, #F5F8FC 100%)
+// The page background: linear-gradient(160deg, #EAF2FC 0%, #EEF4FB 28%, #F2F6FC 56%, #F4F6F9 100%)
 export const WEB_PAGE_GRADIENT = {
-  colors: ["#EAF2FC", "#EEF4FB", "#F2F6FC", "#F5F8FC"],
+  colors: ["#EAF2FC", "#EEF4FB", "#F2F6FC", "#F4F6F9"],
   locations: [0, 0.28, 0.56, 1],
   start: { x: 0.33, y: 0 },
   end: { x: 0.67, y: 1 },
@@ -65,7 +65,7 @@ export function WebTopBar({ right, style }) {
     <View style={[webAuthStyles.topBar, style]}>
       <View style={webAuthStyles.brandRow} accessibilityRole="header" accessibilityLabel="HRzest">
         <Image source={require("../../assets/favicon.png")} style={webAuthStyles.brandLogo} />
-        <Text style={webAuthStyles.brandName}>HRZEST</Text>
+        <Text style={webAuthStyles.brandName}>HRZest</Text>
       </View>
       {right}
     </View>
@@ -96,11 +96,11 @@ export function WebCardHeader({ icon, image, title, subtitle }) {
   );
 }
 
-/** "HRZEST" in the logo's colours: navy HR, teal ZEST. */
+/** The "HRZest" wordmark in the logo's navy, as on the website. */
 export function Wordmark({ size = 19 }) {
   return (
     <Text style={[webAuthStyles.wordmark, { fontSize: size }]} accessibilityRole="header">
-      HR<Text style={webAuthStyles.wordmarkZest}>ZEST</Text>
+      HRZest
     </Text>
   );
 }
@@ -108,8 +108,8 @@ export function Wordmark({ size = 19 }) {
 const BUTTON_KINDS = {
   primary: { bg: WEB.brand, fg: "#FFFFFF", border: WEB.brand },
   outline: { bg: "#FFFFFF", fg: WEB.brand, border: WEB.textSubtle },
-  tonal: { bg: "#D3E3F7", fg: WEB.brandDark, border: "#D3E3F7" },
-  danger: { bg: "#FFFFFF", fg: "#B42318", border: "#C3CFDD" },
+  tonal: { bg: "#DBEAFE", fg: WEB.brandDark, border: "#DBEAFE" },
+  danger: { bg: "#FFFFFF", fg: "#B42318", border: "#D0D5DD" },
 };
 
 /** The app's one button: a full-width pill, 52 tall. kind: primary (the
@@ -183,21 +183,20 @@ export const webAuthStyles = StyleSheet.create({
   },
   brandRow: { flexDirection: "row", alignItems: "center" },
   brandLogo: { width: 38, height: 38, resizeMode: "contain" },
-  brandName: { marginLeft: 8, fontSize: 21, fontWeight: "800", letterSpacing: 1.2, color: WEB.brandDark },
-  wordmark: { fontWeight: "900", letterSpacing: 0.4, color: WEB.brandDark },
-  wordmarkZest: { color: "#0B7FA0" },
+  brandName: { marginLeft: 8, fontSize: 21, fontWeight: "700", letterSpacing: -0.2, color: WEB.logoNavy },
+  wordmark: { fontWeight: "700", letterSpacing: -0.2, color: WEB.logoNavy },
   appButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1, paddingHorizontal: 16 },
   appButtonText: { fontSize: 15, fontWeight: "700" },
   navButton: {
     flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10, borderRadius: WEB.radiusPill,
-    backgroundColor: "#D3E3F7",
+    backgroundColor: "#DBEAFE",
   },
   navButtonText: { fontSize: 13, fontWeight: "700", color: WEB.brandDark },
 
   card: {
     backgroundColor: WEB.card, borderRadius: WEB.radiusLg,
     paddingHorizontal: 24, paddingTop: 34, paddingBottom: 26, overflow: "hidden",
-    shadowColor: "#0C3054", shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 2,
+    shadowColor: "#1D4ED8", shadowOpacity: 0.08, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 2,
   },
   cardBar: { position: "absolute", top: 0, left: 0, right: 0, height: 4 },
   cardHeader: { alignItems: "center", marginBottom: 26 },

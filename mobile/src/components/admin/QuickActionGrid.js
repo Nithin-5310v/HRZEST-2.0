@@ -11,8 +11,8 @@ const ACTIONS = [
   {
     title: "Staff Directory",
     icon: "people",
-    color: "#0C3054",
-    background: "#EBF2FB",
+    color: "#1D4ED8",
+    background: "#EFF6FF",
     screen: "Employees",
   },
   {
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
     marginBottom: 16,
   },
   grid: {
@@ -97,8 +97,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#DBE3EE",
-    shadowColor: "#131C2A",
+    borderColor: "#E4E7EC",
+    shadowColor: "#101828",
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#131C2A",
+    color: "#101828",
     textAlign: "center",
     paddingHorizontal: 6,
   },

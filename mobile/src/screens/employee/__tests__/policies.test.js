@@ -8,7 +8,7 @@ import PoliciesScreen, { policyBullets, categoryTab } from '../PoliciesScreen';
 import * as api from '../../../api/client';
 
 jest.mock('../../../store/ThemeContext', () => ({
-  useTheme: () => ({ colors: new Proxy({}, { get: () => '#0B5CAD' }) }),
+  useTheme: () => ({ colors: new Proxy({}, { get: () => '#2563EB' }) }),
 }));
 jest.mock('../../../components/profile/ProfileHeader', () => () => null);
 jest.mock('../../../api/client', () => ({ fetchCompanyPolicies: jest.fn() }));

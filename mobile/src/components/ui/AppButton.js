@@ -68,7 +68,7 @@ export default function AppButton({
           color={
             variant === 'primary'
               ? '#FFFFFF'
-              : '#0B5CAD'
+              : '#2563EB'
           }
 
         />
@@ -85,7 +85,7 @@ export default function AppButton({
               color={
                 variant === 'primary'
                   ? '#FFFFFF'
-                  : '#0B5CAD'
+                  : '#2563EB'
               }
               style={styles.leftIcon}
             />
@@ -106,7 +106,7 @@ export default function AppButton({
               color={
                 variant === 'primary'
                   ? '#FFFFFF'
-                  : '#0B5CAD'
+                  : '#2563EB'
               }
               style={styles.rightIcon}
             />
@@ -151,9 +151,9 @@ const styles = StyleSheet.create({
 
   primary: {
 
-    backgroundColor: '#0B5CAD',
+    backgroundColor: '#2563EB',
 
-    borderColor: '#0B5CAD',
+    borderColor: '#2563EB',
 
   },
 
@@ -215,13 +215,13 @@ const styles = StyleSheet.create({
 
   secondaryText: {
 
-    color: '#0B5CAD',
+    color: '#2563EB',
 
   },
 
   outlineText: {
 
-    color: '#0B5CAD',
+    color: '#2563EB',
 
   },
 
