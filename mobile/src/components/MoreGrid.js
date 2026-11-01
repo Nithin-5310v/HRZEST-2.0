@@ -41,7 +41,12 @@ export default function MoreGrid({ navigation, title = "More", subtitle, groups,
 
         <View style={styles.list}>
           {footer.map((row) => (
-            <TouchableOpacity key={row.route} style={styles.row} onPress={() => navigation.navigate(row.route)} accessibilityRole="button">
+            <TouchableOpacity
+              key={row.route || row.label}
+              style={styles.row}
+              onPress={row.onPress || (() => navigation.navigate(row.route))}
+              accessibilityRole="button"
+            >
               <Text style={styles.rowLabel}>{row.label}</Text>
               {row.detail ? <Text style={styles.rowDetail}>{row.detail}</Text> : null}
               <Ionicons name="chevron-forward" size={18} color="#8794A5" />

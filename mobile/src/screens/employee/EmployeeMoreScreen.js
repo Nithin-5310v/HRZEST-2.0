@@ -46,12 +46,16 @@ const GROUPS = [
 const FOOTER = [{ label: "Settings", detail: "Notifications, security", route: "Settings" }];
 
 export default function EmployeeMoreScreen({ navigation }) {
-  const { signOut } = useAuth();
+  const { user, signOut, switchBackToHr } = useAuth();
   const handleSignOut = async () => {
     try {
       await employeeLogout();
     } catch (_) {}
     signOut();
   };
-  return <MoreGrid navigation={navigation} groups={GROUPS} footer={FOOTER} onSignOut={handleSignOut} />;
+  // An HR account viewing its own employee side (AdminMoreScreen's switch).
+  const footer = user?.hrReturn
+    ? [{ label: "Back to HR panel", detail: "Return to the HR screens", onPress: switchBackToHr }, ...FOOTER]
+    : FOOTER;
+  return <MoreGrid navigation={navigation} groups={GROUPS} footer={footer} onSignOut={handleSignOut} />;
 }
