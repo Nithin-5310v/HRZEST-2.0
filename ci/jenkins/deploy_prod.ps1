@@ -1,42 +1,66 @@
 <#
-  Deploy one main commit to production (the EC2 host), after approval in
+  Release one main commit to production (the EC2 host), after approval in
   Jenkins:
 
     1. The commit's files must already have run in the development copy
        (its tree is in <DevHome>\verified-trees.txt) -- unless -Hotfix.
     2. Every GitHub Actions push run for the commit must have passed
        (waits while they're still running).
-    3. Over SSH, the server's own deploy script deploys exactly that commit:
-       database backup, checkout, restart, /healthz check, automatic
-       rollback (scripts/ec2_autodeploy.sh with HRZEST_DEPLOY_SHA).
-    4. Confirms the server now runs the commit.
+    3. Moves the `production` branch on GitHub to the commit. The server
+       checks that branch every 2 minutes and deploys it itself -- database
+       backup, checkout, restart, /healthz check, automatic rollback
+       (scripts/ec2_autodeploy.sh in production-branch mode) -- so nothing
+       here needs SSH access to it.
+    4. Waits until the live site confirms it runs the commit
+       (/healthz?commit=<sha> answers commit_match: true).
 
-  -CheckOnly just answers step 1 (exit 0 = ran in development).
+  -CheckOnly just answers step 1 (exit 0 = ran in development). With
+  -WaitForDevelop it first waits for a develop build of the same code that
+  is still deploying (a merge into develop followed right away by develop
+  into main builds both side by side).
 
-  Settings (Jenkins passes them in): HRZEST_PROD_HOST (user@host),
-  HRZEST_PROD_HOSTKEY (the server's SSH host-key fingerprint),
-  HRZEST_PROD_SSH_KEY (PuTTY .ppk), HRZEST_PLINK (plink.exe).
+  Moving the branch uses this Windows user's GitHub login (Git Credential
+  Manager), the same one `git push` uses here.
 #>
 param(
   [Parameter(Mandatory)] [string] $Commit,
   [switch] $Hotfix,
   [switch] $CheckOnly,
+  [switch] $WaitForDevelop,
   [string] $DevHome = $env:HRZEST_DEV_HOME,
   [string] $GitHubRepo = 'Nithin-5310v/HRZEST-2.0',
-  [string] $AppDir = '/home/ubuntu/apps/HRZEST',
-  [int] $CiWaitMinutes = 45
+  [string] $ProdUrl = $(if ($env:HRZEST_PROD_URL) { $env:HRZEST_PROD_URL } else { 'https://hrzest.com' }),
+  [int] $CiWaitMinutes = 45,
+  [int] $DevWaitMinutes = 40,
+  [int] $LiveWaitMinutes = 25
 )
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\common.ps1"
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 $short = $Commit.Substring(0, 7)
 
 # ── 1. Ran in development? ──
 $tree = (Invoke-Native git rev-parse "$Commit^{tree}" | Select-Object -Last 1).Trim()
 $verifiedFile = Join-Path $DevHome 'verified-trees.txt'
-$verified = (Test-Path $verifiedFile) -and [bool](Select-String -Path $verifiedFile -Pattern "^$tree " -Quiet)
+function Test-RanInDevelopment {
+  (Test-Path $verifiedFile) -and [bool](Select-String -Path $verifiedFile -Pattern "^$tree " -Quiet)
+}
+$verified = Test-RanInDevelopment
 if ($CheckOnly) {
-  if ($verified) { Write-Host "$short ran in the development copy." ; exit 0 }
+  if (-not $verified -and $WaitForDevelop) {
+    Invoke-Native git fetch --quiet "https://github.com/$GitHubRepo.git" develop
+    $developTree = (Invoke-Native git rev-parse "FETCH_HEAD^{tree}" | Select-Object -Last 1).Trim()
+    if ($developTree -eq $tree) {
+      Write-Host "develop has this same code; waiting for its build to finish deploying it to the development copy..."
+      $deadline = (Get-Date).AddMinutes($DevWaitMinutes)
+      while (-not $verified -and (Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds 30
+        $verified = Test-RanInDevelopment
+      }
+    }
+  }
+  if ($verified) { Write-Host "$short ran in the development copy."; exit 0 }
   Write-Host "$short (tree $($tree.Substring(0, 7))) has NOT run in the development copy."
   exit 1
 }
@@ -69,24 +93,25 @@ while ($true) {
   Start-Sleep -Seconds 60
 }
 
-# ── 3 + 4. Deploy on the server ──
-foreach ($name in 'HRZEST_PROD_HOST', 'HRZEST_PROD_HOSTKEY', 'HRZEST_PROD_SSH_KEY', 'HRZEST_PLINK') {
-  if (-not [Environment]::GetEnvironmentVariable($name)) { throw "$name is not set." }
-}
-$remote = "HRZEST_DEPLOY_SHA=$Commit /usr/local/bin/hrzest-autodeploy; rc=`$?; " +
-          "echo `"server is running: `$(git -C $AppDir rev-parse HEAD)`"; exit `$rc"
-Write-Host "Deploying $short to production ($env:HRZEST_PROD_HOST)"
-# Not Invoke-Native: the server's output must be shown even when the deploy fails.
-$ErrorActionPreference = 'Continue'
-$output = & $env:HRZEST_PLINK -batch -ssh -hostkey $env:HRZEST_PROD_HOSTKEY -i $env:HRZEST_PROD_SSH_KEY $env:HRZEST_PROD_HOST $remote 2>&1 |
-  ForEach-Object { "$_" }
-$code = $LASTEXITCODE
-$ErrorActionPreference = 'Stop'
-$output | ForEach-Object { Write-Host $_ }
-if ($code) { throw "The server's deploy failed (exit code $code) -- see its output above. It rolls back by itself when the new commit isn't healthy." }
+# ── 3. Approve: move the production branch ──
+Write-Host "Moving the production branch on GitHub to $short"
+$env:GIT_TERMINAL_PROMPT = '0'   # fail, never wait for a password prompt
+$env:GCM_INTERACTIVE = 'never'
+Invoke-Native git push --quiet "https://github.com/$GitHubRepo.git" "+${Commit}:refs/heads/production"
 
-$running = ($output | Select-String 'server is running: ([0-9a-f]{40})' | Select-Object -Last 1).Matches.Groups[1].Value
-if ($running -ne $Commit) {
-  throw "Production is running $running, not $Commit -- the deploy did not go through (see the server's output above)."
+# ── 4. Wait until it's live ──
+Write-Host "Waiting for $ProdUrl to run $short (the server checks every 2 minutes, backs up the database, deploys and checks itself)..."
+$deadline = (Get-Date).AddMinutes($LiveWaitMinutes)
+while ($true) {
+  try {
+    $live = (Invoke-RestMethod -Uri "$ProdUrl/healthz?commit=$Commit" -TimeoutSec 20).commit_match -eq $true
+  } catch {
+    $live = $false   # restarting, or briefly unreachable
+  }
+  if ($live) { break }
+  if ((Get-Date) -gt $deadline) {
+    throw "Production did not switch to $short within $LiveWaitMinutes minutes. The server rolls a failed deploy back by itself; its log: 'journalctl -u hrzest-autodeploy' on the server."
+  }
+  Start-Sleep -Seconds 20
 }
 Write-Host "Production is running $short."
