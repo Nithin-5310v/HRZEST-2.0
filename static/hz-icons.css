@@ -1,0 +1,19 @@
+/* ==========================================================================
+   HRzest - icons that replaced emojis in page text (<i class="ti ti-x hz-ico">)
+   An icon takes the colour of the text around it, so it keeps the look of
+   the pill, badge or button it sits in. Status icons keep their meaning
+   colour, and icons in headings are the brand blue.
+   ========================================================================== */
+.hz-ico { display: inline-block; vertical-align: -0.125em; line-height: 1; }
+
+h1 .hz-ico, h2 .hz-ico, h3 .hz-ico, h4 .hz-ico, .section-title .hz-ico { color: #2563eb; }
+
+.hz-ico.hz-ok   { color: #16a34a; }
+.hz-ico.hz-bad  { color: #dc2626; }
+.hz-ico.hz-warn { color: #d97706; }
+
+body.dark-mode h1 .hz-ico, body.dark-mode h2 .hz-ico, body.dark-mode h3 .hz-ico,
+body.dark-mode h4 .hz-ico, body.dark-mode .section-title .hz-ico { color: #60a5fa; }
+body.dark-mode .hz-ico.hz-ok   { color: #4ade80; }
+body.dark-mode .hz-ico.hz-bad  { color: #f87171; }
+body.dark-mode .hz-ico.hz-warn { color: #fbbf24; }

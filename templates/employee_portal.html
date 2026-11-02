@@ -415,6 +415,7 @@
       body.dark-mode .badge-role{background:#1e3a8a!important;color:#60a5fa!important;border-color:#3b82f6!important}
     </style>
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
+  <link rel="stylesheet" href="{{ static_url('hz-icons.css') }}" />
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('employee_sidebar.css') }}" />
   <link rel="stylesheet" href="{{ static_url('animate-core.min.css') }}" />
@@ -461,20 +462,20 @@
       <script src="{{ static_url('portal-search.js') }}" defer></script>
 
       {% if leave_sent %}
-      <div class="flash-banner flash-banner-green">✅ Leave request submitted! Admin has been notified by email.</div>
+      <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Leave request submitted! Admin has been notified by email.</div>
       {% endif %}
       {% if resigned %}
-      <div class="flash-banner flash-banner-red">📤 Resignation submitted. Admin has been notified by email.</div>
+      <div class="flash-banner flash-banner-red"><i class="ti ti-upload hz-ico" aria-hidden="true"></i> Resignation submitted. Admin has been notified by email.</div>
       {% endif %}
       {% if ticket_sent %}
-      <div class="flash-banner flash-banner-blue">🎫 Ticket raised successfully! Admin will respond shortly.</div>
+      <div class="flash-banner flash-banner-blue"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Ticket raised successfully! Admin will respond shortly.</div>
       {% endif %}
 
       <!-- ═══ VIEW: DASHBOARD ═══ -->
       <div id="view-dashboard" class="view">
       <div class="page-header u-d-flex u-ai-flex-start u-jc-space-between u-gap-12 u-fxw-wrap">
         <div>
-          <h1>Welcome, <span data-scramble>{{ emp[1] }}</span>! 👋</h1>
+          <h1>Welcome, <span data-scramble>{{ emp[1] }}</span>! <i class="ti ti-hand-stop hz-ico" aria-hidden="true"></i></h1>
         </div>
         {% if session.get('_hr_return_username') %}
         <form action="{{ tpath('/switch_back_to_hr_panel') }}" method="POST" style="margin:0;">
@@ -563,13 +564,13 @@
             <div class="u-fs-13 u-fw-700 u-c-1e293b">Today's Attendance</div>
             {% if today_att %}
               {% if att_type == 'Full Day' %}
-                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap u-fxs-0">✅ Full Day</span>
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap u-fxs-0"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Full Day</span>
               {% elif att_type == 'Late - Full Day' %}
-                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap u-fxs-0">⚠️ Late</span>
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap u-fxs-0"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Late</span>
               {% elif att_type == 'Half Day' %}
-                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap u-fxs-0">🔶 Half Day</span>
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap u-fxs-0"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> Half Day</span>
               {% elif login_t and not logout_t %}
-                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-dbeafe u-c-2563eb u-ws-nowrap u-fxs-0">🔵 Currently In</span>
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-dbeafe u-c-2563eb u-ws-nowrap u-fxs-0"><i class="ti ti-circle-filled hz-ico" aria-hidden="true"></i> Currently In</span>
               {% else %}
                 <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-f1f5f9 u-c-64748b u-ws-nowrap u-fxs-0">— Absent</span>
               {% endif %}
@@ -590,11 +591,11 @@
                   <span class="u-fs-10 u-fw-700 u-c-94a3b8 u-w-46 u-ttr-uppercase u-ls-0d4 u-fxs-0">Login</span>
                   <span class="u-fs-15 u-fw-800 u-c-1e293b u-fx-1 u-minw-0">{{ (login_t | fmt_time)[:5] if login_t else '—' }}</span>
                   {% if login_s == 'Full Day Login' %}
-                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap">✅ On Time</span>
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> On Time</span>
                   {% elif login_s == 'Late Login' %}
-                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap">🟡 Late</span>
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap"><i class="ti ti-circle-filled hz-ico hz-warn" aria-hidden="true"></i> Late</span>
                   {% elif login_s == 'Half Day Login' %}
-                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap">🔶 Half</span>
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> Half</span>
                   {% else %}
                     <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-f1f5f9 u-c-94a3b8">—</span>
                   {% endif %}
@@ -605,13 +606,13 @@
                   <span class="u-fs-10 u-fw-700 u-c-94a3b8 u-w-46 u-ttr-uppercase u-ls-0d4 u-fxs-0">Logout</span>
                   <span class="u-fs-15 u-fw-800 u-c-1e293b u-fx-1 u-minw-0">{{ (logout_t | fmt_time)[:5] if logout_t else '—' }}</span>
                   {% if logout_s == 'Completed' %}
-                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap">✅ Done</span>
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Done</span>
                   {% elif logout_s == 'Early Logout' %}
-                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap">⚠️ Early</span>
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Early</span>
                   {% elif logout_s == 'Half Day Logout' %}
-                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap">🔶 Half</span>
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> Half</span>
                   {% elif login_t %}
-                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dbeafe u-c-2563eb u-ws-nowrap">🔵 Still In</span>
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dbeafe u-c-2563eb u-ws-nowrap"><i class="ti ti-circle-filled hz-ico" aria-hidden="true"></i> Still In</span>
                   {% else %}
                     <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-f1f5f9 u-c-94a3b8">—</span>
                   {% endif %}
@@ -619,7 +620,7 @@
 
                 <!-- duration / elapsed -->
                 <div class="u-d-flex u-ai-center u-gap-6 u-p-7-10 u-bg-f8fafc u-br-8">
-                  <span class="u-fs-12">⏱</span>
+                  <span class="u-fs-12"><i class="ti ti-clock-hour-4 hz-ico" aria-hidden="true"></i></span>
                   {% if login_t and logout_t %}
                     {% set _s = (logout_t | time_seconds) - (login_t | time_seconds) %}
                     {% set _h = _s // 3600 %}{% set _m = (_s % 3600) // 60 %}
@@ -636,7 +637,7 @@
 
                 <!-- shift info row -->
                 <div class="u-d-flex u-ai-center u-gap-6 u-pt-2">
-                  <span class="u-fs-11">🕐</span>
+                  <span class="u-fs-11"><i class="ti ti-clock hz-ico" aria-hidden="true"></i></span>
                   {% if emp[7] %}
                     <span class="u-fs-11 u-fw-600 u-c-475569">{{ emp[7] }}</span>
                     {% if emp[8] and emp[9] %}
@@ -769,30 +770,30 @@
 
       <!-- MONTHLY STATS -->
       <div class="stats">
-        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-green">✅</div><div><div class="stat-num sn-green" data-animate-counter>{{ full_days }}</div><div class="stat-lbl">Full Days</div></div></div>
-        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-yellow">⚠️</div><div><div class="stat-num sn-yellow" data-animate-counter>{{ late_days }}</div><div class="stat-lbl">Late Days</div></div></div>
-        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-yellow">🔶</div><div><div class="stat-num sn-yellow" data-animate-counter>{{ half_days }}</div><div class="stat-lbl">Half Days</div></div></div>
-        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-red">❌</div><div><div class="stat-num sn-red" data-animate-counter>{{ absent_days }}</div><div class="stat-lbl">Absent</div></div></div>
-        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-blue">📈</div><div><div class="stat-num sn-blue" data-animate-counter>{{ att_pct }}%</div><div class="stat-lbl">Attendance</div></div></div>
-        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-blue">⏱</div><div><div class="stat-num stat-num-sm sn-blue" data-animate-counter>{{ total_hours }}</div><div class="stat-lbl">Hours Worked</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i></div><div><div class="stat-num sn-green" data-animate-counter>{{ full_days }}</div><div class="stat-lbl">Full Days</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-yellow"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i></div><div><div class="stat-num sn-yellow" data-animate-counter>{{ late_days }}</div><div class="stat-lbl">Late Days</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-yellow"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i></div><div><div class="stat-num sn-yellow" data-animate-counter>{{ half_days }}</div><div class="stat-lbl">Half Days</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i></div><div><div class="stat-num sn-red" data-animate-counter>{{ absent_days }}</div><div class="stat-lbl">Absent</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-blue"><i class="ti ti-trending-up hz-ico" aria-hidden="true"></i></div><div><div class="stat-num sn-blue" data-animate-counter>{{ att_pct }}%</div><div class="stat-lbl">Attendance</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-blue"><i class="ti ti-clock-hour-4 hz-ico" aria-hidden="true"></i></div><div><div class="stat-num stat-num-sm sn-blue" data-animate-counter>{{ total_hours }}</div><div class="stat-lbl">Hours Worked</div></div></div>
       </div>
 
       <!-- BREAK SCHEDULE WIDGET -->
       <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mb-20 u-d-none" id="breakScheduleWidget">
-        <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8">☕ Today's Break Schedule</div>
+        <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i> Today's Break Schedule</div>
         <div class="u-d-flex u-fxw-wrap u-gap-10" id="breakScheduleList"></div>
       </div>
 
       <!-- Announcements widget -->
       {% if announcements %}
       <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mb-20">
-        <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8">📢 Announcements</div>
+        <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8"><i class="ti ti-speakerphone hz-ico" aria-hidden="true"></i> Announcements</div>
         {% for ann_id, ann_title, ann_content, ann_pri, ann_date, ann_att in announcements %}
         <div style="border-radius:10px;padding:14px 16px;margin-bottom:10px;border-left:4px solid
           {% if ann_pri=='Urgent' %}#ef4444{% elif ann_pri=='Important' %}#f59e0b{% else %}#3b82f6{% endif %};
           background:{% if ann_pri=='Urgent' %}#fff5f5{% elif ann_pri=='Important' %}#fffbeb{% else %}#f0f7ff{% endif %};">
           <div class="u-fs-13 u-fw-700 u-c-1e293b u-mb-4">
-            {% if ann_pri=='Urgent' %}🔴{% elif ann_pri=='Important' %}🟡{% else %}📢{% endif %}
+            {% if ann_pri=='Urgent' %}<i class="ti ti-circle-filled hz-ico hz-bad" aria-hidden="true"></i>{% elif ann_pri=='Important' %}<i class="ti ti-circle-filled hz-ico hz-warn" aria-hidden="true"></i>{% else %}<i class="ti ti-speakerphone hz-ico" aria-hidden="true"></i>{% endif %}
             {{ ann_title }}
             <span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;
               background:{% if ann_pri=='Urgent' %}#fee2e2;color:#dc2626{% elif ann_pri=='Important' %}#fef9c3;color:#92400e{% else %}#dbeafe;color:#1e40af{% endif %};">{{ ann_pri }}</span>
@@ -813,7 +814,7 @@
 
       <!-- ═══ VIEW: MY ATTENDANCE ═══ -->
       <div id="view-attendance" class="view">
-      <div class="mod-title">📋 My Attendance <span>View and filter your monthly attendance records</span></div>
+      <div class="mod-title"><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> My Attendance <span>View and filter your monthly attendance records</span></div>
       <div id="attendance">
 
         <!-- Filter bar -->
@@ -831,13 +832,13 @@
             {% endfor %}
           </select>
           <button class="btn-view" onclick="applyFilter()">View</button>
-          <a id="pdfLink" href="/my_attendance_pdf?month={{ sel_month }}&year={{ sel_year }}" class="btn-pdf">⬇ Download PDF</a>
+          <a id="pdfLink" href="/my_attendance_pdf?month={{ sel_month }}&year={{ sel_year }}" class="btn-pdf"><i class="ti ti-download hz-ico" aria-hidden="true"></i> Download PDF</a>
         </div>
 
         <!-- Calendar -->
         <div class="calendar">
           <div class="u-fs-15 u-fw-700 u-c-1e293b u-mb-12">
-            📅 {{ month_name }}
+            <i class="ti ti-calendar hz-ico" aria-hidden="true"></i> {{ month_name }}
           </div>
           <div class="cal-header">
             <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
@@ -856,7 +857,7 @@
 
         <!-- Attendance Table -->
         <div class="section">
-          <h3>📋 {{ month_name }} Attendance
+          <h3><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> {{ month_name }} Attendance
             <span class="billable-note">({{ billable }} working days)</span>
           </h3>
           <div class="table-wrap">
@@ -906,7 +907,7 @@
 
       <!-- ═══ VIEW: APPLY LEAVE ═══ -->
       <div id="view-apply-leave" class="view">
-      <div class="mod-title">📝 Apply for Leave <span>Submit a leave request and view your history</span></div>
+      <div class="mod-title"><i class="ti ti-notes hz-ico" aria-hidden="true"></i> Apply for Leave <span>Submit a leave request and view your history</span></div>
       <!-- Leave balance per type -->
       <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-18-20 u-mb-16">
         <div class="u-d-flex u-ai-center u-jc-space-between u-mb-14">
@@ -949,9 +950,9 @@
         </div>
         {% else %}
         <div class="u-d-flex u-gap-18 u-fs-12">
-          <span class="u-c-16a34a u-fw-700">✅ Available: {{ leave_balance }}</span>
-          <span class="u-c-f59e0b u-fw-700">⏳ Used: {{ leaves_used }}</span>
-          <span class="u-c-64748b u-fw-600">📅 Quota: {{ annual_leave_quota }}</span>
+          <span class="u-c-16a34a u-fw-700"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Available: {{ leave_balance }}</span>
+          <span class="u-c-f59e0b u-fw-700"><i class="ti ti-hourglass hz-ico" aria-hidden="true"></i> Used: {{ leaves_used }}</span>
+          <span class="u-c-64748b u-fw-600"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Quota: {{ annual_leave_quota }}</span>
         </div>
         {% endif %}
       </div>
@@ -986,13 +987,13 @@
                 <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-p-8-16 u-bd-2-solid-dbeafe u-br-8 u-bg-fff u-fx-1 u-trs-d18s" id="lbl-morning">
                   <input class="u-accent-1e3a8a u-w-15 u-h-15" type="radio" name="half_day_session" value="Morning" checked
                          onchange="highlightSession()">
-                  <span class="u-fs-13 u-fw-600 u-c-1e293b">🌅 Morning</span>
+                  <span class="u-fs-13 u-fw-600 u-c-1e293b"><i class="ti ti-sunrise hz-ico" aria-hidden="true"></i> Morning</span>
                   <span class="u-fs-11 u-c-64748b u-ml-auto">1st half</span>
                 </label>
                 <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-p-8-16 u-bd-2-solid-dbeafe u-br-8 u-bg-fff u-fx-1 u-trs-d18s" id="lbl-afternoon">
                   <input class="u-accent-1e3a8a u-w-15 u-h-15" type="radio" name="half_day_session" value="Afternoon"
                          onchange="highlightSession()">
-                  <span class="u-fs-13 u-fw-600 u-c-1e293b">🌆 Afternoon</span>
+                  <span class="u-fs-13 u-fw-600 u-c-1e293b"><i class="ti ti-sunset hz-ico" aria-hidden="true"></i> Afternoon</span>
                   <span class="u-fs-11 u-c-64748b u-ml-auto">2nd half</span>
                 </label>
               </div>
@@ -1013,12 +1014,12 @@
 
           <div class="reasons-label">Select Reason</div>
           <div class="reason-chips">
-            <div class="reason-chip" data-reason="Sick Leave">🤒 Sick Leave</div>
-            <div class="reason-chip" data-reason="Personal Work">🏠 Personal Work</div>
-            <div class="reason-chip" data-reason="Family Emergency">👨‍👩‍👧 Family Emergency</div>
-            <div class="reason-chip" data-reason="Medical Appointment">💊 Medical Appointment</div>
-            <div class="reason-chip" data-reason="Vacation">✈️ Vacation</div>
-            <div class="reason-chip" data-reason="__other__">✏️ Other...</div>
+            <div class="reason-chip" data-reason="Sick Leave"><i class="ti ti-thermometer hz-ico" aria-hidden="true"></i> Sick Leave</div>
+            <div class="reason-chip" data-reason="Personal Work"><i class="ti ti-home hz-ico" aria-hidden="true"></i> Personal Work</div>
+            <div class="reason-chip" data-reason="Family Emergency"><i class="ti ti-man hz-ico" aria-hidden="true"></i>‍<i class="ti ti-woman hz-ico" aria-hidden="true"></i>‍<i class="ti ti-mood-kid hz-ico" aria-hidden="true"></i> Family Emergency</div>
+            <div class="reason-chip" data-reason="Medical Appointment"><i class="ti ti-pill hz-ico" aria-hidden="true"></i> Medical Appointment</div>
+            <div class="reason-chip" data-reason="Vacation"><i class="ti ti-plane hz-ico" aria-hidden="true"></i> Vacation</div>
+            <div class="reason-chip" data-reason="__other__"><i class="ti ti-pencil hz-ico" aria-hidden="true"></i> Other...</div>
           </div>
 
           <div class="other-group" id="other-group">
@@ -1034,7 +1035,7 @@
       </div>
 
       <div class="section u-mt-24">
-        <h3 class="u-mb-14">📬 Leave History</h3>
+        <h3 class="u-mb-14"><i class="ti ti-mailbox hz-ico" aria-hidden="true"></i> Leave History</h3>
         <div class="table-wrap">
           <table>
             <thead>
@@ -1060,13 +1061,13 @@
                 <td>{{ lv_reason }}</td>
                 <td>
                   {% if lv_status == 'Approved' %}
-                    <span class="badge ls-approved">✅ Approved</span>
+                    <span class="badge ls-approved"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Approved</span>
                   {% elif lv_status == 'Rejected' %}
-                    <span class="badge ls-rejected">❌ Rejected</span>
+                    <span class="badge ls-rejected"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Rejected</span>
                   {% elif lv_status == 'Cancelled' %}
-                    <span class="badge u-bg-f1f5f9 u-c-64748b">🚫 Cancelled</span>
+                    <span class="badge u-bg-f1f5f9 u-c-64748b"><i class="ti ti-ban hz-ico" aria-hidden="true"></i> Cancelled</span>
                   {% else %}
-                    <span class="badge ls-pending">⏳ Pending</span>
+                    <span class="badge ls-pending"><i class="ti ti-hourglass hz-ico" aria-hidden="true"></i> Pending</span>
                   {% endif %}
                 </td>
                 <td class="td-date">
@@ -1092,9 +1093,9 @@
       </div><!-- /view-apply-leave -->
 
       <div id="view-tickets" class="view">
-      <div class="mod-title">🎫 Support Tickets <span>Raise a complaint or request admin support</span></div>
+      <div class="mod-title"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Support Tickets <span>Raise a complaint or request admin support</span></div>
       <div class="section" id="tickets">
-        <h3>🎫 Support Tickets &amp; Complaints</h3>
+        <h3><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Support Tickets &amp; Complaints</h3>
 
         <!-- Raise Ticket Form -->
         <form method="POST" action="{{ tpath('/raise_ticket') }}" class="ticket-raise-form">
@@ -1118,7 +1119,7 @@
               <select id="ticket-priority" name="priority" class="ticket-select" title="Ticket priority">
                 <option value="Low">Low</option>
                 <option value="Medium" selected>Medium</option>
-                <option value="High">🔴 High (Auto)</option>
+                <option value="High">High (Auto)</option>
               </select>
             </div>
             <div class="form-group ticket-full ticket-field">
@@ -1130,7 +1131,7 @@
               <textarea id="ticket-desc" name="description" class="ticket-textarea" placeholder="Describe the issue in detail…" required></textarea>
             </div>
           </div>
-          <button type="submit" class="btn-ticket">🎫 Raise Ticket</button>
+          <button type="submit" class="btn-ticket"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Raise Ticket</button>
         </form>
 
         <!-- Ticket History -->
@@ -1142,7 +1143,7 @@
               <div class="ticket-row-header">
                 <span class="ticket-subject">{{ tsubj }}</span>
                 {% if tpri == 'High' %}
-                  <span class="badge b-red">🔴 High</span>
+                  <span class="badge b-red"><i class="ti ti-circle-filled hz-ico hz-bad" aria-hidden="true"></i> High</span>
                 {% elif tpri == 'Low' %}
                   <span class="badge b-gray">Low</span>
                 {% else %}
@@ -1177,7 +1178,7 @@
       <!-- ═══ RESIGNATION GATE MODAL ═══ -->
       <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d65 u-zi-9999 u-ai-center u-jc-center u-backdr-blur4" id="resign-gate-overlay">
         <div class="u-bg-fff u-br-16 u-maxw-420 u-w-90pct u-p-36-32 u-shad-0-24-60-rgba0_0_0_0d35 u-ta-center">
-          <div class="u-fs-48 u-mb-12">⚠️</div>
+          <div class="u-fs-48 u-mb-12"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i></div>
           <h2 class="u-c-b91c1c u-m-0-0-10 u-fs-20">Are you sure?</h2>
           <p class="u-c-374151 u-fs-14 u-lh-1d6 u-mb-20">
             Submitting a resignation is an <strong>official and irreversible action</strong>.<br>
@@ -1198,7 +1199,7 @@
       </div>
 
       <div id="view-resign" class="view">
-      <div class="mod-title">🚨 Resignation <span>Submit your official resignation notice</span></div>
+      <div class="mod-title"><i class="ti ti-urgent hz-ico" aria-hidden="true"></i> Resignation <span>Submit your official resignation notice</span></div>
       <div class="section" id="resign">
 
         {% if my_resignation %}
@@ -1207,11 +1208,11 @@
             <div class="rs-row">
               <span class="rs-lbl">Status</span>
               {% if res_status == 'Accepted' %}
-                <span class="badge b-red">✅ Accepted</span>
+                <span class="badge b-red"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Accepted</span>
               {% elif res_status == 'Declined' %}
-                <span class="badge b-gray">❌ Declined</span>
+                <span class="badge b-gray"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Declined</span>
               {% else %}
-                <span class="badge b-yellow">⏳ Pending Review</span>
+                <span class="badge b-yellow"><i class="ti ti-hourglass hz-ico" aria-hidden="true"></i> Pending Review</span>
               {% endif %}
             </div>
             <div class="rs-row">
@@ -1235,7 +1236,7 @@
           <div>
             <p class="reasons-label resign-new-title">Submit New Resignation</p>
             <div class="resign-warning">
-              <strong>⚠️ Please read before proceeding:</strong><br>
+              <strong><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Please read before proceeding:</strong><br>
               A <strong>1-month notice period</strong> is required. Your last working day must be at least
               30 days from today. Submit at least 15 days before your chosen last day.
               This action is official and cannot be undone.
@@ -1247,12 +1248,12 @@
               </div>
               <div class="reasons-label">Reason for Resignation</div>
               <div class="reason-chips" id="resign-chips-d">
-                <div class="reason-chip" data-reason="Career Growth">📈 Career Growth</div>
-                <div class="reason-chip" data-reason="Better Opportunity">💼 Better Opportunity</div>
-                <div class="reason-chip" data-reason="Personal Reasons">🏠 Personal Reasons</div>
-                <div class="reason-chip" data-reason="Health Issues">🏥 Health Issues</div>
-                <div class="reason-chip" data-reason="Relocation">📍 Relocation</div>
-                <div class="reason-chip" data-reason="__resign_other__">✏️ Other...</div>
+                <div class="reason-chip" data-reason="Career Growth"><i class="ti ti-trending-up hz-ico" aria-hidden="true"></i> Career Growth</div>
+                <div class="reason-chip" data-reason="Better Opportunity"><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Better Opportunity</div>
+                <div class="reason-chip" data-reason="Personal Reasons"><i class="ti ti-home hz-ico" aria-hidden="true"></i> Personal Reasons</div>
+                <div class="reason-chip" data-reason="Health Issues"><i class="ti ti-building-hospital hz-ico" aria-hidden="true"></i> Health Issues</div>
+                <div class="reason-chip" data-reason="Relocation"><i class="ti ti-map-pin hz-ico" aria-hidden="true"></i> Relocation</div>
+                <div class="reason-chip" data-reason="__resign_other__"><i class="ti ti-pencil hz-ico" aria-hidden="true"></i> Other...</div>
               </div>
               <div class="other-group" id="resign-other-group-d">
                 <textarea id="resign-other-text-d" placeholder="Describe your reason for resignation…" title="Enter resignation reason"></textarea>
@@ -1264,14 +1265,14 @@
                   I understand this resignation notice is official and cannot be undone.
                 </label>
               </div>
-              <button type="submit" class="btn-resign">📤 Submit Resignation</button>
+              <button type="submit" class="btn-resign"><i class="ti ti-upload hz-ico" aria-hidden="true"></i> Submit Resignation</button>
             </form>
           </div>
           {% endif %}
 
         {% else %}
           <div class="resign-warning">
-            <strong>⚠️ Please read before proceeding:</strong><br>
+            <strong><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Please read before proceeding:</strong><br>
             A <strong>1-month notice period</strong> is required. Your last working day must be at least
             30 days from today. You must apply at least 15 days before your chosen last day.
             Submitting this form sends a formal resignation notice to the HR/Admin team. This action cannot be undone.
@@ -1283,12 +1284,12 @@
             </div>
             <div class="reasons-label">Reason for Resignation</div>
             <div class="reason-chips" id="resign-chips">
-              <div class="reason-chip" data-reason="Career Growth">📈 Career Growth</div>
-              <div class="reason-chip" data-reason="Better Opportunity">💼 Better Opportunity</div>
-              <div class="reason-chip" data-reason="Personal Reasons">🏠 Personal Reasons</div>
-              <div class="reason-chip" data-reason="Health Issues">🏥 Health Issues</div>
-              <div class="reason-chip" data-reason="Relocation">📍 Relocation</div>
-              <div class="reason-chip" data-reason="__resign_other__">✏️ Other...</div>
+              <div class="reason-chip" data-reason="Career Growth"><i class="ti ti-trending-up hz-ico" aria-hidden="true"></i> Career Growth</div>
+              <div class="reason-chip" data-reason="Better Opportunity"><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Better Opportunity</div>
+              <div class="reason-chip" data-reason="Personal Reasons"><i class="ti ti-home hz-ico" aria-hidden="true"></i> Personal Reasons</div>
+              <div class="reason-chip" data-reason="Health Issues"><i class="ti ti-building-hospital hz-ico" aria-hidden="true"></i> Health Issues</div>
+              <div class="reason-chip" data-reason="Relocation"><i class="ti ti-map-pin hz-ico" aria-hidden="true"></i> Relocation</div>
+              <div class="reason-chip" data-reason="__resign_other__"><i class="ti ti-pencil hz-ico" aria-hidden="true"></i> Other...</div>
             </div>
             <div class="other-group" id="resign-other-group">
               <textarea id="resign-other-text" placeholder="Describe your reason for resignation…" title="Enter resignation reason"></textarea>
@@ -1300,7 +1301,7 @@
                 I understand this resignation notice is official and cannot be undone.
               </label>
             </div>
-            <button type="submit" class="btn-resign">📤 Submit Resignation</button>
+            <button type="submit" class="btn-resign"><i class="ti ti-upload hz-ico" aria-hidden="true"></i> Submit Resignation</button>
           </form>
         {% endif %}
       </div>
@@ -1310,18 +1311,18 @@
       <!-- ═══ VIEW: MY INCENTIVES ═══ -->
       <!-- ═══ VIEW: EARNINGS (Incentives + Overtime) ═══ -->
       <div id="view-earnings" class="view">
-        <div class="mod-title">💰 Earnings <span>Incentives and overtime in one place</span></div>
+        <div class="mod-title"><i class="ti ti-coin hz-ico" aria-hidden="true"></i> Earnings <span>Incentives and overtime in one place</span></div>
 
         <!-- Tab bar -->
         <div class="u-d-flex u-gap-6 u-bg-fff u-bd-1-solid-dbeafe u-br-12 u-p-8-10 u-mb-20 u-fxw-wrap">
           <button class="u-p-8-20 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" onclick="switchEarningsTab('salary')" id="etab-salary">
-            💰 Salary
+            <i class="ti ti-coin hz-ico" aria-hidden="true"></i> Salary
           </button>
           <button class="u-p-8-20 u-bd-none u-br-8 u-bg-transparent u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" onclick="switchEarningsTab('incentives')" id="etab-incentives">
-            🏆 Incentives
+            <i class="ti ti-trophy hz-ico" aria-hidden="true"></i> Incentives
           </button>
           <button class="u-p-8-20 u-bd-none u-br-8 u-bg-transparent u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" onclick="switchEarningsTab('overtime')" id="etab-overtime">
-            ⏰ Overtime
+            <i class="ti ti-alarm hz-ico" aria-hidden="true"></i> Overtime
           </button>
         </div>
 
@@ -1422,7 +1423,7 @@
         <div class="u-d-none" id="epanel-incentives">
           {% if total_incentive_year > 0 %}
           <div class="u-bg-linear-gradien709188 u-bd-1d5-solid-86efac u-br-16 u-p-20-28 u-d-flex u-ai-center u-gap-20 u-mb-22">
-            <div class="u-fs-42 u-lh-1">🏆</div>
+            <div class="u-fs-42 u-lh-1"><i class="ti ti-trophy hz-ico" aria-hidden="true"></i></div>
             <div>
               <div class="u-fs-13 u-c-166534 u-fw-600 u-ttr-uppercase u-ls-d05em">Total Incentives Earned — {{ today_date.year }}</div>
               <div class="u-fs-32 u-fw-800 u-c-15803d">₹{{ "%.2f" | format(total_incentive_year) }}</div>
@@ -1470,7 +1471,7 @@
           </div>
           {% else %}
           <div class="u-ta-center u-p-60-20 u-c-94a3b8 u-bg-fff u-bd-1-solid-dbeafe u-br-14">
-            <div class="u-fs-48 u-mb-12">🏅</div>
+            <div class="u-fs-48 u-mb-12"><i class="ti ti-medal hz-ico" aria-hidden="true"></i></div>
             <div class="u-fs-15 u-fw-600 u-c-64748b u-mb-6">No incentives yet</div>
             <div class="u-fs-13">Complete your goals to earn bonuses.</div>
           </div>
@@ -1535,7 +1536,7 @@
 
       <!-- ═══ VIEW: HOLIDAYS ═══ -->
       <div id="view-holidays" class="view">
-        <div class="mod-title">📅 Holiday Calendar <span>Public holidays &amp; company leaves</span></div>
+        <div class="mod-title"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Holiday Calendar <span>Public holidays &amp; company leaves</span></div>
 
         <!-- Year navigation -->
         <div class="hol-year-nav">
@@ -1546,7 +1547,7 @@
 
         <!-- Holidays list -->
         <div class="section">
-          <h3>📋 All Holidays &amp; Leaves ({{ hol_year }})</h3>
+          <h3><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> All Holidays &amp; Leaves ({{ hol_year }})</h3>
           <div class="u-ovx-auto u-br-10">
             <table class="hol-list-table">
               <thead><tr><th>#</th><th>Date</th><th>Day</th><th>Name</th></tr></thead>
@@ -1560,9 +1561,9 @@
                   <td class="u-c-64748b u-fs-12">{{ row[1].strftime('%A') }}</td>
                   <td>
                     {% if row[2].startswith('Leave:') %}
-                      <span class="hol-badge hol-badge-comp">🌿 {{ row[2][6:] }}</span>
+                      <span class="hol-badge hol-badge-comp"><i class="ti ti-leaf hz-ico" aria-hidden="true"></i> {{ row[2][6:] }}</span>
                     {% else %}
-                      <span class="hol-badge hol-badge-pub">🎉 {{ row[2] }}</span>
+                      <span class="hol-badge hol-badge-pub"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> {{ row[2] }}</span>
                     {% endif %}
                   </td>
                 </tr>
@@ -1582,7 +1583,7 @@
             <!-- Modal header -->
             <div class="u-bg-linear-gradienff64c5 u-p-22-28 u-d-flex u-ai-center u-jc-space-between">
               <div>
-                <div class="u-c-fff u-fs-18 u-fw-700" id="payslip-modal-title">💳 Salary Breakdown</div>
+                <div class="u-c-fff u-fs-18 u-fw-700" id="payslip-modal-title"><i class="ti ti-credit-card hz-ico" aria-hidden="true"></i> Salary Breakdown</div>
                 <div class="u-c-bfdbfe u-fs-13 u-mt-4">Employee Payslip</div>
               </div>
               <button class="u-bg-rgba255_255_255_0d15 u-bd-1-solid-rgba25fd9fad u-c-fff u-br-10 u-p-8-14 u-fs-13 u-fw-600 u-cur-pointer" onclick="closePayslipModal()">✕ Close</button>
@@ -1600,30 +1601,30 @@
         <div class="mod-title">My Profile <span>View and update your personal details</span></div>
 
         {% if request.args.get('profile_saved') %}
-        <div class="flash-banner flash-banner-green">✅ Profile updated successfully.</div>
+        <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Profile updated successfully.</div>
         {% endif %}
         {% if request.args.get('bank_saved') %}
-        <div class="flash-banner flash-banner-green">✅ Bank & ID details saved successfully.</div>
+        <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Bank & ID details saved successfully.</div>
         {% endif %}
         {% if request.args.get('photo_saved') %}
-        <div class="flash-banner flash-banner-green">✅ Profile photo updated successfully.</div>
+        <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Profile photo updated successfully.</div>
         {% endif %}
         {% if request.args.get('photo_error') == 'no_face' %}
-        <div class="flash-banner flash-banner-red">❌ No face detected. Please upload a clear front-facing photo.</div>
+        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> No face detected. Please upload a clear front-facing photo.</div>
         {% elif request.args.get('photo_error') %}
-        <div class="flash-banner flash-banner-red">❌ Photo upload failed. Please try again.</div>
+        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Photo upload failed. Please try again.</div>
         {% endif %}
         {% if request.args.get('exp_saved') %}
-        <div class="flash-banner flash-banner-green">✅ Work experience entry added.</div>
+        <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Work experience entry added.</div>
         {% endif %}
         {% if request.args.get('edu_saved') %}
-        <div class="flash-banner flash-banner-green">✅ Education entry added.</div>
+        <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Education entry added.</div>
         {% endif %}
         {% if request.args.get('exp_error') %}
-        <div class="flash-banner flash-banner-red">❌ Please fill Company, Designation and From Year.</div>
+        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Please fill Company, Designation and From Year.</div>
         {% endif %}
         {% if request.args.get('edu_error') %}
-        <div class="flash-banner flash-banner-red">❌ Please fill Degree and Institution.</div>
+        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Please fill Degree and Institution.</div>
         {% endif %}
 
         <!-- PROFILE COMPLETION -->
@@ -1687,7 +1688,7 @@
                   <span id="profileInitial">{{ emp[1][0]|upper }}</span>
                 {% endif %}
               </div>
-              <label class="u-pos-absolute u-bot-0 u-rgt-0 u-w-30 u-h-30 u-br-50pct u-bg-3b82f6 u-bd-2-solid-white u-d-flex u-ai-center u-jc-center u-cur-pointer u-fs-14" for="photoUpload" title="Change photo">📷</label>
+              <label class="u-pos-absolute u-bot-0 u-rgt-0 u-w-30 u-h-30 u-br-50pct u-bg-3b82f6 u-bd-2-solid-white u-d-flex u-ai-center u-jc-center u-cur-pointer u-fs-14" for="photoUpload" title="Change photo"><i class="ti ti-camera hz-ico" aria-hidden="true"></i></label>
             </div>
             <!-- Name + upload form -->
             <div class="u-fx-1">
@@ -1701,10 +1702,10 @@
             <!-- Download buttons -->
             <div class="u-d-flex u-fxd-column u-gap-10">
               <a class="u-p-9-18 u-br-9 u-bg-ede9fe u-c-6d28d9 u-fs-13 u-fw-600 u-tdec-none u-bd-1-solid-c4b5fd u-d-flex u-ai-center u-gap-7" href="{{ tpath('/my_qr') }}">
-                📲 Download QR Code
+                <i class="ti ti-device-mobile hz-ico" aria-hidden="true"></i> Download QR Code
               </a>
               <a class="u-p-9-18 u-br-9 u-bg-dbeafe u-c-1e3a8a u-fs-13 u-fw-600 u-tdec-none u-bd-1-solid-93c5fd u-d-flex u-ai-center u-gap-7" href="{{ tpath('/my_id_card') }}">
-                🪪 Download ID Card
+                <i class="ti ti-id hz-ico" aria-hidden="true"></i> Download ID Card
               </a>
             </div>
           </div>
@@ -1718,7 +1719,7 @@
 
               <!-- Personal Info -->
               <div class="section">
-                <h3>🧑 Personal Information</h3>
+                <h3><i class="ti ti-user hz-ico" aria-hidden="true"></i> Personal Information</h3>
                 <div class="u-d-grid u-gtc-1fr-1fr u-gap-14">
                   <div class="form-group">
                     <label>Full Name</label>
@@ -1759,7 +1760,7 @@
 
               <!-- Address -->
               <div class="section">
-                <h3>🏠 Contact Details &amp; Address</h3>
+                <h3><i class="ti ti-home hz-ico" aria-hidden="true"></i> Contact Details &amp; Address</h3>
                 <div class="form-group">
                   <label>Street Address</label>
                   <textarea aria-label="Street Address" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-rsz-vertical u-ff-inherit" name="address" rows="2" placeholder="House no., Street, Area…">{{ emp[14] or '' }}</textarea>
@@ -1782,7 +1783,7 @@
 
               <!-- About Me -->
               <div class="section">
-                <h3>📝 About Me</h3>
+                <h3><i class="ti ti-notes hz-ico" aria-hidden="true"></i> About Me</h3>
                 <div class="form-group">
                   <label>Brief Bio / Introduction</label>
                   <textarea aria-label="Brief Bio / Introduction" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none u-rsz-vertical u-ff-inherit" name="about_me" rows="4" placeholder="Tell us a little about yourself — your strengths, interests, or anything you'd like the team to know…">{{ emp[29] or '' }}</textarea>
@@ -1796,7 +1797,7 @@
 
               <!-- Work Info (read-only) -->
               <div class="section">
-                <h3>💼 Role &amp; Work Information</h3>
+                <h3><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Role &amp; Work Information</h3>
                 <div class="u-d-flex u-fxd-column u-gap-0">
                   {% set work_rows = [
                     ('Role / Designation', emp[2] or '—'),
@@ -1818,7 +1819,7 @@
 
               <!-- Hierarchy Information (read-only) -->
               <div class="section">
-                <h3>🏢 Hierarchy Information</h3>
+                <h3><i class="ti ti-building hz-ico" aria-hidden="true"></i> Hierarchy Information</h3>
                 <div class="u-d-flex u-fxd-column u-gap-0">
                   {% set hier_rows = [
                     ('Reporting Manager', emp[30] or '—'),
@@ -1837,7 +1838,7 @@
 
               <!-- Emergency Contact -->
               <div class="section">
-                <h3>🚨 Emergency Contact</h3>
+                <h3><i class="ti ti-urgent hz-ico" aria-hidden="true"></i> Emergency Contact</h3>
                 <div class="form-group">
                   <label>Contact Name</label>
                   <input aria-label="Contact Name" class="u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-w-100pct u-out-none" type="text" name="emergency_contact_name" value="{{ emp[18] or '' }}" placeholder="Full name" />
@@ -1862,7 +1863,7 @@
 
           <div class="u-mt-20">
             <button class="u-p-13-36 u-bd-none u-br-10 u-bg-1e3a8a u-c-white u-fs-14 u-fw-700 u-cur-pointer" type="submit">
-              💾 Save Profile
+              <i class="ti ti-device-floppy hz-ico" aria-hidden="true"></i> Save Profile
             </button>
           </div>
         </form>
@@ -1949,7 +1950,7 @@
 
         <!-- WORK EXPERIENCE -->
         <div class="section u-mt-22">
-          <h3>💼 Work Experience</h3>
+          <h3><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Work Experience</h3>
           {% if my_experience %}
           <div class="u-d-flex u-fxd-column u-gap-12 u-mb-18">
             {% for exp in my_experience %}
@@ -2010,7 +2011,7 @@
 
         <!-- EDUCATION -->
         <div class="section u-mt-22">
-          <h3>🎓 Education</h3>
+          <h3><i class="ti ti-school hz-ico" aria-hidden="true"></i> Education</h3>
           {% if my_education %}
           <div class="u-d-flex u-fxd-column u-gap-12 u-mb-18">
             {% for edu in my_education %}
@@ -2062,7 +2063,7 @@
         <!-- BANK & ID DETAILS (separate form) -->
         <form class="u-mt-22" action="{{ tpath('/update_my_bank_details') }}" method="POST">
           <div class="section">
-            <h3>🪪 Identity Information &amp; Bank Details
+            <h3><i class="ti ti-id hz-ico" aria-hidden="true"></i> Identity Information &amp; Bank Details
               <span class="u-fs-11 u-fw-400 u-c-94a3b8 u-ml-6">Stored securely · Used for salary processing</span>
             </h3>
             <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-14">
@@ -2098,22 +2099,22 @@
               </div>
             </div>
             <button class="u-mt-14 u-p-11-28 u-bd-none u-br-9 u-bg-0f766e u-c-white u-fs-13 u-fw-700 u-cur-pointer" type="submit">
-              💾 Save Bank Details
+              <i class="ti ti-device-floppy hz-ico" aria-hidden="true"></i> Save Bank Details
             </button>
           </div>
         </form>
 
         <!-- CHANGE PASSWORD -->
         <div class="section u-mt-22">
-          <h3>🔒 Change Password</h3>
+          <h3><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Change Password</h3>
           {% if request.args.get('pwd_ok') %}
-            <div class="flash-banner flash-banner-green">✅ Password changed successfully.</div>
+            <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Password changed successfully.</div>
           {% elif request.args.get('pwd_error') == 'wrong' %}
-            <div class="flash-banner flash-banner-red">❌ Current password is incorrect.</div>
+            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Current password is incorrect.</div>
           {% elif request.args.get('pwd_error') == 'short' %}
-            <div class="flash-banner flash-banner-red">❌ New password must be at least 6 characters.</div>
+            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> New password must be at least 6 characters.</div>
           {% elif request.args.get('pwd_error') == 'mismatch' %}
-            <div class="flash-banner flash-banner-red">❌ New passwords do not match.</div>
+            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> New passwords do not match.</div>
           {% endif %}
           <form class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-14 u-ai-end u-maxw-760" action="{{ tpath('/change_password') }}" method="POST">
             <input aria-label="Username" type="text" name="username" value="{{ session.get('employee_id', '') }}" autocomplete="username" style="display:none" aria-hidden="true" />
@@ -2131,7 +2132,7 @@
             </div>
             <div class="u-gc-1_-1 u-mt-4">
               <button class="u-p-11-28 u-bd-none u-br-10 u-bg-1e3a8a u-c-white u-fs-14 u-fw-700 u-cur-pointer" type="submit">
-                🔒 Update Password
+                <i class="ti ti-lock hz-ico" aria-hidden="true"></i> Update Password
               </button>
             </div>
           </form>
@@ -2326,17 +2327,17 @@
       <!-- ═══ VIEW: TERMS & CONDITIONS ═══ -->
       <!-- ═══ VIEW: POLICIES (merged) ═══ -->
       <div id="view-policies" class="view">
-        <div class="mod-title">📚 Policies &amp; Guidelines <span>All workplace policies in one place</span></div>
+        <div class="mod-title"><i class="ti ti-books hz-ico" aria-hidden="true"></i> Policies &amp; Guidelines <span>All workplace policies in one place</span></div>
 
         <!-- Policy Tabs -->
         <div class="u-d-flex u-gap-8 u-fxw-wrap u-mb-22">
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-3b82f6 u-bg-eff6ff u-c-1e40af u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('terms')" id="ptab-terms">📜 Terms</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('rules')" id="ptab-rules">📋 Rules</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('limitations')" id="ptab-limitations">⚠️ Limitations</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('instructions')" id="ptab-instructions">📌 Instructions</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('posh')" id="ptab-posh">🛡️ POSH</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('resignation')" id="ptab-resignation">🚪 Resignation</button>
-          <button class="u-d-none u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('other')" id="ptab-other">📂 Other</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-3b82f6 u-bg-eff6ff u-c-1e40af u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('terms')" id="ptab-terms"><i class="ti ti-certificate hz-ico" aria-hidden="true"></i> Terms</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('rules')" id="ptab-rules"><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> Rules</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('limitations')" id="ptab-limitations"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Limitations</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('instructions')" id="ptab-instructions"><i class="ti ti-pin hz-ico" aria-hidden="true"></i> Instructions</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('posh')" id="ptab-posh"><i class="ti ti-shield-check hz-ico" aria-hidden="true"></i> POSH</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('resignation')" id="ptab-resignation"><i class="ti ti-door-exit hz-ico" aria-hidden="true"></i> Resignation</button>
+          <button class="u-d-none u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('other')" id="ptab-other"><i class="ti ti-folder hz-ico" aria-hidden="true"></i> Other</button>
         </div>
 
         <!-- Policy content is fetched from /api/employee/policies and rendered
@@ -3370,7 +3371,7 @@
     <!-- ═══ BREAK TIME NOTIFICATION ═══ -->
     <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10000 u-ai-center u-jc-center" id="breakNotifOverlay">
       <div class="u-bg-fff u-br-22 u-p-32-28-24 u-w-360 u-maxw-94vw u-ta-center u-shad-0-24-60-rgba0_0_0_0d25 u-anim-breakpop-0d35sd3de66">
-        <div class="u-fs-52 u-mb-10" id="breakNotifIcon">☕</div>
+        <div class="u-fs-52 u-mb-10" id="breakNotifIcon"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i></div>
         <div class="u-fs-19 u-fw-800 u-c-1e293b u-mb-6" id="breakNotifTitle"></div>
         <div class="u-fs-13 u-c-64748b u-mb-22" id="breakNotifSub"></div>
         <div class="u-d-flex u-gap-10">

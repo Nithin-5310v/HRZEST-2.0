@@ -7,6 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
+  <link rel="stylesheet" href="{{ static_url('hz-icons.css') }}" />
   <style>
     * { margin:0; padding:0; box-sizing:border-box; font-family:"Segoe UI", sans-serif; }
     body {
@@ -50,7 +51,7 @@
     </div>
 
     {% if error %}
-    <div class="error-msg">⚠️ {{ error }}</div>
+    <div class="error-msg"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> {{ error }}</div>
     {% endif %}
 
     <form method="POST" action="{{ tpath('/admin/step-up-mfa') }}">
@@ -59,7 +60,7 @@
         <input type="text" name="totp_code" maxlength="6" pattern="\d{6}" placeholder="000000" required autofocus autocomplete="off" />
       </div>
 
-      <button type="submit" class="btn-submit">🔐 Verify &amp; Proceed</button>
+      <button type="submit" class="btn-submit"><i class="ti ti-shield-lock hz-ico" aria-hidden="true"></i> Verify &amp; Proceed</button>
     </form>
   </div>
 </body>

@@ -142,18 +142,18 @@
 
 {% block main %}
       <div class="page-header">
-        <h1>💵 Salary Configuration</h1>
+        <h1><i class="ti ti-cash hz-ico" aria-hidden="true"></i> Salary Configuration</h1>
         <p>{{ salaries | length }} employee(s) — click Edit to update daily wage</p>
       </div>
 
       <div class="section">
         <div class="u-d-flex u-ai-center u-gap-14 u-mb-16 u-fxw-wrap">
           <div class="u-pos-relative">
-            <span class="u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-14 u-pe-none">🔍</span>
+            <span class="u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-14 u-pe-none"><i class="ti ti-search hz-ico" aria-hidden="true"></i></span>
             <input class="u-p-8-12-8-34 u-bd-1d5-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none u-w-200" type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
               oninput="filterEmpTable(this.value)" />
           </div>
-          <h3 class="u-m-0">👥 All Employees</h3>
+          <h3 class="u-m-0"><i class="ti ti-users hz-ico" aria-hidden="true"></i> All Employees</h3>
         </div>
         <div class="table-wrap">
           <table>
@@ -201,9 +201,9 @@
                         </div>
                         <div class="salary-row salary-row-revised">
                           {% if last_revised %}
-                            <span class="revised-badge">🗓 Last revised: {{ last_revised.strftime('%d %b %Y') }}</span>
+                            <span class="revised-badge"><i class="ti ti-calendar-event hz-ico" aria-hidden="true"></i> Last revised: {{ last_revised.strftime('%d %b %Y') }}</span>
                           {% else %}
-                            <span class="revised-badge muted">🗓 Never revised</span>
+                            <span class="revised-badge muted"><i class="ti ti-calendar-event hz-ico" aria-hidden="true"></i> Never revised</span>
                           {% endif %}
                         </div>
                       </div>
@@ -251,7 +251,7 @@
                     </div>
                     <div class="ef-hint">Based on 26 working days/month · Leave date blank to record today</div>
                     <div class="ef-btns">
-                      <button type="submit" class="btn-save">✅ Update</button>
+                      <button type="submit" class="btn-save"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Update</button>
                       <button type="button" class="btn-cancel"
                               data-idx="{{ loop.index }}">Cancel</button>
                     </div>
@@ -260,7 +260,7 @@
                 <td>
                   <button type="button" class="btn-edit"
                           id="editbtn-{{ loop.index }}"
-                          data-idx="{{ loop.index }}">✏️ Edit</button>
+                          data-idx="{{ loop.index }}"><i class="ti ti-pencil hz-ico" aria-hidden="true"></i> Edit</button>
                 </td>
               </tr>
               {% else %}
