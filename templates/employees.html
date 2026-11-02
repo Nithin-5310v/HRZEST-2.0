@@ -805,10 +805,7 @@
             </div>
             <div class="field-group">
               <label>Email <span class="u-c-dc2626">*</span></label>
-              <input type="email" name="email" placeholder="{{ 'name@' + email_domain if email_domain else 'employee@company.com' }}" required />
-              {% if email_domain %}
-              <div class="u-fs-11 u-c-64748b u-mt-4">Must be a @{{ email_domain }} address.</div>
-              {% endif %}
+              <input type="email" name="email" placeholder="employee@company.com" required />
             </div>
             <div class="field-group">
               <label>Date of Joining <span class="u-c-dc2626">*</span></label>

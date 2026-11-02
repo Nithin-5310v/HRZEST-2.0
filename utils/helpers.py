@@ -1089,20 +1089,10 @@ def validate_email_domain_format(domain: str) -> str:
 
 
 def validate_employee_email_domain(email) -> str:
-    """Enforces "employee email must match the company's configured
-    domain" -- but only once a company has actually set one
-    (get_company_settings()["email_domain"]); companies that haven't
-    configured a domain yet keep today's behavior (email optional, no
-    domain check), so this never breaks an existing tenant that predates
-    the feature. Returns an error message, or None if OK."""
-    domain = (get_company_settings().get("email_domain") or "").strip().lower()
-    if not domain:
-        return None
-    email = (email or "").strip().lower()
-    if not email:
-        return f"Employee email is required (must be a @{domain} address)."
-    if not email.endswith("@" + domain):
-        return f"Employee email must be a @{domain} address."
+    """No restriction: an employee may be added with any email address (or
+    none), regardless of the company's configured email domain. Kept as a
+    no-op so its callers in blueprints/employees.py don't need to change.
+    Returns None (always OK)."""
     return None
 
 
