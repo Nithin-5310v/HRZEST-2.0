@@ -24,7 +24,8 @@
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden;height:100vh}
 
     /* TOPBAR */
-    .topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:18px 24px 0;flex-shrink:0}
+    /* same place as every other module's page title: no card, no extra padding */
+    .topbar{background:transparent;border-bottom:1px solid #e2e8f0;padding:0;flex-shrink:0}
     .topbar-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .topbar-heading h1{font-size:24px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px}
     .topbar-heading .sub{font-size:14px;color:#94a3b8;margin-top:2px}
@@ -132,7 +133,7 @@
     body.dark-mode .main { background:#0d1117 !important; }
 
     /* Topbar */
-    body.dark-mode .topbar { background:#161b22 !important; border-color:#30363d !important; }
+    body.dark-mode .topbar { background:transparent !important; border-color:#30363d !important; }
     body.dark-mode .topbar-heading h1 { color:#e2e8f0 !important; }
     body.dark-mode .topbar-heading .sub { color:#64748b !important; }
 
