@@ -39,12 +39,44 @@
     } }, drop, paste, h('div', { class: 'row' }, go,
       h('span', { class: 'note' }, 'Read-only. Nothing is stored. Up to 5 MB / 100,000 lines; format is detected per line.')));
 
-    out.append(SOC.callout('Finds SQL injection, XSS, traversal, command injection, SSRF, scanners, probes, brute force, credential stuffing, enumeration, floods and error spikes — and recommends which sources to block.'), form, results);
+    // Source 1: what the platform itself recorded (runs on open, no upload needed).
+    const platBtn = h('button', { class: 'btn', type: 'button' }, 'Analyse platform activity');
+    const runPlatform = (force) => {
+      const cached = SOC._platformReport;
+      if (!force && cached && cached.hours === SOC.hours && Date.now() - cached.at < 5 * 60 * 1000) { show(cached.report); return; }
+      platBtn.disabled = true; platBtn.textContent = 'Analysing…';
+      results.textContent = ''; results.appendChild(SOC.skeleton());
+      api.post('/soc/api/loganalysis/platform', { hours: SOC.hours }).then((r) => {
+        SOC._platformReport = { hours: SOC.hours, at: Date.now(), report: r.report };
+        show(r.report);
+      }).catch((err) => { results.textContent = ''; results.appendChild(SOC.callout(err.message, 'bad')); })
+        .finally(() => { platBtn.disabled = false; platBtn.textContent = 'Re-analyse platform activity'; });
+    };
+    platBtn.addEventListener('click', () => runPlatform(true));
+    const platform = SOC.card('Platform activity', h('div', { class: 'stack' },
+      h('p', null, 'Analyses the security events this platform recorded in the selected time window (top bar: last ' + SOC.hours + ' h): logins, WAF blocks, honeypot hits, access denials, detections and more. No upload needed.'),
+      h('div', { class: 'row' }, platBtn)));
+    // Source 2: an external log file (nginx / Apache access log, sshd, JSON lines).
+    const upload = SOC.card('Or analyse a log file', h('div', { class: 'stack' },
+      h('p', { class: 'note' }, 'Web-server access logs add what security events do not record: HTTP status codes, user agents and every request, not only security-relevant ones.'), form));
+
+    out.append(SOC.callout('Finds SQL injection, XSS, traversal, command injection, SSRF, scanners, probes, brute force, credential stuffing, enumeration, floods and error spikes — and recommends which sources to block.'),
+      h('div', { class: 'grid cols-2' }, platform, upload), results);
     root.appendChild(out);
+    runPlatform(false);
 
     function show(r) {
       results.textContent = '';
       const s = r.summary, lim = r.limits;
+      if (r.source && r.source.kind === 'platform') {
+        const src = r.source;
+        results.appendChild(SOC.callout(src.total
+          ? 'Analysed ' + fmt.n(src.events) + ' security event' + (src.events === 1 ? '' : 's') + ' recorded by the platform in the last ' + src.hours + ' h' +
+            (src.capped ? ' (the newest ' + fmt.n(src.events) + ' of ' + fmt.n(src.total) + '; narrow the time window to cover the rest)' : '') +
+            '. Security events do not store HTTP status codes or user agents, so those sections stay empty here — upload a web-server access log for them.'
+          : 'The platform recorded no security events in the last ' + src.hours + ' h. Widen the time window in the top bar, or analyse a log file.', src.total ? '' : 'warn'));
+        if (!src.total) return;
+      }
       results.appendChild(h('div', { class: 'grid kpis' },
         SOC.kpi('Lines', fmt.n(s.lines_read), fmt.n(s.records) + ' parsed', 'info'), SOC.kpi('Sources', fmt.n(s.unique_ips), 'unique IPs', 'info'),
         SOC.kpi('Findings', fmt.n(s.findings), s.critical + ' critical · ' + s.high + ' high', s.critical ? 'critical' : s.high ? 'high' : s.findings ? 'medium' : 'ok'),

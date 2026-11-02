@@ -178,7 +178,7 @@ def public_user(u):
     """The fields safe to return to a browser."""
     return {k: (v.isoformat(sep=" ") if hasattr(v, "isoformat") else v) for k, v in u.items()
             if k in ("id", "username", "email", "role", "totp_enabled", "active", "failed_count",
-                     "locked_until", "last_login_at", "last_login_ip", "created_by", "created_at")}
+                     "locked_until", "is_locked", "last_login_at", "last_login_ip", "created_by", "created_at")}
 
 
 def list_users():

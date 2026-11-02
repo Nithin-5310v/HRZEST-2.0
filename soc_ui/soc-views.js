@@ -88,6 +88,7 @@
         }
       }
       if (e.identifier && e.identifier !== 'None') actions.appendChild(h('a', { class: 'btn ghost small', href: '#/events?identifier=' + encodeURIComponent(e.identifier) }, 'Events for account'));
+      actions.appendChild(h('a', { class: 'btn ghost small', href: SOC.explainHref('event_type', e.event_type) }, 'What does this mean?'));
       if (needs('analyst')) {
         const existing = (e.cases || [])[0];
         actions.appendChild(existing
@@ -108,25 +109,31 @@
     async render(root, ctl) {
       const draw = async (initial) => {
         const d = await api.get('/soc/api/overview', { hours: SOC.hours }, !initial);
-        const k = d.kpi, frag = h('div');
+        const k = d.kpi, frag = h('div'), ex = SOC.explainHref;
         frag.appendChild(h('div', { class: 'callout ' + (d.threat.level === 'normal' ? '' : d.threat.level === 'elevated' ? 'warn' : 'bad') },
           h('strong', null, 'Threat level: ' + d.threat.level + '. '), d.threat.reasons.join('. ') + '.'));
+        if (d.proxy_hint) {
+          frag.appendChild(SOC.callout(['Most events come from a private address (', h('span', { class: 'mono' }, d.top_ips[0].ip),
+            '). The app is seeing its proxy or container gateway, not the real visitors, so source IPs and locations below are not meaningful. ',
+            'Set TRUSTED_PROXY_HOPS to the number of proxies in front of the app (see Posture).'], 'warn'));
+        }
+        frag.appendChild(h('p', { class: 'note' }, 'Click any number, area, event type or technique for an analyst brief: what it means, who is involved, what to check and how to respond.'));
         frag.appendChild(h('div', { class: 'grid kpis' },
-          SOC.kpi('Events', fmt.n(k.events), 'last ' + d.hours + 'h', 'info'),
-          SOC.kpi('Critical', fmt.n(k.critical), '', k.critical ? 'critical' : 'ok'),
-          SOC.kpi('Errors', fmt.n(k.error), 'page-level', k.error ? 'high' : 'ok'),
-          SOC.kpi('Detections', fmt.n(k.detections), 'correlation rules', k.detections ? 'high' : 'ok'),
-          SOC.kpi('Failed logins', fmt.n(k.failed_logins), fmt.n(k.lockouts) + ' lockouts', k.failed_logins > 50 ? 'medium' : 'info'),
-          SOC.kpi('WAF blocks', fmt.n(k.waf_blocks), '', k.waf_blocks ? 'medium' : 'ok'),
-          SOC.kpi('Honeypot hits', fmt.n(k.honeypot_hits), '', k.honeypot_hits ? 'medium' : 'ok'),
-          SOC.kpi('Unique IPs', fmt.n(k.unique_ips), 'in events', 'info'),
-          SOC.kpi('Active bans', fmt.n(d.active_bans), '', 'info'),
-          SOC.kpi('Open cases', fmt.n(d.cases.open), '', d.cases.open ? 'medium' : 'ok')));
+          SOC.kpi('Events', fmt.n(k.events), 'last ' + d.hours + 'h', 'info', ex('kpi', 'events')),
+          SOC.kpi('Critical', fmt.n(k.critical), '', k.critical ? 'critical' : 'ok', ex('kpi', 'critical')),
+          SOC.kpi('Errors', fmt.n(k.error), 'page-level', k.error ? 'high' : 'ok', ex('kpi', 'errors')),
+          SOC.kpi('Detections', fmt.n(k.detections), 'correlation rules', k.detections ? 'high' : 'ok', ex('kpi', 'detections')),
+          SOC.kpi('Failed logins', fmt.n(k.failed_logins), fmt.n(k.lockouts) + ' lockouts', k.failed_logins > 50 ? 'medium' : 'info', ex('kpi', 'failed_logins')),
+          SOC.kpi('WAF blocks', fmt.n(k.waf_blocks), '', k.waf_blocks ? 'medium' : 'ok', ex('kpi', 'waf_blocks')),
+          SOC.kpi('Honeypot hits', fmt.n(k.honeypot_hits), '', k.honeypot_hits ? 'medium' : 'ok', ex('kpi', 'honeypot_hits')),
+          SOC.kpi('Unique IPs', fmt.n(k.unique_ips), 'with location', 'info', ex('kpi', 'unique_ips')),
+          SOC.kpi('Active bans', fmt.n(d.active_bans), '', 'info', '#/response'),
+          SOC.kpi('Open cases', fmt.n(d.cases.open), '', d.cases.open ? 'medium' : 'ok', '#/cases')));
 
         const canvas = h('canvas', { role: 'img', 'aria-label': 'Events over time by severity' });
         frag.appendChild(h('div', { class: 'grid cols-21' },
           SOC.card('Events over time', h('div', { class: 'chart' }, canvas)),
-          SOC.card('By area', d.families.length ? SOC.bars(d.families.map((f) => ({ label: f.label, value: f.count, href: '#/events?family=' + f.family }))) : SOC.empty('No events in this window.'))));
+          SOC.card('By area', d.families.length ? SOC.bars(d.families.map((f) => ({ label: f.label, value: f.count, href: ex('family', f.family) }))) : SOC.empty('No events in this window.'))));
 
         const ipTable = SOC.table({
           empty: 'No source addresses in this window.', rows: d.top_ips, onRow: (r) => SOC.go('entity', { ip: r.ip }),
@@ -148,11 +155,16 @@
         const alerts = d.recent_alerts.length
           ? h('ul', { class: 'list' }, d.recent_alerts.map(eventRowLite)) : SOC.empty('No alerts in this window.');
         const tech = d.techniques.length
-          ? h('div', { class: 'row' }, d.techniques.map((t) => h('span', { class: 'row' }, SOC.mitre([t.id]), h('span', { class: 'note' }, t.name + ' ×' + fmt.n(t.count)))))
+          ? h('div', { class: 'row' }, d.techniques.map((t) => h('span', { class: 'row' }, SOC.mitre([t.id]),
+              h('a', { href: ex('technique', t.id), title: 'Analyst brief for ' + t.id }, t.name), h('span', { class: 'note' }, '×' + fmt.n(t.count)))))
           : SOC.empty('No ATT&CK-mapped activity.');
+        const types = d.top_event_types.length
+          ? SOC.bars(d.top_event_types.map((t) => ({ label: t.label, value: t.count, href: ex('event_type', t.event_type) })))
+          : SOC.empty('No events in this window.');
         frag.appendChild(h('div', { class: 'grid cols-2' },
           SOC.card('Latest alerts', alerts, h('a', { href: '#/alerts' }, 'All alerts')),
-          SOC.card('MITRE ATT&CK techniques observed', tech)));
+          SOC.card('Top event types', types)));
+        frag.appendChild(SOC.card('MITRE ATT&CK techniques observed', tech));
 
         root.textContent = ''; root.appendChild(frag);
         const lv = (n) => d.timeline.map((p) => p[n]);
@@ -220,13 +232,23 @@
         const ipBox = h('input', { class: 'input', 'aria-label': 'Source IP', placeholder: 'Source IP', value: state.ip });
         const idBox = h('input', { class: 'input', 'aria-label': 'Account', placeholder: 'Account', value: state.identifier });
         const tnBox = h('input', { class: 'input', 'aria-label': 'Tenant slug', placeholder: 'Tenant', value: state.tenant });
+        // event_type arrives only from links (e.g. a lookup's "What it did" bars) and has no
+        // input of its own, so show it as a removable chip instead of filtering invisibly.
+        const typeChip = h('span', { class: 'row' });
+        const drawType = () => {
+          typeChip.textContent = '';
+          if (!state.event_type) return;
+          typeChip.append(SOC.chip('type: ' + state.event_type, 'plain'),
+            h('button', { class: 'btn ghost small', type: 'button', 'aria-label': 'Remove event type filter', onclick: () => { state.event_type = ''; drawType(); apply(); } }, '×'));
+        };
+        drawType();
         const apply = () => {
           Object.assign(state, { q: qBox.value.trim(), family: fam.value, level: lvl.value, ip: ipBox.value.trim(), identifier: idBox.value.trim(), tenant: tnBox.value.trim().toLowerCase() });
           sync(); load(true).catch((e) => SOC.toast(e.message, 'bad'));
         };
         const filters = h('form', { class: 'filters', onsubmit: (e) => { e.preventDefault(); apply(); } },
-          qBox, fam, lvl, ipBox, idBox, tnBox, h('button', { class: 'btn', type: 'submit' }, 'Search'),
-          h('button', { class: 'btn ghost', type: 'button', onclick: () => { [qBox, ipBox, idBox, tnBox].forEach((i) => { i.value = ''; }); fam.value = ''; lvl.value = ''; apply(); } }, 'Clear'),
+          qBox, fam, lvl, ipBox, idBox, tnBox, typeChip, h('button', { class: 'btn', type: 'submit' }, 'Search'),
+          h('button', { class: 'btn ghost', type: 'button', onclick: () => { [qBox, ipBox, idBox, tnBox].forEach((i) => { i.value = ''; }); fam.value = ''; lvl.value = ''; state.event_type = ''; drawType(); apply(); } }, 'Clear'),
           csvLink);
         out.append(alertsOnly ? SOC.callout('Alerts are correlation detections plus anything logged at ERROR or CRITICAL (the same bar that pages on-call).') : '',
           filters, tableBox, more);
@@ -237,6 +259,89 @@
   }
   eventsView('alerts', 'Alerts', true);
   eventsView('events', 'Events', false);
+
+  /* ============ IP intelligence card (location, network, anonymizer) ============ */
+  function ipIntel(g) {
+    if (g.scope === 'private') return SOC.card('IP intelligence', SOC.callout(g.note, 'warn'));
+    if (g.scope !== 'public') return SOC.card('IP intelligence', SOC.empty(g.note || 'Location is not available for this address.'));
+    const coords = g.lat != null && g.lon != null
+      ? h('a', { href: 'https://www.openstreetmap.org/?mlat=' + g.lat + '&mlon=' + g.lon + '#map=9/' + g.lat + '/' + g.lon, target: '_blank', rel: 'noopener noreferrer' }, g.lat + ', ' + g.lon + ' (map)')
+      : null;
+    const kind = g.anonymizer ? SOC.chip(g.anonymizer, 'bad') : g.datacenter ? SOC.chip('Hosting / datacenter', 'warn') : SOC.chip('No anonymizer detected', 'ok');
+    return SOC.card('IP intelligence', h('div', { class: 'stack' },
+      g.verdict ? SOC.callout(g.verdict, g.anonymizer ? 'bad' : 'warn') : null,
+      SOC.kv([
+        ['Location', g.location], ['Coordinates', coords], ['Time zone', g.timezone],
+        ['Network (ASN)', [g.asn, g.provider ? ' · ' + g.provider : ''].join('')], ['Organisation', g.organisation],
+        ['Hostname', g.hostname ? h('span', { class: 'mono' }, g.hostname) : null], ['Address range', g.range ? h('span', { class: 'mono' }, g.range) : null],
+        ['Connection type', g.connection_type], ['Anonymizer', kind]
+      ]),
+      h('p', { class: 'note' }, 'Source: ' + g.source + (g.fetched_at ? ', looked up ' + fmt.time(g.fetched_at) : '') + '. IP geolocation is approximate: country is reliable, city is a best guess.')));
+  }
+
+  /* ============ analyst brief (Overview drill-down) ============ */
+  SOC.register({
+    id: 'explain', label: 'Analyst brief', title: 'Analyst brief',
+    async render(root, ctl) {
+      const p = ctl.params;
+      const d = (await api.get('/soc/api/brief', { kind: p.kind, value: p.value, hours: SOC.hours })).brief;
+      const s = d.stats, ex = SOC.explainHref;
+      document.getElementById('title').textContent = d.title;
+      document.title = d.title + ' · SOC';
+      SOC.geoPrime(Object.fromEntries(d.sources.map((x) => [x.ip, x.geo])));
+      root.textContent = '';
+      const out = h('div', { class: 'stack' });
+
+      const trend = s.previous === 0 ? (s.events ? 'new in this window' : 'none before either')
+        : (s.change_pct > 0 ? '↑ ' : s.change_pct < 0 ? '↓ ' : '') + Math.abs(s.change_pct) + '% vs previous ' + d.hours + 'h (' + fmt.n(s.previous) + ')';
+      out.append(
+        h('div', { class: 'row brief-head' }, h('a', { href: '#/overview' }, '← Overview'), h('span', { class: 'spacer' }),
+          h('a', { class: 'btn ghost small', href: '#/events' + api.qs(d.events_filter) }, 'Open these events')),
+        h('div', null, h('h2', null, d.title), h('div', { class: 'note' }, (d.subtitle ? d.subtitle + ' · ' : '') + 'last ' + d.hours + ' hours'),
+          d.mitre.length ? h('div', { class: 'row' }, d.mitre.map((m) => h('span', { class: 'row' }, SOC.mitre([m.id]), h('span', { class: 'note' }, m.name)))) : null),
+        h('div', { class: 'grid kpis' },
+          SOC.kpi('Events', fmt.n(s.events), trend, s.change_pct > 50 || (s.previous === 0 && s.events) ? 'high' : 'info'),
+          SOC.kpi('Source IPs', fmt.n(s.unique_ips), '', 'info'), SOC.kpi('Accounts', fmt.n(s.accounts), '', 'info'),
+          SOC.kpi('First seen', s.first ? fmt.time(s.first).slice(5, 16) : '–', fmt.ago(s.first), 'info'),
+          SOC.kpi('Last seen', s.last ? fmt.time(s.last).slice(5, 16) : '–', fmt.ago(s.last), 'info')),
+        SOC.card('What this means', h('div', { class: 'brief-text' },
+          h('p', null, h('strong', null, 'What it is'), d.what), h('p', null, h('strong', null, 'Why it matters'), d.why))),
+        h('div', { class: 'grid cols-2' },
+          SOC.card('What to check', h('ol', { class: 'steps' }, d.check.map((c) => h('li', null, c)))),
+          SOC.card('Recommended response', h('ol', { class: 'steps' }, d.respond.map((c) => h('li', null, c))))));
+
+      if (!s.events) { out.appendChild(SOC.empty('Nothing matched in the selected window. Widen the time window (top bar) to look further back.')); root.appendChild(out); return; }
+
+      if (d.masked.of && d.masked.events) {
+        const pct = Math.round(100 * d.masked.events / d.masked.of);
+        out.appendChild(SOC.callout(pct + '% of the located activity comes from VPN, Tor, proxy or hosting addresses. For those, the location shown is the relay or datacenter, not the person behind it.', pct >= 50 ? 'bad' : 'warn'));
+      }
+      out.appendChild(SOC.card('Who is involved: source addresses', SOC.table({
+        empty: 'No source addresses recorded.', rows: d.sources, onRow: (r) => SOC.go('entity', { ip: r.ip }),
+        columns: [
+          { label: 'Source IP / location', render: (r) => SOC.ipLink(r.ip) },
+          { label: 'Network', render: (r) => r.geo && r.geo.scope === 'public' ? [r.geo.provider || r.geo.organisation || '', h('div', { class: 'note mono' }, [r.geo.asn, r.geo.connection_type].filter(Boolean).join(' · '))] : null },
+          { label: 'Events', num: true, key: 'events' }, { label: 'Kinds', num: true, key: 'types' }, { label: 'Accounts', num: true, key: 'accounts' },
+          { label: 'Last', render: (r) => when(r.last) },
+          { label: '', render: (r) => r.banned ? SOC.chip('banned', 'bad') : r.protected ? SOC.chip('shared', 'plain')
+            : (needs('analyst') ? h('button', { class: 'btn danger small', type: 'button', onclick: () => SOC.drawer.open('Ban ' + r.ip, SOC.banForm(r.ip, () => SOC.reload())) }, 'Ban') : null) }]
+      })));
+      out.appendChild(h('div', { class: 'grid cols-2' },
+        SOC.card('Where it comes from (by country)', d.countries.length ? SOC.bars(d.countries.map((c) => ({ label: c.country, value: c.events })))
+          : SOC.empty('No public source addresses with a known location.')),
+        SOC.card('Accounts involved', SOC.table({ empty: 'No accounts recorded.', rows: d.accounts, onRow: (r) => SOC.go('entity', { identifier: r.identifier }),
+          columns: [{ label: 'Account', render: (r) => SOC.idLink(r.identifier) }, { label: 'Events', num: true, key: 'events' }, { label: 'IPs', num: true, key: 'ips' }, { label: 'Last', render: (r) => when(r.last) }] }))));
+      out.appendChild(h('div', { class: 'grid cols-2' },
+        SOC.card('Made up of these event types', SOC.bars(d.types.map((t) => ({ label: t.label, value: t.count, href: d.kind === 'event_type' ? null : ex('event_type', t.event_type) })))),
+        SOC.card('Targeted paths', d.paths.length ? SOC.table({ rows: d.paths, columns: [{ label: 'Path', cls: 'mono clip', key: 'path' }, { label: 'Hits', num: true, key: 'count' }] }) : SOC.empty('No request paths recorded.'))));
+      out.appendChild(SOC.card('Recent examples', SOC.table({
+        rows: d.recent, onRow: (e) => SOC.openEvent(e.id),
+        columns: [{ label: 'Time', render: (e) => when(e.created_at) }, { label: 'Severity', render: (e) => SOC.level(e.level) }, { label: 'Event', key: 'label' },
+          { label: 'Source', render: (e) => SOC.ipLink(e.ip) }, { label: 'Account', render: (e) => SOC.idLink(e.identifier) }, { label: 'Detail', cls: 'clip', key: 'message' }]
+      }), h('a', { href: '#/events' + api.qs(d.events_filter) }, 'All of them')));
+      root.appendChild(out);
+    }
+  });
 
   /* ============ entity lookup ============ */
   SOC.register({
@@ -264,9 +369,10 @@
         } }, 'Lift ban'));
         else if (!d.protected) acts.appendChild(h('button', { class: 'btn danger small', type: 'button', onclick: () => SOC.drawer.open('Ban ' + d.value, SOC.banForm(d.value, () => SOC.reload())) }, 'Ban IP'));
       }
-      if (needs('analyst')) acts.appendChild(h('button', { class: 'btn small', type: 'button', onclick: () => SOC.drawer.open('New case', SOC.caseForm({ title: 'Investigate ' + d.value, severity: d.high_severity ? 'high' : 'medium', summary: d.events + ' events in ' + d.days + ' days', source_type: 'ip' })) }, 'Open case'));
+      if (needs('analyst')) acts.appendChild(h('button', { class: 'btn small', type: 'button', onclick: () => SOC.drawer.open('New case', SOC.caseForm({ title: 'Investigate ' + d.value, severity: d.high_severity ? 'high' : 'medium', summary: d.events + ' events in ' + d.days + ' days', source_type: kind === 'ip' ? 'ip' : 'manual' })) }, 'Open case'));
       acts.appendChild(h('a', { class: 'btn ghost small', href: '#/events?' + (kind === 'ip' ? 'ip=' : 'identifier=') + encodeURIComponent(d.value) }, 'All events'));
       out.append(title, acts);
+      if (kind === 'ip' && d.geo) { SOC.geoPrime({ [d.value]: d.geo }); out.appendChild(ipIntel(d.geo)); }
       if (d.ban) out.appendChild(SOC.callout('Banned by ' + d.ban.by + ' on ' + fmt.time(d.ban.at) + ' — ' + (d.ban.reason || 'no reason recorded') + (d.ban.expires ? ' (until ' + fmt.time(d.ban.expires) + ')' : ' (until lifted)'), 'bad'));
       out.appendChild(h('div', { class: 'grid kpis' },
         SOC.kpi('Events', fmt.n(d.events), 'last ' + d.days + ' days', 'info'), SOC.kpi('High severity', fmt.n(d.high_severity), '', d.high_severity ? 'high' : 'ok'),
@@ -380,7 +486,7 @@
         empty: 'No bans recorded.', rows: d.bans,
         columns: [{ label: 'IP', render: (b) => SOC.ipLink(b.ip) }, { label: 'Status', render: (b) => SOC.chip(b.active ? 'active' : 'expired', b.active ? 'bad' : 'plain') },
           { label: 'Reason', cls: 'clip', key: 'reason' }, { label: 'By', key: 'by' }, { label: 'Since', render: (b) => when(b.at) },
-          { label: 'Until', render: (b) => b.expires ? fmt.time(b.expires) : 'lifted manually' },
+          { label: 'Until', render: (b) => b.expires ? fmt.time(b.expires) : 'until lifted' },
           { label: '', render: (b) => needs('analyst') && b.active ? h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
             SOC.confirm('Lift the ban on ' + b.ip + '?', { danger: false }).then((ok) => ok && act(api.post('/soc/api/bans/remove', { ip: b.ip }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
           } }, 'Lift') : null }]
@@ -455,7 +561,7 @@
       const result = h('div');
       const show = (report, at, by) => {
         result.textContent = '';
-        if (!report) { result.appendChild(SOC.empty('Not verified since this server started.')); return; }
+        if (!report) { result.appendChild(SOC.empty('No verification on record yet.')); return; }
         const ok = report.ok === true;
         result.appendChild(h('div', { class: 'callout ' + (ok ? '' : 'bad') }, h('strong', null, ok ? 'Chain verified. ' : 'Chain problem detected. '), 'Checked ' + fmt.time(at) + (by ? ' by ' + by : '') + '.'));
         if (!ok) result.appendChild(SOC.callout('Treat this as a possible tamper. Preserve the database, compare the head with the off-box anchors in Loki, and open a case.', 'bad'));
@@ -495,7 +601,14 @@
     id: 'logs', label: 'Logs (Loki)', title: 'Log search', icon: 'logs', min: 'analyst',
     async render(root, ctl) {
       root.textContent = '';
-      if (!SOC.loki) { root.appendChild(SOC.callout('Loki is not configured. Set LOKI_URL on the server to search shipped application and access logs here.', 'warn')); return; }
+      if (!SOC.loki) {
+        root.append(SOC.callout('Loki is not configured, so there are no shipped server logs to search here. This view searches the raw application and web-server logs collected by a separate Loki log server.', 'warn'),
+          SOC.card('Where to look instead', h('ul', { class: 'list' },
+            h('li', null, h('a', { href: '#/events' }, 'Events'), ' — every security event the platform recorded (logins, WAF blocks, honeypot hits, denials, detections).'),
+            SOC.can('analyst') ? h('li', null, h('a', { href: '#/analysis' }, 'Log analysis'), ' — attack findings and block recommendations from that same activity, or from a log file you upload.') : null)),
+          SOC.card('To enable this view', h('p', null, 'Run the log pipeline in observability/ (Loki + Promtail/Alloy, see observability/README.md), then set LOKI_URL on the app server, e.g. http://loki:3100, and restart.')));
+        return;
+      }
       const q = h('input', { class: 'input', 'aria-label': 'LogQL query', value: ctl.params.q || '{job=~".+"} |= "security_event"' });
       const mins = select([['15', '15 min'], ['60', '1 hour'], ['360', '6 hours'], ['1440', '24 hours']], ctl.params.m || '60', { 'aria-label': 'Range' });
       const out = h('div');
@@ -529,7 +642,7 @@
           rows.push(...d.entries);
           box.textContent = ''; box.appendChild(SOC.table({ rows, columns: [{ label: 'Time', render: (r) => when(r.at) }, { label: 'Actor', key: 'actor' }, { label: 'Action', key: 'action' }, { label: 'Target', cls: 'clip', key: 'target' }, { label: 'Detail', cls: 'clip', key: 'detail' }, { label: 'IP', render: (r) => SOC.ipLink(r.ip) }] }));
           more.textContent = '';
-          if (d.next_before) more.appendChild(h('button', { class: 'btn ghost small', type: 'button', onclick: () => load(d.next_before) }, 'Older'));
+          if (d.next_before) more.appendChild(h('button', { class: 'btn ghost small', type: 'button', onclick: () => load(d.next_before).catch((e) => SOC.toast(e.message, 'bad')) }, 'Older'));
         };
         root.append(SOC.callout('Append-only: the database rejects any update or delete of these rows.'), box, more);
         await load();
@@ -557,7 +670,7 @@
         tableBox.textContent = '';
         tableBox.appendChild(SOC.table({ rows: users, columns: [
           { label: 'User', key: 'username' }, { label: 'Role', key: 'role' }, { label: 'MFA', render: (x) => SOC.chip(x.totp_enabled ? 'enrolled' : 'pending', x.totp_enabled ? 'ok' : 'plain') },
-          { label: 'State', render: (x) => !x.active ? SOC.chip('disabled', 'bad') : x.locked_until ? SOC.chip('locked?', 'plain') : SOC.chip('active', 'ok') },
+          { label: 'State', render: (x) => !x.active ? SOC.chip('disabled', 'bad') : x.is_locked ? SOC.chip('locked', 'bad') : SOC.chip('active', 'ok') },
           { label: 'Last sign-in', render: (x) => x.last_login_at ? [fmt.time(x.last_login_at), h('div', { class: 'note mono' }, x.last_login_ip || '')] : null },
           { label: '', render: (x) => h('div', { class: 'row' },
             h('select', { class: 'select', 'aria-label': 'Role for ' + x.username, onchange: (e) => call(x.id, { action: 'set_role', role: e.target.value }, 'Role updated').then(refresh).catch(refresh) },

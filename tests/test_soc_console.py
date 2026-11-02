@@ -23,13 +23,15 @@ PUBLIC_IP = "45.33.32.156"        # routable (not private / documentation / rese
 
 @pytest.fixture(autouse=True)
 def _fresh_soc_state(monkeypatch):
-    import blueprints.soc as soc_blueprint
     monkeypatch.delenv("SOC_ALLOWED_CIDRS", raising=False)
+    monkeypatch.delenv("SOC_GEO_PROVIDER", raising=False)
+    # Never call the real IP-lookup provider from tests; tests that need answers
+    # replace this with their own fake.
+    from utils import soc_geo
+    monkeypatch.setattr(soc_geo, "_fetch", lambda ips: {})
     soc_queries.clear_cache()
-    soc_blueprint._last_integrity.clear()
     yield
     soc_queries.clear_cache()
-    soc_blueprint._last_integrity.clear()
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -464,6 +466,17 @@ class TestRoles:
         assert admin.post(f"/soc/api/users/{me}", json={"action": "set_role", "role": "viewer"}).status_code == 400
         assert admin.get("/soc/api/me").status_code == 200
 
+    def test_user_list_reports_current_lock_state(self, soc, db_engine):
+        admin, _ = soc("alice", "admin")
+        make_user("bob", "analyst")
+        state = lambda: {u["username"]: u["is_locked"] for u in admin.get("/soc/api/users").get_json()["users"]}["bob"]  # noqa: E731
+        cur = db_engine.cursor()
+        cur.execute("UPDATE att_master.soc_users SET locked_until = NOW() + INTERVAL '10 minutes' WHERE username='bob'")
+        assert state() is True
+        cur.execute("UPDATE att_master.soc_users SET locked_until = NOW() - INTERVAL '10 minutes' WHERE username='bob'")
+        assert state() is False            # an expired lock is not shown as locked
+        cur.close()
+
     def test_reset_mfa_issues_a_new_setup_code_and_forces_reenrolment(self, soc):
         admin, _ = soc("alice", "admin")
         other, secret = soc("bob", "analyst")
@@ -524,6 +537,23 @@ class TestOverviewAndEvents:
         assert c.get("/soc/api/overview", query_string={"hours": 24}).get_json()["kpi"]["waf_blocks"] == 1
         assert c.get("/soc/api/overview", query_string={"hours": "abc"}).get_json()["hours"] == 24
         assert c.get("/soc/api/overview", query_string={"hours": 99999}).get_json()["hours"] == 720
+
+    def test_waf_blocks_ignore_waf_housekeeping(self, soc, db_engine):
+        c, _ = soc()
+        add_event(db_engine, "waf.xss_blocked", "ERROR", ip=PUBLIC_IP)
+        for et in ("waf.redis_error", "waf.ban_write_failed", "waf.ban_skipped_shared_ip", "waf.auto_ban"):
+            add_event(db_engine, et, "WARNING", ip=PUBLIC_IP)
+        assert c.get("/soc/api/overview", query_string={"hours": 24}).get_json()["kpi"]["waf_blocks"] == 1
+
+    def test_timeline_includes_empty_buckets(self, soc, db_engine):
+        c, _ = soc()
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP, minutes_ago=60 * 10)
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP, minutes_ago=5)
+        tl = c.get("/soc/api/overview", query_string={"hours": 24}).get_json()["timeline"]
+        assert 24 <= len(tl) <= 25                                   # hourly buckets, quiet hours included
+        assert [p["t"] for p in tl] == sorted(p["t"] for p in tl)
+        assert sum(p["WARNING"] for p in tl) == 2
+        assert sum(1 for p in tl if not any(p[k] for k in ("CRITICAL", "ERROR", "WARNING", "INFO"))) >= 20
 
     def test_quiet_system_is_normal(self, soc):
         c, _ = soc()
@@ -751,6 +781,19 @@ class TestAssessmentViews:
         assert {f["flag"]: f["count"] for f in d["flags"]} == {"photo_replay": 1, "shared_device": 1, "mock_location": 1}
         assert d["tenants"][0]["slug"] == "att-test-suite"
 
+    def test_liveness_issues_count_outcomes_not_challenges(self, soc, db_engine):
+        c, _ = soc()
+        cur = db_engine.cursor()
+        # A passed challenge carries its action ("blink") -- that is not an issue.
+        for emp, state, action in [("E1", "passed", "blink"), ("E2", "failed", "turn_left"),
+                                   ("E3", "challenge_invalid", None), ("E4", "missing", None),
+                                   ("E5", "not_required", None)]:
+            cur.execute("INSERT INTO public.punch_evidence (employee_id, channel, liveness, liveness_action) "
+                        "VALUES (%s,'mobile',%s,%s)", (emp, state, action))
+        cur.close()
+        d = c.get("/soc/api/attendance", query_string={"days": 7}).get_json()
+        assert d["tenants"][0]["liveness_issues"] == 3
+
     def test_posture_never_reveals_secrets(self, soc, monkeypatch):
         monkeypatch.setenv("SECRET_KEY", "ultra-secret-signing-key-123")
         monkeypatch.setenv("ENCRYPTION_KEY", "ultra-secret-fernet-key-456")
@@ -783,8 +826,25 @@ class TestAssessmentViews:
         cur.close()
         assert r["report"]["ok"] is expected["ok"] and r["report"]["rows_chained"] >= 5
         assert r["report"]["violations"] == expected["violations"] and r["by"] == "ann"
-        assert c.get("/soc/api/integrity").get_json()["report"]["rows_chained"] == r["report"]["rows_chained"]
+        last = c.get("/soc/api/integrity").get_json()
+        assert last["report"]["rows_chained"] == r["report"]["rows_chained"] and last["by"] == "ann" and last["at"]
         assert ("ann", "verify_audit_chain", None) in audit_actions(db_engine)
+
+    def test_last_verification_is_read_from_the_database(self, soc, db_engine):
+        # Stored in soc_audit_log, not one worker's memory: another worker (or a
+        # restarted server) sees it, and a legacy "ok=True" row is ignored.
+        c, _ = soc("ann", "analyst")
+        soc_auth.audit("old", "verify_audit_chain", detail="ok=True")
+        assert c.get("/soc/api/integrity").get_json()["report"] is None
+        soc_auth.audit("bob", "verify_audit_chain", detail=json.dumps({"ok": True, "rows_chained": 7}))
+        last = c.get("/soc/api/integrity").get_json()
+        assert last["report"] == {"ok": True, "rows_chained": 7} and last["by"] == "bob"
+
+    def test_long_reports_are_trimmed_to_valid_json(self):
+        import blueprints.soc as soc_blueprint
+        report = {"ok": False, "rows_chained": 9, "violations": [{"id": i, "reason": "x" * 50} for i in range(500)]}
+        stored = json.loads(soc_blueprint._integrity_detail(report))
+        assert stored["ok"] is False and stored["violations_total"] == 500 and len(stored["violations"]) < 500
 
     def test_verification_refuses_a_table_too_large_to_hold_in_memory(self, soc, monkeypatch):
         c, _ = soc("ann", "analyst")
@@ -847,7 +907,172 @@ class TestLogAnalysisEndpoint:
         r = c.post("/soc/api/loganalysis", data={"log": (io.BytesIO(big), "big.log")}, content_type="multipart/form-data").get_json()
         assert r["report"]["limits"]["truncated_bytes"] is True
 
+    def test_platform_activity_is_analysed_without_an_upload(self, soc, db_engine):
+        c, _ = soc("ann", "analyst")
+        for i in range(12):
+            add_event(db_engine, "auth.failure", ip=PUBLIC_IP, identifier=f"u{i}@example.com", path="/acme/login", method="POST")
+        add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP, path="/acme/search")
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP, minutes_ago=60 * 30)          # outside 24h
+        r = c.post("/soc/api/loganalysis/platform", json={"hours": 24})
+        assert r.status_code == 200, r.get_data(as_text=True)
+        rep = r.get_json()["report"]
+        assert rep["source"] == {"kind": "platform", "events": 13, "total": 13, "capped": False, "hours": 24}
+        assert rep["summary"]["records"] == 13 and rep["summary"]["findings"] >= 1
+        assert any(s["ip"] == PUBLIC_IP for s in rep["sources"])
+        assert ("ann", "log_analysis", "platform-activity-24h") in audit_actions(db_engine)
+
+    def test_platform_activity_keeps_the_newest_events_within_the_size_limit(self, db_engine):
+        for i in range(5):
+            add_event(db_engine, "auth.failure", ip=PUBLIC_IP, message=f"m{i}", minutes_ago=50 - i)
+        one = len(soc_queries.platform_log_text(24)[0].split("\n")[0]) + 1
+        text, src = soc_queries.platform_log_text(24, max_bytes=one * 2 + 5)
+        assert src["events"] == 2 and src["total"] == 5 and src["capped"] is True
+        assert [json.loads(x)["message"] for x in text.split("\n")] == ["m3", "m4"]   # newest, oldest first
+
+    def test_platform_analysis_needs_analyst(self, soc):
+        v, _ = soc("vic", "viewer")
+        assert v.post("/soc/api/loganalysis/platform", json={}).status_code == 403
+
     def test_binary_and_non_utf8_input_is_survivable(self, soc):
         c, _ = soc("ann", "analyst")
         r = c.post("/soc/api/loganalysis", data={"log": (io.BytesIO(bytes(range(256)) * 50), "junk.bin")}, content_type="multipart/form-data")
         assert r.status_code == 200 and r.get_json()["ok"]
+
+
+# ════════════════════════════════════════════════════════════════════
+# IP location / anonymizer intelligence
+# ════════════════════════════════════════════════════════════════════
+TOR_IP = "185.220.101.1"
+_FAKE = {
+    PUBLIC_IP: {"asn": "AS63949", "provider": "Akamai", "country": "United States", "isocode": "US",
+                "region": "California", "city": "Fremont", "latitude": 37.5, "longitude": -121.9,
+                "proxy": "no", "type": "Hosting"},
+    TOR_IP: {"asn": "AS60729", "provider": "Stiftung Erneuerbare Freiheit", "country": "Germany", "isocode": "DE",
+             "city": "Berlin", "region": "State of Berlin", "proxy": "yes", "type": "TOR",
+             "hostname": "berlin01.tor-exit.example"},
+}
+
+
+def _fake_fetch(ips):
+    return {ip: _FAKE[ip] for ip in ips if ip in _FAKE}
+
+
+class TestIpIntel:
+    @pytest.fixture
+    def provider(self, monkeypatch):
+        from utils import soc_geo
+        calls = []
+
+        def fake(ips):
+            calls.append(list(ips))
+            return _fake_fetch(ips)
+        monkeypatch.setattr(soc_geo, "_fetch", fake)
+        return calls
+
+    def test_location_and_anonymizer_flags(self, soc, provider):
+        c, _ = soc()
+        g = c.get("/soc/api/geo", query_string={"ips": f"{PUBLIC_IP},{TOR_IP}"}).get_json()["geo"]
+        assert g[PUBLIC_IP]["location"] == "Fremont, California, United States"
+        assert g[PUBLIC_IP]["datacenter"] is True and g[PUBLIC_IP]["anonymizer"] is None
+        assert g[TOR_IP]["anonymizer"] == "Tor" and g[TOR_IP]["proxy"] is True and "exit" in g[TOR_IP]["verdict"]
+
+    def test_results_are_cached_so_an_ip_is_sent_once(self, soc, provider):
+        c, _ = soc()
+        for _ in range(3):
+            c.get("/soc/api/geo", query_string={"ips": PUBLIC_IP})
+        assert provider == [[PUBLIC_IP]]
+
+    def test_private_addresses_are_never_sent_out(self, soc, provider):
+        c, _ = soc()
+        g = c.get("/soc/api/geo", query_string={"ips": "10.0.0.5,192.168.1.9,127.0.0.1"}).get_json()["geo"]
+        assert provider == [] and all(v["scope"] == "private" for v in g.values())
+        assert "TRUSTED_PROXY_HOPS" in g["10.0.0.5"]["note"]
+
+    def test_turned_off_sends_nothing(self, soc, provider, monkeypatch):
+        monkeypatch.setenv("SOC_GEO_PROVIDER", "off")
+        c, _ = soc()
+        d = c.get("/soc/api/geo", query_string={"ips": PUBLIC_IP}).get_json()
+        assert provider == [] and d["enabled"] is False and d["geo"][PUBLIC_IP]["scope"] == "unavailable"
+
+    def test_provider_failure_degrades_to_unavailable(self, soc, monkeypatch):
+        from utils import soc_geo
+
+        def boom(ips):
+            raise OSError("network down")
+        monkeypatch.setattr(soc_geo, "_fetch", boom)
+        c, _ = soc()
+        r = c.get("/soc/api/geo", query_string={"ips": PUBLIC_IP})
+        assert r.status_code == 200 and r.get_json()["geo"][PUBLIC_IP]["scope"] == "unavailable"
+
+    def test_ip_profile_includes_intel(self, soc, provider, db_engine):
+        c, _ = soc()
+        add_event(db_engine, "auth.failure", ip=TOR_IP)
+        e = c.get(f"/soc/api/entity/ip/{TOR_IP}").get_json()["entity"]
+        assert e["geo"]["anonymizer"] == "Tor" and e["geo"]["country"] == "Germany"
+
+    def test_overview_warns_when_only_the_proxy_is_visible(self, soc, db_engine):
+        c, _ = soc()
+        for _ in range(3):
+            add_event(db_engine, "auth.failure", ip="10.0.0.2")
+        assert c.get("/soc/api/overview").get_json()["proxy_hint"] is True
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP)
+        for _ in range(5):
+            add_event(db_engine, "auth.failure", ip=TOR_IP)
+        assert c.get("/soc/api/overview").get_json()["proxy_hint"] is False
+
+
+# ════════════════════════════════════════════════════════════════════
+# analyst brief (Overview drill-down)
+# ════════════════════════════════════════════════════════════════════
+class TestBrief:
+    def test_kpi_brief_matches_its_tile(self, soc, db_engine, monkeypatch):
+        from utils import soc_geo
+        monkeypatch.setattr(soc_geo, "_fetch", _fake_fetch)
+        c, _ = soc()
+        for i in range(4):
+            add_event(db_engine, "auth.failure", ip=TOR_IP, identifier=f"user{i}@example.com", path="/acme/login")
+        add_event(db_engine, "auth.mfa_failure", ip=PUBLIC_IP, identifier="boss@example.com")
+        add_event(db_engine, "auth.failure", ip=TOR_IP, minutes_ago=60 * 30)        # previous window
+        add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP)              # not a failed login
+        tile = c.get("/soc/api/overview").get_json()["kpi"]["failed_logins"]
+        b = c.get("/soc/api/brief", query_string={"kind": "kpi", "value": "failed_logins"}).get_json()["brief"]
+        assert b["stats"]["events"] == tile == 5 and b["stats"]["previous"] == 1 and b["stats"]["change_pct"] == 400
+        assert b["title"] == "Failed logins" and b["what"] and b["why"] and b["check"] and b["respond"]
+        assert b["stats"]["unique_ips"] == 2 and b["stats"]["accounts"] == 5
+        top = b["sources"][0]
+        assert top["ip"] == TOR_IP and top["events"] == 4 and top["geo"]["anonymizer"] == "Tor"
+        assert {x["country"] for x in b["countries"]} == {"Germany", "United States"}
+        assert b["masked"] == {"events": 5, "of": 5}                                  # Tor + hosting
+        assert set(b["events_filter"]["event_type"].split(",")) == {"auth.failure", "auth.mfa_failure"}
+        assert b["paths"][0] == {"path": "/acme/login", "count": 4}
+
+    def test_event_type_family_technique_and_level(self, soc, db_engine):
+        c, _ = soc()
+        add_event(db_engine, "waf.xss_blocked", "ERROR", ip=PUBLIC_IP)
+        add_event(db_engine, "detection.credential_stuffing", "ERROR", identifier=PUBLIC_IP)
+
+        def get(**q):
+            return c.get("/soc/api/brief", query_string=q).get_json()["brief"]
+        b = get(kind="event_type", value="waf.xss_blocked")
+        assert b["stats"]["events"] == 1 and "scripting" in b["what"] and b["mitre"][0]["id"] == "T1190"
+        assert get(kind="family", value="waf")["stats"]["events"] == 1
+        t = get(kind="technique", value="T1190")
+        assert t["stats"]["events"] == 1 and t["events_filter"] == {"event_type": "waf.xss_blocked"}
+        lv = get(kind="level", value="error")
+        assert lv["stats"]["events"] == 2 and lv["title"] == "Error events" and "alert" in lv["why"]
+        d = get(kind="event_type", value="detection.credential_stuffing")
+        assert d["title"] == "Credential stuffing" and "many distinct accounts" in d["what"]
+
+    def test_unknown_selections_are_refused(self, soc):
+        c, _ = soc()
+        for q in ({"kind": "kpi", "value": "nope"}, {"kind": "family", "value": "nope"}, {"kind": "technique", "value": "T9999"},
+                  {"kind": "level", "value": "LOUD"}, {"kind": "sql", "value": "x"}):
+            assert c.get("/soc/api/brief", query_string=q).status_code == 400, q
+
+    def test_events_filter_accepts_the_briefs_type_list(self, soc, db_engine):
+        c, _ = soc()
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP)
+        add_event(db_engine, "auth.mfa_failure", ip=PUBLIC_IP)
+        add_event(db_engine, "access.denied", ip=PUBLIC_IP)
+        ev = c.get("/soc/api/events", query_string={"event_type": "auth.failure,auth.mfa_failure"}).get_json()["events"]
+        assert sorted(e["event_type"] for e in ev) == ["auth.failure", "auth.mfa_failure"]

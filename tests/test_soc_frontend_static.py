@@ -138,7 +138,8 @@ def test_every_nav_entry_is_a_registered_view():
         registered |= set(re.findall(r"SOC\.register\(\{\s*id:\s*'(\w+)'", src))
         registered |= set(re.findall(r"eventsView\('(\w+)'", src))
     assert nav <= registered, f"nav lists views that do not exist: {sorted(nav - registered)}"
-    assert registered <= nav | {"entity"} | nav, sorted(registered - nav)
+    # "explain" (the analyst brief) is a drill-down opened from Overview items, not a nav entry.
+    assert registered <= nav | {"entity", "explain"}, sorted(registered - nav)
 
 
 def test_nothing_outside_the_console_links_to_it():

@@ -15,19 +15,60 @@ Data comes from what the product already records (see utils/soc_queries.py);
 actions are in utils/soc_actions.py; log analysis is utils/soc_loganalysis.py.
 """
 import datetime
+import json
 import os
 
 from flask import Blueprint, jsonify, make_response, redirect, render_template, request, send_from_directory, session
 
 from extensions import limiter
-from utils import soc_actions, soc_auth, soc_queries
+from utils import soc_actions, soc_auth, soc_geo, soc_queries
 from utils import soc_loganalysis as loganalysis
 from utils.soc_auth import soc_required
 from utils.soc_util import clamp_int, to_csv
 
 soc_bp = Blueprint("soc", __name__)
 
-_last_integrity = {}
+# The last audit-chain verification is read back from soc_audit_log (the row the
+# verify route already writes), not kept in process memory: every worker sees the
+# same result and it survives a restart.
+_INTEGRITY_ACTION = "verify_audit_chain"
+_DETAIL_MAX = 2000      # soc_auth.audit() caps detail at this length
+
+
+def _integrity_detail(report):
+    """Compact JSON of a verification report that fits the audit detail column.
+    Long lists (e.g. violations) are trimmed, keeping their full length in
+    `<name>_total`, so the stored JSON is never cut mid-way."""
+    for keep in (None, 20, 5, 0):
+        rec = {}
+        for k, v in report.items():
+            if isinstance(v, list) and keep is not None and len(v) > keep:
+                rec[k], rec[k + "_total"] = v[:keep], len(v)
+            else:
+                rec[k] = v
+        text = json.dumps(rec, default=str, separators=(",", ":"))
+        if len(text) <= _DETAIL_MAX:
+            return text
+    return json.dumps({"ok": report.get("ok")})
+
+
+def _latest_integrity():
+    """-> (report, at, by) of the newest recorded verification, or (None, None, None)."""
+    from utils.soc_db import read_cursor
+    from utils.soc_util import iso
+    with read_cursor("att_master") as cur:
+        cur.execute("SELECT actor, detail, created_at FROM soc_audit_log WHERE action=%s ORDER BY id DESC LIMIT 1",
+                    (_INTEGRITY_ACTION,))
+        row = cur.fetchone()
+    if not row:
+        return None, None, None
+    try:
+        report = json.loads(row[1] or "")
+    except ValueError:          # rows written before results were stored as JSON ("ok=True")
+        report = None
+    if not isinstance(report, dict):
+        return None, None, None
+    return report, iso(row[2]), row[0]
 
 
 @soc_bp.after_request
@@ -285,7 +326,32 @@ def api_entity_ip(ip):
     from utils.soc_util import looks_like_ip
     if not looks_like_ip(ip):
         return _err("That is not a valid IP address.")
-    return _ok(entity=soc_queries.entity_ip(ip, request.args.get("days")))
+    entity = soc_queries.entity_ip(ip, request.args.get("days"))
+    entity["geo"] = soc_geo.lookup([ip]).get(ip)
+    return _ok(entity=entity)
+
+
+@soc_bp.route("/soc/api/geo")
+@soc_required("viewer")
+@limiter.limit("120 per minute")
+def api_geo():
+    """Location / anonymizer info for the IPs on screen (?ips=a,b,c). Server-side
+    only: the browser never contacts the lookup provider."""
+    from utils.soc_util import looks_like_ip
+    ips = [i.strip() for i in (request.args.get("ips") or "").split(",") if looks_like_ip(i.strip())][:soc_geo.MAX_LOOKUPS_PER_CALL]
+    return _ok(geo=soc_geo.lookup(ips), enabled=soc_geo.enabled())
+
+
+@soc_bp.route("/soc/api/brief")
+@soc_required("viewer")
+def api_brief():
+    kind = request.args.get("kind", "")
+    if kind not in soc_queries.BRIEF_KINDS:
+        return _err("Unknown selection.")
+    try:
+        return _ok(brief=soc_queries.brief(kind, (request.args.get("value") or "")[:80], request.args.get("hours")))
+    except ValueError as exc:
+        return _err(str(exc))
 
 
 @soc_bp.route("/soc/api/entity/identifier")
@@ -335,7 +401,8 @@ def api_posture():
 @soc_bp.route("/soc/api/integrity")
 @soc_required("viewer")
 def api_integrity_last():
-    return _ok(report=_last_integrity.get("report"), at=_last_integrity.get("at"), by=_last_integrity.get("by"))
+    report, at, by = _latest_integrity()
+    return _ok(report=report, at=at, by=by)
 
 
 @soc_bp.route("/soc/api/integrity/verify", methods=["POST"])
@@ -348,9 +415,11 @@ def api_integrity_verify():
         return _err(str(exc))
     except Exception as exc:
         return _err(f"Verification could not complete ({type(exc).__name__}). Try a quieter moment.", 503)
-    _last_integrity.update(report=report, at=datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z", by=_actor())
-    soc_auth.audit(_actor(), "verify_audit_chain", detail=f"ok={report.get('ok')}", ip=_ip())
-    return _ok(report=report, at=_last_integrity["at"], by=_last_integrity["by"])
+    soc_auth.audit(_actor(), _INTEGRITY_ACTION, detail=_integrity_detail(report), ip=_ip())
+    # The response carries the full report; `at` is the stored row's time (same
+    # clock as GET /integrity), falling back to now if the audit write failed.
+    _, at, _ = _latest_integrity()
+    return _ok(report=report, at=at or datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), by=_actor())
 
 
 # ── API: log analysis ────────────────────────────────────────────────
@@ -370,6 +439,21 @@ def api_loganalysis():
     report["filename"] = (f.filename or "pasted.log")[:100]
     soc_auth.audit(_actor(), "log_analysis", target=report["filename"],
                    detail=f"{report['summary']['lines_read']} lines, {report['summary']['findings']} findings", ip=_ip())
+    return _ok(report=report)
+
+
+@soc_bp.route("/soc/api/loganalysis/platform", methods=["POST"])
+@soc_required("analyst")
+@limiter.limit("30 per hour")
+def api_loganalysis_platform():
+    """Run the log analyser over the security events the platform itself
+    recorded in the window -- no upload and no Loki needed."""
+    text, src = soc_queries.platform_log_text(_body().get("hours"))
+    report = loganalysis.analyze(text)
+    report["filename"] = f"platform-activity-{src['hours']}h"
+    report["source"] = {"kind": "platform", **src}
+    soc_auth.audit(_actor(), "log_analysis", target=report["filename"],
+                   detail=f"{src['events']} events, {report['summary']['findings']} findings", ip=_ip())
     return _ok(report=report)
 
 

@@ -144,16 +144,67 @@
         href: 'https://attack.mitre.org/techniques/' + id.replace('.', '/') + '/' }, id);
     });
   };
-  SOC.ipLink = function (ip) {
-    return ip ? h('a', { class: 'mono', href: '#/entity?ip=' + encodeURIComponent(ip), title: 'Look up ' + ip }, ip) : h('span', { class: 'muted' }, '–');
+  // An IP link plus its location line. The location is filled in by geoScan()
+  // below, which batches every IP on screen into one server-side lookup.
+  SOC.ipLink = function (ip, opts) {
+    if (!ip) return h('span', { class: 'muted' }, '–');
+    var a = h('a', { class: 'mono', href: '#/entity?ip=' + encodeURIComponent(ip), title: 'Look up ' + ip }, ip);
+    if (opts && opts.geo === false) return a;
+    return h('span', { class: 'iploc' }, a, h('span', { class: 'geo', 'data-ip': ip }));
   };
+
+  /* ---------- IP location (server-side lookup, cached) ---------- */
+  var geoCache = {}, geoPending = {}, geoTimer = null;
+  SOC.geoPrime = function (map) { Object.keys(map || {}).forEach(function (ip) { if (map[ip]) geoCache[ip] = map[ip]; }); };
+  SOC.geoLabel = function (g) {
+    if (!g) return null;
+    if (g.scope === 'private') return h('span', { class: 'muted', title: g.note || '' }, 'private / proxy address');
+    if (g.scope !== 'public') return null;
+    var bits = [h('span', null, g.location || g.country || 'Unknown location')];
+    if (g.anonymizer) bits.push(SOC.chip(g.anonymizer, 'bad'));
+    else if (g.datacenter) bits.push(SOC.chip('Hosting', 'warn'));
+    return h('span', { title: [g.connection_type, g.provider || g.organisation, g.asn, g.hostname].filter(Boolean).join(' · ') }, bits);
+  };
+  function geoRender(el, g) {
+    el.setAttribute('data-done', '1');
+    el.textContent = '';
+    var lbl = SOC.geoLabel(g);
+    if (lbl) el.appendChild(lbl); else if (g && g.note) el.title = g.note;
+  }
+  function geoScan() {
+    geoTimer = null;
+    var want = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.geo[data-ip]:not([data-done])'), function (el) {
+      var ip = el.getAttribute('data-ip');
+      if (geoCache[ip]) geoRender(el, geoCache[ip]);
+      else if (!geoPending[ip] && want.indexOf(ip) < 0) want.push(ip);
+    });
+    for (var i = 0; i < want.length; i += 50) {
+      (function (chunk) {
+        chunk.forEach(function (ip) { geoPending[ip] = 1; });
+        SOC.api.get('/soc/api/geo', { ips: chunk.join(',') }, true).then(function (d) {
+          chunk.forEach(function (ip) { geoCache[ip] = (d.geo && d.geo[ip]) || { scope: 'unavailable' }; });
+        }).catch(function () {
+          chunk.forEach(function (ip) { geoCache[ip] = { scope: 'unavailable' }; });
+        }).then(function () { chunk.forEach(function (ip) { delete geoPending[ip]; }); geoSoon(); });
+      })(want.slice(i, i + 50));
+    }
+  }
+  function geoSoon() { if (!geoTimer) geoTimer = setTimeout(geoScan, 120); }
+  // Retry addresses that could not be resolved last time (quota, per-request cap).
+  function geoForgetUnavailable() { Object.keys(geoCache).forEach(function (ip) { if (geoCache[ip].scope === 'unavailable') delete geoCache[ip]; }); }
+  if (window.MutationObserver) new MutationObserver(geoSoon).observe(document.body, { childList: true, subtree: true });
   SOC.idLink = function (id) {
     return id && id !== 'None' ? h('a', { href: '#/entity?identifier=' + encodeURIComponent(id), title: 'Look up ' + id }, id) : h('span', { class: 'muted' }, '–');
   };
-  SOC.kpi = function (label, value, sub, cls) {
-    return h('div', { class: 'card kpi ' + (cls || '') },
-      h('div', { class: 'lbl' }, label), h('div', { class: 'val' }, value), sub ? h('div', { class: 'sub' }, sub) : null);
+  SOC.kpi = function (label, value, sub, cls, href) {
+    var kids = [h('div', { class: 'lbl' }, label), h('div', { class: 'val' }, value), sub ? h('div', { class: 'sub' }, sub) : null];
+    return href
+      ? h('a', { class: 'card kpi link ' + (cls || ''), href: href, title: 'What does this mean? Open the analyst brief' }, kids)
+      : h('div', { class: 'card kpi ' + (cls || '') }, kids);
   };
+  // Link to the analyst brief for one Overview slice (see utils/soc_playbooks.py).
+  SOC.explainHref = function (kind, value) { return '#/explain' + SOC.api.qs({ kind: kind, value: value }); };
   SOC.card = function (title, content, actions) {
     return h('section', { class: 'card' },
       h('header', null, h('h3', null, title), h('span', { class: 'spacer' }), actions || null), content);
@@ -314,7 +365,7 @@
   function route() {
     var r = parseHash(), view = SOC.views[r.name];
     if (!view || !SOC.can(view.min || 'viewer')) { SOC.go('overview'); return; }
-    clearTimers(); destroyCharts();
+    clearTimers(); destroyCharts(); geoForgetUnavailable();
     if (SOC.drawer.isOpen()) SOC.drawer.close();
     current = { view: view, params: r.params };
     document.getElementById('title').textContent = view.title || view.label;
