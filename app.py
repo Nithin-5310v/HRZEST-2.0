@@ -917,7 +917,6 @@ def _block_private_uploads():
 
 
 _CSRF_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-_CSRF_LOGIN_PATHS = frozenset({"/login", "/admin_login", "/hr_login"})
 # Browser telemetry sinks (blueprints/core.py). The browser's own report-uri
 # mechanism fires /csp-report automatically on every CSP violation -- there is
 # no page JS in the loop to attach an X-CSRF-Token and no <form> to carry one,
@@ -944,9 +943,15 @@ def _csrf_exempt(path, has_bearer, session_authenticated):
     SameSite=Strict alone. An /api/ request is therefore exempt only if it
     carries a Bearer token (can't be forged cross-site without a CORS
     preflight) or has no logged-in session to ride (mobile/pre-login calls:
-    /api/login, /api/employee/signup, /api/leads, ...)."""
-    if path in _CSRF_LOGIN_PATHS or path in _CSRF_BEACON_PATHS:
-        return True  # login routes handle credential verification & rate-limiting
+    /api/login, /api/employee/signup, /api/leads, ...).
+
+    The website's login form (/login, /admin_login, /admin-login) is NOT
+    exempt: without a token check, a third-party page could post its own
+    credentials there and silently sign the visitor into the attacker's
+    account (login CSRF). The login page renders with a token like any
+    other form, so a real sign-in always carries one."""
+    if path in _CSRF_BEACON_PATHS:
+        return True
     if path.startswith("/api/"):
         return has_bearer or not session_authenticated
     return False
@@ -1013,6 +1018,44 @@ def _enforce_csrf():
 
 _CSRF_HEAD_RE = re.compile(rb'</head>', re.IGNORECASE)
 _CSRF_BODY_RE = re.compile(rb'</body>', re.IGNORECASE)
+# Every <form method="post"> gets the token as a hidden field in the HTML
+# itself. _CSRF_SCRIPT below also adds one on DOMContentLoaded, but security
+# scanners (and browsers with JS off) only see the markup -- which is how a
+# ZAP scan reported "Absence of Anti-CSRF Tokens" on /login and
+# /admin_forgot_password. <script> bodies are left alone so a form built as
+# a JS string (templates/hr_dashboard.html) isn't edited mid-string.
+_POST_FORM_RE = re.compile(rb'<form\b[^>]*\bmethod\s*=\s*["\']?post\b[^>]*>', re.IGNORECASE)
+_FORM_END_RE = re.compile(rb'</form\s*>', re.IGNORECASE)
+_SCRIPT_BLOCK_RE = re.compile(rb'<script\b.*?</script\s*>', re.IGNORECASE | re.DOTALL)
+_HAS_CSRF_FIELD_RE = re.compile(rb'name\s*=\s*["\']?_csrf_token\b', re.IGNORECASE)
+
+
+def _add_csrf_fields(html, token):
+    """Insert a hidden _csrf_token field at the top of every POST form in
+    `html` (bytes) that doesn't already have one, outside <script> blocks."""
+    field = b'<input type="hidden" name="_csrf_token" value="' + token.encode() + b'">'
+
+    def in_markup(chunk):
+        out, pos = [], 0
+        for form in _POST_FORM_RE.finditer(chunk):
+            end = _FORM_END_RE.search(chunk, form.end())
+            body = chunk[form.end():end.start() if end else len(chunk)]
+            out.append(chunk[pos:form.end()])
+            if not _HAS_CSRF_FIELD_RE.search(body):
+                out.append(field)
+            pos = form.end()
+        out.append(chunk[pos:])
+        return b"".join(out)
+
+    parts, pos = [], 0
+    for script in _SCRIPT_BLOCK_RE.finditer(html):
+        parts.append(in_markup(html[pos:script.start()]))
+        parts.append(script.group(0))
+        pos = script.end()
+    parts.append(in_markup(html[pos:]))
+    return b"".join(parts)
+
+
 # Matches <script>/<style> tags without a nonce -- used to inject CSP nonces
 _SCRIPT_TAG_RE = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
 _STYLE_TAG_RE = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
@@ -1313,6 +1356,7 @@ def _inject_csrf_meta(response):
             token = _csrf_token()
             meta = f'<meta name="csrf-token" content="{token}" />'.encode()
             data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
+            data = _add_csrf_fields(data, token)
             _body_scripts = _CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
             if session.get("admin_logged_in") or session.get("employee_id"):
                 _body_scripts += _KILLSWITCH_SCRIPT
