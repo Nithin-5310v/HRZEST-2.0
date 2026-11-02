@@ -448,7 +448,7 @@ async function finalizeSubscription(payload) {
 const disableAutoDebitBtn = document.getElementById('disableAutoDebitBtn');
 if (disableAutoDebitBtn) {
   disableAutoDebitBtn.addEventListener('click', async () => {
-    if (!confirm('Disable monthly auto-debit? You can re-enable it any time.')) return;
+    if (!(await hzConfirm('Disable monthly auto-debit? You can re-enable it any time.'))) return;
     disableAutoDebitBtn.disabled = true;
     disableAutoDebitBtn.textContent = 'Disabling...';
     try {

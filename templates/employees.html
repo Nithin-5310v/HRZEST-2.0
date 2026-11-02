@@ -4,6 +4,7 @@
 
 {% block page_css %}
     <style>
+      #empTable tbody tr.row-new td { background: #dcfce7; transition: background 1s ease; }
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
@@ -490,6 +491,7 @@
                      work_mode, work_lat, work_lon, face_image, qr_code,
                      department, phone, gender, shift_name, shift_id, assigned_hr_username, emp_status = e %}
               <tr
+                data-emp-id="{{ emp_id }}"
                 data-dept="{{ department or '' }}"
                 data-shift="{{ shift_name or '' }}"
                 data-status="{{ emp_status }}"
@@ -559,7 +561,7 @@
                       <i class="ti ti-id-badge"></i>
                     </button>
                     <form class="u-d-inline" action="/delete_employee/{{ emp_id }}" method="POST"
-                          onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
+                          onsubmit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
                       <button type="submit" class="btn-icon btn-del" title="Delete">
                         <i class="ti ti-trash"></i>
                       </button>
@@ -624,7 +626,7 @@
                 <button class="u-p-5-10 u-bd-1-solid-dbeafe u-br-8 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" onclick="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}">
                   <i class="ti ti-pencil"></i> Edit
                 </button>
-                <form class="u-d-inline" method="POST" action="/delete_shift/{{ s.id }}" onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
+                <form class="u-d-inline" method="POST" action="/delete_shift/{{ s.id }}" onsubmit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
                   <button class="u-p-5-10 u-bd-1-solid-fecaca u-br-8 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
                     <i class="ti ti-trash"></i>
                   </button>
@@ -705,7 +707,7 @@
                     <button class="u-p-4-10 u-bd-1-solid-dbeafe u-br-7 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" onclick="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active==='True')" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}">
                       <i class="ti ti-pencil"></i> Edit
                     </button>
-                    <form method="POST" action="{{ tpath('/delete_break/' + b.id|string) }}" onsubmit="return confirm('Delete this break?')">
+                    <form method="POST" action="{{ tpath('/delete_break/' + b.id|string) }}" onsubmit="return hzConfirmSubmit(event, 'Delete this break?')">
                       <button class="u-p-4-10 u-bd-1-solid-fecaca u-br-7 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
                         <i class="ti ti-trash"></i>
                       </button>
@@ -1351,7 +1353,7 @@
         </a>
         <div>
           <form class="u-d-inline" id="qrRegenForm" action="" method="POST"
-                onsubmit="return confirm('Regenerate QR? Old code will stop working.')">
+                onsubmit="return hzConfirmSubmit(event, 'Regenerate QR? Old code will stop working.')">
             <button type="submit" class="btn-regen">
               <i class="ti ti-refresh"></i> Regenerate
             </button>
@@ -1483,6 +1485,26 @@
         }
       }
 
+      // After Add Employee the server redirects here with ?new=<id> -- open
+      // the page that row is on and highlight it, since name order usually
+      // puts a new hire past the first page.
+      function showNewEmployee() {
+        const params = new URLSearchParams(window.location.search);
+        const newId = params.get('new');
+        if (!newId) return;
+        params.delete('new');
+        const qs = params.toString();
+        history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+        const idx = filteredRows.findIndex(r => r.dataset.empId === newId);
+        if (idx < 0) return;
+        currentPage = Math.floor(idx / PAGE_SIZE) + 1;
+        renderPage();
+        const row = filteredRows[idx];
+        row.classList.add('row-new');
+        row.scrollIntoView({behavior: 'smooth', block: 'center'});
+        setTimeout(() => row.classList.remove('row-new'), 4000);
+      }
+
       function changePage(delta) {
         const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
         currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
@@ -1492,6 +1514,7 @@
       // Initialise on load
       document.addEventListener('DOMContentLoaded', function() {
         applyFilters();
+        showNewEmployee();
         // Auto-open Add Employee modal if redirected from dashboard button
         if (new URLSearchParams(window.location.search).get('open') === 'add') {
           openModal('addModal');
@@ -1825,7 +1848,7 @@
       }
 
       async function resetEmployeeFingerprint(empId) {
-        if (!confirm('Reset fingerprint for ' + empId + '? They will need to re-enroll from their employee portal.')) return;
+        if (!(await hzConfirm('Reset fingerprint for ' + empId + '? They will need to re-enroll from their employee portal.'))) return;
         const fpMsg = document.getElementById('editFpMsg');
         fpMsg.style.display = 'none';
         try {
@@ -2201,12 +2224,12 @@
     document.getElementById('selectAll').checked=false;
     document.getElementById('bulkToolbar').style.display='none';
   }
-  function bulkAssignOnboarding(){
+  async function bulkAssignOnboarding(){
     const tplId = document.getElementById('bulkTemplateSelect').value;
     if(!tplId){ alert('Please select an onboarding template.'); return; }
     const ids = Array.from(document.querySelectorAll('.emp-check:checked')).map(c=>c.value);
     if(!ids.length){ alert('Please select at least one employee.'); return; }
-    if(!confirm(`Assign this onboarding template to ${ids.length} employee(s)?`)) return;
+    if(!(await hzConfirm(`Assign this onboarding template to ${ids.length} employee(s)?`))) return;
     const form = document.createElement('form');
     form.method='POST'; form.action='/bulk_assign_onboarding';
     const t=document.createElement('input'); t.type='hidden'; t.name='template_id'; t.value=tplId; form.appendChild(t);

@@ -183,6 +183,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .drawer-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
 .drawer-bar h2 { margin: 0; font-size: 16px; }
 .drawer-body { padding: 16px; overflow: auto; flex: 1; }
+.soc-dialog-wrap { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.soc-dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 18px; width: 100%; max-width: 420px; }
+.soc-dialog-msg { margin: 0 0 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.soc-dialog .input { width: 100%; margin-bottom: 14px; }
+.soc-dialog-actions { justify-content: flex-end; gap: 8px; }
 .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 70; }
 .toast { background: var(--panel2); border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 8px; box-shadow: var(--shadow); max-width: 360px; }
 .toast.bad { border-left-color: var(--critical); } .toast.good { border-left-color: var(--ok); }

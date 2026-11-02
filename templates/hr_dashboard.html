@@ -683,7 +683,7 @@
 
   function _hrPolicyActionForm(action, policyId, label, danger) {
     return '<form action="{{ tpath("/policies/") }}' + policyId + '/' + action + '" method="POST" style="display:inline;margin-left:6px;"' +
-      (danger ? ' onsubmit="return confirm(\'Delete this policy?\');"' : '') + '>' +
+      (danger ? ' onsubmit="return hzConfirmSubmit(event, \'Delete this policy?\');"' : '') + '>' +
       '<input type="hidden" name="_csrf_token" value="' + CSRF_TOKEN + '" />' +
       '<button type="submit" style="background:none;border:none;padding:0;cursor:pointer;color:' + (danger ? '#dc2626' : '#1e3a8a') + ';font-size:14px;font-weight:700;">' + label + '</button>' +
       '</form>';

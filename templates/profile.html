@@ -693,7 +693,7 @@
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <button class="p-btn secondary" type="submit">{{ 'Unpublish' if p.is_published else 'Publish' }}</button>
             </form>
-            <form method="POST" action="{{ tpath('/policies/' ~ p.id ~ '/delete') }}" onsubmit="return confirm('Delete this policy?');">
+            <form method="POST" action="{{ tpath('/policies/' ~ p.id ~ '/delete') }}" onsubmit="return hzConfirmSubmit(event, 'Delete this policy?');">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <button class="p-btn danger" type="submit">Delete</button>
             </form>
@@ -837,8 +837,8 @@
     });
   });
   document.querySelectorAll('.policy-tpl').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      if (body.value.trim() && !confirm('Replace what you have written with this template?')) return;
+    btn.addEventListener('click', async function () {
+      if (body.value.trim() && !(await hzConfirm('Replace what you have written with this template?'))) return;
       var t = btn.dataset.tpl === '' ? null : templates[+btn.dataset.tpl];
       cat.value = t ? t.category : cat.options[0].value;
       title.value = t ? t.title : '';

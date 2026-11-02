@@ -6,6 +6,8 @@
     <title>Platform Admin — SaaS Operator Console</title>
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
+    <link rel="stylesheet" href="{{ static_url('toast.css') }}" />
+    <script src="{{ static_url('toast.js') }}"></script>
     <link rel="stylesheet" href="{{ static_url('chat.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
     <style>
@@ -546,7 +548,7 @@
           <div class="bulk-action-bar" id="bulkActionBar" hidden>
             <span><strong id="bulkSelectedCount">0</strong> selected</span>
             <button type="submit" form="bulkTenantForm" class="mini-btn mini-btn-success" onclick="document.getElementById('bulkStatusInput').value='active';">Activate Selected</button>
-            <button type="submit" form="bulkTenantForm" class="mini-btn mini-btn-danger" onclick="return bulkDeactivateConfirm();">Deactivate Selected</button>
+            <button type="submit" form="bulkTenantForm" class="mini-btn mini-btn-danger" onclick="return bulkDeactivateConfirm(event);">Deactivate Selected</button>
           </div>
 
           <div class="card">
@@ -884,13 +886,12 @@
         document.getElementById('bulkSelectedCount').textContent = checked;
         document.getElementById('bulkActionBar').hidden = checked === 0;
       }
-      function bulkDeactivateConfirm() {
+      function bulkDeactivateConfirm(event) {
         var checked = document.querySelectorAll('.tenant-select:checked').length;
-        if (!confirm('Deactivate ' + checked + ' compan' + (checked === 1 ? 'y' : 'ies') + '? They will be locked out of their portal until reactivated.')) {
-          return false;
-        }
-        document.getElementById('bulkStatusInput').value = 'suspended';
-        return true;
+        // false while the soft confirm is open; true on its replayed click
+        var ok = hzConfirmSubmit(event, 'Deactivate ' + checked + ' compan' + (checked === 1 ? 'y' : 'ies') + '? They will be locked out of their portal until reactivated.');
+        if (ok) document.getElementById('bulkStatusInput').value = 'suspended';
+        return ok;
       }
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') { closePaymentModal(); closeDeleteModal(); }

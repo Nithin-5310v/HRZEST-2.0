@@ -500,9 +500,9 @@
           });
       }
 
-      function sendAllEmails() {
+      async function sendAllEmails() {
         {% if is_locked %}
-        if (!confirm('⚠️ Payroll for this month is already locked (payslips were sent).\n\nSend again and update the lock record?')) return;
+        if (!(await hzConfirm('⚠️ Payroll for this month is already locked (payslips were sent).\n\nSend again and update the lock record?'))) return;
         {% endif %}
         const btn = document.getElementById('sendAllBtn');
         btn.disabled = true;
@@ -529,8 +529,8 @@
           });
       }
 
-      function lockPayroll() {
-        if (!confirm('Lock payroll for this month? You can unlock it later if needed.')) return;
+      async function lockPayroll() {
+        if (!(await hzConfirm('Lock payroll for this month? You can unlock it later if needed.'))) return;
         const fd = new FormData();
         fd.append('year', YEAR); fd.append('month', MONTH);
         fetch('/lock_payroll', { method: 'POST', body: fd })
@@ -538,8 +538,8 @@
           .then(d => { showToast(d.msg, d.ok ? 'success' : 'error'); if (d.ok) setTimeout(() => location.reload(), 1000); });
       }
 
-      function unlockPayroll() {
-        if (!confirm('Unlock payroll for this month?\n\nThis allows payslips to be re-sent with updated figures.')) return;
+      async function unlockPayroll() {
+        if (!(await hzConfirm('Unlock payroll for this month?\n\nThis allows payslips to be re-sent with updated figures.'))) return;
         const fd = new FormData();
         fd.append('year', YEAR); fd.append('month', MONTH);
         fetch('/unlock_payroll', { method: 'POST', body: fd })

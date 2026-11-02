@@ -220,6 +220,40 @@
     document.getElementById('toasts').appendChild(t);
     setTimeout(function () { t.remove(); }, kind === 'bad' ? 7000 : 3500);
   };
+  // Soft confirm / prompt -- in-page instead of window.confirm()/prompt(),
+  // which show the browser's own "<host> says" box. Promise-based:
+  // SOC.confirm(msg).then(ok => ...), SOC.prompt(msg).then(value|null => ...).
+  function dialog(msg, opts) {
+    return new Promise(function (resolve) {
+      var prev = document.activeElement;
+      var input = opts.input ? h('input', { class: 'input', type: opts.inputType || 'text', 'aria-label': msg }) : null;
+      var cancel = h('button', { class: 'btn ghost', type: 'button' }, 'Cancel');
+      var ok = h('button', { class: 'btn' + (opts.danger ? ' danger' : ''), type: 'button' }, opts.okText || 'OK');
+      var box = h('div', { class: 'soc-dialog', role: 'alertdialog', 'aria-modal': 'true' },
+        h('p', { class: 'soc-dialog-msg' }, msg), input, h('div', { class: 'row soc-dialog-actions' }, cancel, ok));
+      var wrap = h('div', { class: 'soc-dialog-wrap' }, box);
+      document.body.appendChild(wrap);
+      var close = function (v) {
+        document.removeEventListener('keydown', onKey, true);
+        wrap.remove();
+        if (prev && prev.focus) prev.focus();
+        resolve(v);
+      };
+      var no = function () { close(input ? null : false); };
+      var yes = function () { close(input ? input.value : true); };
+      var onKey = function (e) {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); no(); }
+        else if (e.key === 'Enter' && (!input || document.activeElement === input)) { e.preventDefault(); yes(); }
+      };
+      cancel.addEventListener('click', no);
+      ok.addEventListener('click', yes);
+      wrap.addEventListener('click', function (e) { if (e.target === wrap) no(); });
+      document.addEventListener('keydown', onKey, true);
+      (input || ok).focus();
+    });
+  }
+  SOC.confirm = function (msg, opts) { return dialog(msg, Object.assign({ danger: true }, opts || {})); };
+  SOC.prompt = function (msg, opts) { return dialog(msg, Object.assign({ input: true }, opts || {})); };
   var drawerEl = document.getElementById('drawer'), scrim = document.getElementById('scrim'), lastFocus = null;
   SOC.drawer = {
     open: function (title, node) {

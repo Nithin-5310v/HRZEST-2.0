@@ -28,9 +28,9 @@
   SOC.banForm = function (ip, done) {
     const reason = h('input', { class: 'input', id: 'banReason', maxlength: '240', placeholder: 'Why? (shown in the ban list and audit trail)', required: true });
     const dur = select(DURATIONS, '1440', { id: 'banDur' });
-    const form = h('form', { class: 'stack', onsubmit: (e) => {
+    const form = h('form', { class: 'stack', onsubmit: async (e) => {
       e.preventDefault();
-      if (!window.confirm('Ban ' + ip + '? Every visitor from this address will be refused.')) return;
+      if (!(await SOC.confirm('Ban ' + ip + '? Every visitor from this address will be refused.', { okText: 'Ban' }))) return;
       act(api.post('/soc/api/bans', { ip, reason: reason.value, minutes: Number(dur.value) }), ip + ' banned')
         .then(() => { SOC.drawer.close(); SOC.refreshPulse(); if (done) done(); }).catch(() => {});
     } },
@@ -260,7 +260,7 @@
       const acts = h('div', { class: 'row' });
       if (kind === 'ip' && needs('analyst')) {
         if (d.ban) acts.appendChild(h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-          if (window.confirm('Lift the ban on ' + d.value + '?')) act(api.post('/soc/api/bans/remove', { ip: d.value }), 'Ban lifted').then(() => SOC.reload()).catch(() => {});
+          SOC.confirm('Lift the ban on ' + d.value + '?', { danger: false }).then((ok) => ok && act(api.post('/soc/api/bans/remove', { ip: d.value }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
         } }, 'Lift ban'));
         else if (!d.protected) acts.appendChild(h('button', { class: 'btn danger small', type: 'button', onclick: () => SOC.drawer.open('Ban ' + d.value, SOC.banForm(d.value, () => SOC.reload())) }, 'Ban IP'));
       }
@@ -359,7 +359,7 @@
             { label: 'Score', num: true, key: 'score' }, { label: 'Status', render: (s) => SOC.chip(s.status, s.status === 'compromised' ? 'bad' : 'plain') },
             { label: 'Reason', cls: 'clip', key: 'reason' }, { label: 'Updated', render: (s) => when(s.updated_at) },
             { label: '', render: (s) => needs('analyst') && s.status !== 'compromised' && s.sid ? h('button', { class: 'btn danger small', type: 'button', onclick: () => {
-              if (window.confirm('Revoke this session for ' + s.identifier + '?')) act(api.post('/soc/api/sessions/revoke', { tenant_id: s.tenant_id, sid: s.sid }), 'Session revoked').then(() => SOC.reload()).catch(() => {});
+              SOC.confirm('Revoke this session for ' + s.identifier + '?').then((ok) => ok && act(api.post('/soc/api/sessions/revoke', { tenant_id: s.tenant_id, sid: s.sid }), 'Session revoked').then(() => SOC.reload()).catch(() => {}));
             } }, 'Revoke') : null }]
         }));
         if (d.errors && d.errors.length) root.appendChild(h('p', { class: 'note' }, d.errors.length + ' tenant(s) could not be read.'));
@@ -370,9 +370,9 @@
         const ip = h('input', { class: 'input', id: 'nbIp', placeholder: '203.0.113.9', required: true, 'aria-label': 'IP address' });
         const why = h('input', { class: 'input', id: 'nbWhy', placeholder: 'Reason', required: true, maxlength: '240', 'aria-label': 'Reason' });
         const dur = select(DURATIONS, '1440', { 'aria-label': 'Duration' });
-        root.appendChild(h('form', { class: 'filters', onsubmit: (e) => {
+        root.appendChild(h('form', { class: 'filters', onsubmit: async (e) => {
           e.preventDefault();
-          if (!window.confirm('Ban ' + ip.value.trim() + '?')) return;
+          if (!(await SOC.confirm('Ban ' + ip.value.trim() + '?', { okText: 'Ban' }))) return;
           act(api.post('/soc/api/bans', { ip: ip.value.trim(), reason: why.value, minutes: Number(dur.value) }), 'Banned').then(() => SOC.reload()).catch(() => {});
         } }, ip, why, dur, h('button', { class: 'btn danger', type: 'submit' }, 'Ban')));
       }
@@ -382,7 +382,7 @@
           { label: 'Reason', cls: 'clip', key: 'reason' }, { label: 'By', key: 'by' }, { label: 'Since', render: (b) => when(b.at) },
           { label: 'Until', render: (b) => b.expires ? fmt.time(b.expires) : 'lifted manually' },
           { label: '', render: (b) => needs('analyst') && b.active ? h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-            if (window.confirm('Lift the ban on ' + b.ip + '?')) act(api.post('/soc/api/bans/remove', { ip: b.ip }), 'Ban lifted').then(() => SOC.reload()).catch(() => {});
+            SOC.confirm('Lift the ban on ' + b.ip + '?', { danger: false }).then((ok) => ok && act(api.post('/soc/api/bans/remove', { ip: b.ip }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
           } }, 'Lift') : null }]
       }));
     }
@@ -564,8 +564,8 @@
               ['viewer', 'analyst', 'admin'].map((r) => h('option', { value: r, selected: r === x.role }, r))),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: x.active ? 'deactivate' : 'activate' }, x.active ? 'Disabled' : 'Enabled').then(refresh).catch(() => {}) }, x.active ? 'Disable' : 'Enable'),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: 'unlock' }, 'Unlocked').then(refresh).catch(() => {}) }, 'Unlock'),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: () => { if (window.confirm('Remove ' + x.username + "'s authenticator and issue a new setup code?")) call(x.id, { action: 'reset_mfa' }, 'MFA reset').then((r) => { showCode('New setup code for ' + x.username + ':', r.setup_code); refresh(); }).catch(() => {}); } }, 'Reset MFA'),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: () => { const p = window.prompt('New password for ' + x.username + ' (12+ characters):'); if (p) call(x.id, { action: 'reset_password', password: p }, 'Password reset').catch(() => {}); } }, 'Set password')) }
+            h('button', { class: 'btn ghost small', type: 'button', onclick: async () => { if (await SOC.confirm('Remove ' + x.username + "'s authenticator and issue a new setup code?")) call(x.id, { action: 'reset_mfa' }, 'MFA reset').then((r) => { showCode('New setup code for ' + x.username + ':', r.setup_code); refresh(); }).catch(() => {}); } }, 'Reset MFA'),
+            h('button', { class: 'btn ghost small', type: 'button', onclick: async () => { const p = await SOC.prompt('New password for ' + x.username + ' (12+ characters):', { inputType: 'password', okText: 'Set password' }); if (p) call(x.id, { action: 'reset_password', password: p }, 'Password reset').catch(() => {}); } }, 'Set password')) }
         ] }));
       };
       const refresh = () => api.get('/soc/api/users').then((n) => table(n.users));
