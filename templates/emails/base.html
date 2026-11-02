@@ -1,0 +1,35 @@
+{#- Shared layout for HRZest emails (rendered by utils/email_utils.py's
+    render_email). Email clients ignore <style> sheets and modern CSS, so the
+    layout is tables with inline styles; the plain-text part is derived from
+    this HTML when the message is sent. -#}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}HRZest{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background:#F5F8FC;">
+  {#- The inbox preview line; hidden in the message itself. #}
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{% block preheader %}{% endblock %}</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F5F8FC;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
+               style="max-width:560px;background:#FFFFFF;border:1px solid #DBE3EE;border-radius:16px;font-family:Arial,Helvetica,sans-serif;color:#131C2A;">
+          <tr><td style="height:4px;background:#0B5CAD;border-radius:16px 16px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+          <tr><td style="padding:24px 32px 0;font-size:20px;font-weight:800;letter-spacing:1.5px;color:#0C3054;">HRZEST</td></tr>
+          <tr><td style="padding:16px 32px 28px;font-size:15px;line-height:1.6;">{% block content %}{% endblock %}</td></tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;">
+          <tr>
+            <td style="padding:16px 32px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#8794A5;text-align:center;">
+              {% block footer %}{% endblock %}<br>&copy; {{ year }} HRZest.com
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
