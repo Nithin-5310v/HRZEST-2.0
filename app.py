@@ -1312,13 +1312,19 @@ def _security_headers(response):
             f"frame-src {_frame_src}; "
             "frame-ancestors 'none'; "
             "object-src 'none'; "
+            # form-action and base-uri don't fall back to default-src, so
+            # leaving them out allows any target (ZAP 10055). Every form posts
+            # to this site, and no page uses a <base> tag.
+            "form-action 'self'; "
+            "base-uri 'self'; "
             "report-uri /csp-report;"
         )
     else:
         # Non-HTML responses: minimal restrictive CSP -- blocks MIME sniffing
         # and any attempt to embed API responses as documents or frames.
         response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; frame-ancestors 'none'; object-src 'none';"
+            "default-src 'none'; frame-ancestors 'none'; object-src 'none'; "
+            "form-action 'none'; base-uri 'none';"
         )
     return response
 
