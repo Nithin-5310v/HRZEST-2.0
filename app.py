@@ -1274,8 +1274,18 @@ def _security_headers(response):
             # to this site, and no page uses a <base> tag.
             "form-action 'self'; "
             "base-uri 'self'; "
+            # Both reporting directives, per MDN: browsers that support
+            # report-to (Chrome, Edge, Safari) use it -- the endpoint named in
+            # the Reporting-Endpoints header below -- and ignore report-uri;
+            # Firefox, which has no report-to, falls back to report-uri.
+            # blueprints/core.py's csp_report() accepts both payload formats.
+            # Scanners still note report-uri as deprecated (ZAP 10055 "CSP:
+            # Notices", Low): accepted, since dropping it would stop Firefox
+            # reporting CSP violations at all.
+            "report-to csp-endpoint; "
             "report-uri /csp-report;"
         )
+        response.headers["Reporting-Endpoints"] = 'csp-endpoint="/csp-report"'
     else:
         # Non-HTML responses: minimal restrictive CSP -- blocks MIME sniffing
         # and any attempt to embed API responses as documents or frames.
