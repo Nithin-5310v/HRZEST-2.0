@@ -8,6 +8,7 @@ import datetime
 import secrets
 import psycopg2
 from io import BytesIO
+from urllib.parse import urlencode
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash, send_file,
 )
@@ -1216,6 +1217,11 @@ def add_employee_page():
         flash("Registration failed. Please try again.", "error")
     cursor.close()
     db.close()
+    if registered:
+        # ?new= lets templates/employees.html jump to (and highlight) the new
+        # row -- the table is paged 20 at a time in name order, so a new
+        # hire usually lands on a later page and looked like it was missing.
+        return redirect(tpath("/employees") + "?" + urlencode({"new": emp_id}))
     return redirect(tpath("/employees"))
 
 

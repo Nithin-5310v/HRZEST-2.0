@@ -247,7 +247,7 @@
               <button type="submit" class="btn btn-gray btn-sm" title="Duplicate template"><i class="ti ti-copy"></i></button>
             </form>
             <form class="u-d-inline" action="{{ tpath('/onboarding_template_delete') }}" method="POST"
-                  onsubmit="return confirm('Delete this template?')">
+                  onsubmit="return hzConfirmSubmit(event, 'Delete this template?')">
               <input type="hidden" name="template_id" value="{{ t[0] }}" />
               <button type="submit" class="btn btn-red btn-sm"><i class="ti ti-trash"></i></button>
             </form>

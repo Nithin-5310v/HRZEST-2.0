@@ -120,8 +120,8 @@
           SOC.download('iocs-' + (r.filename || 'log').replace(/[^\w.-]/g, '_') + '.csv', rows.map((row) => row.map(csvSafe).join(',')).join('\n'), 'text/csv');
         } }, 'Export IOCs (CSV)'),
         h('button', { class: 'btn ghost', type: 'button', disabled: !ips.length, onclick: () => SOC.copy(ips.join('\n')) }, 'Copy IP list'),
-        SOC.can('analyst') ? h('button', { class: 'btn danger', type: 'button', disabled: !ips.length, onclick: () => {
-          if (!window.confirm('Ban ' + ips.length + ' address(es) for 24 hours? Private and shared addresses are skipped automatically.')) return;
+        SOC.can('analyst') ? h('button', { class: 'btn danger', type: 'button', disabled: !ips.length, onclick: async () => {
+          if (!(await SOC.confirm('Ban ' + ips.length + ' address(es) for 24 hours? Private and shared addresses are skipped automatically.', { okText: 'Ban' }))) return;
           api.post('/soc/api/bans/bulk', { ips, reason: 'Log analysis: ' + (r.filename || 'pasted log'), minutes: 1440 }).then((res) => {
             const okN = res.results.filter((x) => x.ok).length;
             SOC.toast(okN + ' banned, ' + (res.results.length - okN) + ' skipped', okN ? 'good' : 'bad');

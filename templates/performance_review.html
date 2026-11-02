@@ -212,7 +212,7 @@
             <input type="hidden" name="quarter" value="{{ quarter }}"/>
             <input type="hidden" name="year" value="{{ year }}"/>
             <button type="submit" class="btn btn-danger u-p-5-10 u-fs-11"
-                    onclick="return confirm('Delete this KPI?')">
+                    onclick="return hzConfirmSubmit(event, 'Delete this KPI?')">
               <i class="ti ti-trash"></i>
             </button>
           </form>

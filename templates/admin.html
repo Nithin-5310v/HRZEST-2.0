@@ -642,8 +642,8 @@
       lastRefresh = Date.now(); updateLastUpdated();
     }
 
-    function confirmDelete(empId, name) {
-      if (!confirm(`Delete ${name} (${empId})? This cannot be undone.`)) return;
+    async function confirmDelete(empId, name) {
+      if (!(await hzConfirm(`Delete ${name} (${empId})? This cannot be undone.`))) return;
       const f = document.createElement("form");
       f.method="POST"; f.action=`/delete_employee/${empId}`;
       const ci = document.createElement("input");

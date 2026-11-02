@@ -1114,11 +1114,11 @@
                     <td>
                       {% if rstatus == 'pending_approval' %}
                       <form method="POST" action="{{ tpath('/disbursement/' ~ rid ~ '/approve') }}" class="u-d-inline">
-                        <button type="submit" class="btn-edit" data-missing="{{ rmissing }}" onclick="return confirmApproveDisbursement(this)">Approve &amp; Send</button>
+                        <button type="submit" class="btn-edit" data-missing="{{ rmissing }}" onclick="return confirmApproveDisbursement(event, this)">Approve &amp; Send</button>
                       </form>
                       <form method="POST" action="{{ tpath('/disbursement/' ~ rid ~ '/reject') }}" class="u-d-inline">
                         <input type="hidden" name="reason" value="Cancelled by admin" />
-                        <button type="submit" class="btn-del" onclick="return confirm('Cancel this disbursement run?')">Cancel</button>
+                        <button type="submit" class="btn-del" onclick="return hzConfirmSubmit(event, 'Cancel this disbursement run?')">Cancel</button>
                       </form>
                       {% else %}
                       <span class="u-fs-11 u-c-94a3b8">{% if rapprover %}by {{ rapprover }}{% endif %}</span>
@@ -1193,13 +1193,13 @@
                   payoutLoadBankConfig();
                 }).catch(function(){ errEl.textContent = 'Network error'; errEl.classList.remove('u-d-none'); });
               }
-              function confirmApproveDisbursement(btn) {
+              function confirmApproveDisbursement(event, btn) {
                 var missing = parseInt(btn.getAttribute('data-missing'), 10) || 0;
                 var msg = missing > 0
                   ? ('Approve and process this disbursement run? ' + missing + ' employee(s) are missing bank '
                      + 'details and will NOT be paid -- everyone else will still be processed. Continue?')
                   : 'Approve and process this disbursement run? This authorizes the actual bank transfer.';
-                return confirm(msg);
+                return hzConfirmSubmit(event, msg);
               }
               function payoutVerify2fa() {
                 var code = document.getElementById('payout-2fa-code').value.trim();
@@ -1684,7 +1684,7 @@
               const disableAutoDebitBtn = document.getElementById('disableAutoDebitBtn');
               if (disableAutoDebitBtn) {
                 disableAutoDebitBtn.addEventListener('click', async () => {
-                  if (!confirm('Disable monthly auto-debit immediately? You can re-enable it any time.')) return;
+                  if (!(await hzConfirm('Disable monthly auto-debit immediately? You can re-enable it any time.'))) return;
                   disableAutoDebitBtn.disabled = true;
                   disableAutoDebitBtn.textContent = 'Disabling...';
                   try {
@@ -1708,7 +1708,7 @@
               const cancelAtPeriodEndBtn = document.getElementById('cancelAtPeriodEndBtn');
               if (cancelAtPeriodEndBtn) {
                 cancelAtPeriodEndBtn.addEventListener('click', async () => {
-                  if (!confirm('Cancel auto-debit at the end of your current billing period? Billing continues normally until then -- no early cutoff.')) return;
+                  if (!(await hzConfirm('Cancel auto-debit at the end of your current billing period? Billing continues normally until then -- no early cutoff.'))) return;
                   cancelAtPeriodEndBtn.disabled = true;
                   cancelAtPeriodEndBtn.textContent = 'Scheduling...';
                   try {
@@ -1967,7 +1967,7 @@
                       <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
                     </div>
                     <button type="submit" class="btn-submit"
-                      onclick="return confirm('Reset this employee\'s password? Their current sessions will be signed out.')">
+                      onclick="return hzConfirmSubmit(event, 'Reset this employee\'s password? Their current sessions will be signed out.')">
                       <i class="ti ti-key"></i> Reset Password
                     </button>
                   </form>

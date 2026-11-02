@@ -523,7 +523,7 @@
               <form class="u-d-inline u-ml-auto" action="{{ tpath('/announcements') }}" method="POST">
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="ann_id" value="{{ aid }}"/>
-                <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">
+                <button type="submit" class="btn-del" onclick="return hzConfirmSubmit(event, 'Delete this announcement?')">
                   <i class="ti ti-trash"></i> Delete
                 </button>
               </form>
@@ -558,7 +558,7 @@
               <form class="u-d-inline u-ml-auto" action="{{ tpath('/announcements') }}" method="POST">
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="ann_id" value="{{ aid }}"/>
-                <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">
+                <button type="submit" class="btn-del" onclick="return hzConfirmSubmit(event, 'Delete this announcement?')">
                   <i class="ti ti-trash"></i> Delete
                 </button>
               </form>
@@ -591,7 +591,7 @@
     <div class="toolbar">
       <form class="u-d-inline" action="{{ tpath('/import_indian_holidays') }}" method="POST">
         <input type="hidden" name="year" value="{{ year }}">
-        <button type="submit" class="btn-import" onclick="return confirm('Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
+        <button type="submit" class="btn-import" onclick="return hzConfirmSubmit(event, 'Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
           🇮🇳 Import Indian Holidays for {{ year }}
         </button>
       </form>
@@ -662,7 +662,7 @@
                 <td class="u-c-64748b u-fs-12">{{ h[1].strftime('%A') }}</td>
                 <td>{% if h[2].startswith('Leave:') %}<span class="badge-leave">🌿 {{ h[2][6:] }}</span>{% else %}<span class="badge-holiday">🎉 {{ h[2] }}</span>{% endif %}</td>
                 <td>
-                  <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return confirm('Delete this entry?');" class="form-inline">
+                  <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this entry?');" class="form-inline">
                     <input type="hidden" name="year" value="{{ year }}">
                     <button type="submit" class="btn-del">🗑 Remove</button>
                   </form>
@@ -813,9 +813,10 @@ document.getElementById('addModal').addEventListener('click', function(e) { if (
 function dayClick(el) {
   var isHoliday = el.dataset.holiday === 'true';
   if (isHoliday) {
-    if (confirm('Remove "' + el.dataset.hname + '" from the holiday list?')) {
+    hzConfirm('Remove "' + el.dataset.hname + '" from the holiday list?').then(function (ok) {
+      if (!ok) return;
       var f = document.getElementById('delForm'); f.action = '/delete_holiday/' + el.dataset.hid; f.submit();
-    }
+    });
   } else { openAddModal(el.dataset.date); }
 }
 showMonth(currentMonth);

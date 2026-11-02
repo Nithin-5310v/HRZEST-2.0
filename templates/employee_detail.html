@@ -225,7 +225,7 @@
         <i class="ti ti-download"></i> Download ID Card
       </a>
       <form class="u-ml-auto" action="/delete_employee/{{ emp_id }}" method="POST"
-            onsubmit="return confirm('Delete {{ name }}? This cannot be undone.')">
+            onsubmit="return hzConfirmSubmit(event, 'Delete {{ name }}? This cannot be undone.')">
         <button type="submit" class="btn-act btn-del">
           <i class="ti ti-trash"></i> Delete
         </button>
@@ -531,7 +531,7 @@
             <a class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-eff6ff u-c-1e3a8a u-bd-1-solid-bfdbfe u-br-7 u-fs-12 u-fw-700 u-tdec-none" href="/download_document/{{ did }}">
               <i class="ti ti-download"></i> Download
             </a>
-            <form action="/delete_document/{{ did }}" method="POST" onsubmit="return confirm('Delete this document?');">
+            <form action="/delete_document/{{ did }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this document?');">
               <button class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-fff5f5 u-c-dc2626 u-bd-1-solid-fecaca u-br-7 u-fs-12 u-fw-700 u-cur-pointer" type="submit">
                 <i class="ti ti-trash"></i> Delete
               </button>
