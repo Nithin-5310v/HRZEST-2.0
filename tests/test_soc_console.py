@@ -916,7 +916,9 @@ class TestLogAnalysisEndpoint:
         r = c.post("/soc/api/loganalysis/platform", json={"hours": 24})
         assert r.status_code == 200, r.get_data(as_text=True)
         rep = r.get_json()["report"]
+        # 13, not 15: the analyst's own SOC sign-in events (soc.*) are not platform traffic.
         assert rep["source"] == {"kind": "platform", "events": 13, "total": 13, "capped": False, "hours": 24}
+        assert "127.0.0.1" not in {s["ip"] for s in rep["sources"]}
         assert rep["summary"]["records"] == 13 and rep["summary"]["findings"] >= 1
         assert any(s["ip"] == PUBLIC_IP for s in rep["sources"])
         assert ("ann", "log_analysis", "platform-activity-24h") in audit_actions(db_engine)

@@ -418,10 +418,14 @@ def platform_log_text(hours=24, max_bytes=None, max_events=PLATFORM_LOG_MAX_EVEN
     from utils import soc_loganalysis
     hours = hours_arg(hours)
     max_bytes = max_bytes or soc_loganalysis.MAX_BYTES
+    # The console's own activity (soc.* -- analysts signing in, banning, exporting)
+    # is not platform traffic: analysing it would inflate the numbers and could
+    # put an analyst's own address among the "block" recommendations.
+    not_soc = " AND event_type NOT LIKE 'soc.%%'"
     with read_cursor("public", 20000) as cur:
-        cur.execute("SELECT COUNT(*) FROM security_events WHERE " + _WINDOW, (hours,))
+        cur.execute("SELECT COUNT(*) FROM security_events WHERE " + _WINDOW + not_soc, (hours,))
         total = cur.fetchone()[0]
-        cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + _WINDOW + " ORDER BY id DESC LIMIT %s",
+        cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + _WINDOW + not_soc + " ORDER BY id DESC LIMIT %s",
                     (hours, max_events))
         rows = cur.fetchall()
     lines, size = [], 0

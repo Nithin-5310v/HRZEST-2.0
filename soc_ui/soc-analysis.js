@@ -54,7 +54,7 @@
     };
     platBtn.addEventListener('click', () => runPlatform(true));
     const platform = SOC.card('Platform activity', h('div', { class: 'stack' },
-      h('p', null, 'Analyses the security events this platform recorded in the selected time window (top bar: last ' + SOC.hours + ' h): logins, WAF blocks, honeypot hits, access denials, detections and more. No upload needed.'),
+      h('p', null, 'Analyses the security events this platform recorded in the selected time window (top bar: last ' + SOC.hours + ' h): logins, WAF blocks, honeypot hits, access denials, detections and more. No upload needed. Activity in this SOC console itself is left out.'),
       h('div', { class: 'row' }, platBtn)));
     // Source 2: an external log file (nginx / Apache access log, sshd, JSON lines).
     const upload = SOC.card('Or analyse a log file', h('div', { class: 'stack' },
