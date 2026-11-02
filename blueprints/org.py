@@ -1107,11 +1107,11 @@ def _create_signup_company(application):
                                 conflicting, match_type=match_type)
         return False, _GENERIC_DUPLICATE_MSG, None
 
-    from utils.razorpay_utils import razorpay_configured
+    from utils.razorpay_utils import accepting_online_payments
     from database import get_master_db
     # A platform admin's free registration is billed by manual invoice; a
     # self-serve company sets up auto-debit from its dashboard's checklist.
-    online = not application["free_registration"] and razorpay_configured()
+    online = not application["free_registration"] and accepting_online_payments()
     error = "Could not pick a company URL. Please contact support."
     for _attempt in range(3):
         slug = _slug_for_company(application["company_name"])
@@ -1570,18 +1570,19 @@ def _save_company_profile(application, fields, logo_file):
         if logo_err:
             return False, f"Company logo: {logo_err}", None, None
 
-    from utils.razorpay_utils import razorpay_configured
+    from utils.razorpay_utils import accepting_online_payments, payments_enabled
     # "trial" is only ever chosen explicitly (the "2-Day Free Trial" option,
     # blueprints/trial_billing.TRIAL_DURATION_DAYS long, beside "Pay now").
     # A platform admin's free registration has no payment step and is
-    # billed by manual invoice.
+    # billed by manual invoice -- as is everyone while online payments are
+    # switched off (the trial needs a card mandate).
     signup_plan = (fields.get("signup_plan") or "pay_now").strip().lower()
     if application["free_registration"]:
         payment_option = "manual"
-    elif signup_plan == "trial":
+    elif signup_plan == "trial" and payments_enabled():
         payment_option = "trial"
     else:
-        payment_option = "online" if razorpay_configured() else "manual"
+        payment_option = "online" if accepting_online_payments() else "manual"
 
     from database import get_master_db
     mconn = get_master_db()
@@ -1602,9 +1603,11 @@ def _save_company_profile(application, fields, logo_file):
 
 
 def _render_profile_page(application):
+    from utils.razorpay_utils import payments_enabled
     return render_template(
         "create_org.html", profile_step=True, application_id=application["id"],
         free_registration=bool(application["free_registration"]),
+        payments_enabled=payments_enabled(),
         per_employee_paise=get_per_employee_paise(),
         portal_base=_safe_app_url(),
     )
@@ -1824,7 +1827,8 @@ def registration_checklist(tenant_db):
     "payment" (auto-debit, Settings > Billing). status is "done" or "todo";
     documents can also be "review" (submitted, awaiting review -- nothing
     for the company to do) or "rejected" (with "reason"). Payment is left
-    out for a platform admin's free registration, billed by manual invoice.
+    out for a platform admin's free registration, billed by manual invoice,
+    and while online payments are switched off (there's nothing to set up).
 
     None for a company with no application at all (Platform Admin's direct
     create tool, or registered before company verification existed):
@@ -1859,7 +1863,8 @@ def registration_checklist(tenant_db):
         {"key": "documents", "status": doc_step_status,
          "reason": rejection_reason if doc_step_status == "rejected" else None},
     ]
-    if not free_registration:
+    from utils.razorpay_utils import payments_enabled
+    if not free_registration and payments_enabled():
         paid = mandate_status in ("active", "pending_cancellation") or subscription_status == "active"
         steps.append({"key": "payment", "status": "done" if paid else "todo"})
     return steps
@@ -2302,8 +2307,8 @@ def api_create_org():
             _record_duplicate_alert(None, company_name, admin_email, conflicting, match_type=match_type)
             return jsonify({"ok": False, "msg": _GENERIC_DUPLICATE_MSG}), 409
 
-        from utils.razorpay_utils import razorpay_configured
-        payment_option = "online" if razorpay_configured() else "manual"
+        from utils.razorpay_utils import accepting_online_payments
+        payment_option = "online" if accepting_online_payments() else "manual"
 
         access_token = _generate_access_token()
         otp_code = _generate_otp()

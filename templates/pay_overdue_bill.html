@@ -65,10 +65,14 @@
         <div class="meta">{{ employee_count }} employee{{ 's' if employee_count != 1 else '' }} this month</div>
       </div>
 
+      {% if payments_enabled %}
       <button type="button" class="pay-btn" id="payBtn">Pay Now</button>
+      {% else %}
+      <p class="demo-note">Online payments aren't available yet. Please contact support to settle this bill.</p>
+      {% endif %}
       <div class="error-box" id="errorBox"></div>
       <div class="success-box" id="successBox"></div>
-      {% if not razorpay_configured %}
+      {% if payments_enabled and not razorpay_configured %}
       <p class="demo-note">Payments aren't live-configured yet — this will run in demo/test mode.</p>
       {% endif %}
     </div>
@@ -89,7 +93,7 @@
         payBtn.textContent = 'Pay Now';
       }
 
-      payBtn.addEventListener('click', async function () {
+      if (payBtn) payBtn.addEventListener('click', async function () {
         errorBox.style.display = 'none';
         payBtn.disabled = true;
         payBtn.textContent = 'Starting checkout…';

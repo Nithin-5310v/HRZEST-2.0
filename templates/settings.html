@@ -1285,6 +1285,16 @@
             </div>
             {% endif %}
 
+            {% if not payments_enabled %}
+            <div class="seats-card" style="background:#eff6ff; border-color:#bfdbfe;" id="paymentsOffNotice">
+              <h2 style="color:#1e3a8a;"><i class="ti ti-info-circle"></i> Online payments aren't available yet</h2>
+              <div class="sub" style="color:#1e40af;">
+                There's nothing to set up here for now -- you can keep using HRZest as normal.
+                For billing questions, contact support.
+              </div>
+            </div>
+            {% endif %}
+
             <div class="seats-card">
               <h2><i class="ti ti-users"></i> Employee Seats</h2>
               <div class="sub">Your plan includes a fixed number of paid employee seats. Buy more any time -- new hires can't be registered past your current limit.</div>
@@ -1306,7 +1316,7 @@
 
               {% if co.paid_employee_slots is none %}
                 <div class="unlimited-note"><i class="ti ti-infinity"></i> Your plan already allows unlimited employees -- there's no seat limit to buy past.</div>
-              {% else %}
+              {% elif payments_enabled %}
                 <div class="form-error" id="formError"></div>
                 <div class="form-success" id="formSuccess"></div>
 
@@ -1366,6 +1376,7 @@
                     <button type="button" class="qty-btn" id="cancelAtPeriodEndBtn" style="width:auto; padding:0 16px; background:#fff7ed; border-color:#fdba74; color:#c2410c;">Cancel at Period End</button>
                     <button type="button" class="qty-btn" id="disableAutoDebitBtn" style="width:auto; padding:0 16px; background:#fee2e2; border-color:#fca5a5; color:#dc2626;">Disable Now</button>
                   </div>
+                {% elif not payments_enabled %}
                 {% elif auto_debit_status and auto_debit_status.status == 'rate_changed' %}
                   <button type="button" class="qty-btn" id="enableAutoDebitBtn" data-label="Re-Enable Auto-Debit" style="width:auto; padding:0 16px; background:#d97706; border-color:#d97706; color:#fff;">Re-Enable Auto-Debit</button>
                 {% elif not (auto_debit_status and auto_debit_status.status == 'pending_cancellation') %}

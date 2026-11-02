@@ -29,7 +29,7 @@ from utils.plan_limits import calculate_price, format_price_inr, get_tenant_empl
 from utils.email_utils import get_email_config, get_admin_emails, send_email_async
 from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
-    key_id as razorpay_key_id, create_id_or_demo, verify_or_demo, razorpay_configured,
+    key_id as razorpay_key_id, create_id_or_demo, verify_or_demo, razorpay_configured, payments_enabled,
 )
 from blueprints.webhooks import register_webhook_handler
 
@@ -54,6 +54,9 @@ def check_tenant_billing():
 
 
 def _run_billing_check():
+    if not payments_enabled():
+        app_log.info("billing_dunning: online payments are switched off -- no bills chased, no accounts locked")
+        return
     period_start = platform_today().replace(day=1)
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
@@ -221,6 +224,7 @@ def pay_overdue_bill_page():
         grace_period_ends_at=coerce_datetime(grace_ends_at), locked_at=coerce_datetime(locked_at),
         employee_count=employee_count, amount_display=format_price_inr(amount_paise),
         amount_paise=amount_paise, key_id=razorpay_key_id(), razorpay_configured=razorpay_configured(),
+        payments_enabled=payments_enabled(),
     )
 
 

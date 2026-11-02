@@ -25,6 +25,22 @@ _KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 # Webhooks section, since it authenticates Razorpay -> us, not us -> Razorpay.
 _WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
 
+
+def payments_enabled() -> bool:
+    """PAYMENTS_ENABLED=false switches online payments off: no new orders,
+    subscriptions or checkouts (create_id_or_demo() refuses them with
+    PAYMENTS_OFF_MSG), the billing screens say so instead of offering a
+    button that would fail, and the nightly dunning check locks no one
+    (blueprints/billing_dunning.py) -- a company can't be made to pay while
+    there's no way to. Everything already in flight keeps working: verifying
+    a payment, webhooks, cancelling a mandate, the nightly mandate sync.
+    For a deployment that has no live Razorpay keys yet. Read per call;
+    anything but false/0/no/off (unset included) means on."""
+    return os.environ.get("PAYMENTS_ENABLED", "").strip().lower() not in ("false", "0", "no", "off")
+
+
+PAYMENTS_OFF_MSG = "Online payments aren't available yet. Please contact support about billing."
+
 # Sandbox-vs-live is entirely a function of which key prefix is configured
 # (Razorpay itself distinguishes rzp_test_... from rzp_live_...) -- there is
 # no separate "mode" flag to get out of sync. The one real risk is a
@@ -32,8 +48,10 @@ _WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
 # .env, or a developer never swapping .env.example's placeholder), which
 # would silently run every "live" signup through the sandbox. Fail fast
 # instead, same fail-secure posture as utils/helpers.py's ENCRYPTION_KEY
-# check above it in the import order.
-if os.environ.get("APP_ENV") == "production" and _KEY_ID.startswith("rzp_test_"):
+# check above it in the import order. Both checks are skipped while
+# payments are switched off -- then nothing ever reaches Razorpay or the
+# demo branch (create_id_or_demo() refuses first).
+if payments_enabled() and os.environ.get("APP_ENV") == "production" and _KEY_ID.startswith("rzp_test_"):
     app_log.critical(
         "FATAL: APP_ENV=production but RAZORPAY_KEY_ID is a test-mode key "
         "(rzp_test_...) -- refusing to start rather than silently taking real "
@@ -54,7 +72,7 @@ if os.environ.get("APP_ENV") == "production" and _KEY_ID.startswith("rzp_test_")
 # them with NO signature check and no real charge -- silently provisioning
 # tenants, crediting seats, and activating mandates for zero real money.
 # Refuse to start rather than let that happen unnoticed.
-if os.environ.get("APP_ENV") == "production" and not (_KEY_ID and _KEY_SECRET):
+if payments_enabled() and os.environ.get("APP_ENV") == "production" and not (_KEY_ID and _KEY_SECRET):
     app_log.critical(
         "FATAL: APP_ENV=production but RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET are not "
         "configured -- refusing to start rather than silently running every payment "
@@ -70,6 +88,12 @@ _TIMEOUT_SECONDS = 15
 
 def razorpay_configured() -> bool:
     return bool(_KEY_ID and _KEY_SECRET)
+
+
+def accepting_online_payments() -> bool:
+    """Whether a new company is billed online (auto-debit) rather than by
+    manual invoice: payments switched on and real keys configured."""
+    return payments_enabled() and razorpay_configured()
 
 
 def key_id() -> str:
@@ -287,6 +311,8 @@ def create_id_or_demo(demo_prefix: str, create_fn):
     id, customer id, ...) they need. Never called at all when Razorpay
     isn't configured.
     Returns (id, is_demo, error) -- error is None on success."""
+    if not payments_enabled():
+        return None, False, PAYMENTS_OFF_MSG
     if not razorpay_configured():
         if not demo_mode_allowed():
             app_log.error("Razorpay keys are not configured outside development -- refusing demo payment id")

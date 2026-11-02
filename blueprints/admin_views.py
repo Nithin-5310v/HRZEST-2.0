@@ -759,7 +759,7 @@ def settings_page():
     # app.py's inject_company() context processor -- no need to fetch it
     # again here.
     from utils.plan_limits import get_billing_snapshot, format_price_inr
-    from utils.razorpay_utils import razorpay_configured as _razorpay_configured
+    from utils.razorpay_utils import razorpay_configured as _razorpay_configured, payments_enabled
     _billing_snapshot = get_billing_snapshot(g.tenant_db)
     auto_debit_status = _billing_snapshot["auto_debit"]
     invoices = [
@@ -796,6 +796,7 @@ def settings_page():
                            auto_debit_status=auto_debit_status,
                            invoices=invoices,
                            razorpay_configured=razorpay_is_configured,
+                           payments_enabled=payments_enabled(),
                            trial_end_date=trial_end_date,
                            subscription_status=subscription_status,
                            tab=tab,
