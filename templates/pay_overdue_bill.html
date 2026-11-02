@@ -72,6 +72,9 @@
       {% endif %}
       <div class="error-box" id="errorBox"></div>
       <div class="success-box" id="successBox"></div>
+      {% if payments_enabled and razorpay_test_mode %}
+      <p class="demo-note">Test mode — no real money is charged.</p>
+      {% endif %}
       {% if payments_enabled and not razorpay_configured %}
       <p class="demo-note">Payments aren't live-configured yet — this will run in demo/test mode.</p>
       {% endif %}

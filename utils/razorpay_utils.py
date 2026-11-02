@@ -41,6 +41,19 @@ def payments_enabled() -> bool:
 
 PAYMENTS_OFF_MSG = "Online payments aren't available yet. Please contact support about billing."
 
+
+def test_keys_allowed() -> bool:
+    """RAZORPAY_ALLOW_TEST_KEYS=true: a production deployment runs on
+    rzp_test_ keys on purpose (testing before go-live). Every checkout is
+    then Razorpay's sandbox -- no real money -- and the billing pages say
+    so (test_mode())."""
+    return os.environ.get("RAZORPAY_ALLOW_TEST_KEYS", "").strip().lower() in ("true", "1", "yes", "on")
+
+
+def test_mode() -> bool:
+    """Payments go to Razorpay's sandbox: no real money is charged."""
+    return _KEY_ID.startswith("rzp_test_")
+
 # Sandbox-vs-live is entirely a function of which key prefix is configured
 # (Razorpay itself distinguishes rzp_test_... from rzp_live_...) -- there is
 # no separate "mode" flag to get out of sync. The one real risk is a
@@ -48,10 +61,12 @@ PAYMENTS_OFF_MSG = "Online payments aren't available yet. Please contact support
 # .env, or a developer never swapping .env.example's placeholder), which
 # would silently run every "live" signup through the sandbox. Fail fast
 # instead, same fail-secure posture as utils/helpers.py's ENCRYPTION_KEY
-# check above it in the import order. Both checks are skipped while
-# payments are switched off -- then nothing ever reaches Razorpay or the
-# demo branch (create_id_or_demo() refuses first).
-if payments_enabled() and os.environ.get("APP_ENV") == "production" and _KEY_ID.startswith("rzp_test_"):
+# check above it in the import order -- unless test keys are allowed on
+# purpose (test_keys_allowed()). Both checks are skipped while payments are
+# switched off -- then nothing ever reaches Razorpay or the demo branch
+# (create_id_or_demo() refuses first).
+if (payments_enabled() and os.environ.get("APP_ENV") == "production" and _KEY_ID.startswith("rzp_test_")
+        and not test_keys_allowed()):
     app_log.critical(
         "FATAL: APP_ENV=production but RAZORPAY_KEY_ID is a test-mode key "
         "(rzp_test_...) -- refusing to start rather than silently taking real "
@@ -72,6 +87,9 @@ if payments_enabled() and os.environ.get("APP_ENV") == "production" and _KEY_ID.
 # them with NO signature check and no real charge -- silently provisioning
 # tenants, crediting seats, and activating mandates for zero real money.
 # Refuse to start rather than let that happen unnoticed.
+if payments_enabled() and os.environ.get("APP_ENV") == "production" and _KEY_ID.startswith("rzp_test_"):
+    app_log.warning("Razorpay TEST keys in production (RAZORPAY_ALLOW_TEST_KEYS=true) -- "
+                    "checkouts run in Razorpay's sandbox and no real money is charged.")
 if payments_enabled() and os.environ.get("APP_ENV") == "production" and not (_KEY_ID and _KEY_SECRET):
     app_log.critical(
         "FATAL: APP_ENV=production but RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET are not "

@@ -85,6 +85,19 @@ def test_production_starts_with_payments_off(monkeypatch, key_id):
     assert _load_fresh_copy().payments_enabled() is False
 
 
+def test_production_runs_on_test_keys_only_on_purpose(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_test_abc")
+    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "secret")
+    monkeypatch.setenv("PAYMENTS_ENABLED", "true")
+    monkeypatch.setenv("RAZORPAY_ALLOW_TEST_KEYS", "true")
+    copy = _load_fresh_copy()
+    assert copy.test_mode() is True and copy.accepting_online_payments() is True
+    monkeypatch.setenv("RAZORPAY_ALLOW_TEST_KEYS", "")
+    with pytest.raises(RuntimeError):
+        _load_fresh_copy()
+
+
 def test_auto_debit_enroll_says_payments_are_off(client, db_engine, seed_admin, no_mandate, payments_off):
     _admin_session(client, seed_admin["username"])
     resp = client.post("/api/auto_debit/enroll", json={})
@@ -129,8 +142,15 @@ class TestBillingSettingsPage:
 
     def test_buttons_while_on(self, client, seed_admin, seat_cap, no_mandate):
         page = self._page(client, seed_admin)
-        assert 'id="paymentsOffNotice"' not in page
+        assert 'id="paymentsOffNotice"' not in page and 'id="paymentsTestModeNotice"' not in page
         assert 'id="enableAutoDebitBtn"' in page and 'id="buySeatsForm"' in page
+
+    def test_test_keys_say_test_mode(self, client, seed_admin, seat_cap, no_mandate, monkeypatch):
+        monkeypatch.setattr(rz, "_KEY_ID", "rzp_test_x")
+        monkeypatch.setattr(rz, "_KEY_SECRET", "secret")
+        page = self._page(client, seed_admin)
+        assert 'id="paymentsTestModeNotice"' in page and "no real money is charged" in page
+        assert 'id="enableAutoDebitBtn"' in page
 
     def test_an_active_mandate_can_still_be_cancelled_while_off(self, client, db_engine, seed_admin,
                                                                 no_mandate, payments_off):

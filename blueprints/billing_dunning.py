@@ -30,6 +30,7 @@ from utils.email_utils import get_email_config, get_admin_emails, send_email_asy
 from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
     key_id as razorpay_key_id, create_id_or_demo, verify_or_demo, razorpay_configured, payments_enabled,
+    test_mode as razorpay_test_mode,
 )
 from blueprints.webhooks import register_webhook_handler
 
@@ -224,7 +225,7 @@ def pay_overdue_bill_page():
         grace_period_ends_at=coerce_datetime(grace_ends_at), locked_at=coerce_datetime(locked_at),
         employee_count=employee_count, amount_display=format_price_inr(amount_paise),
         amount_paise=amount_paise, key_id=razorpay_key_id(), razorpay_configured=razorpay_configured(),
-        payments_enabled=payments_enabled(),
+        payments_enabled=payments_enabled(), razorpay_test_mode=razorpay_configured() and razorpay_test_mode(),
     )
 
 

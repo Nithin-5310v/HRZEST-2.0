@@ -1293,6 +1293,13 @@
                 For billing questions, contact support.
               </div>
             </div>
+            {% elif razorpay_test_mode %}
+            <div class="seats-card" style="background:#fffbeb; border-color:#fde68a;" id="paymentsTestModeNotice">
+              <h2 style="color:#b45309;"><i class="ti ti-flask"></i> Test mode</h2>
+              <div class="sub" style="color:#92400e;">
+                Payments run in Razorpay's test mode -- no real money is charged. Use Razorpay's test cards or test UPI IDs.
+              </div>
+            </div>
             {% endif %}
 
             <div class="seats-card">
