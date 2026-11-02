@@ -25,7 +25,7 @@ from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
     add_employee_seat_cap_check, company_url, hr_scope_denied as _hr_scope_denied, company_today,
-    int_param,
+    int_param, notify_new_holiday,
 )
 from utils.dlp import has_pii_clearance, mask_tail
 from utils.email_utils import get_email_config, send_email_smtp, _mask_email
@@ -148,6 +148,7 @@ def admin_action():
             (request.form["date"], request.form["holiday_name"])
         )
         db.commit()
+        notify_new_holiday(cursor, db, request.form["holiday_name"], request.form["date"])
 
     elif action == "salary":
         emp_id = request.form["emp_id"]

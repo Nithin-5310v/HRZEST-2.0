@@ -1,6 +1,6 @@
 {% extends "admin_base.html" %}
 
-{% block title %}Leaves & Holidays{% endblock %}
+{% block title %}{{ {'leaves':'Leaves & Holidays','announcements':'Announcements','tickets':'Tickets','resignations':'Resignations'}[page] }}{% endblock %}
 
 {% block page_css %}
   <style>
@@ -286,43 +286,39 @@
 
 {% block main %}
 
+  {% set _pg = {
+    'leaves': ('ti-calendar-event', 'Leaves &amp; Holidays', 'Manage leave requests and public holidays'),
+    'announcements': ('ti-speakerphone', 'Announcements', 'Post company-wide or private notices to employees'),
+    'tickets': ('ti-ticket', 'Tickets', 'Review, assign and resolve employee support tickets'),
+    'resignations': ('ti-user-minus', 'Resignations', 'Review employee resignation requests')
+  }[page] %}
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-heading">
       <div>
-        <h1><i class="ti ti-calendar-event u-c-6366f1"></i> Leaves &amp; Holidays</h1>
-        <div class="sub">Manage leave requests, tickets, resignations, public holidays and announcements</div>
+        <h1><i class="ti {{ _pg[0] }} u-c-6366f1"></i> {{ _pg[1]|safe }}</h1>
+        <div class="sub">{{ _pg[2] }}</div>
       </div>
+      {% if page == 'leaves' %}
       <div class="topbar-actions">
         {% if not is_manager %}
         <a href="{{ tpath('/leave_balance') }}" class="btn-leave-balance"><i class="ti ti-calendar-stats"></i> Leave Balance</a>
         {% endif %}
         <a href="{{ tpath('/leave_calendar') }}" class="btn-leave-cal"><i class="ti ti-calendar-month"></i> Leave Calendar</a>
       </div>
+      {% endif %}
     </div>
+    {% if page == 'leaves' %}
     <div class="module-tabs">
       <button class="mtab-btn {% if tab == 'leaves' %}active{% endif %}" onclick="switchModule('leaves')">
         <i class="ti ti-calendar-minus"></i> Leaves
         {% if pending_leaves > 0 %}<span class="mtab-badge tb-pending">{{ pending_leaves }}</span>{% endif %}
       </button>
-      {% if not is_manager %}
-      <button class="mtab-btn {% if tab == 'tickets' %}active{% endif %}" onclick="switchModule('tickets')">
-        <i class="ti ti-help-circle"></i> Tickets
-        {% if pending_tickets > 0 %}<span class="mtab-badge tb-open">{{ pending_tickets }}</span>{% endif %}
-      </button>
-      {% endif %}
-      <button class="mtab-btn {% if tab == 'announcements' %}active{% endif %}" onclick="switchModule('announcements')">
-        <i class="ti ti-speakerphone"></i> Announcements
-        {% if ann_list %}<span class="mtab-badge u-bg-dbeafe u-c-1e3a8a">{{ ann_list|length }}</span>{% endif %}
-      </button>
       <button class="mtab-btn {% if tab == 'holidays' %}active{% endif %}" onclick="switchModule('holidays')">
         <i class="ti ti-calendar-event"></i> Holidays
       </button>
-      <button class="mtab-btn {% if tab == 'resignations' %}active{% endif %}" onclick="switchModule('resignations')">
-        <i class="ti ti-user-minus"></i> Resignations
-        {% if pending_resignations > 0 %}<span class="mtab-badge tb-resign">{{ pending_resignations }}</span>{% endif %}
-      </button>
     </div>
+    {% endif %}
   </div>
 
   <!-- FLASH MESSAGES -->

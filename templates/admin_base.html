@@ -188,6 +188,7 @@
     .app-notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #f2f4f7; font-size: 15.5px; font-weight: 700; color: #101828; }
     .app-notif-markall { background: none; border: none; color: #2563eb; font-size: 14px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
     .app-notif-markall:hover { background: #eef4ff; }
+    .app-notif-actions { display: inline-flex; gap: 2px; }
     .app-notif-list { max-height: 380px; overflow-y: auto; }
     .app-notif-item { display: flex; gap: 10px; padding: 11px 14px; border-bottom: 1px solid #f2f4f7; }
     .app-notif-item:last-child { border-bottom: none; }
@@ -281,7 +282,6 @@
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
   <script src="{{ static_url('ui-motion.js') }}"></script>
   <link rel="stylesheet" href="{{ static_url('dashboard-unify.css') }}" />
-  <script src="{{ static_url('ribbon.js') }}" defer></script>
 </head>
 <body>
 
@@ -319,8 +319,16 @@
   </a>
   {% endif %}
   <a class="nav-item {{ 'active' if active_nav == 'leaves' }}" href="{{ tpath('/leave_holidays') }}" {{ 'aria-current=page' if active_nav == 'leaves' }}>
-    <span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% if _tp > 0 %}<span class="badge-count">{{ _tp }}</span>{% endif %}
+    <span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% if pending_leaves|default(0) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
   </a>
+  <a class="nav-item {{ 'active' if active_nav == 'announcements' }}" href="{{ tpath('/announcements') }}" {{ 'aria-current=page' if active_nav == 'announcements' }}>
+    <span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements
+  </a>
+  {% if session.get('admin_role') != 'manager' %}
+  <a class="nav-item {{ 'active' if active_nav == 'tickets' }}" href="{{ tpath('/tickets') }}" {{ 'aria-current=page' if active_nav == 'tickets' }}>
+    <span class="nav-icon"><i class="ti ti-ticket"></i></span>Tickets{% if pending_tickets|default(0) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
+  </a>
+  {% endif %}
   <a class="nav-item {{ 'active' if active_nav == 'overtime' }}" href="{{ tpath('/overtime') }}" {{ 'aria-current=page' if active_nav == 'overtime' }}>
     <span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off
   </a>
@@ -329,6 +337,9 @@
   </a>
   <a class="nav-item {{ 'active' if active_nav == 'onboarding' }}" href="{{ tpath('/onboarding') }}" {{ 'aria-current=page' if active_nav == 'onboarding' }}>
     <span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}
+  </a>
+  <a class="nav-item {{ 'active' if active_nav == 'resignations' }}" href="{{ tpath('/resignations') }}" {{ 'aria-current=page' if active_nav == 'resignations' }}>
+    <span class="nav-icon"><i class="ti ti-user-minus"></i></span>Resignations{% if pending_resignations|default(0) > 0 %}<span class="badge-count">{{ pending_resignations }}</span>{% endif %}
   </a>
   {% if not _is_hr and not _is_manager %}
   <a class="nav-item {{ 'active' if active_nav == 'analytics' }}" href="{{ tpath('/analytics') }}" {{ 'aria-current=page' if active_nav == 'analytics' }}>
@@ -385,14 +396,18 @@
     <!-- Notifications: admin feed from /web/admin/notifications/list -->
     <div class="app-notif" id="appNotif"
          data-list-url="{{ tpath('/web/admin/notifications/list') }}"
-         data-read-url="{{ tpath('/web/admin/notifications/mark_read') }}">
+         data-read-url="{{ tpath('/web/admin/notifications/mark_read') }}"
+         data-clear-url="{{ tpath('/web/admin/notifications/clear') }}">
       <button type="button" class="app-icon-btn app-notif-btn" id="appNotifBtn" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" title="Notifications">
         <i class="ti ti-bell"></i><span class="app-notif-count" id="appNotifCount" hidden></span>
       </button>
       <div class="app-notif-panel" id="appNotifPanel" role="dialog" aria-label="Notifications" hidden>
         <div class="app-notif-head">
           <span>Notifications</span>
-          <button type="button" class="app-notif-markall" id="appNotifMarkAll">Mark all as read</button>
+          <span class="app-notif-actions">
+            <button type="button" class="app-notif-markall" id="appNotifMarkAll">Mark all as read</button>
+            <button type="button" class="app-notif-markall" id="appNotifClear">Clear all</button>
+          </span>
         </div>
         <div class="app-notif-list" id="appNotifList"><div class="app-notif-empty">Loading…</div></div>
       </div>

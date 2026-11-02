@@ -124,6 +124,10 @@ input:focus, select:focus, textarea:focus {
   border-top: 1px solid #d9e2f5;
 }
 .footer a:hover { color: #2563eb; }
+/* The footer is light now, so the "HRZest" wordmark must be dark (it was
+   white for the old dark footer) and its logo tile needs no white box. */
+.footer .brand-wordmark { color: #0f2557 !important; }
+.footer .brand-mark { background: transparent !important; padding: 0 !important; }
 
 /* Auth promo panel (left side of login / sign-up) */
 .auth-promo-eyebrow {

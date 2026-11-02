@@ -443,9 +443,9 @@ class TestManagerScopeRouteGuards:
             sess["admin_logged_in"] = True
             sess["admin_username"] = seed_admin["username"]
             sess["admin_role"] = "admin"
-        resp = client.get("/leave_holidays")
+        resp = client.get("/tickets")
         assert resp.status_code == 200
-        assert b"switchModule('tickets')" in resp.data
+        assert b"panel-tickets" in resp.data
 
     def test_admin_bypasses_manager_scoping_on_leave_action(self, client, seed_admin, seed_employee, seed_leave_request):
         with client.session_transaction() as sess:

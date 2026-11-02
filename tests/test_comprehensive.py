@@ -998,15 +998,14 @@ class TestAdminPageSmoke:
         # this route stays only so old bookmarks/links resolve.
         rv = client.get("/resignation_requests", follow_redirects=False)
         assert rv.status_code == 302
-        assert "/leave_holidays" in rv.headers["Location"]
+        assert "/resignations" in rv.headers["Location"]
 
     def test_tickets_page(self, client):
         # /tickets is a redirect now (blueprints/tickets.py's tickets_view())
         # -- the feature was consolidated onto the Leaves & Holidays page's
         # Tickets tab; this route stays only so old bookmarks/links resolve.
         rv = client.get("/tickets", follow_redirects=False)
-        assert rv.status_code == 302
-        assert "/leave_holidays" in rv.headers["Location"]
+        assert rv.status_code == 200
 
     def test_compoff_page(self, client):
         assert client.get("/compoff").status_code in (200, 302)

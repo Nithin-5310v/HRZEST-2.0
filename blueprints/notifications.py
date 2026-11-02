@@ -181,6 +181,24 @@ def web_employee_mark_notifications_read():
     return jsonify({"ok": True})
 
 
+@notifications_bp.route("/web/notifications/clear", methods=["POST"])
+@employee_required
+def web_employee_notifications_clear():
+    """Delete this employee's notifications (the bell's "Clear all")."""
+    db = get_db_connection()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM notifications WHERE recipient_type='employee' AND employee_id=%s",
+            (session["employee_id"],),
+        )
+        db.commit()
+    finally:
+        cursor.close()
+        db.close()
+    return jsonify({"ok": True})
+
+
 @notifications_bp.route("/web/notifications/list")
 @employee_required
 def web_employee_notifications_list():
@@ -260,6 +278,22 @@ def web_admin_notifications_mark_read():
     cursor = db.cursor()
     try:
         cursor.execute("UPDATE notifications SET is_read=TRUE WHERE recipient_type='admin' AND NOT COALESCE(is_read, FALSE)")
+        db.commit()
+    finally:
+        cursor.close()
+        db.close()
+    return jsonify({"ok": True})
+
+
+@notifications_bp.route("/web/admin/notifications/clear", methods=["POST"])
+@admin_required
+def web_admin_notifications_clear():
+    """Delete the admin/HR bell feed (the bell's "Clear all"). The admin
+    feed is one shared inbox, same as mark_read above."""
+    db = get_db_connection()
+    cursor = db.cursor()
+    try:
+        cursor.execute("DELETE FROM notifications WHERE recipient_type='admin'")
         db.commit()
     finally:
         cursor.close()

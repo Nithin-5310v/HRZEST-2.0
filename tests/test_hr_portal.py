@@ -66,14 +66,12 @@ class TestHrScopeRestrictions:
         resp = client.get(path, follow_redirects=(path == "/tickets"))
         assert resp.status_code == 200
 
-    def test_hr_role_reaches_tickets_via_redirect(self, client, hr_admin):
-        # /tickets redirects to the Leaves & Holidays page's Tickets tab now
-        # (blueprints/tickets.py's tickets_view()) instead of rendering
-        # inline -- HR still isn't blocked from it (302, not 403).
+    def test_hr_role_reaches_tickets_page(self, client, hr_admin):
+        # /tickets is its own module page now (not a redirect) -- HR isn't blocked.
         _admin_session(client, hr_admin["username"], role="hr")
         resp = client.get("/tickets", follow_redirects=False)
-        assert resp.status_code == 302
-        assert "/leave_holidays" in resp.headers["Location"]
+        assert resp.status_code == 200
+        assert b"panel-tickets" in resp.data
 
     def test_hr_role_blocked_from_payroll(self, client, hr_admin):
         _admin_session(client, hr_admin["username"], role="hr")
