@@ -79,7 +79,7 @@
     .app-icon-btn:hover { background: #f2f4f7; color: #101828; }
     .app-user { display: flex; align-items: center; gap: 9px; padding: 3px 10px 3px 3px; border-radius: 999px; border: 1px solid #eaecf0; background: #fff; }
     .app-avatar { width: 30px; height: 30px; border-radius: 50%; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
-    .app-user-name { font-size: 14.5px; font-weight: 600; color: #101828; line-height: 1.15; }
+    .app-user-name { font-size: 14.5px; font-weight: 600; color: #101828; line-height: 1.15; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .app-user-role { font-size: 13px; color: #667085; line-height: 1.15; }
 
     /* ── Top bar as the blue brand banner (logo, search, date, bell, profile) ── */
@@ -154,7 +154,7 @@
     }
     .app-user-panel-head { display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 4px; border-bottom: 1px solid #f2f4f7; }
     .app-avatar-lg { width: 38px; height: 38px; font-size: 13px; background: #2563eb !important; color: #fff !important; }
-    .app-user-panel-name { display: block; font-size: 15.5px; font-weight: 700; color: #101828; }
+    .app-user-panel-name { display: block; font-size: 15.5px; font-weight: 700; color: #101828; overflow-wrap: anywhere; }
     .app-user-panel-role { display: block; font-size: 13.5px; color: #667085; margin-top: 1px; }
     .app-user-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 8px; border: none; background: none; font: inherit; font-size: 15px; font-weight: 500; color: #344054; text-decoration: none; cursor: pointer; text-align: left; }
     .app-user-item i { font-size: 18px; color: #667085; }
@@ -396,7 +396,8 @@
         <div class="app-notif-list" id="appNotifList"><div class="app-notif-empty">Loading…</div></div>
       </div>
     </div>
-    {% set _uname = admin_display_name or session.admin_username or 'Admin' %}
+    {% set _ulogin = session.admin_username or 'Admin' %}
+    {% set _uname = admin_display_name or (_ulogin.split('@')[0] if '@' in _ulogin else _ulogin) %}
     {% set _urole = 'HR' if _is_hr else ('Manager' if _is_manager else 'Administrator') %}
     {% set _uphoto = admin_avatar_url %}
     {% set _uinit = admin_initials or _uname[:2]|upper %}

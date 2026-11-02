@@ -805,10 +805,7 @@
             </div>
             <div class="field-group">
               <label>Email <span class="u-c-dc2626">*</span></label>
-              <input type="email" name="email" placeholder="{{ 'name@' + email_domain if email_domain else 'employee@company.com' }}" required />
-              {% if email_domain %}
-              <div class="u-fs-11 u-c-64748b u-mt-4">Must be a @{{ email_domain }} address.</div>
-              {% endif %}
+              <input type="email" name="email" placeholder="employee@company.com" required />
             </div>
             <div class="field-group">
               <label>Date of Joining <span class="u-c-dc2626">*</span></label>
@@ -1048,7 +1045,7 @@
               </button>
             </div>
 
-            <div class="sec-title">Face Photo *</div>
+            <div class="sec-title">Face Photo <span class="u-c-94a3b8 u-fw-400">(optional)</span></div>
             <div class="field-group full">
               <div class="u-bd-2-dashed-bfdbfe u-br-12 u-p-16 u-ta-center u-bg-f8fafc u-trs-0d2s" id="addPhotoBox">
                 <img class="u-d-none u-w-90 u-h-90 u-br-50pct u-objf-cover u-bd-3-solid-22c55e u-m-0-auto-10" id="addPhotoPreview" alt="Preview" />
@@ -1060,7 +1057,7 @@
                 <input class="u-d-none" type="file" id="addFaceInput" name="face" accept="image/*"
                        onchange="empPhotoSelected(this)" />
               </div>
-              <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr">⚠ Please take or upload a face photo before registering.</div>
+              <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr">⚠ a face photo before registering.</div>
             </div>
 
             <div class="sec-title u-gc-1_-1 u-m-0">
@@ -1697,14 +1694,9 @@
       }
 
       function validateAddForm(form) {
-        var faceInput = document.getElementById('addFaceInput');
-        var errDiv    = document.getElementById('addPhotoErr');
-        if (!faceInput || !faceInput.files || faceInput.files.length === 0) {
-          if (errDiv) { errDiv.style.display = 'block'; }
-          document.getElementById('addPhotoBox').style.borderColor = '#dc2626';
-          document.getElementById('addPhotoBox').scrollIntoView({behavior:'smooth', block:'center'});
-          return false;
-        }
+        // Photo is optional when adding an employee -- it can be added later
+        // from the employee's page -- so there is nothing to block here.
+        var errDiv = document.getElementById('addPhotoErr');
         if (errDiv) errDiv.style.display = 'none';
         return true;
       }

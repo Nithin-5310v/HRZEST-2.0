@@ -475,6 +475,7 @@
     @media (max-width:900px) { .s3-nav { grid-template-columns:1fr; } .two-col { grid-template-columns:1fr; } .time-row { grid-template-columns:1fr; } .ded-grid { grid-template-columns:repeat(2,1fr); } }
     @media (max-width:768px) { body { flex-direction:column; } .sidebar { width:100%;height:auto;position:static; } .main { padding:16px; } .ded-grid { grid-template-columns:1fr; } }
   </style>
+  <link rel="stylesheet" href="{{ static_url('settings-theme.css') }}" />
 {% endblock %}
 
 {% block main %}
@@ -976,7 +977,7 @@
               <div><div class="sec-title">Salary</div><div class="sec-sub">Per-employee daily rate configuration</div></div>
             </div>
             <div class="section">
-              <div class="section-title">💵 Employee Salary Configuration</div>
+              <div class="section-title"><i class="ti ti-coin"></i> Employee Salary Configuration</div>
               <div class="table-wrap">
                 <table>
                   <thead><tr><th>Employee</th><th>Role</th><th>Daily Rate</th><th>Monthly (26 days)</th><th>Last Revised</th><th>Action</th></tr></thead>
@@ -999,6 +1000,15 @@
                       </div>
                     </td>
                   </tr>
+                  {% else %}
+                  <tr><td colspan="6">
+                    <div class="fin-empty">
+                      <span class="fin-empty-icon"><i class="ti ti-coin" aria-hidden="true"></i></span>
+                      <strong>No employees yet</strong>
+                      <span>Add employees to set their daily rate here.</span>
+                      <a class="fin-empty-btn" href="{{ tpath('/employees') }}"><i class="ti ti-user-plus" aria-hidden="true"></i> Add employee</a>
+                    </div>
+                  </td></tr>
                   {% endfor %}
                   </tbody>
                 </table>
@@ -1014,15 +1024,15 @@
             </div>
 
             {% if not payout_provider_ready %}
-            <div class="u-bg-fffbeb u-bd-1-solid-fde68a u-br-10 u-p-14-16 u-mb-16 u-fs-13 u-c-92400e u-fw-600">
-              ⚠️ No payout provider is connected (PAYOUT_PROVIDER is unset). Bank details, scheduling, and approval
-              all work, but any approved run will fail with every item marked "no payout provider configured" --
-              no money will actually be transferred until a real provider is wired up.
+            <div class="fin-notice">
+              <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+              <div><strong>Bank payouts aren't connected yet</strong>
+                <span>You can add bank details, schedule and approve runs, but no money will be transferred until a payout provider is connected.</span></div>
             </div>
             {% endif %}
 
             <div class="section">
-              <div class="section-title">🏦 Company Bank Account &amp; Schedule</div>
+              <div class="section-title"><i class="ti ti-building-bank"></i> Company Bank Account &amp; Schedule</div>
               <div id="payout-locked">
                 <!-- Step 0: entry point, before we know whether this admin has TOTP enrolled at all -->
                 <div id="payout-2fa-start">
@@ -1078,7 +1088,7 @@
             </div>
 
             <div class="section">
-              <div class="section-title">📋 Disbursement Runs</div>
+              <div class="section-title"><i class="ti ti-receipt"></i> Disbursement Runs</div>
               {% if disbursement_runs %}
               <div class="table-wrap">
                 <table>
@@ -1257,9 +1267,9 @@
             </div>
 
             {% if subscription_status == 'trialing' and trial_end_date %}
-            <div class="seats-card" style="background:#f0fdf4; border-color:#bbf7d0;">
-              <h2 style="color:#15803d;"><i class="ti ti-gift"></i> Free Trial Active</h2>
-              <div class="sub" style="color:#166534;">
+            <div class="seats-card seats-status">
+              <h2><i class="ti ti-gift"></i> Free Trial Active</h2>
+              <div class="sub">
                 Full access to every feature, no charge yet. Your trial ends <strong>{{ trial_end_date.strftime('%d %b %Y') }}</strong> --
                 billing starts automatically at {{ per_employee_paise|plan_price }}/employee/month unless you cancel before then.
               </div>
