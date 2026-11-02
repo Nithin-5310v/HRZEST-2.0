@@ -1,0 +1,22 @@
+{#- The automatic reply to someone who sends the website's Contact or
+    Request-info form (blueprints/org.py's submit_lead). It goes to an address
+    typed into a public form, so it never repeats what they wrote -- only a
+    first name that looks like one -- and can't carry anyone's text to a
+    stranger's inbox. -#}
+{% extends "emails/base.html" %}
+{% block title %}Thanks for contacting HRZest{% endblock %}
+{% block preheader %}We've received your enquiry and will get back to you soon.{% endblock %}
+{% block content %}
+<p style="margin:0 0 14px;">Hi {{ first_name or "there" }},</p>
+<p style="margin:0 0 14px;">Thank you for your enquiry. We've received your message, and someone from our team will get back to you soon &mdash; usually within one business day.</p>
+<p style="margin:0 0 22px;">Meanwhile, you can see how HRZest handles attendance, payroll, leave and more on our website.</p>
+<table role="presentation" cellspacing="0" cellpadding="0">
+  <tr>
+    <td style="border-radius:999px;background:#0B5CAD;">
+      <a href="{{ site_url }}" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;">Visit HRZest</a>
+    </td>
+  </tr>
+</table>
+<p style="margin:22px 0 0;font-size:14px;color:#455163;">Want to add something? Write to us at <a href="mailto:{{ contact_email }}" style="color:#0B5CAD;">{{ contact_email }}</a>.</p>
+{% endblock %}
+{% block footer %}You're receiving this because this address was entered in the contact form on our website. If that wasn't you, you can ignore this email.{% endblock %}

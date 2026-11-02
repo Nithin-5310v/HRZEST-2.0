@@ -111,6 +111,30 @@ def public_contact_email():
     return os.environ.get("CONTACT_EMAIL", "").strip() or "contact@hrzest.com"
 
 
+def render_email(template, **context):
+    """HTML of templates/emails/<template> (layout: emails/base.html).
+    Rendered on the app's Jinja environment directly, so it works outside a
+    request too (the queue worker, schedulers); .html templates autoescape."""
+    context.setdefault("year", _dt.date.today().year)
+    return app.jinja_env.get_template(f"emails/{template}").render(**context)
+
+
+def send_template_email(to_email, subject, template, **context):
+    """Queue an email rendered from templates/emails/<template>. Never raises
+    -- for courtesy mail (receipts, notices) a mail problem is only logged.
+    True if it was queued."""
+    try:
+        config = get_email_config()
+        if not config:
+            app_log.warning("send_template_email(%s): no email configured -- not sent", template)
+            return False
+        send_email_async(to_email, subject, render_email(template, **context), config)
+        return True
+    except Exception as exc:
+        app_log.error("send_template_email(%s) failed: %s", template, exc)
+        return False
+
+
 def notify_support(subject, html_body):
     """Queue an email to the support inbox (support_inbox()). Never raises:
     the enquiry is already saved, so a mail problem is only logged."""

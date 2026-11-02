@@ -18,6 +18,11 @@ def sent(monkeypatch):
     return calls
 
 
+def _to(sent, address):
+    """The (subject, body) of every queued email addressed to `address`."""
+    return [(subject, body) for to, subject, body in sent if to == address]
+
+
 @pytest.fixture
 def cleanup(db_engine):
     emails = []
@@ -63,8 +68,7 @@ class TestFormsEmailTheInbox:
         assert cur.fetchone()[0] == "On-premises pricing\n\nWe have 300 staff."
         cur.close()
 
-        (to, subject, body), = sent
-        assert to == "help@example.test"
+        (subject, body), = _to(sent, "help@example.test")
         assert subject == "New enquiry: On-premises pricing"
         assert 'href="mailto:visitor@acme.test"' in body and "We have 300 staff." in body
         # Visitor input is escaped, never rendered as HTML.
@@ -75,8 +79,7 @@ class TestFormsEmailTheInbox:
         resp = client.post("/api/leads", json={"name": "Asha", "email": "lead@acme.test",
                                                "phone": "+91 90000 00000", "company_name": "Acme Foods"})
         assert resp.status_code == 200
-        (to, subject, body), = sent
-        assert to == email_utils.support_inbox()
+        (subject, body), = _to(sent, email_utils.support_inbox())
         assert subject == "New enquiry: Acme Foods" and "+91 90000 00000" in body
 
     def test_feedback_is_emailed(self, client, sent, cleanup):
@@ -84,7 +87,7 @@ class TestFormsEmailTheInbox:
         resp = client.post("/api/feedback", json={"feedback_type": "Biometrics", "rating": 5,
                                                   "email": "fb@acme.test", "message": "Face check-in is quick."})
         assert resp.status_code == 200
-        (to, subject, body), = sent
+        (to, subject, body), = sent   # feedback gets no automatic reply
         assert subject == "New feedback: Biometrics (5/5)" and "Face check-in is quick." in body
 
     def test_rejected_forms_send_nothing(self, client, sent):
@@ -106,6 +109,43 @@ class TestFormsEmailTheInbox:
         monkeypatch.setattr(email_utils, "get_email_config", lambda: None)
         cleanup.append("noconfig@acme.test")
         assert client.post("/api/leads", json={"name": "N", "email": "noconfig@acme.test"}).status_code == 200
+
+
+class TestEnquiryReceipt:
+    """The automatic "thank you" to whoever sends the Contact / Request-info form."""
+
+    def test_visitor_gets_a_thank_you(self, client, sent, cleanup, monkeypatch):
+        monkeypatch.setenv("CONTACT_EMAIL", "contact@example.test")
+        cleanup.append("priya@acme.test")
+        client.post("/api/leads", json={"name": "Priya Sharma", "email": "priya@acme.test",
+                                        "subject": "Pricing", "message": "Secret plans for 300 staff."})
+        (subject, body), = _to(sent, "priya@acme.test")
+        assert subject == "Thanks for contacting HRZest"
+        assert "Hi Priya," in body and "within one business day" in body
+        assert 'href="mailto:contact@example.test"' in body
+        # What they wrote never goes back out (a public form can name any address).
+        assert "Secret plans" not in body and "Pricing" not in body
+
+    @pytest.mark.parametrize("name", ["http://spam.example", "<b>Boss</b>", "Win$$$ now", "12345"])
+    def test_greets_generically_unless_it_looks_like_a_name(self, client, sent, cleanup, name):
+        cleanup.append("odd-name@acme.test")
+        client.post("/api/leads", json={"name": name, "email": "odd-name@acme.test"})
+        (subject, body), = _to(sent, "odd-name@acme.test")
+        assert "Hi there," in body
+        assert "spam.example" not in body and "Boss" not in body and "Win$$$" not in body
+
+    def test_one_reply_per_address_per_hour(self, client, sent, cleanup):
+        cleanup.append("repeat@acme.test")
+        for _ in range(3):
+            assert client.post("/api/leads", json={"name": "Ravi", "email": "repeat@acme.test"}).status_code == 200
+        assert len(_to(sent, "repeat@acme.test")) == 1
+        assert len(_to(sent, email_utils.support_inbox())) == 3   # the team still sees every enquiry
+
+    def test_renders_on_the_shared_layout(self):
+        body = email_utils.render_email("enquiry_received.html", first_name="Asha",
+                                        contact_email="c@example.test", site_url="https://hrzest.example")
+        assert body.lstrip().lower().startswith("<!doctype html>")
+        assert "HRZEST" in body and 'href="https://hrzest.example"' in body and "Hi Asha," in body
 
 
 class TestLandingPage:
@@ -147,3 +187,10 @@ class TestLandingPage:
 def test_enquiry_email_skips_empty_rows():
     body = org._enquiry_email("H", [("Name", "A"), ("Phone", None), ("Email", "a@b.test")], None)
     assert "Phone" not in body and 'mailto:a@b.test' in body
+
+
+def test_first_name():
+    assert org._first_name("Priya Sharma") == "Priya"
+    assert org._first_name("O'Neil") == "O'Neil" and org._first_name("Jean-Luc Picard") == "Jean-Luc"
+    for odd in ("", "   ", "http://x.example", "<b>x</b>", "12ab", "x" * 31):
+        assert org._first_name(odd) is None
