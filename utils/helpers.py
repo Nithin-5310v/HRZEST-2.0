@@ -190,6 +190,17 @@ def _safe_app_url() -> str:
     return request.host_url.rstrip("/")
 
 
+def company_url(path: str) -> str:
+    """Absolute link to `path` in this request's company, for emails:
+    <APP_URL>/<company-slug><path>. The company is always named explicitly:
+    a bare /login whose company step is done remembers the company in the
+    session only, so a link built from that request's own URL would work
+    only in the same browser -- opened from a mail app or another device it
+    would land in no company and report its token as invalid."""
+    slug = request.environ.get("hrz.tenant_slug") or session.get("tenant_slug") or ""
+    return f"{_safe_app_url()}{'/' + slug if slug else ''}{path}"
+
+
 def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
     """Validate that a redirect target is a relative path (prevents open
     redirect), then stamp it with the current tenant's URL prefix via
@@ -1089,20 +1100,10 @@ def validate_email_domain_format(domain: str) -> str:
 
 
 def validate_employee_email_domain(email) -> str:
-    """Enforces "employee email must match the company's configured
-    domain" -- but only once a company has actually set one
-    (get_company_settings()["email_domain"]); companies that haven't
-    configured a domain yet keep today's behavior (email optional, no
-    domain check), so this never breaks an existing tenant that predates
-    the feature. Returns an error message, or None if OK."""
-    domain = (get_company_settings().get("email_domain") or "").strip().lower()
-    if not domain:
-        return None
-    email = (email or "").strip().lower()
-    if not email:
-        return f"Employee email is required (must be a @{domain} address)."
-    if not email.endswith("@" + domain):
-        return f"Employee email must be a @{domain} address."
+    """No restriction: an employee may be added with any email address (or
+    none), regardless of the company's configured email domain. Kept as a
+    no-op so its callers in blueprints/employees.py don't need to change.
+    Returns None (always OK)."""
     return None
 
 

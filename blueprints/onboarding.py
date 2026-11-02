@@ -11,7 +11,7 @@ from database import get_db_connection
 from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required
 from utils.helpers import (
-    tpath, get_company_settings, _safe_app_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
+    tpath, get_company_settings, company_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
     company_today, company_now, _create_notification, int_param,
 )
 from utils.storage import save_private, open_private
@@ -1071,14 +1071,12 @@ def offer_letter_send(letter_id):
         # Secure one-time token (shared by accept/reject AND pdf view)
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
-        # The token lives in this company's database, so every link carries
-        # its /<company> prefix (tpath) -- without it the page opens in the
-        # wrong company and reports the link as invalid.
-        base_url = _safe_app_url()
-        accept_url = f"{base_url}{tpath('/offer_letter_respond/' + token + '/accept')}"
-        reject_url = f"{base_url}{tpath('/offer_letter_respond/' + token + '/reject')}"
-        pdf_view_url = f"{base_url}{tpath('/offer_letter_pdf/' + token)}"
-        pdf_dl_url = f"{base_url}{tpath('/offer_letter_pdf/' + token)}?dl=1"
+        # The token lives in this company's database: the links name the
+        # company (company_url), or they'd open in none and say "invalid".
+        accept_url = company_url(f"/offer_letter_respond/{token}/accept")
+        reject_url = company_url(f"/offer_letter_respond/{token}/reject")
+        pdf_view_url = company_url(f"/offer_letter_pdf/{token}")
+        pdf_dl_url = pdf_view_url + "?dl=1"
 
         # ── Salary breakdown helper ────────────────────────────────────────
         def fmt(n): return f"{n:,.2f}"

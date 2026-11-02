@@ -25,7 +25,15 @@
     Array.prototype.forEach.call(dots, function (dot, i) { dot.classList.toggle('current', i === index); });
     num.textContent = index + 1;
     back.hidden = index === 0;
-    next.textContent = index === panels.length - 1 ? 'Finish' : 'Next';
+    var isLast = index === panels.length - 1;
+    next.textContent = isLast ? 'Finish' : 'Next';
+    // Can't move on until this step is done (or its documents are under
+    // review). Finish on the last step always works. Complete a step with its
+    // own action button, which opens the page for it.
+    var status = panels[index].dataset.status;
+    var doneStep = status === 'done' || status === 'review';
+    next.disabled = !isLast && !doneStep;
+    next.title = next.disabled ? 'Complete this step first' : '';
   }
 
   function firstUnfinished() {
@@ -37,9 +45,8 @@
   }
 
   modal.addEventListener('close', remember);
-  modal.addEventListener('click', function (e) {
-    if (e.target === modal) modal.close();
-  });
+  // Clicking the dimmed dashboard behind the popup does nothing on purpose:
+  // it must be closed with the X, "Remind me later", or the Esc key.
   modal.querySelectorAll('[data-reg-close]').forEach(function (btn) {
     btn.addEventListener('click', function () { modal.close(); });
   });

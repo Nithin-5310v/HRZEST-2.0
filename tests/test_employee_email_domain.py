@@ -108,7 +108,8 @@ class TestNoDomainConfigured:
 
 
 class TestDomainConfigured:
-    def test_mismatched_email_domain_rejected(self, client, seed_admin, db_engine, monkeypatch):
+    def test_mismatched_email_domain_accepted(self, client, seed_admin, db_engine, monkeypatch):
+        # The domain restriction was removed: any email is accepted now.
         _mock_face_detected(monkeypatch)
         emp_id = "DOMGATE002"
         _set_domain(db_engine, "acme.com")
@@ -117,17 +118,19 @@ class TestDomainConfigured:
             resp = client.post("/add_employee_page", data=_registration_payload(emp_id, "someone@other.com"),
                                follow_redirects=True)
             assert resp.status_code == 200
-            assert b"must be a @acme.com address" in resp.data
+            assert b"must be a @acme.com address" not in resp.data
 
             cur = db_engine.cursor()
-            cur.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
-            assert cur.fetchone() is None, "employee with a non-matching domain must not be created"
+            cur.execute("SELECT email FROM employees WHERE employee_id=%s", (emp_id,))
+            row = cur.fetchone()
+            assert row is not None and row[0] == "someone@other.com"
             cur.close()
         finally:
             _cleanup_employee(db_engine, emp_id)
             _set_domain(db_engine, None)
 
-    def test_missing_email_rejected_when_domain_required(self, client, seed_admin, db_engine, monkeypatch):
+    def test_missing_email_allowed_even_with_domain_set(self, client, seed_admin, db_engine, monkeypatch):
+        # Email is optional even when the company has an email domain configured.
         _mock_face_detected(monkeypatch)
         emp_id = "DOMGATE003"
         _set_domain(db_engine, "acme.com")
@@ -135,11 +138,11 @@ class TestDomainConfigured:
             _admin_session(client, seed_admin)
             resp = client.post("/add_employee_page", data=_registration_payload(emp_id, ""), follow_redirects=True)
             assert resp.status_code == 200
-            assert b"Employee email is required" in resp.data
+            assert b"Employee email is required" not in resp.data
 
             cur = db_engine.cursor()
             cur.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
-            assert cur.fetchone() is None
+            assert cur.fetchone() is not None
             cur.close()
         finally:
             _cleanup_employee(db_engine, emp_id)

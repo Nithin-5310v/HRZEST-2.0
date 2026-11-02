@@ -13,7 +13,9 @@ from utils.auth import (
     validate_new_password, admin_required, api_required, api_role_required,
 )
 from utils.plan_limits import PLAN_LABEL, get_per_employee_paise, format_price_inr
-from utils.email_utils import get_email_config, send_email_async, notify_support
+from utils.email_utils import (
+    get_email_config, send_email_async, notify_support, render_email, send_template_email, public_contact_email,
+)
 from utils.tenant_routing import RESERVED_PATH_SEGMENTS
 from utils.helpers import clean_email_domain, validate_email_domain_format, _safe_app_url, save_application_document, tpath
 
@@ -2554,6 +2556,13 @@ def submit_lead():
         from database import get_master_db
         conn = get_master_db()
         cur = conn.cursor()
+        # One automatic reply per address per hour: the form is public, so a
+        # flood of submissions naming someone else's address mustn't flood them.
+        cur.execute(
+            "SELECT COUNT(*) FROM leads WHERE LOWER(email) = LOWER(%s) AND created_at > NOW() - INTERVAL '1 hour'",
+            (email,)
+        )
+        send_receipt = cur.fetchone()[0] == 0
         cur.execute(
             "INSERT INTO leads (name, email, phone, company_name, message) VALUES (%s, %s, %s, %s, %s)",
             (name, email, phone, company_name, message)
@@ -2571,28 +2580,32 @@ def submit_lead():
             ("Name", name), ("Email", email), ("Phone", phone), ("Company", company_name),
         ], message),
     )
+    if send_receipt:
+        send_template_email(
+            email, "Thanks for contacting HRZest", "enquiry_received.html",
+            first_name=_first_name(name), contact_email=public_contact_email(), site_url=_safe_app_url(),
+        )
     return jsonify({"ok": True, "msg": "Thanks! We'll be in touch shortly."})
 
 
+def _first_name(name):
+    """The first word of a typed name if it looks like a name (letters, with
+    ' - . allowed), else None -- the automatic reply greets with it, and
+    must not carry arbitrary text (a URL, an advert) to whoever's address
+    was typed in."""
+    first = (name.split() or [""])[0]
+    if 1 <= len(first) <= 30 and first[0].isalpha() and all(c.isalpha() or c in "'-." for c in first):
+        return first
+    return None
+
+
 def _enquiry_email(heading, rows, message):
-    """The support inbox's copy of a landing-page form. Every value is the
-    visitor's own input, so all of it is escaped; their email is a mailto
-    link, since a reply from the noreply mailbox would otherwise go nowhere."""
-    esc = html.escape
-    cells = []
-    for label, value in rows:
-        if not value:
-            continue
-        shown = (f'<a href="mailto:{esc(str(value), quote=True)}">{esc(str(value))}</a>'
-                 if label == "Email" else esc(str(value)))
-        cells.append(f'<tr><td style="padding:4px 12px 4px 0;color:#455163">{esc(label)}</td>'
-                     f'<td style="padding:4px 0"><b>{shown}</b></td></tr>')
-    body = (f'<p style="white-space:pre-wrap;background:#F5F8FC;border-radius:8px;padding:12px">{esc(message)}</p>'
-            if message else "")
-    return (f'<div style="font-family:Arial,sans-serif;color:#131C2A">'
-            f'<h2 style="color:#0B5CAD;margin:0 0 12px">{esc(heading)}</h2>'
-            f'<table style="border-collapse:collapse;font-size:14px">{"".join(cells)}</table>{body}'
-            f'<p style="font-size:12px;color:#8794A5">Reply to the visitor at the email above.</p></div>')
+    """The support inbox's copy of a landing-page form
+    (templates/emails/enquiry_notification.html). rows: (label, value)
+    pairs; empty values are left out. All of it is the visitor's own input,
+    autoescaped by the template."""
+    return render_email("enquiry_notification.html", heading=heading,
+                        rows=[(label, str(value)) for label, value in rows if value], message=message)
 
 
 _FEEDBACK_TYPES = frozenset({"Feature Request", "User Experience", "Biometrics", "General Praise"})
