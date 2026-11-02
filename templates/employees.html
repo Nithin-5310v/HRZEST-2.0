@@ -299,10 +299,10 @@
         </div>
         <!-- Page-level tab switcher -->
         <div class="u-d-flex u-gap-0 u-bd-1d5-solid-dbeafe u-br-12 u-ov-hidden u-fxs-0">
-          <button class="u-p-8-18 u-bd-none u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-gap-6 u-trs-d15s" id="pgTabEmp" onclick="switchPageTab('employees')">
+          <button class="u-p-8-18 u-bd-none u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-gap-6 u-trs-d15s" id="pgTabEmp" data-on-click="switchPageTab('employees')">
             <i class="ti ti-users"></i> Employees
           </button>
-          <button class="u-p-8-18 u-bd-none u-bg-fff u-c-475569 u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-gap-6 u-trs-d15s" id="pgTabSched" onclick="switchPageTab('schedule')">
+          <button class="u-p-8-18 u-bd-none u-bg-fff u-c-475569 u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-gap-6 u-trs-d15s" id="pgTabSched" data-on-click="switchPageTab('schedule')">
             <i class="ti ti-calendar-time"></i> Schedule
           </button>
         </div>
@@ -315,19 +315,19 @@
 
       <!-- STAT CARDS -->
       <div class="stat-row">
-        <div class="stat-card" onclick="filterByStatus('')" id="card-all">
+        <div class="stat-card" data-on-click="filterByStatus('')" id="card-all">
           <div class="stat-icon total"><i class="ti ti-users"></i></div>
           <div><div class="stat-val">{{ total }}</div><div class="stat-lbl">Total Employees</div></div>
         </div>
-        <div class="stat-card" onclick="filterByStatus('Active')" id="card-active">
+        <div class="stat-card" data-on-click="filterByStatus('Active')" id="card-active">
           <div class="stat-icon active"><i class="ti ti-user-check"></i></div>
           <div><div class="stat-val">{{ active_count }}</div><div class="stat-lbl">Active</div></div>
         </div>
-        <div class="stat-card" onclick="filterByStatus('On Leave')" id="card-onleave">
+        <div class="stat-card" data-on-click="filterByStatus('On Leave')" id="card-onleave">
           <div class="stat-icon onleave"><i class="ti ti-beach"></i></div>
           <div><div class="stat-val">{{ on_leave_count }}</div><div class="stat-lbl">On Leave Today</div></div>
         </div>
-        <div class="stat-card" onclick="filterByStatus('Resigned')" id="card-resigned">
+        <div class="stat-card" data-on-click="filterByStatus('Resigned')" id="card-resigned">
           <div class="stat-icon resigned"><i class="ti ti-user-off"></i></div>
           <div><div class="stat-val">{{ resigned_count }}</div><div class="stat-lbl">Resigned</div></div>
         </div>
@@ -391,9 +391,9 @@
       <!-- DEPARTMENT TABS -->
       {% if departments %}
       <div class="dept-tabs" id="deptTabs">
-        <button class="dept-tab all-tab active" onclick="filterByDept('')" data-dept="">All</button>
+        <button class="dept-tab all-tab active" data-on-click="filterByDept('')" data-dept="">All</button>
         {% for dept in departments %}
-          <button class="dept-tab" onclick="filterByDept(this.dataset.dept)" data-dept="{{ dept }}">{{ dept }}</button>
+          <button class="dept-tab" data-on-click="filterByDept(this.dataset.dept)" data-dept="{{ dept }}">{{ dept }}</button>
         {% endfor %}
       </div>
       {% endif %}
@@ -407,38 +407,38 @@
             <input class="search-box" type="text" id="searchInput"
                    placeholder="Search name, ID, email, phone…"
                    autocomplete="off"
-                   oninput="applyFilters()" />
+                   data-on-input="applyFilters()" />
           </div>
           <span class="emp-count" id="empCount">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
-          <button class="btn-add" onclick="openModal('addModal')">
+          <button class="btn-add" data-on-click="openModal('addModal')">
             <i class="ti ti-plus"></i> Add Employee
           </button>
         </div>
         <div class="toolbar-row2">
           <span class="filter-label"><i class="ti ti-filter u-fs-12"></i> Filter:</span>
 
-          <select class="filter-select" id="filterShift" onchange="applyFilters()">
+          <select class="filter-select" id="filterShift" data-on-change="applyFilters()">
             <option value="">All Shifts</option>
             {% for sid, sname in shifts %}
               <option value="{{ sname }}">{{ sname }}</option>
             {% endfor %}
           </select>
 
-          <select class="filter-select" id="filterStatus" onchange="applyFilters()">
+          <select class="filter-select" id="filterStatus" data-on-change="applyFilters()">
             <option value="">All Status</option>
             <option value="Active">Active</option>
             <option value="On Leave">On Leave</option>
             <option value="Resigned">Resigned</option>
           </select>
 
-          <select class="filter-select" id="filterGender" onchange="applyFilters()">
+          <select class="filter-select" id="filterGender" data-on-change="applyFilters()">
             <option value="">All Genders</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
             <option value="Other">Other</option>
           </select>
 
-          <button class="btn-clear-filter" id="btnClearFilter" onclick="clearFilters()">
+          <button class="btn-clear-filter" id="btnClearFilter" data-on-click="clearFilters()">
             <i class="ti ti-x"></i> Clear
           </button>
         </div>
@@ -456,10 +456,10 @@
           <option value="{{ tpl[0] }}">{{ tpl[1] }}</option>
           {% endfor %}
         </select>
-        <button class="u-bg-1e3a8a u-c-fff u-p-7-14 u-bd-none u-br-8 u-fs-13 u-fw-600 u-cur-pointer" type="button" onclick="bulkAssignOnboarding()">
+        <button class="u-bg-1e3a8a u-c-fff u-p-7-14 u-bd-none u-br-8 u-fs-13 u-fw-600 u-cur-pointer" type="button" data-on-click="bulkAssignOnboarding()">
           <i class="ti ti-checklist"></i> Assign Onboarding
         </button>
-        <button class="u-bg-f1f5f9 u-c-64748b u-p-7-12 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13 u-cur-pointer" type="button" onclick="clearSelection()">Clear</button>
+        <button class="u-bg-f1f5f9 u-c-64748b u-p-7-12 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13 u-cur-pointer" type="button" data-on-click="clearSelection()">Clear</button>
       </div>
 
       <!-- TABLE -->
@@ -469,7 +469,7 @@
           <table id="empTable">
             <thead>
               <tr>
-                <th class="col-mobile-hide"><label class="u-d-contents"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="Select all" aria-label="Select all employees"></label></th>
+                <th class="col-mobile-hide"><label class="u-d-contents"><input type="checkbox" id="selectAll" data-on-change="toggleSelectAll(this)" title="Select all" aria-label="Select all employees"></label></th>
                 <th class="col-mobile-hide">#</th>
                 <th class="col-mobile-hide">Photo</th>
                 <th>Employee ID</th>
@@ -497,18 +497,18 @@
                 data-status="{{ emp_status }}"
                 data-gender="{{ gender or '' }}"
               >
-                <td class="col-mobile-hide"><input type="checkbox" class="emp-check" value="{{ emp_id }}" onchange="updateBulkToolbar()"></td>
+                <td class="col-mobile-hide"><input type="checkbox" class="emp-check" value="{{ emp_id }}" data-on-change="updateBulkToolbar()"></td>
                 <td class="muted col-mobile-hide">{{ loop.index }}</td>
                 <td class="col-mobile-hide">
                   {% if face_image %}
-                    <button class="avatar-btn" onclick="openLightbox(this.dataset.empId,this.dataset.empName,true)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="View photo">
+                    <button class="avatar-btn" data-on-click="openLightbox(this.dataset.empId,this.dataset.empName,true)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="View photo">
                       <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
-                           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                           data-on-error="HZ.showNextOnError(this)" />
                       <div class="avatar-ph u-d-none"><i class="ti ti-user"></i></div>
                       <div class="avatar-eye"><i class="ti ti-eye"></i></div>
                     </button>
                   {% else %}
-                    <button class="avatar-btn" onclick="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="Upload photo">
+                    <button class="avatar-btn" data-on-click="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="Upload photo">
                       <div class="avatar-ph"><i class="ti ti-user"></i></div>
                       <div class="avatar-eye"><i class="ti ti-camera-plus"></i></div>
                     </button>
@@ -516,7 +516,7 @@
                 </td>
                 <td><strong>{{ emp_id }}</strong></td>
                 <td class="u-minw-130">
-                  <a class="u-fw-700 u-c-1e3a8a u-tdec-none" href="/employee_detail/{{ emp_id }}" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">{{ name }}</a>
+                  <a class="u-fw-700 u-c-1e3a8a u-tdec-none" href="/employee_detail/{{ emp_id }}" data-hover-style="text-decoration:underline">{{ name }}</a>
                   {% if email %}<div class="u-fs-11 u-c-94a3b8">{{ email }}</div>{% endif %}
                 </td>
                 <td class="col-mobile-hide">
@@ -545,23 +545,23 @@
                 <td>
                   <div class="actions-cell">
                     <button class="btn-icon btn-edit"
-                      onclick="openEdit(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
+                      data-on-click="openEdit(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
                       <i class="ti ti-pencil"></i> Edit
                     </button>
                     <button class="btn-icon btn-photo" title="Update Photo"
-                      onclick="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}">
+                      data-on-click="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}">
                       <i class="ti ti-camera"></i>
                     </button>
                     <button class="btn-icon btn-qr" title="QR Code"
-                      onclick="openQR(this.dataset.empId,this.dataset.empName,this.dataset.hasQr)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" data-has-qr="{{ '1' if qr_code else '' }}">
+                      data-on-click="openQR(this.dataset.empId,this.dataset.empName,this.dataset.hasQr)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" data-has-qr="{{ '1' if qr_code else '' }}">
                       <i class="ti ti-qrcode"></i>
                     </button>
                     <button class="btn-icon btn-idcard" title="ID Card"
-                      onclick="openIDCard(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
+                      data-on-click="openIDCard(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
                       <i class="ti ti-id-badge"></i>
                     </button>
                     <form class="u-d-inline" action="/delete_employee/{{ emp_id }}" method="POST"
-                          onsubmit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
+                          data-on-submit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
                       <button type="submit" class="btn-icon btn-del" title="Delete">
                         <i class="ti ti-trash"></i>
                       </button>
@@ -579,9 +579,9 @@
         <div id="paginationBar" class="pagination-bar">
           <span id="pageInfo" class="page-info"></span>
           <div class="page-btns">
-            <button type="button" id="btnPrev" class="btn-page" onclick="changePage(-1)">&#8249; Prev</button>
+            <button type="button" id="btnPrev" class="btn-page" data-on-click="changePage(-1)">&#8249; Prev</button>
             <span id="pageButtons" class="page-btns"></span>
-            <button type="button" id="btnNext" class="btn-page" onclick="changePage(1)">Next &#8250;</button>
+            <button type="button" id="btnNext" class="btn-page" data-on-click="changePage(1)">Next &#8250;</button>
           </div>
         </div>
       </div>
@@ -598,10 +598,10 @@
             <div class="u-fs-12 u-c-64748b u-mt-2">Configure work shifts and break schedules</div>
           </div>
           <div class="u-d-flex u-gap-8">
-            <button class="u-d-flex u-ai-center u-gap-7 u-p-9-18 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-13 u-fw-700 u-cur-pointer" onclick="openAddShiftModal()">
+            <button class="u-d-flex u-ai-center u-gap-7 u-p-9-18 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-13 u-fw-700 u-cur-pointer" data-on-click="openAddShiftModal()">
               <i class="ti ti-plus"></i> Add Shift
             </button>
-            <button class="u-d-flex u-ai-center u-gap-7 u-p-9-18 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-fff u-c-475569 u-fs-13 u-fw-700 u-cur-pointer" onclick="openAddBreakModal()">
+            <button class="u-d-flex u-ai-center u-gap-7 u-p-9-18 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-fff u-c-475569 u-fs-13 u-fw-700 u-cur-pointer" data-on-click="openAddBreakModal()">
               <i class="ti ti-coffee"></i> Add Break
             </button>
           </div>
@@ -623,10 +623,10 @@
                 <div class="u-fs-11 u-c-94a3b8 u-mt-2">ID #{{ s.id }}</div>
               </div>
               <div class="u-d-flex u-gap-5 u-fxs-0">
-                <button class="u-p-5-10 u-bd-1-solid-dbeafe u-br-8 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" onclick="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}">
+                <button class="u-p-5-10 u-bd-1-solid-dbeafe u-br-8 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" data-on-click="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}">
                   <i class="ti ti-pencil"></i> Edit
                 </button>
-                <form class="u-d-inline" method="POST" action="/delete_shift/{{ s.id }}" onsubmit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
+                <form class="u-d-inline" method="POST" action="/delete_shift/{{ s.id }}" data-on-submit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
                   <button class="u-p-5-10 u-bd-1-solid-fecaca u-br-8 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
                     <i class="ti ti-trash"></i>
                   </button>
@@ -704,10 +704,10 @@
                 </td>
                 <td class="u-p-11-14">
                   <div class="u-d-flex u-gap-5">
-                    <button class="u-p-4-10 u-bd-1-solid-dbeafe u-br-7 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" onclick="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active==='True')" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}">
+                    <button class="u-p-4-10 u-bd-1-solid-dbeafe u-br-7 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" data-on-click="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active)" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}">
                       <i class="ti ti-pencil"></i> Edit
                     </button>
-                    <form method="POST" action="{{ tpath('/delete_break/' + b.id|string) }}" onsubmit="return hzConfirmSubmit(event, 'Delete this break?')">
+                    <form method="POST" action="{{ tpath('/delete_break/' + b.id|string) }}" data-on-submit="return hzConfirmSubmit(event, 'Delete this break?')">
                       <button class="u-p-4-10 u-bd-1-solid-fecaca u-br-7 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
                         <i class="ti ti-trash"></i>
                       </button>
@@ -749,10 +749,10 @@
         <canvas class="u-d-none u-w-100pct u-br-12 u-mb-12" id="empCamCanvas"></canvas>
         <div class="u-d-none u-p-14-16 u-bg-7f1d1d u-br-10 u-c-fecaca u-fs-13 u-mb-12 u-ta-left u-lh-1d6" id="empCamError"></div>
         <div class="u-d-flex u-gap-10">
-          <button class="u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradiene4b3b9 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empCaptureBtn" onclick="empCapturePhoto()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Capture</button>
-          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-rgba255_255_255_0d15 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empRetakeBtn"  onclick="empRetakePhoto()"><i class="ti ti-refresh hz-ico" aria-hidden="true"></i> Retake</button>
-          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradien161636 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empUseBtn"     onclick="empUsePhoto()"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Use Photo</button>
-          <button class="u-p-12-16 u-bd-1-solid-rgba2525554c u-br-10 u-bg-transparent u-c-white u-fs-14 u-cur-pointer" onclick="closeEmpCameraModal()">Cancel</button>
+          <button class="u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradiene4b3b9 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empCaptureBtn" data-on-click="empCapturePhoto()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Capture</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-rgba255_255_255_0d15 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empRetakeBtn"  data-on-click="empRetakePhoto()"><i class="ti ti-refresh hz-ico" aria-hidden="true"></i> Retake</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradien161636 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empUseBtn"     data-on-click="empUsePhoto()"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Use Photo</button>
+          <button class="u-p-12-16 u-bd-1-solid-rgba2525554c u-br-10 u-bg-transparent u-c-white u-fs-14 u-cur-pointer" data-on-click="closeEmpCameraModal()">Cancel</button>
         </div>
       </div>
     </div>
@@ -762,7 +762,7 @@
     ================================================================ -->
     <div class="lb-backdrop" id="lbModal">
       <div class="lb-box">
-        <button class="lb-close" onclick="closeLightbox()">&times;</button>
+        <button class="lb-close" data-on-click="closeLightbox()">&times;</button>
         <div class="lb-img-wrap" id="lbImgWrap">
           <img id="lbImg" src="" alt="" />
         </div>
@@ -773,7 +773,7 @@
             <a id="lbDlBtn" class="lb-btn lb-btn-dl" href="#" download="">
               <i class="ti ti-download"></i> Download Photo
             </a>
-            <button id="lbEditBtn" class="lb-btn lb-btn-edit" onclick="lbSwitchToEdit()">
+            <button id="lbEditBtn" class="lb-btn lb-btn-edit" data-on-click="lbSwitchToEdit()">
               <i class="ti ti-camera"></i> Change
             </button>
           </div>
@@ -786,9 +786,9 @@
     ================================================================ -->
     <div class="modal-backdrop" id="addModal">
       <div class="modal-box u-maxw-600">
-        <button class="modal-close" onclick="closeModal('addModal')">&times;</button>
+        <button class="modal-close" data-on-click="closeModal('addModal')">&times;</button>
         <h3><i class="ti ti-user-plus u-c-1e3a8a"></i> Add New Employee</h3>
-        <form action="{{ tpath('/add_employee_page') }}" method="POST" enctype="multipart/form-data" onsubmit="return validateAddForm(this)">
+        <form action="{{ tpath('/add_employee_page') }}" method="POST" enctype="multipart/form-data" data-on-submit="return validateAddForm(this)">
           <div class="form-grid">
             <div class="sec-title">Basic Info</div>
             <div class="field-group">
@@ -799,7 +799,7 @@
               <label>Employee ID *</label>
               <div class="u-d-flex u-gap-8 u-ai-center">
                 <input class="u-fx-1 u-fw-700 u-ls-1" type="text" name="emp_id" id="addEmpId" required placeholder="Generating…" />
-                <button class="u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-eff6ff u-c-1e3a8a u-cur-pointer u-ws-nowrap u-fs-13 u-fw-600" type="button" onclick="generateEmpId()" title="Re-generate ID">
+                <button class="u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-eff6ff u-c-1e3a8a u-cur-pointer u-ws-nowrap u-fs-13 u-fw-600" type="button" data-on-click="generateEmpId()" title="Re-generate ID">
                   <i class="ti ti-refresh hz-ico" aria-hidden="true"></i> Generate
                 </button>
               </div>
@@ -827,7 +827,7 @@
             </div>
             <div class="field-group">
               <label>Reporting Manager</label>
-              <select name="manager_id" onchange="syncManagerName(this, 'add')">
+              <select name="manager_id" data-on-change="syncManagerName(this, 'add')">
                 <option value="">— No Manager —</option>
                 {% for e in employees %}
                 {% set eid, ename = e[0], e[1] %}
@@ -839,7 +839,7 @@
 
             <div class="sec-title u-gc-1_-1 u-m-0">
               <div class="form-sub-section">
-                <div class="form-sub-header" onclick="toggleSubSection('sec-professional')">
+                <div class="form-sub-header" data-on-click="toggleSubSection('sec-professional')">
                   <span><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Professional Details</span>
                   <i class="ti ti-chevron-down" id="sec-professional-icon"></i>
                 </div>
@@ -883,7 +883,7 @@
               </div>
 
               <div class="form-sub-section">
-                <div class="form-sub-header" onclick="toggleSubSection('sec-personal')">
+                <div class="form-sub-header" data-on-click="toggleSubSection('sec-personal')">
                   <span><i class="ti ti-user hz-ico" aria-hidden="true"></i> Personal Details</span>
                   <i class="ti ti-chevron-down" id="sec-personal-icon"></i>
                 </div>
@@ -913,7 +913,7 @@
               </div>
 
               <div class="form-sub-section">
-                <div class="form-sub-header" onclick="toggleSubSection('sec-address')">
+                <div class="form-sub-header" data-on-click="toggleSubSection('sec-address')">
                   <span><i class="ti ti-home hz-ico" aria-hidden="true"></i> Address</span>
                   <i class="ti ti-chevron-down" id="sec-address-icon"></i>
                 </div>
@@ -940,7 +940,7 @@
               </div>
 
               <div class="form-sub-section">
-                <div class="form-sub-header" onclick="toggleSubSection('sec-emergency')">
+                <div class="form-sub-header" data-on-click="toggleSubSection('sec-emergency')">
                   <span><i class="ti ti-urgent hz-ico" aria-hidden="true"></i> Emergency Contact</span>
                   <i class="ti ti-chevron-down" id="sec-emergency-icon"></i>
                 </div>
@@ -963,7 +963,7 @@
               </div>
 
               <div class="form-sub-section">
-                <div class="form-sub-header" onclick="toggleSubSection('sec-docs')">
+                <div class="form-sub-header" data-on-click="toggleSubSection('sec-docs')">
                   <span><i class="ti ti-file-text hz-ico" aria-hidden="true"></i> Documents &amp; Finance</span>
                   <i class="ti ti-chevron-down" id="sec-docs-icon"></i>
                 </div>
@@ -998,14 +998,14 @@
               </div>
 
               <div class="form-sub-section">
-                <div class="form-sub-header" onclick="toggleSubSection('sec-edu')">
+                <div class="form-sub-header" data-on-click="toggleSubSection('sec-edu')">
                   <span><i class="ti ti-school hz-ico" aria-hidden="true"></i> Qualifications</span>
                   <i class="ti ti-chevron-down" id="sec-edu-icon"></i>
                 </div>
                 <div id="sec-edu" class="form-sub-body u-d-none">
                   <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
                     <span class="u-fs-11 u-fw-600 u-c-64748b">Education history</span>
-                    <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="addEduRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
+                    <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" data-on-click="addEduRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
                   </div>
                   <div class="u-gap-6 u-mb-4 u-p-0-2" style="display:grid;grid-template-columns:1fr 1fr 90px 70px 28px;">
                     <span class="u-fs-10 u-fw-600 u-c-94a3b8">Degree</span>
@@ -1025,11 +1025,11 @@
               <div class="radio-group">
                 <label class="radio-label">
                   <input class="u-accent-1e3a8a" type="radio" name="work_mode" value="office" checked
-                         onchange="toggleAddLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
+                         data-on-change="toggleAddLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
                 </label>
                 <label class="radio-label">
                   <input class="u-accent-059669" type="radio" name="work_mode" value="wfh"
-                         onchange="toggleAddLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
+                         data-on-change="toggleAddLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
                 </label>
               </div>
             </div>
@@ -1045,7 +1045,7 @@
                   <input class="u-w-100pct u-p-8 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="add_work_lon" step="0.000001" />
                 </div>
               </div>
-              <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocation('add_work_lat','add_work_lon')">
+              <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" data-on-click="useMyLocation('add_work_lat','add_work_lon')">
                 <i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> Use My Location
               </button>
             </div>
@@ -1056,18 +1056,18 @@
                 <img class="u-d-none u-w-90 u-h-90 u-br-50pct u-objf-cover u-bd-3-solid-22c55e u-m-0-auto-10" id="addPhotoPreview" alt="Preview" />
                 <div class="u-fs-13 u-c-64748b u-mb-10" id="addPhotoLabel">No photo selected</div>
                 <div class="u-d-flex u-gap-8 u-jc-center">
-                  <button class="u-p-9-16 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="openEmpCameraModal()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Camera</button>
-                  <button class="u-p-9-16 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-c-1e3a8a u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="document.getElementById('addFaceInput').click()"><i class="ti ti-photo hz-ico" aria-hidden="true"></i> Upload</button>
+                  <button class="u-p-9-16 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" data-on-click="openEmpCameraModal()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Camera</button>
+                  <button class="u-p-9-16 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-c-1e3a8a u-fs-12 u-fw-700 u-cur-pointer" type="button" data-on-click="HZ.click('addFaceInput')"><i class="ti ti-photo hz-ico" aria-hidden="true"></i> Upload</button>
                 </div>
                 <input class="u-d-none" type="file" id="addFaceInput" name="face" accept="image/*"
-                       onchange="empPhotoSelected(this)" />
+                       data-on-change="empPhotoSelected(this)" />
               </div>
               <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> a face photo before registering.</div>
             </div>
 
             <div class="sec-title u-gc-1_-1 u-m-0">
               <div class="form-sub-section">
-                <div class="form-sub-header" onclick="toggleSubSection('sec-fingerprint')">
+                <div class="form-sub-header" data-on-click="toggleSubSection('sec-fingerprint')">
                   <span><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Fingerprint Enrollment <span class="u-c-94a3b8 u-fw-400 u-fs-10 u-ttr-none">(Optional)</span></span>
                   <i class="ti ti-chevron-down" id="sec-fingerprint-icon"></i>
                 </div>
@@ -1078,10 +1078,10 @@
                       Not enrolled — employee can use QR + Face by default
                     </div>
                     <div class="u-d-flex u-gap-8 u-jc-center">
-                      <button class="u-p-9-18 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" id="fpEnrollBtn" onclick="enrollFingerprint()">
+                      <button class="u-p-9-18 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" id="fpEnrollBtn" data-on-click="enrollFingerprint()">
                         <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Enroll Fingerprint
                       </button>
-                      <button class="u-d-none u-p-9-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="fpClearBtn" onclick="clearFingerprint()">
+                      <button class="u-d-none u-p-9-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="fpClearBtn" data-on-click="clearFingerprint()">
                         ✕ Clear
                       </button>
                     </div>
@@ -1094,7 +1094,7 @@
 
           <div class="modal-actions">
             <button type="submit" class="btn-save"><i class="ti ti-user-check"></i> Register Employee</button>
-            <button type="button" class="btn-cancel" onclick="closeModal('addModal')">Cancel</button>
+            <button type="button" class="btn-cancel" data-on-click="closeModal('addModal')">Cancel</button>
           </div>
         </form>
       </div>
@@ -1105,17 +1105,17 @@
     ================================================================ -->
     <div class="modal-backdrop" id="editModal">
       <div class="modal-box u-maxw-640">
-        <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+        <button class="modal-close" data-on-click="closeModal('editModal')">&times;</button>
         <h3><i class="ti ti-pencil u-c-1e3a8a"></i> Edit Employee
           <span class="u-fs-13 u-c-64748b u-fw-600 u-ml-4" id="editEmpBadge"></span>
         </h3>
 
         <!-- TABS -->
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab('tab-basic',this)"><i class="ti ti-user"></i> Basic</button>
-          <button class="tab-btn" onclick="switchTab('tab-work',this)"><i class="ti ti-building"></i> Work</button>
-          <button class="tab-btn" onclick="switchTab('tab-address',this)"><i class="ti ti-map-pin"></i> Address</button>
-          <button class="tab-btn" onclick="switchTab('tab-emergency',this)"><i class="ti ti-phone"></i> Emergency</button>
+          <button class="tab-btn active" data-on-click="switchTab('tab-basic',this)"><i class="ti ti-user"></i> Basic</button>
+          <button class="tab-btn" data-on-click="switchTab('tab-work',this)"><i class="ti ti-building"></i> Work</button>
+          <button class="tab-btn" data-on-click="switchTab('tab-address',this)"><i class="ti ti-map-pin"></i> Address</button>
+          <button class="tab-btn" data-on-click="switchTab('tab-emergency',this)"><i class="ti ti-phone"></i> Emergency</button>
         </div>
 
         <form action="{{ tpath('/edit_employee') }}" method="POST" id="editForm">
@@ -1193,7 +1193,7 @@
               </div>
               <div class="field-group">
                 <label>Reporting Manager</label>
-                <select name="manager_id" id="edit_manager_id" onchange="syncManagerName(this, 'edit')">
+                <select name="manager_id" id="edit_manager_id" data-on-change="syncManagerName(this, 'edit')">
                   <option value="">— No Manager —</option>
                   {% for e in employees %}
                   {% set eid, ename = e[0], e[1] %}
@@ -1213,11 +1213,11 @@
                 <div class="radio-group u-mt-6">
                   <label class="radio-label">
                     <input class="u-accent-1e3a8a" type="radio" name="work_mode" id="emp_edit_wm_office" value="office"
-                           onchange="toggleEditLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
+                           data-on-change="toggleEditLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
                   </label>
                   <label class="radio-label">
                     <input class="u-accent-059669" type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh"
-                           onchange="toggleEditLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
+                           data-on-change="toggleEditLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
                   </label>
                 </div>
               </div>
@@ -1233,7 +1233,7 @@
                     <input class="u-w-100pct u-p-8 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="emp_edit_work_lon" step="0.000001" />
                   </div>
                 </div>
-                <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocation('emp_edit_work_lat','emp_edit_work_lon')">
+                <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" data-on-click="useMyLocation('emp_edit_work_lat','emp_edit_work_lon')">
                   <i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> Use My Location
                 </button>
               </div>
@@ -1289,11 +1289,11 @@
               </div>
               <div class="u-d-flex u-gap-8">
                 <button class="u-p-6-14 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpEnrollBtn"
-                  style="display:none" onclick="enrollFingerprintForEdit()">
+                  style="display:none" data-on-click="enrollFingerprintForEdit()">
                   <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Enroll Fingerprint
                 </button>
                 <button class="u-p-6-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpResetBtn"
-                  onclick="resetEmployeeFingerprint(document.getElementById('edit_emp_id').value)">
+                  data-on-click="resetEditedEmployeeFingerprint()">
                   Reset Fingerprint
                 </button>
               </div>
@@ -1303,7 +1303,7 @@
 
           <div class="modal-actions">
             <button type="submit" class="btn-save">Save Changes</button>
-            <button type="button" class="btn-cancel" onclick="closeModal('editModal')">Cancel</button>
+            <button type="button" class="btn-cancel" data-on-click="closeModal('editModal')">Cancel</button>
           </div>
         </form>
       </div>
@@ -1314,23 +1314,23 @@
     ================================================================ -->
     <div class="modal-backdrop" id="photoModal">
       <div class="modal-box u-maxw-380">
-        <button class="modal-close" onclick="closeModal('photoModal')">&times;</button>
+        <button class="modal-close" data-on-click="closeModal('photoModal')">&times;</button>
         <h3><i class="ti ti-camera u-c-92400e"></i> Update Photo</h3>
         <p class="u-fs-13 u-c-64748b u-mb-16" id="photoModalSubtitle"></p>
         <form id="photoForm" action="" method="POST" enctype="multipart/form-data">
-          <div class="photo-upload-box" onclick="document.getElementById('photoFileInput').click()">
+          <div class="photo-upload-box" data-on-click="HZ.click('photoFileInput')">
             <i class="ti ti-camera-plus u-fs-28 u-c-f59e0b"></i>
             <div class="u-fs-13 u-c-64748b u-mt-6">Click to choose new photo</div>
             <div class="u-fs-11 u-c-94a3b8 u-mt-2">Face must be clearly visible</div>
             <input type="file" id="photoFileInput" name="face" accept="image/*" required
-                   onchange="previewPhoto(this,'photoPreviewImg')" />
+                   data-on-change="previewPhoto(this,'photoPreviewImg')" />
             <img id="photoPreviewImg" class="photo-preview u-d-none" alt="Preview" />
           </div>
           <div class="modal-actions">
             <button type="submit" class="btn-save u-bg-92400e">
               <i class="ti ti-upload"></i> Upload Photo
             </button>
-            <button type="button" class="btn-cancel" onclick="closeModal('photoModal')">Cancel</button>
+            <button type="button" class="btn-cancel" data-on-click="closeModal('photoModal')">Cancel</button>
           </div>
         </form>
       </div>
@@ -1341,7 +1341,7 @@
     ================================================================ -->
     <div class="modal-backdrop" id="qrModal">
       <div class="modal-box qr-modal-box">
-        <button class="modal-close" onclick="closeModal('qrModal')">&times;</button>
+        <button class="modal-close" data-on-click="closeModal('qrModal')">&times;</button>
         <h3 class="u-jc-center"><i class="ti ti-qrcode u-c-7c3aed"></i> QR Code</h3>
         <div id="qrImgWrap">
           <img id="qrImg" src="" alt="QR Code" />
@@ -1353,7 +1353,7 @@
         </a>
         <div>
           <form class="u-d-inline" id="qrRegenForm" action="" method="POST"
-                onsubmit="return hzConfirmSubmit(event, 'Regenerate QR? Old code will stop working.')">
+                data-on-submit="return hzConfirmSubmit(event, 'Regenerate QR? Old code will stop working.')">
             <button type="submit" class="btn-regen">
               <i class="ti ti-refresh"></i> Regenerate
             </button>
@@ -1367,7 +1367,7 @@
     ================================================================ -->
     <div class="modal-backdrop" id="idCardModal">
       <div class="modal-box u-maxw-560 u-p-20 u-ta-center">
-        <button class="modal-close" onclick="closeModal('idCardModal')">&times;</button>
+        <button class="modal-close" data-on-click="closeModal('idCardModal')">&times;</button>
         <h3 class="u-jc-center u-mb-14">
           <i class="ti ti-id-badge u-c-065f46"></i> Employee ID Card
         </h3>
@@ -1376,16 +1376,16 @@
           Generating ID card…
         </div>
         <img class="u-d-none u-maxw-100pct u-br-12 u-shad-0-4-24-rgba30_cf2683" id="idCardImg" src="" alt="ID Card"
-          onload="document.getElementById('idCardLoading').style.display='none';this.style.display='block';"
-          onerror="document.getElementById('idCardLoading').textContent='Failed to generate ID card.';" />
+          data-on-load="idCardLoaded(this)"
+          data-on-error="idCardFailed()" />
         <div class="u-d-flex u-gap-10 u-jc-center u-mt-18">
           <a class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-none u-br-10 u-bg-065f46 u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-tdec-none" id="idCardDownload" href="#" download="">
             <i class="ti ti-download"></i> Download PNG
           </a>
-          <button class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" id="idCardPrintBtn" onclick="printIDCard()">
+          <button class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" id="idCardPrintBtn" data-on-click="printIDCard()">
             <i class="ti ti-printer"></i> Print
           </button>
-          <button class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-13 u-fw-700 u-cur-pointer" onclick="closeModal('idCardModal')">
+          <button class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-13 u-fw-700 u-cur-pointer" data-on-click="closeModal('idCardModal')">
             Close
           </button>
         </div>
@@ -1735,7 +1735,7 @@
           '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="institution[]" value="' + institution + '" placeholder="University" />' +
           '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="year_of_passing[]" value="' + year + '" placeholder="2020" />' +
           '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text" name="percentage[]" value="' + pct + '" placeholder="%" />' +
-          '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" onclick="this.parentNode.remove()">×</button>';
+          '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" data-on-click="HZ.removeParent(this)">×</button>';
         return row;
       }
       function addEduRow() {
@@ -1842,6 +1842,10 @@
         } catch(e) { alert('Could not load employee data.'); closeModal('editModal'); }
       }
 
+      function resetEditedEmployeeFingerprint() {
+        return resetEmployeeFingerprint(document.getElementById('edit_emp_id').value);
+      }
+
       async function resetEmployeeFingerprint(empId) {
         if (!(await hzConfirm('Reset fingerprint for ' + empId + '? They will need to re-enroll from their employee portal.'))) return;
         const fpMsg = document.getElementById('editFpMsg');
@@ -1907,6 +1911,15 @@
       }
       // ========== ID CARD MODAL ==========
       var _idCardEmpId = '';
+      function idCardLoaded(img) {
+        document.getElementById('idCardLoading').style.display = 'none';
+        img.style.display = 'block';
+      }
+
+      function idCardFailed() {
+        document.getElementById('idCardLoading').textContent = 'Failed to generate ID card.';
+      }
+
       function openIDCard(empId) {
         _idCardEmpId = empId;
         var img     = document.getElementById('idCardImg');
@@ -1935,8 +1948,11 @@
           + '<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}'
           + 'img{max-width:520px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);}'
           + '@media print{body{background:#fff;}}<\/style><\/head>'
-          + '<body><img src="' + img.src + '" onload="window.print();" \/><\/body><\/html>');
+          + '<body><img src="' + img.src + '" \/><\/body><\/html>');
         win.document.close();
+        var printImg = win.document.querySelector('img');
+        if (printImg.complete) win.print();
+        else printImg.addEventListener('load', function () { win.print(); });
       }
 
       document.addEventListener('keydown', function(e) {
@@ -2236,7 +2252,7 @@
   <!-- ═══ ADD SHIFT MODAL ═══ -->
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="addShiftModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-420 u-shad-0-20-60-rgba30b88226 u-pos-relative">
-      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" onclick="closeModal('addShiftModal')">&#x2715;</button>
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('addShiftModal')">&#x2715;</button>
       <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-clock u-c-6366f1"></i> Add Shift</h3>
       <form method="POST" action="{{ tpath('/add_shift') }}">
         <input type="hidden" name="redirect" value="/employees?tab=schedule" />
@@ -2261,7 +2277,7 @@
           </div>
         </div>
         <div class="u-d-flex u-gap-10 u-mt-20">
-          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeModal('addShiftModal')">Cancel</button>
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeModal('addShiftModal')">Cancel</button>
           <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save Shift</button>
         </div>
       </form>
@@ -2271,7 +2287,7 @@
   <!-- ═══ EDIT SHIFT MODAL ═══ -->
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="editShiftModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-420 u-shad-0-20-60-rgba30b88226 u-pos-relative">
-      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" onclick="closeModal('editShiftModal')">&#x2715;</button>
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('editShiftModal')">&#x2715;</button>
       <form method="POST" id="editShiftForm" action="{{ tpath('/edit_shift/0') }}">
         <input type="hidden" name="redirect" value="/employees?tab=schedule" />
         <div class="u-d-grid u-gap-12">
@@ -2295,7 +2311,7 @@
           </div>
         </div>
         <div class="u-d-flex u-gap-10 u-mt-20">
-          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeModal('editShiftModal')">Cancel</button>
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeModal('editShiftModal')">Cancel</button>
           <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Update Shift</button>
         </div>
       </form>
@@ -2305,7 +2321,7 @@
   <!-- ═══ ADD BREAK MODAL ═══ -->
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="addBreakModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-400 u-shad-0-20-60-rgba30b88226 u-pos-relative">
-      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" onclick="closeModal('addBreakModal')">&#x2715;</button>
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('addBreakModal')">&#x2715;</button>
       <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-coffee u-c-f59e0b"></i> Add Break</h3>
       <form method="POST" action="{{ tpath('/add_break') }}">
         <input type="hidden" name="redirect" value="/employees?tab=schedule" />
@@ -2326,7 +2342,7 @@
           </div>
         </div>
         <div class="u-d-flex u-gap-10 u-mt-20">
-          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeModal('addBreakModal')">Cancel</button>
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeModal('addBreakModal')">Cancel</button>
           <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-f59e0b u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save Break</button>
         </div>
       </form>
@@ -2336,7 +2352,7 @@
   <!-- ═══ EDIT BREAK MODAL ═══ -->
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="editBreakModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-400 u-shad-0-20-60-rgba30b88226 u-pos-relative">
-      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" onclick="closeModal('editBreakModal')">&#x2715;</button>
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('editBreakModal')">&#x2715;</button>
       <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-pencil u-c-f59e0b"></i> Edit Break</h3>
       <form method="POST" id="editBreakForm" action="{{ tpath('/update_break/0') }}">
         <input type="hidden" name="redirect" value="/employees?tab=schedule" />
@@ -2361,7 +2377,7 @@
           </label>
         </div>
         <div class="u-d-flex u-gap-10 u-mt-20">
-          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeModal('editBreakModal')">Cancel</button>
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeModal('editBreakModal')">Cancel</button>
           <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-f59e0b u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Update Break</button>
         </div>
       </form>
@@ -2404,6 +2420,7 @@
     document.getElementById('editShiftModal').style.display = 'flex';
   }
   function openEditBreakModal(id, name, time, dur, active) {
+    active = active === true || active === 'True';  // data-active is the Jinja bool's text
     // Same tenant-prefix-preserving rewrite as openEditShiftModal() above.
     var breakForm = document.getElementById('editBreakForm');
     breakForm.action = breakForm.action.replace(/\/update_break\/[^/?]*$/, '/update_break/' + id);

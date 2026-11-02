@@ -1021,7 +1021,9 @@ def _add_csrf_fields(html, token):
 # Matches <script>/<style> tags without a nonce -- used to inject CSP nonces
 _SCRIPT_TAG_RE = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
 _STYLE_TAG_RE = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
-# Capture inline event-handler values for dynamic CSP sha256 hash generation.
+# Inline event-handler attributes. No longer hashed into the CSP (see
+# _security_headers); kept so tests/test_csp_inline_handlers.py can find any
+# that creep back into templates, matching exactly what browsers would block.
 # Two patterns: double-quoted and single-quoted attribute values.
 _CSP_EV_DQ = re.compile(
     rb'\bon(?:animationend|blur|change|click|contextmenu|copy|cut|dblclick|drag|dragend'
@@ -1183,23 +1185,16 @@ def _security_headers(response):
     if "text/html" in ct:
         from flask import g
         nonce = getattr(g, "csp_nonce", "")
-        # Scan for inline event-handler values and compute sha256 hashes so
-        # they pass CSP without needing 'unsafe-inline'.
+        # Inline event handlers (onclick="" etc.) are deliberately NOT hashed
+        # into script-src any more: allowing them takes 'unsafe-hashes', which
+        # lets injected markup reuse any hashed snippet (ZAP 10055, Medium).
+        # Templates use data-on-<event>="fn(...)" instead, bound by
+        # static/hz-actions.js; tests/test_csp_inline_handlers.py keeps
+        # templates free of inline handlers, which the browser would block.
         try:
             data = response.get_data()
-            _ev_hashes: set = set()
-            for _pat in (_CSP_EV_DQ, _CSP_EV_SQ):
-                for _m in _pat.finditer(data):
-                    _body = _html.unescape(_m.group(1).decode("utf-8", errors="replace"))
-                    _ev_hashes.add(
-                        "'sha256-" + base64.b64encode(
-                            hashlib.sha256(_body.encode("utf-8")).digest()
-                        ).decode() + "'"
-                    )
         except Exception:
-            _ev_hashes = set()
-        _unsafe_hashes = " 'unsafe-hashes'" if _ev_hashes else ""
-        _hash_src = (" " + " ".join(sorted(_ev_hashes))) if _ev_hashes else ""
+            data = b""
         # Same treatment for inline style="" attribute values, so
         # style-src-attr can drop 'unsafe-inline' -- every remaining
         # dynamic style/cssText write in app JS was migrated to
@@ -1264,7 +1259,7 @@ def _security_headers(response):
         _agent_src = " http://127.0.0.1:47823" if _is_employee_portal_page else ""
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}{_turnstile_src}{_razorpay_script_src}; "
+            f"script-src 'self' 'nonce-{nonce}'{_turnstile_src}{_razorpay_script_src}; "
             f"style-src-elem 'self' 'nonce-{nonce}'; "
             f"style-src-attr{_style_unsafe_hashes}{_style_hash_src}; "
             f"style-src 'self' 'nonce-{nonce}'; "
@@ -1325,7 +1320,13 @@ def _inject_csrf_meta(response):
             meta = f'<meta name="csrf-token" content="{token}" />'.encode()
             data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
             data = _add_csrf_fields(data, token)
-            _body_scripts = _CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
+            # hz-actions.js binds the templates' data-on-<event>="fn(...)"
+            # attributes -- the CSP-safe stand-in for inline onclick=""
+            # handlers, which script-src no longer allows (see
+            # _security_headers).
+            _actions_src = _static_url("hz-actions.js").encode()
+            _body_scripts = (_CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
+                             + b'<script src="' + _actions_src + b'"></script>')
             if session.get("admin_logged_in") or session.get("employee_id"):
                 _body_scripts += _KILLSWITCH_SCRIPT
             data = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)

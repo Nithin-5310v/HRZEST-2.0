@@ -166,3 +166,27 @@ class TestCsrfFieldInMarkup:
         assert forms
         for body in forms:
             assert b'name="_csrf_token"' in body
+
+
+def _form_tags_without_method():
+    """Every <form> tag in templates/ (outside comments, <style> and <script>)
+    that doesn't declare a method."""
+    from pathlib import Path
+    strip = re.compile(rb'\{#.*?#\}|<!--.*?-->|<style\b.*?</style\s*>|<script\b.*?</script\s*>',
+                       re.I | re.S)
+    found = []
+    for path in sorted(Path(__file__).resolve().parent.parent.joinpath("templates").rglob("*.html")):
+        markup = strip.sub(b"", path.read_bytes())
+        for tag in re.findall(rb'<form\b[^>]*>', markup, re.I):
+            if not re.search(rb'\bmethod\s*=', tag, re.I):
+                found.append(f"{path.name}: {tag.decode(errors='replace')}")
+    return found
+
+
+def test_every_template_form_declares_a_method():
+    """A form with no method defaults to GET, so _add_csrf_fields skips it and
+    scanners report it as missing a token (ZAP 10202) -- even when its JS
+    submits via fetch() with the X-CSRF-Token header. Without JS it would also
+    put every field (e.g. payout bank details) in the URL. Declare
+    method="post" (or "get" for a genuine search/filter form)."""
+    assert _form_tags_without_method() == []

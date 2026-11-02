@@ -129,8 +129,7 @@
         <div style="background:{{ bg }};border:1.5px solid {{ border }};border-radius:12px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;
           {% if alert.link %}cursor:pointer;transition:all .18s;{% endif %}"
           {% if alert.link %}
-          onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,.1)';this.style.borderColor='{{ ic }}';"
-          onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='{{ border }}';"
+          data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1);border-color:{{ ic }}"
           {% endif %}>
           <div style="width:34px;height:34px;border-radius:9px;background:{{ badge_bg }};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <i class="ti {{ alert.icon }}" style="color:{{ ic }};font-size:16px;"></i>
@@ -265,13 +264,13 @@
             {% elif pct < 90 %}{% set bg='#86efac' %}{% set tc='#14532d' %}{% set sh='rgba(34,197,94,.3)' %}{% set ac='#15803d' %}
             {% else %}{% set bg='#16a34a' %}{% set tc='#fff' %}{% set sh='rgba(22,163,74,.4)' %}{% set ac='rgba(255,255,255,.7)' %}{% endif %}
             <div
-              onmouseenter="showHeatmapTooltip(this,'{{ d.date }}',{{ d.count }},{{ absent }},{{ pct|round(1) }})"
-              onmouseleave="document.getElementById('hmTooltip').style.display='none'"
+              data-on-mouseenter="showHeatmapTooltip(this,'{{ d.date }}',{{ d.count }},{{ absent }},{{ pct|round(1) }})"
+              data-on-mouseleave="HZ.display('hmTooltip')"
               style="border-radius:10px;background:{{ bg }};
                      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
                      cursor:pointer;transition:all .18s;box-shadow:0 2px 6px {{ sh }};position:relative;padding:4px 2px;"
-              onmouseover="this.style.transform='scale(1.08)';this.style.zIndex=10;"
-              onmouseout="this.style.transform='';this.style.zIndex='';">
+              data-hover-style="transform:scale(1.08);z-index:10"
+             >
               <div style="font-size:11px;color:{{ tc }};font-weight:600;opacity:.6;line-height:1;">{{ d.date[8:] }}</div>
               <div style="font-size:15px;color:{{ tc }};font-weight:800;line-height:1.2;">{{ d.count }}</div>
               <div style="font-size:12px;color:{{ ac }};font-weight:600;opacity:.8;line-height:1;">-{{ absent }}</div>

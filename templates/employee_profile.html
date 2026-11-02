@@ -201,7 +201,7 @@
   <div class="hero">
     <div class="avatar">
       {% if emp[26] %}
-        <img src="/dataset/{{ emp[0] }}.jpg" onerror="this.style.display='none';this.parentElement.textContent='{{ emp[1][0] | upper }}';" />
+        <img src="/dataset/{{ emp[0] }}.jpg" data-on-error="HZ.avatarText(this, '{{ emp[1][0] | upper }}')" />
       {% else %}
         {{ emp[1][0] | upper }}
       {% endif %}

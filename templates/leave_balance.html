@@ -73,7 +73,7 @@
       <p>View and manage annual leave entitlements for all employees</p>
     </div>
     <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-fff u-bd-1d5-solid-dbeafe u-br-9 u-c-1e3a8a u-tdec-none u-fs-13 u-fw-700 u-trs-d18s u-mt-4" href="{{ tpath('/leave_holidays?tab=leaves') }}"
-      onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'">
+      data-hover-style="background:#eff6ff">
       <i class="ti ti-arrow-left u-fs-15"></i> Back
     </a>
   </div>
@@ -123,7 +123,7 @@
     <!-- Search -->
     <div class="u-pos-relative u-mb-16 u-maxw-300">
       <i class="ti ti-search u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-c-3b82f6 u-fs-14 u-pe-none"></i>
-      <input class="u-w-100pct u-p-8-12-8-34 u-bd-2-solid-3b82f6 u-br-10 u-bg-eff6ff u-fs-13 u-out-none u-c-1e293b" type="text" id="srch" placeholder="Search employee…" oninput="filterTable(this.value)"/>
+      <input class="u-w-100pct u-p-8-12-8-34 u-bd-2-solid-3b82f6 u-br-10 u-bg-eff6ff u-fs-13 u-out-none u-c-1e293b" type="text" id="srch" placeholder="Search employee…" data-on-input="filterTable(this.value)"/>
     </div>
 
     <div class="u-ovx-auto">
@@ -159,7 +159,7 @@
                   </div>
                   <div class="u-fs-10 u-c-94a3b8 u-mt-2">{{ l.used }} used</div>
                 </div>
-                <button class="btn btn-edit" onclick="openEdit('{{ emp_id }}','{{ emp_data.name }}','{{ l.lt_id }}','{{ l.lt_name }}','{{ l.total }}','{{ year }}')">
+                <button class="btn btn-edit" data-on-click="openEdit('{{ emp_id }}','{{ emp_data.name }}','{{ l.lt_id }}','{{ l.lt_name }}','{{ l.total }}','{{ year }}')">
                   <i class="ti ti-pencil u-fs-12"></i>
                 </button>
               </div>
@@ -200,7 +200,7 @@
         <button class="u-fx-1 u-p-10 u-bg-1e3a8a u-c-fff u-bd-none u-br-10 u-fs-14 u-fw-700 u-cur-pointer" type="submit">
           <i class="ti ti-check"></i> Save
         </button>
-        <button class="u-fx-1 u-p-10 u-bg-f1f5f9 u-c-64748b u-bd-none u-br-10 u-fs-14 u-fw-600 u-cur-pointer" type="button" onclick="closeEdit()">
+        <button class="u-fx-1 u-p-10 u-bg-f1f5f9 u-c-64748b u-bd-none u-br-10 u-fs-14 u-fw-600 u-cur-pointer" type="button" data-on-click="closeEdit()">
           Cancel
         </button>
       </div>

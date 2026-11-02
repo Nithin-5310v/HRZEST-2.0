@@ -164,9 +164,11 @@ function hzPrompt(message, defaultValue, opts) {
   return _hzDialog(message, Object.assign({ input: true, defaultValue: defaultValue }, opts || {}));
 }
 
-// For inline handlers that used `return confirm(...)`:
-//   <form onsubmit="return hzConfirmSubmit(event, 'Delete this?')">
-//   <button type="submit" onclick="return hzConfirmSubmit(event, '...')">
+// For form/button handlers that used `return confirm(...)` (bound through
+// data-on-* attributes -- see static/hz-actions.js; inline on*="" attributes
+// are blocked by the CSP):
+//   <form data-on-submit="return hzConfirmSubmit(event, 'Delete this?')">
+//   <button type="submit" data-on-click="return hzConfirmSubmit(event, '...')">
 // Cancels the first event, asks, and on OK replays the same submit/click
 // with a one-shot flag so this handler lets it through the second time.
 function hzConfirmSubmit(event, message, opts) {

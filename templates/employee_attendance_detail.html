@@ -190,9 +190,9 @@
           <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
           {% endfor %}
         </select>
-        <button onclick="goMonth()">View</button>
+        <button data-on-click="goMonth()">View</button>
         <span class="u-fs-13 u-c-64748b u-fw-600">{{ month_name }}</span>
-        <button class="u-bg-f1f5f9 u-c-475569 u-bd-1-solid-e2e8f0" type="button" onclick="window.print()"><i class="ti ti-printer hz-ico" aria-hidden="true"></i> Print</button>
+        <button class="u-bg-f1f5f9 u-c-475569 u-bd-1-solid-e2e8f0" type="button" data-on-click="window.print()"><i class="ti ti-printer hz-ico" aria-hidden="true"></i> Print</button>
       </div>
       <script>
         function goMonth() {
@@ -305,7 +305,7 @@
                 <td>
                   {% if not d.is_future %}
                   <button class="btn-edit"
-                    onclick="openEdit('{{ d.date.isoformat() }}','{{ d.login if d.login != '—' else '' }}','{{ d.logout if d.logout != '—' else '' }}','{{ d.status if d.status not in ('—','') else '' }}')"
+                    data-on-click="openEdit('{{ d.date.isoformat() }}','{{ d.login if d.login != '—' else '' }}','{{ d.logout if d.logout != '—' else '' }}','{{ d.status if d.status not in ('—','') else '' }}')"
                     title="Correct attendance">
                     <i class="ti ti-edit"></i>
                   </button>
@@ -319,7 +319,7 @@
 
         <!-- Show more / collapse toggle -->
         <div class="u-ta-center u-mt-14 u-d-none" id="att-toggle-wrap">
-          <button class="u-d-inline-flex u-ai-center u-gap-6 u-p-9-22 u-bd-1-solid-dbeafe u-br-10 u-bg-fff u-c-1e3a8a u-fs-13 u-fw-700 u-cur-pointer u-shad-0-1-4-rgba0_0_0_0d06 u-trs-d18s" id="att-toggle-btn" onclick="toggleAttRows()">
+          <button class="u-d-inline-flex u-ai-center u-gap-6 u-p-9-22 u-bd-1-solid-dbeafe u-br-10 u-bg-fff u-c-1e3a8a u-fs-13 u-fw-700 u-cur-pointer u-shad-0-1-4-rgba0_0_0_0d06 u-trs-d18s" id="att-toggle-btn" data-on-click="toggleAttRows()">
             <i id="att-toggle-icon" class="ti ti-chevron-down"></i>
             <span id="att-toggle-text">Show all days</span>
           </button>
@@ -363,7 +363,7 @@
   <!-- ATTENDANCE CORRECTION MODAL -->
   <div class="modal-backdrop" id="editModal">
     <div class="modal">
-      <button class="modal-close" onclick="closeEdit()">✕</button>
+      <button class="modal-close" data-on-click="closeEdit()">✕</button>
       <h3><i class="ti ti-edit u-c-3b82f6"></i> Correct Attendance</h3>
       <div class="modal-sub" id="editModalSub">Editing record for <strong id="editDateLabel"></strong></div>
 
@@ -401,7 +401,7 @@
         </div>
 
         <div class="modal-actions">
-          <button type="button" class="btn-cancel" onclick="closeEdit()">Cancel</button>
+          <button type="button" class="btn-cancel" data-on-click="closeEdit()">Cancel</button>
           <button type="submit" class="btn-save"><i class="ti ti-device-floppy"></i> Save Correction</button>
         </div>
       </form>
