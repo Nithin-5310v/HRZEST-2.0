@@ -486,6 +486,30 @@ class TestSignupFlow:
             db_engine.commit()
             _drop_schema(db_engine, schema_name)
 
+    def test_no_payment_step_while_payments_are_off(self, client, db_engine, monkeypatch):
+        from app import init_master_db
+        init_master_db()
+        monkeypatch.setenv("PAYMENTS_ENABLED", "false")
+
+        company_name = "E2E Payments Off"
+        slug = company_slug(company_name)
+        schema_name = "att_" + slug.replace("-", "_")
+        _drop_schema(db_engine, schema_name)
+        try:
+            application_id, landed = signup_verified(client, monkeypatch, "paymentsoff@test.local", company_name)
+            assert landed == slug
+            cur = db_engine.cursor()
+            cur.execute("SELECT payment_option FROM att_master.tenant_applications WHERE id=%s", (application_id,))
+            assert cur.fetchone()[0] == "manual", "billed by invoice while there's no online payment"
+            cur.close()
+
+            finish_org_setup(db_engine, schema_name)
+            page = client.get(f"/{slug}/profile").get_data(as_text=True)
+            assert "0 of 2 done" in page
+            assert f'href="/{slug}/settings?tab=billing"' not in page
+        finally:
+            _drop_schema(db_engine, schema_name)
+
     def test_company_details_needs_a_valid_gstin(self, client, db_engine, monkeypatch):
         from app import init_master_db
         init_master_db()

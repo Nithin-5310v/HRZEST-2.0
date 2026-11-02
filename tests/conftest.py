@@ -91,6 +91,9 @@ _EXTERNAL_SERVICE_VARS = (
 )
 for _name in _EXTERNAL_SERVICE_VARS + tuple(k for k in os.environ if k.startswith("HEARTBEAT_URL_")):
     os.environ[_name] = ""
+# Online payments on (blank = on), whatever the developer's .env says;
+# tests/test_payments_switch.py switches them off per test.
+os.environ["PAYMENTS_ENABLED"] = ""
 
 # The mobile/API check-in routes now refuse a punch that omits coordinates when
 # the company's location setting is on (MOBILE_REQUIRE_LOCATION, default true in
