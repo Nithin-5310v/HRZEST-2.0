@@ -350,6 +350,11 @@
           Free registration — no payment step. The company is created with this profile and billed later
           by manual invoice.
         </div>
+        {% elif not payments_enabled %}
+        <div class="trial-badge">
+          <i class="ti ti-info-circle"></i>
+          No payment step for now — online payments aren't available yet.
+        </div>
         {% else %}
         <input type="hidden" name="signup_plan" id="signup_plan_input" value="pay_now" />
         <div class="plan-toggle">

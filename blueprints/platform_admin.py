@@ -690,7 +690,7 @@ def platform_admin_set_rate():
     charge, cancels that subscription once its current (old-rate) cycle is
     paid, and emails the tenant to re-authorize a new one. Nobody is
     charged mid-cycle or has a payment silently change amount."""
-    from utils.razorpay_utils import create_plan, razorpay_configured
+    from utils.razorpay_utils import create_plan, accepting_online_payments
     from blueprints.auto_debit import _PLAN_ITEM_NAME
 
     raw = request.form.get("per_employee_rupees", "").strip()
@@ -738,7 +738,7 @@ def platform_admin_set_rate():
     )
 
     migration_note = ""
-    if razorpay_configured():
+    if accepting_online_payments():
         new_plan_id, plan_error = create_plan(new_paise, _PLAN_ITEM_NAME)
         if plan_error:
             app_log.error("platform_admin.set_rate: failed to create new Razorpay plan: %s", plan_error)
