@@ -364,7 +364,7 @@
                 <div class="card-meta">
                   {{ leave_type_name }} &nbsp;·&nbsp; {{ leave_date.strftime('%d %b %Y') if leave_date else '—' }} &nbsp;·&nbsp;
                   {% if is_half_day %}
-                    <span class="u-bg-fef9c3 u-c-92400e u-p-1-7 u-br-10 u-fs-11 u-fw-700">{% if half_day_session == 'Afternoon' %}🌆{% else %}🌅{% endif %} ½ {{ half_day_session or 'Morning' }}</span>
+                    <span class="u-bg-fef9c3 u-c-92400e u-p-1-7 u-br-10 u-fs-11 u-fw-700">{% if half_day_session == 'Afternoon' %}<i class="ti ti-sunset hz-ico" aria-hidden="true"></i>{% else %}<i class="ti ti-sunrise hz-ico" aria-hidden="true"></i>{% endif %} ½ {{ half_day_session or 'Morning' }}</span>
                   {% else %}1 day{% endif %}
                 </div>
               </div>
@@ -519,7 +519,7 @@
               <form class="u-d-inline u-ml-auto" action="{{ tpath('/announcements') }}" method="POST">
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="ann_id" value="{{ aid }}"/>
-                <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">
+                <button type="submit" class="btn-del" onclick="return hzConfirmSubmit(event, 'Delete this announcement?')">
                   <i class="ti ti-trash"></i> Delete
                 </button>
               </form>
@@ -554,7 +554,7 @@
               <form class="u-d-inline u-ml-auto" action="{{ tpath('/announcements') }}" method="POST">
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="ann_id" value="{{ aid }}"/>
-                <button type="submit" class="btn-del" onclick="return confirm('Delete this announcement?')">
+                <button type="submit" class="btn-del" onclick="return hzConfirmSubmit(event, 'Delete this announcement?')">
                   <i class="ti ti-trash"></i> Delete
                 </button>
               </form>
@@ -574,7 +574,7 @@
 
     <div class="hol-header">
       <div>
-        <h2>📅 Holiday Calendar</h2>
+        <h2><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Holiday Calendar</h2>
         <p>Manage public holidays &amp; leaves. Sunday is the weekly off.</p>
       </div>
       <div class="year-nav">
@@ -587,11 +587,11 @@
     <div class="toolbar">
       <form class="u-d-inline" action="{{ tpath('/import_indian_holidays') }}" method="POST">
         <input type="hidden" name="year" value="{{ year }}">
-        <button type="submit" class="btn-import" onclick="return confirm('Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
+        <button type="submit" class="btn-import" onclick="return hzConfirmSubmit(event, 'Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
           🇮🇳 Import Indian Holidays for {{ year }}
         </button>
       </form>
-      <button class="btn-add-custom" onclick="openAddModal()">➕ Add Custom Holiday</button>
+      <button class="btn-add-custom" onclick="openAddModal()"><i class="ti ti-plus hz-ico" aria-hidden="true"></i> Add Custom Holiday</button>
     </div>
 
     <div class="legend">
@@ -643,7 +643,7 @@
     </div>
 
     <div class="section">
-      <h3>📋 All Holidays &amp; Leaves ({{ year }})</h3>
+      <h3><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> All Holidays &amp; Leaves ({{ year }})</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th>#</th><th>Date</th><th>Day</th><th>Name</th><th>Action</th></tr></thead>
@@ -656,11 +656,11 @@
                 <td>{{ ns.count }}</td>
                 <td>{{ h[1].strftime('%d %b %Y') }}</td>
                 <td class="u-c-64748b u-fs-12">{{ h[1].strftime('%A') }}</td>
-                <td>{% if h[2].startswith('Leave:') %}<span class="badge-leave">🌿 {{ h[2][6:] }}</span>{% else %}<span class="badge-holiday">🎉 {{ h[2] }}</span>{% endif %}</td>
+                <td>{% if h[2].startswith('Leave:') %}<span class="badge-leave"><i class="ti ti-leaf hz-ico" aria-hidden="true"></i> {{ h[2][6:] }}</span>{% else %}<span class="badge-holiday"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> {{ h[2] }}</span>{% endif %}</td>
                 <td>
-                  <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return confirm('Delete this entry?');" class="form-inline">
+                  <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this entry?');" class="form-inline">
                     <input type="hidden" name="year" value="{{ year }}">
-                    <button type="submit" class="btn-del">🗑 Remove</button>
+                    <button type="submit" class="btn-del"><i class="ti ti-trash hz-ico" aria-hidden="true"></i> Remove</button>
                   </form>
                 </td>
               </tr>
@@ -728,11 +728,11 @@
 <!-- Add Holiday Modal -->
 <div class="modal-overlay" id="addModal">
   <div class="modal-box">
-    <h3>➕ Add Holiday / Leave</h3>
+    <h3><i class="ti ti-plus hz-ico" aria-hidden="true"></i> Add Holiday / Leave</h3>
     <form action="{{ tpath('/add_holiday') }}" method="POST">
       <div class="form-group"><label>Date</label><input type="date" name="date" id="modalDate" required /></div>
       <div class="form-group"><label>Type</label>
-        <select name="type"><option value="Holiday">🎉 Public Holiday</option><option value="Leave">🌿 Company Leave</option></select>
+        <select name="type"><option value="Holiday">Public Holiday</option><option value="Leave">Company Leave</option></select>
       </div>
       <div class="form-group"><label>Name / Description</label><input type="text" name="holiday_name" id="modalName" placeholder="e.g. Diwali, Dussehra…" required /></div>
       <div class="modal-actions">
@@ -809,9 +809,10 @@ document.getElementById('addModal').addEventListener('click', function(e) { if (
 function dayClick(el) {
   var isHoliday = el.dataset.holiday === 'true';
   if (isHoliday) {
-    if (confirm('Remove "' + el.dataset.hname + '" from the holiday list?')) {
+    hzConfirm('Remove "' + el.dataset.hname + '" from the holiday list?').then(function (ok) {
+      if (!ok) return;
       var f = document.getElementById('delForm'); f.action = '/delete_holiday/' + el.dataset.hid; f.submit();
-    }
+    });
   } else { openAddModal(el.dataset.date); }
 }
 showMonth(currentMonth);

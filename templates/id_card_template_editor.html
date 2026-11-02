@@ -49,7 +49,7 @@
     <div class="page-header">
       <h1><i class="ti ti-id-badge-2 u-c-1e3a8a"></i> ID Card Template — {{ company_name }}</h1>
       {% if front_image or back_image %}
-      <form method="POST" action="/companies/{{ cid }}/id_card_template/reset" onsubmit="return confirm('Reset to the default generated ID card design for this company?')">
+      <form method="POST" action="/companies/{{ cid }}/id_card_template/reset" onsubmit="return hzConfirmSubmit(event, 'Reset to the default generated ID card design for this company?')">
         <button class="btn btn-red" type="submit"><i class="ti ti-refresh"></i> Reset to Default</button>
       </form>
       {% endif %}

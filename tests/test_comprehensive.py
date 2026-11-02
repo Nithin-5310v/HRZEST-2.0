@@ -777,6 +777,19 @@ class TestSecurityHeaders:
         csp = resp.headers.get("Content-Security-Policy", "")
         assert "script-src" in csp or "default-src" in csp or csp == ""
 
+    @pytest.mark.parametrize("path", ["/", "/login", "/create_org", "/super_admin/login"])
+    def test_csp_sets_directives_without_a_fallback(self, client, path):
+        """form-action and base-uri don't fall back to default-src, so a CSP
+        without them allows any form target / <base> URL (ZAP 10055)."""
+        csp = client.get(path).headers.get("Content-Security-Policy", "")
+        assert "form-action 'self'" in csp
+        assert "base-uri 'self'" in csp
+
+    def test_non_html_csp_sets_directives_without_a_fallback(self, client):
+        csp = client.get("/healthz").headers.get("Content-Security-Policy", "")
+        assert "form-action 'none'" in csp
+        assert "base-uri 'none'" in csp
+
     def test_employee_portal_csp_allows_local_posture_agent(self, client, seed_employee):
         """employee_portal.html's DEVICE POSTURE RELAY script polls a
         locally-running Wi-Fi posture agent over loopback

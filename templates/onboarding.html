@@ -172,7 +172,7 @@
               <td>
                 {% if ob[7] %}
                   <span style="color:{% if is_overdue %}#dc2626{% else %}#374151{% endif %};font-weight:{% if is_overdue %}700{% else %}400{% endif %};">
-                    {{ ob[7] }}{% if is_overdue %} ⚠️{% endif %}
+                    {{ ob[7] }}{% if is_overdue %} <i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i>{% endif %}
                   </span>
                 {% else %}—{% endif %}
               </td>
@@ -186,7 +186,7 @@
                 {% if ob[8]=='Completed' %}
                   <span class="badge badge-green">✓ Completed</span>
                 {% elif is_overdue %}
-                  <span class="badge badge-red">⚠ Overdue</span>
+                  <span class="badge badge-red"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Overdue</span>
                 {% else %}
                   <span class="badge badge-blue">In Progress</span>
                 {% endif %}
@@ -247,7 +247,7 @@
               <button type="submit" class="btn btn-gray btn-sm" title="Duplicate template"><i class="ti ti-copy"></i></button>
             </form>
             <form class="u-d-inline" action="{{ tpath('/onboarding_template_delete') }}" method="POST"
-                  onsubmit="return confirm('Delete this template?')">
+                  onsubmit="return hzConfirmSubmit(event, 'Delete this template?')">
               <input type="hidden" name="template_id" value="{{ t[0] }}" />
               <button type="submit" class="btn btn-red btn-sm"><i class="ti ti-trash"></i></button>
             </form>

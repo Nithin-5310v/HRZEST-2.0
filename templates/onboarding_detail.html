@@ -103,7 +103,7 @@
     <div class="u-d-flex u-gap-10 u-ai-center">
       <a href="/offer_letter/{{ ob[0] }}" class="btn btn-navy"><i class="ti ti-file-text"></i> Offer Letter</a>
       {% if ob[8] != 'Completed' %}
-      <form class="u-d-inline" action="{{ tpath('/onboarding_close') }}" method="POST" onsubmit="return confirm('Mark this onboarding as completed?')">
+      <form class="u-d-inline" action="{{ tpath('/onboarding_close') }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Mark this onboarding as completed?')">
         <input type="hidden" name="ob_id" value="{{ ob[0] }}" />
         <button type="submit" class="btn btn-green"><i class="ti ti-check"></i> Mark Complete</button>
       </form>

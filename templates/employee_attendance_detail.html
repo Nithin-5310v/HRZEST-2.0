@@ -159,19 +159,19 @@
 
       <!-- EMPLOYEE CARD -->
       <div class="emp-card">
-        <div class="emp-avatar">👤</div>
+        <div class="emp-avatar"><i class="ti ti-user hz-ico" aria-hidden="true"></i></div>
         <div class="emp-info">
           <h2>{{ emp[1] }}</h2>
           <div class="emp-meta">
-            <span>🪪 ID: <strong>{{ emp[0] }}</strong></span>
-            {% if emp[2] %}<span>💼 Role: <strong>{{ emp[2] }}</strong></span>{% endif %}
-            {% if emp[3] %}<span>📞 <strong>{{ emp[3] }}</strong></span>{% endif %}
-            {% if emp[4] %}<span>✉ <strong>{{ emp[4] }}</strong></span>{% endif %}
+            <span><i class="ti ti-id hz-ico" aria-hidden="true"></i> ID: <strong>{{ emp[0] }}</strong></span>
+            {% if emp[2] %}<span><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Role: <strong>{{ emp[2] }}</strong></span>{% endif %}
+            {% if emp[3] %}<span><i class="ti ti-phone hz-ico" aria-hidden="true"></i> <strong>{{ emp[3] }}</strong></span>{% endif %}
+            {% if emp[4] %}<span><i class="ti ti-mail hz-ico" aria-hidden="true"></i> <strong>{{ emp[4] }}</strong></span>{% endif %}
           </div>
         </div>
         <div class="u-ml-auto">
           <a class="u-p-9-18 u-bg-1e3a8a u-c-fff u-br-9 u-fs-13 u-fw-700 u-tdec-none" href="/view_payslip/{{ emp[0] }}/{{ year }}/{{ month }}" target="_blank">
-            💳 View Pay Slip
+            <i class="ti ti-credit-card hz-ico" aria-hidden="true"></i> View Pay Slip
           </a>
         </div>
       </div>
@@ -192,7 +192,7 @@
         </select>
         <button onclick="goMonth()">View</button>
         <span class="u-fs-13 u-c-64748b u-fw-600">{{ month_name }}</span>
-        <button class="u-bg-f1f5f9 u-c-475569 u-bd-1-solid-e2e8f0" type="button" onclick="window.print()">🖨️ Print</button>
+        <button class="u-bg-f1f5f9 u-c-475569 u-bd-1-solid-e2e8f0" type="button" onclick="window.print()"><i class="ti ti-printer hz-ico" aria-hidden="true"></i> Print</button>
       </div>
       <script>
         function goMonth() {
@@ -206,25 +206,25 @@
       <div class="summary">
         <div class="sum-card c-green">
           <div class="num">{{ full_days }}</div>
-          <div class="lbl">✅ Full Days</div>
+          <div class="lbl"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Full Days</div>
         </div>
         <div class="sum-card c-yellow">
           <div class="num">{{ late_days }}</div>
-          <div class="lbl">⏰ Late Days</div>
+          <div class="lbl"><i class="ti ti-alarm hz-ico" aria-hidden="true"></i> Late Days</div>
         </div>
         <div class="sum-card c-orange">
           <div class="num">{{ half_days }}</div>
-          <div class="lbl">🌓 Half Days</div>
+          <div class="lbl"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> Half Days</div>
         </div>
         <div class="sum-card c-red">
           <div class="num">{{ absent }}</div>
-          <div class="lbl">❌ Absent Days</div>
+          <div class="lbl"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Absent Days</div>
         </div>
       </div>
 
       <!-- DAY-BY-DAY TABLE -->
       <div class="section">
-        <div class="section-title">📅 Day-by-Day Attendance — {{ month_name }}</div>
+        <div class="section-title"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Day-by-Day Attendance — {{ month_name }}</div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -299,7 +299,7 @@
                     <span class="badge b-gray">{{ d.status }}</span>
                   {% endif %}
                   {% if d.is_locked %}
-                  <span class="lockout-badge" title="Online check-in locked after failed attempts — correcting attendance here unlocks it">🔒</span>
+                  <span class="lockout-badge" title="Online check-in locked after failed attempts — correcting attendance here unlocks it"><i class="ti ti-lock hz-ico" aria-hidden="true"></i></span>
                   {% endif %}
                 </td>
                 <td>

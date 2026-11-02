@@ -6,6 +6,8 @@
          (app.py's _normalize_loopback_host), before login sets any cookie. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Attendance Scanner</title>
+    <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
+    <link rel="stylesheet" href="{{ static_url('hz-icons.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
     <!-- defer: jsQR() is only ever called from inside the camera-scan loop,
          well after user interaction starts a scan -- nothing needs this
@@ -252,25 +254,21 @@
 
       /* ── RULES ── */
       .rules {
-        margin-top: 18px; font-size: 13.5px; text-align: left;
-        background: linear-gradient(135deg, #f8fafc, #f0f7ff);
-        border: 1px solid #dbeafe;
-        border-radius: 16px; padding: 16px 18px;
-        box-shadow: 0 2px 8px rgba(30,58,138,0.05);
+        margin-top: 18px; text-align: left;
+        background: #ffffff; border: 1px solid #e2e8f0;
+        border-radius: 14px; padding: 14px 18px;
       }
-      .rules-title {
-        font-size: 13px; font-weight: 700; color: #94a3b8;
-        text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
-      }
-      .rules .rule {
-        display: flex; align-items: center; gap: 9px;
-        padding: 6px 0; color: #475569; line-height: 1.4;
-      }
-      .rules .rule:not(:last-child) { border-bottom: 1px solid #e2e8f0; }
-      .rules .badge {
-        font-size: 12px; padding: 3px 8px; border-radius: 20px;
-        font-weight: 800; flex-shrink: 0; letter-spacing: 0.3px;
-      }
+      .rules-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+      .rules-head b { font-size: 14px; color: #0f172a; }
+      .rules-head span { font-size: 12.5px; color: #64748b; font-variant-numeric: tabular-nums; }
+      .rules-group { font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: #94a3b8; margin: 10px 0 2px; }
+      .rules .rule { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 13.5px; color: #334155; font-variant-numeric: tabular-nums; }
+      .rules .rule .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+      .rules .rule .when { flex: 1; }
+      .rules .rule .result { font-weight: 500; }
+      .rule.is-ok .dot { background: #22a35a; }   .rule.is-ok .result { color: #22a35a; }
+      .rule.is-late .dot { background: #fde68a; } .rule.is-late .result { color: #f59e0b; }
+      .rule.is-half .dot { background: #fecaca; } .rule.is-half .result { color: #f87171; }
       .badge-green  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
       .badge-yellow { background: #fef9c3; color: #92400e; border: 1px solid #fde047; }
       .badge-red    { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
@@ -457,8 +455,12 @@
       body.dark-mode .result-row span:first-child { color: #768390 !important; }
       body.dark-mode .error-box { background: #7f1d1d !important; border-color: #991b1b !important; color: #fca5a5 !important; }
       body.dark-mode .rules { background: #1c2128 !important; border-color: #30363d !important; }
-      body.dark-mode .rules-title { color: #768390 !important; }
-      body.dark-mode .rules .rule { color: #cdd9e5 !important; border-color: #30363d !important; }
+      body.dark-mode .rules-head b { color: #e6edf3 !important; }
+      body.dark-mode .rules-head span, body.dark-mode .rules-group { color: #768390 !important; }
+      body.dark-mode .rules .rule { color: #cdd9e5 !important; }
+      body.dark-mode .rule.is-ok .result { color: #bbf7d0 !important; }
+      body.dark-mode .rule.is-late .result { color: #fde68a !important; }
+      body.dark-mode .rule.is-half .result { color: #fecaca !important; }
       body.dark-mode .badge-green { background: #14532d !important; color: #86efac !important; border-color: #166534 !important; }
       body.dark-mode .badge-yellow { background: #713f12 !important; color: #fbbf24 !important; border-color: #854d0e !important; }
       body.dark-mode .badge-red { background: #7f1d1d !important; color: #fca5a5 !important; border-color: #991b1b !important; }
@@ -470,13 +472,13 @@
 
     <div class="topbar">
       <div class="brand-wrap">
-        <div class="brand-dot">🏢</div>
+        <div class="brand-dot"><i class="ti ti-building hz-ico" aria-hidden="true"></i></div>
         <div class="brand-text">
           <div class="name">Employee {{ co.company_name }}</div>
           <div class="tagline">QR &bull; Face Recognition &bull; Location</div>
         </div>
       </div>
-      <a href="{{ tpath('/login') }}" class="admin-btn">🔒 Login</a>
+      <a href="{{ tpath('/login') }}" class="admin-btn"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Login</a>
     </div>
 
     <div class="page-body">
@@ -498,28 +500,28 @@
         <div class="att-methods">
           {% if show_qr_face %}
           <button type="button" class="att-method {% if first_method == 'qr_face' %}active{% endif %}" id="mc-qr-face" onclick="selectMethod('qr_face')">
-            <span class="am-icon">📷</span>
+            <span class="am-icon"><i class="ti ti-camera hz-ico" aria-hidden="true"></i></span>
             <span class="am-title">QR + Face</span>
             <span class="am-desc">QR &amp; face scan</span>
           </button>
           {% endif %}
           {% if show_qr_only %}
           <button type="button" class="att-method {% if first_method == 'qr_only' %}active{% endif %}" id="mc-qr-only" onclick="selectMethod('qr_only')">
-            <span class="am-icon">🔲</span>
+            <span class="am-icon"><i class="ti ti-qrcode hz-ico" aria-hidden="true"></i></span>
             <span class="am-title">QR Only</span>
             <span class="am-desc">Quick QR scan</span>
           </button>
           {% endif %}
           {% if show_fp %}
           <button type="button" class="att-method {% if first_method == 'fingerprint_only' %}active{% endif %}" id="mc-fp" onclick="selectMethod('fingerprint_only')">
-            <span class="am-icon">👆</span>
+            <span class="am-icon"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></span>
             <span class="am-title">Fingerprint</span>
             <span class="am-desc">Biometric scan</span>
           </button>
           {% endif %}
         </div>
         {% else %}
-        <div class="no-methods-msg">⚠️ No attendance method is enabled. Ask your admin to enable one in Settings → Authentication.</div>
+        <div class="no-methods-msg"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> No attendance method is enabled. Ask your admin to enable one in Settings → Authentication.</div>
         {% endif %}
 
         <div class="sub" id="subText">Click Start to scan your QR code &amp; verify face</div>
@@ -529,7 +531,7 @@
           <canvas class="u-d-none" id="canvas"></canvas>
 
           <div class="scanner-placeholder" id="placeholder">
-            <div class="icon">📷</div>
+            <div class="icon"><i class="ti ti-camera hz-ico" aria-hidden="true"></i></div>
             <div class="icon-label">Camera opens on click</div>
           </div>
 
@@ -538,13 +540,13 @@
           <div class="phase-label" id="phaseLabel"></div>
         </div>
 
-        <button class="btn" id="startBtn" type="button" onclick="startFlow()">📷 Start Scanner</button>
+        <button class="btn" id="startBtn" type="button" onclick="startFlow()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Start Scanner</button>
 
         <!-- shown when fingerprint is enabled by admin -->
         <div class="mode-row u-d-none" id="modeSelector">
-          <button type="button" class="mode-pill active-mode" id="modeFace" onclick="setMode('qr_face')">📷 Face Mode</button>
-          <button type="button" class="mode-pill" id="modeFp" onclick="setMode('qr_fingerprint')">👆 QR + FP</button>
-          <button type="button" class="mode-pill" id="modeFpOnly" onclick="setMode('fingerprint_only')">👆 FP Only</button>
+          <button type="button" class="mode-pill active-mode" id="modeFace" onclick="setMode('qr_face')"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Face Mode</button>
+          <button type="button" class="mode-pill" id="modeFp" onclick="setMode('qr_fingerprint')"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> QR + FP</button>
+          <button type="button" class="mode-pill" id="modeFpOnly" onclick="setMode('fingerprint_only')"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> FP Only</button>
         </div>
 
         <div class="status-bar u-d-none" id="statusBar">
@@ -553,7 +555,7 @@
         </div>
 
         <div class="result-box" id="resultBox">
-          <h4 id="resultTitle">✅ Attendance Recorded</h4>
+          <h4 id="resultTitle"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Attendance Recorded</h4>
           <div class="result-row"><span>Employee</span><span id="rName"    class="val-blue">--</span></div>
           <div class="result-row"><span>Time</span>    <span id="rTime"    class="val-blue">--</span></div>
           <div class="result-row"><span>Action</span>  <span id="rAction"  class="val-green">--</span></div>
@@ -575,13 +577,15 @@
         <div class="error-box" id="errorBox"></div>
 
         <div class="rules">
-          <div class="rules-title">⏰ Attendance Rules</div>
-          <div class="rule"><span class="badge badge-green">ON TIME</span>Login before 9:00 AM → Full Day</div>
-          <div class="rule"><span class="badge badge-yellow">LATE</span>Login 9:00 AM – 1:00 PM → Late Login (10% deduction)</div>
-          <div class="rule"><span class="badge badge-red">HALF DAY</span>Login after 1:00 PM → Half Day (50% deduction)</div>
-          <div class="rule"><span class="badge badge-green">FULL</span>Logout after 6:00 PM → Completed</div>
-          <div class="rule"><span class="badge badge-yellow">EARLY</span>Logout 1:00 PM – 6:00 PM → Early Logout (Half Day)</div>
-          <div class="rule"><span class="badge badge-red">HALF</span>Logout before 1:00 PM → Half Day Logout</div>
+          <div class="rules-head"><b>Attendance rules</b><span>Shift 9:00 AM – 6:00 PM</span></div>
+          <div class="rules-group">Check-in</div>
+          <div class="rule is-ok"><span class="dot"></span><span class="when">Before 9:00 AM</span><span class="result">Full day</span></div>
+          <div class="rule is-late"><span class="dot"></span><span class="when">9:00 AM – 1:00 PM</span><span class="result">Late</span></div>
+          <div class="rule is-half"><span class="dot"></span><span class="when">After 1:00 PM</span><span class="result">Half day</span></div>
+          <div class="rules-group">Check-out</div>
+          <div class="rule is-ok"><span class="dot"></span><span class="when">After 6:00 PM</span><span class="result">Full day</span></div>
+          <div class="rule is-late"><span class="dot"></span><span class="when">1:00 PM – 6:00 PM</span><span class="result">Half day</span></div>
+          <div class="rule is-half"><span class="dot"></span><span class="when">Before 1:00 PM</span><span class="result">Half day</span></div>
         </div>
 
       </div>
@@ -591,26 +595,26 @@
     <div class="overlay u-d-none" id="methodOverlay">
       <div class="method-card">
         <button class="method-card-close" onclick="closeMethodPicker()">✕</button>
-        <div class="u-ta-center u-fs-42 u-mb-10">🛡️</div>
+        <div class="u-ta-center u-fs-42 u-mb-10"><i class="ti ti-shield-check hz-ico" aria-hidden="true"></i></div>
         <h3>Choose Verification</h3>
         <p class="method-sub">Select your two-factor combination</p>
 
         <button class="combo-btn" id="cmbQrFace" onclick="selectCombo('qr_face')">
-          <div class="combo-icon">📷</div>
+          <div class="combo-icon"><i class="ti ti-camera hz-ico" aria-hidden="true"></i></div>
           <div>
             <div class="combo-label">QR + Face</div>
             <div class="combo-desc">Scan QR code, then face capture</div>
           </div>
         </button>
         <button class="combo-btn" id="cmbQrFp" onclick="selectCombo('qr_fingerprint')">
-          <div class="combo-icon">👆</div>
+          <div class="combo-icon"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></div>
           <div>
             <div class="combo-label">QR + Fingerprint</div>
             <div class="combo-desc">Scan QR code, then fingerprint verify</div>
           </div>
         </button>
         <button class="combo-btn" id="cmbFpOnly" onclick="selectCombo('fingerprint_only')">
-          <div class="combo-icon">👆</div>
+          <div class="combo-icon"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></div>
           <div>
             <div class="combo-label">Fingerprint Only</div>
             <div class="combo-desc">Enter your ID and verify fingerprint — no QR needed</div>
@@ -618,7 +622,7 @@
         </button>
 
         <div class="loc-badge u-d-none" id="locBadgeMethod">
-          📍 Location captured
+          <i class="ti ti-map-pin hz-ico" aria-hidden="true"></i> Location captured
         </div>
       </div>
     </div>
@@ -629,7 +633,7 @@
         <button class="fp-back" onclick="fpBack()">←</button>
 
         <div class="fp-icon-wrap">
-          <span class="fp-emoji">👆</span>
+          <span class="fp-emoji"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></span>
         </div>
 
         <div class="fp-title">Fingerprint Verification</div>
@@ -641,7 +645,7 @@
         </div>
 
         <div class="fp-emp-badge u-d-none" id="fpEmpBadge">
-          🪪 <span id="fpEmpId"></span>
+          <i class="ti ti-id hz-ico" aria-hidden="true"></i> <span id="fpEmpId"></span>
         </div>
 
         <p class="fp-hint" id="fpHint">
@@ -649,10 +653,10 @@
         </p>
 
         <button class="fp-verify-btn" id="fpVerifyBtn" onclick="handleFingerprintVerify()">
-          👆 Verify Biometric
+          <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Verify Biometric
         </button>
         <button class="fp-verify-btn fp-enrol-btn u-d-none" id="fpEnrolBtn" onclick="handleFingerprintEnroll()">
-          🔐 Enrol Fingerprint
+          <i class="ti ti-shield-lock hz-ico" aria-hidden="true"></i> Enrol Fingerprint
         </button>
       </div>
     </div>

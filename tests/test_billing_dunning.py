@@ -497,6 +497,22 @@ class TestGraceAndLockStateMachine:
         expected_deadline = datetime.datetime.combine(period_start, datetime.time.min) + datetime.timedelta(days=5)
         assert grace_ends == expected_deadline
 
+    def test_nobody_is_chased_while_payments_are_off(self, db_engine, clean_invoices,
+                                                     restore_tenant_billing_state, monkeypatch):
+        from blueprints.billing_dunning import _run_billing_check
+        monkeypatch.setenv("PAYMENTS_ENABLED", "false")
+        _set_billing_state(db_engine, billing_state="grace", payment_option="online",
+                           grace_period_ends_at=datetime.datetime.now() - datetime.timedelta(days=1),
+                           created_at=datetime.datetime.now() - datetime.timedelta(days=90))
+
+        with flask_app.app_context():
+            _run_billing_check()
+
+        cur = db_engine.cursor()
+        cur.execute("SELECT billing_state FROM att_master.tenants WHERE db_name=%s", (TENANT_SCHEMA,))
+        assert cur.fetchone()[0] == "grace", "an expired grace period must not lock while nobody can pay"
+        cur.close()
+
     def test_grace_period_expires_into_locked(self, db_engine, clean_invoices, restore_tenant_billing_state):
         from blueprints.billing_dunning import _run_billing_check
         # grace_period_ends_at computed from the DB's own NOW(), not Python's

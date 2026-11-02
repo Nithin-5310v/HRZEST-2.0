@@ -212,21 +212,21 @@
       <div class="hero-badges">
         {% if emp[11] %}
           <span class="hbadge">
-            {% if emp[11] == 'office' %}🏢{% elif emp[11] == 'wfh' %}🏠{% else %}🔄{% endif %}
+            {% if emp[11] == 'office' %}<i class="ti ti-building hz-ico" aria-hidden="true"></i>{% elif emp[11] == 'wfh' %}<i class="ti ti-home hz-ico" aria-hidden="true"></i>{% else %}<i class="ti ti-refresh hz-ico" aria-hidden="true"></i>{% endif %}
             {{ emp[11] | capitalize }}
           </span>
         {% endif %}
         {% if emp[8] %}
-          <span class="hbadge">📅 Joined {{ emp[8].strftime('%d %b %Y') }}</span>
+          <span class="hbadge"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Joined {{ emp[8].strftime('%d %b %Y') }}</span>
         {% endif %}
         {% if shift_name %}
-          <span class="hbadge">🕐 {{ shift_name }}</span>
+          <span class="hbadge"><i class="ti ti-clock hz-ico" aria-hidden="true"></i> {{ shift_name }}</span>
         {% endif %}
         {% if open_tickets > 0 %}
-          <span class="hbadge u-bg-rgba239_68_68_0d25">🎫 {{ open_tickets }} Open Ticket{{ 's' if open_tickets != 1 }}</span>
+          <span class="hbadge u-bg-rgba239_68_68_0d25"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> {{ open_tickets }} Open Ticket{{ 's' if open_tickets != 1 }}</span>
         {% endif %}
         {% if pending_leaves > 0 %}
-          <span class="hbadge u-bg-rgba245_158_11_0d25">📋 {{ pending_leaves }} Pending Leave{{ 's' if pending_leaves != 1 }}</span>
+          <span class="hbadge u-bg-rgba245_158_11_0d25"><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> {{ pending_leaves }} Pending Leave{{ 's' if pending_leaves != 1 }}</span>
         {% endif %}
       </div>
     </div>
@@ -305,11 +305,11 @@
         <span class="info-label">Work Mode</span>
         <span class="info-value">
           {% if emp[11] == 'office' %}
-            <span class="badge-wm wm-office">🏢 Office</span>
+            <span class="badge-wm wm-office"><i class="ti ti-building hz-ico" aria-hidden="true"></i> Office</span>
           {% elif emp[11] == 'wfh' %}
-            <span class="badge-wm wm-wfh">🏠 WFH</span>
+            <span class="badge-wm wm-wfh"><i class="ti ti-home hz-ico" aria-hidden="true"></i> WFH</span>
           {% else %}
-            <span class="badge-wm wm-hybrid">🔄 Hybrid</span>
+            <span class="badge-wm wm-hybrid"><i class="ti ti-refresh hz-ico" aria-hidden="true"></i> Hybrid</span>
           {% endif %}
         </span>
       </div>

@@ -33,12 +33,13 @@
       .page-header h1 { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; display: flex; align-items: center; gap: 12px; }
       .page-header h1 .month-tag { font-weight: 600; color: #1e3a8a; }
       .page-icon {
-        width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
-        background: linear-gradient(135deg, #16a34a, #0f766e);
+        width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+        background: #eff6ff; border: 1px solid #dbeafe;
         display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 13px; box-shadow: 0 6px 16px rgba(22,163,74,0.28);
+        color: #2563eb; font-size: 22px;
       }
-      .page-header p { font-size: 15px; color: #64748b; margin-top: 6px; margin-left: 54px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      body.dark-mode .page-icon { background: rgba(37,99,235,.18); border-color: rgba(96,165,250,.3); color: #60a5fa; }
+      .page-header p { font-size: 15px; color: #64748b; margin-top: 6px; margin-left: 52px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
       .page-header .rule-chip { background: #f1f5f9; border-radius: 20px; padding: 2px 10px; font-weight: 600; color: #475569; }
 
       .filter-bar {
@@ -207,7 +208,7 @@
         <div>
           <h1><span class="page-icon"><i class="ti ti-currency-rupee"></i></span>Salary Report <span class="month-tag">— {{ month_name }}</span></h1>
           <p>
-            <span class="rule-chip">⏱ Late Login {{ late_rate }}%</span>
+            <span class="rule-chip"><i class="ti ti-clock-hour-4 hz-ico" aria-hidden="true"></i> Late Login {{ late_rate }}%</span>
             <span class="rule-chip"><i class="ti ti-clock" aria-hidden="true"></i> Half Day {{ half_rate }}%</span>
             <span class="rule-chip"><i class="ti ti-circle-x" aria-hidden="true"></i> Absent 100%</span>
           </p>
@@ -508,9 +509,9 @@
           });
       }
 
-      function sendAllEmails() {
+      async function sendAllEmails() {
         {% if is_locked %}
-        if (!confirm('⚠️ Payroll for this month is already locked (payslips were sent).\n\nSend again and update the lock record?')) return;
+        if (!(await hzConfirm('⚠️ Payroll for this month is already locked (payslips were sent).\n\nSend again and update the lock record?'))) return;
         {% endif %}
         const btn = document.getElementById('sendAllBtn');
         btn.disabled = true;
@@ -537,8 +538,8 @@
           });
       }
 
-      function lockPayroll() {
-        if (!confirm('Lock payroll for this month? You can unlock it later if needed.')) return;
+      async function lockPayroll() {
+        if (!(await hzConfirm('Lock payroll for this month? You can unlock it later if needed.'))) return;
         const fd = new FormData();
         fd.append('year', YEAR); fd.append('month', MONTH);
         fetch('/lock_payroll', { method: 'POST', body: fd })
@@ -546,8 +547,8 @@
           .then(d => { showToast(d.msg, d.ok ? 'success' : 'error'); if (d.ok) setTimeout(() => location.reload(), 1000); });
       }
 
-      function unlockPayroll() {
-        if (!confirm('Unlock payroll for this month?\n\nThis allows payslips to be re-sent with updated figures.')) return;
+      async function unlockPayroll() {
+        if (!(await hzConfirm('Unlock payroll for this month?\n\nThis allows payslips to be re-sent with updated figures.'))) return;
         const fd = new FormData();
         fd.append('year', YEAR); fd.append('month', MONTH);
         fetch('/unlock_payroll', { method: 'POST', body: fd })

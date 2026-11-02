@@ -4,6 +4,7 @@
 
 {% block page_css %}
     <style>
+      #empTable tbody tr.row-new td { background: #dcfce7; transition: background 1s ease; }
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
@@ -490,6 +491,7 @@
                      work_mode, work_lat, work_lon, face_image, qr_code,
                      department, phone, gender, shift_name, shift_id, assigned_hr_username, emp_status = e %}
               <tr
+                data-emp-id="{{ emp_id }}"
                 data-dept="{{ department or '' }}"
                 data-shift="{{ shift_name or '' }}"
                 data-status="{{ emp_status }}"
@@ -559,7 +561,7 @@
                       <i class="ti ti-id-badge"></i>
                     </button>
                     <form class="u-d-inline" action="/delete_employee/{{ emp_id }}" method="POST"
-                          onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
+                          onsubmit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
                       <button type="submit" class="btn-icon btn-del" title="Delete">
                         <i class="ti ti-trash"></i>
                       </button>
@@ -624,7 +626,7 @@
                 <button class="u-p-5-10 u-bd-1-solid-dbeafe u-br-8 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" onclick="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}">
                   <i class="ti ti-pencil"></i> Edit
                 </button>
-                <form class="u-d-inline" method="POST" action="/delete_shift/{{ s.id }}" onsubmit="return confirm(this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
+                <form class="u-d-inline" method="POST" action="/delete_shift/{{ s.id }}" onsubmit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
                   <button class="u-p-5-10 u-bd-1-solid-fecaca u-br-8 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
                     <i class="ti ti-trash"></i>
                   </button>
@@ -705,7 +707,7 @@
                     <button class="u-p-4-10 u-bd-1-solid-dbeafe u-br-7 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" onclick="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active==='True')" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}">
                       <i class="ti ti-pencil"></i> Edit
                     </button>
-                    <form method="POST" action="{{ tpath('/delete_break/' + b.id|string) }}" onsubmit="return confirm('Delete this break?')">
+                    <form method="POST" action="{{ tpath('/delete_break/' + b.id|string) }}" onsubmit="return hzConfirmSubmit(event, 'Delete this break?')">
                       <button class="u-p-4-10 u-bd-1-solid-fecaca u-br-7 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
                         <i class="ti ti-trash"></i>
                       </button>
@@ -731,12 +733,12 @@
     <!-- ═══ CAMERA MODAL ═══ -->
     <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d75 u-zi-3000 u-ai-center u-jc-center" id="empCameraModal">
       <div class="u-bg-1e1b3a u-br-20 u-p-28 u-w-100pct u-maxw-420 u-c-white u-ta-center u-shad-0-24-60-rgba0_0_0_0d6">
-        <h3 class="u-mb-6">📷 Take Face Photo</h3>
+        <h3 class="u-mb-6"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Take Face Photo</h3>
         <p class="u-fs-12 u-op-0d55 u-mb-14">Position the employee's face in the frame, then click Capture.</p>
         <div class="u-d-flex u-gap-8 u-mb-12 u-fs-11 u-ta-left">
-          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">✅ Front-facing</div>
-          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">✅ Good lighting</div>
-          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">❌ No sunglasses</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Front-facing</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Good lighting</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> No sunglasses</div>
         </div>
         <div class="u-pos-relative u-w-100pct u-br-12 u-ov-hidden u-bg-000 u-mb-12">
           <video class="u-w-100pct u-d-block u-maxh-280 u-objf-cover" id="empCamVideo" autoplay playsinline muted></video>
@@ -747,9 +749,9 @@
         <canvas class="u-d-none u-w-100pct u-br-12 u-mb-12" id="empCamCanvas"></canvas>
         <div class="u-d-none u-p-14-16 u-bg-7f1d1d u-br-10 u-c-fecaca u-fs-13 u-mb-12 u-ta-left u-lh-1d6" id="empCamError"></div>
         <div class="u-d-flex u-gap-10">
-          <button class="u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradiene4b3b9 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empCaptureBtn" onclick="empCapturePhoto()">📸 Capture</button>
-          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-rgba255_255_255_0d15 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empRetakeBtn"  onclick="empRetakePhoto()">🔄 Retake</button>
-          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradien161636 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empUseBtn"     onclick="empUsePhoto()">✅ Use Photo</button>
+          <button class="u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradiene4b3b9 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empCaptureBtn" onclick="empCapturePhoto()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Capture</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-rgba255_255_255_0d15 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empRetakeBtn"  onclick="empRetakePhoto()"><i class="ti ti-refresh hz-ico" aria-hidden="true"></i> Retake</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradien161636 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empUseBtn"     onclick="empUsePhoto()"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Use Photo</button>
           <button class="u-p-12-16 u-bd-1-solid-rgba2525554c u-br-10 u-bg-transparent u-c-white u-fs-14 u-cur-pointer" onclick="closeEmpCameraModal()">Cancel</button>
         </div>
       </div>
@@ -798,7 +800,7 @@
               <div class="u-d-flex u-gap-8 u-ai-center">
                 <input class="u-fx-1 u-fw-700 u-ls-1" type="text" name="emp_id" id="addEmpId" required placeholder="Generating…" />
                 <button class="u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-eff6ff u-c-1e3a8a u-cur-pointer u-ws-nowrap u-fs-13 u-fw-600" type="button" onclick="generateEmpId()" title="Re-generate ID">
-                  🔄 Generate
+                  <i class="ti ti-refresh hz-ico" aria-hidden="true"></i> Generate
                 </button>
               </div>
               <div class="u-fs-11 u-c-64748b u-mt-4" id="empIdHint"></div>
@@ -838,7 +840,7 @@
             <div class="sec-title u-gc-1_-1 u-m-0">
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-professional')">
-                  <span>💼 Professional Details</span>
+                  <span><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Professional Details</span>
                   <i class="ti ti-chevron-down" id="sec-professional-icon"></i>
                 </div>
                 <div id="sec-professional" class="form-sub-body u-d-none">
@@ -882,7 +884,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-personal')">
-                  <span>👤 Personal Details</span>
+                  <span><i class="ti ti-user hz-ico" aria-hidden="true"></i> Personal Details</span>
                   <i class="ti ti-chevron-down" id="sec-personal-icon"></i>
                 </div>
                 <div id="sec-personal" class="form-sub-body u-d-none">
@@ -912,7 +914,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-address')">
-                  <span>🏠 Address</span>
+                  <span><i class="ti ti-home hz-ico" aria-hidden="true"></i> Address</span>
                   <i class="ti ti-chevron-down" id="sec-address-icon"></i>
                 </div>
                 <div id="sec-address" class="form-sub-body u-d-none">
@@ -939,7 +941,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-emergency')">
-                  <span>🚨 Emergency Contact</span>
+                  <span><i class="ti ti-urgent hz-ico" aria-hidden="true"></i> Emergency Contact</span>
                   <i class="ti ti-chevron-down" id="sec-emergency-icon"></i>
                 </div>
                 <div id="sec-emergency" class="form-sub-body u-d-none">
@@ -962,7 +964,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-docs')">
-                  <span>📄 Documents &amp; Finance</span>
+                  <span><i class="ti ti-file-text hz-ico" aria-hidden="true"></i> Documents &amp; Finance</span>
                   <i class="ti ti-chevron-down" id="sec-docs-icon"></i>
                 </div>
                 <div id="sec-docs" class="form-sub-body u-d-none">
@@ -997,7 +999,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-edu')">
-                  <span>🎓 Qualifications</span>
+                  <span><i class="ti ti-school hz-ico" aria-hidden="true"></i> Qualifications</span>
                   <i class="ti ti-chevron-down" id="sec-edu-icon"></i>
                 </div>
                 <div id="sec-edu" class="form-sub-body u-d-none">
@@ -1023,11 +1025,11 @@
               <div class="radio-group">
                 <label class="radio-label">
                   <input class="u-accent-1e3a8a" type="radio" name="work_mode" value="office" checked
-                         onchange="toggleAddLocation(this.value)" /> 🏢 Office
+                         onchange="toggleAddLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
                 </label>
                 <label class="radio-label">
                   <input class="u-accent-059669" type="radio" name="work_mode" value="wfh"
-                         onchange="toggleAddLocation(this.value)" /> 🏠 Work from Home
+                         onchange="toggleAddLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
                 </label>
               </div>
             </div>
@@ -1044,7 +1046,7 @@
                 </div>
               </div>
               <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocation('add_work_lat','add_work_lon')">
-                📡 Use My Location
+                <i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> Use My Location
               </button>
             </div>
 
@@ -1054,30 +1056,30 @@
                 <img class="u-d-none u-w-90 u-h-90 u-br-50pct u-objf-cover u-bd-3-solid-22c55e u-m-0-auto-10" id="addPhotoPreview" alt="Preview" />
                 <div class="u-fs-13 u-c-64748b u-mb-10" id="addPhotoLabel">No photo selected</div>
                 <div class="u-d-flex u-gap-8 u-jc-center">
-                  <button class="u-p-9-16 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="openEmpCameraModal()">📷 Camera</button>
-                  <button class="u-p-9-16 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-c-1e3a8a u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="document.getElementById('addFaceInput').click()">🖼 Upload</button>
+                  <button class="u-p-9-16 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="openEmpCameraModal()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Camera</button>
+                  <button class="u-p-9-16 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-c-1e3a8a u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="document.getElementById('addFaceInput').click()"><i class="ti ti-photo hz-ico" aria-hidden="true"></i> Upload</button>
                 </div>
                 <input class="u-d-none" type="file" id="addFaceInput" name="face" accept="image/*"
                        onchange="empPhotoSelected(this)" />
               </div>
-              <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr">⚠ a face photo before registering.</div>
+              <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> a face photo before registering.</div>
             </div>
 
             <div class="sec-title u-gc-1_-1 u-m-0">
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-fingerprint')">
-                  <span>👆 Fingerprint Enrollment <span class="u-c-94a3b8 u-fw-400 u-fs-10 u-ttr-none">(Optional)</span></span>
+                  <span><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Fingerprint Enrollment <span class="u-c-94a3b8 u-fw-400 u-fs-10 u-ttr-none">(Optional)</span></span>
                   <i class="ti ti-chevron-down" id="sec-fingerprint-icon"></i>
                 </div>
                 <div id="sec-fingerprint" class="form-sub-body u-d-none">
                   <div class="u-bd-2-dashed-bfdbfe u-br-12 u-p-18 u-ta-center u-bg-f8fafc u-trs-0d3s" id="fpEnrollBox">
-                    <div class="u-fs-44 u-mb-8 u-d-inline-block u-anim-fpregpulse-2d5b77393">👆</div>
+                    <div class="u-fs-44 u-mb-8 u-d-inline-block u-anim-fpregpulse-2d5b77393"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></div>
                     <div class="u-fs-13 u-c-64748b u-mb-12" id="fpEnrollStatus">
                       Not enrolled — employee can use QR + Face by default
                     </div>
                     <div class="u-d-flex u-gap-8 u-jc-center">
                       <button class="u-p-9-18 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" id="fpEnrollBtn" onclick="enrollFingerprint()">
-                        👆 Enroll Fingerprint
+                        <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Enroll Fingerprint
                       </button>
                       <button class="u-d-none u-p-9-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="fpClearBtn" onclick="clearFingerprint()">
                         ✕ Clear
@@ -1211,11 +1213,11 @@
                 <div class="radio-group u-mt-6">
                   <label class="radio-label">
                     <input class="u-accent-1e3a8a" type="radio" name="work_mode" id="emp_edit_wm_office" value="office"
-                           onchange="toggleEditLocation(this.value)" /> 🏢 Office
+                           onchange="toggleEditLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
                   </label>
                   <label class="radio-label">
                     <input class="u-accent-059669" type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh"
-                           onchange="toggleEditLocation(this.value)" /> 🏠 Work from Home
+                           onchange="toggleEditLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
                   </label>
                 </div>
               </div>
@@ -1232,7 +1234,7 @@
                   </div>
                 </div>
                 <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocation('emp_edit_work_lat','emp_edit_work_lon')">
-                  📡 Use My Location
+                  <i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> Use My Location
                 </button>
               </div>
             </div>
@@ -1288,7 +1290,7 @@
               <div class="u-d-flex u-gap-8">
                 <button class="u-p-6-14 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpEnrollBtn"
                   style="display:none" onclick="enrollFingerprintForEdit()">
-                  👆 Enroll Fingerprint
+                  <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Enroll Fingerprint
                 </button>
                 <button class="u-p-6-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpResetBtn"
                   onclick="resetEmployeeFingerprint(document.getElementById('edit_emp_id').value)">
@@ -1351,7 +1353,7 @@
         </a>
         <div>
           <form class="u-d-inline" id="qrRegenForm" action="" method="POST"
-                onsubmit="return confirm('Regenerate QR? Old code will stop working.')">
+                onsubmit="return hzConfirmSubmit(event, 'Regenerate QR? Old code will stop working.')">
             <button type="submit" class="btn-regen">
               <i class="ti ti-refresh"></i> Regenerate
             </button>
@@ -1483,6 +1485,26 @@
         }
       }
 
+      // After Add Employee the server redirects here with ?new=<id> -- open
+      // the page that row is on and highlight it, since name order usually
+      // puts a new hire past the first page.
+      function showNewEmployee() {
+        const params = new URLSearchParams(window.location.search);
+        const newId = params.get('new');
+        if (!newId) return;
+        params.delete('new');
+        const qs = params.toString();
+        history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+        const idx = filteredRows.findIndex(r => r.dataset.empId === newId);
+        if (idx < 0) return;
+        currentPage = Math.floor(idx / PAGE_SIZE) + 1;
+        renderPage();
+        const row = filteredRows[idx];
+        row.classList.add('row-new');
+        row.scrollIntoView({behavior: 'smooth', block: 'center'});
+        setTimeout(() => row.classList.remove('row-new'), 4000);
+      }
+
       function changePage(delta) {
         const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
         currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
@@ -1492,6 +1514,7 @@
       // Initialise on load
       document.addEventListener('DOMContentLoaded', function() {
         applyFilters();
+        showNewEmployee();
         // Auto-open Add Employee modal if redirected from dashboard button
         if (new URLSearchParams(window.location.search).get('open') === 'add') {
           openModal('addModal');
@@ -1820,7 +1843,7 @@
       }
 
       async function resetEmployeeFingerprint(empId) {
-        if (!confirm('Reset fingerprint for ' + empId + '? They will need to re-enroll from their employee portal.')) return;
+        if (!(await hzConfirm('Reset fingerprint for ' + empId + '? They will need to re-enroll from their employee portal.'))) return;
         const fpMsg = document.getElementById('editFpMsg');
         fpMsg.style.display = 'none';
         try {
@@ -2196,12 +2219,12 @@
     document.getElementById('selectAll').checked=false;
     document.getElementById('bulkToolbar').style.display='none';
   }
-  function bulkAssignOnboarding(){
+  async function bulkAssignOnboarding(){
     const tplId = document.getElementById('bulkTemplateSelect').value;
     if(!tplId){ alert('Please select an onboarding template.'); return; }
     const ids = Array.from(document.querySelectorAll('.emp-check:checked')).map(c=>c.value);
     if(!ids.length){ alert('Please select at least one employee.'); return; }
-    if(!confirm(`Assign this onboarding template to ${ids.length} employee(s)?`)) return;
+    if(!(await hzConfirm(`Assign this onboarding template to ${ids.length} employee(s)?`))) return;
     const form = document.createElement('form');
     form.method='POST'; form.action='/bulk_assign_onboarding';
     const t=document.createElement('input'); t.type='hidden'; t.name='template_id'; t.value=tplId; form.appendChild(t);
