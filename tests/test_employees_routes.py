@@ -219,11 +219,19 @@ class TestAddEmployeePage:
                            follow_redirects=True)
         assert b"may only contain" in resp.data
 
-    def test_missing_photo_rejected(self, client, seed_admin):
+    def test_photo_is_optional(self, client, seed_admin, db_engine):
+        # A photo is no longer required to add an employee; it can be added later.
         _admin_session(client, seed_admin["username"])
         resp = client.post("/add_employee_page", data={"name": "NoPhoto Guy", "emp_id": "NOPHOTO1"},
                            follow_redirects=True)
-        assert b"photo is required" in resp.data
+        assert b"registered" in resp.data
+        cur = db_engine.cursor()
+        cur.execute("SELECT face_image FROM employees WHERE employee_id='NOPHOTO1'")
+        row = cur.fetchone()
+        cur.execute("DELETE FROM employees WHERE employee_id='NOPHOTO1'")
+        db_engine.commit()
+        cur.close()
+        assert row is not None and row[0] is None
 
     def test_success_registers_employee(self, client, seed_admin, db_engine, cleanup_emp_files):
         cleanup_emp_files.append("ADDPAGE1")

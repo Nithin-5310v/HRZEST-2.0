@@ -1055,31 +1055,20 @@ def add_employee_page():
                     max_seq = max(max_seq, int(sfx))
             emp_id = _next_emp_id(prefix, max_seq, emp_id)
 
+    # Photo is optional when adding an employee, and any valid image is
+    # accepted (no face-detection requirement). Face attendance still needs a
+    # clear face photo, which can be uploaded later from the employee page.
     file = request.files.get("face")
-    if not file or not file.filename:
-        flash("A face photo is required.", "error")
-        cursor.close()
-        db.close()
-        return redirect(tpath("/employees"))
-
-    _img_ok, _img_err = _validate_image_file(file)
-    if not _img_ok:
-        flash(_img_err, "error")
-        cursor.close()
-        db.close()
-        return redirect(tpath("/employees"))
-
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
-    file.save(filepath)
-
-    if _face_recognition_available:
-        test_img = face_recognition.load_image_file(filepath)
-        if not face_recognition.face_encodings(test_img):
-            os.remove(filepath)
-            flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
+    filepath = None
+    if file and file.filename:
+        _img_ok, _img_err = _validate_image_file(file)
+        if not _img_ok:
+            flash(_img_err, "error")
             cursor.close()
             db.close()
             return redirect(tpath("/employees"))
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        file.save(filepath)
 
     auto_pass = secrets.token_urlsafe(8)
     hashed_pwd = generate_password_hash(auto_pass)
@@ -1088,21 +1077,22 @@ def add_employee_page():
     prefix = ''.join(c for c in emp_id if not c.isdigit())
     if not prefix:
         prefix = emp_id
-    original_filepath = filepath  # photo was already saved under initial emp_id
+    original_filepath = filepath  # photo was already saved under initial emp_id (or None)
     registered = False
     for _attempt in range(5):
         # Keep photo file in sync with the current emp_id on each retry attempt
-        new_filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
-        if new_filepath != original_filepath and os.path.exists(original_filepath):
-            try:
-                os.rename(original_filepath, new_filepath)
-                original_filepath = new_filepath
-            except OSError as exc:
-                # Photo stays under the pre-retry emp_id filename -- not
-                # fatal to registration, but worth knowing since it means
-                # the employee's photo path may not match their final ID.
-                app_log.warning("Could not rename employee photo %s -> %s: %s", original_filepath, new_filepath, exc)
-        filepath = new_filepath
+        if filepath:
+            new_filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+            if new_filepath != original_filepath and os.path.exists(original_filepath):
+                try:
+                    os.rename(original_filepath, new_filepath)
+                    original_filepath = new_filepath
+                except OSError as exc:
+                    # Photo stays under the pre-retry emp_id filename -- not
+                    # fatal to registration, but worth knowing since it means
+                    # the employee's photo path may not match their final ID.
+                    app_log.warning("Could not rename employee photo %s -> %s: %s", original_filepath, new_filepath, exc)
+            filepath = new_filepath
         qr_path = generate_qr(emp_id)
         try:
             # Authoritative, lock-protected recheck immediately before the

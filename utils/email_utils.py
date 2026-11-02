@@ -150,6 +150,17 @@ def send_email_smtp(to_email, subject, html_body, config,
                     attachment_bytes=None, attachment_filename=None):
     """Sends one email with whatever get_email_config() returned: SMTP, or
     Microsoft 365 for a microsoft_graph config. Raises on failure."""
+    # Local-dev only: EMAIL_CONSOLE=1 prints the email to the server console
+    # instead of sending it (for PCs whose IP the SMTP provider rejects).
+    if os.environ.get("EMAIL_CONSOLE", "").strip().lower() in ("1", "true", "yes"):
+        body = _html_to_plain_text(html_body)
+        print(
+            "\n" + "=" * 60 + "\n[EMAIL_CONSOLE] email not sent, shown here instead\n"
+            f"To: {to_email}\nSubject: {subject}\n"
+            f"Attachment: {attachment_filename or '-'}\n\n{body}\n" + "=" * 60 + "\n",
+            flush=True,
+        )
+        return
     if config.get("provider") == graph_mail.PROVIDER:
         graph_mail.send_mail(config, to_email, subject, html_body,
                              attachment_bytes=attachment_bytes, attachment_filename=attachment_filename)
