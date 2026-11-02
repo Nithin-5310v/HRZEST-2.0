@@ -23,7 +23,7 @@ from utils.auth import (
 from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
-    add_employee_seat_cap_check, _safe_app_url, hr_scope_denied as _hr_scope_denied, company_today,
+    add_employee_seat_cap_check, company_url, hr_scope_denied as _hr_scope_denied, company_today,
     int_param,
 )
 from utils.dlp import has_pii_clearance, mask_tail
@@ -66,7 +66,7 @@ def _send_welcome_credentials_email(emp_id, name, email):
     db.commit()
     cursor.close()
     db.close()
-    set_url = f"{_safe_app_url()}{tpath('/employee_reset_password/' + token)}"
+    set_url = company_url('/employee_reset_password/' + token)
     html_body = (
         f"<p>Hi <strong>{name}</strong>, your account is ready.</p>"
         f"<p>Employee ID: <strong>{emp_id}</strong></p>"

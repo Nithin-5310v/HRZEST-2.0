@@ -25,7 +25,7 @@ from utils.auth import (
     session_account_ok, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
-from utils.helpers import tpath, get_company_settings, _audit, _db, _safe_app_url
+from utils.helpers import tpath, get_company_settings, _audit, _db, company_url
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async, notify_if_new_login_ip
 from utils.session_risk import ensure_session_id
 from utils.totp import verify_totp_code, send_mfa_login_email, mark_totp_enabled
@@ -846,6 +846,10 @@ def _find_by_reset_token(cursor, table, id_column, token):
 @auth_bp.route("/admin_forgot_password", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def admin_forgot_password():
+    # No company yet (bare URL, nothing in the session): pick one on /login's
+    # company step first -- its /<company>/login links back here with it.
+    if _login_needs_company():
+        return redirect("/login")
     if request.method == "GET":
         return render_template("admin_forgot_password.html",
                                sent=False, error=None)
@@ -872,7 +876,7 @@ def admin_forgot_password():
     if not cfg:
         return render_template("admin_forgot_password.html", sent=False,
                                error="Email service not configured. Go to Admin → Email Settings first.")
-    reset_url = f"{_safe_app_url()}{tpath('/admin_reset_password/' + token)}"
+    reset_url = company_url('/admin_reset_password/' + token)
     html_body = f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
   <div style="background:#1e3a8a;padding:24px 28px;color:white;">
@@ -944,6 +948,8 @@ def admin_reset_password(token):
 @auth_bp.route("/employee_forgot_password", methods=["GET", "POST"])
 @limiter.limit("5 per minute")
 def employee_forgot_password():
+    if _login_needs_company():
+        return redirect("/login")
     if request.method == "GET":
         return render_template("employee_forgot_password.html", sent=False, error=None)
     emp_id = request.form.get("employee_id", "").strip()
@@ -970,7 +976,7 @@ def employee_forgot_password():
     if not cfg:
         return render_template("employee_forgot_password.html", sent=False,
                                error="Email service not configured. Please contact HR.")
-    reset_url = f"{_safe_app_url()}{tpath('/employee_reset_password/' + token)}"
+    reset_url = company_url('/employee_reset_password/' + token)
     html_body = f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
   <div style="background:#1e3a8a;padding:24px 28px;color:white;">

@@ -190,6 +190,17 @@ def _safe_app_url() -> str:
     return request.host_url.rstrip("/")
 
 
+def company_url(path: str) -> str:
+    """Absolute link to `path` in this request's company, for emails:
+    <APP_URL>/<company-slug><path>. The company is always named explicitly:
+    a bare /login whose company step is done remembers the company in the
+    session only, so a link built from that request's own URL would work
+    only in the same browser -- opened from a mail app or another device it
+    would land in no company and report its token as invalid."""
+    slug = request.environ.get("hrz.tenant_slug") or session.get("tenant_slug") or ""
+    return f"{_safe_app_url()}{'/' + slug if slug else ''}{path}"
+
+
 def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
     """Validate that a redirect target is a relative path (prevents open
     redirect), then stamp it with the current tenant's URL prefix via
