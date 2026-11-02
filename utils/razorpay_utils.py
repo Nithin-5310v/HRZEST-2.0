@@ -54,6 +54,7 @@ def test_mode() -> bool:
     """Payments go to Razorpay's sandbox: no real money is charged."""
     return _KEY_ID.startswith("rzp_test_")
 
+
 # Sandbox-vs-live is entirely a function of which key prefix is configured
 # (Razorpay itself distinguishes rzp_test_... from rzp_live_...) -- there is
 # no separate "mode" flag to get out of sync. The one real risk is a
