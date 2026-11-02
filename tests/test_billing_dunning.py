@@ -498,7 +498,7 @@ class TestGraceAndLockStateMachine:
         assert grace_ends == expected_deadline
 
     def test_nobody_is_chased_while_payments_are_off(self, db_engine, clean_invoices,
-                                                    restore_tenant_billing_state, monkeypatch):
+                                                     restore_tenant_billing_state, monkeypatch):
         from blueprints.billing_dunning import _run_billing_check
         monkeypatch.setenv("PAYMENTS_ENABLED", "false")
         _set_billing_state(db_engine, billing_state="grace", payment_option="online",
