@@ -1065,7 +1065,7 @@
               <form id="payout-bank-form" class="u-d-none" onsubmit="return payoutSaveBankConfig(event)">
                 <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
                   <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
-                  <button type="button" class="btn-test" onclick="payoutLock()">🔒 Lock now</button>
+                  <button type="button" class="btn-test" onclick="payoutLock()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
                 </div>
                 <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
                   <div class="field"><label>Account Holder Name</label><input type="text" id="payout-holder" required /></div>
@@ -1105,7 +1105,7 @@
                       {% elif rstatus == 'cancelled' %}<span class="badge b-gray">Cancelled</span>
                       {% else %}<span class="badge b-blue">{{ rstatus }}</span>{% endif %}
                       {% if rmissing > 0 %}
-                      <div class="u-fs-11 u-c-dc2626 u-fw-700 u-mt-3">⚠️ {{ rmissing }} of {{ rcount }} missing bank details</div>
+                      <div class="u-fs-11 u-c-dc2626 u-fw-700 u-mt-3"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> {{ rmissing }} of {{ rcount }} missing bank details</div>
                       {% endif %}
                     </td>
                     <td>{{ rcount }}</td>
@@ -1822,7 +1822,7 @@
             </div>
             <div class="two-col">
               <div class="section">
-                <div class="section-title">📡 SMTP Configuration</div>
+                <div class="section-title"><i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> SMTP Configuration</div>
 
                 <!-- Locked state: no SMTP data has been fetched yet -- nothing
                      sensitive is in the page until this gate is passed. -->
@@ -1872,7 +1872,7 @@
                 <div id="email-settings-panel" class="u-d-none">
                   <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
                     <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
-                    <button type="button" class="btn-test" onclick="lockEmailSettings()">🔒 Lock now</button>
+                    <button type="button" class="btn-test" onclick="lockEmailSettings()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
                   </div>
                   <div class="field"><label>SMTP Host</label><input type="text" id="es-host" placeholder="smtp.gmail.com" /></div>
                   <div class="field"><label>Port</label><input type="number" id="es-port" placeholder="587" /></div>
@@ -1881,7 +1881,7 @@
                     <label>Password / App Password</label>
                     <div class="u-d-flex u-gap-8">
                       <input type="password" id="es-pass" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" style="flex:1;" />
-                      <button type="button" class="btn-test" onclick="revealEmailPassword()">👁 Reveal</button>
+                      <button type="button" class="btn-test" onclick="revealEmailPassword()"><i class="ti ti-eye hz-ico" aria-hidden="true"></i> Reveal</button>
                     </div>
                   </div>
                   <div class="field"><label>From Name</label><input type="text" id="es-from-name" placeholder="HR Team" /></div>
@@ -1899,16 +1899,16 @@
 
               <!-- SECOND COLUMN: TEMPLATES & NOTIFICATION TRIGGERS -->
               <div class="section">
-                <div class="section-title">📧 HR Email Templates & Preview</div>
+                <div class="section-title"><i class="ti ti-mail hz-ico" aria-hidden="true"></i> HR Email Templates & Preview</div>
                 <div class="u-fs-12 u-c-64748b u-mb-14">Customize automated HR email template subjects and layouts.</div>
                 
                 <div class="field">
                   <label>Select Template</label>
                   <select id="email-tmpl-select" onchange="loadEmailTemplatePreview()" style="width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; font-size:15px; font-weight:600;">
-                    <option value="welcome">🎉 Welcome &amp; Employee Onboarding</option>
-                    <option value="payslip">📄 Monthly Payslip Delivery</option>
-                    <option value="leave_approved">✅ Leave Request Approved</option>
-                    <option value="attendance_alert">⚠️ Attendance &amp; Lateness Alert</option>
+                    <option value="welcome">Welcome &amp; Employee Onboarding</option>
+                    <option value="payslip">Monthly Payslip Delivery</option>
+                    <option value="leave_approved">Leave Request Approved</option>
+                    <option value="attendance_alert">Attendance &amp; Lateness Alert</option>
                   </select>
                 </div>
 
@@ -1927,7 +1927,7 @@
                 </div>
                 <button type="button" class="btn-submit" disabled title="Template customization is preview-only for now — emails are sent using the built-in layout." style="margin-bottom:20px; opacity:0.5; cursor:not-allowed;">Save Template (Preview Only)</button>
 
-                <div class="section-title">🔔 Notification Triggers</div>
+                <div class="section-title"><i class="ti ti-bell hz-ico" aria-hidden="true"></i> Notification Triggers</div>
                 <div class="u-fs-12 u-c-64748b u-mb-14">Choose which events send an email to admins.</div>
                 <div class="u-d-flex u-fxd-column u-gap-10">
                   {% for key,label,desc in [('notify_leave','New Leave Request','When an employee submits a leave'),('notify_payslip','Payslip Sent','Confirmation when payslip is emailed'),('notify_resignation','Resignation Submitted','New resignation request received'),('notify_doc_expiry','Document Expiry Alert','Before employee documents expire')] %}
@@ -1938,7 +1938,7 @@
             </div>
 
             <div class="section" id="password-management">
-              <div class="section-title">🔐 Password Management</div>
+              <div class="section-title"><i class="ti ti-shield-lock hz-ico" aria-hidden="true"></i> Password Management</div>
 
               {% if request.args.get('pwd_ok') %}
                 <div class="u-mb-14 u-c-15803d u-fs-13"><i class="ti ti-circle-check"></i> Password updated successfully.</div>
@@ -2027,7 +2027,7 @@
     ══════════════════════════════════════ -->
     <div id="tab-auth" class="tab-panel {% if tab=='auth' %}active{% endif %}">
       <div class="section u-maxw-600">
-        <div class="section-title">🔐 Attendance Authentication</div>
+        <div class="section-title"><i class="ti ti-shield-lock hz-ico" aria-hidden="true"></i> Attendance Authentication</div>
         <p class="u-fs-13 u-c-64748b u-mb-24 u-lh-1d7">
           Enable or disable each authentication factor independently. Attendance marking requires any
           <strong>two active factors</strong>. Password controls employee login to the mobile app.
@@ -2052,9 +2052,9 @@
               <div class="u-fs-12 u-c-64748b u-mt-3 u-lh-1d5">{{ desc }}</div>
               <div class="u-mt-8">
                 {% if is_on %}
-                <span class="u-d-inline-flex u-ai-center u-gap-4 u-bg-dcfce7 u-c-16a34a u-fs-11 u-fw-700 u-p-3-10 u-br-20">✅ Enabled</span>
+                <span class="u-d-inline-flex u-ai-center u-gap-4 u-bg-dcfce7 u-c-16a34a u-fs-11 u-fw-700 u-p-3-10 u-br-20"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Enabled</span>
                 {% else %}
-                <span class="u-d-inline-flex u-ai-center u-gap-4 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-p-3-10 u-br-20">❌ Disabled</span>
+                <span class="u-d-inline-flex u-ai-center u-gap-4 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-p-3-10 u-br-20"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Disabled</span>
                 {% endif %}
               </div>
             </div>
@@ -2072,15 +2072,15 @@
           <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-10">Available attendance combinations:</div>
           <div class="u-d-flex u-fxd-column u-gap-7 u-fs-13 u-c-1e293b">
             <div class="u-d-flex u-ai-center u-gap-8">
-              <span class="u-fs-15">📷🤳</span>
+              <span class="u-fs-15"><i class="ti ti-camera hz-ico" aria-hidden="true"></i><i class="ti ti-camera-selfie hz-ico" aria-hidden="true"></i></span>
               <div><strong>QR + Face</strong> — requires QR and Face both enabled</div>
             </div>
             <div class="u-d-flex u-ai-center u-gap-8">
-              <span class="u-fs-15">📷👆</span>
+              <span class="u-fs-15"><i class="ti ti-camera hz-ico" aria-hidden="true"></i><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></span>
               <div><strong>QR + Fingerprint</strong> — requires QR and Fingerprint both enabled</div>
             </div>
             <div class="u-d-flex u-ai-center u-gap-8">
-              <span class="u-fs-15">🤳👆</span>
+              <span class="u-fs-15"><i class="ti ti-camera-selfie hz-ico" aria-hidden="true"></i><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></span>
               <div><strong>Face + Fingerprint</strong> — requires Face and Fingerprint both enabled (no QR)</div>
             </div>
           </div>
@@ -2096,7 +2096,7 @@
   <!-- ══ SET COMPANY PIN MODAL ══ -->
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10002 u-ai-center u-jc-center" id="setPinModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-360 u-shad-0-24-64-rgba0_0_0_0d25">
-      <div class="u-fs-15 u-fw-800 u-c-0f172a u-mb-3">🔒 PIN Protection</div>
+      <div class="u-fs-15 u-fw-800 u-c-0f172a u-mb-3"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> PIN Protection</div>
       <div class="u-fs-12 u-c-64748b u-mb-20" id="spn_label">Control access to this company</div>
       <form method="POST" action="{{ tpath('/set_company_pin') }}" id="spnForm">
         <input type="hidden" name="company_id" id="spn_cid" />
@@ -2120,7 +2120,7 @@
           <div class="u-fs-11 u-c-94a3b8 u-mt-5 u-ta-center">4–10 characters (numbers or letters)</div>
         </div>
         <div class="u-fs-11 u-c-64748b u-bg-fffbeb u-bd-1-solid-fde68a u-br-8 u-p-9-12 u-mb-16 u-lh-1d5">
-          💡 When enabled, clicking this company in the top-right switcher will ask for the PIN before showing its data.
+          <i class="ti ti-bulb hz-ico" aria-hidden="true"></i> When enabled, clicking this company in the top-right switcher will ask for the PIN before showing its data.
         </div>
         <div class="u-d-flex u-gap-8">
           <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeSetPin()">Cancel</button>
@@ -2133,7 +2133,7 @@
   <!-- ══ ADD COMPANY MODAL ══ -->
   <div class="modal-bg" id="addCompanyModal">
     <div class="modal u-maxw-580 u-maxh-90vh u-d-flex u-fxd-column">
-      <div class="modal-title u-fxs-0">🏢 Add Company</div>
+      <div class="modal-title u-fxs-0"><i class="ti ti-building hz-ico" aria-hidden="true"></i> Add Company</div>
       <form class="u-d-flex u-fxd-column u-fx-1 u-minh-0" method="POST" action="{{ tpath('/companies/add') }}" enctype="multipart/form-data">
         <input type="hidden" name="redirect_to" value="settings" />
         <div class="u-ovy-auto u-fx-1 u-pr-2">
@@ -2148,29 +2148,29 @@
             </div>
           </div>
           <div class="field">
-            <label class="u-fs-12 u-fw-700 u-c-475569">🖼️ Company Logo <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-photo hz-ico" aria-hidden="true"></i> Company Logo <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
             <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/bmp" />
           </div>
           <div class="field">
-            <label class="u-fs-12 u-fw-700 u-c-475569">📍 Office Address <span class="u-fs-11 u-c-94a3b8">(optional — shown on ID cards)</span></label>
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-map-pin hz-ico" aria-hidden="true"></i> Office Address <span class="u-fs-11 u-c-94a3b8">(optional — shown on ID cards)</span></label>
             <input type="text" name="address" placeholder="e.g. 4th Floor, Tech Park, Bengaluru, India" />
           </div>
           <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
             <div class="field">
-              <label class="u-fs-12 u-fw-700 u-c-475569">🌐 Website <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+              <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-world hz-ico" aria-hidden="true"></i> Website <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
               <input type="text" name="website" placeholder="e.g. company.com" />
             </div>
             <div class="field">
-              <label class="u-fs-12 u-fw-700 u-c-475569">✉️ Contact Email <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+              <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-mail hz-ico" aria-hidden="true"></i> Contact Email <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
               <input type="email" name="email" placeholder="info@company.com" />
             </div>
           </div>
           <div class="field">
-            <label class="u-fs-12 u-fw-700 u-c-475569">📞 Contact Phone <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-phone hz-ico" aria-hidden="true"></i> Contact Phone <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
             <input type="text" name="phone" placeholder="e.g. +91 98765 43210" />
           </div>
           <div class="field">
-            <label class="u-fs-12 u-fw-700 u-c-475569">📅 Working Days</label>
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Working Days</label>
             <div class="u-d-flex u-fxw-wrap u-gap-6 u-mt-4">
               {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
               <label class="u-cur-pointer">
@@ -2185,7 +2185,7 @@
           <!-- Shifts -->
           <div class="field u-mb-6">
             <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
-              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0">🕐 Shifts</label>
+              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-clock hz-ico" aria-hidden="true"></i> Shifts</label>
               <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-c7d2fe u-br-8 u-bg-eef2ff u-c-4338ca u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acAddShiftRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
             </div>
             <!-- header row -->
@@ -2203,7 +2203,7 @@
           <!-- Breaks -->
           <div class="field u-mb-6">
             <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
-              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0">☕ Breaks</label>
+              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i> Breaks</label>
               <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acAddBreakRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
             </div>
             <!-- header row -->

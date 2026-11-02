@@ -733,12 +733,12 @@
     <!-- ═══ CAMERA MODAL ═══ -->
     <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d75 u-zi-3000 u-ai-center u-jc-center" id="empCameraModal">
       <div class="u-bg-1e1b3a u-br-20 u-p-28 u-w-100pct u-maxw-420 u-c-white u-ta-center u-shad-0-24-60-rgba0_0_0_0d6">
-        <h3 class="u-mb-6">📷 Take Face Photo</h3>
+        <h3 class="u-mb-6"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Take Face Photo</h3>
         <p class="u-fs-12 u-op-0d55 u-mb-14">Position the employee's face in the frame, then click Capture.</p>
         <div class="u-d-flex u-gap-8 u-mb-12 u-fs-11 u-ta-left">
-          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">✅ Front-facing</div>
-          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">✅ Good lighting</div>
-          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7">❌ No sunglasses</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Front-facing</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Good lighting</div>
+          <div class="u-fx-1 u-p-7 u-bg-rgba255_255_255_0d07 u-br-7"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> No sunglasses</div>
         </div>
         <div class="u-pos-relative u-w-100pct u-br-12 u-ov-hidden u-bg-000 u-mb-12">
           <video class="u-w-100pct u-d-block u-maxh-280 u-objf-cover" id="empCamVideo" autoplay playsinline muted></video>
@@ -749,9 +749,9 @@
         <canvas class="u-d-none u-w-100pct u-br-12 u-mb-12" id="empCamCanvas"></canvas>
         <div class="u-d-none u-p-14-16 u-bg-7f1d1d u-br-10 u-c-fecaca u-fs-13 u-mb-12 u-ta-left u-lh-1d6" id="empCamError"></div>
         <div class="u-d-flex u-gap-10">
-          <button class="u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradiene4b3b9 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empCaptureBtn" onclick="empCapturePhoto()">📸 Capture</button>
-          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-rgba255_255_255_0d15 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empRetakeBtn"  onclick="empRetakePhoto()">🔄 Retake</button>
-          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradien161636 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empUseBtn"     onclick="empUsePhoto()">✅ Use Photo</button>
+          <button class="u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradiene4b3b9 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empCaptureBtn" onclick="empCapturePhoto()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Capture</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-rgba255_255_255_0d15 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empRetakeBtn"  onclick="empRetakePhoto()"><i class="ti ti-refresh hz-ico" aria-hidden="true"></i> Retake</button>
+          <button class="u-d-none u-fx-1 u-p-12 u-bd-none u-br-10 u-bg-linear-gradien161636 u-c-white u-fs-14 u-fw-700 u-cur-pointer" id="empUseBtn"     onclick="empUsePhoto()"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Use Photo</button>
           <button class="u-p-12-16 u-bd-1-solid-rgba2525554c u-br-10 u-bg-transparent u-c-white u-fs-14 u-cur-pointer" onclick="closeEmpCameraModal()">Cancel</button>
         </div>
       </div>
@@ -800,7 +800,7 @@
               <div class="u-d-flex u-gap-8 u-ai-center">
                 <input class="u-fx-1 u-fw-700 u-ls-1" type="text" name="emp_id" id="addEmpId" required placeholder="Generating…" />
                 <button class="u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-eff6ff u-c-1e3a8a u-cur-pointer u-ws-nowrap u-fs-13 u-fw-600" type="button" onclick="generateEmpId()" title="Re-generate ID">
-                  🔄 Generate
+                  <i class="ti ti-refresh hz-ico" aria-hidden="true"></i> Generate
                 </button>
               </div>
               <div class="u-fs-11 u-c-64748b u-mt-4" id="empIdHint"></div>
@@ -837,7 +837,7 @@
             <div class="sec-title u-gc-1_-1 u-m-0">
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-professional')">
-                  <span>💼 Professional Details</span>
+                  <span><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Professional Details</span>
                   <i class="ti ti-chevron-down" id="sec-professional-icon"></i>
                 </div>
                 <div id="sec-professional" class="form-sub-body u-d-none">
@@ -881,7 +881,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-personal')">
-                  <span>👤 Personal Details</span>
+                  <span><i class="ti ti-user hz-ico" aria-hidden="true"></i> Personal Details</span>
                   <i class="ti ti-chevron-down" id="sec-personal-icon"></i>
                 </div>
                 <div id="sec-personal" class="form-sub-body u-d-none">
@@ -911,7 +911,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-address')">
-                  <span>🏠 Address</span>
+                  <span><i class="ti ti-home hz-ico" aria-hidden="true"></i> Address</span>
                   <i class="ti ti-chevron-down" id="sec-address-icon"></i>
                 </div>
                 <div id="sec-address" class="form-sub-body u-d-none">
@@ -938,7 +938,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-emergency')">
-                  <span>🚨 Emergency Contact</span>
+                  <span><i class="ti ti-urgent hz-ico" aria-hidden="true"></i> Emergency Contact</span>
                   <i class="ti ti-chevron-down" id="sec-emergency-icon"></i>
                 </div>
                 <div id="sec-emergency" class="form-sub-body u-d-none">
@@ -961,7 +961,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-docs')">
-                  <span>📄 Documents &amp; Finance</span>
+                  <span><i class="ti ti-file-text hz-ico" aria-hidden="true"></i> Documents &amp; Finance</span>
                   <i class="ti ti-chevron-down" id="sec-docs-icon"></i>
                 </div>
                 <div id="sec-docs" class="form-sub-body u-d-none">
@@ -996,7 +996,7 @@
 
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-edu')">
-                  <span>🎓 Qualifications</span>
+                  <span><i class="ti ti-school hz-ico" aria-hidden="true"></i> Qualifications</span>
                   <i class="ti ti-chevron-down" id="sec-edu-icon"></i>
                 </div>
                 <div id="sec-edu" class="form-sub-body u-d-none">
@@ -1022,11 +1022,11 @@
               <div class="radio-group">
                 <label class="radio-label">
                   <input class="u-accent-1e3a8a" type="radio" name="work_mode" value="office" checked
-                         onchange="toggleAddLocation(this.value)" /> 🏢 Office
+                         onchange="toggleAddLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
                 </label>
                 <label class="radio-label">
                   <input class="u-accent-059669" type="radio" name="work_mode" value="wfh"
-                         onchange="toggleAddLocation(this.value)" /> 🏠 Work from Home
+                         onchange="toggleAddLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
                 </label>
               </div>
             </div>
@@ -1043,7 +1043,7 @@
                 </div>
               </div>
               <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocation('add_work_lat','add_work_lon')">
-                📡 Use My Location
+                <i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> Use My Location
               </button>
             </div>
 
@@ -1053,30 +1053,30 @@
                 <img class="u-d-none u-w-90 u-h-90 u-br-50pct u-objf-cover u-bd-3-solid-22c55e u-m-0-auto-10" id="addPhotoPreview" alt="Preview" />
                 <div class="u-fs-13 u-c-64748b u-mb-10" id="addPhotoLabel">No photo selected</div>
                 <div class="u-d-flex u-gap-8 u-jc-center">
-                  <button class="u-p-9-16 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="openEmpCameraModal()">📷 Camera</button>
-                  <button class="u-p-9-16 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-c-1e3a8a u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="document.getElementById('addFaceInput').click()">🖼 Upload</button>
+                  <button class="u-p-9-16 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="openEmpCameraModal()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Camera</button>
+                  <button class="u-p-9-16 u-bd-1-solid-dbeafe u-br-8 u-bg-fff u-c-1e3a8a u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="document.getElementById('addFaceInput').click()"><i class="ti ti-photo hz-ico" aria-hidden="true"></i> Upload</button>
                 </div>
                 <input class="u-d-none" type="file" id="addFaceInput" name="face" accept="image/*"
                        onchange="empPhotoSelected(this)" />
               </div>
-              <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr">⚠ a face photo before registering.</div>
+              <div class="u-c-dc2626 u-fs-12 u-mt-4 u-d-none" id="addPhotoErr"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> a face photo before registering.</div>
             </div>
 
             <div class="sec-title u-gc-1_-1 u-m-0">
               <div class="form-sub-section">
                 <div class="form-sub-header" onclick="toggleSubSection('sec-fingerprint')">
-                  <span>👆 Fingerprint Enrollment <span class="u-c-94a3b8 u-fw-400 u-fs-10 u-ttr-none">(Optional)</span></span>
+                  <span><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Fingerprint Enrollment <span class="u-c-94a3b8 u-fw-400 u-fs-10 u-ttr-none">(Optional)</span></span>
                   <i class="ti ti-chevron-down" id="sec-fingerprint-icon"></i>
                 </div>
                 <div id="sec-fingerprint" class="form-sub-body u-d-none">
                   <div class="u-bd-2-dashed-bfdbfe u-br-12 u-p-18 u-ta-center u-bg-f8fafc u-trs-0d3s" id="fpEnrollBox">
-                    <div class="u-fs-44 u-mb-8 u-d-inline-block u-anim-fpregpulse-2d5b77393">👆</div>
+                    <div class="u-fs-44 u-mb-8 u-d-inline-block u-anim-fpregpulse-2d5b77393"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></div>
                     <div class="u-fs-13 u-c-64748b u-mb-12" id="fpEnrollStatus">
                       Not enrolled — employee can use QR + Face by default
                     </div>
                     <div class="u-d-flex u-gap-8 u-jc-center">
                       <button class="u-p-9-18 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="button" id="fpEnrollBtn" onclick="enrollFingerprint()">
-                        👆 Enroll Fingerprint
+                        <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Enroll Fingerprint
                       </button>
                       <button class="u-d-none u-p-9-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="fpClearBtn" onclick="clearFingerprint()">
                         ✕ Clear
@@ -1210,11 +1210,11 @@
                 <div class="radio-group u-mt-6">
                   <label class="radio-label">
                     <input class="u-accent-1e3a8a" type="radio" name="work_mode" id="emp_edit_wm_office" value="office"
-                           onchange="toggleEditLocation(this.value)" /> 🏢 Office
+                           onchange="toggleEditLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
                   </label>
                   <label class="radio-label">
                     <input class="u-accent-059669" type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh"
-                           onchange="toggleEditLocation(this.value)" /> 🏠 Work from Home
+                           onchange="toggleEditLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
                   </label>
                 </div>
               </div>
@@ -1231,7 +1231,7 @@
                   </div>
                 </div>
                 <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocation('emp_edit_work_lat','emp_edit_work_lon')">
-                  📡 Use My Location
+                  <i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> Use My Location
                 </button>
               </div>
             </div>
@@ -1287,7 +1287,7 @@
               <div class="u-d-flex u-gap-8">
                 <button class="u-p-6-14 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpEnrollBtn"
                   style="display:none" onclick="enrollFingerprintForEdit()">
-                  👆 Enroll Fingerprint
+                  <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Enroll Fingerprint
                 </button>
                 <button class="u-p-6-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpResetBtn"
                   onclick="resetEmployeeFingerprint(document.getElementById('edit_emp_id').value)">

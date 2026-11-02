@@ -102,7 +102,7 @@
 {% block main %}
     <div class="page-header">
       <div>
-        <h1>✏️ Mark Attendance</h1>
+        <h1><i class="ti ti-pencil hz-ico" aria-hidden="true"></i> Mark Attendance</h1>
         <p>Select a date and mark attendance for all employees at once.</p>
       </div>
     </div>
@@ -121,11 +121,11 @@
     <!-- Quick mark all -->
     <div class="quick-bar">
       <span>Quick Mark All:</span>
-      <button type="button" class="qbtn" onclick="markAll('Full Day')">✅ All Present</button>
-      <button type="button" class="qbtn" onclick="markAll('Absent')">❌ All Absent</button>
-      <button type="button" class="qbtn" onclick="markAll('Half Day')">🌓 All Half Day</button>
-      <button type="button" class="qbtn" onclick="markAll('Holiday')">🎉 All Holiday</button>
-      <button type="button" class="qbtn" onclick="markAll('Leave')">🌴 All On Leave</button>
+      <button type="button" class="qbtn" onclick="markAll('Full Day')"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> All Present</button>
+      <button type="button" class="qbtn" onclick="markAll('Absent')"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> All Absent</button>
+      <button type="button" class="qbtn" onclick="markAll('Half Day')"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> All Half Day</button>
+      <button type="button" class="qbtn" onclick="markAll('Holiday')"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> All Holiday</button>
+      <button type="button" class="qbtn" onclick="markAll('Leave')"><i class="ti ti-beach hz-ico" aria-hidden="true"></i> All On Leave</button>
     </div>
 
     <!-- Search -->
@@ -164,7 +164,7 @@
                 <div class="u-d-flex u-ai-center u-gap-10">
                   <div class="avatar">{{ ename[0]|upper }}</div>
                   <div>
-                    <div class="emp-name">{{ ename }}{% if eid in locked_employee_ids %} <span class="lockout-badge" title="Online check-in locked after failed attempts — marking attendance here unlocks it">🔒 Locked</span>{% endif %}</div>
+                    <div class="emp-name">{{ ename }}{% if eid in locked_employee_ids %} <span class="lockout-badge" title="Online check-in locked after failed attempts — marking attendance here unlocks it"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Locked</span>{% endif %}</div>
                     <span class="emp-id">{{ eid }}{% if role %} · {{ role }}{% endif %}</span>
                     {% if phone %}<div class="emp-meta"><i class="ti ti-phone u-fs-10"></i> {{ phone }}</div>{% endif %}
                     {% if email %}<div class="emp-meta"><i class="ti ti-mail u-fs-10"></i> {{ email }}</div>{% endif %}
@@ -189,10 +189,10 @@
               </td>
               <td class="u-ws-nowrap">
                 {% if ms %}
-                  <span class="stat-pill sp-present">✅ {{ ms[1]|int }}P</span>
-                  <span class="stat-pill sp-half">🌓 {{ ms[2]|int }}H</span>
-                  <span class="stat-pill sp-absent">❌ {{ ms[3]|int }}A</span>
-                  <span class="stat-pill sp-leave">🌴 {{ ms[4]|int }}L</span>
+                  <span class="stat-pill sp-present"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> {{ ms[1]|int }}P</span>
+                  <span class="stat-pill sp-half"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> {{ ms[2]|int }}H</span>
+                  <span class="stat-pill sp-absent"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> {{ ms[3]|int }}A</span>
+                  <span class="stat-pill sp-leave"><i class="ti ti-beach hz-ico" aria-hidden="true"></i> {{ ms[4]|int }}L</span>
                 {% else %}
                   <span class="u-c-cbd5e1 u-fs-11">No records</span>
                 {% endif %}
@@ -200,13 +200,13 @@
               <td>
                 <select name="att_{{ eid }}" class="att-select" onchange="styleSelect(this)" title="Attendance status">
                   <option value="">— Skip —</option>
-                  <option value="Full Day"   {% if cur_type == 'Full Day' %}selected{% endif %}>✅ Full Day</option>
-                  <option value="Late - Full Day" {% if cur_type == 'Late - Full Day' %}selected{% endif %}>🕐 Late – Full Day</option>
-                  <option value="Half Day"   {% if cur_type == 'Half Day' %}selected{% endif %}>🌓 Half Day</option>
-                  <option value="Absent"     {% if cur_type == 'Absent' %}selected{% endif %}>❌ Absent</option>
-                  <option value="Leave"      {% if cur_type == 'Leave' %}selected{% endif %}>🌴 Leave</option>
-                  <option value="Holiday"    {% if cur_type == 'Holiday' %}selected{% endif %}>🎉 Holiday</option>
-                  <option value="Week Off"   {% if cur_type == 'Week Off' %}selected{% endif %}>💤 Week Off</option>
+                  <option value="Full Day"   {% if cur_type == 'Full Day' %}selected{% endif %}>Full Day</option>
+                  <option value="Late - Full Day" {% if cur_type == 'Late - Full Day' %}selected{% endif %}>Late – Full Day</option>
+                  <option value="Half Day"   {% if cur_type == 'Half Day' %}selected{% endif %}>Half Day</option>
+                  <option value="Absent"     {% if cur_type == 'Absent' %}selected{% endif %}>Absent</option>
+                  <option value="Leave"      {% if cur_type == 'Leave' %}selected{% endif %}>Leave</option>
+                  <option value="Holiday"    {% if cur_type == 'Holiday' %}selected{% endif %}>Holiday</option>
+                  <option value="Week Off"   {% if cur_type == 'Week Off' %}selected{% endif %}>Week Off</option>
                 </select>
               </td>
               <td>
@@ -222,7 +222,7 @@
 
         <div class="form-footer">
           <div class="count" id="visibleCount">{{ employees|length }} employee(s) shown</div>
-          <button type="submit" class="btn-save">💾 Save Attendance for {{ date_obj.strftime('%d %b %Y') }}</button>
+          <button type="submit" class="btn-save"><i class="ti ti-device-floppy hz-ico" aria-hidden="true"></i> Save Attendance for {{ date_obj.strftime('%d %b %Y') }}</button>
         </div>
       </div>
     </form>
@@ -230,7 +230,7 @@
     {% else %}
     <div class="section">
       <div class="empty">
-        <div class="u-fs-48 u-mb-12">👥</div>
+        <div class="u-fs-48 u-mb-12"><i class="ti ti-users hz-ico" aria-hidden="true"></i></div>
         <div class="u-fs-15 u-fw-700 u-c-64748b">No active employees found.</div>
         <div class="u-fs-13 u-c-94a3b8 u-mt-6">Add employees first before marking attendance.</div>
       </div>

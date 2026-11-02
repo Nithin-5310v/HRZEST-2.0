@@ -101,11 +101,11 @@
 
       <div class="page-header">
         {% if filter_type == "present" %}
-          <h1>✅ Present Today</h1>
+          <h1><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Present Today</h1>
         {% elif filter_type == "absent" %}
-          <h1>❌ Absent Today</h1>
+          <h1><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Absent Today</h1>
         {% else %}
-          <h1>⚠️ Late Logins Today</h1>
+          <h1><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Late Logins Today</h1>
         {% endif %}
         <p>{{ today }}</p>
       </div>
@@ -201,8 +201,8 @@
               <tr>
                 <td colspan="9" class="empty-cell">
                   {% if filter_type == "present" %}No employees have logged in today.
-                  {% elif filter_type == "absent" %}Great news — no absentees today! 🎉
-                  {% else %}No late logins today. ✅{% endif %}
+                  {% elif filter_type == "absent" %}Great news — no absentees today! <i class="ti ti-confetti hz-ico" aria-hidden="true"></i>
+                  {% else %}No late logins today. <i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i>{% endif %}
                 </td>
               </tr>
               {% endfor %}

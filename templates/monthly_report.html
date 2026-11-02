@@ -33,6 +33,8 @@
       .main { flex: 1; padding: 28px; color: #1e293b; }
       .page-header { margin-bottom: 22px; }
       .page-header h1 { font-size: 26px; color: #1e293b; }
+      .page-header h1 { display: flex; align-items: center; gap: 12px; }
+      .page-icon { width: 40px; height: 40px; border-radius: 10px; background: #eff6ff; border: 1px solid #dbeafe; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
       .page-header p  { font-size: 15px; color: #64748b; margin-top: 4px; }
 
       /* FILTER BAR */
@@ -121,6 +123,7 @@
       body.dark-mode .main { background: #0d1117 !important; color: #cdd9e5 !important; }
       body.dark-mode .page-header h1, body.dark-mode .page-header p { color: #768390 !important; }
       body.dark-mode .page-header h1 { color: #cdd9e5 !important; }
+      body.dark-mode .page-icon { background: rgba(37,99,235,.18); border-color: rgba(96,165,250,.3); color: #60a5fa; }
       body.dark-mode .filter-bar { background: #161b22 !important; border-color: #30363d !important; }
       body.dark-mode .filter-bar label { color: #768390 !important; }
       body.dark-mode .filter-bar select { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
@@ -138,7 +141,7 @@
 
       <div class="page-header u-d-flex u-ai-flex-end u-jc-space-between u-fxw-wrap u-gap-12">
         <div>
-          <h1>📊 Monthly Attendance Report</h1>
+          <h1><span class="page-icon" aria-hidden="true"><i class="ti ti-chart-bar"></i></span>Monthly Attendance Report</h1>
           <p>{{ month_name }} &nbsp;·&nbsp; {{ total_working }} working days &nbsp;·&nbsp; {{ holiday_count }} holiday(s)</p>
         </div>
         <div class="u-pos-relative u-mt-32">
@@ -166,7 +169,7 @@
 
         <button type="submit">View Report</button>
         <a class="u-p-9-22 u-bd-none u-br-8 u-bg-16a34a u-c-white u-fs-14 u-fw-600 u-cur-pointer u-tdec-none u-d-inline-flex u-ai-center u-gap-6" href="/monthly_report_export?month={{ month }}&year={{ year }}">
-          ⬇ Download Excel
+          <i class="ti ti-download hz-ico" aria-hidden="true"></i> Download Excel
         </a>
       </form>
 
@@ -179,19 +182,19 @@
       <div class="summary">
         <div class="sum-card c-blue">
           <div class="num">{{ total_emp }}</div>
-          <div class="lbl">👥 Total Employees</div>
+          <div class="lbl"><i class="ti ti-users hz-ico" aria-hidden="true"></i> Total Employees</div>
         </div>
         <div class="sum-card c-green">
           <div class="num">{{ total_working }}</div>
-          <div class="lbl">📅 Working Days</div>
+          <div class="lbl"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Working Days</div>
         </div>
         <div class="sum-card c-yellow">
           <div class="num">{{ avg_pct }}%</div>
-          <div class="lbl">📈 Avg Attendance</div>
+          <div class="lbl"><i class="ti ti-trending-up hz-ico" aria-hidden="true"></i> Avg Attendance</div>
         </div>
         <div class="sum-card c-red">
           <div class="num">{{ holiday_count }}</div>
-          <div class="lbl">🎉 Holidays</div>
+          <div class="lbl"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> Holidays</div>
         </div>
       </div>
 
