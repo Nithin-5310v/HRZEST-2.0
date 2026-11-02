@@ -775,6 +775,27 @@ def invalidate_settings_cache():
     _redis_clear_prefix("settings_auth")
 
 
+def notify_new_holiday(cursor, db, holiday_name, date):
+    """In-app notification for a newly added holiday, sent to every active
+    employee only -- the admin/HR who posted it don't get a bell entry. Uses the caller's cursor/connection, like
+    post_announcement(). A "Leave:"-prefixed entry is a personal leave block,
+    not a company holiday, so it is skipped."""
+    name = (holiday_name or "").strip()
+    if not name or name.startswith("Leave:"):
+        return
+    title = f"🎉 Holiday: {name}"
+    message = f"{name} on {date}."
+    cursor.execute("SELECT employee_id FROM employees WHERE is_active=1")
+    emp_ids = [eid for (eid,) in cursor.fetchall()]
+    if emp_ids:
+        cursor.executemany(
+            "INSERT INTO notifications (recipient_type, employee_id, title, message) "
+            "VALUES ('employee', %s, %s, %s)",
+            [(eid, title, message) for eid in emp_ids]
+        )
+    db.commit()
+
+
 def post_announcement(cursor, db, title, content, priority, visibility, target_emp=None,
                       attachment_original_name=None, attachment_stored_ref=None):
     """Insert an `announcements` row and fan out the matching `notifications`

@@ -48,13 +48,12 @@ def raise_ticket():
 @tickets_bp.route("/tickets")
 @admin_required
 def tickets_view():
-    """Ticket management now lives solely on the Leaves & Holidays page's
-    Tickets tab (templates/leave_holidays.html) -- both pages used to
-    render their own full copy of the same list, posting to the same
-    /ticket_action/<tid> handler below, which meant two separately-
-    maintained UIs for one feature. This route stays as a redirect (not
-    deleted) so old bookmarks/links to /tickets keep working."""
-    return redirect(tpath("/leave_holidays?tab=tickets"))
+    """Standalone Tickets module (own sidebar item); shares the page
+    renderer with Leaves & Holidays."""
+    from blueprints.leave import render_hr_hub
+    if session.get("admin_role") == "manager":
+        return redirect(tpath("/leave_holidays"))
+    return render_hr_hub("tickets", "tickets")
 
 
 @tickets_bp.route("/ticket_action/<int:tid>", methods=["POST"])

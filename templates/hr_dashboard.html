@@ -131,11 +131,11 @@
         <div class="stat-icon onleave"><i class="ti ti-calendar-due"></i></div>
         <div><div class="stat-val">{{ pending_leaves }}</div><div class="stat-lbl">Pending Leave Requests</div></div>
       </a>
-      <a class="stat-card" href="{{ tpath('/leave_holidays?tab=resignations') }}">
+      <a class="stat-card" href="{{ tpath('/resignations') }}">
         <div class="stat-icon resigned"><i class="ti ti-door-exit"></i></div>
         <div><div class="stat-val">{{ pending_approvals }}</div><div class="stat-lbl">Pending Approvals</div></div>
       </a>
-      <a class="stat-card" href="{{ tpath('/leave_holidays?tab=tickets') }}">
+      <a class="stat-card" href="{{ tpath('/tickets') }}">
         <div class="stat-icon active"><i class="ti ti-ticket"></i></div>
         <div><div class="stat-val">{{ open_tickets }}</div><div class="stat-lbl">Open Tickets</div></div>
       </a>
@@ -156,7 +156,7 @@
       <a class="quick-link" href="{{ tpath('/overtime') }}"><i class="ti ti-clock-bolt"></i> OT &amp; Comp-off</a>
       <a class="quick-link" href="{{ tpath('/onboarding') }}"><i class="ti ti-checklist"></i> Onboarding</a>
       <a class="quick-link" href="{{ tpath('/performance') }}"><i class="ti ti-chart-line"></i> Performance &amp; Comms</a>
-      <a class="quick-link" href="{{ tpath('/leave_holidays?tab=tickets') }}"><i class="ti ti-ticket"></i> Support Tickets</a>
+      <a class="quick-link" href="{{ tpath('/tickets') }}"><i class="ti ti-ticket"></i> Support Tickets</a>
       <a class="quick-link" href="{{ tpath('/admin_payslips') }}"><i class="ti ti-receipt"></i> Payslips</a>
     </div>
   </div>
@@ -210,7 +210,7 @@
     <div class="hr-section">
       <div class="hr-section-hd">
         <h3>Pending Resignations</h3>
-        <a href="{{ tpath('/leave_holidays?tab=resignations') }}">Review <i class="ti ti-arrow-right"></i></a>
+        <a href="{{ tpath('/resignations') }}">Review <i class="ti ti-arrow-right"></i></a>
       </div>
       <div class="hr-table-wrap">
         <table class="hr-table">
@@ -305,7 +305,7 @@
     <div class="hr-section">
       <div class="hr-section-hd">
         <h3>Open Support Tickets</h3>
-        <a href="{{ tpath('/leave_holidays?tab=tickets') }}">Assign &amp; Resolve <i class="ti ti-arrow-right"></i></a>
+        <a href="{{ tpath('/tickets') }}">Assign &amp; Resolve <i class="ti ti-arrow-right"></i></a>
       </div>
       <div class="hr-table-wrap">
         <table class="hr-table">

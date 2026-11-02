@@ -77,10 +77,10 @@
 
     // Leaves & Holidays
     {t: 'Leave Requests', s: 'Leaves & Holidays › Approve or reject leave', u: '/leave_holidays?tab=leaves', i: 'calendar-event', k: 'leave approve reject pending request time off quota'},
-    {t: 'Support Tickets', s: 'Leaves & Holidays › Employee tickets', u: '/leave_holidays?tab=tickets', i: 'ticket', k: 'ticket helpdesk support issue complaint query'},
-    {t: 'Announcements', s: 'Leaves & Holidays › Company-wide notices', u: '/leave_holidays?tab=announcements', i: 'speakerphone', k: 'announcement announcements notice notices broadcast news message post publish circular'},
+    {t: 'Support Tickets', s: 'Tickets › Employee tickets', u: '/tickets', i: 'ticket', k: 'ticket helpdesk support issue complaint query'},
+    {t: 'Announcements', s: 'Announcements › Company-wide notices', u: '/announcements', i: 'speakerphone', k: 'announcement announcements notice notices broadcast news message post publish circular'},
     {t: 'Holidays', s: 'Leaves & Holidays › Public holiday calendar', u: '/leave_holidays?tab=holidays', i: 'beach', k: 'holiday holidays public holiday festival calendar off day add holiday'},
-    {t: 'Resignations', s: 'Leaves & Holidays › Resignation requests', u: '/leave_holidays?tab=resignations', i: 'door-exit', k: 'resignation resign exit notice period quit'},
+    {t: 'Resignations', s: 'Resignations › Resignation requests', u: '/resignations', i: 'door-exit', k: 'resignation resign exit notice period quit'},
     {t: 'Leave Balance', s: 'Leave balances for every employee', u: '/leave_balance', i: 'scale', k: 'leave balance quota remaining casual sick earned'},
     {t: 'Leave Calendar', s: 'Who is on leave, by date', u: '/leave_calendar', i: 'calendar', k: 'leave calendar who is off schedule'},
 

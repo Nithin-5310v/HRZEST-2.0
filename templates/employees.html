@@ -342,11 +342,11 @@
           <div class="stat-icon onleave"><i class="ti ti-calendar-due"></i></div>
           <div><div class="stat-val">{{ pending_leaves }}</div><div class="stat-lbl">Pending Leaves</div></div>
         </a>
-        <a class="stat-card" href="{{ tpath('/leave_holidays?tab=resignations') }}" style="text-decoration:none;">
+        <a class="stat-card" href="{{ tpath('/resignations') }}" style="text-decoration:none;">
           <div class="stat-icon resigned"><i class="ti ti-door-exit"></i></div>
           <div><div class="stat-val">{{ pending_resignations }}</div><div class="stat-lbl">Pending Resignations</div></div>
         </a>
-        <a class="stat-card" href="{{ tpath('/leave_holidays?tab=tickets') }}" style="text-decoration:none;">
+        <a class="stat-card" href="{{ tpath('/tickets') }}" style="text-decoration:none;">
           <div class="stat-icon active"><i class="ti ti-ticket"></i></div>
           <div><div class="stat-val">{{ pending_tickets }}</div><div class="stat-lbl">Open Tickets</div></div>
         </a>
@@ -367,7 +367,7 @@
         <a href="{{ tpath('/onboarding') }}" style="display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; background:#fff; border:1px solid #dbeafe; color:#1e3a8a; font-size:15px; font-weight:700; text-decoration:none;">
           <i class="ti ti-checklist"></i> Onboarding
         </a>
-        <a href="{{ tpath('/leave_holidays?tab=tickets') }}" style="display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; background:#fff; border:1px solid #dbeafe; color:#1e3a8a; font-size:15px; font-weight:700; text-decoration:none;">
+        <a href="{{ tpath('/tickets') }}" style="display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; background:#fff; border:1px solid #dbeafe; color:#1e3a8a; font-size:15px; font-weight:700; text-decoration:none;">
           <i class="ti ti-ticket"></i> Support Tickets
         </a>
       </div>

@@ -2037,7 +2037,7 @@ def announcements_admin():
                 flash("Please select at least one employee for a private announcement.", "error")
                 cursor.close()
                 db.close()
-                return redirect(tpath("/performance?tab=announcements"))
+                return redirect(tpath("/announcements"))
             title = request.form["title"]
             content = request.form.get("content", "")
             priority = request.form.get("priority", "Normal")
@@ -2049,7 +2049,7 @@ def announcements_admin():
                     flash(err, "error")
                     cursor.close()
                     db.close()
-                    return redirect(tpath("/performance?tab=announcements"))
+                    return redirect(tpath("/announcements"))
                 attachment_name = f.filename
 
             def _save_attachment_copy():
@@ -2073,7 +2073,7 @@ def announcements_admin():
                     flash(f"Attachment upload failed: {err}", "error")
                     cursor.close()
                     db.close()
-                    return redirect(tpath("/performance?tab=announcements"))
+                    return redirect(tpath("/announcements"))
                 post_announcement(cursor, db, title, content, priority, "public", None,
                                   attachment_original_name=attachment_name, attachment_stored_ref=attachment_ref)
                 flash("Announcement posted.", "success")
@@ -2084,7 +2084,7 @@ def announcements_admin():
                         flash(f"Attachment upload failed: {err}", "error")
                         cursor.close()
                         db.close()
-                        return redirect(tpath("/performance?tab=announcements"))
+                        return redirect(tpath("/announcements"))
                     post_announcement(cursor, db, title, content, priority, "private", target_emp,
                                       attachment_original_name=attachment_name, attachment_stored_ref=attachment_ref)
                 flash(f"Announcement posted to {len(target_emps)} employee(s).", "success")
@@ -2101,10 +2101,11 @@ def announcements_admin():
             flash("Announcement deleted.", "success")
         cursor.close()
         db.close()
-        return redirect(tpath("/performance?tab=announcements"))
+        return redirect(tpath("/announcements"))
     cursor.close()
     db.close()
-    return redirect(tpath("/performance?tab=announcements"))
+    from blueprints.leave import render_hr_hub
+    return render_hr_hub("announcements", "announcements")
 
 
 @admin_views_bp.route("/download_announcement/<int:aid>")
@@ -2121,7 +2122,7 @@ def download_announcement(aid):
     row = cursor.fetchone()
     cursor.close()
     db.close()
-    fallback = tpath("/employee_portal") if emp_id else tpath("/leave_holidays?tab=announcements")
+    fallback = tpath("/employee_portal") if emp_id else tpath("/announcements")
     if not row or not row[3]:
         flash("Attachment not found.", "danger")
         return redirect(fallback)
