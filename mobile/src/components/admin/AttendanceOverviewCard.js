@@ -78,8 +78,8 @@ export default function AttendanceOverviewCard({
       label: "On Leave",
       value: onLeave,
       icon: "airplane",
-      color: "#0C3054",
-      bg: "#EBF2FB",
+      color: "#1D4ED8",
+      bg: "#EFF6FF",
     },
   ];
 
@@ -93,7 +93,7 @@ export default function AttendanceOverviewCard({
     >
       {/* Real-time Clock Banner */}
       <LinearGradient
-        colors={["#0C3054", "#0B5CAD"]}
+        colors={["#1D4ED8", "#2563EB"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.clockBanner}
@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#DBE3EE",
-    shadowColor: "#131C2A",
+    borderColor: "#E4E7EC",
+    shadowColor: "#101828",
     shadowOpacity: 0.04,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 18,
     alignItems: "center",
-    shadowColor: "#0C3054",
+    shadowColor: "#1D4ED8",
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
   },
   subtitle: {
     marginTop: 2,
     fontSize: 12,
-    color: "#5A6678",
+    color: "#475467",
   },
   scoreBox: {
     alignItems: "flex-end",
@@ -253,25 +253,25 @@ const styles = StyleSheet.create({
   score: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#0C3054",
+    color: "#1D4ED8",
     letterSpacing: -0.4,
   },
   scoreLabel: {
     fontSize: 10,
     fontWeight: "700",
-    color: "#5A6678",
+    color: "#475467",
     marginTop: 1,
   },
   progressTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#EDF2F8",
+    backgroundColor: "#EEF1F5",
     overflow: "hidden",
     marginBottom: 16,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#0C3054",
+    backgroundColor: "#1D4ED8",
     borderRadius: 4,
   },
   list: {
@@ -297,11 +297,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#2E3A4A",
+    color: "#344054",
   },
   value: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#131C2A",
+    color: "#101828",
   },
 });

@@ -22,7 +22,7 @@ export default function PolicySection({
           <Ionicons
             name={icon}
             size={20}
-            color="#0B5CAD"
+            color="#2563EB"
           />
         </View>
 
@@ -72,9 +72,9 @@ const styles = StyleSheet.create({
     marginBottom: 22,
 
     borderWidth: 1,
-    borderColor: "#E3EAF3",
+    borderColor: "#E6E9EF",
 
-    shadowColor: "#131C2A",
+    shadowColor: "#101828",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     shadowOffset: {
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 14,
 
-    backgroundColor: "#E6EFFA",
+    backgroundColor: "#EEF4FF",
 
     justifyContent: "center",
     alignItems: "center",
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
 
     fontWeight: "800",
 
-    color: "#131C2A",
+    color: "#101828",
 
     letterSpacing: -0.3,
   },
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
 
-    backgroundColor: "#E9EFF6",
+    backgroundColor: "#EEF1F5",
 
     marginBottom: 18,
   },

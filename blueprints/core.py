@@ -11,7 +11,7 @@ from flask import Blueprint, request, session, jsonify, render_template, redirec
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
 from utils.auth import (
-    api_required, check_password_hash, generate_password_hash, _hash_token,
+    api_required, api_role_required, HR_ROLE, check_password_hash, generate_password_hash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
     turnstile_enabled, _TURNSTILE_SITE_KEY, employment_ended_on, access_ended_message,
@@ -24,7 +24,7 @@ from utils.helpers import (
     get_company_settings, _safe_app_url, company_today,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
-from utils.email_utils import get_email_config, send_email_smtp, support_inbox
+from utils.email_utils import get_email_config, send_email_smtp, public_contact_email
 from utils.session_risk import is_session_compromised, ensure_session_id
 
 core_bp = Blueprint("core", __name__)
@@ -167,7 +167,7 @@ def home():
         registration_failed=registration_failed,
         show_captcha=turnstile_enabled(),
         turnstile_site_key=_TURNSTILE_SITE_KEY,
-        support_email=support_inbox(),
+        support_email=public_contact_email(),
     )
 
 
@@ -280,12 +280,17 @@ def _api_admin_login(username, password):
     ended_on = employment_ended_on(username)
     if ended_on:
         return jsonify({"ok": False, "access_ended": True, "msg": access_ended_message(ended_on)}), 403
+    return _admin_token_or_challenge(username, row[1], row[3])
 
+
+def _admin_token_or_challenge(username, role, email):
+    """An admin-tier account whose password just checked out: its token,
+    or -- with MANDATORY_LOGIN_MFA -- an emailed-code challenge that
+    /api/login/verify exchanges for the token."""
     if not current_app.config["MANDATORY_LOGIN_MFA"]:
         token = _issue_admin_api_token(username, mfa_verified=False)
-        return jsonify({"ok": True, "token": token, "username": username, "role": row[1]})
+        return jsonify({"ok": True, "token": token, "username": username, "role": role})
 
-    email = row[3]
     if not email:
         log_security_event("auth.mfa_email_missing", "Account has no email on file for login MFA delivery",
                            level="ERROR", identifier=_mask_identifier(username))
@@ -690,6 +695,13 @@ def _api_employee_login(emp_id, password):
             _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
                         (generate_password_hash(password), emp_id))
             _ud.commit()
+    return jsonify({
+        "ok": True, "token": _issue_employee_api_token(emp_id), "employee_id": emp_id,
+        "name": row[0], "email": row[1],
+    })
+
+
+def _issue_employee_api_token(emp_id):
     token = secrets.token_hex(32)
     with _db() as (cursor, conn):
         cursor.execute(
@@ -698,11 +710,60 @@ def _api_employee_login(emp_id, password):
             (_hash_token(token), emp_id)
         )
         conn.commit()
+    return token
 
-    return jsonify({
-        "ok": True, "token": token, "employee_id": emp_id,
-        "name": row[0], "email": row[1],
-    })
+
+def _hr_employee_signin(emp_id, employee_result):
+    """Like the website's login (auth._finish_employee_login): an employee
+    whose role is exactly "HR" signs in to the HR panel, through the same
+    admin login -- emailed code included -- not as a plain employee. Their
+    own employee view is one tap away (/api/hr/my_employee_session).
+    Returns the admin answer, or None to keep the employee one."""
+    from blueprints.auth import _ensure_hr_admin_account, _HR_EMPLOYEE_ROLE
+    resp, status = employee_result if isinstance(employee_result, tuple) else (employee_result, 200)
+    body = resp.get_json(silent=True) or {}
+    if not body.get("ok"):
+        return None
+    with _db() as (cursor, conn):
+        cursor.execute("SELECT role FROM employees WHERE employee_id=%s", (emp_id,))
+        row = cursor.fetchone()
+        if not row or (row[0] or "").strip().lower() != _HR_EMPLOYEE_ROLE:
+            return None
+        # The employee token minted on the way here isn't handed out.
+        cursor.execute("DELETE FROM api_tokens WHERE token=%s", (_hash_token(body["token"]),))
+        conn.commit()
+    _ensure_hr_admin_account(emp_id, body.get("email"))
+    return _admin_token_or_challenge(emp_id, HR_ROLE, body.get("email"))
+
+
+@core_bp.route("/api/hr/my_employee_session", methods=["POST"])
+@api_required
+@api_role_required(HR_ROLE)
+def api_hr_my_employee_session():
+    """The app's twin of the website's "My Profile" switch
+    (auth.switch_to_my_employee_portal): an HR account backed by an
+    employee record gets an employee token for that same person, to see
+    their own leave, payslips and attendance. The app keeps the HR token
+    to switch back. Never anyone else's record: the identity is the
+    token's own."""
+    emp_id = g.api_user
+    with _db() as (cursor, _conn):
+        cursor.execute("SELECT name, email, COALESCE(must_change_password,0) FROM employees "
+                       "WHERE employee_id=%s", (emp_id,))
+        row = cursor.fetchone()
+    if not row:
+        return jsonify({"ok": False, "msg": "No personal employee profile is linked to this HR account."}), 404
+    ended_on = employment_ended_on(emp_id)
+    if ended_on:
+        return jsonify({"ok": False, "access_ended": True, "msg": access_ended_message(ended_on)}), 403
+    if row[2]:
+        return jsonify({"ok": False, "password_change_required": True,
+                        "msg": "Set a new password on the web portal first, then switch here again."}), 403
+    log_security_event("auth.hr_switched_to_own_portal",
+                       f"HR account '{emp_id}' switched to their own employee view in the app",
+                       level="INFO", identifier=emp_id, channel="mobile_api")
+    return jsonify({"ok": True, "token": _issue_employee_api_token(emp_id), "employee_id": emp_id,
+                    "name": row[0], "email": row[1]})
 
 
 @core_bp.route("/api/signin", methods=["POST"])
@@ -723,6 +784,9 @@ def api_signin():
         account, result = "admin", _api_admin_login(identifier, password)
     else:
         account, result = "employee", _api_employee_login(identifier.upper(), password)
+        hr_result = _hr_employee_signin(identifier.upper(), result)
+        if hr_result is not None:
+            account, result = "admin", hr_result
     resp, status = result if isinstance(result, tuple) else (result, 200)
     body = resp.get_json(silent=True)
     if isinstance(body, dict) and body.get("ok"):

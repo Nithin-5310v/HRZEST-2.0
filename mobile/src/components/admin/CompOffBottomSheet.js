@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 5,
     borderRadius: 10,
-    backgroundColor: "#C3CFDD",
+    backgroundColor: "#D0D5DD",
     alignSelf: "center",
     marginBottom: 18,
   },
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   employeeCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F5F8FC",
+    backgroundColor: "#F4F6F9",
     borderRadius: 20,
     padding: 18,
     marginBottom: 20,
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#E9EFF6",
+    borderBottomColor: "#EEF1F5",
   },
 
   left: {
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   },
 
   reasonCard: {
-    backgroundColor: "#F5F8FC",
+    backgroundColor: "#F4F6F9",
     borderRadius: 20,
     padding: 18,
     marginBottom: 24,
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 54,
     borderRadius: 16,
-    backgroundColor: "#EDF2F8",
+    backgroundColor: "#EEF1F5",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 54,
     borderRadius: 16,
-    backgroundColor: "#EDF2F8",
+    backgroundColor: "#EEF1F5",
     justifyContent: "center",
     alignItems: "center",
   },

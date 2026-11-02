@@ -9,11 +9,11 @@ import { NavigationContext, NavigationRouteContext } from "@react-navigation/nat
 // theme/webAuthStyle.js's WEB).
 export const NAV = {
   bar: "#FFFFFF",
-  line: "#E3E9F1",
-  pill: "#D3E3F7",
-  active: "#0C3054",
-  inactive: "#455163",
-  accent: "#0B5CAD",
+  line: "#E6E9EF",
+  pill: "#DBEAFE",
+  active: "#1D4ED8",
+  inactive: "#475467",
+  accent: "#2563EB",
 };
 
 /** Screen options for a Tab.Navigator; spread them in, then add tabBarIcon. */

@@ -368,7 +368,7 @@ const makeStyles = (colors) => StyleSheet.create({
   segmentTextActive: { color: "#FFFFFF" },
   card: {
     backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 14,
-    shadowColor: "#131C2A", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
+    shadowColor: "#101828", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
   },
   identity: { flexDirection: "row", alignItems: "center" },
   logo: {

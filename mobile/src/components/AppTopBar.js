@@ -7,15 +7,15 @@ import { useAuth } from "../store/AuthContext";
 
 // The one top bar every screen wears (design: "Final app" board "Shared ·
 // Top bar"): room for the phone's status bar, a back arrow on inner pages,
-// the HRZEST logo, the page title, optional round actions, and -- once
+// the HRzest logo, the page title, optional round actions, and -- once
 // signed in -- the company's logo on the right.
 export const BAR = {
   bg: "#FFFFFF",
-  line: "#E3E9F1",
-  text: "#131C2A",
-  muted: "#455163",
-  tile: "#E7EEF7",
-  navy: "#0C3054",
+  line: "#E6E9EF",
+  text: "#101828",
+  muted: "#475467",
+  tile: "#EEF4FF",
+  navy: "#1D4ED8",
   badge: "#D93025",
 };
 
@@ -31,7 +31,7 @@ export function useStatusBarHeight() {
 export function CompanyLogo({ size = 36, onPress }) {
   const { user } = useAuth();
   // Employee sign-ins don't carry the company's name; its address does.
-  const name = user?.company || user?.companySlug || "HRZEST";
+  const name = user?.company || user?.companySlug || "HRzest";
   const initials = name
     .split(/[\s_-]+/)
     .filter(Boolean)
@@ -81,7 +81,7 @@ export default function AppTopBar({
             <Ionicons name="arrow-back" size={24} color={BAR.text} />
           </TouchableOpacity>
         ) : null}
-        <Image source={require("../../assets/favicon.png")} style={styles.mark} accessibilityLabel="HRZEST" />
+        <Image source={require("../../assets/favicon.png")} style={styles.mark} accessibilityLabel="HRzest" />
         <View style={styles.titles}>
           {titleNode || (
             <Text style={styles.title} numberOfLines={1} accessibilityRole="header">

@@ -95,14 +95,20 @@ def get_email_config():
 
 
 def support_inbox():
-    """Where enquiries go and the address the website shows for contacting
-    HRZEST: SUPPORT_EMAIL, else the address mail is sent from
-    (EMAIL_FROM_EMAIL / SMTP_FROM_EMAIL), else noreply@hrzest.com."""
-    for name in ("SUPPORT_EMAIL", "EMAIL_FROM_EMAIL", "SMTP_FROM_EMAIL"):
-        value = os.environ.get(name, "").strip()
-        if value:
-            return value
-    return "noreply@hrzest.com"
+    """Where the website's forms email enquiries: SUPPORT_EMAIL, else
+    noreply@hrzest.com. Deliberately not the sending address
+    (EMAIL_FROM_EMAIL / SMTP_FROM_EMAIL): a server that sends through a
+    team member's own mailbox would otherwise route every enquiry there."""
+    return os.environ.get("SUPPORT_EMAIL", "").strip() or "noreply@hrzest.com"
+
+
+def public_contact_email():
+    """The address the website shows visitors: CONTACT_EMAIL, else
+    contact@hrzest.com (an alias of the team's Microsoft 365 mailbox).
+    Separate from support_inbox() on purpose -- SUPPORT_EMAIL may be a
+    team member's own mailbox, which shouldn't be published; enquiries
+    still reach it through the forms."""
+    return os.environ.get("CONTACT_EMAIL", "").strip() or "contact@hrzest.com"
 
 
 def notify_support(subject, html_body):

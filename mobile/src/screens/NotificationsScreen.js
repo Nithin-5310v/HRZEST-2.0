@@ -156,8 +156,8 @@ export default function NotificationsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#0B5CAD"]}
-            tintColor="#0B5CAD"
+            colors={["#2563EB"]}
+            tintColor="#2563EB"
           />
         }
       >
@@ -187,7 +187,7 @@ export default function NotificationsScreen() {
         />
 
         {loading ? (
-          <ActivityIndicator size="large" color="#0B5CAD" style={{ marginVertical: 30 }} />
+          <ActivityIndicator size="large" color="#2563EB" style={{ marginVertical: 30 }} />
         ) : filteredNotifications.length > 0 ? (
           filteredNotifications.map((notification) => (
             <NotificationCard
@@ -332,7 +332,7 @@ const makeStyles = (colors) => StyleSheet.create({
   input: {
     backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: "#C3CFDD",
+    borderColor: "#D0D5DD",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -350,12 +350,12 @@ const makeStyles = (colors) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: "#EDF2F8",
+    backgroundColor: "#EEF1F5",
   },
   cancelBtnText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#5A6678",
+    color: "#475467",
   },
   submitBtn: {
     paddingHorizontal: 18,

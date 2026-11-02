@@ -69,8 +69,8 @@ export const COLORS = {
   textDim:    'rgba(255,255,255,0.45)',
 
   // Accents
-  blue:       '#2E7BD1',
-  blueLight:  '#A9CBF2',
+  blue:       '#3B82F6',
+  blueLight:  '#BFDBFE',
   green:      '#22c55e',
   greenLight: '#6ee56e',
   red:        '#ef4444',

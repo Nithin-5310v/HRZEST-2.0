@@ -36,10 +36,12 @@ class TestSupportInbox:
             monkeypatch.delenv(k, raising=False)
         assert email_utils.support_inbox() == "noreply@hrzest.com"
 
-    def test_follows_the_sending_address(self, monkeypatch):
+    def test_ignores_the_sending_address(self, monkeypatch):
+        # Mail sent through someone's own mailbox mustn't pull enquiries there.
         monkeypatch.delenv("SUPPORT_EMAIL", raising=False)
-        monkeypatch.setenv("EMAIL_FROM_EMAIL", "noreply@example.test")
-        assert email_utils.support_inbox() == "noreply@example.test"
+        monkeypatch.setenv("EMAIL_FROM_EMAIL", "nithin@example.test")
+        monkeypatch.setenv("SMTP_FROM_EMAIL", "smtp-user@example.test")
+        assert email_utils.support_inbox() == "noreply@hrzest.com"
 
     def test_support_email_setting_wins(self, monkeypatch):
         monkeypatch.setenv("SUPPORT_EMAIL", "help@example.test")
@@ -107,20 +109,39 @@ class TestFormsEmailTheInbox:
 
 
 class TestLandingPage:
-    def test_shows_the_support_inbox_not_a_hardcoded_address(self, client, monkeypatch):
-        monkeypatch.setenv("SUPPORT_EMAIL", "help@example.test")
+    def test_shows_the_contact_email_setting(self, client, monkeypatch):
+        monkeypatch.setenv("CONTACT_EMAIL", "help@example.test")
         html = client.get("/").get_data(as_text=True)
         assert "contact@hrzest.com" not in html
         assert html.count("help@example.test") >= 6
         assert 'id="contactFormError"' in html
 
+    def test_never_shows_the_inbox_enquiries_go_to(self, client, monkeypatch):
+        # The inbox is often someone's own mailbox; visitors see
+        # contact@hrzest.com unless CONTACT_EMAIL says otherwise -- never a
+        # noreply@ address.
+        monkeypatch.delenv("CONTACT_EMAIL", raising=False)
+        monkeypatch.setenv("SUPPORT_EMAIL", "person@example.test")
+        monkeypatch.setenv("EMAIL_FROM_EMAIL", "sender@example.test")
+        html = client.get("/").get_data(as_text=True)
+        assert "person@example.test" not in html and "sender@example.test" not in html
+        assert html.count("contact@hrzest.com") >= 5
+        assert "noreply@" not in html
+
+    def test_footer_has_no_magzest_credit(self, client):
+        html = client.get("/").get_data(as_text=True)
+        assert "MagZest" not in html and "footer-credit" not in html
+
     def test_contact_thank_you_reads_as_one_sentence(self, client, monkeypatch):
         # The banner is a flex row: the text must be one item next to the icon,
-        # or the sentence, the address and the full stop land on separate lines.
-        monkeypatch.setenv("SUPPORT_EMAIL", "help@example.test")
+        # or its pieces land on separate lines. It names no inbox -- without
+        # SUPPORT_EMAIL that would be noreply@, which reads as a dead end.
+        for name in ("SUPPORT_EMAIL", "EMAIL_FROM_EMAIL", "SMTP_FROM_EMAIL"):
+            monkeypatch.delenv(name, raising=False)
         html = client.get("/").get_data(as_text=True)
-        assert ('<i class="ti ti-circle-check"></i> <span>Thank you! Your message has been sent to '
-                '<strong>help@example.test</strong>.</span>') in html
+        assert ('<i class="ti ti-circle-check"></i> <span>Thank you! We\'ve received your message '
+                'and will reply to the email address you gave us.</span>') in html
+        assert "has been sent to" not in html
 
 
 def test_enquiry_email_skips_empty_rows():

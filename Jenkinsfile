@@ -2,12 +2,14 @@
 // (setup and day-to-day use: ci/jenkins/README.md).
 //
 //   develop: lint + tests -> deploy to the development copy (http://localhost:5050)
-//   main:    lint + tests -> wait for approval -> deploy that commit to production (EC2)
+//   main:    lint + tests -> wait for approval -> release that commit to production (EC2)
 //
 // Production only takes code that already ran in the development copy:
 // deploy_prod.ps1 refuses a commit whose files were never deployed there,
 // unless the approver ticks "hotfix". GitHub Actions still runs its own
 // checks on every PR; the server re-checks them before switching commits.
+// Approving moves the `production` branch on GitHub to the commit; the
+// server pulls and deploys it by itself (no SSH from this PC).
 pipeline {
   agent none
   options {
@@ -51,7 +53,7 @@ pipeline {
           steps {
             script {
               def status = powershell(returnStatus: true,
-                script: '.\\ci\\jenkins\\deploy_prod.ps1 -Commit $env:DEPLOY_SHA -CheckOnly')
+                script: '.\\ci\\jenkins\\deploy_prod.ps1 -Commit $env:DEPLOY_SHA -CheckOnly -WaitForDevelop')
               env.DEV_VERIFIED = (status == 0).toString()
             }
           }

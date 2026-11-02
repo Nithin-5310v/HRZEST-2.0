@@ -22,7 +22,7 @@ export default function YearSelector({
         <Ionicons
           name="chevron-back"
           size={18}
-          color="#0B5CAD"
+          color="#2563EB"
         />
 
         <Text style={styles.buttonText}>
@@ -54,7 +54,7 @@ export default function YearSelector({
         <Ionicons
           name="chevron-forward"
           size={18}
-          color="#0B5CAD"
+          color="#2563EB"
         />
       </TouchableOpacity>
     </View>
@@ -99,21 +99,21 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#0B5CAD",
+    color: "#2563EB",
   },
 
   activeYear: {
     width: "32%",
     height: 58,
 
-    backgroundColor: "#0B5CAD",
+    backgroundColor: "#2563EB",
 
     borderRadius: 18,
 
     justifyContent: "center",
     alignItems: "center",
 
-    shadowColor: "#0B5CAD",
+    shadowColor: "#2563EB",
     shadowOpacity: 0.25,
     shadowRadius: 10,
     shadowOffset: {

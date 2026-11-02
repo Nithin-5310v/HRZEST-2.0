@@ -3,11 +3,16 @@
 # (Ubuntu + systemd: hrzest.service runs gunicorn from a git checkout of
 # this repo, nginx in front, PostgreSQL on the same machine).
 #
-# hrzest-autodeploy.timer runs this every 2 minutes. When origin/main has
-# moved and every GitHub Actions push run for that commit has passed, it
+# hrzest-autodeploy.timer runs this every 2 minutes. When the deploy branch
+# has moved and every GitHub Actions push run for that commit has passed, it
 # backs up PostgreSQL, checks the commit out, installs requirements if they
 # changed, restarts the app and waits for /healthz. If the app does not come
 # back healthy it puts the previous commit back and restarts again.
+#
+# The deploy branch is origin/main, or origin/production in production-branch
+# mode (install_ec2_autodeploy.sh --production-branch): Jenkins moves
+# `production` to a main commit only after someone approves it, and this
+# script refuses a production commit that isn't on main.
 #
 # The host only pulls: GitHub cannot reach it (SSH stays locked to the
 # admin's IP) and no deploy key or token is stored in GitHub.
@@ -50,6 +55,7 @@ flock -n 9 || { log "another deploy is already running; skipping"; exit 0; }
 
 cd "$APP_DIR"
 git fetch --quiet origin "$BRANCH"
+[ "$BRANCH" = main ] || git fetch --quiet origin main
 current="$(git rev-parse HEAD)"
 target="$(git rev-parse --verify --quiet "${HRZEST_DEPLOY_SHA:-origin/$BRANCH}^{commit}")" \
   || { log "unknown commit: ${HRZEST_DEPLOY_SHA:-origin/$BRANCH}"; exit 1; }
@@ -61,6 +67,11 @@ fi
 
 if ! git merge-base --is-ancestor "$target" "origin/$BRANCH"; then
   log "refusing to deploy ${target:0:7}: it is not on origin/$BRANCH"
+  exit 1
+fi
+# Whoever moved the production branch: only main's commits ever go live.
+if [ "$BRANCH" != main ] && ! git merge-base --is-ancestor "$target" origin/main; then
+  log "refusing to deploy ${target:0:7}: it is not on origin/main"
   exit 1
 fi
 
