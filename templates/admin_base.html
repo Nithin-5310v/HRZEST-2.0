@@ -188,6 +188,7 @@
     .app-notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #f2f4f7; font-size: 15.5px; font-weight: 700; color: #101828; }
     .app-notif-markall { background: none; border: none; color: #2563eb; font-size: 14px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
     .app-notif-markall:hover { background: #eef4ff; }
+    .app-notif-actions { display: inline-flex; gap: 2px; }
     .app-notif-list { max-height: 380px; overflow-y: auto; }
     .app-notif-item { display: flex; gap: 10px; padding: 11px 14px; border-bottom: 1px solid #f2f4f7; }
     .app-notif-item:last-child { border-bottom: none; }
@@ -395,14 +396,18 @@
     <!-- Notifications: admin feed from /web/admin/notifications/list -->
     <div class="app-notif" id="appNotif"
          data-list-url="{{ tpath('/web/admin/notifications/list') }}"
-         data-read-url="{{ tpath('/web/admin/notifications/mark_read') }}">
+         data-read-url="{{ tpath('/web/admin/notifications/mark_read') }}"
+         data-clear-url="{{ tpath('/web/admin/notifications/clear') }}">
       <button type="button" class="app-icon-btn app-notif-btn" id="appNotifBtn" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" title="Notifications">
         <i class="ti ti-bell"></i><span class="app-notif-count" id="appNotifCount" hidden></span>
       </button>
       <div class="app-notif-panel" id="appNotifPanel" role="dialog" aria-label="Notifications" hidden>
         <div class="app-notif-head">
           <span>Notifications</span>
-          <button type="button" class="app-notif-markall" id="appNotifMarkAll">Mark all as read</button>
+          <span class="app-notif-actions">
+            <button type="button" class="app-notif-markall" id="appNotifMarkAll">Mark all as read</button>
+            <button type="button" class="app-notif-markall" id="appNotifClear">Clear all</button>
+          </span>
         </div>
         <div class="app-notif-list" id="appNotifList"><div class="app-notif-empty">Loading…</div></div>
       </div>

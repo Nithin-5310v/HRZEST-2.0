@@ -48,11 +48,13 @@
   var list = document.getElementById('appNotifList');
   var count = document.getElementById('appNotifCount');
   var markAll = document.getElementById('appNotifMarkAll');
+  var clearAll = document.getElementById('appNotifClear');
   if (!wrap || !btn || !panel || !list || !count) return;
 
   // tpath()-built URLs from the markup, so a company's /<slug>/ prefix is kept
   var LIST_URL = wrap.dataset.listUrl || '/web/admin/notifications/list';
   var READ_URL = wrap.dataset.readUrl || '/web/admin/notifications/mark_read';
+  var CLEAR_URL = wrap.dataset.clearUrl || '/web/admin/notifications/clear';
   var lastUnread = -1;
 
   function el(tag, cls, text) {
@@ -111,6 +113,15 @@
       fetch(READ_URL, {method: 'POST', headers: {'Content-Type': 'application/json'}, credentials: 'same-origin', body: '{}'})
         .then(function () { return load(true); })
         .catch(function () { list.textContent = ''; list.appendChild(el('div', 'app-notif-empty', 'Couldn’t update notifications.')); });
+    });
+  }
+
+  if (clearAll) {
+    clearAll.addEventListener('click', function () {
+      if (!confirm('Clear all notifications? This cannot be undone.')) return;
+      fetch(CLEAR_URL, {method: 'POST', headers: {'Content-Type': 'application/json'}, credentials: 'same-origin', body: '{}'})
+        .then(function () { return load(true); })
+        .catch(function () { list.textContent = ''; list.appendChild(el('div', 'app-notif-empty', 'Couldn’t clear notifications.')); });
     });
   }
 

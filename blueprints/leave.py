@@ -360,18 +360,18 @@ def resignation_requests_redirect():
     return redirect(tpath("/resignations"))
 
 
-_SPLIT_PAGE_ROUTES = {"announcements": "/announcements", "tickets": "/tickets",
-                      "resignations": "/resignations"}
-
-
 @leave_bp.route("/leave_holidays")
 @admin_required
 def leave_holidays():
     # Announcements / Tickets / Resignations are their own sidebar modules
     # now; old ?tab= links and bookmarks forward to the new routes.
     tab = request.args.get("tab", "leaves")
-    if tab in _SPLIT_PAGE_ROUTES:
-        return redirect(tpath(_SPLIT_PAGE_ROUTES[tab]))
+    if tab == "announcements":
+        return redirect(tpath("/announcements"))
+    if tab == "tickets":
+        return redirect(tpath("/tickets"))
+    if tab == "resignations":
+        return redirect(tpath("/resignations"))
     return render_hr_hub(tab if tab in ("leaves", "holidays") else "leaves", "leaves")
 
 
