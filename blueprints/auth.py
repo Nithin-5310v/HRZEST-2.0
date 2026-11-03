@@ -169,9 +169,10 @@ def _company_for_credentials(identifier, password):
     return exists[0] if len(exists) == 1 else None
 
 
-def _sign_in_under_company(slug, db_name):
-    """Runs the rest of this request -- and binds the session -- as this
-    company, as if the person had opened /<slug>/login."""
+def _sign_in_under_company(slug, db_name, bind_session=True):
+    """Runs the rest of this request -- and, for the website, binds the
+    session -- as this company, as if the person had opened /<slug>/login.
+    The app's /api/signin passes bind_session=False: it's token-based."""
     from database import get_master_db
     from flask import g as _g
     conn = get_master_db()
@@ -185,13 +186,15 @@ def _sign_in_under_company(slug, db_name):
     _g.tenant_db = db_name
     _g.tenant_slug = slug
     _g.billing_locked = bool(row) and row[0] == "locked"
+    if not bind_session:
+        return
     session["tenant_db"] = db_name
     session["tenant_slug"] = slug
     session["_tenant_status_checked_at"] = time.time()
     session["_billing_locked"] = _g.billing_locked
 
 
-def _bare_login_company(identifier, password):
+def _bare_login_company(identifier, password, bind_session=True):
     """/login with no company in its URL: switches this request to the
     company these credentials belong to. Returns "many" when they fit more
     than one company (the person then names theirs), else None.
@@ -212,7 +215,7 @@ def _bare_login_company(identifier, password):
     if found == "many":
         return "many"
     if found:
-        _sign_in_under_company(*found)
+        _sign_in_under_company(*found, bind_session=bind_session)
     return None
 
 
