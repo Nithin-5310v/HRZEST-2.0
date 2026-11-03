@@ -123,16 +123,16 @@
       <div class="stat-chip" id="statChip"><i class="ti ti-users u-fs-12"></i> —</div>
     </div>
     <div class="topbar-controls">
-      <input class="search-box" type="text" id="searchBox" placeholder="Search name, role, department…" oninput="doSearch(this.value)">
-      <select class="dept-select" id="deptFilter" onchange="loadChart()">
+      <input class="search-box" type="text" id="searchBox" placeholder="Search name, role, department…" data-on-input="doSearch(this.value)">
+      <select class="dept-select" id="deptFilter" data-on-change="loadChart()">
         <option value="">All Departments</option>
         {% for d in departments %}
         <option value="{{ d }}">{{ d }}</option>
         {% endfor %}
       </select>
-      <button class="btn btn-ghost" onclick="fitToScreen()"><i class="ti ti-maximize"></i> Fit to screen</button>
-      <button class="btn btn-ghost" onclick="zoom(0.15)"><i class="ti ti-zoom-in"></i></button>
-      <button class="btn btn-ghost" onclick="zoom(-0.15)"><i class="ti ti-zoom-out"></i></button>
+      <button class="btn btn-ghost" data-on-click="fitToScreen()"><i class="ti ti-maximize"></i> Fit to screen</button>
+      <button class="btn btn-ghost" data-on-click="zoom(0.15)"><i class="ti ti-zoom-in"></i></button>
+      <button class="btn btn-ghost" data-on-click="zoom(-0.15)"><i class="ti ti-zoom-out"></i></button>
     </div>
   </div>
 
@@ -305,7 +305,7 @@ function render() {
         ${childCount > 0 ? `<div class="reports-badge">${childCount}</div>` : ''}
         <div class="avatar-wrap">
           ${n.has_photo
-            ? `<img class="avatar-img" src="/dataset/${n.id}.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
+            ? `<img class="avatar-img" src="/dataset/${n.id}.jpg" data-on-error="HZ.showNextOnError(this)" /><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
             : `<div class="avatar-placeholder u-bg-color">${initials(n.name)}</div>`
           }
         </div>

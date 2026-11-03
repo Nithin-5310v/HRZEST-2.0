@@ -24,7 +24,7 @@
     <div class="emp-user-menu" id="empUserMenu">
       <button type="button" class="emp-user" id="empUserBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu for {{ sb_name }}">
         <span class="emp-avatar" aria-hidden="true">
-          {% if sb_has_photo %}<img src="{{ sb_photo_url }}" alt="" onerror="this.remove()" />{% endif %}
+          {% if sb_has_photo %}<img src="{{ sb_photo_url }}" alt="" data-on-error="this.remove()" />{% endif %}
           <span>{% for w in (sb_name or 'E').split()[:2] %}{{ w[0] | upper }}{% endfor %}</span>
         </span>
       </button>
@@ -34,7 +34,7 @@
           <span class="emp-user-panel-sub">{{ sb_role or 'Employee' }} · ID {{ sb_id }}</span>
         </div>
         {% if sb_mode == 'portal' %}
-        <button type="button" class="emp-user-item" role="menuitem" onclick="showView('my-profile')"><i class="ti ti-user-circle"></i> My Profile</button>
+        <button type="button" class="emp-user-item" role="menuitem" data-on-click="showView('my-profile')"><i class="ti ti-user-circle"></i> My Profile</button>
         {% else %}
         <a class="emp-user-item" role="menuitem" href="{{ tpath('/employee_portal#my-profile') }}"><i class="ti ti-user-circle"></i> My Profile</a>
         {% endif %}
