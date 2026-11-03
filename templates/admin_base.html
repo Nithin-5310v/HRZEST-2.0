@@ -302,14 +302,6 @@
   <a class="nav-item {{ 'active' if active_nav == 'employees' }}" href="{{ tpath('/employees') }}" {{ 'aria-current=page' if active_nav == 'employees' }}>
     <span class="nav-icon"><i class="ti ti-users"></i></span>Employees
   </a>
-  {% if _is_hr and hr_has_own_employee %}
-  <form action="{{ tpath('/switch_to_my_employee_portal') }}" method="POST" class="nav-item-form">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-    <button type="submit" class="nav-item nav-item-btn" aria-label="Go to my personal profile">
-      <span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Profile
-    </button>
-  </form>
-  {% endif %}
   <a class="nav-item {{ 'active' if active_nav == 'attendance' }}" href="{{ tpath('/monthly_report') }}" {{ 'aria-current=page' if active_nav == 'attendance' }}>
     <span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance
   </a>
@@ -359,6 +351,14 @@
   <a class="nav-item {{ 'active' if active_nav == 'profile' }}" href="{{ tpath('/profile') }}" {{ 'aria-current=page' if active_nav == 'profile' }}>
     <span class="nav-icon"><i class="ti ti-building"></i></span>Organization
   </a>
+  {% endif %}
+  {% if _is_hr and hr_has_own_employee %}
+  <form action="{{ tpath('/switch_to_my_employee_portal') }}" method="POST" class="nav-item-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+    <button type="submit" class="nav-item nav-item-btn" aria-label="Go to my personal profile">
+      <span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Profile
+    </button>
+  </form>
   {% endif %}
   <form action="{{ tpath('/logout') }}" method="POST" class="nav-item-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
