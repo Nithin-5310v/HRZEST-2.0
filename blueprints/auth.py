@@ -1028,7 +1028,7 @@ def employee_reset_password(token):
                                token=token, error="Passwords do not match.")
     emp_id = row[0]
     cursor.execute("UPDATE employees SET password=%s, reset_token=NULL, reset_token_expiry=NULL, "
-                   "must_change_password=0 WHERE employee_id=%s",
+                   "must_change_password=0, force_pin_change=0 WHERE employee_id=%s",
                    (generate_password_hash(new_pw), emp_id))
     record_password_change(cursor, "employees", emp_id)
     db.commit()
