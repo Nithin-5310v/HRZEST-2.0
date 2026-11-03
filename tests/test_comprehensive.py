@@ -777,6 +777,19 @@ class TestSecurityHeaders:
         csp = resp.headers.get("Content-Security-Policy", "")
         assert "script-src" in csp or "default-src" in csp or csp == ""
 
+    @pytest.mark.parametrize("path", ["/", "/login", "/create_org", "/super_admin/login"])
+    def test_csp_sets_directives_without_a_fallback(self, client, path):
+        """form-action and base-uri don't fall back to default-src, so a CSP
+        without them allows any form target / <base> URL (ZAP 10055)."""
+        csp = client.get(path).headers.get("Content-Security-Policy", "")
+        assert "form-action 'self'" in csp
+        assert "base-uri 'self'" in csp
+
+    def test_non_html_csp_sets_directives_without_a_fallback(self, client):
+        csp = client.get("/healthz").headers.get("Content-Security-Policy", "")
+        assert "form-action 'none'" in csp
+        assert "base-uri 'none'" in csp
+
     def test_employee_portal_csp_allows_local_posture_agent(self, client, seed_employee):
         """employee_portal.html's DEVICE POSTURE RELAY script polls a
         locally-running Wi-Fi posture agent over loopback
@@ -985,15 +998,14 @@ class TestAdminPageSmoke:
         # this route stays only so old bookmarks/links resolve.
         rv = client.get("/resignation_requests", follow_redirects=False)
         assert rv.status_code == 302
-        assert "/leave_holidays" in rv.headers["Location"]
+        assert "/resignations" in rv.headers["Location"]
 
     def test_tickets_page(self, client):
         # /tickets is a redirect now (blueprints/tickets.py's tickets_view())
         # -- the feature was consolidated onto the Leaves & Holidays page's
         # Tickets tab; this route stays only so old bookmarks/links resolve.
         rv = client.get("/tickets", follow_redirects=False)
-        assert rv.status_code == 302
-        assert "/leave_holidays" in rv.headers["Location"]
+        assert rv.status_code == 200
 
     def test_compoff_page(self, client):
         assert client.get("/compoff").status_code in (200, 302)

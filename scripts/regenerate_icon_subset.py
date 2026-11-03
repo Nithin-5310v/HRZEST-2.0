@@ -32,7 +32,7 @@ OUT_WOFF = REPO_ROOT / "static" / "fonts" / "tabler-icons.woff"
 
 # Bump this whenever the subset's glyph set changes, to bust any browser/CDN
 # cache still holding the old file under the same URL.
-FONT_VERSION_QUERY = "v2.47.0-subset1"
+FONT_VERSION_QUERY = "v2.47.0-subset2"
 
 SCAN_GLOBS = [
     "templates/*.html",
@@ -61,6 +61,11 @@ DYNAMIC_ICON_NAMES = [
     # Listed here anyway so it shows up in the "doesn't exist" warning below
     # instead of silently vanishing from view.
     "clock-alert",
+    # static/portal-search.js's search index names each result's icon as a
+    # bare `i: '<name>'` value, drawn with 'ti ti-' + item.i at runtime.
+    "hierarchy-2", "user-x", "scale", "progress-check", "adjustments-dollar",
+    "mail-cog", "building-skyscraper", "file-certificate", "users-plus",
+    "receipt-2", "help", "book", "message-plus",
 ]
 
 

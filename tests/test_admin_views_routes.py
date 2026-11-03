@@ -525,10 +525,24 @@ class TestDeleteCompany:
 
 
 class TestAnnouncementsAdmin:
-    def test_get_redirects(self, client, seed_admin):
+    def test_get_renders_own_page(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
         resp = client.get("/announcements", follow_redirects=False)
-        assert resp.status_code == 302
+        assert resp.status_code == 200
+        assert b"panel-announcements" in resp.data
+
+    def test_split_modules_have_own_routes(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        for url, panel in (("/tickets", b"panel-tickets"), ("/resignations", b"panel-resignations"),
+                           ("/leave_holidays", b"panel-leaves")):
+            resp = client.get(url, follow_redirects=False)
+            assert resp.status_code == 200, url
+            assert panel in resp.data, url
+        # old tab links forward to the new routes
+        for tab, url in (("announcements", "/announcements"), ("tickets", "/tickets"),
+                         ("resignations", "/resignations")):
+            resp = client.get(f"/leave_holidays?tab={tab}", follow_redirects=False)
+            assert resp.status_code == 302 and resp.headers["Location"].endswith(url)
 
     def test_private_without_target_rejected(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
@@ -751,3 +765,22 @@ class TestApiOrgChartData:
         _admin_session(client, seed_admin["username"])
         resp = client.get("/api/org_chart_data?dept=NoSuchDept")
         assert resp.status_code == 200
+
+
+class TestNotificationBellClear:
+    def test_admin_clear_deletes_admin_feed_only(self, client, seed_admin, db_engine, seed_employee):
+        _admin_session(client, seed_admin["username"])
+        conn = db_engine
+        cur = conn.cursor()
+        cur.execute("INSERT INTO notifications (recipient_type, title, message) VALUES ('admin','clr-a','x')")
+        cur.execute("INSERT INTO notifications (recipient_type, employee_id, title, message) "
+                    "VALUES ('employee', %s, 'clr-e', 'x')", (seed_employee["employee_id"],))
+        conn.commit()
+        resp = client.post("/web/admin/notifications/clear")
+        assert resp.status_code == 200 and resp.get_json()["ok"] is True
+        cur.execute("SELECT COUNT(*) FROM notifications WHERE recipient_type='admin' AND title='clr-a'")
+        assert cur.fetchone()[0] == 0
+        cur.execute("SELECT COUNT(*) FROM notifications WHERE recipient_type='employee' AND title='clr-e'")
+        assert cur.fetchone()[0] == 1
+        cur.execute("DELETE FROM notifications WHERE title='clr-e'")
+        conn.commit()

@@ -25,10 +25,11 @@ from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
     add_employee_seat_cap_check, company_url, hr_scope_denied as _hr_scope_denied, company_today,
-    int_param,
+    int_param, notify_new_holiday,
 )
 from utils.dlp import has_pii_clearance, mask_tail
 from utils.email_utils import get_email_config, send_email_smtp, _mask_email
+from utils.billing_notices import notify_employee_added
 from utils.attendance_utils import _td_to_time
 from utils.leave_utils import assign_leave_balances_for_employee
 from utils.face_utils import face_recognition, _face_recognition_available
@@ -148,6 +149,7 @@ def admin_action():
             (request.form["date"], request.form["holiday_name"])
         )
         db.commit()
+        notify_new_holiday(cursor, db, request.form["holiday_name"], request.form["date"])
 
     elif action == "salary":
         emp_id = request.form["emp_id"]
@@ -1218,6 +1220,7 @@ def add_employee_page():
     cursor.close()
     db.close()
     if registered:
+        notify_employee_added()
         # ?new= lets templates/employees.html jump to (and highlight) the new
         # row -- the table is paged 20 at a time in name order, so a new
         # hire usually lands on a later page and looked like it was missing.
@@ -2289,6 +2292,7 @@ def api_register_employee():
         return jsonify({"ok": False, "msg": "Failed to create employee. Check for duplicate ID."}), 400
     cursor.close()
     db.close()
+    notify_employee_added()
     if email:
         try:
             _send_welcome_credentials_email(emp_id, name, email)

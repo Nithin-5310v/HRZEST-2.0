@@ -200,9 +200,9 @@
       <div class="avatar" onclick="openLb()" title="View photo">
         {% if face_image %}
           <img src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
-               onerror="this.parentNode.innerHTML='<span class=\'avatar-ph\'>👤</span>'">
+               onerror="this.parentNode.innerHTML='<span class=\'avatar-ph\'><i class="ti ti-user hz-ico" aria-hidden="true"></i></span>'">
         {% else %}
-          <span class="avatar-ph">👤</span>
+          <span class="avatar-ph"><i class="ti ti-user hz-ico" aria-hidden="true"></i></span>
         {% endif %}
       </div>
       <div class="profile-info">
@@ -308,7 +308,7 @@
         </div>
         <div class="info-item">
           <label>Work Mode</label>
-          <div class="v">{% if work_mode == 'wfh' %}🏠 Work from Home{% else %}🏢 Office{% endif %}</div>
+          <div class="v">{% if work_mode == 'wfh' %}<i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home{% else %}<i class="ti ti-building hz-ico" aria-hidden="true"></i> Office{% endif %}</div>
         </div>
         <div class="info-item">
           <label>Last Seen</label>
@@ -673,7 +673,7 @@
             <i class="ti ti-download"></i> Download Photo
           </a>
         {% else %}
-          <div class="u-w-120 u-h-120 u-br-12 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fs-50 u-op-d4">👤</div>
+          <div class="u-w-120 u-h-120 u-br-12 u-bg-f1f5f9 u-d-flex u-ai-center u-jc-center u-fs-50 u-op-d4"><i class="ti ti-user hz-ico" aria-hidden="true"></i></div>
           <div class="u-fs-12 u-c-94a3b8 u-fst-italic">No photo uploaded.</div>
         {% endif %}
       </div>

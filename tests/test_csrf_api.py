@@ -10,20 +10,23 @@ method.
 TESTING mode disables the CSRF hook entirely, so the rule is tested directly
 via _csrf_exempt, plus a few end-to-end requests with TESTING switched off.
 """
+import re
+
 import pytest
 
-from app import _csrf_exempt
+from app import _add_csrf_fields, _csrf_exempt
 from extensions import app as flask_app
 
 SESSION_MSG = "Session expired"
 
 
 class TestCsrfExemptRule:
-    @pytest.mark.parametrize("path", [
-        "/login", "/admin_login", "/hr_login",
-    ])
-    def test_login_routes_always_exempt(self, path):
-        assert _csrf_exempt(path, has_bearer=False, session_authenticated=True)
+    @pytest.mark.parametrize("path", ["/login", "/admin_login", "/admin-login"])
+    @pytest.mark.parametrize("session_authenticated", [False, True])
+    def test_login_routes_need_a_token(self, path, session_authenticated):
+        """Login CSRF: an exempt login form lets a third-party page sign the
+        visitor into the attacker's account (ZAP 10202 on /login)."""
+        assert not _csrf_exempt(path, has_bearer=False, session_authenticated=session_authenticated)
 
     def test_api_with_bearer_exempt(self):
         assert _csrf_exempt("/api/attendance", has_bearer=True, session_authenticated=False)
@@ -106,3 +109,60 @@ class TestCsrfEnforcedOnApi:
         resp = csrf_client.post("/api/login", json={"username": "x", "password": "y"})
         assert resp.status_code in (200, 400, 401, 429)
         assert SESSION_MSG not in str((resp.get_json(silent=True) or {}).get("msg", ""))
+
+
+class TestCsrfOnLoginForm:
+    def test_login_post_without_token_rejected(self, csrf_client):
+        with csrf_client.session_transaction() as s:
+            s["_csrf"] = "right"
+        resp = csrf_client.post("/login", data={"identifier": "x", "password": "y"},
+                                headers={"Accept": "text/html"})
+        assert resp.status_code == 302
+        with csrf_client.session_transaction() as s:
+            assert any("session expired" in m.lower() for _, m in s.get("_flashes", []))
+
+    def test_login_post_with_token_passes_csrf_gate(self, csrf_client):
+        with csrf_client.session_transaction() as s:
+            s["_csrf"] = "right"
+        csrf_client.post("/login", data={"identifier": "x", "password": "y", "_csrf_token": "right"},
+                         headers={"Accept": "text/html"})
+        with csrf_client.session_transaction() as s:
+            assert not any("session expired" in m.lower() for _, m in s.get("_flashes", []))
+
+
+class TestCsrfFieldInMarkup:
+    """The token must be in the served HTML, not only added by JS, so
+    scanners and no-JS browsers see it (ZAP 10202 on /login and
+    /admin_forgot_password)."""
+    FIELD = b'<input type="hidden" name="_csrf_token" value="tok">'
+
+    def test_post_form_gets_the_field(self):
+        html = b'<form action="/login" method="POST" autocomplete="on"><input name="identifier"></form>'
+        assert _add_csrf_fields(html, "tok") == (
+            b'<form action="/login" method="POST" autocomplete="on">' + self.FIELD
+            + b'<input name="identifier"></form>')
+
+    def test_get_form_left_alone(self):
+        html = b'<form action="/login" method="GET"><input name="company"></form>'
+        assert _add_csrf_fields(html, "tok") == html
+
+    def test_form_with_its_own_field_not_doubled(self):
+        html = b'<form method="post"><input type="hidden" name="_csrf_token" value="x"></form>'
+        assert _add_csrf_fields(html, "tok") == html
+
+    def test_forms_inside_scripts_left_alone(self):
+        html = (b'<script>var f = \'<form method="POST" style="display:inline"\' + x + \'>\';</script>'
+                b'<form method=post></form>')
+        out = _add_csrf_fields(html, "tok")
+        assert out.count(b"_csrf_token") == 1
+        assert out.endswith(b'<form method=post>' + self.FIELD + b'</form>')
+
+    @pytest.mark.parametrize("path", ["/login", "/admin_forgot_password"])
+    def test_public_pages_ship_the_field(self, client, path):
+        resp = client.get(path)
+        if resp.status_code != 200:
+            pytest.skip(f"{path} needs a resolved company here ({resp.status_code})")
+        forms = re.findall(rb'<form\b[^>]*method="POST"[^>]*>(.*?)</form>', resp.get_data(), re.I | re.S)
+        assert forms
+        for body in forms:
+            assert b'name="_csrf_token"' in body

@@ -25,6 +25,7 @@ from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
     hr_scope_subquery, hr_scope_column, hr_scope_denied, get_pending_counts, company_today,
     get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache, int_param,
+    notify_new_holiday,
     manager_scope_subquery, manager_scope_column, manager_scope_denied,
 )
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
@@ -61,6 +62,7 @@ def add_holiday():
     try:
         cursor.execute("INSERT INTO holidays (date, name) VALUES (%s,%s)", (date, holiday_name))
         db.commit()
+        notify_new_holiday(cursor, db, holiday_name, date)
     except psycopg2.IntegrityError:
         pass  # duplicate date -- silently ignore
     cursor.close()
@@ -355,13 +357,34 @@ def resignation_requests_redirect():
     # /tickets (blueprints/tickets.py) -- kept as a redirect (not deleted)
     # so old bookmarks/links still resolve, rather than duplicating a
     # second standalone page for data that already has a home.
-    return redirect(tpath("/leave_holidays?tab=resignations"))
+    return redirect(tpath("/resignations"))
 
 
 @leave_bp.route("/leave_holidays")
 @admin_required
 def leave_holidays():
+    # Announcements / Tickets / Resignations are their own sidebar modules
+    # now; old ?tab= links and bookmarks forward to the new routes.
     tab = request.args.get("tab", "leaves")
+    if tab == "announcements":
+        return redirect(tpath("/announcements"))
+    if tab == "tickets":
+        return redirect(tpath("/tickets"))
+    if tab == "resignations":
+        return redirect(tpath("/resignations"))
+    return render_hr_hub(tab if tab in ("leaves", "holidays") else "leaves", "leaves")
+
+
+@leave_bp.route("/resignations")
+@admin_required
+def resignations_page():
+    return render_hr_hub("resignations", "resignations")
+
+
+def render_hr_hub(tab, page):
+    """Shared renderer for the Leaves & Holidays, Announcements, Tickets and
+    Resignations pages (one template, one data load; `page` picks which
+    module/sidebar item is shown)."""
     year = int_param(request.args.get("year", company_today().year))
     today = company_today()
     db = get_db_connection()
@@ -476,7 +499,7 @@ def leave_holidays():
                            holidays=holidays_data, cal_data=cal_data, year=year, today=today,
                            ann_list=ann_list, pub_anns=pub_anns, priv_anns=priv_anns,
                            ann_emp_list=ann_emp_list,
-                           active_nav="leaves", is_manager=_is_manager,
+                           active_nav=page, page=page, is_manager=_is_manager,
                            )
 
 
@@ -767,7 +790,7 @@ def request_resignation():
 def resignation_action(rid):
     action = request.form.get("action", "")
     if action not in ("Accepted", "Declined"):
-        return redirect(tpath("/leave_holidays?tab=resignations"))
+        return redirect(tpath("/resignations"))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -835,7 +858,7 @@ def resignation_action(rid):
 </div>"""
                 send_email_async(emp_email, f"Resignation {action} -- {emp_name}", html_body, cfg_row)
 
-    return redirect(tpath("/leave_holidays?tab=resignations"))
+    return redirect(tpath("/resignations"))
 
 
 @leave_bp.route("/bulk_leave_action", methods=["POST"])

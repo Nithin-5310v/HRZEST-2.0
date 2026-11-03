@@ -62,8 +62,8 @@ def _init_master_db_impl():
         # unpaid past the due date but still inside the 5-day deadline
         # (fully functional, just warned); 'locked' = grace period expired
         # with no payment -- login still works (_resolve_tenant() below
-        # doesn't gate on this) but _enforce_billing_lock() blocks every
-        # state-changing request until a payment clears it automatically
+        # doesn't gate on this) but utils/auth.py's billing lock keeps
+        # admins on the pay page (employees carry on) until a payment clears it automatically
         # (blueprints/billing_dunning.py's Razorpay webhook), no admin
         # action required either way.
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_state VARCHAR(20) NOT NULL DEFAULT 'current'")
@@ -89,6 +89,11 @@ def _init_master_db_impl():
         # -- a one-time reminder sent TRIAL_REMINDER_WINDOW_HOURS before
         # trial_end_date; this column is what stops it firing twice.
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_reminder_sent_at TIMESTAMP DEFAULT NULL")
+        # Dedup guards: utils/billing_notices.py's renewal reminder (the
+        # renewal date last reminded about) and trial_billing.py's daily
+        # reminder while an ended trial's grace period runs (the day sent).
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS renewal_reminder_for DATE DEFAULT NULL")
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_reminder_sent_on DATE DEFAULT NULL")
         # Business-registration identifier collected at signup (blueprints/
         # org.py's create_org()/api_create_org()) -- lets check_duplicate_gst()
         # block a second free trial/signup under a different company name

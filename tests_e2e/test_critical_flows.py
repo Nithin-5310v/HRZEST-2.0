@@ -103,7 +103,7 @@ def test_ticket_raise_and_admin_resolution(page, base_url, login_as, admin_creds
     admin_page = admin_context.new_page()
     login_as(admin_page, admin_creds["username"], admin_creds["password"])
     admin_page.wait_for_url(re.compile(r"/admin$"))
-    admin_page.goto(f"{base_url}/leave_holidays?tab=tickets")
+    admin_page.goto(f"{base_url}/tickets")
     ticket_form = admin_page.locator(f'form[action="/ticket_action/{tid}"]')
     ticket_form.locator('select[name="status"]').select_option("Resolved")
     ticket_form.locator('textarea[name="admin_response"]').fill("Resolved via e2e test")

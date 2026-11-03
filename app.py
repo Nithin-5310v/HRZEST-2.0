@@ -265,8 +265,8 @@ def inject_overdue_onboardings():
 @app.context_processor
 def inject_billing_lock_status():
     """Lets templates/admin_base.html show a proactive grace/locked banner
-    without every route handler having to fetch it -- _enforce_billing_lock()
-    only warns reactively (on the first blocked write attempt), this is what
+    without every route handler having to fetch it -- the billing lock
+    (utils/auth.py) only acts once the grace period is over, this is what
     lets an admin see the deadline *before* they hit that block. Cheap
     single-row lookup, same posture as inject_overdue_onboardings above
     (only runs for a logged-in admin session, fails soft to "nothing to
@@ -534,8 +534,8 @@ def _resolve_tenant():
         if row is None or row[0] == "active":
             session["_tenant_status_checked_at"] = time.time()
             # billing_state='locked' does NOT block resolution/login here --
-            # only _enforce_billing_lock() (below) blocks state-changing
-            # requests, per this feature's "can log in, can't act" design.
+            # only the admin-side guards (utils/auth.py) act on it: employees
+            # carry on, admins reach only the pay page.
             session["_billing_locked"] = bool(row) and row[1] == "locked"
             _g.tenant_db = session["tenant_db"]
             _g.billing_locked = session["_billing_locked"]
@@ -623,49 +623,11 @@ def _flag_login_success(response):
     return response
 
 
-# Exempt from the billing-lock write-block below: the pages/actions a
-# locked tenant must still be able to reach to pay their way back out
-# (blueprints/billing_dunning.py), plus the universal login/logout/static
-# exemptions every other gate in this file also carries.
-_BILLING_LOCK_EXEMPT_PATHS = {
-    "/logout", "/login", "/admin_login", "/employee_login",
-    "/pay_overdue_bill", "/api/billing/overdue/create_order", "/api/billing/overdue/verify",
-}
-
-
-@app.before_request
-def _enforce_billing_lock():
-    """A tenant past its 5-day payment grace period (billing_state='locked',
-    set by blueprints/billing_dunning.py's daily check) can still log in and
-    browse -- _resolve_tenant() above deliberately doesn't block resolution
-    on this -- but every state-changing request is refused here until a
-    payment clears it, automatically, via that module's Razorpay webhook.
-    No admin action is needed on either side of that transition.
-
-    GET/HEAD/OPTIONS always pass (read-only viewing, including payroll
-    pages themselves -- the user's requirement is "can't make changes",
-    not "can't see the page"); only mutating methods on non-exempt paths
-    are refused."""
-    if not getattr(_g, "billing_locked", False):
-        return
-    if request.method in ("GET", "HEAD", "OPTIONS"):
-        return
-    if request.path.startswith("/static/") or request.path == "/healthz" or request.path in _BILLING_LOCK_EXEMPT_PATHS:
-        return
-    # An employee session hitting this has no way to pay the bill --
-    # /pay_overdue_bill is @admin_required, so redirecting them there just
-    # bounces them straight to the admin login with no explanation of why.
-    # Point them back at their own portal with a message telling them who
-    # actually needs to act, instead.
-    is_employee_session = bool(session.get("employee_id")) and not session.get("admin_logged_in")
-    if is_employee_session:
-        msg = "Your company's account needs attention -- please contact your admin."
-    else:
-        msg = "Your account is locked because of an overdue payment. Pay your outstanding bill to unlock it."
-    if request.path.startswith("/api/"):
-        return jsonify({"ok": False, "msg": msg, "billing_locked": True}), 402
-    flash(msg, "error")
-    return redirect(_tpath("/employee_portal") if is_employee_session else _tpath("/pay_overdue_bill"))
+# A billing-locked tenant (billing_state='locked') is enforced by the
+# admin-side guards (utils/auth.py's _reject_if_billing_locked: admin_required,
+# role_required, api_required): its admins, HR and managers reach only the
+# pay page until it's paid, while its employees -- attendance included --
+# carry on as normal.
 
 
 @app.before_request
@@ -917,7 +879,6 @@ def _block_private_uploads():
 
 
 _CSRF_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
-_CSRF_LOGIN_PATHS = frozenset({"/login", "/admin_login", "/hr_login"})
 # Browser telemetry sinks (blueprints/core.py). The browser's own report-uri
 # mechanism fires /csp-report automatically on every CSP violation -- there is
 # no page JS in the loop to attach an X-CSRF-Token and no <form> to carry one,
@@ -944,9 +905,15 @@ def _csrf_exempt(path, has_bearer, session_authenticated):
     SameSite=Strict alone. An /api/ request is therefore exempt only if it
     carries a Bearer token (can't be forged cross-site without a CORS
     preflight) or has no logged-in session to ride (mobile/pre-login calls:
-    /api/login, /api/employee/signup, /api/leads, ...)."""
-    if path in _CSRF_LOGIN_PATHS or path in _CSRF_BEACON_PATHS:
-        return True  # login routes handle credential verification & rate-limiting
+    /api/login, /api/employee/signup, /api/leads, ...).
+
+    The website's login form (/login, /admin_login, /admin-login) is NOT
+    exempt: without a token check, a third-party page could post its own
+    credentials there and silently sign the visitor into the attacker's
+    account (login CSRF). The login page renders with a token like any
+    other form, so a real sign-in always carries one."""
+    if path in _CSRF_BEACON_PATHS:
+        return True
     if path.startswith("/api/"):
         return has_bearer or not session_authenticated
     return False
@@ -1013,6 +980,44 @@ def _enforce_csrf():
 
 _CSRF_HEAD_RE = re.compile(rb'</head>', re.IGNORECASE)
 _CSRF_BODY_RE = re.compile(rb'</body>', re.IGNORECASE)
+# Every <form method="post"> gets the token as a hidden field in the HTML
+# itself. _CSRF_SCRIPT below also adds one on DOMContentLoaded, but security
+# scanners (and browsers with JS off) only see the markup -- which is how a
+# ZAP scan reported "Absence of Anti-CSRF Tokens" on /login and
+# /admin_forgot_password. <script> bodies are left alone so a form built as
+# a JS string (templates/hr_dashboard.html) isn't edited mid-string.
+_POST_FORM_RE = re.compile(rb'<form\b[^>]*\bmethod\s*=\s*["\']?post\b[^>]*>', re.IGNORECASE)
+_FORM_END_RE = re.compile(rb'</form\s*>', re.IGNORECASE)
+_SCRIPT_BLOCK_RE = re.compile(rb'<script\b.*?</script\s*>', re.IGNORECASE | re.DOTALL)
+_HAS_CSRF_FIELD_RE = re.compile(rb'name\s*=\s*["\']?_csrf_token\b', re.IGNORECASE)
+
+
+def _add_csrf_fields(html, token):
+    """Insert a hidden _csrf_token field at the top of every POST form in
+    `html` (bytes) that doesn't already have one, outside <script> blocks."""
+    field = b'<input type="hidden" name="_csrf_token" value="' + token.encode() + b'">'
+
+    def in_markup(chunk):
+        out, pos = [], 0
+        for form in _POST_FORM_RE.finditer(chunk):
+            end = _FORM_END_RE.search(chunk, form.end())
+            body = chunk[form.end():end.start() if end else len(chunk)]
+            out.append(chunk[pos:form.end()])
+            if not _HAS_CSRF_FIELD_RE.search(body):
+                out.append(field)
+            pos = form.end()
+        out.append(chunk[pos:])
+        return b"".join(out)
+
+    parts, pos = [], 0
+    for script in _SCRIPT_BLOCK_RE.finditer(html):
+        parts.append(in_markup(html[pos:script.start()]))
+        parts.append(script.group(0))
+        pos = script.end()
+    parts.append(in_markup(html[pos:]))
+    return b"".join(parts)
+
+
 # Matches <script>/<style> tags without a nonce -- used to inject CSP nonces
 _SCRIPT_TAG_RE = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
 _STYLE_TAG_RE = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
@@ -1269,13 +1274,19 @@ def _security_headers(response):
             f"frame-src {_frame_src}; "
             "frame-ancestors 'none'; "
             "object-src 'none'; "
+            # form-action and base-uri don't fall back to default-src, so
+            # leaving them out allows any target (ZAP 10055). Every form posts
+            # to this site, and no page uses a <base> tag.
+            "form-action 'self'; "
+            "base-uri 'self'; "
             "report-uri /csp-report;"
         )
     else:
         # Non-HTML responses: minimal restrictive CSP -- blocks MIME sniffing
         # and any attempt to embed API responses as documents or frames.
         response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; frame-ancestors 'none'; object-src 'none';"
+            "default-src 'none'; frame-ancestors 'none'; object-src 'none'; "
+            "form-action 'none'; base-uri 'none';"
         )
     return response
 
@@ -1313,6 +1324,7 @@ def _inject_csrf_meta(response):
             token = _csrf_token()
             meta = f'<meta name="csrf-token" content="{token}" />'.encode()
             data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
+            data = _add_csrf_fields(data, token)
             _body_scripts = _CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
             if session.get("admin_logged_in") or session.get("employee_id"):
                 _body_scripts += _KILLSWITCH_SCRIPT

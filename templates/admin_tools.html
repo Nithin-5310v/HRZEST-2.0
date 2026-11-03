@@ -24,7 +24,8 @@
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden;height:100vh}
 
     /* TOPBAR */
-    .topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:18px 24px 0;flex-shrink:0}
+    /* same place as every other module's page title: no card, no extra padding */
+    .topbar{background:transparent;border-bottom:1px solid #e2e8f0;padding:0;flex-shrink:0}
     .topbar-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .topbar-heading h1{font-size:24px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px}
     .topbar-heading .sub{font-size:14px;color:#94a3b8;margin-top:2px}
@@ -61,7 +62,7 @@
     .node.dimmed{opacity:0.25}
     .avatar-wrap{width:56px;height:56px;border-radius:50%;margin:0 auto 10px;position:relative}
     .avatar-img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:3px solid #e0e7ff}
-    .avatar-placeholder{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;border:3px solid rgba(255,255,255,0.5)}
+    .avatar-placeholder{background:#6366f1;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;border:3px solid rgba(255,255,255,0.5)background:#6366f1;text-shadow:0 1px 2px rgba(0,0,0,0.28)}
     .node.root-node .avatar-img,.node.root-node .avatar-placeholder{border-color:#a5b4fc}
     .node-name{font-size:15px;font-weight:700;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:128px;margin:0 auto}
     .node-role{font-size:13px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:128px;margin:2px auto 0}
@@ -132,7 +133,7 @@
     body.dark-mode .main { background:#0d1117 !important; }
 
     /* Topbar */
-    body.dark-mode .topbar { background:#161b22 !important; border-color:#30363d !important; }
+    body.dark-mode .topbar { background:transparent !important; border-color:#30363d !important; }
     body.dark-mode .topbar-heading h1 { color:#e2e8f0 !important; }
     body.dark-mode .topbar-heading .sub { color:#64748b !important; }
 

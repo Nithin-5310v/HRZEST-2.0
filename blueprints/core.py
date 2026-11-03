@@ -25,6 +25,7 @@ from utils.helpers import (
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
 from utils.email_utils import get_email_config, send_email_smtp, public_contact_email
+from utils.billing_notices import notify_employee_added
 from utils.session_risk import is_session_compromised, ensure_session_id
 
 core_bp = Blueprint("core", __name__)
@@ -906,6 +907,7 @@ def api_employee_signup():
             return jsonify({"ok": False, "msg": _seat_error}), 403
         cursor.close()
         db.close()
+        notify_employee_added()
         if email:
             _ecfg = get_email_config()
             if _ecfg:

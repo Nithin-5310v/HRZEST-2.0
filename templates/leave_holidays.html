@@ -1,6 +1,6 @@
 {% extends "admin_base.html" %}
 
-{% block title %}Leaves & Holidays{% endblock %}
+{% block title %}{{ {'leaves':'Leaves & Holidays','announcements':'Announcements','tickets':'Tickets','resignations':'Resignations'}[page] }}{% endblock %}
 
 {% block page_css %}
   <style>
@@ -26,7 +26,8 @@
     .main{flex:1;display:flex;flex-direction:column;min-height:100vh;overflow:hidden}
 
     /* TOP HEADER + MODULE TABS */
-    .topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:18px 28px 0;flex-shrink:0}
+    /* same place as every other module's page title: no card, no extra padding */
+    .topbar{background:transparent;border-bottom:1px solid #e2e8f0;padding:0;flex-shrink:0}
     .topbar-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
     .topbar-heading h1{font-size:24px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px}
     .topbar-heading .sub{font-size:14px;color:#94a3b8;margin-top:2px}
@@ -45,7 +46,7 @@
     .tb-open{background:#dbeafe;color:#1e3a8a}
 
     /* MODULE PANELS */
-    .module-panel{display:none;flex:1;overflow-y:auto;padding:24px 28px}
+    .module-panel{display:none;flex:1;overflow-y:auto;padding:24px 0}
     .module-panel.active{display:block}
 
     /* FLASH */
@@ -222,7 +223,7 @@
     /* ── Dark mode ── */
     body.dark-mode{background:#0d1117!important}
     body.dark-mode .main{background:#0d1117!important}
-    body.dark-mode .topbar{background:#161b22!important;border-color:#30363d!important}
+    body.dark-mode .topbar{background:transparent!important;border-color:#30363d!important}
     body.dark-mode .topbar-heading h1{color:#cdd9e5!important}
     body.dark-mode .topbar-heading .sub{color:#768390!important}
     body.dark-mode .btn-leave-balance{background:#14532d!important;border-color:#166534!important;color:#4ade80!important}
@@ -285,43 +286,39 @@
 
 {% block main %}
 
+  {% set _pg = {
+    'leaves': ('ti-calendar-event', 'Leaves &amp; Holidays', 'Manage leave requests and public holidays'),
+    'announcements': ('ti-speakerphone', 'Announcements', 'Post company-wide or private notices to employees'),
+    'tickets': ('ti-ticket', 'Tickets', 'Review, assign and resolve employee support tickets'),
+    'resignations': ('ti-user-minus', 'Resignations', 'Review employee resignation requests')
+  }[page] %}
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-heading">
       <div>
-        <h1><i class="ti ti-calendar-event u-c-6366f1"></i> Leaves &amp; Holidays</h1>
-        <div class="sub">Manage leave requests, tickets, resignations, public holidays and announcements</div>
+        <h1><i class="ti {{ _pg[0] }} u-c-6366f1"></i> {{ _pg[1]|safe }}</h1>
+        <div class="sub">{{ _pg[2] }}</div>
       </div>
+      {% if page == 'leaves' %}
       <div class="topbar-actions">
         {% if not is_manager %}
         <a href="{{ tpath('/leave_balance') }}" class="btn-leave-balance"><i class="ti ti-calendar-stats"></i> Leave Balance</a>
         {% endif %}
         <a href="{{ tpath('/leave_calendar') }}" class="btn-leave-cal"><i class="ti ti-calendar-month"></i> Leave Calendar</a>
       </div>
+      {% endif %}
     </div>
+    {% if page == 'leaves' %}
     <div class="module-tabs">
       <button class="mtab-btn {% if tab == 'leaves' %}active{% endif %}" onclick="switchModule('leaves')">
         <i class="ti ti-calendar-minus"></i> Leaves
         {% if pending_leaves > 0 %}<span class="mtab-badge tb-pending">{{ pending_leaves }}</span>{% endif %}
       </button>
-      {% if not is_manager %}
-      <button class="mtab-btn {% if tab == 'tickets' %}active{% endif %}" onclick="switchModule('tickets')">
-        <i class="ti ti-help-circle"></i> Tickets
-        {% if pending_tickets > 0 %}<span class="mtab-badge tb-open">{{ pending_tickets }}</span>{% endif %}
-      </button>
-      {% endif %}
-      <button class="mtab-btn {% if tab == 'announcements' %}active{% endif %}" onclick="switchModule('announcements')">
-        <i class="ti ti-speakerphone"></i> Announcements
-        {% if ann_list %}<span class="mtab-badge u-bg-dbeafe u-c-1e3a8a">{{ ann_list|length }}</span>{% endif %}
-      </button>
       <button class="mtab-btn {% if tab == 'holidays' %}active{% endif %}" onclick="switchModule('holidays')">
         <i class="ti ti-calendar-event"></i> Holidays
       </button>
-      <button class="mtab-btn {% if tab == 'resignations' %}active{% endif %}" onclick="switchModule('resignations')">
-        <i class="ti ti-user-minus"></i> Resignations
-        {% if pending_resignations > 0 %}<span class="mtab-badge tb-resign">{{ pending_resignations }}</span>{% endif %}
-      </button>
     </div>
+    {% endif %}
   </div>
 
   <!-- FLASH MESSAGES -->
@@ -368,7 +365,7 @@
                 <div class="card-meta">
                   {{ leave_type_name }} &nbsp;·&nbsp; {{ leave_date.strftime('%d %b %Y') if leave_date else '—' }} &nbsp;·&nbsp;
                   {% if is_half_day %}
-                    <span class="u-bg-fef9c3 u-c-92400e u-p-1-7 u-br-10 u-fs-11 u-fw-700">{% if half_day_session == 'Afternoon' %}🌆{% else %}🌅{% endif %} ½ {{ half_day_session or 'Morning' }}</span>
+                    <span class="u-bg-fef9c3 u-c-92400e u-p-1-7 u-br-10 u-fs-11 u-fw-700">{% if half_day_session == 'Afternoon' %}<i class="ti ti-sunset hz-ico" aria-hidden="true"></i>{% else %}<i class="ti ti-sunrise hz-ico" aria-hidden="true"></i>{% endif %} ½ {{ half_day_session or 'Morning' }}</span>
                   {% else %}1 day{% endif %}
                 </div>
               </div>
@@ -578,7 +575,7 @@
 
     <div class="hol-header">
       <div>
-        <h2>📅 Holiday Calendar</h2>
+        <h2><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Holiday Calendar</h2>
         <p>Manage public holidays &amp; leaves. Sunday is the weekly off.</p>
       </div>
       <div class="year-nav">
@@ -595,7 +592,7 @@
           🇮🇳 Import Indian Holidays for {{ year }}
         </button>
       </form>
-      <button class="btn-add-custom" onclick="openAddModal()">➕ Add Custom Holiday</button>
+      <button class="btn-add-custom" onclick="openAddModal()"><i class="ti ti-plus hz-ico" aria-hidden="true"></i> Add Custom Holiday</button>
     </div>
 
     <div class="legend">
@@ -647,7 +644,7 @@
     </div>
 
     <div class="section">
-      <h3>📋 All Holidays &amp; Leaves ({{ year }})</h3>
+      <h3><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> All Holidays &amp; Leaves ({{ year }})</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th>#</th><th>Date</th><th>Day</th><th>Name</th><th>Action</th></tr></thead>
@@ -660,11 +657,11 @@
                 <td>{{ ns.count }}</td>
                 <td>{{ h[1].strftime('%d %b %Y') }}</td>
                 <td class="u-c-64748b u-fs-12">{{ h[1].strftime('%A') }}</td>
-                <td>{% if h[2].startswith('Leave:') %}<span class="badge-leave">🌿 {{ h[2][6:] }}</span>{% else %}<span class="badge-holiday">🎉 {{ h[2] }}</span>{% endif %}</td>
+                <td>{% if h[2].startswith('Leave:') %}<span class="badge-leave"><i class="ti ti-leaf hz-ico" aria-hidden="true"></i> {{ h[2][6:] }}</span>{% else %}<span class="badge-holiday"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> {{ h[2] }}</span>{% endif %}</td>
                 <td>
                   <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this entry?');" class="form-inline">
                     <input type="hidden" name="year" value="{{ year }}">
-                    <button type="submit" class="btn-del">🗑 Remove</button>
+                    <button type="submit" class="btn-del"><i class="ti ti-trash hz-ico" aria-hidden="true"></i> Remove</button>
                   </form>
                 </td>
               </tr>
@@ -732,11 +729,11 @@
 <!-- Add Holiday Modal -->
 <div class="modal-overlay" id="addModal">
   <div class="modal-box">
-    <h3>➕ Add Holiday / Leave</h3>
+    <h3><i class="ti ti-plus hz-ico" aria-hidden="true"></i> Add Holiday / Leave</h3>
     <form action="{{ tpath('/add_holiday') }}" method="POST">
       <div class="form-group"><label>Date</label><input type="date" name="date" id="modalDate" required /></div>
       <div class="form-group"><label>Type</label>
-        <select name="type"><option value="Holiday">🎉 Public Holiday</option><option value="Leave">🌿 Company Leave</option></select>
+        <select name="type"><option value="Holiday">Public Holiday</option><option value="Leave">Company Leave</option></select>
       </div>
       <div class="form-group"><label>Name / Description</label><input type="text" name="holiday_name" id="modalName" placeholder="e.g. Diwali, Dussehra…" required /></div>
       <div class="modal-actions">

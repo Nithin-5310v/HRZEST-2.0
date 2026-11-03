@@ -120,23 +120,17 @@ class TestTicketsView:
         assert rv.status_code == 302
 
     def test_renders_for_admin(self, client, seed_admin):
-        # /tickets redirects now (blueprints/tickets.py's tickets_view()) --
-        # ticket management moved onto the Leaves & Holidays page's Tickets
-        # tab; this route stays only so old bookmarks/links resolve.
+        # /tickets is its own module page (blueprints/tickets.py's tickets_view()).
         _admin_session(client, seed_admin)
         rv = client.get("/tickets", follow_redirects=False)
-        assert rv.status_code == 302
-        assert "/leave_holidays" in rv.headers["Location"]
+        assert rv.status_code == 200
+        assert b"panel-tickets" in rv.data
 
     def test_renders_with_ticket_data(self, client, seed_admin, seed_employee, db_engine):
-        # Ticket data now renders on /leave_holidays (the redirect target)
-        # rather than /tickets itself -- this just confirms the redirect
-        # still fires the same way regardless of whether tickets exist.
         tid = _seed_ticket(db_engine, seed_employee["employee_id"])
         _admin_session(client, seed_admin)
         rv = client.get("/tickets", follow_redirects=False)
-        assert rv.status_code == 302
-        assert "/leave_holidays" in rv.headers["Location"]
+        assert rv.status_code == 200
         cur = db_engine.cursor()
         cur.execute("DELETE FROM tickets WHERE id=%s", (tid,))
         cur.close()
