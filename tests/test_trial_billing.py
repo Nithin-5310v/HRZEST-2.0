@@ -543,7 +543,7 @@ class TestTrialEmployeeCap:
         cur.close()
         db_engine.commit()
 
-        ids = ("CAPT01", "CAPT02", "CAPT03")
+        ids = ("CAPT01", "CAPT02", "CAPT03", "CAPT04")
         yield ids
 
         cur = db_engine.cursor()
@@ -673,4 +673,37 @@ class TestTrialEmployeeCap:
         cur = db_engine.cursor()
         cur.execute("SELECT 1 FROM employees WHERE employee_id='CAPT03'")
         assert cur.fetchone() is not None, "non-trial tenant was incorrectly capped at 2 employees"
+        cur.close()
+
+    def test_trial_with_auto_debit_already_on_is_not_capped(
+        self, client, db_engine, seed_admin, restore_tenant_state, clean_cap_test_employees, clean_mandate,
+        monkeypatch
+    ):
+        """A company that enabled auto-debit during its trial before confirm()
+        ended trials (still 'trialing', mandate active) was paying and still
+        capped at 2. The cap check now ends that trial and lets the hire in."""
+        from utils.plan_limits import get_tenant_employee_count
+        cur = db_engine.cursor()
+        cur.execute(
+            "UPDATE att_master.tenants SET subscription_status='trialing', payment_option='trial' WHERE db_name=%s",
+            (TENANT_SCHEMA,),
+        )
+        cur.execute(
+            "INSERT INTO att_master.auto_debit_mandates (tenant_schema, company_name, razorpay_customer_id, "
+            "razorpay_subscription_id, quantity_synced, status, activated_at, created_at) "
+            "VALUES (%s,'Test Co','demo_cust_cap','demo_sub_cap',2,'active',NOW(),NOW())", (TENANT_SCHEMA,))
+        cur.close()
+        baseline = get_tenant_employee_count(TENANT_SCHEMA)
+        self._fill_to(db_engine, clean_cap_test_employees, 2, baseline)
+
+        self._admin_session_for_att_test(client, seed_admin["username"])
+        resp = self._post_add_employee(client, monkeypatch, "Third Paid Hire", "CAPT04")
+        assert "trial allows up to 2 employees" not in resp.data.decode("utf-8", "ignore").lower()
+
+        cur = db_engine.cursor()
+        cur.execute("SELECT 1 FROM employees WHERE employee_id='CAPT04'")
+        assert cur.fetchone() is not None, "a trial already paying by auto-debit was still capped"
+        cur.execute("SELECT subscription_status, payment_option FROM att_master.tenants WHERE db_name=%s",
+                    (TENANT_SCHEMA,))
+        assert cur.fetchone() == ("active", "online")
         cur.close()
