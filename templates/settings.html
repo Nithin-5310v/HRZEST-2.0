@@ -1372,6 +1372,9 @@
                     {% endif %}
                   </div>
                   <div class="lbl">Estimated next charge: {{ monthly_bill_display }} for {{ employee_count }} employee{{ 's' if employee_count != 1 }}</div>
+                  {% if auto_debit_status and auto_debit_status.status == 'active' and auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
+                  <div class="lbl" style="color:#1d4ed8;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. Update it now, or it updates itself before the next charge.</div>
+                  {% endif %}
                   {% if auto_debit_status and auto_debit_status.status == 'rate_changed' %}
                   <div class="lbl" style="color:#d97706;margin-top:2px;">Your previous auto-debit ended after its last payment at the old rate — re-enable below to continue automatic billing at the new rate.</div>
                   {% elif auto_debit_status and auto_debit_status.status == 'pending_cancellation' %}
@@ -1379,7 +1382,10 @@
                   {% endif %}
                 </div>
                 {% if auto_debit_status and auto_debit_status.status == 'active' %}
-                  <div style="display:flex; gap:8px;">
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    {% if auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
+                    <button type="button" class="qty-btn" id="updateAutoDebitBtn" style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Update to {{ employee_count }} employee{{ 's' if employee_count != 1 }}</button>
+                    {% endif %}
                     <button type="button" class="qty-btn" id="cancelAtPeriodEndBtn" style="width:auto; padding:0 16px; background:#fff7ed; border-color:#fdba74; color:#c2410c;">Cancel at Period End</button>
                     <button type="button" class="qty-btn" id="disableAutoDebitBtn" style="width:auto; padding:0 16px; background:#fee2e2; border-color:#fca5a5; color:#dc2626;">Disable Now</button>
                   </div>
@@ -1719,6 +1725,34 @@
                     adShowError('Network error. Please try again.');
                     disableAutoDebitBtn.disabled = false;
                     disableAutoDebitBtn.textContent = 'Disable Now';
+                  }
+                });
+              }
+
+              const updateAutoDebitBtn = document.getElementById('updateAutoDebitBtn');
+              if (updateAutoDebitBtn) {
+                updateAutoDebitBtn.addEventListener('click', async () => {
+                  const label = updateAutoDebitBtn.textContent;
+                  updateAutoDebitBtn.disabled = true;
+                  updateAutoDebitBtn.textContent = 'Updating...';
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/update_quantity") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: '{}',
+                    });
+                    const json = await res.json();
+                    if (json.ok) {
+                      window.location.reload();
+                    } else {
+                      adShowError(json.msg || 'Could not update auto-debit.');
+                      updateAutoDebitBtn.disabled = false;
+                      updateAutoDebitBtn.textContent = label;
+                    }
+                  } catch (e) {
+                    adShowError('Network error. Please try again.');
+                    updateAutoDebitBtn.disabled = false;
+                    updateAutoDebitBtn.textContent = label;
                   }
                 });
               }

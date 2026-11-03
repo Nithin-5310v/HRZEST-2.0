@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Recurring-bill dunning: detects an unpaid monthly bill, gives a 5-day
-grace period, locks the tenant (login still works, every state-changing
-request is refused -- app.py's _enforce_billing_lock()) once that deadline
-passes with no payment, and unlocks automatically the moment a payment
+grace period, locks the tenant (login still works; admins reach only the
+pay page, employees carry on -- utils/auth.py's billing lock) once that
+deadline passes with no payment, and unlocks automatically the moment a payment
 clears -- via blueprints/webhooks.py's Razorpay dispatcher, so no platform
 admin action is needed on either side of the lock/unlock transition.
 
@@ -140,13 +140,15 @@ def _dunning_email_content(kind, company_name, grace_ends=None):
             f"<p>You have until <strong>{grace_str}</strong> to pay before the account is locked. "
             f"Log in to your admin dashboard and use the <strong>Pay Now</strong> banner there -- "
             f"payment unlocks the account automatically, no further steps needed.</p>"
+            f"<p>Once locked, admins and HR can't open attendance, payslips or reports until it's paid. "
+            f"Employees can still mark their attendance.</p>"
         )
     elif kind == "locked":
         subject = "Your HRzest account has been locked"
         body = (
             f"<p><strong>{company_name}</strong>'s account is now locked due to non-payment.</p>"
-            f"<p>You can still log in, but no changes (including payroll) can be made until the "
-            f"outstanding bill is paid. Log in and use the <strong>Pay Now</strong> banner to "
+            f"<p>Employees can still mark their attendance, but admins and HR can't open attendance, "
+            f"payslips or reports until the outstanding bill is paid. Sign in as an admin and pay to "
             f"reactivate immediately -- it unlocks automatically the moment payment clears.</p>"
         )
     else:  # reactivated
@@ -300,7 +302,7 @@ def verify_overdue_payment():
     if not _mark_invoice_paid_and_unlock(razorpay_order_id, razorpay_payment_id, expected_tenant_db=_g.tenant_db):
         return jsonify({"ok": False, "msg": "Could not confirm this order. Contact support."}), 404
     # Unlock THIS session immediately -- otherwise the paying admin would
-    # still be blocked by _enforce_billing_lock() for up to
+    # still be blocked by the billing lock (utils/auth.py) for up to
     # _TENANT_STATUS_RECHECK_SEC (app.py) despite the DB already showing
     # billing_state='current', since that hook trusts the session's cached
     # flag rather than re-querying on every request. Other sessions (a
@@ -361,7 +363,13 @@ def _mark_invoice_paid_and_unlock(razorpay_order_id, razorpay_payment_id, expect
         conn.close()
         return True
     cur.execute(
-        "UPDATE tenants SET billing_state='current', grace_period_ends_at=NULL, locked_at=NULL WHERE db_name=%s",
+        # A trial that ended unpaid (trial_billing.py: subscription_status
+        # 'past_due', payment_option 'trial') becomes an ordinary monthly
+        # payer once it pays -- otherwise the next daily check re-locks it.
+        "UPDATE tenants SET billing_state='current', grace_period_ends_at=NULL, locked_at=NULL, "
+        "subscription_status=CASE WHEN subscription_status='past_due' THEN 'active' ELSE subscription_status END, "
+        "payment_option=CASE WHEN payment_option='trial' THEN 'manual' ELSE payment_option END "
+        "WHERE db_name=%s",
         (tenant_schema,)
     )
     conn.commit()

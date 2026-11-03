@@ -122,6 +122,7 @@ else:
         from blueprints.billing_dunning import check_tenant_billing
         from blueprints.disbursement import prepare_pending_disbursements
         from blueprints.trial_billing import check_trial_expirations, check_trial_ending_soon
+        from utils.billing_notices import send_renewal_reminders
         from utils.detections import run_detections
         from utils.privacy_jobs import run_retention_purge
         from utils.audit_jobs import emit_anchors, run_full_verification
@@ -192,6 +193,13 @@ else:
                 trigger="cron",
                 hour=0, minute=30,
                 id="trial_ending_soon_check",
+                replace_existing=True,
+            )
+            _scheduler.add_job(
+                func=_scheduled_job("renewal_reminder", send_renewal_reminders),
+                trigger="cron",
+                hour=9, minute=0,
+                id="renewal_reminder",
                 replace_existing=True,
             )
             # Every worker runs this scheduler, so every job goes through
