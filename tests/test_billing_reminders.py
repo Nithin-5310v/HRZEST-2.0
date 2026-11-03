@@ -206,8 +206,14 @@ class TestRenewalReminder:
 class TestEndedTrialGraceAndLock:
     def _ended_trial(self, db_engine):
         _set(db_engine, payment_option="trial", subscription_status="trialing", billing_state="current",
-             grace_period_ends_at=None, locked_at=None, grace_reminder_sent_on=None,
-             trial_end_date=datetime.datetime.now() - datetime.timedelta(hours=1))
+             grace_period_ends_at=None, locked_at=None, grace_reminder_sent_on=None)
+        # On the database's clock, as app.py stamps it and _run_trial_check()
+        # reads it: CI's test process runs on Asia/Kolkata (conftest), its
+        # Postgres on UTC, so an hour ago by datetime.now() is still ahead.
+        cur = db_engine.cursor()
+        cur.execute("UPDATE att_master.tenants SET trial_end_date=NOW() - INTERVAL '1 hour' WHERE db_name=%s",
+                    (TENANT_SCHEMA,))
+        cur.close()
 
     def test_no_payment_method_starts_five_days_grace(self, db_engine, tenant, mails):
         self._ended_trial(db_engine)
