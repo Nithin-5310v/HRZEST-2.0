@@ -216,6 +216,54 @@ class TestConfirm:
         assert row[0] == "active"
         assert row[4] is not None  # activated_at
 
+    def test_confirm_during_a_trial_ends_the_trial(self, client, db_engine, seed_admin, clean_mandate):
+        """The trial's 2-employee cap says "Upgrade under ... Billing"; once
+        auto-debit is on, the company is paid and the cap is gone."""
+        from flask import g
+        from utils.helpers import _tenant_is_trialing
+
+        cur = db_engine.cursor()
+        cur.execute("SELECT subscription_status, payment_option FROM att_master.tenants WHERE db_name=%s",
+                    (TENANT_SCHEMA,))
+        before = cur.fetchone()
+        cur.execute("UPDATE att_master.tenants SET subscription_status='trialing', payment_option='manual' "
+                    "WHERE db_name=%s", (TENANT_SCHEMA,))
+        try:
+            sub_id = "demo_sub_" + secrets.token_hex(4)
+            _insert_mandate(db_engine, subscription_id=sub_id, status="pending")
+            _admin_session(client, seed_admin["username"])
+            resp = client.post("/api/auto_debit/confirm", json={
+                "razorpay_subscription_id": sub_id, "razorpay_payment_id": "pay_x", "razorpay_signature": "sig_x",
+            })
+            assert resp.get_json() == {"ok": True}
+
+            cur.execute("SELECT subscription_status, payment_option FROM att_master.tenants WHERE db_name=%s",
+                        (TENANT_SCHEMA,))
+            assert cur.fetchone() == ("active", "online")
+            with flask_app.test_request_context():
+                g.tenant_db = TENANT_SCHEMA
+                assert _tenant_is_trialing() is False
+        finally:
+            cur.execute("UPDATE att_master.tenants SET subscription_status=%s, payment_option=%s WHERE db_name=%s",
+                        (*before, TENANT_SCHEMA))
+            cur.close()
+
+    def test_confirm_leaves_a_paid_company_alone(self, client, db_engine, seed_admin, clean_mandate):
+        cur = db_engine.cursor()
+        cur.execute("SELECT subscription_status, payment_option FROM att_master.tenants WHERE db_name=%s",
+                    (TENANT_SCHEMA,))
+        before = cur.fetchone()
+        sub_id = "demo_sub_" + secrets.token_hex(4)
+        _insert_mandate(db_engine, subscription_id=sub_id, status="pending")
+        _admin_session(client, seed_admin["username"])
+        client.post("/api/auto_debit/confirm", json={
+            "razorpay_subscription_id": sub_id, "razorpay_payment_id": "pay_x", "razorpay_signature": "sig_x",
+        })
+        cur.execute("SELECT subscription_status, payment_option FROM att_master.tenants WHERE db_name=%s",
+                    (TENANT_SCHEMA,))
+        assert cur.fetchone() == before
+        cur.close()
+
     def test_real_mode_invalid_signature_rejected(self, client, db_engine, seed_admin, clean_mandate, monkeypatch):
         monkeypatch.setattr("utils.razorpay_utils.razorpay_configured", lambda: True)
         monkeypatch.setattr("blueprints.auto_debit.verify_subscription_signature", lambda *a, **k: False)

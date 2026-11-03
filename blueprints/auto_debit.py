@@ -201,11 +201,15 @@ def confirm():
         "WHERE tenant_schema=%s AND razorpay_subscription_id=%s",
         (g.tenant_db, subscription_id)
     )
-    # A trial that ended with no payment method (trial_billing.py) is paid
-    # for from here on: back to normal and out of its grace period or lock.
+    # The company is paid for from here on. A trial that ended with no
+    # payment method (trial_billing.py) comes back to normal, out of its
+    # grace period or lock; a trial still running ends now rather than at
+    # trial_end_date -- this is the upgrade its 2-employee cap points to
+    # (utils/helpers.add_employee_seat_cap_check()).
     cur.execute(
         "UPDATE tenants SET subscription_status='active', payment_option='online', billing_state='current', "
-        "grace_period_ends_at=NULL, locked_at=NULL WHERE db_name=%s AND subscription_status='past_due'",
+        "grace_period_ends_at=NULL, locked_at=NULL "
+        "WHERE db_name=%s AND subscription_status IN ('past_due', 'trialing')",
         (g.tenant_db,)
     )
     reactivated = cur.rowcount == 1
