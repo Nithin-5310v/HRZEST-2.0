@@ -7,18 +7,18 @@ removed from blueprints/employees.py; see tests/test_employee_registration.py's
 docstring. /add_employee_page's coverage below is the same welcome-email
 behavior, just through the route that actually creates employees now.)
 
-/add_employee_page and /api/employees generate the password themselves, so
-their welcome email sends a one-time "set your password" link
-(/employee_reset_password/<token>) instead of a plain login link -- see
-blueprints/employees.py's _send_welcome_credentials_email docstring for
-why (Gmail hard-blocks the old plaintext-password-plus-login-link shape as
-phishing). /api/employee/signup takes the password the admin typed in
-the app, so it still links straight to /login.
+Every path sends the same welcome (blueprints/employees.py's
+_send_welcome_credentials_email), as the owner asked on 3 Nov 2026: the
+sign-in link, the Employee ID, the temporary password the account was made
+with, and a one-time "set your password" link
+(/employee_reset_password/<token>). /add_employee_page and /api/employees
+make the employee change that password at first sign-in, so their email
+says so; /api/employee/signup takes the password the admin typed in the
+app and doesn't.
 
-get_email_config()/send_email_smtp() are monkeypatched per call site
-(imported directly into each blueprint module, same pattern
-tests/test_org.py uses for org_module.get_email_config) so these tests
-don't depend on real SMTP being configured.
+get_email_config()/send_email_smtp() are monkeypatched on
+blueprints.employees (where the shared welcome lives) so these tests don't
+depend on real email being configured.
 """
 import io
 import os
@@ -100,8 +100,10 @@ class TestAddEmployeePageWelcomeEmail:
 
             assert len(sent) == 1
             to, subject, html = sent[0]
-            assert to == "welmail002@test.local"
-            assert "/employee_reset_password/" in html
+            assert to == "welmail002@test.local" and "sign-in details" in subject
+            assert "/employee_reset_password/" in html and "/login" in html
+            assert emp_id in html and "Temporary password" in html
+            assert "first time you sign in" in html  # this account must change it
         finally:
             _cleanup_employee(db_engine, emp_id)
 
@@ -135,17 +137,19 @@ class TestApiRegisterEmployeeWelcomeEmail:
             assert len(sent) == 1
             to, subject, html = sent[0]
             assert to == "welmail003@test.local"
-            assert "/employee_reset_password/" in html
+            assert "/employee_reset_password/" in html and "/login" in html
+            # No password given: the account's temporary password is the Employee ID.
+            assert html.count(emp_id) >= 2 and "Temporary password" in html
         finally:
             _cleanup_employee(db_engine, emp_id)
 
 
 class TestApiEmployeeSignupWelcomeEmail:
-    def test_signup_sends_email_with_login_link_no_password(self, client, seed_admin, db_engine, monkeypatch):
-        import blueprints.core as core_module
-        monkeypatch.setattr(core_module, "get_email_config", lambda: {"host": "smtp.test"})
+    def test_signup_sends_the_same_welcome_with_the_typed_password(self, client, seed_admin, db_engine, monkeypatch):
+        import blueprints.employees as employees_module
+        monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
-        monkeypatch.setattr(core_module, "send_email_smtp",
+        monkeypatch.setattr(employees_module, "send_email_smtp",
                             lambda to, subject, html, cfg: sent.append((to, subject, html)))
 
         emp_id = "WELMAIL004"
@@ -162,10 +166,9 @@ class TestApiEmployeeSignupWelcomeEmail:
             assert len(sent) == 1
             to, subject, html = sent[0]
             assert to == "welmail004@test.local"
-            assert "/login" in html
-            # The password was typed in the app, not generated -- don't
-            # echo it back into the email.
-            assert "SelfChosen@1" not in html
+            assert "/login" in html and "/employee_reset_password/" in html
+            assert "SelfChosen@1" in html  # the owner wants the credentials in the email
+            assert "first time you sign in" not in html  # this account isn't forced to change it
         finally:
             _cleanup_employee(db_engine, emp_id)
 
@@ -184,3 +187,18 @@ class TestApiEmployeeSignupWelcomeEmail:
             assert cur.fetchone() is None
         finally:
             _cleanup_employee(db_engine, emp_id)
+
+
+class TestWelcomeEmailEscaping:
+    def test_name_and_password_are_escaped(self, client, seed_employee, monkeypatch):
+        import blueprints.employees as employees_module
+        monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
+        sent = []
+        monkeypatch.setattr(employees_module, "send_email_smtp",
+                            lambda to, subject, html, cfg: sent.append(html))
+        with flask_app.test_request_context("/"):
+            employees_module._send_welcome_credentials_email(
+                seed_employee["employee_id"], "<b>Asha</b>", "asha@test.local", "p<w>&d")
+        html, = sent
+        assert "<b>Asha</b>" not in html and "&lt;b&gt;Asha&lt;/b&gt;" in html
+        assert "p&lt;w&gt;&amp;d" in html

@@ -246,14 +246,14 @@ def _notify_trial_tenant(tenant_schema, company_name, kind, employee_count=None,
     of the send -- same pattern as blueprints/billing_dunning.py's
     _notify_tenant() / blueprints/auto_debit.py's _notify_rate_change()."""
     from flask import g as _g
-    from utils.email_utils import get_email_config, get_admin_emails, send_email_async
+    from utils.email_utils import get_email_config, get_billing_emails, send_email_async
     prev_tenant_db = getattr(_g, "tenant_db", None)
     try:
         _g.tenant_db = tenant_schema
         config = get_email_config()
         if not config:
             return
-        recipients = get_admin_emails()
+        recipients = get_billing_emails()
         if not recipients:
             return
         if kind == "converted":
