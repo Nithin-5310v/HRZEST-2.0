@@ -359,11 +359,11 @@ def _migrate_mandate_if_needed(subscription_id):
 
 def _notify_rate_change(tenant_schema, company_name):
     """Switches g.tenant_db to the target tenant's schema for the duration
-    of the send (get_admin_emails()/get_email_config() both resolve against
+    of the send (get_billing_emails()/get_email_config() both resolve against
     whichever schema get_db_connection() currently points to), same
     pattern as blueprints/billing_dunning.py's _notify_tenant()."""
     from flask import g as _g
-    from utils.email_utils import get_email_config, get_admin_emails, send_email_async
+    from utils.email_utils import get_email_config, get_billing_emails, send_email_async
     from utils.plan_limits import get_per_employee_paise
     prev_tenant_db = getattr(_g, "tenant_db", None)
     try:
@@ -371,7 +371,7 @@ def _notify_rate_change(tenant_schema, company_name):
         config = get_email_config()
         if not config:
             return
-        recipients = get_admin_emails()
+        recipients = get_billing_emails()
         if not recipients:
             return
         rate_display = format_price_inr(get_per_employee_paise())

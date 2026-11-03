@@ -9,6 +9,7 @@ import secrets
 import psycopg2
 from io import BytesIO
 from urllib.parse import urlencode
+from html import escape as _html_escape
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash, send_file,
 )
@@ -40,21 +41,17 @@ employees_bp = Blueprint("employees", __name__)
 UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
 
 
-def _send_welcome_credentials_email(emp_id, name, email):
-    """Emails a one-time 'set your password' link instead of the actual
-    auto-generated password. A welcome email containing a raw password
-    plus a login link is exactly the content shape Gmail's spam/phishing
-    classifier hard-blocks (550 5.7.1 'likely unsolicited mail'), and
-    plaintext passwords shouldn't be emailed regardless of deliverability.
+def _send_welcome_credentials_email(emp_id, name, email, password=None, must_change=True):
+    """The new employee's welcome email: where to sign in, their Employee
+    ID and -- as the owner asked -- the temporary password the account was
+    created with, plus a one-time 'set your password' link (24h, the same
+    reset_token as auth.py's employee_reset_password) for anyone who'd
+    rather choose their own straight away. must_change says whether the
+    account makes them pick a new password at first sign-in
+    (employees.force_pin_change), so the email says so only when it does.
 
-    Reuses the same reset_token mechanism as auth.py's
-    employee_forgot_password/employee_reset_password flow -- 24h expiry
-    here rather than that flow's 1h, since a first-time welcome link may
-    sit unread longer than an active forgot-password request.
-
-    Returns True if the email was sent, False if no SMTP is configured
-    (matches the pre-existing silent-skip behavior of the callers below).
-    """
+    Returns True if the email was sent, False if no email is configured
+    (the callers' silent-skip behaviour)."""
     _ecfg = get_email_config()
     if not _ecfg:
         return False
@@ -69,14 +66,35 @@ def _send_welcome_credentials_email(emp_id, name, email):
     cursor.close()
     db.close()
     set_url = company_url('/employee_reset_password/' + token)
+    login_url = company_url('/login')
+    company = _html_escape(get_company_settings().get("company_name") or "your company")
+    safe_name, safe_id = _html_escape(name or ""), _html_escape(emp_id)
+    password_rows = ""
+    if password:
+        password_rows = (
+            f"<tr><td style=\"padding:4px 12px 4px 0;color:#475467;\">Temporary password</td>"
+            f"<td style=\"padding:4px 0;\"><strong style=\"font-family:monospace;font-size:15px;\">"
+            f"{_html_escape(password)}</strong></td></tr>"
+        )
+    change_note = ("You'll be asked to choose your own password the first time you sign in."
+                   if password and must_change else
+                   "You can change your password any time after signing in.")
     html_body = (
-        f"<p>Hi <strong>{name}</strong>, your account is ready.</p>"
-        f"<p>Employee ID: <strong>{emp_id}</strong></p>"
-        f"<p><a href=\"{set_url}\">Set your password</a> to finish setting up your account "
-        f"(link expires in 24 hours).</p>"
-        f"<p>Or copy this link: {set_url}</p>"
+        f"<p>Hi <strong>{safe_name}</strong>,</p>"
+        f"<p>Your HRzest account at <strong>{company}</strong> is ready.</p>"
+        f"<table style=\"border-collapse:collapse;margin:12px 0;\">"
+        f"<tr><td style=\"padding:4px 12px 4px 0;color:#475467;\">Sign in at</td>"
+        f"<td style=\"padding:4px 0;\"><a href=\"{login_url}\">{login_url}</a></td></tr>"
+        f"<tr><td style=\"padding:4px 12px 4px 0;color:#475467;\">Employee ID</td>"
+        f"<td style=\"padding:4px 0;\"><strong>{safe_id}</strong></td></tr>"
+        f"{password_rows}</table>"
+        f"<p>{change_note} The same details work in the HRzest mobile app.</p>"
+        f"<p>Prefer to set your own password now? <a href=\"{set_url}\">Set your password</a> "
+        f"(link valid for 24 hours).</p>"
+        f"<p style=\"color:#667085;font-size:13px;\">Keep this email private. If you weren't expecting it, "
+        f"tell your HR team.</p>"
     )
-    send_email_smtp(email, f"Welcome {name} -- Set Your Password", html_body, _ecfg)
+    send_email_smtp(email, f"Welcome to HRzest, {name} -- your sign-in details", html_body, _ecfg)
     return True
 
 
@@ -1209,7 +1227,7 @@ def add_employee_page():
                     flash("Onboarding checklist auto-assigned.", "success")
         if email:
             try:
-                if _send_welcome_credentials_email(emp_id, name, email):
+                if _send_welcome_credentials_email(emp_id, name, email, auto_pass):
                     flash(f"Credentials email sent to {email}", "success")
             except Exception as exc:
                 app_log.warning("Welcome-credentials email failed for %s (%s): %s", emp_id, _mask_email(email), exc, exc_info=True)
@@ -2295,7 +2313,7 @@ def api_register_employee():
     notify_employee_added()
     if email:
         try:
-            _send_welcome_credentials_email(emp_id, name, email)
+            _send_welcome_credentials_email(emp_id, name, email, init_pass)
         except Exception:
             app_log.error("api_register_employee: welcome email failed", exc_info=True)
     return jsonify({"ok": True, "msg": f"Employee {name} registered."})

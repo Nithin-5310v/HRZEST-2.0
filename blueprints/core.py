@@ -20,11 +20,11 @@ from utils.login_otp import issue_challenge, verify_challenge
 from utils.totp import send_mfa_login_email
 from utils.helpers import (
     _db, get_auth_config, validate_employee_email_domain,
-    employee_login_url, get_pending_counts, tpath, add_employee_seat_cap_check,
+    get_pending_counts, tpath, add_employee_seat_cap_check,
     get_company_settings, _safe_app_url, company_today,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
-from utils.email_utils import get_email_config, send_email_smtp, public_contact_email
+from utils.email_utils import public_contact_email
 from utils.billing_notices import notify_employee_added
 from utils.session_risk import is_session_compromised, ensure_session_id
 
@@ -920,16 +920,14 @@ def api_employee_signup():
         db.close()
         notify_employee_added()
         if email:
-            _ecfg = get_email_config()
-            if _ecfg:
-                _login_url = employee_login_url()
-                _html = (f"<p>Hi <strong>{name}</strong>, your account is ready.</p>"
-                         f"<p>Employee ID: <strong>{emp_id}</strong></p>"
-                         f"<p><a href=\"{_login_url}\">{_login_url}</a></p>")
-                try:
-                    send_email_smtp(email, f"Welcome {name} -- Your Account is Ready", _html, _ecfg)
-                except Exception:
-                    app_log.error("api_employee_signup: welcome email failed", exc_info=True)
+            # The same welcome as the website's Add Employee: sign-in link,
+            # Employee ID, the password the admin typed, and a set-password
+            # link. This account isn't made to change it at first sign-in.
+            from blueprints.employees import _send_welcome_credentials_email
+            try:
+                _send_welcome_credentials_email(emp_id, name, email, password, must_change=False)
+            except Exception:
+                app_log.error("api_employee_signup: welcome email failed", exc_info=True)
         return jsonify({
             "ok": True,
             "msg": f"Employee account for {name} ({emp_id}) created successfully! You can now sign in.",

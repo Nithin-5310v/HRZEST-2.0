@@ -91,7 +91,7 @@ def mails(monkeypatch):
         sent.append((to, subject, body))
     for mod in (notices, email_utils):
         monkeypatch.setattr(mod, "get_email_config", lambda: {"host": "smtp.test"})
-        monkeypatch.setattr(mod, "get_admin_emails", lambda: ["owner@example.test"])
+        monkeypatch.setattr(mod, "get_billing_emails", lambda: ["owner@example.test"])
         monkeypatch.setattr(mod, "send_email_async", send)
     return sent
 
@@ -270,3 +270,26 @@ class TestEndedTrialGraceAndLock:
         assert resp.get_json()["ok"] is True
         assert _row(db_engine, "billing_state", "subscription_status", "payment_option") == \
             ("current", "active", "online")
+
+
+class TestBillingRecipients:
+    def test_only_admins_get_billing_mail_not_hr_or_managers(self, db_engine):
+        """HR and manager staff have admin-panel accounts carrying their own
+        email (auth.py); billing mail goes to the company's admins only."""
+        from werkzeug.security import generate_password_hash
+        rows = [("BILLADM", "admin", "owner-bill@example.test"), ("BILLHR1", "hr", "hr-bill@example.test"),
+                ("BILLMGR", "manager", "mgr-bill@example.test")]
+        cur = db_engine.cursor()
+        for username, role, email in rows:
+            cur.execute("INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1)",
+                        (username, generate_password_hash("x"), role, email))
+        cur.close()
+        try:
+            billing = email_utils.get_billing_emails()
+            assert "owner-bill@example.test" in billing
+            assert "hr-bill@example.test" not in billing and "mgr-bill@example.test" not in billing
+            assert "hr-bill@example.test" in email_utils.get_admin_emails()  # leave/document mail still reaches HR
+        finally:
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM admin_users WHERE username = ANY(%s)", ([r[0] for r in rows],))
+            cur.close()

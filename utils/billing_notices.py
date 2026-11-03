@@ -22,7 +22,7 @@ from extensions import app, app_log
 from database import get_master_db
 from utils.helpers import platform_today
 from utils.plan_limits import calculate_price, format_price_inr, get_tenant_employee_count
-from utils.email_utils import get_email_config, get_admin_emails, send_email_async
+from utils.email_utils import get_email_config, get_billing_emails, send_email_async
 
 RENEWAL_REMINDER_DAYS = 3
 
@@ -91,7 +91,7 @@ def _send_to_admins(db_name, subject, body, heading="Billing notice"):
         if not config:
             return
         html_body = email_shell(body, heading)
-        for email in get_admin_emails():
+        for email in get_billing_emails():
             send_email_async(email, subject, html_body, config)
     finally:
         _g.tenant_db = prev_tenant_db

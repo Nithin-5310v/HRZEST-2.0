@@ -26,7 +26,7 @@ from database import get_master_db
 from utils.auth import admin_required
 from utils.helpers import tpath, coerce_datetime, platform_today
 from utils.plan_limits import calculate_price, format_price_inr, get_tenant_employee_count
-from utils.email_utils import get_email_config, get_admin_emails, send_email_async
+from utils.email_utils import get_email_config, get_billing_emails, send_email_async
 from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
     key_id as razorpay_key_id, create_id_or_demo, verify_or_demo, razorpay_configured, payments_enabled,
@@ -170,7 +170,7 @@ def _dunning_email_content(kind, company_name, grace_ends=None):
 
 def _notify_tenant(tenant_schema, company_name, kind, grace_ends=None):
     """Switches g.tenant_db to the target tenant's schema for the duration
-    of the send (get_admin_emails()/get_email_config() both resolve against
+    of the send (get_billing_emails()/get_email_config() both resolve against
     whichever schema get_db_connection() currently points to) and restores
     whatever it was before -- same pattern daily_report.py's job uses,
     applied per-tenant instead of once for the single-tenant fallback."""
@@ -180,7 +180,7 @@ def _notify_tenant(tenant_schema, company_name, kind, grace_ends=None):
         config = get_email_config()
         if not config:
             return
-        recipients = get_admin_emails()
+        recipients = get_billing_emails()
         if not recipients:
             return
         if not company_name:
