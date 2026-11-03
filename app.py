@@ -265,8 +265,8 @@ def inject_overdue_onboardings():
 @app.context_processor
 def inject_billing_lock_status():
     """Lets templates/admin_base.html show a proactive grace/locked banner
-    without every route handler having to fetch it -- _enforce_billing_lock()
-    only warns reactively (on the first blocked write attempt), this is what
+    without every route handler having to fetch it -- the billing lock
+    (utils/auth.py) only acts once the grace period is over, this is what
     lets an admin see the deadline *before* they hit that block. Cheap
     single-row lookup, same posture as inject_overdue_onboardings above
     (only runs for a logged-in admin session, fails soft to "nothing to
@@ -534,8 +534,8 @@ def _resolve_tenant():
         if row is None or row[0] == "active":
             session["_tenant_status_checked_at"] = time.time()
             # billing_state='locked' does NOT block resolution/login here --
-            # only _enforce_billing_lock() (below) blocks state-changing
-            # requests, per this feature's "can log in, can't act" design.
+            # only the admin-side guards (utils/auth.py) act on it: employees
+            # carry on, admins reach only the pay page.
             session["_billing_locked"] = bool(row) and row[1] == "locked"
             _g.tenant_db = session["tenant_db"]
             _g.billing_locked = session["_billing_locked"]
@@ -623,49 +623,11 @@ def _flag_login_success(response):
     return response
 
 
-# Exempt from the billing-lock write-block below: the pages/actions a
-# locked tenant must still be able to reach to pay their way back out
-# (blueprints/billing_dunning.py), plus the universal login/logout/static
-# exemptions every other gate in this file also carries.
-_BILLING_LOCK_EXEMPT_PATHS = {
-    "/logout", "/login", "/admin_login", "/employee_login",
-    "/pay_overdue_bill", "/api/billing/overdue/create_order", "/api/billing/overdue/verify",
-}
-
-
-@app.before_request
-def _enforce_billing_lock():
-    """A tenant past its 5-day payment grace period (billing_state='locked',
-    set by blueprints/billing_dunning.py's daily check) can still log in and
-    browse -- _resolve_tenant() above deliberately doesn't block resolution
-    on this -- but every state-changing request is refused here until a
-    payment clears it, automatically, via that module's Razorpay webhook.
-    No admin action is needed on either side of that transition.
-
-    GET/HEAD/OPTIONS always pass (read-only viewing, including payroll
-    pages themselves -- the user's requirement is "can't make changes",
-    not "can't see the page"); only mutating methods on non-exempt paths
-    are refused."""
-    if not getattr(_g, "billing_locked", False):
-        return
-    if request.method in ("GET", "HEAD", "OPTIONS"):
-        return
-    if request.path.startswith("/static/") or request.path == "/healthz" or request.path in _BILLING_LOCK_EXEMPT_PATHS:
-        return
-    # An employee session hitting this has no way to pay the bill --
-    # /pay_overdue_bill is @admin_required, so redirecting them there just
-    # bounces them straight to the admin login with no explanation of why.
-    # Point them back at their own portal with a message telling them who
-    # actually needs to act, instead.
-    is_employee_session = bool(session.get("employee_id")) and not session.get("admin_logged_in")
-    if is_employee_session:
-        msg = "Your company's account needs attention -- please contact your admin."
-    else:
-        msg = "Your account is locked because of an overdue payment. Pay your outstanding bill to unlock it."
-    if request.path.startswith("/api/"):
-        return jsonify({"ok": False, "msg": msg, "billing_locked": True}), 402
-    flash(msg, "error")
-    return redirect(_tpath("/employee_portal") if is_employee_session else _tpath("/pay_overdue_bill"))
+# A billing-locked tenant (billing_state='locked') is enforced by the
+# admin-side guards (utils/auth.py's _reject_if_billing_locked: admin_required,
+# role_required, api_required): its admins, HR and managers reach only the
+# pay page until it's paid, while its employees -- attendance included --
+# carry on as normal.
 
 
 @app.before_request
