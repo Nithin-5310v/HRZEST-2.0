@@ -32,8 +32,9 @@ def _function_body(source, name):
 
 def test_onboarding_task_title_is_not_interpolated_into_onclick_or_innerhtml():
     html = (ROOT / "templates" / "my_onboarding.html").read_text(encoding="utf-8")
-    button = next(line for line in html.splitlines() if "openDoneModal(" in line and "onclick" in line)
-    onclick = re.search(r'onclick="([^"]*)"', button).group(1)
+    # Inline handlers are data-on-click (static/hz-actions.js), not onclick, since the CSP work.
+    button = next(line for line in html.splitlines() if "openDoneModal(" in line and "data-on-click" in line)
+    onclick = re.search(r'data-on-click="([^"]*)"', button).group(1)
     assert "t[1]" not in onclick                     # the title isn't spliced into JS source
     assert 'data-title="{{ t[1] }}"' in html          # it travels as an auto-escaped attribute
     body = _function_body(html, "openDoneModal")
