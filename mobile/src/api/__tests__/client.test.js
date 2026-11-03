@@ -727,3 +727,29 @@ describe('getPhotoUrl (pure string builder, no axios call)', () => {
     expect(mockAxiosInstance.post).not.toHaveBeenCalled();
   });
 });
+
+describe('plan expired (402 billing_locked)', () => {
+  const { Alert } = require('react-native');
+  const getResponseErrorHandler = () => mockAxiosInstance.interceptors.response.use.mock.calls[0][1];
+  const locked = { response: { status: 402, data: { ok: false, billing_locked: true, msg: 'Your plan has expired.' } } };
+
+  beforeEach(() => jest.spyOn(Alert, 'alert').mockImplementation(() => {}));
+  afterEach(() => Alert.alert.mockRestore());
+
+  it('explains it once, then stays quiet for a minute while every screen fails', async () => {
+    const onError = getResponseErrorHandler();
+    await expect(onError(locked)).rejects.toBe(locked);
+    await expect(onError(locked)).rejects.toBe(locked);
+    expect(Alert.alert).toHaveBeenCalledTimes(1);
+    expect(Alert.alert.mock.calls[0][0]).toBe('Plan expired');
+    expect(Alert.alert.mock.calls[0][1]).toMatch(/Your plan has expired\./);
+    expect(client.explainBillingLock({}, Date.now() + 61000)).toBe(true);
+  });
+
+  it('ignores other errors', async () => {
+    const onError = getResponseErrorHandler();
+    const other = { response: { status: 402, data: { ok: false } } };
+    await expect(onError(other)).rejects.toBe(other);
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+});
