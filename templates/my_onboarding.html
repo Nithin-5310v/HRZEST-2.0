@@ -226,7 +226,7 @@
           </div>
         </div>
         {% if t[5] != 'Done' %}
-        <button class="btn-done" data-title="{{ t[1] }}" onclick="openDoneModal({{ t[0] }}, {{ selected_ob_id }}, {{ 1 if t[3] else 0 }}, this.dataset.title)">
+        <button class="btn-done" data-title="{{ t[1] }}" data-on-click="openDoneModal({{ t[0] }}, {{ selected_ob_id }}, {{ 1 if t[3] else 0 }}, this.dataset.title)">
           <i class="ti ti-check"></i> Mark Done
         </button>
         {% endif %}
@@ -242,7 +242,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3 id="done_modal_title"><i class="ti ti-check"></i> Mark Task as Done</h3>
-      <button class="modal-close" onclick="closeModal('doneModal')">✕</button>
+      <button class="modal-close" data-on-click="closeModal('doneModal')">✕</button>
     </div>
     <form action="{{ tpath('/my_onboarding_task_done') }}" method="POST" enctype="multipart/form-data">
       <input type="hidden" name="task_id" id="done_task_id" />
@@ -258,7 +258,7 @@
       </div>
       <p class="u-fs-13 u-c-475569 u-mb-16">Confirm that you have completed this task.</p>
       <button type="submit" class="btn-submit"><i class="ti ti-circle-check"></i> Confirm — Mark as Done</button>
-      <button type="button" class="btn-cancel" onclick="closeModal('doneModal')">Cancel</button>
+      <button type="button" class="btn-cancel" data-on-click="closeModal('doneModal')">Cancel</button>
     </form>
   </div>
 </div>

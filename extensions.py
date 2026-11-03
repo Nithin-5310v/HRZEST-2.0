@@ -329,19 +329,45 @@ if not _raw_origins:
     _allowed_origins = "*" if _app_env == "development" else []
 elif _raw_origins == "*":
     if _app_env != "development":
-        # CRITICAL (not just WARNING) -- this is a live CORS hole, not a
-        # cosmetic misconfiguration, so it belongs at the same severity as
-        # the ALLOWED_ORIGINS-unset case above rather than something a log
-        # pipeline might filter out at WARNING level.
+        # CRITICAL (not just WARNING): the wildcard is ignored for CORS (see
+        # _cors_origins below -- /api/* becomes same-origin only), but
+        # WebAuthn still falls back to the request's Host for its RP ID, so
+        # this needs fixing in .env rather than filtering out of the logs.
         app_log.critical(
-            "ALLOWED_ORIGINS='*' in production allows all origins for /api/*. "
-            "Restrict it to your domain(s)."
+            "ALLOWED_ORIGINS='*' is ignored for CORS in production (/api/* is "
+            "same-origin only). Set it to your domain(s), e.g. https://hrzest.com."
         )
-        warnings.warn("ALLOWED_ORIGINS='*' in production — all origins allowed.", stacklevel=1)
+        warnings.warn("ALLOWED_ORIGINS='*' in production — ignored for CORS.", stacklevel=1)
     _allowed_origins = "*"
 else:
     _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
-CORS(app, resources={r"/api/*": {"origins": _allowed_origins}})
+
+
+def _cors_origins(allowed_origins, app_env):
+    """Origins /api/* may be read from cross-site, derived from ALLOWED_ORIGINS.
+
+    Outside development, wildcards are dropped instead of honored: with
+    origins="*" flask-cors answers every request with
+    Access-Control-Allow-Origin: * -- or echoes back whatever Origin was sent
+    -- so any website could read this API's unauthenticated responses
+    (ZAP 10098, Cross-Domain Misconfiguration). Nothing legitimate needs
+    that: the web UI calls /api/ from its own origin (CORS doesn't apply),
+    and the mobile app is native React Native, which sends no browser
+    Origin. Only explicitly listed https?:// origins survive.
+
+    Kept separate from _allowed_origins, which utils/webauthn_utils.py also
+    reads to pick the passkey RP ID -- changing that would invalidate
+    already-registered passkeys."""
+    if app_env == "development":
+        return allowed_origins
+    if allowed_origins == "*":
+        return []
+    return [o for o in allowed_origins
+            if "*" not in o and o.lower().startswith(("https://", "http://"))]
+
+
+_cors_allowed = _cors_origins(_allowed_origins, _app_env)
+CORS(app, resources={r"/api/*": {"origins": _cors_allowed}})
 
 
 # ── Production-safety startup checks ───────────────────────────────────────────

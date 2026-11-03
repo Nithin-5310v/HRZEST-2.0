@@ -497,7 +497,7 @@
 
     <!-- ══ 3-TAB SETTINGS NAV ══ -->
     <div class="s3-nav">
-      <button class="s3-tab active" id="s3tab-org" onclick="switchGroup('org')">
+      <button class="s3-tab active" id="s3tab-org" data-on-click="switchGroup('org')">
         <div class="s3-tab-icon u-bg-eff6ff"><i class="ti ti-fingerprint u-c-1e3a8a"></i></div>
         <div class="s3-tab-text">
           <div class="s3-tab-title">Attendance</div>
@@ -505,7 +505,7 @@
         </div>
         <span class="s3-tab-count">1</span>
       </button>
-      <button class="s3-tab" id="s3tab-fin" onclick="switchGroup('fin')">
+      <button class="s3-tab" id="s3tab-fin" data-on-click="switchGroup('fin')">
         <div class="s3-tab-icon u-bg-fefce8"><i class="ti ti-coin u-c-ca8a04"></i></div>
         <div class="s3-tab-text">
           <div class="s3-tab-title">Finances</div>
@@ -513,7 +513,7 @@
         </div>
         <span class="s3-tab-count">4</span>
       </button>
-      <button class="s3-tab" id="s3tab-sys" onclick="switchGroup('sys')">
+      <button class="s3-tab" id="s3tab-sys" data-on-click="switchGroup('sys')">
         <div class="s3-tab-icon u-bg-f0f9ff"><i class="ti ti-settings u-c-0284c7"></i></div>
         <div class="s3-tab-text">
           <div class="s3-tab-title">System</div>
@@ -529,12 +529,12 @@
     <div class="s3-panel active" id="s3panel-org">
     <div class="subnav-bar">
       <div class="subnav-dd-wrap">
-        <button class="subnav-dd-btn" onclick="toggleDd('dd-org')">
+        <button class="subnav-dd-btn" data-on-click="toggleDd('dd-org')">
           <div class="lines"><span></span><span></span><span></span></div>
           Sections
         </button>
         <div class="subnav-dd-menu" id="dd-org">
-          <button class="subnav-dd-item active" id="ddi-attendance" onclick="switchSub('org','attendance')"><i class="ti ti-fingerprint"></i> Attendance</button>
+          <button class="subnav-dd-item active" id="ddi-attendance" data-on-click="switchSub('org','attendance')"><i class="ti ti-fingerprint"></i> Attendance</button>
         </div>
       </div>
     </div>
@@ -554,7 +554,7 @@
                     <div class="u-w-26 u-h-26 u-br-8 u-bg-fef3c7 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-face-id u-fs-13 u-c-d97706"></i></div>
                     <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Face Authentication</div><div class="u-fs-12 u-c-64748b u-mt-2">Selfie punch-in via mobile app</div></div>
                   </div>
-                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.face_auth %}checked{% endif %} onchange="saveToggle('face_auth_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.face_auth %}checked{% endif %} data-on-change="saveToggle('face_auth_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
               </div>
 
@@ -565,7 +565,7 @@
                     <div class="u-w-26 u-h-26 u-br-8 u-bg-dcfce7 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-map-pin u-fs-13 u-c-16a34a"></i></div>
                     <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Geo-fencing</div><div class="u-fs-12 u-c-64748b u-mt-2">Restrict punch-in by GPS radius</div></div>
                   </div>
-                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.geo %}checked{% endif %} onchange="saveToggle('geo_enabled',this.checked,'extra_geo')" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.geo %}checked{% endif %} data-on-change="saveToggle('geo_enabled',this.checked,'extra_geo')" /><span class="toggle-slider"></span></label>
                 </div>
                 <div id="extra_geo" style="display:{% if features.geo %}flex{% else %}none{% endif %};align-items:center;gap:8px;padding:10px 12px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;flex-wrap:wrap;">
                   <form class="u-d-flex u-ai-center u-gap-8 u-fxw-wrap u-w-100pct" method="POST" action="{{ tpath('/save_geo_radius') }}">
@@ -577,7 +577,7 @@
                     <input class="u-w-90 u-p-5-9 u-bd-1-solid-86efac u-br-7 u-fs-13 u-fw-600" type="number" step="any" name="office_lat" value="{{ features.office_lat if features.office_lat is not none else '' }}" placeholder="Latitude" />
                     <input class="u-w-90 u-p-5-9 u-bd-1-solid-86efac u-br-7 u-fs-13 u-fw-600" type="number" step="any" name="office_lon" value="{{ features.office_lon if features.office_lon is not none else '' }}" placeholder="Longitude" />
                     <button type="button" class="u-p-5-9 u-bd-1-solid-86efac u-br-7 u-bg-fff u-c-15803d u-fs-12 u-fw-700 u-cur-pointer"
-                            onclick="navigator.geolocation && navigator.geolocation.getCurrentPosition(function(p){document.querySelector('[name=office_lat]').value=p.coords.latitude;document.querySelector('[name=office_lon]').value=p.coords.longitude;})">
+                            data-on-click="useCurrentOfficeLocation()">
                       <i class="ti ti-map-pin-filled"></i> Use current location
                     </button>
                     <span class="u-fs-11 u-c-64748b u-w-100pct">Leave blank to disable distance checking even while Geo-fencing is on.</span>
@@ -593,7 +593,7 @@
                     <div class="u-w-26 u-h-26 u-br-8 u-bg-ede9fe u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-qrcode u-fs-13 u-c-7c3aed"></i></div>
                     <div><div class="u-fs-14 u-fw-700 u-c-0f172a">QR Code</div><div class="u-fs-12 u-c-64748b u-mt-2">Scan unique QR code to punch in</div></div>
                   </div>
-                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.qr %}checked{% endif %} onchange="saveToggle('qr_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.qr %}checked{% endif %} data-on-change="saveToggle('qr_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
               </div>
 
@@ -604,7 +604,7 @@
                     <div class="u-w-26 u-h-26 u-br-8 u-bg-fee2e2 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-fingerprint u-fs-13 u-c-dc2626"></i></div>
                     <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Fingerprint</div><div class="u-fs-12 u-c-64748b u-mt-2">Physical fingerprint reader device</div></div>
                   </div>
-                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.fingerprint %}checked{% endif %} onchange="saveToggle('fingerprint_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.fingerprint %}checked{% endif %} data-on-change="saveToggle('fingerprint_enabled',this.checked)" /><span class="toggle-slider"></span></label>
                 </div>
               </div>
 
@@ -617,15 +617,15 @@
     <div class="s3-panel" id="s3panel-fin">
     <div class="subnav-bar">
       <div class="subnav-dd-wrap">
-        <button class="subnav-dd-btn" onclick="toggleDd('dd-fin')">
+        <button class="subnav-dd-btn" data-on-click="toggleDd('dd-fin')">
           <div class="lines"><span></span><span></span><span></span></div>
           Sections
         </button>
         <div class="subnav-dd-menu" id="dd-fin">
-          <button class="subnav-dd-item active" id="ddi-payroll"    onclick="switchSub('fin','payroll')">   <i class="ti ti-coin"></i>   Payroll</button>
-          <button class="subnav-dd-item"        id="ddi-salary"     onclick="switchSub('fin','salary')">    <i class="ti ti-cash"></i>   Salary</button>
-          <button class="subnav-dd-item"        id="ddi-disbursement" onclick="switchSub('fin','disbursement')"><i class="ti ti-building-bank"></i> Disbursement</button>
-          <button class="subnav-dd-item" id="ddi-billing" onclick="switchSub('fin','billing')"><i class="ti ti-ticket"></i> Billing{% if co.paid_employee_slots is not none and employee_count is defined and employee_count >= co.paid_employee_slots %}<span class="badge-count">Full</span>{% endif %}</button>
+          <button class="subnav-dd-item active" id="ddi-payroll"    data-on-click="switchSub('fin','payroll')">   <i class="ti ti-coin"></i>   Payroll</button>
+          <button class="subnav-dd-item"        id="ddi-salary"     data-on-click="switchSub('fin','salary')">    <i class="ti ti-cash"></i>   Salary</button>
+          <button class="subnav-dd-item"        id="ddi-disbursement" data-on-click="switchSub('fin','disbursement')"><i class="ti ti-building-bank"></i> Disbursement</button>
+          <button class="subnav-dd-item" id="ddi-billing" data-on-click="switchSub('fin','billing')"><i class="ti ti-ticket"></i> Billing{% if co.paid_employee_slots is not none and employee_count is defined and employee_count >= co.paid_employee_slots %}<span class="badge-count">Full</span>{% endif %}</button>
         </div>
       </div>
     </div>
@@ -767,11 +767,11 @@
                   </div>
                   <div class="py-seg" id="seg_ss">
                     <div class="py-seg-track"></div>
-                    <button type="button" class="py-seg-btn" data-val="08:00" onclick="pSeg(this,'seg_ss','hid_shift_start')">08:00</button>
-                    <button type="button" class="py-seg-btn" data-val="08:30" onclick="pSeg(this,'seg_ss','hid_shift_start')">08:30</button>
-                    <button type="button" class="py-seg-btn" data-val="09:00" onclick="pSeg(this,'seg_ss','hid_shift_start')">09:00</button>
-                    <button type="button" class="py-seg-btn" data-val="09:30" onclick="pSeg(this,'seg_ss','hid_shift_start')">09:30</button>
-                    <button type="button" class="py-seg-btn" data-val="10:00" onclick="pSeg(this,'seg_ss','hid_shift_start')">10:00</button>
+                    <button type="button" class="py-seg-btn" data-val="08:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">08:00</button>
+                    <button type="button" class="py-seg-btn" data-val="08:30" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">08:30</button>
+                    <button type="button" class="py-seg-btn" data-val="09:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">09:00</button>
+                    <button type="button" class="py-seg-btn" data-val="09:30" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">09:30</button>
+                    <button type="button" class="py-seg-btn" data-val="10:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">10:00</button>
                   </div>
                 </div>
                 <div class="py-row">
@@ -781,11 +781,11 @@
                   </div>
                   <div class="py-seg" id="seg_sh">
                     <div class="py-seg-track"></div>
-                    <button type="button" class="py-seg-btn" data-val="10:00" onclick="pSeg(this,'seg_sh','hid_shift_half')">10:00</button>
-                    <button type="button" class="py-seg-btn" data-val="10:30" onclick="pSeg(this,'seg_sh','hid_shift_half')">10:30</button>
-                    <button type="button" class="py-seg-btn" data-val="11:00" onclick="pSeg(this,'seg_sh','hid_shift_half')">11:00</button>
-                    <button type="button" class="py-seg-btn" data-val="11:30" onclick="pSeg(this,'seg_sh','hid_shift_half')">11:30</button>
-                    <button type="button" class="py-seg-btn" data-val="12:00" onclick="pSeg(this,'seg_sh','hid_shift_half')">12:00</button>
+                    <button type="button" class="py-seg-btn" data-val="10:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">10:00</button>
+                    <button type="button" class="py-seg-btn" data-val="10:30" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">10:30</button>
+                    <button type="button" class="py-seg-btn" data-val="11:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">11:00</button>
+                    <button type="button" class="py-seg-btn" data-val="11:30" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">11:30</button>
+                    <button type="button" class="py-seg-btn" data-val="12:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">12:00</button>
                   </div>
                 </div>
                 <div class="py-row">
@@ -795,11 +795,11 @@
                   </div>
                   <div class="py-seg" id="seg_se">
                     <div class="py-seg-track"></div>
-                    <button type="button" class="py-seg-btn" data-val="17:00" onclick="pSeg(this,'seg_se','hid_shift_end')">17:00</button>
-                    <button type="button" class="py-seg-btn" data-val="17:30" onclick="pSeg(this,'seg_se','hid_shift_end')">17:30</button>
-                    <button type="button" class="py-seg-btn" data-val="18:00" onclick="pSeg(this,'seg_se','hid_shift_end')">18:00</button>
-                    <button type="button" class="py-seg-btn" data-val="18:30" onclick="pSeg(this,'seg_se','hid_shift_end')">18:30</button>
-                    <button type="button" class="py-seg-btn" data-val="19:00" onclick="pSeg(this,'seg_se','hid_shift_end')">19:00</button>
+                    <button type="button" class="py-seg-btn" data-val="17:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">17:00</button>
+                    <button type="button" class="py-seg-btn" data-val="17:30" data-on-click="pSeg(this,'seg_se','hid_shift_end')">17:30</button>
+                    <button type="button" class="py-seg-btn" data-val="18:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">18:00</button>
+                    <button type="button" class="py-seg-btn" data-val="18:30" data-on-click="pSeg(this,'seg_se','hid_shift_end')">18:30</button>
+                    <button type="button" class="py-seg-btn" data-val="19:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">19:00</button>
                   </div>
                 </div>
                 <div class="py-row">
@@ -809,12 +809,12 @@
                   </div>
                   <div class="py-seg" id="seg_gr">
                     <div class="py-seg-track"></div>
-                    <button type="button" class="py-seg-btn" data-val="0"  onclick="pSeg(this,'seg_gr','hid_grace')">None</button>
-                    <button type="button" class="py-seg-btn" data-val="5"  onclick="pSeg(this,'seg_gr','hid_grace')">5 m</button>
-                    <button type="button" class="py-seg-btn" data-val="10" onclick="pSeg(this,'seg_gr','hid_grace')">10 m</button>
-                    <button type="button" class="py-seg-btn" data-val="15" onclick="pSeg(this,'seg_gr','hid_grace')">15 m</button>
-                    <button type="button" class="py-seg-btn" data-val="20" onclick="pSeg(this,'seg_gr','hid_grace')">20 m</button>
-                    <button type="button" class="py-seg-btn" data-val="30" onclick="pSeg(this,'seg_gr','hid_grace')">30 m</button>
+                    <button type="button" class="py-seg-btn" data-val="0"  data-on-click="pSeg(this,'seg_gr','hid_grace')">None</button>
+                    <button type="button" class="py-seg-btn" data-val="5"  data-on-click="pSeg(this,'seg_gr','hid_grace')">5 m</button>
+                    <button type="button" class="py-seg-btn" data-val="10" data-on-click="pSeg(this,'seg_gr','hid_grace')">10 m</button>
+                    <button type="button" class="py-seg-btn" data-val="15" data-on-click="pSeg(this,'seg_gr','hid_grace')">15 m</button>
+                    <button type="button" class="py-seg-btn" data-val="20" data-on-click="pSeg(this,'seg_gr','hid_grace')">20 m</button>
+                    <button type="button" class="py-seg-btn" data-val="30" data-on-click="pSeg(this,'seg_gr','hid_grace')">30 m</button>
                   </div>
                 </div>
               </div>
@@ -847,12 +847,12 @@
                   </div>
                   <div class="py-seg" id="seg_lt">
                     <div class="py-seg-track"></div>
-                    <button type="button" class="py-seg-btn" data-val="0"  onclick="pSeg(this,'seg_lt','hid_late')">0%</button>
-                    <button type="button" class="py-seg-btn" data-val="5"  onclick="pSeg(this,'seg_lt','hid_late')">5%</button>
-                    <button type="button" class="py-seg-btn" data-val="10" onclick="pSeg(this,'seg_lt','hid_late')">10%</button>
-                    <button type="button" class="py-seg-btn" data-val="15" onclick="pSeg(this,'seg_lt','hid_late')">15%</button>
-                    <button type="button" class="py-seg-btn" data-val="20" onclick="pSeg(this,'seg_lt','hid_late')">20%</button>
-                    <button type="button" class="py-seg-btn" data-val="25" onclick="pSeg(this,'seg_lt','hid_late')">25%</button>
+                    <button type="button" class="py-seg-btn" data-val="0"  data-on-click="pSeg(this,'seg_lt','hid_late')">0%</button>
+                    <button type="button" class="py-seg-btn" data-val="5"  data-on-click="pSeg(this,'seg_lt','hid_late')">5%</button>
+                    <button type="button" class="py-seg-btn" data-val="10" data-on-click="pSeg(this,'seg_lt','hid_late')">10%</button>
+                    <button type="button" class="py-seg-btn" data-val="15" data-on-click="pSeg(this,'seg_lt','hid_late')">15%</button>
+                    <button type="button" class="py-seg-btn" data-val="20" data-on-click="pSeg(this,'seg_lt','hid_late')">20%</button>
+                    <button type="button" class="py-seg-btn" data-val="25" data-on-click="pSeg(this,'seg_lt','hid_late')">25%</button>
                   </div>
                 </div>
                 <div class="py-row">
@@ -862,10 +862,10 @@
                   </div>
                   <div class="py-seg" id="seg_hd">
                     <div class="py-seg-track"></div>
-                    <button type="button" class="py-seg-btn" data-val="25" onclick="pSeg(this,'seg_hd','hid_half_ded')">25%</button>
-                    <button type="button" class="py-seg-btn" data-val="33" onclick="pSeg(this,'seg_hd','hid_half_ded')">33%</button>
-                    <button type="button" class="py-seg-btn" data-val="50" onclick="pSeg(this,'seg_hd','hid_half_ded')">50%</button>
-                    <button type="button" class="py-seg-btn" data-val="75" onclick="pSeg(this,'seg_hd','hid_half_ded')">75%</button>
+                    <button type="button" class="py-seg-btn" data-val="25" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">25%</button>
+                    <button type="button" class="py-seg-btn" data-val="33" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">33%</button>
+                    <button type="button" class="py-seg-btn" data-val="50" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">50%</button>
+                    <button type="button" class="py-seg-btn" data-val="75" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">75%</button>
                   </div>
                 </div>
                 <div class="py-row">
@@ -899,7 +899,7 @@
                   <div class="py-tog-row">
                     <span class="py-tog-lbl" id="lbl_hol_off">Unpaid</span>
                     <label class="py-tog">
-                      <input type="checkbox" id="chk_holiday" {% if holiday_pay=='paid' %}checked{% endif %} onchange="pTog(this,'hid_holiday','paid','unpaid','lbl_hol_on','lbl_hol_off')">
+                      <input type="checkbox" id="chk_holiday" {% if holiday_pay=='paid' %}checked{% endif %} data-on-change="pTog(this,'hid_holiday','paid','unpaid','lbl_hol_on','lbl_hol_off')">
                       <div class="py-tog-track"><div class="py-tog-knob"></div></div>
                     </label>
                     <span class="py-tog-lbl" id="lbl_hol_on">Paid</span>
@@ -913,7 +913,7 @@
                   <div class="py-tog-row">
                     <span class="py-tog-lbl" id="lbl_lv_off">Absent</span>
                     <label class="py-tog">
-                      <input type="checkbox" id="chk_leave" {% if leave_pay=='exclude' %}checked{% endif %} onchange="pTog(this,'hid_leave','exclude','absent','lbl_lv_on','lbl_lv_off')">
+                      <input type="checkbox" id="chk_leave" {% if leave_pay=='exclude' %}checked{% endif %} data-on-change="pTog(this,'hid_leave','exclude','absent','lbl_lv_on','lbl_lv_off')">
                       <div class="py-tog-track"><div class="py-tog-knob"></div></div>
                     </label>
                     <span class="py-tog-lbl" id="lbl_lv_on">Exclude</span>
@@ -990,12 +990,12 @@
                     <td class="u-fw-700 u-c-2563eb">&#8377;{{ "%.0f"|format(spd*26) }}</td>
                     <td>{% if rev %}<span class="rev-badge">{{ rev.strftime('%d %b %Y') }}</span>{% else %}<span class="rev-badge muted">Not set</span>{% endif %}</td>
                     <td>
-                      <button class="btn-edit" onclick="openSalaryEdit('{{ eid }}')">Edit</button>
+                      <button class="btn-edit" data-on-click="openSalaryEdit('{{ eid }}')">Edit</button>
                       <div class="edit-form" id="ef_{{ eid }}">
                         <form method="POST" action="{{ tpath('/update_salary') }}">
                           <input type="hidden" name="emp_id" value="{{ eid }}" />
                           <div class="ef-row"><span class="ef-lbl">Daily Rate</span><input class="ef-inp" type="number" name="salary" step="0.01" value="{{ spd }}" /></div>
-                          <div class="ef-btns u-mt-6"><button type="submit" class="btn-save">Save</button><button type="button" class="btn-cancel-sm" onclick="document.getElementById('ef_{{ eid }}').classList.remove('open')">Cancel</button></div>
+                          <div class="ef-btns u-mt-6"><button type="submit" class="btn-save">Save</button><button type="button" class="btn-cancel-sm" data-on-click="HZ.removeClass('ef_{{ eid }}', 'open')">Cancel</button></div>
                         </form>
                       </div>
                     </td>
@@ -1037,7 +1037,7 @@
                 <!-- Step 0: entry point, before we know whether this admin has TOTP enrolled at all -->
                 <div id="payout-2fa-start">
                   <p class="u-fs-13 u-c-64748b u-mb-12">Viewing or editing the company's payout bank account requires a 2FA code.</p>
-                  <button type="button" class="btn-submit" onclick="payoutStart2fa()">Continue</button>
+                  <button type="button" class="btn-submit" data-on-click="payoutStart2fa()">Continue</button>
                 </div>
 
                 <!-- Step 1a: first time ever -- no TOTP enrolled yet, show the QR code to scan -->
@@ -1047,7 +1047,7 @@
                   <div class="u-fs-11 u-c-94a3b8 u-mb-10">Can't scan? Enter this key manually: <span class="u-ff-monospace u-fw-700" id="payout-2fa-secret"></span></div>
                   <div class="u-d-flex u-gap-8">
                     <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="payout-2fa-enroll-code" placeholder="6-digit code" maxlength="6" />
-                    <button type="button" class="btn-submit" onclick="payoutConfirmEnroll()">Confirm &amp; Unlock</button>
+                    <button type="button" class="btn-submit" data-on-click="payoutConfirmEnroll()">Confirm &amp; Unlock</button>
                   </div>
                   <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="payout-2fa-enroll-error"></div>
                 </div>
@@ -1057,15 +1057,15 @@
                   <p class="u-fs-13 u-c-64748b u-mb-12">Enter the 6-digit code from your authenticator app.</p>
                   <div class="u-d-flex u-gap-8">
                     <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="payout-2fa-code" placeholder="6-digit code" maxlength="6" />
-                    <button type="button" class="btn-submit" onclick="payoutVerify2fa()">Unlock</button>
+                    <button type="button" class="btn-submit" data-on-click="payoutVerify2fa()">Unlock</button>
                   </div>
                   <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="payout-2fa-error"></div>
                 </div>
               </div>
-              <form id="payout-bank-form" class="u-d-none" onsubmit="return payoutSaveBankConfig(event)">
+              <form id="payout-bank-form" method="post" class="u-d-none" data-on-submit="return payoutSaveBankConfig(event)">
                 <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
                   <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
-                  <button type="button" class="btn-test" onclick="payoutLock()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
+                  <button type="button" class="btn-test" data-on-click="payoutLock()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
                 </div>
                 <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
                   <div class="field"><label>Account Holder Name</label><input type="text" id="payout-holder" required /></div>
@@ -1114,11 +1114,11 @@
                     <td>
                       {% if rstatus == 'pending_approval' %}
                       <form method="POST" action="{{ tpath('/disbursement/' ~ rid ~ '/approve') }}" class="u-d-inline">
-                        <button type="submit" class="btn-edit" data-missing="{{ rmissing }}" onclick="return confirmApproveDisbursement(event, this)">Approve &amp; Send</button>
+                        <button type="submit" class="btn-edit" data-missing="{{ rmissing }}" data-on-click="return confirmApproveDisbursement(event, this)">Approve &amp; Send</button>
                       </form>
                       <form method="POST" action="{{ tpath('/disbursement/' ~ rid ~ '/reject') }}" class="u-d-inline">
                         <input type="hidden" name="reason" value="Cancelled by admin" />
-                        <button type="submit" class="btn-del" onclick="return hzConfirmSubmit(event, 'Cancel this disbursement run?')">Cancel</button>
+                        <button type="submit" class="btn-del" data-on-click="return hzConfirmSubmit(event, 'Cancel this disbursement run?')">Cancel</button>
                       </form>
                       {% else %}
                       <span class="u-fs-11 u-c-94a3b8">{% if rapprover %}by {{ rapprover }}{% endif %}</span>
@@ -1327,7 +1327,7 @@
                 <div class="form-error" id="formError"></div>
                 <div class="form-success" id="formSuccess"></div>
 
-                <form id="buySeatsForm">
+                <form id="buySeatsForm" method="post">
                   <label class="field-label" for="additionalSeats">How many additional seats do you need?</label>
                   <div class="qty-row">
                     <button type="button" class="qty-btn" id="qtyMinus" aria-label="Decrease seats">−</button>
@@ -1838,12 +1838,12 @@
     <div class="s3-panel" id="s3panel-sys">
     <div class="subnav-bar">
       <div class="subnav-dd-wrap">
-        <button class="subnav-dd-btn" onclick="toggleDd('dd-sys')">
+        <button class="subnav-dd-btn" data-on-click="toggleDd('dd-sys')">
           <div class="lines"><span></span><span></span><span></span></div>
           Sections
         </button>
         <div class="subnav-dd-menu" id="dd-sys">
-          <button class="subnav-dd-item active" id="ddi-email"      onclick="switchSub('sys','email')">      <i class="ti ti-mail"></i>       Email</button>
+          <button class="subnav-dd-item active" id="ddi-email"      data-on-click="switchSub('sys','email')">      <i class="ti ti-mail"></i>       Email</button>
         </div>
       </div>
     </div>
@@ -1876,7 +1876,7 @@
                     <div class="u-fs-11 u-c-94a3b8 u-mb-10">Can't scan? Enter this key manually: <span class="u-ff-monospace u-fw-700" id="email-2fa-secret"></span></div>
                     <div class="u-d-flex u-gap-8">
                       <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="email-2fa-enroll-code" placeholder="6-digit code" maxlength="6" />
-                      <button type="button" class="btn-submit" onclick="confirmEmail2faEnroll()">Confirm &amp; Enable</button>
+                      <button type="button" class="btn-submit" data-on-click="confirmEmail2faEnroll()">Confirm &amp; Enable</button>
                     </div>
                     <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-enroll-err"></div>
                   </div>
@@ -1886,16 +1886,16 @@
                     <div class="u-fs-13 u-c-64748b u-mb-12">Enter the 6-digit code from your authenticator app.</div>
                     <div class="u-d-flex u-gap-8">
                       <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="email-2fa-code" placeholder="6-digit code" maxlength="6" />
-                      <button type="button" class="btn-submit" onclick="verifyEmail2fa()">Verify &amp; Unlock</button>
+                      <button type="button" class="btn-submit" data-on-click="verifyEmail2fa()">Verify &amp; Unlock</button>
                     </div>
                     <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-err"></div>
                     <div class="u-ta-center u-mt-10">
-                      <a href="#" class="u-fs-11 u-c-94a3b8" onclick="event.preventDefault();document.getElementById('email-2fa-lost').classList.remove('u-d-none');this.classList.add('u-d-none');">Lost access to your authenticator?</a>
+                      <a href="#" class="u-fs-11 u-c-94a3b8" data-on-click="showEmail2faLost(event, this)">Lost access to your authenticator?</a>
                     </div>
                     <div id="email-2fa-lost" class="u-d-none u-mt-10 u-pt-10 u-bdt-1-solid-e2e8f0">
                       <div class="u-fs-11 u-c-64748b u-mb-8">Confirm your password to reset MFA and get a fresh QR code.</div>
                       <div class="field"><label>Password</label><input type="password" id="email-2fa-reset-password" autocomplete="current-password" /></div>
-                      <button type="button" class="btn-submit" onclick="resetEmail2fa()">Reset &amp; Get New QR Code</button>
+                      <button type="button" class="btn-submit" data-on-click="resetEmail2fa()">Reset &amp; Get New QR Code</button>
                       <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-reset-err"></div>
                     </div>
                   </div>
@@ -1906,7 +1906,7 @@
                 <div id="email-settings-panel" class="u-d-none">
                   <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
                     <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
-                    <button type="button" class="btn-test" onclick="lockEmailSettings()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
+                    <button type="button" class="btn-test" data-on-click="lockEmailSettings()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
                   </div>
                   <div class="field"><label>SMTP Host</label><input type="text" id="es-host" placeholder="smtp.gmail.com" /></div>
                   <div class="field"><label>Port</label><input type="number" id="es-port" placeholder="587" /></div>
@@ -1915,18 +1915,18 @@
                     <label>Password / App Password</label>
                     <div class="u-d-flex u-gap-8">
                       <input type="password" id="es-pass" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" style="flex:1;" />
-                      <button type="button" class="btn-test" onclick="revealEmailPassword()"><i class="ti ti-eye hz-ico" aria-hidden="true"></i> Reveal</button>
+                      <button type="button" class="btn-test" data-on-click="revealEmailPassword()"><i class="ti ti-eye hz-ico" aria-hidden="true"></i> Reveal</button>
                     </div>
                   </div>
                   <div class="field"><label>From Name</label><input type="text" id="es-from-name" placeholder="HR Team" /></div>
                   <div class="field"><label>From Email</label><input type="email" id="es-from-email" placeholder="hr@company.com" /></div>
-                  <button type="button" class="btn-submit" onclick="saveEmailSettings()">Save SMTP Settings</button>
+                  <button type="button" class="btn-submit" data-on-click="saveEmailSettings()">Save SMTP Settings</button>
                   <div id="email-settings-err" class="err" style="display:none;"></div>
                 </div>
 
                 <div class="test-card u-mt-14">
                   <div class="u-fs-13 u-fw-700 u-c-1e293b">Test Connection</div>
-                  <div class="test-row"><input type="email" id="testEmail" placeholder="Send test to..." /><button class="btn-test" onclick="sendTestEmail()">Send Test</button></div>
+                  <div class="test-row"><input type="email" id="testEmail" placeholder="Send test to..." /><button class="btn-test" data-on-click="sendTestEmail()">Send Test</button></div>
                   <div id="testResult"></div>
                 </div>
               </div>
@@ -1938,7 +1938,7 @@
                 
                 <div class="field">
                   <label>Select Template</label>
-                  <select id="email-tmpl-select" onchange="loadEmailTemplatePreview()" style="width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; font-size:15px; font-weight:600;">
+                  <select id="email-tmpl-select" data-on-change="loadEmailTemplatePreview()" style="width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; font-size:15px; font-weight:600;">
                     <option value="welcome">Welcome &amp; Employee Onboarding</option>
                     <option value="payslip">Monthly Payslip Delivery</option>
                     <option value="leave_approved">Leave Request Approved</option>
@@ -1965,7 +1965,7 @@
                 <div class="u-fs-12 u-c-64748b u-mb-14">Choose which events send an email to admins.</div>
                 <div class="u-d-flex u-fxd-column u-gap-10">
                   {% for key,label,desc in [('notify_leave','New Leave Request','When an employee submits a leave'),('notify_payslip','Payslip Sent','Confirmation when payslip is emailed'),('notify_resignation','Resignation Submitted','New resignation request received'),('notify_doc_expiry','Document Expiry Alert','Before employee documents expire')] %}
-                  <div class="feat-card"><div class="feat-body"><div class="feat-name">{{ label }}</div><div class="feat-desc">{{ desc }}</div></div><label class="toggle"><input type="checkbox" {% if features[key] %}checked{% endif %} onchange="saveToggle('{{ key }}',this.checked)" /><span class="toggle-slider"></span></label></div>
+                  <div class="feat-card"><div class="feat-body"><div class="feat-name">{{ label }}</div><div class="feat-desc">{{ desc }}</div></div><label class="toggle"><input type="checkbox" {% if features[key] %}checked{% endif %} data-on-change="saveToggle('{{ key }}',this.checked)" /><span class="toggle-slider"></span></label></div>
                   {% endfor %}
                 </div>
               </div>
@@ -2019,7 +2019,7 @@
                       <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
                     </div>
                     <button type="submit" class="btn-submit"
-                      onclick="return hzConfirmSubmit(event, 'Reset this employee\'s password? Their current sessions will be signed out.')">
+                      data-on-click="return hzConfirmSubmit(event, 'Reset this employee\'s password? Their current sessions will be signed out.')">
                       <i class="ti ti-key"></i> Reset Password
                     </button>
                   </form>
@@ -2034,7 +2034,7 @@
 
                 <div id="recoveryEmailView" class="u-d-flex u-ai-center u-gap-12 u-fxw-wrap{% if not admin_recovery_email %} u-d-none{% endif %}">
                   <div class="u-fx-1 u-minw-200 u-fs-14 u-fw-600 u-c-1e293b">{{ admin_recovery_email }}</div>
-                  <button type="button" class="btn-test" onclick="document.getElementById('recoveryEmailView').classList.add('u-d-none');document.getElementById('recoveryEmailForm').classList.remove('u-d-none');document.getElementById('recoveryEmailInput').focus();"><i class="ti ti-edit"></i> Edit</button>
+                  <button type="button" class="btn-test" data-on-click="editRecoveryEmail()"><i class="ti ti-edit"></i> Edit</button>
                 </div>
 
                 <form id="recoveryEmailForm" class="u-d-flex u-ai-flex-end u-gap-12 u-fxw-wrap{% if admin_recovery_email %} u-d-none{% endif %}" action="{{ tpath('/admin_set_recovery_email') }}" method="POST">
@@ -2095,7 +2095,7 @@
           </div>
           <label class="dm-switch u-fxs-0 u-ml-20" title="Toggle {{ label }}">
             <input type="checkbox" {% if is_on %}checked{% endif %}
-                   onchange="toggleAuthMethod('{{ key }}', this.checked)">
+                   data-on-change="toggleAuthMethod('{{ key }}', this.checked)">
             <span class="dm-slider"></span>
           </label>
         </div>
@@ -2141,7 +2141,7 @@
             <div class="u-fs-11 u-c-64748b u-mt-2">Require PIN when switching to this company</div>
           </div>
           <label class="u-pos-relative u-d-inline-block u-w-46 u-h-25 u-cur-pointer u-fxs-0">
-            <input class="u-op-0 u-w-0 u-h-0 u-pos-absolute" type="checkbox" id="spn_toggle" onchange="spnToggleChange(this)" />
+            <input class="u-op-0 u-w-0 u-h-0 u-pos-absolute" type="checkbox" id="spn_toggle" data-on-change="spnToggleChange(this)" />
             <span class="u-pos-absolute u-ins-0 u-br-25 u-bg-e2e8f0 u-trs-background-d2s" id="spn_track"></span>
             <span class="u-pos-absolute u-top-3 u-lft-3 u-w-19 u-h-19 u-br-50pct u-bg-fff u-shad-0-1-4-rgba0_0_0_0d25 u-trs-left-d2s" id="spn_thumb"></span>
           </label>
@@ -2150,14 +2150,14 @@
         <div class="u-d-none u-mb-14" id="spn_pin_section">
           <label class="u-fs-12 u-fw-700 u-c-475569 u-d-block u-mb-8">PIN Code</label>
           <input class="u-w-100pct u-p-13 u-bd-2-solid-e2e8f0 u-br-11 u-fs-22 u-ls-7 u-ta-center u-ff-monospace u-out-none u-trs-border-d15s u-bxs-border-box" type="password" name="pin" id="spn_pin" maxlength="10" placeholder="• • • •" autocomplete="off"
-            oninput="this.style.borderColor=this.value?'#1e3a8a':'#e2e8f0'" />
+            data-on-input="markFilledInput(this)" />
           <div class="u-fs-11 u-c-94a3b8 u-mt-5 u-ta-center">4–10 characters (numbers or letters)</div>
         </div>
         <div class="u-fs-11 u-c-64748b u-bg-fffbeb u-bd-1-solid-fde68a u-br-8 u-p-9-12 u-mb-16 u-lh-1d5">
           <i class="ti ti-bulb hz-ico" aria-hidden="true"></i> When enabled, clicking this company in the top-right switcher will ask for the PIN before showing its data.
         </div>
         <div class="u-d-flex u-gap-8">
-          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" onclick="closeSetPin()">Cancel</button>
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeSetPin()">Cancel</button>
           <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save</button>
         </div>
       </form>
@@ -2208,7 +2208,7 @@
             <div class="u-d-flex u-fxw-wrap u-gap-6 u-mt-4">
               {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
               <label class="u-cur-pointer">
-                <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} onchange="styleCoWd(this)" />
+                <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} data-on-change="styleCoWd(this)" />
                 <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:14px;font-weight:700;border:1.5px solid {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ _d }}</span>
               </label>
               {% endfor %}
@@ -2220,7 +2220,7 @@
           <div class="field u-mb-6">
             <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
               <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-clock hz-ico" aria-hidden="true"></i> Shifts</label>
-              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-c7d2fe u-br-8 u-bg-eef2ff u-c-4338ca u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acAddShiftRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
+              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-c7d2fe u-br-8 u-bg-eef2ff u-c-4338ca u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" data-on-click="acAddShiftRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
             </div>
             <!-- header row -->
             <div class="u-d-grid u-gtc-1fr-82-82-82-28 u-gap-6 u-mb-4 u-p-0-2">
@@ -2238,7 +2238,7 @@
           <div class="field u-mb-6">
             <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
               <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i> Breaks</label>
-              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acAddBreakRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
+              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" data-on-click="acAddBreakRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
             </div>
             <!-- header row -->
             <div class="u-d-grid u-gtc-1fr-90-70-28 u-gap-6 u-mb-4 u-p-0-2">
@@ -2253,7 +2253,7 @@
         </div>
 
         <div class="modal-actions u-fxs-0 u-bdt-1-solid-f1f5f9 u-pt-14 u-mt-4">
-          <button class="u-p-9-18 u-bd-1-solid-e2e8f0 u-br-9 u-bg-f1f5f9 u-c-64748b u-fs-14 u-fw-600 u-cur-pointer" type="button" onclick="acCloseModal()">Cancel</button>
+          <button class="u-p-9-18 u-bd-1-solid-e2e8f0 u-br-9 u-bg-f1f5f9 u-c-64748b u-fs-14 u-fw-600 u-cur-pointer" type="button" data-on-click="acCloseModal()">Cancel</button>
           <button type="submit" class="btn-submit">Add Company</button>
         </div>
       </form>
@@ -2261,6 +2261,31 @@
   </div>
 
   <script>
+    /* ── handlers bound through data-on-* (static/hz-actions.js) ── */
+    function useCurrentOfficeLocation() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(function (p) {
+        document.querySelector('[name=office_lat]').value = p.coords.latitude;
+        document.querySelector('[name=office_lon]').value = p.coords.longitude;
+      });
+    }
+
+    function showEmail2faLost(ev, link) {
+      ev.preventDefault();
+      document.getElementById('email-2fa-lost').classList.remove('u-d-none');
+      link.classList.add('u-d-none');
+    }
+
+    function editRecoveryEmail() {
+      document.getElementById('recoveryEmailView').classList.add('u-d-none');
+      document.getElementById('recoveryEmailForm').classList.remove('u-d-none');
+      document.getElementById('recoveryEmailInput').focus();
+    }
+
+    function markFilledInput(input) {
+      input.style.borderColor = input.value ? '#1e3a8a' : '#e2e8f0';
+    }
+
     /* ── 3-TAB + DROPDOWN SUB-NAV ── */
     var groupMap  = { company:'sys', attendance:'org',payroll:'fin',salary:'fin',disbursement:'fin',billing:'fin',email:'sys' };
     var firstSub  = { org:'attendance', fin:'payroll', sys:'company' };
@@ -2325,7 +2350,7 @@
         '<input type="time" name="shift_start[]" value="'+start+'" />' +
         '<input type="time" name="shift_half[]"  value="'+half+'" />' +
         '<input type="time" name="shift_end[]"   value="'+end+'" />' +
-        '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" onclick="this.parentNode.remove()">×</button>';
+        '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" data-on-click="HZ.removeParent(this)">×</button>';
       return row;
     }
     function acAddShiftRow() {
@@ -2339,7 +2364,7 @@
         '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text"   name="break_name[]"     value="'+name+'" placeholder="Break name" />' +
         '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="time"   name="break_time[]"     value="'+time+'" />' +
         '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="number" name="break_duration[]" value="'+dur+'"  min="1" max="240" placeholder="mins" />' +
-        '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" onclick="this.parentNode.remove()">×</button>';
+        '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" data-on-click="HZ.removeParent(this)">×</button>';
       return row;
     }
     function acAddBreakRow() {

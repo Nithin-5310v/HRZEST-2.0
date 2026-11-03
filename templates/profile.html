@@ -693,7 +693,7 @@
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <button class="p-btn secondary" type="submit">{{ 'Unpublish' if p.is_published else 'Publish' }}</button>
             </form>
-            <form method="POST" action="{{ tpath('/policies/' ~ p.id ~ '/delete') }}" onsubmit="return hzConfirmSubmit(event, 'Delete this policy?');">
+            <form method="POST" action="{{ tpath('/policies/' ~ p.id ~ '/delete') }}" data-on-submit="return hzConfirmSubmit(event, 'Delete this policy?');">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
               <button class="p-btn danger" type="submit">Delete</button>
             </form>
