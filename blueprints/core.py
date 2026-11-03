@@ -775,12 +775,22 @@ def api_signin():
     (auth.admin_login): an admin, HR or manager account whose username --
     or lowercased email -- and password match signs in as that; anything
     else is tried as an employee ID. The answer is /api/login's or
-    /api/employee/login's, plus "account": "admin" | "employee"."""
+    /api/employee/login's, plus "account": "admin" | "employee" and
+    "company_slug": the company signed in to.
+
+    Called without a company in the URL (the app's sign-in has no company
+    box), the credentials name the company, as on the website's bare /login
+    (auth._bare_login_company); 409 company_required when they fit more
+    than one, so the app asks which."""
+    from blueprints.auth import _bare_login_company
     data = request.get_json(silent=True) or {}
     identifier = str(data.get("identifier") or "").strip()
     password = str(data.get("password") or "")
     if "\x00" in identifier or "\x00" in password or not identifier or not password:
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    if _bare_login_company(identifier, password, bind_session=False) == "many":
+        return jsonify({"ok": False, "company_required": True,
+                        "msg": "This account is in more than one company. Enter your company's name."}), 409
     if _admin_password_matches(identifier, password):
         account, result = "admin", _api_admin_login(identifier, password)
     else:
@@ -792,6 +802,7 @@ def api_signin():
     body = resp.get_json(silent=True)
     if isinstance(body, dict) and body.get("ok"):
         body["account"] = account
+        body["company_slug"] = request.environ.get("hrz.tenant_slug") or getattr(g, "tenant_slug", None) or ""
         return jsonify(body), status
     return resp, status
 
