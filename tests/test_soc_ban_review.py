@@ -180,3 +180,18 @@ class TestConsoleApi:
         r = c.get("/soc/assets/soc-banreview.js")
         assert r.status_code == 200 and b"SOC.register" in r.data
         assert b"/soc/assets/soc-banreview.js" in c.get("/soc").data
+
+
+class TestOverviewAccounts:
+    def test_address_identifiers_are_not_listed_as_accounts(self, db_engine):
+        """WAF / honeypot / ban-review events carry the source address in
+        `identifier`; "Most active accounts" must not list addresses."""
+        from utils import soc_queries
+        from tests.test_soc_console import add_event
+        for ident in ("hr_alice", "hr_alice", IP, "2001:db8::7", "a.b@example.com"):
+            add_event(db_engine, "auth.login_failed", identifier=ident, ip=OTHER)
+        db_engine.commit()
+        soc_queries.clear_cache()
+        names = [r["identifier"] for r in soc_queries.overview(24)["top_identifiers"]]
+        assert "hr_alice" in names and "a.b@example.com" in names
+        assert IP not in names and "2001:db8::7" not in names
