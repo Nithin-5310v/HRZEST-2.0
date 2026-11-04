@@ -2,17 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Raw-IP loopback → localhost normalization now happens server-side
-         (app.py's _normalize_loopback_host), before login sets any cookie. -->
+    {# Raw-IP loopback → localhost normalization now happens server-side
+         (app.py's _normalize_loopback_host), before login sets any cookie. #}
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Attendance Scanner</title>
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('hz-icons.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
-    <!-- defer: jsQR() is only ever called from inside the camera-scan loop,
+    {# defer: jsQR() is only ever called from inside the camera-scan loop,
          well after user interaction starts a scan -- nothing needs this
          130KB library synchronously during initial parse, so deferring it
-         lets the rest of the page render without waiting on it. -->
+         lets the rest of the page render without waiting on it. #}
     <script src="{{ static_url('jsQR.min.js') }}" defer></script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
@@ -490,7 +490,7 @@
         </div>
         <h2>Mark Attendance</h2>
 
-        <!-- Method cards: shown only when admin enables the corresponding auth option -->
+        {# Method cards: shown only when admin enables the corresponding auth option #}
         {% set show_qr_face = auth_cfg.qr_enabled and auth_cfg.face_enabled %}
         {# Face enabled => every method must include face (server-enforced: allowed_checkin_combos) #}
         {% set show_qr_only = auth_cfg.qr_enabled and not auth_cfg.face_enabled %}
@@ -542,7 +542,7 @@
 
         <button class="btn" id="startBtn" type="button" onclick="startFlow()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Start Scanner</button>
 
-        <!-- shown when fingerprint is enabled by admin -->
+        {# shown when fingerprint is enabled by admin #}
         <div class="mode-row u-d-none" id="modeSelector">
           <button type="button" class="mode-pill active-mode" id="modeFace" onclick="setMode('qr_face')"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Face Mode</button>
           <button type="button" class="mode-pill" id="modeFp" onclick="setMode('qr_fingerprint')"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> QR + FP</button>
@@ -591,7 +591,7 @@
       </div>
     </div>
 
-    <!-- ── METHOD PICKER OVERLAY ── -->
+    {# ── METHOD PICKER OVERLAY ── #}
     <div class="overlay u-d-none" id="methodOverlay">
       <div class="method-card">
         <button class="method-card-close" onclick="closeMethodPicker()">✕</button>
@@ -627,7 +627,7 @@
       </div>
     </div>
 
-    <!-- ── FINGERPRINT OVERLAY ── -->
+    {# ── FINGERPRINT OVERLAY ── #}
     <div class="overlay u-d-none" id="fingerprintOverlay">
       <div class="fp-card">
         <button class="fp-back" onclick="fpBack()">←</button>

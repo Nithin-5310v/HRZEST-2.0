@@ -194,7 +194,7 @@
 {% block main %}
   <a class="back-btn" href="{{ tpath('/employees') }}"><i class="ti ti-arrow-left"></i> Back to Employees</a>
 
-  <!-- HEADER -->
+  {# HEADER #}
   <div class="profile-header">
     <div class="profile-top">
       <div class="avatar" onclick="openLb()" title="View photo">
@@ -233,7 +233,7 @@
     </div>
   </div>
 
-  <!-- STATS -->
+  {# STATS #}
   <div class="stats-row">
     <div class="stat-card">
       <div class="stat-icon"><i class="ti ti-calendar-check u-c-1d4ed8"></i></div>
@@ -259,7 +259,7 @@
 
   <div class="grid2">
 
-    <!-- Personal -->
+    {# Personal #}
     <div class="card">
       <div class="card-title"><i class="ti ti-user"></i> Personal Information</div>
       <div class="info-grid">
@@ -290,7 +290,7 @@
       </div>
     </div>
 
-    <!-- Work -->
+    {# Work #}
     <div class="card">
       <div class="card-title"><i class="ti ti-building"></i> Work Information</div>
       <div class="info-grid">
@@ -326,7 +326,7 @@
       </div>
     </div>
 
-    <!-- About -->
+    {# About #}
     <div class="card full">
       <div class="card-title"><i class="ti ti-message-2"></i> About</div>
       <div class="about-box">
@@ -334,7 +334,7 @@
       </div>
     </div>
 
-    <!-- Address -->
+    {# Address #}
     <div class="card">
       <div class="card-title"><i class="ti ti-map-pin"></i> Address</div>
       <div class="info-grid">
@@ -357,7 +357,7 @@
       </div>
     </div>
 
-    <!-- Emergency Contact -->
+    {# Emergency Contact #}
     <div class="card">
       <div class="card-title"><i class="ti ti-phone"></i> Emergency Contact</div>
       <div class="info-grid">
@@ -376,7 +376,7 @@
       </div>
     </div>
 
-    <!-- Identity & Bank -->
+    {# Identity & Bank #}
     <div class="card">
       <div class="card-title"><i class="ti ti-credit-card"></i> Identity &amp; Bank</div>
       <div class="info-grid">
@@ -407,7 +407,7 @@
       </div>
     </div>
 
-    <!-- Salary -->
+    {# Salary #}
     <div class="card">
       <div class="card-title"><i class="ti ti-coin"></i> Salary</div>
       {% if salary_pd and salary_pd > 0 %}
@@ -430,7 +430,7 @@
       {% endif %}
     </div>
 
-    <!-- Work Experience -->
+    {# Work Experience #}
     <div class="card full">
       <div class="card-title"><i class="ti ti-briefcase"></i> Work Experience</div>
       {% if experience %}
@@ -454,7 +454,7 @@
       {% endif %}
     </div>
 
-    <!-- Education -->
+    {# Education #}
     <div class="card full">
       <div class="card-title"><i class="ti ti-school"></i> Education</div>
       {% if education %}
@@ -475,7 +475,7 @@
       {% endif %}
     </div>
 
-    <!-- Documents -->
+    {# Documents #}
     <div class="card full">
       <div class="u-bg-linear-gradiene204f8 u-br-10 u-p-12-18 u-mb-18 u-d-flex u-ai-center u-gap-10">
         <i class="ti ti-files u-c-fff u-fs-18"></i>
@@ -483,7 +483,7 @@
         <span class="u-fs-11 u-c-rgba255_255_255_d65 u-fw-400 u-ttr-none u-ls-0 u-ml-4">— Upload &amp; manage employee files</span>
       </div>
 
-      <!-- Upload form -->
+      {# Upload form #}
       <form class="u-d-flex u-gap-10 u-ai-flex-end u-fxw-wrap u-mb-20 u-p-16 u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-10" action="{{ tpath('/upload_document') }}" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="employee_id" value="{{ emp[0] }}">
         <input type="hidden" name="redirect_to" value="/employee_detail/{{ emp[0] }}">
@@ -512,7 +512,7 @@
         </button>
       </form>
 
-      <!-- Documents list -->
+      {# Documents list #}
       {% if emp_docs %}
       <div class="u-d-flex u-fxd-column u-gap-10">
         {% for did, doc_type, orig_name, uploaded_by, uploaded_at in emp_docs %}
@@ -549,8 +549,8 @@
       {% endif %}
     </div>
 
-    <!-- Verification Documents (Onboarding trial verification -- separate
-         workflow from the free-text documents above) -->
+    {# Verification Documents (Onboarding trial verification -- separate
+         workflow from the free-text documents above) #}
     <div class="card full">
       <div class="u-bg-linear-gradiene204f8 u-br-10 u-p-12-18 u-mb-18 u-d-flex u-ai-center u-gap-10">
         <i class="ti ti-shield-check u-c-fff u-fs-18"></i>
@@ -619,7 +619,7 @@
         {% endfor %}
       </div>
 
-      <!-- Verification upload form -->
+      {# Verification upload form #}
       <form class="u-d-flex u-gap-10 u-ai-flex-end u-fxw-wrap u-p-16 u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-10" action="{{ tpath('/upload_verification_document') }}" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="employee_id" value="{{ emp[0] }}">
         <div class="u-fx-1 u-minw-150">
@@ -640,7 +640,7 @@
       </form>
     </div>
 
-    <!-- QR Code -->
+    {# QR Code #}
     <div class="card">
       <div class="card-title"><i class="ti ti-qrcode"></i> QR Code</div>
       {% if qr_code %}
@@ -663,7 +663,7 @@
       {% endif %}
     </div>
 
-    <!-- Photo -->
+    {# Photo #}
     <div class="card">
       <div class="card-title"><i class="ti ti-camera"></i> Profile Photo</div>
       <div class="center-col">
@@ -679,7 +679,7 @@
       </div>
     </div>
 
-    <!-- Recent Attendance -->
+    {# Recent Attendance #}
     <div class="card full">
       <div class="card-title"><i class="ti ti-calendar"></i> Recent Attendance (Last 30 Records)</div>
       {% if recent_attendance %}
@@ -713,13 +713,13 @@
       {% endif %}
     </div>
 
-  </div><!-- /grid2 -->
+  </div>{# /grid2 #}
 
 {% endblock %}
 
 {% block scripts %}
 
-<!-- LIGHTBOX -->
+{# LIGHTBOX #}
 {% if face_image %}
 <div class="lb-backdrop" id="lb">
   <div class="lb-box">

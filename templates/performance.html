@@ -134,7 +134,7 @@
     </div>
   </div>
 
-  <!-- ── Import Modal ── -->
+  {# ── Import Modal ── #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_d45 u-zi-9999 u-ai-center u-jc-center" id="importModal">
     <div class="u-bg-fff u-br-18 u-p-30 u-w-480 u-maxw-95vw u-shad-0-20-60-rgba0_0_0_d25">
       <div class="u-d-flex u-jc-space-between u-ai-center u-mb-20">
@@ -195,7 +195,7 @@
     </div>
   </div>
 
-  <!-- Module Tabs -->
+  {# Module Tabs #}
   <div class="tab-bar">
     <div class="tab {% if active_tab == 'performance' %}active{% endif %}" onclick="switchTab('performance',this)">
       <i class="ti ti-chart-line"></i> Performance Reviews
@@ -205,10 +205,10 @@
     </div>
   </div>
 
-  <!-- ═══════════════ TAB: PERFORMANCE ═══════════════ -->
+  {# ═══════════════ TAB: PERFORMANCE ═══════════════ #}
   <div class="tab-content {% if active_tab == 'performance' %}active{% endif %}" id="tab-performance">
 
-    <!-- Quarter + Year tabs -->
+    {# Quarter + Year tabs #}
     <div class="quarter-tabs">
       {% for q_num, q_label in [(1,'Q1 Jan–Mar'),(2,'Q2 Apr–Jun'),(3,'Q3 Jul–Sep'),(4,'Q4 Oct–Dec')] %}
       <a class="q-tab {% if q_num == quarter %}active{% endif %}"
@@ -226,7 +226,7 @@
       </div>
     </div>
 
-    <!-- Dept + Search filters -->
+    {# Dept + Search filters #}
     <div class="filters">
       <label>Department</label>
       <select onchange="location.href='/performance?tab=performance&quarter={{ quarter }}&year={{ year }}&dept='+this.value">
@@ -241,7 +241,7 @@
       </div>
     </div>
 
-    <!-- Stats -->
+    {# Stats #}
     {% set total_emp = employees|length %}
     {% set reviewed  = employees|selectattr(4)|list|length %}
     {% set submitted = employees|selectattr(6,'equalto','Submitted')|list|length %}
@@ -255,7 +255,7 @@
       <div class="stat-card"><div class="num u-c-64748b">{{ total_emp - reviewed }}</div><div class="lbl">Pending Review</div></div>
     </div>
 
-    <!-- Employee table -->
+    {# Employee table #}
     <div class="card">
       <div class="card-pad">
         <div class="sec-title"><i class="ti ti-users"></i> Employee Reviews — Q{{ quarter }} {{ year }}</div>
@@ -322,10 +322,10 @@
     </div>
   </div>
 
-  <!-- ═══════════════ TAB: HIKE & INCENTIVES ═══════════════ -->
+  {# ═══════════════ TAB: HIKE & INCENTIVES ═══════════════ #}
   <div class="tab-content {% if active_tab == 'hike' %}active{% endif %}" id="tab-hike">
 
-    <!-- Quarter + Year navigation -->
+    {# Quarter + Year navigation #}
     <div class="quarter-tabs">
       {% for q_num, q_label in [(1,'Q1 Jan–Mar'),(2,'Q2 Apr–Jun'),(3,'Q3 Jul–Sep'),(4,'Q4 Oct–Dec')] %}
       <a class="q-tab {% if q_num == quarter %}active{% endif %}"
@@ -341,7 +341,7 @@
 
     {% if active_tab == 'hike' %}
 
-    <!-- Band Configuration (collapsible) -->
+    {# Band Configuration (collapsible) #}
     <div class="card u-mb-18">
       <div class="card-pad u-cur-pointer u-usel-none" onclick="toggleHikeCfg()">
         <div class="sec-title u-m-0 u-d-flex u-jc-space-between u-ai-center">
@@ -389,7 +389,7 @@
       </div>
     </div>
 
-    <!-- Summary stats -->
+    {# Summary stats #}
     <div class="stats-row u-mb-18">
       <div class="stat-card"><div class="num u-c-1e3a8a">{{ hike_employees|length }}</div><div class="lbl">Total Employees</div></div>
       <div class="stat-card"><div class="num u-c-16a34a">{{ hike_eligible_count }}</div><div class="lbl">Rated (Eligible)</div></div>
@@ -397,14 +397,14 @@
       <div class="stat-card"><div class="num u-c-d97706 u-fs-18">₹{{ "{:,.0f}".format(total_bonus_pool) }}</div><div class="lbl">Total Bonus Pool</div></div>
     </div>
 
-    <!-- Hidden submit form (populated by JS) -->
+    {# Hidden submit form (populated by JS) #}
     <form class="u-d-none" id="hikeForm" action="" method="POST">
       <input type="hidden" name="quarter" value="{{ quarter }}">
       <input type="hidden" name="year" value="{{ year }}">
       <div id="hikeEmpIds"></div>
     </form>
 
-    <!-- Employee hike table -->
+    {# Employee hike table #}
     <div class="card">
       <div class="card-pad u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-10">
         <div class="sec-title u-m-0"><i class="ti ti-trending-up"></i> Hike &amp; Incentive Calculation — Q{{ quarter }} {{ year }}</div>

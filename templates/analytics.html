@@ -97,7 +97,7 @@
     </div>
   </div>
 
-  <!-- Smart Alerts Panel -->
+  {# Smart Alerts Panel #}
   <div class="u-mb-20">
     <div class="chart-card full u-p-20-24">
       <div class="u-d-flex u-ai-center u-jc-space-between u-mb-16">
@@ -202,12 +202,12 @@
     </div>
   </div>
 
-  <!-- ROW 3: Heatmap + Late Trend -->
+  {# ROW 3: Heatmap + Late Trend #}
   <div class="charts-grid u-mt-16">
-    <!-- Attendance Heatmap -->
+    {# Attendance Heatmap #}
     <div class="chart-card full u-p-24-28 u-bg-fff u-bd-1-solid-e2e8f0 u-shad-0-2-16-rgba99_fe98b1">
 
-      <!-- Header -->
+      {# Header #}
       <div class="u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-12 u-mb-20">
         <div class="u-d-flex u-ai-center u-gap-12">
           <div class="u-w-26 u-h-26 u-br-8 u-bg-linear-gradienfd6b85 u-d-flex u-ai-center u-jc-center u-shad-0-4-12-rgba99_91c004">
@@ -218,7 +218,7 @@
             <div class="u-fs-11 u-c-94a3b8 u-mt-1">Last 35 days · {{ total_employees }} employees</div>
           </div>
         </div>
-        <!-- Legend -->
+        {# Legend #}
         <div class="u-d-flex u-ai-center u-gap-8 u-fs-11 u-c-64748b u-fw-500">
           <span>Less</span>
           <div class="u-d-flex u-gap-3 u-ai-center">
@@ -232,18 +232,18 @@
         </div>
       </div>
 
-      <!-- Grid -->
+      {# Grid #}
       <div class="u-d-flex u-gap-0 u-ovx-auto">
-        <!-- Day labels -->
+        {# Day labels #}
         <div class="u-d-grid u-gridte-repeat7_58 u-gap-5 u-mr-10 u-fxs-0 u-pt-28">
           {% for day in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
           <div class="u-fs-10 u-c-94a3b8 u-fw-700 u-d-flex u-ai-center u-h-58 u-ls-d3">{{ day }}</div>
           {% endfor %}
         </div>
 
-        <!-- Weeks wrapper with labels -->
+        {# Weeks wrapper with labels #}
         <div class="u-d-flex u-fxd-column u-gap-0 u-fx-1">
-          <!-- Week labels -->
+          {# Week labels #}
           <div class="u-d-grid u-gtc-repeat5_1fr u-gap-5 u-mb-5">
             {% for w in range(1,6) %}
             {% set wi = (w-1)*7 %}
@@ -253,7 +253,7 @@
             {% endfor %}
           </div>
 
-          <!-- Cells: 5 columns × 7 rows -->
+          {# Cells: 5 columns × 7 rows #}
           <div class="u-d-grid u-gridte-repeat7_58 u-gtc-repeat5_1fr u-gridau-column u-gap-5">
             {% for d in heatmap_data %}
             {% set pct = (d.count / total_employees * 100) if total_employees else 0 %}
@@ -281,7 +281,7 @@
         </div>
       </div>
 
-      <!-- Summary stats -->
+      {# Summary stats #}
       {% set total_present = heatmap_data | sum(attribute='count') %}
       {% set best_day = heatmap_data | max(attribute='count') %}
       <div class="u-d-flex u-gap-24 u-mt-18 u-pt-16 u-bdt-1-solid-f1f5f9 u-fxw-wrap">
@@ -299,7 +299,7 @@
         </div>
       </div>
 
-      <!-- Tooltip -->
+      {# Tooltip #}
       <div class="u-d-none u-pos-fixed u-bg-1e293b u-c-fff u-fs-12 u-p-10-16 u-br-10 u-shad-0-8-28-rgba0_0_0_d25 u-zi-9999 u-pe-none u-bd-1-solid-334155 u-minw-160" id="hmTooltip">
         <div class="u-fw-700 u-c-818cf8 u-fs-13" id="hmDate"></div>
         <div class="u-mt-4 u-c-e2e8f0" id="hmCount"></div>
@@ -307,20 +307,20 @@
       </div>
     </div>
 
-    <!-- Late Arrival Trend -->
+    {# Late Arrival Trend #}
     <div class="chart-card">
       <div class="chart-title"><i class="ti ti-clock-exclamation u-c-ef4444"></i> Late Arrivals — Last 14 Days</div>
       <div class="chart-wrap tall"><canvas id="lateChart"></canvas></div>
     </div>
 
-    <!-- Retention Bands -->
+    {# Retention Bands #}
     <div class="chart-card">
       <div class="chart-title"><i class="ti ti-users-group u-c-a855f7"></i> Staff Tenure Overview</div>
       <div class="chart-wrap tall"><canvas id="retentionChart"></canvas></div>
     </div>
   </div>
 
-  <!-- ROW 4: Department Distribution + Department-wise Attendance Rate side by side -->
+  {# ROW 4: Department Distribution + Department-wise Attendance Rate side by side #}
   <div class="u-d-grid u-gtc-1fr-1fr u-gap-16 u-mt-16">
     <div class="chart-card">
       <div class="chart-title"><i class="ti ti-building u-c-6366f1"></i> Department Distribution</div>
@@ -354,12 +354,12 @@
 
 {% block scripts %}
 
-<!-- Moved here from <head> -- this 205KB library was previously loaded via
+{# Moved here from <head> -- this 205KB library was previously loaded via
      a blocking <script src> in <head>, which held up parsing of the ENTIRE
      page (including everything above the charts) until it finished
      downloading and executing. The chart-init code below needs it loaded
      synchronously first, but nothing above this point does, so loading it
-     here instead lets the rest of the page render immediately. -->
+     here instead lets the rest of the page render immediately. #}
 <script src="{{ static_url('chart.umd.min.js') }}"></script>
 
 <script>

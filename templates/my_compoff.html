@@ -65,9 +65,9 @@
     body.dark-mode .flash-success{background:#14532d!important;border-color:#166534!important;color:#4ade80!important}
     body.dark-mode .avail-badge{background:#14532d!important;color:#4ade80!important}
   </style>
-  <!-- Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles -->
+  {# Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles #}
   <link rel="stylesheet" href="{{ static_url('employee-theme.css') }}" />
-  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
   <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
@@ -131,7 +131,7 @@
     </span>
   </div>
 
-  <!-- OT Records -->
+  {# OT Records #}
   <div class="card">
     <div class="sec-title"><i class="ti ti-clock-bolt"></i> My Overtime Records</div>
     <div class="u-ovx-auto">
@@ -179,7 +179,7 @@
     </div>
   </div>
 
-  <!-- Comp-off Leave History -->
+  {# Comp-off Leave History #}
   <div class="card">
     <div class="sec-title"><i class="ti ti-calendar-off"></i> Comp-off Leave Applications</div>
     <div class="u-ovx-auto">
@@ -211,10 +211,10 @@
       </table>
     </div>
   </div>
-    </div><!-- /app-content -->
-  </div><!-- /main-area -->
+    </div>{# /app-content #}
+  </div>{# /main-area #}
 
-<!-- Apply Comp-off Modal -->
+{# Apply Comp-off Modal #}
 {% if compoff_lt_id %}
 <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_d45 u-zi-999 u-ai-center u-jc-center" id="applyModal">
   <div class="u-bg-fff u-br-18 u-p-28 u-w-460 u-maxw-95pct u-shad-0-20-60-rgba0_0_0_d25">

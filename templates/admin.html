@@ -214,12 +214,12 @@
 {% block main %}
 {% if registration_checklist %}{% include "_registration_popup.html" %}{% endif %}
 
-  <!-- PAGE HEADER -->
+  {# PAGE HEADER #}
   <div class="page-header page-header--toolbar">
-    <!-- Dashboard search (top of the content, below the blue banner): sidebar
+    {# Dashboard search (top of the content, below the blue banner): sidebar
          menus, every feature / tab / setting inside them, and live employees /
          tickets / leave requests from /api/admin/search
-         (engine: static/portal-search.js). -->
+         (engine: static/portal-search.js). #}
     {% set _srch_role = 'hr' if session.admin_role == 'hr' else ('manager' if session.admin_role == 'manager' else 'admin') %}
     <div class="admin-search-wrap dash-search" id="adminSearchWrap" role="search">
       <i class="ti ti-search admin-search-icon" aria-hidden="true"></i>
@@ -238,7 +238,7 @@
     </div>
   </div>
 
-  <!-- STAT CARDS -->
+  {# STAT CARDS #}
   <div class="stats">
     <a class="stat-card" href="{{ tpath('/employees') }}">
       <div class="stat-icon si-blue"><i class="ti ti-users" style="color:#2563eb"></i></div>
@@ -277,7 +277,7 @@
     </a>
   </div>
 
-  <!-- ONBOARDING WIDGET -->
+  {# ONBOARDING WIDGET #}
   <div class="section u-mb-20">
     <div class="section-title u-d-flex u-ai-center u-jc-space-between">
       <span><i class="ti ti-clipboard-list"></i> Onboarding Overview</span>
@@ -316,7 +316,7 @@
     {% endif %}
   </div>
 
-  <!-- MODULE OVERVIEW -->
+  {# MODULE OVERVIEW #}
   <div class="section u-mb-20">
     <div class="section-title"><i class="ti ti-apps"></i> Admin Modules</div>
     <div class="u-d-grid u-gtc-repeat3_1fr u-gap-14">
@@ -388,7 +388,7 @@
     </div>
   </div>
 
-  <!-- QUICK ACTIONS -->
+  {# QUICK ACTIONS #}
   <div class="section">
     <div class="section-title"><i class="ti ti-bolt"></i> Quick Actions</div>
     <div class="action-grid">
@@ -427,7 +427,7 @@
     </div>
   </div>
 
-  <!-- ATTENDANCE CHARTS -->
+  {# ATTENDANCE CHARTS #}
   <div class="u-d-grid u-gtc-2fr-1fr u-gap-16 u-mb-20">
 
     <div class="section u-mb-0">
@@ -442,7 +442,7 @@
 
   </div>
 
-  <!-- ═══ EDIT EMPLOYEE MODAL ═══ -->
+  {# ═══ EDIT EMPLOYEE MODAL ═══ #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d55 u-zi-1000 u-ai-center u-jc-center" id="editModal">
     <div class="u-bg-fff u-br-18 u-p-32 u-w-100pct u-maxw-440 u-c-0f172a u-shad-0-24-60-rgba0_0_0_0d2">
       <div class="u-d-flex u-ai-center u-jc-space-between u-mb-22">
@@ -519,11 +519,11 @@
 {% endblock %}
 
 {% block scripts %}
-  <!-- Moved here rather than <head> -- this 205KB library was blocking parsing
+  {# Moved here rather than <head> -- this 205KB library was blocking parsing
        of the entire page until it finished downloading. loadCharts() below
        only runs after scheduleChartRefresh() executes near the end of this
        same script block, so loading it here instead lets the rest of the
-       dashboard render immediately. -->
+       dashboard render immediately. #}
   <script src="{{ static_url('chart.umd.min.js') }}"></script>
   <script>
     /* ── EMAIL ABSENTEES ── */

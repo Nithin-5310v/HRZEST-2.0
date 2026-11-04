@@ -495,7 +495,7 @@
       {% endfor %}
     {% endwith %}
 
-    <!-- ══ 3-TAB SETTINGS NAV ══ -->
+    {# ══ 3-TAB SETTINGS NAV ══ #}
     <div class="s3-nav">
       <button class="s3-tab active" id="s3tab-org" onclick="switchGroup('org')">
         <div class="s3-tab-icon u-bg-eff6ff"><i class="ti ti-fingerprint u-c-1e3a8a"></i></div>
@@ -523,9 +523,9 @@
       </button>
     </div>
 
-    <!-- ══ GROUP PANELS ══ -->
+    {# ══ GROUP PANELS ══ #}
 
-    <!-- ── ATTENDANCE PANEL ── -->
+    {# ── ATTENDANCE PANEL ── #}
     <div class="s3-panel active" id="s3panel-org">
     <div class="subnav-bar">
       <div class="subnav-dd-wrap">
@@ -539,7 +539,7 @@
       </div>
     </div>
 
-          <!-- ATTENDANCE -->
+          {# ATTENDANCE #}
           <div class="s3-section active" id="ss-attendance">
             <div class="sec-header">
               <div class="sec-icon u-bg-f0fdf4"><i class="ti ti-fingerprint u-c-16a34a u-fs-20"></i></div>
@@ -547,7 +547,7 @@
             </div>
             <div class="u-d-grid u-gtc-1fr-1fr u-gap-14">
 
-              <!-- Face Auth -->
+              {# Face Auth #}
               <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
                 <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
                   <div class="u-d-flex u-ai-center u-gap-12">
@@ -558,7 +558,7 @@
                 </div>
               </div>
 
-              <!-- Geo-fencing -->
+              {# Geo-fencing #}
               <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
                 <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
                   <div class="u-d-flex u-ai-center u-gap-12">
@@ -586,7 +586,7 @@
                 </div>
               </div>
 
-              <!-- QR Code -->
+              {# QR Code #}
               <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
                 <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
                   <div class="u-d-flex u-ai-center u-gap-12">
@@ -597,7 +597,7 @@
                 </div>
               </div>
 
-              <!-- Fingerprint -->
+              {# Fingerprint #}
               <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
                 <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
                   <div class="u-d-flex u-ai-center u-gap-12">
@@ -613,7 +613,7 @@
 
     </div>
 
-    <!-- FINANCES PANEL -->
+    {# FINANCES PANEL #}
     <div class="s3-panel" id="s3panel-fin">
     <div class="subnav-bar">
       <div class="subnav-dd-wrap">
@@ -630,7 +630,7 @@
       </div>
     </div>
 
-          <!-- PAYROLL -->
+          {# PAYROLL #}
           <div class="s3-section active" id="ss-payroll">
             <div class="sec-header">
               <div class="sec-icon u-bg-fefce8"><i class="ti ti-coin u-c-ca8a04 u-fs-20"></i></div>
@@ -740,7 +740,7 @@
 
               <div class="py-wrap">
 
-              <!-- Billing Card -->
+              {# Billing Card #}
               <div class="py-card py-card--accent u-mb-20">
                 <div class="py-hdr">
                   <div class="py-hdr-icon u-bg-dbeafe"><i class="ti ti-credit-card u-c-2563eb"></i></div>
@@ -751,7 +751,7 @@
                 </div>
               </div>
 
-              <!-- Card 1: Shift Timings -->
+              {# Card 1: Shift Timings #}
               <div class="py-card">
                 <div class="py-hdr">
                   <div class="py-hdr-icon u-bg-fef3c7"><i class="ti ti-clock u-c-d97706"></i></div>
@@ -819,7 +819,7 @@
                 </div>
               </div>
 
-              <!-- Card 2: Salary Deductions -->
+              {# Card 2: Salary Deductions #}
               <div class="py-card">
                 <div class="py-hdr">
                   <div class="py-hdr-icon u-bg-dcfce7"><i class="ti ti-percentage u-c-16a34a"></i></div>
@@ -882,7 +882,7 @@
                 </div>
               </div>
 
-              <!-- Card 3: Policies -->
+              {# Card 3: Policies #}
               <div class="py-card">
                 <div class="py-hdr">
                   <div class="py-hdr-icon u-bg-ede9fe"><i class="ti ti-calendar-event u-c-7c3aed"></i></div>
@@ -921,7 +921,7 @@
                 </div>
               </div>
 
-              </div><!-- .py-wrap -->
+              </div>{# .py-wrap #}
 
               <button type="submit" class="py-save">
                 <i class="ti ti-device-floppy" style="font-size:15px;"></i> Save Payroll Rules
@@ -970,7 +970,7 @@
             </script>
           </div>
 
-          <!-- SALARY -->
+          {# SALARY #}
           <div class="s3-section" id="ss-salary">
             <div class="sec-header">
               <div class="sec-icon u-bg-f0fdf4"><i class="ti ti-cash u-c-16a34a u-fs-20"></i></div>
@@ -1016,7 +1016,7 @@
             </div>
           </div>
 
-          <!-- DISBURSEMENT -->
+          {# DISBURSEMENT #}
           <div class="s3-section" id="ss-disbursement">
             <div class="sec-header">
               <div class="sec-icon u-bg-eff6ff"><i class="ti ti-building-bank u-c-1e3a8a u-fs-20"></i></div>
@@ -1034,13 +1034,13 @@
             <div class="section">
               <div class="section-title"><i class="ti ti-building-bank"></i> Company Bank Account &amp; Schedule</div>
               <div id="payout-locked">
-                <!-- Step 0: entry point, before we know whether this admin has TOTP enrolled at all -->
+                {# Step 0: entry point, before we know whether this admin has TOTP enrolled at all #}
                 <div id="payout-2fa-start">
                   <p class="u-fs-13 u-c-64748b u-mb-12">Viewing or editing the company's payout bank account requires a 2FA code.</p>
                   <button type="button" class="btn-submit" onclick="payoutStart2fa()">Continue</button>
                 </div>
 
-                <!-- Step 1a: first time ever -- no TOTP enrolled yet, show the QR code to scan -->
+                {# Step 1a: first time ever -- no TOTP enrolled yet, show the QR code to scan #}
                 <div id="payout-2fa-enroll" class="u-d-none">
                   <p class="u-fs-13 u-c-64748b u-mb-10">No authenticator app is linked to your admin account yet. Scan this QR code with an authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code it shows to confirm.</p>
                   <img id="payout-2fa-qr" class="u-mb-10 u-br-8 u-bd-1d5-solid-e2e8f0" width="180" height="180" alt="Scan with your authenticator app" />
@@ -1052,7 +1052,7 @@
                   <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="payout-2fa-enroll-error"></div>
                 </div>
 
-                <!-- Step 1b: already enrolled (via here or Email Settings -- one TOTP secret per admin) -->
+                {# Step 1b: already enrolled (via here or Email Settings -- one TOTP secret per admin) #}
                 <div id="payout-2fa-verify" class="u-d-none">
                   <p class="u-fs-13 u-c-64748b u-mb-12">Enter the 6-digit code from your authenticator app.</p>
                   <div class="u-d-flex u-gap-8">
@@ -1256,10 +1256,10 @@
             </script>
           </div>
 
-          <!-- BILLING (was templates/seat_checkout.html, embedded here so it
+          {# BILLING (was templates/seat_checkout.html, embedded here so it
                behaves like every other Finances sub-section instead of
                navigating to a separate page -- blueprints/seats.py's
-               seats_page() now just redirects to ?tab=billing) -->
+               seats_page() now just redirects to ?tab=billing) #}
           <div class="s3-section" id="ss-billing">
             <div class="sec-header">
               <div class="sec-icon u-bg-eff6ff"><i class="ti ti-ticket u-c-1e3a8a u-fs-20"></i></div>
@@ -1426,7 +1426,7 @@
               {% endif %}
             </div>
 
-            <!-- Sandbox checkout modal (used only when Razorpay isn't configured on this server) -->
+            {# Sandbox checkout modal (used only when Razorpay isn't configured on this server) #}
             <div class="mock-overlay" id="mockOverlay" role="dialog" aria-modal="true" aria-label="Test mode payment">
               <div class="mock-sheet">
                 <div class="mock-testbar"><i class="ti ti-flask"></i> Sandbox Test Mode — No Card Charged</div>
@@ -1834,7 +1834,7 @@
 
     </div>
 
-    <!-- SYSTEM PANEL -->
+    {# SYSTEM PANEL #}
     <div class="s3-panel" id="s3panel-sys">
     <div class="subnav-bar">
       <div class="subnav-dd-wrap">
@@ -1848,7 +1848,7 @@
       </div>
     </div>
 
-          <!-- EMAIL -->
+          {# EMAIL #}
           <div class="s3-section active" id="ss-email">
             <div class="sec-header">
               <div class="sec-icon u-bg-f0f9ff"><i class="ti ti-mail u-c-0284c7 u-fs-20"></i></div>
@@ -1858,8 +1858,8 @@
               <div class="section">
                 <div class="section-title"><i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> SMTP Configuration</div>
 
-                <!-- Locked state: no SMTP data has been fetched yet -- nothing
-                     sensitive is in the page until this gate is passed. -->
+                {# Locked state: no SMTP data has been fetched yet -- nothing
+                     sensitive is in the page until this gate is passed. #}
                 <div id="email-2fa-gate">
                   <div class="u-d-flex u-ai-center u-gap-8 u-mb-10">
                     <i class="ti ti-shield-lock u-c-dc2626 u-fs-20"></i>
@@ -1869,7 +1869,7 @@
                     SMTP settings include a stored password. Confirm it's you before this loads.
                   </div>
 
-                  <!-- First-time enrollment sub-view (hidden unless no TOTP is set up yet) -->
+                  {# First-time enrollment sub-view (hidden unless no TOTP is set up yet) #}
                   <div id="email-2fa-enroll" class="u-d-none">
                     <div class="u-fs-12 u-c-64748b u-mb-10">Scan with Google Authenticator (or any TOTP app), then enter the 6-digit code it shows to confirm setup.</div>
                     <img id="email-2fa-qr" class="u-mb-10 u-br-8 u-bd-1d5-solid-e2e8f0" width="160" height="160" alt="Scan with your authenticator app" />
@@ -1881,7 +1881,7 @@
                     <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-enroll-err"></div>
                   </div>
 
-                  <!-- Normal unlock sub-view (shown once TOTP is already enrolled) -->
+                  {# Normal unlock sub-view (shown once TOTP is already enrolled) #}
                   <div id="email-2fa-verify" class="u-d-none">
                     <div class="u-fs-13 u-c-64748b u-mb-12">Enter the 6-digit code from your authenticator app.</div>
                     <div class="u-d-flex u-gap-8">
@@ -1901,8 +1901,8 @@
                   </div>
                 </div>
 
-                <!-- Unlocked state: populated from /api/settings/email only
-                     after verifyEmail2fa()/confirmEmail2faEnroll() succeeds. -->
+                {# Unlocked state: populated from /api/settings/email only
+                     after verifyEmail2fa()/confirmEmail2faEnroll() succeeds. #}
                 <div id="email-settings-panel" class="u-d-none">
                   <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
                     <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
@@ -1931,7 +1931,7 @@
                 </div>
               </div>
 
-              <!-- SECOND COLUMN: TEMPLATES & NOTIFICATION TRIGGERS -->
+              {# SECOND COLUMN: TEMPLATES & NOTIFICATION TRIGGERS #}
               <div class="section">
                 <div class="section-title"><i class="ti ti-mail hz-ico" aria-hidden="true"></i> HR Email Templates & Preview</div>
                 <div class="u-fs-12 u-c-64748b u-mb-14">Customize automated HR email template subjects and layouts.</div>
@@ -1986,7 +1986,7 @@
 
               <div class="u-d-grid u-gtc-1fr-1fr u-gap-24 u-ai-start">
 
-                <!-- Change Admin Password -->
+                {# Change Admin Password #}
                 <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
                   <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-16"><i class="ti ti-lock"></i> Change Admin Password</div>
                   <form action="{{ tpath('/change_admin_password') }}" method="POST">
@@ -2007,7 +2007,7 @@
                   </form>
                 </div>
 
-                <!-- Reset Employee Password -->
+                {# Reset Employee Password #}
                 <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
                   <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-4"><i class="ti ti-key"></i> Reset Employee Password</div>
                   <div class="u-fs-12 u-c-94a3b8 u-mb-18">Sets a random temporary password, shown to you once. The employee must change it at their next sign-in.</div>
@@ -2027,7 +2027,7 @@
 
               </div>
 
-              <!-- Set Admin Recovery Email -->
+              {# Set Admin Recovery Email #}
               <div class="u-mt-20 u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-14 u-p-22">
                 <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-4"><i class="ti ti-mail"></i> Admin Recovery Email</div>
                 <div class="u-fs-12 u-c-64748b u-mb-16">Set the email address used to receive password reset links when you forget your admin password.</div>
@@ -2056,9 +2056,9 @@
     </div>
 
 
-    <!-- ══════════════════════════════════════
+    {# ══════════════════════════════════════
          TAB: AUTH
-    ══════════════════════════════════════ -->
+    ══════════════════════════════════════ #}
     <div id="tab-auth" class="tab-panel {% if tab=='auth' %}active{% endif %}">
       <div class="section u-maxw-600">
         <div class="section-title"><i class="ti ti-shield-lock hz-ico" aria-hidden="true"></i> Attendance Authentication</div>
@@ -2101,7 +2101,7 @@
         </div>
         {% endfor %}
 
-        <!-- Combo info card -->
+        {# Combo info card #}
         <div class="u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-10 u-p-16 u-mt-8">
           <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-10">Available attendance combinations:</div>
           <div class="u-d-flex u-fxd-column u-gap-7 u-fs-13 u-c-1e293b">
@@ -2120,21 +2120,21 @@
           </div>
         </div>
       </div>
-    </div><!-- /tab-auth -->
+    </div>{# /tab-auth #}
 
 
 {% endblock %}
 
 {% block scripts %}
 
-  <!-- ══ SET COMPANY PIN MODAL ══ -->
+  {# ══ SET COMPANY PIN MODAL ══ #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10002 u-ai-center u-jc-center" id="setPinModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-360 u-shad-0-24-64-rgba0_0_0_0d25">
       <div class="u-fs-15 u-fw-800 u-c-0f172a u-mb-3"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> PIN Protection</div>
       <div class="u-fs-12 u-c-64748b u-mb-20" id="spn_label">Control access to this company</div>
       <form method="POST" action="{{ tpath('/set_company_pin') }}" id="spnForm">
         <input type="hidden" name="company_id" id="spn_cid" />
-        <!-- Toggle row -->
+        {# Toggle row #}
         <div class="u-d-flex u-ai-center u-jc-space-between u-p-13-15 u-bg-f8fafc u-bd-1d5-solid-e2e8f0 u-br-12 u-mb-14">
           <div>
             <div class="u-fs-13 u-fw-700 u-c-0f172a">Enable PIN Protection</div>
@@ -2146,7 +2146,7 @@
             <span class="u-pos-absolute u-top-3 u-lft-3 u-w-19 u-h-19 u-br-50pct u-bg-fff u-shad-0-1-4-rgba0_0_0_0d25 u-trs-left-d2s" id="spn_thumb"></span>
           </label>
         </div>
-        <!-- PIN input area — shown when toggle ON -->
+        {# PIN input area — shown when toggle ON #}
         <div class="u-d-none u-mb-14" id="spn_pin_section">
           <label class="u-fs-12 u-fw-700 u-c-475569 u-d-block u-mb-8">PIN Code</label>
           <input class="u-w-100pct u-p-13 u-bd-2-solid-e2e8f0 u-br-11 u-fs-22 u-ls-7 u-ta-center u-ff-monospace u-out-none u-trs-border-d15s u-bxs-border-box" type="password" name="pin" id="spn_pin" maxlength="10" placeholder="• • • •" autocomplete="off"
@@ -2164,7 +2164,7 @@
     </div>
   </div>
 
-  <!-- ══ ADD COMPANY MODAL ══ -->
+  {# ══ ADD COMPANY MODAL ══ #}
   <div class="modal-bg" id="addCompanyModal">
     <div class="modal u-maxw-580 u-maxh-90vh u-d-flex u-fxd-column">
       <div class="modal-title u-fxs-0"><i class="ti ti-building hz-ico" aria-hidden="true"></i> Add Company</div>
@@ -2216,13 +2216,13 @@
             <div class="u-fs-11 u-c-94a3b8 u-mt-5">Affects payroll calculation for this company.</div>
           </div>
 
-          <!-- Shifts -->
+          {# Shifts #}
           <div class="field u-mb-6">
             <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
               <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-clock hz-ico" aria-hidden="true"></i> Shifts</label>
               <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-c7d2fe u-br-8 u-bg-eef2ff u-c-4338ca u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acAddShiftRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
             </div>
-            <!-- header row -->
+            {# header row #}
             <div class="u-d-grid u-gtc-1fr-82-82-82-28 u-gap-6 u-mb-4 u-p-0-2">
               <span class="u-fs-10 u-fw-600 u-c-94a3b8">Name</span>
               <span class="u-fs-10 u-fw-600 u-c-94a3b8">Start</span>
@@ -2234,13 +2234,13 @@
             <div class="u-fs-11 u-c-94a3b8 u-mt-5">Optional — define shifts for this company.</div>
           </div>
 
-          <!-- Breaks -->
+          {# Breaks #}
           <div class="field u-mb-6">
             <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
               <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i> Breaks</label>
               <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" onclick="acAddBreakRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
             </div>
-            <!-- header row -->
+            {# header row #}
             <div class="u-d-grid u-gtc-1fr-90-70-28 u-gap-6 u-mb-4 u-p-0-2">
               <span class="u-fs-10 u-fw-600 u-c-94a3b8">Name</span>
               <span class="u-fs-10 u-fw-600 u-c-94a3b8">Time</span>

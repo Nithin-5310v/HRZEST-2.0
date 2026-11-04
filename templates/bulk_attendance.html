@@ -107,9 +107,9 @@
       </div>
     </div>
 
-    <!-- Flash messages -->
+    {# Flash messages #}
 
-    <!-- Date picker (GET) -->
+    {# Date picker (GET) #}
     <form method="GET" action="{{ tpath('/bulk_mark_attendance') }}" class="date-bar">
       <label><i class="ti ti-calendar u-va-middle u-mr-4"></i> Select Date</label>
       <input type="date" name="date" value="{{ date_str }}" max="{{ today.isoformat() }}" required />
@@ -118,7 +118,7 @@
     </form>
 
     {% if employees %}
-    <!-- Quick mark all -->
+    {# Quick mark all #}
     <div class="quick-bar">
       <span>Quick Mark All:</span>
       <button type="button" class="qbtn" onclick="markAll('Full Day')"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> All Present</button>
@@ -128,13 +128,13 @@
       <button type="button" class="qbtn" onclick="markAll('Leave')"><i class="ti ti-beach hz-ico" aria-hidden="true"></i> All On Leave</button>
     </div>
 
-    <!-- Search -->
+    {# Search #}
     <div class="search-wrap">
       <i class="ti ti-search"></i>
       <input type="text" id="empSearch" placeholder="Search employee by name or ID…" oninput="filterRows(this.value)" />
     </div>
 
-    <!-- Main form (POST) -->
+    {# Main form (POST) #}
     <form method="POST" action="{{ tpath('/bulk_mark_attendance') }}" id="bulkForm">
       <input type="hidden" name="date" value="{{ date_str }}" />
       <div class="section">

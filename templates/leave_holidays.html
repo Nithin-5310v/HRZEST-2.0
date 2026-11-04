@@ -292,7 +292,7 @@
     'tickets': ('ti-ticket', 'Tickets', 'Review, assign and resolve employee support tickets'),
     'resignations': ('ti-user-minus', 'Resignations', 'Review employee resignation requests')
   }[page] %}
-  <!-- TOPBAR -->
+  {# TOPBAR #}
   <div class="topbar">
     <div class="topbar-heading">
       <div>
@@ -321,11 +321,11 @@
     {% endif %}
   </div>
 
-  <!-- FLASH MESSAGES -->
+  {# FLASH MESSAGES #}
   <div class="u-p-0-28">
   </div>
 
-  <!-- ════════════ LEAVES PANEL ════════════ -->
+  {# ════════════ LEAVES PANEL ════════════ #}
   <div id="panel-leaves" class="module-panel {% if tab == 'leaves' %}active{% endif %}">
 
     {% if leave_types_list %}
@@ -389,9 +389,9 @@
         <div class="empty-state"><i class="ti ti-calendar-off"></i><p>No leave requests yet.</p></div>
       {% endif %}
 
-  </div><!-- end leaves panel -->
+  </div>{# end leaves panel #}
 
-  <!-- ════════════ TICKETS PANEL ════════════ -->
+  {# ════════════ TICKETS PANEL ════════════ #}
   <div id="panel-tickets" class="module-panel {% if tab == 'tickets' %}active{% endif %}">
       {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
       {% if all_tickets %}
@@ -432,12 +432,12 @@
       {% else %}
         <div class="empty-state"><i class="ti ti-ticket-off"></i><p>No tickets raised yet.</p></div>
       {% endif %}
-  </div><!-- end tickets panel -->
+  </div>{# end tickets panel #}
 
-  <!-- ════════════ ANNOUNCEMENTS PANEL ════════════ -->
+  {# ════════════ ANNOUNCEMENTS PANEL ════════════ #}
   <div id="panel-announcements" class="module-panel {% if tab == 'announcements' %}active{% endif %}">
 
-    <!-- Post form -->
+    {# Post form #}
     <div class="section">
       <h3><i class="ti ti-plus"></i> Post New Announcement</h3>
       <form action="{{ tpath('/announcements') }}" method="POST" enctype="multipart/form-data">
@@ -492,7 +492,7 @@
       </form>
     </div>
 
-    <!-- List -->
+    {# List #}
     <div class="section">
       <h3><i class="ti ti-list"></i> All Announcements ({{ ann_list|length }})</h3>
       {% if ann_list %}
@@ -568,9 +568,9 @@
         <div class="empty-state"><i class="ti ti-speakerphone u-fs-40 u-d-block u-mb-12"></i>No announcements posted yet.</div>
       {% endif %}
     </div>
-  </div><!-- end announcements panel -->
+  </div>{# end announcements panel #}
 
-  <!-- ════════════ HOLIDAYS PANEL ════════════ -->
+  {# ════════════ HOLIDAYS PANEL ════════════ #}
   <div id="panel-holidays" class="module-panel {% if tab == 'holidays' %}active{% endif %}">
 
     <div class="hol-header">
@@ -677,9 +677,9 @@
       </div>
     </div>
 
-  </div><!-- end holidays panel -->
+  </div>{# end holidays panel #}
 
-  <!-- ════════════ RESIGNATIONS PANEL ════════════ -->
+  {# ════════════ RESIGNATIONS PANEL ════════════ #}
   <div id="panel-resignations" class="module-panel {% if tab == 'resignations' %}active{% endif %}">
       {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
       {% if resignations %}
@@ -719,14 +719,14 @@
       {% else %}
         <div class="empty-state"><i class="ti ti-user-minus"></i><p>No resignation requests.</p></div>
       {% endif %}
-  </div><!-- end resignations panel -->
+  </div>{# end resignations panel #}
 
 
 {% endblock %}
 
 {% block scripts %}
 
-<!-- Add Holiday Modal -->
+{# Add Holiday Modal #}
 <div class="modal-overlay" id="addModal">
   <div class="modal-box">
     <h3><i class="ti ti-plus hz-ico" aria-hidden="true"></i> Add Holiday / Leave</h3>

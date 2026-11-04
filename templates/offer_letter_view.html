@@ -197,7 +197,7 @@
 <div class="paper">
   <div class="top-line"></div>
 
-  <!-- Header -->
+  {# Header #}
   <div class="lh">
     <div>
       <div class="co-name">{{ co.company_name }}</div>
@@ -211,7 +211,7 @@
 
   <hr class="line"/>
 
-  <!-- To block -->
+  {# To block #}
   <div class="addr-block">
     <div class="to">To,</div>
     <div>{{ letter[17] }}</div>
@@ -221,10 +221,10 @@
     {% endif %}
   </div>
 
-  <!-- Subject -->
+  {# Subject #}
   <div class="subject">Sub: Offer of Employment — {{ letter[3] or 'Position' }}</div>
 
-  <!-- Body -->
+  {# Body #}
   <div class="body">
 
     <p class="para">Dear <strong>{{ letter[17] }}</strong>,</p>
@@ -241,7 +241,7 @@
       Please report to the HR Department on the joining date with your original documents for verification.
     </p>
 
-    <!-- CTC -->
+    {# CTC #}
     {% if letter[6] and letter[6]|float > 0 %}
     {% set m = letter[6]|float %}
     {% set basic = (m * 0.40)|round(2) %}
@@ -275,7 +275,7 @@
     <div class="note-box"><strong>Note:</strong> {{ letter[11] }}</div>
     {% endif %}
 
-    <!-- T&C -->
+    {# T&C #}
     <div class="sec-label">Terms &amp; Conditions</div>
     <ol class="tc-ol">
       <li>This offer is subject to satisfactory verification of your educational qualifications, credentials, and prior employment history.</li>
@@ -295,7 +295,7 @@
 
     <p class="para">Warm regards,</p>
 
-    <!-- Signatures -->
+    {# Signatures #}
     <div class="sig-row">
       <div class="sig-col">
         <div class="sig-line"></div>

@@ -97,7 +97,7 @@
 {% block main %}
 
 
-  <!-- Employee header card -->
+  {# Employee header card #}
   {% set emp_id, emp_name, emp_role, emp_dept, emp_email, emp_phone = emp %}
   <div class="emp-card">
     <div>
@@ -137,17 +137,17 @@
     </div>
   </div>
 
-  <!-- Tabs -->
+  {# Tabs #}
   <div class="tab-bar">
     <div class="tab active" onclick="switchTab('kpis',this)">KPIs &amp; Ratings</div>
     <div class="tab" onclick="switchTab('feedback',this)">Reviewer Feedback</div>
     <div class="tab" onclick="switchTab('history',this)">Review History</div>
   </div>
 
-  <!-- ── TAB 1: KPIs ────────────────────────────────── -->
+  {# ── TAB 1: KPIs ────────────────────────────────── #}
   <div class="tab-content active" id="tab-kpis">
 
-    <!-- Add KPI form -->
+    {# Add KPI form #}
     {% if not review or review[4] != 'Submitted' %}
     <div class="card">
       <div class="sec-title"><i class="ti ti-plus"></i> Add KPI</div>
@@ -186,7 +186,7 @@
     </div>
     {% endif %}
 
-    <!-- KPI Cards -->
+    {# KPI Cards #}
     {% if kpis %}
     {% set total_weight = kpis|sum(attribute=5) %}
     <div class="u-d-flex u-ai-center u-jc-space-between u-mb-12">
@@ -261,7 +261,7 @@
         </div>
       </form>
       {% else %}
-      <!-- Read-only view when submitted -->
+      {# Read-only view when submitted #}
       <div class="u-d-flex u-ai-center u-gap-12 u-fxw-wrap">
         <div>
           {% for i in range(1,6) %}
@@ -287,7 +287,7 @@
     {% endif %}
   </div>
 
-  <!-- ── TAB 2: Feedback ────────────────────────────── -->
+  {# ── TAB 2: Feedback ────────────────────────────── #}
   <div class="tab-content" id="tab-feedback">
     <div class="card">
       <div class="sec-title"><i class="ti ti-message-circle"></i> Reviewer Feedback</div>
@@ -318,7 +318,7 @@
     </div>
   </div>
 
-  <!-- ── TAB 3: History ─────────────────────────────── -->
+  {# ── TAB 3: History ─────────────────────────────── #}
   <div class="tab-content" id="tab-history">
     <div class="card">
       <div class="sec-title"><i class="ti ti-history"></i> Review History</div>

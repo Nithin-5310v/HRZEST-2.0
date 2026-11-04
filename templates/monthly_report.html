@@ -151,7 +151,7 @@
         </div>
       </div>
 
-      <!-- FILTER -->
+      {# FILTER #}
       <form class="filter-bar" method="GET" action="{{ tpath('/monthly_report') }}">
         <label>Month</label>
         <select name="month" title="Select month">
@@ -173,7 +173,7 @@
         </a>
       </form>
 
-      <!-- SUMMARY -->
+      {# SUMMARY #}
       {% set total_emp  = report | length %}
       {% set avg_full   = (report | sum(attribute='full_days')  / total_emp) | round(1) if total_emp > 0 else 0 %}
       {% set avg_absent = (report | sum(attribute='absent')     / total_emp) | round(1) if total_emp > 0 else 0 %}
@@ -198,7 +198,7 @@
         </div>
       </div>
 
-      <!-- TABLE -->
+      {# TABLE #}
       <div class="section">
         <h3>Employee-wise Attendance — {{ month_name }}</h3>
         <div class="table-wrap">
@@ -250,7 +250,7 @@
         </div>
       </div>
 
-      <!-- LEGEND -->
+      {# LEGEND #}
       <div class="legend">
         <strong>Legend:</strong> &nbsp;
         Full Days = Login ≤9AM + Logout ≥6PM &nbsp;|&nbsp;
