@@ -68,8 +68,10 @@ service in `compose.yaml` has an explicit environment allow-list (alert
 webhook + a dedicated `HONEYPOT_REPORT_SECRET`) and no `env_file`. Hits are
 reported to the app over a signed channel (`/webhooks/honeypot`, HMAC over
 `timestamp.body`, 5-minute skew, payload = `{ip, port, protocol, bytes}` only —
-never attacker bytes). The app records `honeypot.tcp_decoy_hit` and bans the
-source (`HONEYPOT_TCP_BAN_MINUTES`, default 24 h).
+never attacker bytes). The app records `honeypot.tcp_decoy_hit` and raises the
+source in the SOC console's **Ban review** queue with a suggested ban of
+`HONEYPOT_TCP_BAN_MINUTES` (default 24 h); an analyst decides, or it is banned
+at once with `SOC_AUTO_BAN=true` (see docs/SOC.md).
 
 **Limits.** The honeypot still uses the app *image*, so the code is present
 (secrets are not). It runs read-only, `cap_drop: ALL`, no backend network.

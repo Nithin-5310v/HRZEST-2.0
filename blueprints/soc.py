@@ -169,7 +169,7 @@ def logout():
 # not downloadable by anonymous visitors. Only the login stylesheet is public.
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "soc_ui")
 _PUBLIC_ASSETS = frozenset({"login.css"})
-_PRIVATE_ASSETS = frozenset({"soc.css", "soc-core.js", "soc-views.js", "soc-analysis.js"})
+_PRIVATE_ASSETS = frozenset({"soc.css", "soc-core.js", "soc-views.js", "soc-analysis.js", "soc-banreview.js"})
 
 
 @soc_bp.route("/soc/assets/<name>")
@@ -539,3 +539,22 @@ def api_audit():
         rows = [{"id": i, "actor": a, "action": ac, "target": t, "detail": d, "ip": ip, "at": iso(ts)}
                 for i, a, ac, t, d, ip, ts in cur.fetchall()]
     return _ok(entries=rows, next_before=rows[-1]["id"] if len(rows) == 200 else None)
+
+
+# ── ban review: automated detections waiting for an analyst ──────────
+# (utils/soc_ban_review.py; the console view is soc_ui/soc-banreview.js)
+@soc_bp.route("/soc/api/ban-reviews")
+@soc_required("viewer")
+def api_ban_reviews():
+    from utils import soc_ban_review
+    return _ok(**soc_ban_review.list_reviews(request.args.get("status", "pending")))
+
+
+@soc_bp.route("/soc/api/ban-reviews/decide", methods=["POST"])
+@soc_required("analyst")
+def api_ban_review_decide():
+    from utils import soc_ban_review
+    d = _body()
+    ok, msg = soc_ban_review.decide(d.get("ip"), d.get("action"), _actor(), _ip(),
+                                    minutes=d.get("minutes"), days=d.get("days"), note=d.get("note"))
+    return _ok(message=msg) if ok else _err(msg)

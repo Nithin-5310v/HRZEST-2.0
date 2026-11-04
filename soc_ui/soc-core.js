@@ -347,7 +347,7 @@
   var GROUPS = [
     ['Monitor', ['overview', 'alerts', 'events']],
     ['Investigate', ['entity', 'analysis', 'logs', 'cases']],
-    ['Respond', ['response']],
+    ['Respond', ['banreview', 'response']],
     ['Assess', ['tenants', 'fraud', 'detections', 'integrity', 'posture']],
     ['Administer', ['admin']]
   ];
