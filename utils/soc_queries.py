@@ -922,6 +922,27 @@ def posture():
         "SOC_ALLOWED_CIDRS restricts who can reach /soc." if os.environ.get("SOC_ALLOWED_CIDRS", "").strip()
         else "/soc is reachable from any address (login still needs password + TOTP).",
         "Set SOC_ALLOWED_CIDRS to your office / VPN ranges.")
+    # Alert delivery. With no channel, utils/alerts.send_security_alert skips
+    # silently, so this is the one place that can say nobody is being paged.
+    # Never shows the webhook URL (it is the credential) or the addresses.
+    from utils import alerts as _alerts
+    hook = _alerts._WEBHOOK_URL
+    hook_ok = hook.startswith(("https://", "http://"))
+    n_mail = len(_alerts._alert_recipients())
+    mail_txt = f"email to {n_mail} recipient(s)" if n_mail else ""
+    alert_fix = "Set SECURITY_ALERT_WEBHOOK_URL (Slack/Discord) and/or SECURITY_ALERT_EMAIL; see .env.example."
+    if hook and not hook_ok:
+        add("alerts", "Security alert delivery", "warn",
+            "SECURITY_ALERT_WEBHOOK_URL does not start with http:// or https://, so webhook alerts are refused"
+            + (f"; {mail_txt} still works." if n_mail else "."), alert_fix)
+    elif hook_ok or n_mail:
+        via = " and ".join(x for x in ("webhook" if hook_ok else "", mail_txt) if x)
+        add("alerts", "Security alert delivery", "pass",
+            f"ERROR / CRITICAL events and detections are sent by {via}.", alert_fix)
+    else:
+        add("alerts", "Security alert delivery", "warn",
+            "No alert channel is configured: ERROR / CRITICAL events and detections only appear in this console.",
+            alert_fix)
     add("anchors", "Audit-log anchoring", "info", "Hash-chain heads are written to stdout for off-box shipping.",
         "Confirm Alloy / Promtail ships them to Loki (observability/).")
     from utils import soc_geo
