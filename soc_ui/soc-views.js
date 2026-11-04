@@ -192,8 +192,8 @@
       async render(root, ctl) {
         const p = ctl.params;
         const state = { q: p.q || '', level: p.level || '', family: p.family || '', ip: p.ip || '', identifier: p.identifier || '', tenant: p.tenant || '', event_type: p.event_type || '' };
-        const out = h('div'), tableBox = h('div'), more = h('div', { class: 'row' });
-        let cursor = null, shown = 0;
+        const out = h('div'), tableBox = h('div'), more = h('div', { class: 'row' }), newBar = h('div');
+        let cursor = null, shown = 0, topId = 0;
 
         const query = (extra) => Object.assign({}, state, { hours: SOC.hours, alerts: alertsOnly ? '1' : '' }, extra || {});
         const csvLink = needs('analyst') ? h('a', { class: 'btn ghost', href: '/soc/api/events.csv' + api.qs(query()), download: '' }, 'Export CSV') : null;
@@ -202,9 +202,9 @@
           if (csvLink) csvLink.href = '/soc/api/events.csv' + api.qs(query());
         };
         const load = async (reset) => {
-          if (reset) { cursor = null; shown = 0; tableBox.textContent = ''; tableBox.appendChild(SOC.skeleton()); }
+          if (reset) { cursor = null; shown = 0; newBar.textContent = ''; tableBox.textContent = ''; tableBox.appendChild(SOC.skeleton()); }
           const d = await api.get('/soc/api/events', query({ cursor }));
-          if (reset) tableBox.textContent = '';
+          if (reset) { tableBox.textContent = ''; topId = d.events.length ? d.events[0].id : 0; }
           if (reset && !d.events.length) { tableBox.appendChild(SOC.empty('No events match these filters in the selected window.')); more.textContent = ''; return; }
           if (reset || !tableBox.firstChild) tableBox.appendChild(table(d.events));
           else tableBox.querySelector('tbody').append(...rows(d.events));
@@ -251,9 +251,23 @@
           h('button', { class: 'btn ghost', type: 'button', onclick: () => { [qBox, ipBox, idBox, tnBox].forEach((i) => { i.value = ''; }); fam.value = ''; lvl.value = ''; state.event_type = ''; drawType(); apply(); } }, 'Clear'),
           csvLink);
         out.append(alertsOnly ? SOC.callout('Alerts are correlation detections plus anything logged at ERROR or CRITICAL (the same bar that pages on-call).') : '',
-          filters, tableBox, more);
+          filters, newBar, tableBox, more);
         root.textContent = ''; root.appendChild(out);
         await load(true);
+        // Live list: every 30 s, count what arrived after the newest row on screen and
+        // offer to show it -- never reshuffle the list under an analyst who is reading it.
+        ctl.poll(() => {
+          if (SOC.drawer.isOpen()) return;
+          api.get('/soc/api/events', query({ since: topId, limit: 200 }), true).then((d) => {
+            const n = d.events.length;
+            newBar.textContent = '';
+            if (!n) return;
+            const what = (alertsOnly ? 'alert' : 'event') + (n === 1 ? '' : 's');
+            newBar.appendChild(SOC.callout([h('strong', null, (d.next_cursor ? '200+' : fmt.n(n)) + ' new ' + what + ' since this list loaded. '),
+              h('button', { class: 'btn small', type: 'button', onclick: () => load(true).catch((e) => SOC.toast(e.message, 'bad')) }, 'Show them')],
+              alertsOnly ? 'bad' : 'warn'));
+          }).catch(() => { /* transient; next tick retries */ });
+        }, 30000);
       }
     });
   }
@@ -399,11 +413,14 @@
   /* ============ cases ============ */
   function openCase(id) {
     SOC.drawer.open('Case #' + id, SOC.skeleton());
-    api.get('/soc/api/cases/' + id).then(({ case: c }) => {
+    Promise.all([api.get('/soc/api/cases/' + id), api.get('/soc/api/assignees')]).then(([{ case: c }, { assignees }]) => {
       const box = h('div', { class: 'stack' });
       const status = select([['open', 'Open'], ['investigating', 'Investigating'], ['contained', 'Contained'], ['resolved', 'Resolved'], ['false_positive', 'False positive']], c.status, { id: 'cStatus' });
       const sev = select(['critical', 'high', 'medium', 'low', 'info'].map((s) => [s, s]), c.severity, { id: 'cSev2' });
-      const who = h('input', { class: 'input', id: 'cWho', value: c.assignee || '', maxlength: '60' });
+      // Pick from real analysts; keep a former assignee visible so saving other fields does not fail.
+      const people = assignees.slice();
+      if (c.assignee && people.indexOf(c.assignee) < 0) people.unshift(c.assignee);
+      const who = select([['', 'Unassigned']].concat(people.map((u) => [u, u + (u === SOC.user ? ' (me)' : '') + (assignees.indexOf(u) < 0 ? ' (inactive)' : '')])), c.assignee || '', { id: 'cWho' });
       const res = h('textarea', { class: 'textarea', id: 'cRes', maxlength: '5000' }, c.resolution || '');
       const editable = needs('analyst');
       [status, sev, who, res].forEach((x) => { x.disabled = !editable; });
@@ -413,7 +430,9 @@
       if (c.source_event_id) box.appendChild(h('button', { class: 'btn ghost small', type: 'button', onclick: () => SOC.openEvent(c.source_event_id) }, 'View source event'));
       const form = h('form', { class: 'stack', onsubmit: (e) => {
         e.preventDefault();
-        act(api.post('/soc/api/cases/' + id, { status: status.value, severity: sev.value, assignee: who.value, resolution: res.value }), 'Case updated')
+        const body = { status: status.value, severity: sev.value, resolution: res.value };
+        if (who.value !== (c.assignee || '')) body.assignee = who.value;      // only send a real change
+        act(api.post('/soc/api/cases/' + id, body), 'Case updated')
           .then(() => { SOC.refreshPulse(); openCase(id); }).catch(() => {});
       } }, field('Status', status, 'cStatus'), field('Severity', sev, 'cSev2'), field('Assignee', who, 'cWho'), field('Resolution / findings', res, 'cRes'),
         editable ? h('button', { class: 'btn', type: 'submit' }, 'Save changes') : null);
@@ -432,14 +451,14 @@
     id: 'cases', label: 'Cases', title: 'Cases',
     async render(root, ctl) {
       const mode = ctl.params.status || 'open';
-      const d = await api.get('/soc/api/cases', { status: mode === 'all' ? '' : mode });
+      const d = await api.get('/soc/api/cases', mode === 'mine' ? { status: 'open', assignee: SOC.user } : { status: mode === 'all' ? '' : mode });
       const top = h('div', { class: 'row' },
-        SOC.seg([{ value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }, { value: 'false_positive', label: 'False positive' }, { value: 'all', label: 'All' }], mode, (v) => SOC.go('cases', { status: v })),
+        SOC.seg([{ value: 'mine', label: 'My open cases' }, { value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }, { value: 'false_positive', label: 'False positive' }, { value: 'all', label: 'All' }], mode, (v) => SOC.go('cases', { status: v })),
         h('span', { class: 'spacer' }),
         needs('analyst') ? h('button', { class: 'btn', type: 'button', onclick: () => SOC.drawer.open('New case', SOC.caseForm({}, (cid) => openCase(cid))) }, 'New case') : null);
       root.textContent = '';
       root.append(top, h('div', { class: 'stack' }), SOC.table({
-        empty: 'No cases here. Open one from an alert, event or lookup.', rows: d.cases, onRow: (c) => openCase(c.id),
+        empty: mode === 'mine' ? 'No open cases are assigned to you.' : 'No cases here. Open one from an alert, event or lookup.', rows: d.cases, onRow: (c) => openCase(c.id),
         columns: [{ label: '#', key: 'id' }, { label: 'Title', cls: 'clip', key: 'title' }, { label: 'Severity', render: (c) => SOC.sev(c.severity) },
           { label: 'Status', render: (c) => SOC.chip(c.status.replace('_', ' '), 'plain') }, { label: 'Assignee', key: 'assignee' },
           { label: 'Updated', render: (c) => when(c.updated_at) }, { label: 'Source', render: (c) => c.source_type + (c.source_event_id ? ' #' + c.source_event_id : '') }]
@@ -543,8 +562,17 @@
           { label: 'Scope', key: 'scope' }, { label: 'Cooldown', render: (r) => r.cooldown_minutes + ' min' },
           { label: 'Thresholds', render: (r) => r.thresholds.length ? h('span', { class: 'mono' }, r.thresholds.join(' / ')) : null },
           { label: 'ATT&CK', render: (r) => SOC.mitre(r.mitre.map((m) => m.id)) },
-          { label: 'Last fired', render: (r) => r.last_fired ? when(r.last_fired) : h('span', { class: 'muted' }, 'never') }, { label: 'Times', num: true, key: 'times_fired' }]
-      })), h('div', { class: 'stack' }), SOC.card('Recent firings (' + d.hours + ' h)', SOC.table({
+          { label: 'Last fired', render: (r) => r.last_fired ? when(r.last_fired) : h('span', { class: 'muted' }, 'never') }, { label: 'Times', num: true, key: 'times_fired' },
+          { label: 'Case outcomes', render: (r) => {
+            const o = r.case_outcomes;
+            if (!o) return h('span', { class: 'muted' }, 'no cases');
+            const closed = o.confirmed + o.false_positive;
+            return [h('div', null, fmt.n(o.cases) + ' case' + (o.cases === 1 ? '' : 's') + ': ' + o.confirmed + ' confirmed, ' + o.false_positive + ' false positive' + (o.open ? ', ' + o.open + ' open' : '')),
+              closed ? h('div', { class: 'note' }, o.fp_rate + '% false positive') : null,
+              o.needs_tuning ? SOC.chip('Tune this rule', 'warn') : null];
+          } }]
+      })), h('p', { class: 'note' }, 'Case outcomes count cases opened from each rule\'s alerts. Close cases as Resolved or False positive so this shows which rules are noisy; a rule is flagged for tuning once at least 3 of its cases are closed and half or more were false positives.'),
+      h('div', { class: 'stack' }), SOC.card('Recent firings (' + d.hours + ' h)', SOC.table({
         empty: 'No detections fired in this window.', rows: d.events, onRow: (e) => SOC.openEvent(e.id),
         columns: [{ label: 'Time', render: (e) => when(e.created_at) }, { label: 'Rule', key: 'label' }, { label: 'Severity', render: (e) => SOC.level(e.level) }, { label: 'Detail', cls: 'clip', key: 'message' },
           { label: 'Key', render: (e) => e.identifier ? SOC.idLink(e.identifier) : null }]

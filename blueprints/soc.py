@@ -282,7 +282,7 @@ def _event_filters():
 @soc_required("viewer")
 def api_events():
     return _ok(**soc_queries.search_events(cursor=request.args.get("cursor"), limit=request.args.get("limit", 100),
-                                           **_event_filters()))
+                                           since=request.args.get("since"), **_event_filters()))
 
 
 @soc_bp.route("/soc/api/events/<int:event_id>")
@@ -516,7 +516,14 @@ def api_revoke_session():
 @soc_bp.route("/soc/api/cases")
 @soc_required("viewer")
 def api_cases():
-    return _ok(cases=soc_queries.cases(request.args.get("status") or None))
+    return _ok(cases=soc_queries.cases(request.args.get("status") or None, assignee=request.args.get("assignee") or None))
+
+
+@soc_bp.route("/soc/api/assignees")
+@soc_required("viewer")
+def api_assignees():
+    """Who a case can be assigned to (active analysts and admins)."""
+    return _ok(assignees=soc_queries.assignees())
 
 
 @soc_bp.route("/soc/api/cases/<int:case_id>")

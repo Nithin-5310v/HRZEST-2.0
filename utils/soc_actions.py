@@ -131,8 +131,15 @@ def update_case(case_id, actor, actor_ip, *, status=None, assignee=None, severit
         params.append(status)
         sets.append("closed_at = " + ("NOW()" if status in ("resolved", "false_positive") else "NULL"))
     if assignee is not None:
+        assignee = (assignee or "").strip()
+        if assignee:
+            # Only someone who can actually work the case: a typo would otherwise
+            # create a "person" nobody is, and the case would silently go unowned.
+            from utils.soc_queries import assignees
+            if assignee not in assignees():
+                return False, "Assign the case to an active analyst or admin."
         sets.append("assignee=%s")
-        params.append((assignee or None) and assignee[:60])
+        params.append(assignee or None)
     if severity is not None:
         if severity not in SEVERITIES:
             return False, "Unknown severity."

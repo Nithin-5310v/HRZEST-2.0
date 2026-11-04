@@ -757,6 +757,34 @@ class TestCases:
         second = c.post("/soc/api/cases", json={"title": "second", "source_event_id": eid}).get_json()["id"]
         assert second != first
 
+    def test_assignees_are_real_analysts_and_my_cases_filter(self, soc):
+        c, _ = soc("ann", "analyst")
+        make_user("bob", "analyst")
+        make_user("vic", "viewer")                       # cannot work a case
+        assert c.get("/soc/api/assignees").get_json()["assignees"] == ["ann", "bob"]
+        mine = c.post("/soc/api/cases", json={"title": "mine to work"}).get_json()["id"]       # creator is the assignee
+        other = c.post("/soc/api/cases", json={"title": "for bob"}).get_json()["id"]
+        assert c.post(f"/soc/api/cases/{other}", json={"assignee": "bob"}).status_code == 200
+        for bad in ("vic", "b0b", "nobody"):
+            r = c.post(f"/soc/api/cases/{other}", json={"assignee": bad})
+            assert r.status_code == 400 and "active analyst" in r.get_json()["msg"], bad
+        assert c.post(f"/soc/api/cases/{other}", json={"assignee": ""}).status_code == 200           # unassign
+        ids = [x["id"] for x in c.get("/soc/api/cases", query_string={"status": "open", "assignee": "ann"}).get_json()["cases"]]
+        assert ids == [mine]
+
+    def test_detection_rules_show_how_their_cases_ended(self, soc, db_engine):
+        c, _ = soc("ann", "analyst")
+        outcomes = ["false_positive", "false_positive", "resolved", None]           # None = still open
+        for i, status in enumerate(outcomes):
+            eid = add_event(db_engine, "detection.credential_stuffing", "ERROR", identifier=f"10.9.9.{i}")
+            cid = c.post("/soc/api/cases", json={"title": f"stuffing {i}", "source_type": "detection", "source_event_id": eid}).get_json()["id"]
+            if status:
+                c.post(f"/soc/api/cases/{cid}", json={"status": status})
+        rules = {r["name"]: r for r in c.get("/soc/api/detections").get_json()["rules"]}
+        o = rules["credential_stuffing"]["case_outcomes"]
+        assert o == {"cases": 4, "open": 1, "confirmed": 1, "false_positive": 2, "fp_rate": 67, "needs_tuning": True}
+        assert rules["distributed_bruteforce"]["case_outcomes"] is None
+
 
 class TestAssessmentViews:
     def test_tenants_attribute_events_by_url_prefix(self, soc, db_engine):
@@ -1070,6 +1098,16 @@ class TestBrief:
         for q in ({"kind": "kpi", "value": "nope"}, {"kind": "family", "value": "nope"}, {"kind": "technique", "value": "T9999"},
                   {"kind": "level", "value": "LOUD"}, {"kind": "sql", "value": "x"}):
             assert c.get("/soc/api/brief", query_string=q).status_code == 400, q
+
+    def test_live_list_counts_only_events_newer_than_the_newest_shown(self, soc, db_engine):
+        c, _ = soc()
+        add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP)
+        top = c.get("/soc/api/events", query_string={"alerts": "1"}).get_json()["events"][0]["id"]
+        assert c.get("/soc/api/events", query_string={"alerts": "1", "since": top}).get_json()["events"] == []
+        add_event(db_engine, "waf.xss_blocked", "ERROR", ip=PUBLIC_IP)
+        add_event(db_engine, "auth.failure", "WARNING", ip=PUBLIC_IP)              # not an alert
+        new = c.get("/soc/api/events", query_string={"alerts": "1", "since": top}).get_json()["events"]
+        assert [e["event_type"] for e in new] == ["waf.xss_blocked"]
 
     def test_events_filter_accepts_the_briefs_type_list(self, soc, db_engine):
         c, _ = soc()

@@ -146,15 +146,20 @@
       /* response */
       const ioc = r.iocs;
       const ips = ioc.filter((i) => i.type === 'ip').map((i) => i.value);
+      const banDur = h('select', { class: 'select', 'aria-label': 'Ban duration' },
+        [['60', '1 hour'], ['1440', '24 hours'], ['10080', '7 days'], ['43200', '30 days'], ['0', 'Until lifted']]
+          .map(([v, l]) => h('option', { value: v, selected: v === '1440' }, l)));
       const actions = h('div', { class: 'row' },
         h('button', { class: 'btn ghost', type: 'button', disabled: !ioc.length, onclick: () => {
           const rows = [['type', 'value', 'reason']].concat(ioc.map((i) => [i.type, i.value, i.reason]));
           SOC.download('iocs-' + (r.filename || 'log').replace(/[^\w.-]/g, '_') + '.csv', rows.map((row) => row.map(csvSafe).join(',')).join('\n'), 'text/csv');
         } }, 'Export IOCs (CSV)'),
         h('button', { class: 'btn ghost', type: 'button', disabled: !ips.length, onclick: () => SOC.copy(ips.join('\n')) }, 'Copy IP list'),
+        SOC.can('analyst') ? banDur : null,
         SOC.can('analyst') ? h('button', { class: 'btn danger', type: 'button', disabled: !ips.length, onclick: async () => {
-          if (!(await SOC.confirm('Ban ' + ips.length + ' address(es) for 24 hours? Private and shared addresses are skipped automatically.', { okText: 'Ban' }))) return;
-          api.post('/soc/api/bans/bulk', { ips, reason: 'Log analysis: ' + (r.filename || 'pasted log'), minutes: 1440 }).then((res) => {
+          const durLabel = banDur.options[banDur.selectedIndex].text;
+          if (!(await SOC.confirm('Ban ' + ips.length + ' address(es) ' + (banDur.value === '0' ? 'until lifted' : 'for ' + durLabel) + '? Private and shared addresses are skipped automatically.', { okText: 'Ban' }))) return;
+          api.post('/soc/api/bans/bulk', { ips, reason: 'Log analysis: ' + (r.filename || 'pasted log'), minutes: Number(banDur.value) }).then((res) => {
             const okN = res.results.filter((x) => x.ok).length;
             SOC.toast(okN + ' banned, ' + (res.results.length - okN) + ' skipped', okN ? 'good' : 'bad');
             SOC.refreshPulse();

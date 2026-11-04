@@ -235,7 +235,7 @@ def pulse():
 
 # ── events ───────────────────────────────────────────────────────────
 def search_events(*, q=None, levels=None, family=None, event_type=None, ip=None, identifier=None, tenant=None,
-                  alerts_only=False, hours=24, cursor=None, limit=100):
+                  alerts_only=False, hours=24, cursor=None, limit=100, since=None):
     hours = hours_arg(hours)
     limit = clamp_int(limit, 100, 1, 200)
     where, params = [_WINDOW], [hours]
@@ -281,6 +281,10 @@ def search_events(*, q=None, levels=None, family=None, event_type=None, ip=None,
         if cursor:
             where.append("id < %s")
             params.append(clamp_int(cursor, 0, 0, 2 ** 31 - 1))
+        if since:
+            # "What arrived after the newest row on screen" -- the live-list check.
+            where.append("id > %s")
+            params.append(clamp_int(since, 0, 0, 2 ** 31 - 1))
         cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + " AND ".join(where) +  # nosec B608 -- fixed clauses, bound values
                     " ORDER BY id DESC LIMIT %s", params + [limit + 1])
         rows = cur.fetchall()
@@ -392,6 +396,7 @@ def detections(hours=72):
         cur.execute("SELECT rule, MAX(last_fired), SUM(fired) FROM detection_state GROUP BY rule")
         fired = {r[0]: {"last": iso(r[1]), "times": int(r[2] or 0)} for r in cur.fetchall()}
     from utils.detections import RULES
+    outcomes = detection_case_outcomes()
     catalog = []
     for r in RULES:
         label, techniques, meaning = tax.DETECTIONS.get(r.name, (r.name, [], r.summary))
@@ -402,7 +407,8 @@ def detections(hours=72):
         catalog.append({"name": r.name, "label": label, "level": r.level, "scope": r.scope,
                         "cooldown_minutes": r.cooldown_minutes, "meaning": meaning or r.summary,
                         "mitre": [tax._technique(t) for t in techniques], "thresholds": thresholds,
-                        "last_fired": fired.get(r.name, {}).get("last"), "times_fired": fired.get(r.name, {}).get("times", 0)})
+                        "last_fired": fired.get(r.name, {}).get("last"), "times_fired": fired.get(r.name, {}).get("times", 0),
+                        "case_outcomes": outcomes.get(r.name)})
     return {"hours": hours, "events": events, "rules": catalog}
 
 
@@ -578,18 +584,65 @@ def _case(row):
     return {k: iso(v) for k, v in zip(keys, row)}
 
 
-def cases(status=None, limit=200):
+def cases(status=None, limit=200, assignee=None):
+    where, params = [], []
+    if status == "open":
+        where.append("status IN ('open','investigating','contained')")
+    elif status:
+        where.append("status=%s")
+        params.append(status)
+    if assignee:
+        where.append("assignee=%s")
+        params.append(assignee[:60])
+    sql = ("SELECT " + _CASE_COLS + " FROM soc_cases" + (" WHERE " + " AND ".join(where) if where else "") +  # nosec B608 -- fixed clauses
+           " ORDER BY updated_at DESC LIMIT %s")
     with read_cursor("att_master") as cur:
-        if status == "open":
-            cur.execute("SELECT " + _CASE_COLS + " FROM soc_cases WHERE status IN ('open','investigating','contained') "  # nosec B608
-                        "ORDER BY updated_at DESC LIMIT %s", (clamp_int(limit, 200, 1, 500),))
-        elif status:
-            cur.execute("SELECT " + _CASE_COLS + " FROM soc_cases WHERE status=%s ORDER BY updated_at DESC LIMIT %s",  # nosec B608
-                        (status, clamp_int(limit, 200, 1, 500)))
-        else:
-            cur.execute("SELECT " + _CASE_COLS + " FROM soc_cases ORDER BY updated_at DESC LIMIT %s",  # nosec B608
-                        (clamp_int(limit, 200, 1, 500),))
+        cur.execute(sql, params + [clamp_int(limit, 200, 1, 500)])
         return [_case(r) for r in cur.fetchall()]
+
+
+def assignees():
+    """Active SOC users who can work a case (analyst or admin)."""
+    with read_cursor("att_master") as cur:
+        cur.execute("SELECT username FROM soc_users WHERE active AND role IN ('analyst','admin') ORDER BY username")
+        return [u for (u,) in cur.fetchall()]
+
+
+def detection_case_outcomes():
+    """How cases opened from each detection rule ended. -> {rule: {...}}.
+
+    A rule whose closed cases are mostly 'false_positive' needs its threshold
+    tuned; this is the evidence. Cases live in att_master and events in public,
+    so the two are joined here rather than in SQL."""
+    with read_cursor("att_master") as cur:
+        cur.execute("SELECT source_event_id, status FROM soc_cases WHERE source_event_id IS NOT NULL "
+                    "ORDER BY id DESC LIMIT 5000")
+        by_event = cur.fetchall()
+    if not by_event:
+        return {}
+    with read_cursor("public") as cur:
+        cur.execute("SELECT id, event_type FROM security_events WHERE id = ANY(%s) AND event_type LIKE 'detection.%%'",
+                    ([e for e, _ in by_event],))
+        rule_of = {i: et.split(".", 1)[1] for i, et in cur.fetchall()}
+    out = {}
+    for eid, status in by_event:
+        rule = rule_of.get(eid)
+        if not rule:
+            continue
+        o = out.setdefault(rule, {"cases": 0, "open": 0, "confirmed": 0, "false_positive": 0})
+        o["cases"] += 1
+        if status == "false_positive":
+            o["false_positive"] += 1
+        elif status == "resolved":
+            o["confirmed"] += 1
+        else:
+            o["open"] += 1
+    for o in out.values():
+        closed = o["confirmed"] + o["false_positive"]
+        o["fp_rate"] = round(100.0 * o["false_positive"] / closed) if closed else None
+        # Only call it noisy with enough closed cases to mean something.
+        o["needs_tuning"] = bool(closed >= 3 and o["fp_rate"] >= 50)
+    return out
 
 
 def case_detail(case_id):
