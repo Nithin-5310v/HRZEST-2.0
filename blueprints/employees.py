@@ -960,6 +960,28 @@ def employee_detail(emp_id):
                            )
 
 
+def _max_emp_seq(cursor, prefix):
+    """Highest numeric suffix among ALL employee IDs of the form <prefix><digits>
+    (case-insensitive, global -- employee_id is unique across tenants). The
+    prefix is LIKE-escaped so '_' / '%' in a company code can't over-match, and
+    only an all-digit remainder counts (so prefix 'AB' ignores 'ABC001')."""
+    like = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id ILIKE %s", (like,))
+    max_seq = 0
+    for (eid,) in cursor.fetchall():
+        eid = eid or ""
+        sfx = eid[len(prefix):]
+        if eid.upper().startswith(prefix.upper()) and sfx.isdigit():
+            max_seq = max(max_seq, int(sfx))
+    return max_seq
+
+
+def _split_emp_id(emp_id):
+    """'PADW009' -> ('PADW', '009'); 'AB2-007' -> ('AB2-', '007'); 'X' -> ('X', '')."""
+    m = re.match(r"^(.*?)(\d*)$", emp_id or "")
+    return (m.group(1), m.group(2)) if m else (emp_id, "")
+
+
 def _next_emp_id(prefix, max_seq, requested_id):
     """Next free ID after `max_seq`, zero-padded to the width of the numeric
     suffix the admin typed (PADW9 -> PADW10, EMP007 -> EMP008); 3 digits when
@@ -1065,18 +1087,9 @@ def add_employee_page():
     # Auto-increment emp_id if already taken
     cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
     if cursor.fetchone():
-        prefix = ''.join(c for c in emp_id if not c.isdigit())
-        if prefix:
-            cursor.execute(
-                "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
-                (prefix + "%",)
-            )
-            max_seq = 0
-            for (eid,) in cursor.fetchall():
-                sfx = eid[len(prefix):]
-                if sfx.isdigit():
-                    max_seq = max(max_seq, int(sfx))
-            emp_id = _next_emp_id(prefix, max_seq, emp_id)
+        prefix, _digits = _split_emp_id(emp_id)
+        if prefix and _digits:
+            emp_id = _next_emp_id(prefix, _max_emp_seq(cursor, prefix), emp_id)
 
     # Photo is optional when adding an employee, and any valid image is
     # accepted (no face-detection requirement). Face attendance still needs a
@@ -1097,7 +1110,7 @@ def add_employee_page():
     hashed_pwd = generate_password_hash(auto_pass)
 
     # Retry up to 5 times in case of duplicate ID collision
-    prefix = ''.join(c for c in emp_id if not c.isdigit())
+    prefix, _digits = _split_emp_id(emp_id)
     if not prefix:
         prefix = emp_id
     original_filepath = filepath  # photo was already saved under initial emp_id (or None)
@@ -1186,16 +1199,7 @@ def add_employee_page():
         except psycopg2.IntegrityError:
             db.rollback()
             # Find next available ID and retry
-            cursor.execute(
-                "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
-                (prefix + "%",)
-            )
-            max_seq = 0
-            for (eid,) in cursor.fetchall():
-                sfx = eid[len(prefix):]
-                if sfx.isdigit():
-                    max_seq = max(max_seq, int(sfx))
-            emp_id = _next_emp_id(prefix, max_seq, emp_id)
+            emp_id = _next_emp_id(prefix, _max_emp_seq(cursor, prefix), emp_id)
 
     if registered:
         flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
@@ -1368,40 +1372,24 @@ def generate_emp_id():
     if not session.get("admin_logged_in") or not session_account_ok():
         return jsonify({"error": "not logged in"}), 401
     company_id_raw = request.args.get("company_id", "").strip()
+    if not company_id_raw.isdigit() and session.get("active_company_id"):
+        company_id_raw = str(session.get("active_company_id"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     if company_id_raw.isdigit():
-        company_id = int(company_id_raw)
-        cursor.execute("SELECT COALESCE(code,''), name FROM companies WHERE id=%s", (company_id,))
+        cursor.execute("SELECT COALESCE(code,''), name FROM companies WHERE id=%s", (int(company_id_raw),))
         row = cursor.fetchone()
         code = (row[0] or "").strip().upper() if row else ""
         company_name = row[1] if row else ""
-        cursor.execute("SELECT employee_id FROM employees WHERE company_id=%s", (company_id,))
     else:
         cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
         row = cursor.fetchone()
         code = (row[0] or "").strip().upper() if row else ""
         company_name = ""
-        cursor.execute("SELECT employee_id FROM employees WHERE company_id IS NULL")
 
-    # Find max existing sequence number to avoid collisions on deletions
     prefix = code if code else "EMP"
-    max_seq = 0
-    for (eid,) in cursor.fetchall():
-        if eid and eid.upper().startswith(prefix):
-            suffix = eid[len(prefix):]
-            if suffix.isdigit():
-                max_seq = max(max_seq, int(suffix))
-
-    # Also check all employees globally in case company_id mismatch
-    cursor.execute("SELECT employee_id FROM employees WHERE employee_id LIKE %s", (f"{prefix}%",))
-    for (eid,) in cursor.fetchall():
-        if eid and eid.upper().startswith(prefix):
-            suffix = eid[len(prefix):]
-            if suffix.isdigit():
-                max_seq = max(max_seq, int(suffix))
-
+    max_seq = _max_emp_seq(cursor, prefix)
     cursor.close()
     db.close()
     seq = max_seq + 1
