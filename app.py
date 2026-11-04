@@ -1279,8 +1279,14 @@ def _security_headers(response):
             # to this site, and no page uses a <base> tag.
             "form-action 'self'; "
             "base-uri 'self'; "
+            # report-to (Reporting API) is the current mechanism; browsers that
+            # support it ignore report-uri. report-uri stays as the fallback for
+            # browsers that don't, so no violation reports are lost. Both land
+            # on /csp-report, which parses either format (blueprints/core.py).
+            "report-to csp-endpoint; "
             "report-uri /csp-report;"
         )
+        response.headers["Reporting-Endpoints"] = 'csp-endpoint="/csp-report"'
     else:
         # Non-HTML responses: minimal restrictive CSP -- blocks MIME sniffing
         # and any attempt to embed API responses as documents or frames.
