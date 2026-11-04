@@ -264,6 +264,36 @@ check_db_tls(os.environ.get("APP_ENV", "production"), os.environ.get("DB_HOST", 
              os.environ.get("DB_ALLOW_PLAINTEXT", "").strip() == "1")
 
 
+def check_app_url_configured(app_env, app_url_env_value, logger=None):
+    """Pure-ish, same pattern as check_secret_key_configured() above.
+
+    Password-reset, welcome and OAuth links in emails are built from APP_URL
+    (utils/helpers.py's _safe_app_url()). Without it they fall back to the
+    request's Host header, which the client controls: a forgot-password
+    request sent with `Host: attacker.example` would mail the victim a
+    genuine reset token on a link to the attacker's server. A boot-time
+    warning was the only guard, so refuse to start instead, outside
+    development."""
+    logger = logger or app_log
+    if app_env == "development":
+        return
+    url = (app_url_env_value or "").strip()
+    if url.startswith(("https://", "http://")) and len(url.split("://", 1)[1].strip("/")) > 0:
+        return
+    logger.critical(
+        "FATAL: APP_ENV=%s but APP_URL is %s -- refusing to start: emailed links (password "
+        "reset, welcome, OAuth) would be built from the client-controlled Host header. "
+        "Set APP_URL=https://yourdomain.com (see .env.example).",
+        app_env, "not set" if not url else "not an absolute http(s) URL",
+    )
+    raise RuntimeError(
+        "APP_URL is not set to an absolute http(s) URL outside APP_ENV=development -- refusing to start (fail-secure)."
+    )
+
+
+check_app_url_configured(os.environ.get("APP_ENV", "production"), os.environ.get("APP_URL", ""))
+
+
 def check_redis_requirement(app_env, redis_configured, require_redis=None, logger=None):
     """Pure-ish (env values passed in, not read internally), same pattern as
     check_secret_key_configured() above -- unit-tested directly without
