@@ -387,6 +387,13 @@ def _purge_stale_fixture_rows(db_engine, _init_test_db):
     cur.execute("SELECT to_regclass('att_master.soc_users')")
     if cur.fetchone()[0] is not None:
         cur.execute("DELETE FROM att_master.soc_users WHERE created_by = 'test'")
+    # Nothing seeds notifications (only runtime code in utils/helpers.py
+    # inserts them), so the baseline holds none. Admin notifications carry no
+    # employee_id, so they can't be matched to fixture identities -- clear the
+    # table. Seen: two "New Support Ticket" rows left by an interrupted
+    # test_tickets_coverage run made test_notifications_flow count 3 admin
+    # notifications instead of 1 in every later session on that database.
+    cur.execute("DELETE FROM notifications")
     cur.close()
 
 

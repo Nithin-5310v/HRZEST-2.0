@@ -164,7 +164,7 @@ _ENCRYPTED_EMPLOYEE_COLS = (
     "aadhar_number", "pan_number", "bank_name", "bank_account", "bank_ifsc", "uan_number",
 )
 # Never exported: credentials, reset tokens, credential public keys.
-_EMPLOYEE_SECRET_COLS = {"password", "reset_token", "reset_token_expiry",
+_EMPLOYEE_SECRET_COLS = {"password", "email_bidx", "phone_bidx", "reset_token", "reset_token_expiry",
                          "fingerprint_credential_id", "fingerprint_public_key", "fingerprint_sign_count"}
 
 
@@ -206,7 +206,7 @@ def export_employee_data(cursor, employee_id, decrypt=None):
 
 # ── erasure ─────────────────────────────────────────────────────────────────
 _EMPLOYEE_ERASE_NULL = (
-    "email", "phone", "gender", "dob", "blood_group", "address", "city", "state", "pincode",
+    "email", "email_bidx", "phone", "phone_bidx", "gender", "dob", "blood_group", "address", "city", "state", "pincode",
     "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
     "aadhar_number", "pan_number", "bank_name", "bank_account", "bank_ifsc", "uan_number",
     "about_me", "face_image", "qr_code", "work_lat", "work_lon",

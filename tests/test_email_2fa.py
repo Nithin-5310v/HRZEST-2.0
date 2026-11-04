@@ -305,6 +305,7 @@ class TestEmailSettingsRoutes:
         host, enc_pass = cur.fetchone()
         cur.close()
         assert host == "smtp.newhost.com"
+        assert enc_pass.startswith("hz2:"), "kept password must stay encrypted at rest, not be re-saved as plaintext"
         assert decrypt_pii(enc_pass) == "RealPassw0rd!"   # unchanged, not corrupted
 
     def test_save_with_new_password_encrypts_it(self, client, enrolled_admin, seeded_email_config, db_engine):

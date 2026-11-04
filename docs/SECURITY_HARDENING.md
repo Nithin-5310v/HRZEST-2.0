@@ -214,6 +214,17 @@ ranges — tune them against real kiosk captures before enforcing.
   **After deploying, run once:** `scripts/rotate_encryption_key.py` (upgrades
   Fernet column values to AES-256-GCM) and `scripts/encrypt_private_uploads.py`
   (encrypts existing files in place). Use `--dry-run` first for both.
+* **Employee email and phone** are encrypted the same way, with an
+  HMAC-SHA-512 blind index beside each (`email_bidx`, `phone_bidx`) for
+  exact-match lookups (admin search, email blast). Partial search on them
+  no longer works. Existing rows are encrypted by the
+  `employee_contact_encryption_v1` migration on startup. Write with
+  `encrypt_contact()`; look up with `contact_lookup_keys()`.
+* **Decrypt on fetch** (`database.py`): any text value starting `hz2:` is
+  decrypted as psycopg2 reads it, so application code always sees plaintext.
+  Consequence: **code that reads an encrypted column and writes it back
+  must re-encrypt** (`encrypt_pii(decrypt_pii(v))`), or it stores plaintext.
+  Use `raw_text(cursor)` when you need the stored ciphertext.
 * **Passwords: Argon2id** (`utils/auth.py`, 19 MiB / t=2 / p=1, the OWASP
   baseline). bcrypt and pbkdf2 hashes still verify and are rehashed to Argon2id
   on the user's next successful login (`password_needs_rehash`).
