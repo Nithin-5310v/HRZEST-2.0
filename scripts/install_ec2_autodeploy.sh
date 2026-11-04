@@ -45,6 +45,54 @@ sudo install -m 755 "$here/ec2_autodeploy.sh" /usr/local/bin/hrzest-autodeploy
 sudo install -m 644 "$here/hrzest-autodeploy.service" "$here/hrzest-autodeploy.timer" /etc/systemd/system/
 sudo systemctl daemon-reload
 
+# Host nginx hardening (scripts/nginx-hardening.conf: server_tokens off). Only
+# ever applied if nginx accepts it: a config error here must never take the
+# site down or stop the rest of this install, so every failure path puts the
+# previous state back and carries on with a warning.
+install_nginx_hardening() {
+  local src="$here/nginx-hardening.conf" dest=/etc/nginx/conf.d/hrzest-hardening.conf
+  local backup="" conf=""
+  [ -f "$src" ] || return 0
+  if ! command -v nginx >/dev/null 2>&1 || [ ! -d /etc/nginx/conf.d ]; then
+    echo "nginx hardening: no host nginx with /etc/nginx/conf.d -- skipped"
+    return 0
+  fi
+  if cmp -s "$src" "$dest"; then
+    return 0
+  fi
+  if ! sudo nginx -t >/dev/null 2>&1; then
+    echo "WARNING nginx hardening: nginx -t already fails before any change -- skipped" >&2
+    return 0
+  fi
+  if [ -e "$dest" ]; then
+    backup="$(mktemp)"
+    sudo cp "$dest" "$backup"
+  fi
+  sudo install -m 644 "$src" "$dest"
+  # Captured first, not piped into grep -q: under pipefail an early grep exit
+  # SIGPIPEs nginx -T and the whole test would read as a failure.
+  conf="$(sudo nginx -T 2>/dev/null)" || conf=""
+  if sudo nginx -t >/dev/null 2>&1 && grep -qF "configuration file $dest" <<<"$conf" \
+      && sudo systemctl reload nginx; then
+    echo "nginx hardening: installed $dest and reloaded nginx"
+    [ -z "$backup" ] || rm -f "$backup"
+    return 0
+  fi
+  # Rejected (e.g. nginx.conf already sets server_tokens: "duplicate
+  # directive"), not included by nginx.conf, or the reload failed.
+  if [ -n "$backup" ]; then
+    sudo install -m 644 "$backup" "$dest"
+    rm -f "$backup"
+  else
+    sudo rm -f "$dest"
+  fi
+  echo "WARNING nginx hardening: nginx rejected $dest or doesn't include conf.d/ -- left nginx as it was." >&2
+  echo "  Set 'server_tokens off;' in the http {} block of /etc/nginx/nginx.conf by hand, then:" >&2
+  echo "  sudo nginx -t && sudo systemctl reload nginx" >&2
+  return 0
+}
+install_nginx_hardening || true
+
 if [ -e "$jenkins_marker" ]; then
   sudo systemctl disable --now hrzest-autodeploy.timer
   echo "Installed. Jenkins mode: the 2-minute timer is off; production deploys come from Jenkins."
