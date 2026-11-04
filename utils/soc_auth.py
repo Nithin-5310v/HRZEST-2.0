@@ -188,7 +188,7 @@ def list_users():
 
 
 def validate_password(pw, username=""):
-    if not pw or len(pw) < MIN_PASSWORD_LENGTH:
+    if not isinstance(pw, str) or len(pw) < MIN_PASSWORD_LENGTH:
         return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
     if username and username.lower() in pw.lower():
         return False, "Password must not contain the username."
@@ -208,7 +208,7 @@ def new_setup_code():
 
 
 def _norm_setup_code(code):
-    return re.sub(r"[^A-Z0-9]", "", (code or "").upper())
+    return re.sub(r"[^A-Z0-9]", "", code.upper() if isinstance(code, str) else "")
 
 
 def create_user(username, password, role="viewer", email=None, created_by=None):
@@ -217,10 +217,10 @@ def create_user(username, password, role="viewer", email=None, created_by=None):
     authenticator without it, so someone who learns only the password cannot
     claim the second factor first."""
     from utils.auth import generate_password_hash
-    username = (username or "").strip().lower()
+    username = username.strip().lower() if isinstance(username, str) else ""
     if not _USERNAME_RE.match(username):
         return False, "Username must be 3-40 characters: lowercase letters, digits, dot, dash, underscore.", None
-    if role not in ROLE_RANK:
+    if not isinstance(role, str) or role not in ROLE_RANK:
         return False, "Unknown role.", None
     ok, err = validate_password(password, username)
     if not ok:
@@ -231,7 +231,7 @@ def create_user(username, password, role="viewer", email=None, created_by=None):
             cur.execute(
                 "INSERT INTO soc_users (username, email, password_hash, role, created_by, enroll_code_hash) "
                 "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (username) DO NOTHING RETURNING id",
-                (username, (email or None) and email[:200], generate_password_hash(password), role, created_by,
+                (username, (email[:200] or None) if isinstance(email, str) else None, generate_password_hash(password), role, created_by,
                  generate_password_hash(_norm_setup_code(code))))
             if cur.fetchone() is None:
                 return False, "That username already exists.", None
@@ -261,7 +261,7 @@ def set_password(uid, new_password, username=""):
 def update_user(uid, *, role=None, active=None):
     sets, params = [], []
     if role is not None:
-        if role not in ROLE_RANK:
+        if not isinstance(role, str) or role not in ROLE_RANK:
             return False
         sets.append("role=%s")
         params.append(role)

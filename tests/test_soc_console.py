@@ -704,6 +704,82 @@ class TestResponseActions:
         many = c.post("/soc/api/bans/bulk", json={"ips": [f"44.1.1.{i}" for i in range(1, 120)], "reason": "flood test", "minutes": 5}).get_json()
         assert len(many["results"]) == 50                               # capped
 
+    def test_active_bans_are_listed_before_expired_ones(self, soc, db_engine, monkeypatch):
+        from utils import soc_queries as q
+        monkeypatch.setattr(q, "BANS_LIMIT", 3)
+        c, _ = soc("ann", "analyst")
+        cur = db_engine.cursor()
+        # Three recent expired bans, then one old permanent one: by time alone the
+        # permanent ban would fall off a 3-row list although it is still enforced.
+        for i in range(3):
+            cur.execute("INSERT INTO public.banned_ips (ip, reason, banned_by, banned_at, expires_at) "
+                        "VALUES (%s,'old','t',NOW() - INTERVAL '1 hour', NOW() - INTERVAL '1 minute')", (f"44.2.2.{i}",))
+        cur.execute("INSERT INTO public.banned_ips (ip, reason, banned_by, banned_at) "
+                    "VALUES ('44.3.3.3','permanent','t',NOW() - INTERVAL '30 days')")
+        cur.close()
+        d = c.get("/soc/api/bans").get_json()
+        assert d["bans"][0]["ip"] == "44.3.3.3" and d["bans"][0]["active"] is True
+        assert d["active_total"] == 1 and len(d["bans"]) == 3
+
+    def test_a_company_level_ban_is_listed_and_liftable(self, soc, db_engine):
+        schema = "soc_ban_co"
+        cur = db_engine.cursor()
+        cur.execute(f'CREATE SCHEMA "{schema}"')
+        cur.execute(f'CREATE TABLE "{schema}".banned_ips (ip VARCHAR(45) PRIMARY KEY, reason VARCHAR(300), '
+                    'banned_by VARCHAR(150), banned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expires_at TIMESTAMP)')
+        cur.execute(f'INSERT INTO "{schema}".banned_ips (ip, reason, banned_by) VALUES (%s,\'legacy\',\'admin\')', (PUBLIC_IP,))
+        cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name, status) "
+                    "VALUES ('Ban Co','ban-co',%s,'active') RETURNING id", (schema,))
+        tid = cur.fetchone()[0]
+        # A company schema WITHOUT its own table must not echo the platform list.
+        cur.execute('CREATE SCHEMA "soc_noban_co"')
+        cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name, status) "
+                    "VALUES ('No Ban Co','noban-co','soc_noban_co','active')")
+        cur.execute("INSERT INTO public.banned_ips (ip, reason, banned_by) VALUES ('44.4.4.4','platform','t')")
+        c, _ = soc("ann", "analyst")
+        bans = c.get("/soc/api/bans").get_json()["bans"]
+        assert sorted((b["ip"], b["tenant_id"]) for b in bans) == [("44.4.4.4", None), (PUBLIC_IP, tid)]
+        # Lifting without the company leaves the company's ban alone ...
+        assert c.post("/soc/api/bans/remove", json={"ip": PUBLIC_IP}).status_code == 400
+        # ... with it, removes exactly that row.
+        assert c.post("/soc/api/bans/remove", json={"ip": PUBLIC_IP, "tenant_id": tid}).status_code == 200
+        cur.execute(f'SELECT COUNT(*) FROM "{schema}".banned_ips')
+        assert cur.fetchone()[0] == 0
+        # The no-table company falls back to nothing, not to public.banned_ips.
+        noban = next(t for t in soc_queries.list_tenants() if t["slug"] == "noban-co")
+        assert c.post("/soc/api/bans/remove", json={"ip": "44.4.4.4", "tenant_id": noban["id"]}).status_code == 400
+        cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE ip='44.4.4.4'")
+        assert cur.fetchone()[0] == 1
+        assert c.post("/soc/api/bans/remove", json={"ip": PUBLIC_IP, "tenant_id": 999999}).status_code == 400
+        assert ("unban_ip", f"ban-co:{PUBLIC_IP}") in [(a, t) for _, a, t in audit_actions(db_engine)]
+        cur.close()
+
+    def test_wrongly_typed_json_fields_get_a_400_not_a_500(self, soc):
+        c, _ = soc("alice", "admin")
+        eid = c.post("/soc/api/cases", json={"title": "typed input"}).get_json()["id"]
+        bad = [
+            ("/soc/api/bans", {"ip": 123, "reason": ["x"]}),
+            ("/soc/api/bans/remove", {"ip": {"a": 1}}),
+            ("/soc/api/sessions/revoke", {"tenant_id": 1, "sid": 42}),
+            ("/soc/api/cases", {"title": 12345}),
+            (f"/soc/api/cases/{eid}", {"assignee": 5}),
+            (f"/soc/api/cases/{eid}/notes", {"body": ["note"]}),
+            ("/soc/api/users", {"username": 7, "password": PW, "role": "viewer"}),
+            ("/soc/api/users", {"username": "bob", "password": 12345678901234, "role": "viewer"}),
+            ("/soc/api/users", {"username": "bob", "password": PW, "role": ["admin"]}),
+            ("/soc/api/me/password", {"current": 1, "new": PW + "x"}),
+        ]
+        for url, body in bad:
+            r = c.post(url, json=body)
+            assert 400 <= r.status_code < 500, (url, body, r.status_code)
+        # A wrongly typed assignee or resolution is refused, never read as "clear it".
+        assert c.post(f"/soc/api/cases/{eid}", json={"assignee": "alice"}).status_code == 200
+        assert c.post(f"/soc/api/cases/{eid}", json={"resolution": 7}).status_code == 400
+        case = c.get(f"/soc/api/cases/{eid}").get_json()["case"]
+        assert case["assignee"] == "alice"
+        # An optional summary that is not text is simply left out.
+        assert c.post("/soc/api/cases", json={"title": "with summary", "summary": {"x": 1}}).status_code == 200
+
     def test_revoking_a_risky_session(self, soc, db_engine):
         c, _ = soc("ann", "analyst")
         cur = db_engine.cursor()

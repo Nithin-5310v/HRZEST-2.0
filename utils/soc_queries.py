@@ -20,6 +20,7 @@ into a per-tenant query storm.
 """
 import json
 import os
+import re
 import threading
 import time
 
@@ -566,12 +567,53 @@ def brief(kind, value, hours=24):
 
 
 # ── response state ───────────────────────────────────────────────────
+BANS_LIMIT = 500
+_BANS_SQL = ("SELECT ip, reason, banned_by, banned_at, expires_at, (expires_at IS NULL OR expires_at > NOW()) AS act "
+             "FROM {table} ORDER BY act DESC, banned_at DESC LIMIT %s")
+
+
+def banned_ips_table(schema):
+    """Schema-qualified banned_ips. Qualified on purpose: a tenant connection's
+    search_path is '"<tenant>", public', so a bare name in a schema without its
+    own table would silently mean the platform table instead."""
+    if not re.fullmatch(r"[A-Za-z0-9_]+", schema or ""):
+        raise ValueError("bad schema name")
+    return f'"{schema}".banned_ips'
+
+
+def _ban_rows(cur, schema, scope):
+    cur.execute("SELECT to_regclass(%s)", (banned_ips_table(schema),))
+    if cur.fetchone()[0] is None:
+        return []
+    cur.execute(_BANS_SQL.format(table=banned_ips_table(schema)), (BANS_LIMIT,))  # nosec B608 -- validated schema name
+    return [{"ip": ip, "reason": r, "by": by, "at": iso(at), "expires": iso(ex), "active": bool(act), **scope}
+            for ip, r, by, at, ex, act in cur.fetchall()]
+
+
 def bans():
+    """Platform-wide bans plus any left in a company's own banned_ips.
+
+    Active bans come first: ordering by time alone let a pile of expired rows
+    push still-enforced permanent bans off the list. Company-level rows are no
+    longer written (utils/waf.ban_ip writes public.banned_ips only) but older
+    ones are still enforced by app.py's ban hook, so they must be visible and
+    liftable here. -> {"bans": [...], "errors": [...]}"""
     with read_cursor("public") as cur:
-        cur.execute("SELECT ip, reason, banned_by, banned_at, expires_at, (expires_at IS NULL OR expires_at > NOW()) "
-                    "FROM banned_ips ORDER BY banned_at DESC LIMIT 500")
-        return [{"ip": ip, "reason": r, "by": by, "at": iso(at), "expires": iso(ex), "active": bool(act)}
-                for ip, r, by, at, ex, act in cur.fetchall()]
+        rows = _ban_rows(cur, "public", {"tenant_id": None, "company": None})
+        cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
+        active_total = cur.fetchone()[0]
+
+    def per_tenant(t, cur):
+        if t["schema"] == "public":         # same table as the platform list above
+            return None
+        return _ban_rows(cur, t["schema"], {"tenant_id": t["id"], "company": t["company"]}) or None
+    groups, errors = each_tenant(per_tenant)
+    tenant_rows = [b for g in groups for b in g]
+    active_total += sum(1 for b in tenant_rows if b["active"])
+    rows += tenant_rows
+    rows.sort(key=lambda b: b["at"] or "", reverse=True)    # newest first ...
+    rows.sort(key=lambda b: not b["active"])                # ... within active, then expired (stable)
+    return {"bans": rows[:BANS_LIMIT], "active_total": active_total, "errors": errors}
 
 
 # ── cases ────────────────────────────────────────────────────────────

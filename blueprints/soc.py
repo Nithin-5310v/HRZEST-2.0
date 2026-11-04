@@ -246,7 +246,8 @@ def api_change_own_password():
     from utils.auth import check_password_hash
     u = soc_auth.current_user()
     data = _body()
-    if not check_password_hash(u["password_hash"], data.get("current", "") or ""):
+    current = data.get("current")
+    if not isinstance(current, str) or not check_password_hash(u["password_hash"], current):
         soc_auth.register_failure(u, _ip(), "bad current password on change")
         return _err("Current password is incorrect.", 403)
     ok, err = soc_auth.set_password(u["id"], data.get("new", "") or "", u["username"])
@@ -366,7 +367,7 @@ def api_entity_identifier():
 @soc_bp.route("/soc/api/bans")
 @soc_required("viewer")
 def api_bans():
-    return _ok(bans=soc_queries.bans())
+    return _ok(**soc_queries.bans())
 
 
 @soc_bp.route("/soc/api/sessions")
@@ -490,7 +491,10 @@ def api_ban():
 @soc_bp.route("/soc/api/bans/remove", methods=["POST"])
 @soc_required("analyst")
 def api_unban():
-    ok, msg = soc_actions.unban_ip(_body().get("ip"), _actor(), _ip())
+    d = _body()
+    tenant_id = d.get("tenant_id")
+    tenant_id = None if tenant_id in (None, "") else clamp_int(tenant_id, 0, 0, 2 ** 31 - 1)
+    ok, msg = soc_actions.unban_ip(d.get("ip"), _actor(), _ip(), tenant_id=tenant_id)
     return _ok(message=msg) if ok else _err(msg)
 
 

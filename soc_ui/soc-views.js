@@ -501,15 +501,20 @@
           act(api.post('/soc/api/bans', { ip: ip.value.trim(), reason: why.value, minutes: Number(dur.value) }), 'Banned').then(() => SOC.reload()).catch(() => {});
         } }, ip, why, dur, h('button', { class: 'btn danger', type: 'submit' }, 'Ban')));
       }
+      const shownActive = d.bans.filter((b) => b.active).length;
+      if (d.active_total > shownActive) root.appendChild(h('p', { class: 'note' }, 'Showing ' + fmt.n(shownActive) + ' of ' + fmt.n(d.active_total) + ' active bans.'));
       root.appendChild(SOC.table({
         empty: 'No bans recorded.', rows: d.bans,
         columns: [{ label: 'IP', render: (b) => SOC.ipLink(b.ip) }, { label: 'Status', render: (b) => SOC.chip(b.active ? 'active' : 'expired', b.active ? 'bad' : 'plain') },
+          { label: 'Scope', render: (b) => b.tenant_id == null ? 'Platform' : h('span', { title: 'Older ban stored in this company’s own list; still enforced on its pages' }, b.company) },
           { label: 'Reason', cls: 'clip', key: 'reason' }, { label: 'By', key: 'by' }, { label: 'Since', render: (b) => when(b.at) },
           { label: 'Until', render: (b) => b.expires ? fmt.time(b.expires) : 'until lifted' },
           { label: '', render: (b) => needs('analyst') && b.active ? h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-            SOC.confirm('Lift the ban on ' + b.ip + '?', { danger: false }).then((ok) => ok && act(api.post('/soc/api/bans/remove', { ip: b.ip }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
+            const where = b.tenant_id == null ? '' : ' for ' + b.company;
+            SOC.confirm('Lift the ban on ' + b.ip + where + '?', { danger: false }).then((ok) => ok && act(api.post('/soc/api/bans/remove', { ip: b.ip, tenant_id: b.tenant_id }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
           } }, 'Lift') : null }]
       }));
+      if (d.errors && d.errors.length) root.appendChild(h('p', { class: 'note' }, d.errors.length + ' tenant(s) could not be read.'));
     }
   });
 
