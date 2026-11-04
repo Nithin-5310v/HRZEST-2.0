@@ -608,107 +608,126 @@
         </div>
 
         <!-- Shifts grid -->
-        <div class="u-fs-11 u-fw-700 u-ttr-uppercase u-ls-d6 u-c-64748b u-mb-10 u-d-flex u-ai-center u-gap-8">
-          <i class="ti ti-clock u-fs-14 u-c-6366f1"></i> Shifts
-          <span class="u-bg-ede9fe u-c-7c3aed u-br-20 u-p-2-8 u-fs-10">{{ shift_full|length }}</span>
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;display:inline-flex;align-items:center;gap:7px;">
+            <i class="ti ti-clock-hour-9" style="font-size:15px;color:#6366f1;"></i> Work Shifts
+          </span>
+          <span style="background:#eef2ff;color:#4f46e5;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;">{{ shift_full|length }}</span>
+          <span style="flex:1;height:1px;background:#eef1f6;"></span>
         </div>
 
         {% if shift_full %}
-        <div class="u-d-grid u-gtc-repeatauto-fil8e58c8 u-gap-14 u-mb-28">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;margin-bottom:30px;">
           {% for s in shift_full %}
-          <div class="u-bg-fff u-bd-1d5-solid-e0e7ff u-br-16 u-p-18-18-14 u-pos-relative">
-            <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-8 u-mb-14">
-              <div>
-                <div class="u-fs-15 u-fw-800 u-c-1e3a8a">{{ s.name }}</div>
-                <div class="u-fs-11 u-c-94a3b8 u-mt-2">ID #{{ s.id }}</div>
+          <div style="background:#fff;border:1px solid #e9ecf5;border-radius:16px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 16px rgba(16,24,40,.04);">
+            <!-- Card head -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:11px;min-width:0;">
+                <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i class="ti ti-clock-hour-9" style="font-size:21px;color:#4f46e5;"></i>
+                </div>
+                <div style="min-width:0;">
+                  <div style="font-size:15px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ s.name }}</div>
+                  <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:1px;">Shift ID&nbsp;#{{ s.id }}</div>
+                </div>
               </div>
-              <div class="u-d-flex u-gap-5 u-fxs-0">
-                <button class="u-p-5-10 u-bd-1-solid-dbeafe u-br-8 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" data-on-click="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}">
+              <div style="display:flex;gap:6px;flex-shrink:0;">
+                <button style="display:inline-flex;align-items:center;gap:4px;padding:6px 11px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;" data-on-click="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}">
                   <i class="ti ti-pencil"></i> Edit
                 </button>
                 <form class="u-d-inline" method="POST" action="/delete_shift/{{ s.id }}" data-on-submit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
-                  <button class="u-p-5-10 u-bd-1-solid-fecaca u-br-8 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
+                  <button style="display:inline-flex;align-items:center;justify-content:center;width:33px;height:33px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#64748b;font-size:14px;cursor:pointer;" type="submit" title="Delete shift">
                     <i class="ti ti-trash"></i>
                   </button>
                 </form>
               </div>
             </div>
-            <!-- Time blocks -->
-            <div class="u-d-flex u-gap-8 u-fxw-wrap">
-              <div class="u-fx-1 u-minw-70 u-bg-eff6ff u-br-10 u-p-8-10 u-ta-center">
-                <div class="u-fs-10 u-c-64748b u-fw-600 u-mb-2">START</div>
-                <div class="u-fs-16 u-fw-800 u-c-1e3a8a">{{ s.start }}</div>
+            <!-- Time track -->
+            <div style="display:flex;align-items:stretch;background:#f8fafc;border:1px solid #eef1f6;border-radius:12px;overflow:hidden;">
+              <div style="flex:1;padding:11px 8px;text-align:center;">
+                <div style="font-size:9.5px;font-weight:700;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px;">START</div>
+                <div style="font-size:17px;font-weight:800;color:#1e293b;line-height:1;">{{ s.start }}</div>
               </div>
-              <div class="u-fx-1 u-minw-70 u-bg-fef9c3 u-br-10 u-p-8-10 u-ta-center">
-                <div class="u-fs-10 u-c-64748b u-fw-600 u-mb-2">HALF DAY</div>
-                <div class="u-fs-16 u-fw-800 u-c-92400e">{{ s.half }}</div>
+              <div style="width:1px;background:#e5e9f2;"></div>
+              <div style="flex:1;padding:11px 8px;text-align:center;">
+                <div style="font-size:9.5px;font-weight:700;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px;">HALF&nbsp;DAY</div>
+                <div style="font-size:17px;font-weight:800;color:#1e293b;line-height:1;">{{ s.half }}</div>
               </div>
-              <div class="u-fx-1 u-minw-70 u-bg-dcfce7 u-br-10 u-p-8-10 u-ta-center">
-                <div class="u-fs-10 u-c-64748b u-fw-600 u-mb-2">END</div>
-                <div class="u-fs-16 u-fw-800 u-c-15803d">{{ s.end }}</div>
+              <div style="width:1px;background:#e5e9f2;"></div>
+              <div style="flex:1;padding:11px 8px;text-align:center;">
+                <div style="font-size:9.5px;font-weight:700;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px;">END</div>
+                <div style="font-size:17px;font-weight:800;color:#1e293b;line-height:1;">{{ s.end }}</div>
               </div>
             </div>
-            <!-- Assign link -->
-            <div class="u-mt-12 u-bdt-1-solid-f1f5f9 u-pt-10">
-              <form class="u-d-flex u-ai-center u-gap-8" method="POST" action="{{ tpath('/bulk_assign_shift') }}">
+            <!-- Assign row -->
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#94a3b8;margin-bottom:7px;">Assign to department</div>
+              <form style="display:flex;align-items:center;gap:8px;" method="POST" action="{{ tpath('/bulk_assign_shift') }}">
                 <input type="hidden" name="shift_id" value="{{ s.id }}" />
-                <select class="u-fx-1 u-p-6-8 u-bd-1-solid-dbeafe u-br-8 u-fs-12 u-bg-f8fafc u-out-none" name="dept_filter">
+                <select style="flex:1;min-width:0;padding:7px 9px;border:1px solid #e2e8f0;border-radius:9px;font-size:12px;background:#fff;color:#334155;outline:none;" name="dept_filter">
                   <option value="">All departments</option>
                   {% for dept in departments %}
                   <option value="{{ dept }}">{{ dept }}</option>
                   {% endfor %}
                 </select>
-                <button class="u-p-6-12 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="submit">Assign All</button>
+                <button style="padding:7px 14px;border:none;border-radius:9px;background:#6366f1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;" type="submit">Assign All</button>
               </form>
             </div>
           </div>
           {% endfor %}
         </div>
         {% else %}
-        <div class="u-bg-fff u-bd-1d5-dashed-c7d2fe u-br-16 u-p-32 u-ta-center u-mb-28 u-c-94a3b8">
-          <i class="ti ti-clock-off u-fs-32 u-d-block u-mb-10 u-c-c7d2fe"></i>
-          No shifts defined yet. Click <strong>Add Shift</strong> to create one.
+        <div style="background:#fff;border:1.5px dashed #d6ddf5;border-radius:16px;padding:40px 24px;text-align:center;margin-bottom:30px;color:#94a3b8;">
+          <i class="ti ti-clock-off" style="font-size:34px;display:block;margin-bottom:12px;color:#c7d2fe;"></i>
+          <div style="font-size:14px;color:#64748b;font-weight:600;">No shifts defined yet</div>
+          <div style="font-size:12.5px;margin-top:4px;">Click <strong>Add Shift</strong> to create your first work shift.</div>
         </div>
         {% endif %}
 
         <!-- Breaks section -->
-        <div class="u-fs-11 u-fw-700 u-ttr-uppercase u-ls-d6 u-c-64748b u-mb-10 u-d-flex u-ai-center u-gap-8">
-          <i class="ti ti-coffee u-fs-14 u-c-f59e0b"></i> Breaks
-          <span class="u-bg-fef9c3 u-c-92400e u-br-20 u-p-2-8 u-fs-10">{{ breaks_list|length }}</span>
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;display:inline-flex;align-items:center;gap:7px;">
+            <i class="ti ti-coffee" style="font-size:15px;color:#64748b;"></i> Break Schedules
+          </span>
+          <span style="background:#eef2ff;color:#4f46e5;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;">{{ breaks_list|length }}</span>
+          <span style="flex:1;height:1px;background:#eef1f6;"></span>
         </div>
 
         {% if breaks_list %}
-        <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-16 u-ov-hidden">
-          <table class="u-w-100pct u-border-collapse u-fs-13">
+        <div style="background:#fff;border:1px solid #e9ecf5;border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 16px rgba(16,24,40,.04);">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
             <thead>
               <tr>
-                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">BREAK NAME</th>
-                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">TIME</th>
-                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">DURATION</th>
-                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">STATUS</th>
-                <th class="u-bg-fef9c3 u-c-92400e u-p-10-14 u-ta-left u-fs-11 u-fw-700 u-ls-d5">ACTIONS</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Break Name</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Time</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Duration</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Status</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for b in breaks_list %}
-              <tr class="u-bdb-1-solid-f8fafc">
-                <td class="u-p-11-14 u-fw-600 u-c-0f172a">
-                  <i class="ti ti-coffee u-c-f59e0b u-mr-5"></i>{{ b.name }}
-                </td>
-                <td class="u-p-11-14 u-c-475569 u-fw-600">{{ b.time }}</td>
-                <td class="u-p-11-14 u-c-475569">{{ b.duration }} min</td>
-                <td class="u-p-11-14">
-                  <span style="padding:3px 10px;border-radius:20px;font-size:13px;font-weight:700;{% if b.active %}background:#dcfce7;color:#15803d;{% else %}background:#f1f5f9;color:#94a3b8;{% endif %}">
-                    {{ 'Active' if b.active else 'Inactive' }}
+              <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:13px 16px;font-weight:700;color:#1e293b;">
+                  <span style="display:inline-flex;align-items:center;gap:9px;">
+                    <span style="width:30px;height:30px;border-radius:8px;background:#f1f5f9;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-coffee" style="color:#64748b;font-size:15px;"></i></span>
+                    {{ b.name }}
                   </span>
                 </td>
-                <td class="u-p-11-14">
-                  <div class="u-d-flex u-gap-5">
-                    <button class="u-p-4-10 u-bd-1-solid-dbeafe u-br-7 u-bg-eff6ff u-c-1e3a8a u-fs-11 u-fw-700 u-cur-pointer" data-on-click="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active)" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}">
+                <td style="padding:13px 16px;color:#334155;font-weight:600;font-variant-numeric:tabular-nums;">{{ b.time }}</td>
+                <td style="padding:13px 16px;color:#64748b;">{{ b.duration }} min</td>
+                <td style="padding:13px 16px;">
+                  <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:700;{% if b.active %}background:#eef2ff;color:#4f46e5;{% else %}background:#f1f5f9;color:#94a3b8;{% endif %}">
+                    <span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ 'Active' if b.active else 'Inactive' }}
+                  </span>
+                </td>
+                <td style="padding:13px 16px;">
+                  <div style="display:flex;gap:6px;justify-content:flex-end;">
+                    <button style="display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:11.5px;font-weight:700;cursor:pointer;" data-on-click="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active)" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}">
                       <i class="ti ti-pencil"></i> Edit
                     </button>
                     <form method="POST" action="{{ tpath('/delete_break/' + b.id|string) }}" data-on-submit="return hzConfirmSubmit(event, 'Delete this break?')">
-                      <button class="u-p-4-10 u-bd-1-solid-fecaca u-br-7 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-cur-pointer" type="submit">
+                      <button style="display:inline-flex;align-items:center;justify-content:center;width:31px;height:31px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:13px;cursor:pointer;" type="submit" title="Delete break">
                         <i class="ti ti-trash"></i>
                       </button>
                     </form>
@@ -720,9 +739,10 @@
           </table>
         </div>
         {% else %}
-        <div class="u-bg-fff u-bd-1d5-dashed-fde68a u-br-16 u-p-28 u-ta-center u-c-94a3b8">
-          <i class="ti ti-coffee-off u-fs-28 u-d-block u-mb-8 u-c-fde68a"></i>
-          No breaks configured. Click <strong>Add Break</strong> to create one.
+        <div style="background:#fff;border:1.5px dashed #fce4ae;border-radius:16px;padding:36px 24px;text-align:center;color:#94a3b8;">
+          <i class="ti ti-coffee-off" style="font-size:30px;display:block;margin-bottom:10px;color:#fcd98a;"></i>
+          <div style="font-size:14px;color:#64748b;font-weight:600;">No breaks configured</div>
+          <div style="font-size:12.5px;margin-top:4px;">Click <strong>Add Break</strong> to add a break schedule.</div>
         </div>
         {% endif %}
 
@@ -2430,7 +2450,23 @@
     document.getElementById('editBreakActive').checked = !!active;
     document.getElementById('editBreakModal').style.display = 'flex';
   }
-  function closeModal(id) { document.getElementById(id).style.display='none'; }
+  // NOTE: this redeclares the page-wide closeModal() above (same global name,
+  // later declaration wins). It must handle BOTH modal styles: .modal-backdrop
+  // modals (Add/Edit employee...) are shown via the "open" class, so hiding
+  // them with an inline display:none left them stuck hidden -- openModal()
+  // only re-adds the class, and the inline style kept overriding it, so
+  // "Add Employee" did nothing after the first close until a page refresh.
+  function closeModal(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.classList.contains('modal-backdrop')) {
+      el.classList.remove('open');
+      el.style.display = '';
+      document.body.style.overflow = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
   // Close on backdrop click
   ['addShiftModal','editShiftModal','addBreakModal','editBreakModal'].forEach(function(id){
     var el = document.getElementById(id);
