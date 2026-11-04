@@ -6,7 +6,6 @@ honeypot container the entire production .env (SECRET_KEY, DB password,
 ENCRYPTION_KEY, SMTP, payment keys) because utils.alerts imported the whole
 Flask app just to get a logger.
 """
-import datetime
 import http.server
 import json
 import os
@@ -175,35 +174,52 @@ def _ban(db_engine, ip):
 def _unban(db_engine, ip):
     cur = db_engine.cursor()
     cur.execute("DELETE FROM public.banned_ips WHERE ip=%s", (ip,))
+    cur.execute("DELETE FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
     cur.close()
+
+
+def _review(db_engine, ip):
+    cur = db_engine.cursor()
+    cur.execute("SELECT status, source, reason, suggested_minutes FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
+    row = cur.fetchone()
+    cur.close()
+    return row
 
 
 class TestAppSideHandler:
     @pytest.fixture(autouse=True)
     def _secret(self, monkeypatch):
         monkeypatch.setenv("HONEYPOT_REPORT_SECRET", SECRET)
+        monkeypatch.delenv("SOC_AUTO_BAN", raising=False)
 
-    def test_valid_report_bans_the_scanner(self, client, db_engine):
+    def test_valid_report_raises_the_scanner_for_review(self, client, db_engine):
+        """A decoy-port hit queues the address for an analyst's ban decision
+        (it may be a customer's own authorised scan) rather than banning it."""
         ip = "198.51.100.77"
         _unban(db_engine, ip)
         try:
             resp = _signed_post(client, ip, port=3306, protocol="mysql")
             assert resp.status_code == 200
-            row = _ban(db_engine, ip)
-            assert row is not None
-            assert row[0] == "system:honeypot-tcp"
-            assert "3306" in row[2]
-            assert row[1] > datetime.datetime.now() + datetime.timedelta(hours=1)
+            assert _ban(db_engine, ip) is None
+            status, source, reason, minutes = _review(db_engine, ip)
+            assert (status, source) == ("pending", "honeypot-tcp")
+            assert "3306" in reason
+            assert minutes > 60
         finally:
             _unban(db_engine, ip)
 
     def test_banned_scanner_is_then_blocked_on_any_tenant_url(self, client, db_engine):
+        from utils import soc_ban_review
         ip = "198.51.100.78"
         _unban(db_engine, ip)
         try:
             _signed_post(client, ip)
-            # Banned in public.banned_ips; the web-tier hook must honour it
-            # even when the request resolves against a different schema.
+            # Not blocked until an analyst decides...
+            assert client.get("/employee_forgot_password", environ_overrides={"REMOTE_ADDR": ip}).status_code != 403
+            ok, _msg = soc_ban_review.decide(ip, "ban", "analyst1", "203.0.113.250", minutes=60)
+            assert ok
+            # ...then banned in public.banned_ips; the web-tier hook must honour
+            # it even when the request resolves against a different schema.
             blocked = client.get("/employee_forgot_password", environ_overrides={"REMOTE_ADDR": ip})
             assert blocked.status_code == 403
         finally:

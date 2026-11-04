@@ -1,24 +1,27 @@
 # -*- coding: utf-8 -*-
 """Deception honeypot decoy routes -- fake paths a real user never requests
-(scanner-bot bait: /.env, /wp-admin/, /phpmyadmin, etc.), banning whatever
-IP touches one. Extracted out of the removed SecOps dashboard
-(blueprints/secops.py) so this auto-banning perimeter keeps working without
-the dashboard/portal it used to live inside -- this file has no dependency
-on that portal or its auth model, it's a plain unauthenticated trap.
+(scanner-bot bait: /.env, /wp-admin/, /phpmyadmin, etc.). Whatever IP touches
+one is raised for a SOC analyst's ban decision. Extracted out of the removed
+SecOps dashboard (blueprints/secops.py); this file has no dependency on that
+portal or its auth model, it's a plain unauthenticated trap.
 
-Ban policy (see utils/waf.ban_ip + utils/client_ip.py):
-  * never bans a non-routable/shared source address -- behind a container
-    gateway that hides client IPs, one scanner hit used to permanently ban
-    the entire site;
-  * bans are time-limited (HONEYPOT_BAN_MINUTES, default 7 days) rather
-    than permanent, since a scanner's address is routinely a reassigned
-    cloud/CGNAT address.
+Ban policy (see utils/soc_ban_review.py + utils/client_ip.py):
+  * a hit no longer bans by itself: it goes to the SOC console's "Ban
+    review" queue, because the address is often shared -- a customer office
+    whose own security scan, or one infected PC, touched a decoy would
+    otherwise lock out every employee behind it for days;
+  * the review carries a suggested duration (HONEYPOT_BAN_MINUTES, default
+    7 days), which is what is applied if the analyst bans, or at once with
+    SOC_AUTO_BAN=true;
+  * a non-routable/shared source address is never even proposed -- behind a
+    container gateway that hides client IPs, one scanner hit used to
+    permanently ban the entire site.
 """
 import os
 
 from flask import Blueprint, request, jsonify
 from extensions import log_security_event
-import utils.waf as waf
+from utils import soc_ban_review
 
 honeypot_bp = Blueprint("honeypot_routes", __name__)
 
@@ -42,7 +45,8 @@ def _ban_minutes():
 @honeypot_bp.route("/backup.sql")
 @honeypot_bp.route("/server-status")
 def honeypot_trap():
-    """Deception Honeypot Trap: Intercepts scanner bots and bans attacker IPs."""
+    """Deception Honeypot Trap: intercepts scanner bots and raises their IP
+    for a SOC ban decision."""
     ip = request.remote_addr or "unknown"
     path = request.path
     log_security_event(
@@ -53,16 +57,16 @@ def honeypot_trap():
         path=path,
         method=request.method
     )
-    banned = waf.ban_ip(
-        ip, f"Honeypot Decoy Trap Triggered ({path})",
-        banned_by="system:honeypot", minutes=_ban_minutes(),
+    raised = soc_ban_review.raise_review(
+        ip, "honeypot", f"Honeypot Decoy Trap Triggered ({path})",
+        suggested_minutes=_ban_minutes(),
     )
-    if not banned:
+    if raised is None:
         # Not an error: either the address is shared/non-routable (see
-        # utils/client_ip.py) or the DB write failed (ban_ip logs that).
+        # utils/client_ip.py) or the write failed (raise_review logs that).
         log_security_event(
             "secops.honeypot_ban_withheld",
-            "Honeypot hit did not result in an IP ban",
+            "Honeypot hit was not raised for a ban decision",
             level="WARNING", identifier=ip, path=path,
         )
 
@@ -74,9 +78,10 @@ def honeypot_trap():
 # deliberately holds none of the app's secrets. It tells the app about a hit
 # through the generic signed-webhook route, using its own narrow
 # HONEYPOT_REPORT_SECRET (see utils/honeypot_report.py). A hit on a port
-# nothing legitimate listens on is unambiguous, so the source address is
-# banned at the web tier too -- the scanner that just probed MySQL/RDP/FTP
-# does not get to continue against the login forms.
+# nothing legitimate listens on is a strong signal, so the source address is
+# raised for a SOC ban decision (banned at once with SOC_AUTO_BAN=true) --
+# but it is still a person's call, since the address may be a shared office
+# or a customer's own authorised scan.
 from blueprints.webhooks import register_signature_verifier, register_webhook_handler  # noqa: E402
 from utils import honeypot_report  # noqa: E402
 from utils.client_ip import parse_ip  # noqa: E402
@@ -116,9 +121,9 @@ def _on_tcp_decoy_hit(payload):
         "Connection to a TCP decoy port reported by the honeypot",
         level="WARNING", identifier=ip, ip=ip, pattern=f"port={port} protocol={protocol}",
     )
-    waf.ban_ip(
-        ip, f"TCP decoy port {port}/{protocol} touched",
-        banned_by="system:honeypot-tcp", minutes=_tcp_ban_minutes(),
+    soc_ban_review.raise_review(
+        ip, "honeypot-tcp", f"TCP decoy port {port}/{protocol} touched",
+        suggested_minutes=_tcp_ban_minutes(),
     )
 
 

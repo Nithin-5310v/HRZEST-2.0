@@ -25,8 +25,17 @@ def _banned_row(db_engine, ip):
 def _unban(db_engine, ip):
     cur = db_engine.cursor()
     cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
+    cur.execute("DELETE FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
     db_engine.commit()
     cur.close()
+
+
+def _review(db_engine, ip):
+    cur = db_engine.cursor()
+    cur.execute("SELECT status, source, suggested_minutes FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
+    row = cur.fetchone()
+    cur.close()
+    return row
 
 
 class TestIsProtectedIp:
@@ -181,17 +190,37 @@ class TestWafFalsePositivesFixed:
 
 
 class TestHttpHoneypotBanPolicy:
-    def test_scanner_hit_on_public_ip_bans_with_expiry(self, client, db_engine):
+    def test_scanner_hit_on_public_ip_is_raised_for_review(self, client, db_engine, monkeypatch):
+        """A honeypot hit no longer bans by itself (it may be a customer's own
+        scan, or one infected PC behind their office address): it queues the
+        address with a time-limited suggestion for an analyst."""
+        monkeypatch.delenv("SOC_AUTO_BAN", raising=False)
         ip = "198.51.100.240"
         _unban(db_engine, ip)
         try:
             resp = client.get("/.env", environ_overrides={"REMOTE_ADDR": ip})
             assert resp.status_code == 404
+            assert _banned_row(db_engine, ip) is None
+            status, source, minutes = _review(db_engine, ip)
+            assert (status, source) == ("pending", "honeypot")
+            assert minutes is not None and minutes > 24 * 60   # time-limited suggestion, > 1 day
+            # ...and the address can still use the site until someone decides.
+            follow = client.get("/employee_forgot_password", environ_overrides={"REMOTE_ADDR": ip})
+            assert follow.status_code != 403
+        finally:
+            _unban(db_engine, ip)
+
+    def test_scanner_hit_with_soc_auto_ban_bans_with_expiry(self, client, db_engine, monkeypatch):
+        monkeypatch.setenv("SOC_AUTO_BAN", "true")
+        ip = "198.51.100.241"
+        _unban(db_engine, ip)
+        try:
+            client.get("/.env", environ_overrides={"REMOTE_ADDR": ip})
             row = _banned_row(db_engine, ip)
             assert row is not None
-            assert row[1] == "system:honeypot"
             assert row[0] is not None            # time-limited, not permanent
             assert row[0] > datetime.datetime.now() + datetime.timedelta(days=1)
+            assert _review(db_engine, ip)[0] == "banned"
         finally:
             _unban(db_engine, ip)
 
@@ -201,6 +230,7 @@ class TestHttpHoneypotBanPolicy:
         resp = client.get("/.env", environ_overrides={"REMOTE_ADDR": ip})
         assert resp.status_code == 404
         assert _banned_row(db_engine, ip) is None
+        assert _review(db_engine, ip) is None     # not even proposed
         # ...and the site still serves the next request from that address.
         follow = client.get("/employee_forgot_password", environ_overrides={"REMOTE_ADDR": ip})
         assert follow.status_code != 403
