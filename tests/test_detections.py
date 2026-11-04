@@ -111,6 +111,36 @@ class TestGlobalRules:
             _event(cur, "waf.xss_blocked", ip=f"198.51.100.{100 + i}", level="ERROR", n=10)
         assert "waf_burst_distributed" in [f["rule"] for f in _run(db_engine, sink)]
 
+    @staticmethod
+    def _csp(cur, ip, page="/dashboard", blocked="https://evil.example/x.js", n=1):
+        import json
+        for _ in range(n):
+            cur.execute(
+                "INSERT INTO security_events (event_type, level, message, ip, path, extra_json) "
+                "VALUES ('frontend.csp_violation','WARNING','Browser reported: csp violation',%s,'/csp-report',%s)",
+                (ip, json.dumps({"directive": "script-src-elem", "blocked_uri": blocked, "page": page})))
+
+    def test_csp_burst_fires_on_one_page_from_many_sources(self, db_engine, sink):
+        cur = db_engine.cursor()
+        for i in range(4):
+            self._csp(cur, f"198.51.100.{20 + i}", n=6)
+        out = _run(db_engine, sink)
+        assert [f["rule"] for f in out] == ["csp_violation_burst"]
+        ev = sink.events[0]
+        assert ev["level"] == "ERROR" and ev["path"] == "/dashboard"   # ERROR pages; path reaches the alert
+        assert "24 Content-Security-Policy violations on /dashboard from 4" in ev["message"]
+
+    def test_csp_noise_does_not_fire(self, db_engine, sink):
+        cur = db_engine.cursor()
+        self._csp(cur, "198.51.100.30", n=60)                          # one browser repeating itself
+        for i in range(5):                                             # an extension, everywhere
+            self._csp(cur, f"198.51.100.{40 + i}", blocked="chrome-extension://abc/inject.js", n=8)
+        for i in range(5):                                             # spread over many pages
+            self._csp(cur, f"198.51.100.{50 + i}", page=f"/page{i}", n=3)
+        cur.execute("INSERT INTO security_events (event_type, level, message, ip, extra_json) "
+                    "VALUES ('frontend.csp_violation','WARNING','t','198.51.100.60','{\"page\": \"/dash')")  # truncated row
+        assert _run(db_engine, sink) == []
+
     def test_pii_reveal_burst(self, db_engine, sink):
         _event(db_engine.cursor(), "data.reveal", identifier="hr1", n=25)
         assert [f["rule"] for f in _run(db_engine, sink)] == ["pii_reveal_burst"]
