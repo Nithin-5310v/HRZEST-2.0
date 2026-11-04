@@ -8,7 +8,7 @@
     ['auth', 'Authentication'], ['access', 'Access control'], ['waf', 'Web application firewall'], ['honeypot', 'Honeypot / deception'],
     ['ratelimit', 'Rate limiting'], ['session', 'Session security'], ['detection', 'Correlation detections'], ['audit', 'Audit integrity'],
     ['data', 'Sensitive data access'], ['privacy', 'Privacy & consent'], ['billing', 'Payments & webhooks'], ['attendance', 'Attendance integrity'],
-    ['device', 'Device posture'], ['admin', 'Administrative activity'], ['validation', 'Input validation'], ['app', 'Application health'],
+    ['device', 'Device posture'], ['admin', 'Administrative activity'], ['validation', 'Input validation'], ['app', 'Application health'], ['frontend', 'Browser telemetry'],
     ['soc', 'SOC console'], ['other', 'Other']
   ];
   const DURATIONS = [['60', '1 hour'], ['1440', '24 hours'], ['10080', '7 days'], ['43200', '30 days'], ['0', 'Until lifted']];

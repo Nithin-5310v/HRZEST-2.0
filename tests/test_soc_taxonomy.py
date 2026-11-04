@@ -41,6 +41,16 @@ def test_security_relevant_events_are_not_left_in_other():
     assert others == [], f"map these in utils/soc_taxonomy.py: {others}"
 
 
+def test_browser_telemetry_events_are_mapped():
+    """blueprints/core.py emits these via an f-string (f"frontend.{subtype}"),
+    so the AST scan above can't see them -- list them explicitly."""
+    from blueprints.core import _CLIENT_LOG_TYPES
+    for et in ["frontend.csp_violation"] + ["frontend." + k for k in _CLIENT_LOG_TYPES]:
+        c = tax.classify(et)
+        assert c["family"] == "frontend", et
+        assert c["known"], f"give {et} a label in utils/soc_taxonomy.py"
+
+
 def test_detection_catalog_matches_the_real_rules():
     from utils.detections import RULES
     real = {r.name for r in RULES}
