@@ -64,7 +64,13 @@
     integrity: 'M9 12l2 2 4-4M12 3l8 3v6c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V6l8-3z',
     posture: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
     logs: 'M4 5h16v14H4zM8 10l3 2-3 2M13 14h4',
-    admin: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0'
+    admin: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
+    // stat-tile icons
+    error: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 9l6 6M15 9l-6 6',
+    lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+    target: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z',
+    globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18',
+    ban: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM5.6 5.6l12.8 12.8'
   };
   function icon(name) {
     var s = document.createElementNS(SVG, 'svg');
@@ -197,8 +203,9 @@
   SOC.idLink = function (id) {
     return id && id !== 'None' ? h('a', { href: '#/entity?identifier=' + encodeURIComponent(id), title: 'Look up ' + id }, id) : h('span', { class: 'muted' }, '–');
   };
-  SOC.kpi = function (label, value, sub, cls, href) {
-    var kids = [h('div', { class: 'lbl' }, label), h('div', { class: 'val' }, value), sub ? h('div', { class: 'sub' }, sub) : null];
+  SOC.kpi = function (label, value, sub, cls, href, ico) {
+    var kids = [ico ? h('span', { class: 'ico' }, icon(ico)) : null, h('div', { class: 'lbl' }, label), h('div', { class: 'val' }, value),
+      sub ? h('div', { class: 'sub' }, sub) : null];
     return href
       ? h('a', { class: 'card kpi link ' + (cls || ''), href: href, title: 'What does this mean? Open the analyst brief' }, kids)
       : h('div', { class: 'card kpi ' + (cls || '') }, kids);
@@ -340,6 +347,7 @@
     if (!window.Chart) return null;
     window.Chart.defaults.color = SOC.cssVar('--muted');
     window.Chart.defaults.borderColor = SOC.cssVar('--grid');
+    window.Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
     config.options = config.options || {};
     config.options.maintainAspectRatio = false;
     var c = new window.Chart(canvas, config);

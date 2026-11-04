@@ -20,7 +20,7 @@
     return s;
   };
   const field = (label, control, id) => h('div', { class: 'field' }, h('label', { for: id }, label), control);
-  const when = (ts) => ts ? h('span', { title: ts }, fmt.time(ts), h('div', { class: 'note' }, fmt.ago(ts))) : null;
+  const when = (ts) => ts ? h('span', { class: 'when', title: ts }, fmt.time(ts), h('div', { class: 'note' }, fmt.ago(ts))) : null;
   const act = (p, ok) => p.then((r) => { if (ok) SOC.toast(ok, 'good'); return r; }).catch((e) => { SOC.toast(e.message, 'bad'); throw e; });
   const needs = (role) => SOC.can(role);
 
@@ -110,8 +110,11 @@
       const draw = async (initial) => {
         const d = await api.get('/soc/api/overview', { hours: SOC.hours }, !initial);
         const k = d.kpi, frag = h('div'), ex = SOC.explainHref;
-        frag.appendChild(h('div', { class: 'callout ' + (d.threat.level === 'normal' ? '' : d.threat.level === 'elevated' ? 'warn' : 'bad') },
-          h('strong', null, 'Threat level: ' + d.threat.level + '. '), d.threat.reasons.join('. ') + '.'));
+        // Same tone as the header badge: orange for high, red only for critical.
+        const tone = { normal: 'good', elevated: 'warn', high: 'high', critical: 'bad' }[d.threat.level] || 'warn';
+        frag.appendChild(h('div', { class: 'callout banner ' + tone },
+          h('span', { class: 'banner-ico' }, SOC.icon(d.threat.level === 'normal' ? 'integrity' : 'alerts')),
+          h('div', null, h('strong', null, 'Threat level: ', h('span', { class: 'cap' }, d.threat.level)), h('div', null, d.threat.reasons.join('. ') + '.'))));
         if (d.proxy_hint) {
           frag.appendChild(SOC.callout(['Most events come from a private address (', h('span', { class: 'mono' }, d.top_ips[0].ip),
             '). The app is seeing its proxy or container gateway, not the real visitors, so source IPs and locations below are not meaningful. ',
@@ -119,16 +122,16 @@
         }
         frag.appendChild(h('p', { class: 'note' }, 'Click any number, area, event type or technique for an analyst brief: what it means, who is involved, what to check and how to respond.'));
         frag.appendChild(h('div', { class: 'grid kpis' },
-          SOC.kpi('Events', fmt.n(k.events), 'last ' + d.hours + 'h', 'info', ex('kpi', 'events')),
-          SOC.kpi('Critical', fmt.n(k.critical), '', k.critical ? 'critical' : 'ok', ex('kpi', 'critical')),
-          SOC.kpi('Errors', fmt.n(k.error), 'page-level', k.error ? 'high' : 'ok', ex('kpi', 'errors')),
-          SOC.kpi('Detections', fmt.n(k.detections), 'correlation rules', k.detections ? 'high' : 'ok', ex('kpi', 'detections')),
-          SOC.kpi('Failed logins', fmt.n(k.failed_logins), fmt.n(k.lockouts) + ' lockouts', k.failed_logins > 50 ? 'medium' : 'info', ex('kpi', 'failed_logins')),
-          SOC.kpi('WAF blocks', fmt.n(k.waf_blocks), '', k.waf_blocks ? 'medium' : 'ok', ex('kpi', 'waf_blocks')),
-          SOC.kpi('Honeypot hits', fmt.n(k.honeypot_hits), '', k.honeypot_hits ? 'medium' : 'ok', ex('kpi', 'honeypot_hits')),
-          SOC.kpi('Unique IPs', fmt.n(k.unique_ips), 'with location', 'info', ex('kpi', 'unique_ips')),
-          SOC.kpi('Active bans', fmt.n(d.active_bans), '', 'info', '#/response'),
-          SOC.kpi('Open cases', fmt.n(d.cases.open), '', d.cases.open ? 'medium' : 'ok', '#/cases')));
+          SOC.kpi('Events', fmt.n(k.events), 'last ' + d.hours + 'h', 'info', ex('kpi', 'events'), 'events'),
+          SOC.kpi('Critical', fmt.n(k.critical), '', k.critical ? 'critical' : 'ok', ex('kpi', 'critical'), 'alerts'),
+          SOC.kpi('Errors', fmt.n(k.error), 'page-level', k.error ? 'high' : 'ok', ex('kpi', 'errors'), 'error'),
+          SOC.kpi('Detections', fmt.n(k.detections), 'correlation rules', k.detections ? 'high' : 'ok', ex('kpi', 'detections'), 'detections'),
+          SOC.kpi('Failed logins', fmt.n(k.failed_logins), fmt.n(k.lockouts) + ' lockouts', k.failed_logins > 50 ? 'medium' : 'info', ex('kpi', 'failed_logins'), 'lock'),
+          SOC.kpi('WAF blocks', fmt.n(k.waf_blocks), '', k.waf_blocks ? 'medium' : 'ok', ex('kpi', 'waf_blocks'), 'response'),
+          SOC.kpi('Honeypot hits', fmt.n(k.honeypot_hits), '', k.honeypot_hits ? 'medium' : 'ok', ex('kpi', 'honeypot_hits'), 'target'),
+          SOC.kpi('Unique IPs', fmt.n(k.unique_ips), 'with location', 'info', ex('kpi', 'unique_ips'), 'globe'),
+          SOC.kpi('Active bans', fmt.n(d.active_bans), '', 'info', '#/response', 'ban'),
+          SOC.kpi('Open cases', fmt.n(d.cases.open), '', d.cases.open ? 'medium' : 'ok', '#/cases', 'cases')));
 
         const canvas = h('canvas', { role: 'img', 'aria-label': 'Events over time by severity' });
         frag.appendChild(h('div', { class: 'grid cols-21' },
@@ -175,9 +178,12 @@
             { label: 'Critical', data: lv('CRITICAL'), backgroundColor: SOC.cssVar('--critical') },
             { label: 'Error', data: lv('ERROR'), backgroundColor: SOC.cssVar('--high') },
             { label: 'Warning', data: lv('WARNING'), backgroundColor: SOC.cssVar('--medium') },
-            { label: 'Info', data: lv('INFO'), backgroundColor: SOC.cssVar('--info') }] },
-          options: { scales: { x: { stacked: true, ticks: { maxTicksLimit: 12 } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
-            plugins: { legend: { position: 'bottom' } } }
+            { label: 'Info', data: lv('INFO'), backgroundColor: SOC.cssVar('--info') }]
+            .map((ds) => Object.assign(ds, { borderRadius: 3, borderSkipped: false, barPercentage: 0.78, categoryPercentage: 0.9 })) },
+          options: { scales: { x: { stacked: true, grid: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0, autoSkip: true } },
+            y: { stacked: true, beginAtZero: true, border: { display: false }, ticks: { precision: 0 } } },
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'rectRounded', boxWidth: 8, boxHeight: 8, padding: 16 } } } }
         });
       };
       await draw(true);
