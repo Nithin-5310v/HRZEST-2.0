@@ -899,7 +899,7 @@
     </script>
 
     {# ═══ PER-TENANT CHAT ═══ #}
-    <div id="tcOverlay" class="hz-chat-overlay" onclick="if (event.target === this) tenantChatClose()">
+    <div id="tcOverlay" class="hz-chat-overlay" data-on-click="HZ.ifSelf(event, this, 'tenantChatClose')">
       <div class="hz-chat" role="dialog" aria-modal="true" aria-labelledby="tcCompanyName">
         <div class="hz-chat-head">
           <div class="hz-chat-avatar" id="tcAvatar" aria-hidden="true"></div>
