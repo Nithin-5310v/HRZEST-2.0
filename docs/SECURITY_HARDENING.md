@@ -206,9 +206,26 @@ ranges — tune them against real kiosk captures before enforcing.
   (`/api/employee/consent`). Enforcement `BIOMETRIC_CONSENT_REQUIRED` is **off**
   by default because no consent screen exists in the clients yet — build the
   screen, then enable it.
+* **Encryption at rest: AES-256-GCM** (`utils/pii_crypto.py`). PII columns
+  (`encrypt_pii`) and every private upload (`utils/storage.py`
+  `save_private`/`open_private`) are encrypted with AES-256-GCM, using a key
+  derived from `ENCRYPTION_KEY` via HKDF-SHA-512. No new secret is needed.
+  Legacy Fernet (AES-128-CBC) values and plaintext files still read correctly.
+  **After deploying, run once:** `scripts/rotate_encryption_key.py` (upgrades
+  Fernet column values to AES-256-GCM) and `scripts/encrypt_private_uploads.py`
+  (encrypts existing files in place). Use `--dry-run` first for both.
+* **Passwords: Argon2id** (`utils/auth.py`, 19 MiB / t=2 / p=1, the OWASP
+  baseline). bcrypt and pbkdf2 hashes still verify and are rehashed to Argon2id
+  on the user's next successful login (`password_needs_rehash`).
+* **TLS** (`nginx/nginx.conf.template`): TLS 1.2+ with 256-bit AEAD suites
+  only (ECDHE + AES-256-GCM-SHA384 / ChaCha20-Poly1305). TLS 1.3 is pinned
+  to `TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256`, with X25519/P-384
+  key exchange.
 * **Key rotation.** `ENCRYPTION_KEY` encrypts; `ENCRYPTION_KEY_PREVIOUS`
   (comma-separated) only decrypts. `scripts/rotate_encryption_key.py` finds
-  every Fernet token in every text column and re-encrypts it (dry-run first).
+  every encrypted value (AES-256-GCM `hz2:` or legacy Fernet) in every text
+  column and re-encrypts it under the current key (dry-run first). Run
+  `scripts/encrypt_private_uploads.py` as well to re-key uploaded files.
 * **Backups** (`scripts/backup_db.sh`, `scripts/restore_test.sh`). Encrypted to a
   *public* key (`BACKUP_ENCRYPTION=gpg|age`) so the host can write but not read
   history; SHA-256 sidecar; offsite copy (`BACKUP_REMOTE=s3://…|rclone:…`);

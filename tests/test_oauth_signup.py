@@ -337,7 +337,7 @@ class TestSignupRoutes:
             pw, provider, subject = tcur.fetchone()
             assert provider == "google"
             assert subject == "g-newco-1"
-            assert pw and pw.startswith("$2")
+            assert pw and pw.startswith("$argon2id$")
             tcur.close()
             tconn.close()
         finally:

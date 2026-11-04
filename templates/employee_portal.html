@@ -1874,7 +1874,7 @@
           </div>
 
           {# Upload form #}
-          <form class="u-d-flex u-gap-10 u-fxw-wrap u-ai-flex-end u-mb-16" action="{{ tpath('/upload_my_document') }}" method="POST" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
+          <form class="u-d-flex u-gap-10 u-fxw-wrap u-ai-flex-end u-mb-16" action="{{ tpath('/upload_my_document') }}" method="POST" enctype="multipart/form-data" data-on-submit="HZ.disableSubmit(this)">
             <div class="u-fx-1 u-minw-160">
               <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Document Type</label>
               <select aria-label="Document Type" class="u-w-100pct u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" name="doc_type" required>
