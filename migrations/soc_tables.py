@@ -89,6 +89,15 @@ STATEMENTS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_soc_audit_created ON soc_audit_log (created_at DESC)",
+    # IP location / anonymizer lookups (utils/soc_geo.py), cached so each public
+    # address is sent to the lookup provider at most once per SOC_GEO_TTL_DAYS.
+    """
+    CREATE TABLE IF NOT EXISTS soc_ip_intel (
+        ip         VARCHAR(64)  PRIMARY KEY,
+        data       TEXT         NOT NULL,
+        fetched_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
     """
     CREATE OR REPLACE FUNCTION soc_audit_log_immutable() RETURNS trigger AS $$
     BEGIN

@@ -49,6 +49,8 @@ _ALLOWED_FIELDS = {
     "content_type", "actual_role", "attempt_type", "failed_count",
     "locked_until", "signature", "size_mb", "required", "pattern",
 }
+# Not in the allow-list on purpose: "suppressed" is added by the webhook flood
+# gate after sanitizing, so a caller can never forge a "N more alerts" note.
 
 # Redact by VALUE too, regardless of field name -- defense in depth against
 # a field that's allowlisted for a legitimate reason (e.g. "reason") but
@@ -221,6 +223,41 @@ def _deliver(payload: dict):
         app_log.warning("Security alert webhook delivery failed: %s", e)
 
 
+# ── Webhook flood gate ───────────────────────────────────────────────────────
+# Every ERROR/CRITICAL security event reaches send_security_alert, and some of
+# them come in bursts (a scanner walking the honeypot paths logs a CRITICAL per
+# path). Unthrottled, one scan becomes dozens of chat messages: the channel gets
+# muted, and the webhook provider starts rate-limiting the alerts that matter.
+# So per event type, the first alert in a window goes out at once and repeats
+# inside the window are only counted; the next alert sent for that type says
+# how many were folded into it. Nothing is silently dropped from the record:
+# every event is still in security_events and the SOC console.
+# Per process (like the email throttle): each gunicorn worker gates on its own.
+def _webhook_window():
+    try:
+        return max(0, int(os.environ.get("SECURITY_ALERT_WEBHOOK_WINDOW", "60")))
+    except ValueError:
+        return 60
+
+
+_webhook_last_sent = {}
+_webhook_suppressed = {}
+_webhook_lock = threading.Lock()
+
+
+def _webhook_gate(event_type: str):
+    """-> (send_now, folded): whether to post this alert, and how many alerts of
+    this type were held back since the last one posted."""
+    window = _webhook_window()
+    now = time.time()
+    with _webhook_lock:
+        if window and now - _webhook_last_sent.get(event_type, 0) < window:
+            _webhook_suppressed[event_type] = _webhook_suppressed.get(event_type, 0) + 1
+            return False, 0
+        _webhook_last_sent[event_type] = now
+        return True, _webhook_suppressed.pop(event_type, 0)
+
+
 # ── Email channel ────────────────────────────────────────────────────────────
 # SECURITY_ALERT_EMAIL = comma-separated recipients. Sent through the app's
 # normal SMTP config (Email Settings page / SMTP_* env vars -- see
@@ -300,11 +337,16 @@ def send_security_alert(event_type: str, description: str, severity: str = "ERRO
     clean_fields = _sanitize_fields(fields)
 
     if _WEBHOOK_URL:
-        payload = _build_payload(
-            event_type=event_type, description=clean_description,
-            severity=severity, timestamp=timestamp, fields=clean_fields,
-        )
-        threading.Thread(target=_deliver, args=(payload,), daemon=True).start()
+        send_now, folded = _webhook_gate(event_type)
+        if send_now:
+            hook_fields = dict(clean_fields)
+            if folded:
+                hook_fields["suppressed"] = f"{folded} more {event_type} alert(s) since the last one (see the SOC console)"
+            payload = _build_payload(
+                event_type=event_type, description=clean_description,
+                severity=severity, timestamp=timestamp, fields=hook_fields,
+            )
+            threading.Thread(target=_deliver, args=(payload,), daemon=True).start()
 
     if recipients and not _email_throttled(event_type):
         threading.Thread(
