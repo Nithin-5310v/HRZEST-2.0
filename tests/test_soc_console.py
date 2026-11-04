@@ -964,6 +964,16 @@ class TestLoki:
         assert c.get("/soc/api/loki/status").get_json()["configured"] is False
         assert c.post("/soc/api/loki/query", json={"query": '{job="app"}'}).get_json()["configured"] is False
 
+    def test_url_without_scheme_is_not_reported_as_configured(self, soc, monkeypatch):
+        # The query path refuses a schemeless URL, so the status must agree --
+        # otherwise the Logs view shows as enabled and every search is empty.
+        monkeypatch.setenv("LOKI_URL", "loki:3100")
+        c, _ = soc("ann", "analyst")
+        assert c.get("/soc/api/loki/status").get_json()["configured"] is False
+        from utils import soc_queries
+        check = next(x for x in soc_queries.posture()["checks"] if x["id"] == "loki")
+        assert check["status"] == "warn"
+
     def test_query_is_bounded_and_the_target_comes_only_from_the_environment(self, soc, monkeypatch):
         monkeypatch.setenv("LOKI_URL", "http://loki.internal:3100")
         seen = {}

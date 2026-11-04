@@ -897,17 +897,33 @@ def posture():
             else "No API key: the free tier allows about 1,000 lookups a day.")) if geo_on
         else "Off: no IP is sent to any lookup service; locations are not shown.",
         "Set SOC_GEO_API_KEY for a higher daily quota, or SOC_GEO_PROVIDER=off to stop sending IPs out.")
-    add("loki", "Log pipeline (Loki)", "pass" if os.environ.get("LOKI_URL") else "info",
-        "LOKI_URL is set; the Logs view can query it." if os.environ.get("LOKI_URL") else
-        "LOKI_URL is not set; the Logs view is disabled.", "Set LOKI_URL to query shipped logs from the console.")
+    _loki_raw = os.environ.get("LOKI_URL", "").strip()
+    if _loki_base():
+        add("loki", "Log pipeline (Loki)", "pass", "LOKI_URL is set; the Logs view can query it.",
+            "Set LOKI_URL to query shipped logs from the console.")
+    elif _loki_raw:
+        add("loki", "Log pipeline (Loki)", "warn",
+            "LOKI_URL is set but does not start with http:// or https://, so the Logs view is disabled.",
+            "Include the scheme, e.g. LOKI_URL=http://loki:3100.")
+    else:
+        add("loki", "Log pipeline (Loki)", "info", "LOKI_URL is not set; the Logs view is disabled.",
+            "Set LOKI_URL to query shipped logs from the console.")
     order = {"fail": 0, "warn": 1, "info": 2, "pass": 3}
     checks.sort(key=lambda c: order[c["status"]])
     return {"checks": checks, "summary": {s: sum(1 for c in checks if c["status"] == s) for s in order}}
 
 
 # ── Loki (optional) ──────────────────────────────────────────────────
+def _loki_base():
+    """LOKI_URL without a trailing slash, or "" when unset or not http(s).
+    The status check and the query path both use this, so the console never
+    shows the Logs view as enabled for a URL the query would refuse."""
+    base = os.environ.get("LOKI_URL", "").strip().rstrip("/")
+    return base if base.startswith(("http://", "https://")) else ""
+
+
 def loki_status():
-    return {"configured": bool(os.environ.get("LOKI_URL", "").strip())}
+    return {"configured": bool(_loki_base())}
 
 
 def loki_query(query, minutes=60, limit=200):
@@ -916,8 +932,8 @@ def loki_query(query, minutes=60, limit=200):
     from the request), so it cannot be turned into an SSRF primitive."""
     import urllib.parse
     import urllib.request
-    base = os.environ.get("LOKI_URL", "").strip().rstrip("/")
-    if not base.startswith(("http://", "https://")):
+    base = _loki_base()
+    if not base:
         return {"configured": False, "streams": []}
     query = (query or "").strip()
     if not query or len(query) > 500 or "\x00" in query:
