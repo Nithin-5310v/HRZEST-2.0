@@ -51,7 +51,31 @@ class TestSecretKeyBootCheck:
 
     def test_production_with_secret_key_set_boots_cleanly(self):
         logger = _fake_logger()
-        check_secret_key_configured("production", "a-real-secret-key", logger=logger)
+        check_secret_key_configured("production", "9f2c4e7a1b8d3f6e0a5c9b2d4e7f1a3c", logger=logger)
+        logger.critical.assert_not_called()
+
+    @pytest.mark.parametrize("placeholder", [
+        "your_secret_key_here",                       # .env.example
+        "your-super-secret-key-here",                 # deploy write-up
+        "CHANGE-ME-CHANGE-ME-CHANGE-ME-CHANGE-ME",     # long, still a placeholder
+        "replace_me_with_a_long_random_value_please",
+    ])
+    def test_production_with_placeholder_secret_key_refuses_to_boot(self, placeholder):
+        logger = _fake_logger()
+        with pytest.raises(RuntimeError, match="placeholder"):
+            check_secret_key_configured("production", placeholder, logger=logger)
+        logger.critical.assert_called_once()
+
+    def test_production_with_short_secret_key_refuses_to_boot(self):
+        logger = _fake_logger()
+        with pytest.raises(RuntimeError, match="shorter than 32"):
+            check_secret_key_configured("production", "a-real-secret-key", logger=logger)
+        logger.critical.assert_called_once()
+
+    def test_development_with_placeholder_secret_key_boots_cleanly(self):
+        """Dev keeps working with .env.example copied as-is."""
+        logger = _fake_logger()
+        check_secret_key_configured("development", "your_secret_key_here", logger=logger)
         logger.critical.assert_not_called()
 
     def test_development_with_no_secret_key_boots_cleanly(self):
