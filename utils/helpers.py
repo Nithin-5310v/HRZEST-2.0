@@ -1771,6 +1771,10 @@ def wants_json_response():
         request.path.startswith("/api/")
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"
         or request.accept_mimetypes.best == "application/json"
+        # A request that posts a JSON body (e.g. the attendance check-in
+        # fetch to /attendance) is read as JSON by its caller -- an HTML
+        # error page there shows up as "Unexpected token '<'".
+        or request.is_json
     )
 
 
