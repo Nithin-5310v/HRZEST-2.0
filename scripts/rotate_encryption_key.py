@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Re-encrypt every Fernet-encrypted value in the database under the current
-ENCRYPTION_KEY.
+"""Re-encrypt every encrypted PII value in the database as AES-256-GCM under
+the current ENCRYPTION_KEY (utils/pii_crypto.py).
+
+Two jobs in one pass: key rotation (values under an ENCRYPTION_KEY_PREVIOUS
+key move to ENCRYPTION_KEY) and format upgrade (legacy Fernet / AES-128-CBC
+values become AES-256-GCM). Run it once after deploying the AES-256-GCM
+release even without a key change, to upgrade existing rows.
 
 Procedure (no downtime -- decryption accepts old keys while this runs):
 
@@ -17,9 +22,9 @@ Procedure (no downtime -- decryption accepts old keys while this runs):
      ENCRYPTION_KEY_PREVIOUS and redeploy. Keep the old key in the secret
      manager until your backups taken under it have aged out.
 
-How it finds data: every Fernet token starts with the same 6 base64 chars
-("gAAAAA" -- version byte + timestamp), so any text column in any schema can
-be scanned without a hand-maintained column list, which would silently go
+How it finds data: every AES-256-GCM value starts with "hz2:" and every
+legacy Fernet token with the same 6 base64 chars ("gAAAAA" -- version byte +
+timestamp), so any text column in any schema can be scanned without a hand-maintained column list, which would silently go
 stale as columns are added. Audit tables are skipped (append-only; they hold
 no encrypted values). Runs on the owner role when DB_OWNER_USER is set.
 """
@@ -32,7 +37,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _IDENT = re.compile(r"^[A-Za-z0-9_]+$")
 _SKIP_TABLES = {"audit_logs", "security_events", "audit_chain_head"}
-_TOKEN_PREFIX = "gAAAAA"
 
 
 def main(argv=None):
@@ -41,21 +45,17 @@ def main(argv=None):
     ap.add_argument("--schema", action="append", help="limit to schema(s)")
     args = ap.parse_args(argv)
 
-    from cryptography.fernet import Fernet, InvalidToken
-    from database import get_db_connection, owner_privileges
+    from database import get_db_connection, owner_privileges, raw_text
+    from utils.pii_crypto import cipher_from_env, DecryptionError, FERNET_PREFIX, PREFIX
 
-    primary = os.environ.get("ENCRYPTION_KEY", "").strip()
-    if not primary:
+    if not os.environ.get("ENCRYPTION_KEY", "").strip():
         sys.exit("ENCRYPTION_KEY is not set")
-    previous = [k.strip() for k in os.environ.get("ENCRYPTION_KEY_PREVIOUS", "").split(",") if k.strip()]
-    from cryptography.fernet import MultiFernet
-    multi = MultiFernet([Fernet(k.encode()) for k in [primary] + previous])
-    primary_only = Fernet(primary.encode())
+    cipher = cipher_from_env()
 
     totals = {"scanned": 0, "rotated": 0, "already_current": 0, "undecryptable": 0}
     with owner_privileges():
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = raw_text(conn.cursor())       # must see stored ciphertext, not decrypted values
         cur.execute(
             "SELECT table_schema, table_name, column_name FROM information_schema.columns c "
             "WHERE data_type IN ('text','character varying') "
@@ -70,18 +70,18 @@ def main(argv=None):
             if not all(_IDENT.match(x) for x in (schema, table, column)):
                 continue
             qt = f'"{schema}"."{table}"'
-            cur.execute(f'SELECT ctid, "{column}" FROM {qt} WHERE "{column}" LIKE %s', (_TOKEN_PREFIX + "%",))  # nosec B608
+            cur.execute(f'SELECT ctid, "{column}" FROM {qt} WHERE "{column}" LIKE %s OR "{column}" LIKE %s',  # nosec B608
+                        (FERNET_PREFIX + "%", PREFIX + "%"))
             for ctid, value in cur.fetchall():
                 totals["scanned"] += 1
-                try:
-                    primary_only.decrypt(value.encode())
+                if cipher.is_current(value):
                     totals["already_current"] += 1
                     continue
-                except InvalidToken:
-                    pass
                 try:
-                    new = multi.rotate(value.encode()).decode()
-                except InvalidToken:
+                    new = cipher.rotate(value)
+                except ValueError:
+                    continue            # starts with a prefix but isn't ciphertext (plain text)
+                except DecryptionError:
                     totals["undecryptable"] += 1
                     print(f"  undecryptable (key not supplied?): {schema}.{table}.{column} ctid={ctid}")
                     continue
@@ -89,17 +89,50 @@ def main(argv=None):
                     cur.execute(f'UPDATE {qt} SET "{column}"=%s WHERE ctid=%s AND "{column}"=%s',  # nosec B608
                                 (new, ctid, value))
                 totals["rotated"] += 1
+        if not args.dry_run:
+            totals["reindexed"] = _reindex_contacts(conn, args.schema)
         cur.close()
         conn.close()
 
     verb = "would rotate" if args.dry_run else "rotated"
     print(f"scanned={totals['scanned']} {verb}={totals['rotated']} "
-          f"already_current={totals['already_current']} undecryptable={totals['undecryptable']}")
+          f"already_current={totals['already_current']} undecryptable={totals['undecryptable']} "
+          f"reindexed={totals.get('reindexed', 0)}")
     if totals["undecryptable"]:
         print("Some values were not decryptable with the supplied keys -- do NOT drop the old key yet "
               "(or they are corrupt / belong to a key you no longer have).")
         return 2
     return 0
+
+
+def _reindex_contacts(conn, schemas=None):
+    """Recompute employees.email_bidx / phone_bidx under the current key
+    (blind indexes are keyed, so they change with ENCRYPTION_KEY) and
+    encrypt any email/phone still in plaintext. Returns rows re-indexed."""
+    from utils.pii_crypto import cipher_from_env
+    from migrations.column_migrations import encrypt_plaintext_contacts
+    cipher = cipher_from_env()
+    cur = conn.cursor()                     # decrypting cursor: sees plaintext email/phone
+    cur.execute("SELECT table_schema FROM information_schema.columns "
+                "WHERE table_name='employees' AND column_name='email_bidx'")
+    n = 0
+    for (schema,) in cur.fetchall():
+        if (schemas and schema not in schemas) or not _IDENT.match(schema):
+            continue
+        table = f'"{schema}".employees'
+        encrypt_plaintext_contacts(cur, table)
+        cur.execute(f"SELECT employee_id, email, email_bidx, phone, phone_bidx FROM {table} "  # nosec B608
+                    "WHERE email_bidx IS NOT NULL OR phone_bidx IS NOT NULL")
+        for emp_id, email, ebidx, phone, pbidx in cur.fetchall():
+            new_e = cipher.blind_index("email", email) if email else None
+            new_p = cipher.blind_index("phone", phone) if phone else None
+            if (new_e, new_p) != (ebidx, pbidx):
+                cur.execute(f"UPDATE {table} SET email_bidx=%s, phone_bidx=%s WHERE employee_id=%s",  # nosec B608
+                            (new_e, new_p, emp_id))
+                n += 1
+    conn.commit()
+    cur.close()
+    return n
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from flask import Blueprint, request, jsonify
 from psycopg2.extras import execute_values
 from database import get_db_connection, transaction
 from utils.email_utils import get_email_config
+from utils.helpers import contact_lookup_keys
 from utils.auth import resolve_admin_identity
 from extensions import app_log, log_security_event, limiter
 
@@ -70,8 +71,9 @@ def api_email_blast():
             recipients = cur.fetchall()
         elif target_type == "individual":
             cur.execute(
-                "SELECT email, name FROM employees WHERE (employee_id=%s OR email=%s) "
-                "AND email IS NOT NULL AND email != ''", (target_value, target_value))
+                "SELECT email, name FROM employees WHERE (employee_id=%s OR email_bidx = ANY(%s) OR email=%s) "
+                "AND email IS NOT NULL AND email != ''",
+                (target_value, contact_lookup_keys("email", target_value), target_value))
             recipients = cur.fetchall()
         else:
             cur.close()

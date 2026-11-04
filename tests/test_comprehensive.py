@@ -154,9 +154,9 @@ class TestPasswordHashing:
         from utils.auth import check_password_hash
         assert not check_password_hash("", "anything")
 
-    def test_hash_starts_with_2b(self):
+    def test_hash_is_argon2id(self):
         from utils.auth import generate_password_hash
-        assert generate_password_hash("x").startswith("$2b$")
+        assert generate_password_hash("x").startswith("$argon2id$")
 
     def test_same_password_different_hashes(self):
         from utils.auth import generate_password_hash

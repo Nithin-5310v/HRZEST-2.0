@@ -153,6 +153,22 @@ def _persist_security_event(event_type, level, message, identifier, ip, path, me
         app_log.error("Failed to persist security event to DB: %s", e)
 
 
+_MIN_SECRET_KEY_LENGTH = 32
+# Lower-cased, separators stripped: catches your_secret_key_here,
+# your-super-secret-key-here, CHANGE-ME, etc. however they're punctuated.
+_PLACEHOLDER_SECRET_KEY_MARKERS = ("yoursecret", "yoursuper", "secretkeyhere", "changeme", "replaceme", "placeholder")
+
+
+def _weak_secret_key_reason(key):
+    """None if `key` looks like a real secret, else a short reason phrase."""
+    squashed = "".join(ch for ch in key.lower() if ch.isalnum())
+    if any(marker in squashed for marker in _PLACEHOLDER_SECRET_KEY_MARKERS):
+        return "is a placeholder value"
+    if len(key) < _MIN_SECRET_KEY_LENGTH:
+        return f"is shorter than {_MIN_SECRET_KEY_LENGTH} characters"
+    return None
+
+
 def check_secret_key_configured(app_env, secret_key_env_value, logger=None):
     """Pure-ish (env values passed in, not read internally) so this can be
     unit-tested directly without reloading this module or its side effects
@@ -169,10 +185,29 @@ def check_secret_key_configured(app_env, secret_key_env_value, logger=None):
     filesystems (e.g. mid-rollout on two hosts) before either writes the
     file, they'd sign with two different keys and reject each other's
     sessions. Fail hard instead -- same fail-secure posture as
-    utils/razorpay_utils.py's module-level checks."""
+    utils/razorpay_utils.py's module-level checks.
+
+    "Set" also has to mean "set to a real secret": a value copied from
+    .env.example (your_secret_key_here) or a deploy write-up, or anything
+    too short to resist offline guessing against a captured session
+    cookie, would let anyone forge sessions and CSRF tokens. Those are
+    refused too, outside development."""
     logger = logger or app_log
-    if app_env == "development" or (secret_key_env_value or "").strip():
+    if app_env == "development":
         return
+    key = (secret_key_env_value or "").strip()
+    if key:
+        weak_reason = _weak_secret_key_reason(key)
+        if weak_reason is None:
+            return
+        logger.critical(
+            "FATAL: APP_ENV=%s but SECRET_KEY %s -- refusing to start. Generate one with: "
+            "python -c \"import secrets; print(secrets.token_hex(32))\"",
+            app_env, weak_reason,
+        )
+        raise RuntimeError(
+            f"SECRET_KEY {weak_reason} -- refusing to start outside APP_ENV=development (fail-secure)."
+        )
     logger.critical(
         "FATAL: APP_ENV=%s but SECRET_KEY is not set -- refusing to start rather than "
         "silently falling back to a locally-generated key that won't survive a "

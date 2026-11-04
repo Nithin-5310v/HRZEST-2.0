@@ -11,7 +11,7 @@ from flask import Blueprint, request, session, jsonify, render_template, redirec
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
 from utils.auth import (
-    api_required, api_role_required, HR_ROLE, check_password_hash, generate_password_hash, _hash_token,
+    api_required, api_role_required, HR_ROLE, check_password_hash, generate_password_hash, password_needs_rehash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
     turnstile_enabled, _TURNSTILE_SITE_KEY, employment_ended_on, access_ended_message,
@@ -21,7 +21,7 @@ from utils.totp import send_mfa_login_email
 from utils.helpers import (
     _db, get_auth_config, validate_employee_email_domain,
     get_pending_counts, tpath, add_employee_seat_cap_check,
-    get_company_settings, _safe_app_url, company_today,
+    get_company_settings, _safe_app_url, company_today, encrypt_contact,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
 from utils.email_utils import public_contact_email
@@ -690,8 +690,8 @@ def _api_employee_login(emp_id, password):
         return jsonify({"ok": False, "password_change_required": True,
                         "msg": "Your password was reset by your administrator. Sign in on the web portal "
                                "to set a new password, then sign in here again."}), 403
-    # Upgrade legacy hash to bcrypt transparently
-    if row[2] and not row[2].startswith("$2"):
+    # Upgrade bcrypt/pbkdf2 (or weaker Argon2) hashes to Argon2id transparently
+    if password_needs_rehash(row[2]):
         with _db() as (_uc, _ud):
             _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
                         (generate_password_hash(password), emp_id))
@@ -907,10 +907,14 @@ def api_employee_signup():
         with transaction(db):
             _seat_error = add_employee_seat_cap_check(cursor)
             if not _seat_error:
+                _enc_email, _email_bidx = encrypt_contact("email", email)
+                _enc_phone, _phone_bidx = encrypt_contact("phone", phone)
                 cursor.execute(
-                    "INSERT INTO employees (employee_id, name, email, role, department, phone, password, "
-                    "date_of_joining) VALUES (%s, %s, %s, %s, %s, %s, %s, COALESCE(%s::date, NOW()))",
-                    (emp_id, name, email, role, department, phone, hashed_pw, date_of_joining)
+                    "INSERT INTO employees (employee_id, name, email, email_bidx, role, department, phone, "
+                    "phone_bidx, password, date_of_joining) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, COALESCE(%s::date, NOW()))",
+                    (emp_id, name, _enc_email, _email_bidx, role, department, _enc_phone, _phone_bidx,
+                     hashed_pw, date_of_joining)
                 )
         if _seat_error:
             cursor.close()

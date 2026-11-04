@@ -381,7 +381,8 @@ def email_config():
     else:
         cursor.execute("SELECT smtp_pass FROM email_config ORDER BY id DESC LIMIT 1")
         prev = cursor.fetchone()
-        encrypted_password = prev[0] if prev else ""
+        # re-encrypt, not copy: the fetch already decrypted it (database.py)
+        encrypted_password = encrypt_pii(decrypt_pii(prev[0])) if prev and prev[0] else ""
 
     cursor.execute("DELETE FROM email_config")
     cursor.execute(

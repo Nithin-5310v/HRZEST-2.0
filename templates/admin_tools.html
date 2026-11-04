@@ -199,7 +199,7 @@
 
 {% block main %}
 
-  <!-- TOPBAR -->
+  {# TOPBAR #}
   <div class="topbar">
     <div class="topbar-heading">
       <div>
@@ -217,14 +217,14 @@
     </div>
   </div>
 
-  <!-- ACTIVITY LOG TAB (audit trail; same panel as /activity_log) -->
+  {# ACTIVITY LOG TAB (audit trail; same panel as /activity_log) #}
   <div id="tab-activity_log" class="tab-panel al-tab-panel {% if tab == 'activity_log' %}active{% endif %}">
     {% set al_url = tpath('/admin_tools') %}
     {% set al_tab = 'activity_log' %}
     {% include "_activity_log_panel.html" %}
   </div>
 
-  <!-- ORG CHART TAB -->
+  {# ORG CHART TAB #}
   <div id="tab-org_chart" class="tab-panel {% if tab == 'org_chart' %}active{% endif %}">
     <div class="org-controls">
       <input class="search-box" type="text" id="searchBox" placeholder="Search name, role, department…" data-on-input="doSearch(this.value)">

@@ -101,7 +101,10 @@ def api_save_payout_bank_config():
             cursor.close()
             db.close()
             return jsonify({"ok": False, "msg": "Account number is required."}), 400
-        encrypted_account = prev[0]
+        # Re-encrypt rather than copy: database.py decrypts "hz2:" values on
+        # fetch, so prev[0] is plaintext here (decrypt_pii also covers a
+        # legacy Fernet value the fetch left as-is).
+        encrypted_account = encrypt_pii(decrypt_pii(prev[0]))
 
     cursor.execute("DELETE FROM payout_bank_config")
     cursor.execute(

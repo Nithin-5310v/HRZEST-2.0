@@ -100,6 +100,10 @@ _EXACT = {
     "waf.xss_blocked": ("waf", "Cross-site scripting blocked", ["T1190"]),
     "waf.path_traversal_blocked": ("waf", "Path traversal blocked", ["T1190", "T1083"]),
     "waf.auto_ban": ("waf", "IP auto-banned after repeated blocks", ["T1190"]),
+    # Named secops.* rather than waf.* so soc_queries' "WAF blocks" counter
+    # (event_type LIKE 'waf.%') doesn't count them as blocks.
+    "secops.ban_review_raised": ("waf", "Address awaiting a SOC ban decision", ["T1190"]),
+    "secops.ban_review_failed": ("waf", "Ban review could not be recorded", []),
     "waf.ban_skipped_shared_ip": ("waf", "Ban withheld (shared address)", []),
     "waf.ban_write_failed": ("waf", "Ban could not be written", []),
     "waf.redis_error": ("waf", "WAF counter store error", []),

@@ -197,7 +197,7 @@
 
   <a href="javascript:history.back()" class="back-btn"><i class="ti ti-arrow-left"></i> Back</a>
 
-  <!-- HERO -->
+  {# HERO #}
   <div class="hero">
     <div class="avatar">
       {% if emp[26] %}
@@ -241,7 +241,7 @@
     </div>
   </div>
 
-  <!-- ATTENDANCE STATS -->
+  {# ATTENDANCE STATS #}
   <div class="stats-row">
     <div class="stat-card present">
       <div class="stat-num">{{ att[1] or 0 }}</div>
@@ -261,10 +261,10 @@
     </div>
   </div>
 
-  <!-- ROW 1: Personal + Contact + Salary -->
+  {# ROW 1: Personal + Contact + Salary #}
   <div class="grid3">
 
-    <!-- Personal Info -->
+    {# Personal Info #}
     <div class="card">
       <div class="card-title"><i class="ti ti-id-badge"></i>Personal Info</div>
       <div class="info-row">
@@ -315,7 +315,7 @@
       </div>
     </div>
 
-    <!-- Contact Info -->
+    {# Contact Info #}
     <div class="card">
       <div class="card-title"><i class="ti ti-phone"></i>Contact Info</div>
       {% if emp[2] %}
@@ -361,7 +361,7 @@
       {% endif %}
     </div>
 
-    <!-- Salary & Leave -->
+    {# Salary & Leave #}
     <div class="card">
       <div class="card-title"><i class="ti ti-cash"></i>Salary</div>
       {% if salary_per_day %}
@@ -393,7 +393,7 @@
 
   </div>
 
-  <!-- ROW 2: Recent Attendance + Quick Actions -->
+  {# ROW 2: Recent Attendance + Quick Actions #}
   <div class="grid2">
 
     <div class="card">

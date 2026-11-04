@@ -34,7 +34,44 @@ migrating those needs their matching read-back call sites (send_file,
 send_from_directory, direct Image.open()) updated in the same pass, a
 larger and riskier change to make blind. Follow-up, not done here.
 """
+import io
 import os
+import tempfile
+
+# Encryption at rest for private uploads (AES-256-GCM, utils/pii_crypto.py,
+# same ENCRYPTION_KEY as PII columns). Applied here so every save_private()/
+# open_private() caller gets it with no change: files on disk -- and in
+# backups or a copied volume -- are ciphertext; open_private() returns the
+# original bytes. Files written before this existed have no FILE_MAGIC
+# header and are returned as-is, so nothing breaks before
+# scripts/encrypt_private_uploads.py has upgraded them.
+_cipher = None
+
+
+def _get_cipher():
+    global _cipher
+    if _cipher is None:
+        from utils.pii_crypto import cipher_from_env
+        _cipher = cipher_from_env()
+    return _cipher
+
+
+def write_encrypted(full_path, data):
+    """Atomically write `data` encrypted to full_path (temp file + rename,
+    so a crash can never leave a half-written or plaintext file behind)."""
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    blob = _get_cipher().encrypt_bytes(data)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(full_path), prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(blob)
+        os.replace(tmp, full_path)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _local_path(app_root_path, rel_path):
@@ -62,16 +99,17 @@ def save_private(app_root_path, file_storage, rel_path):
     pass back into open_private()/delete_private(), never a directly
     servable URL."""
     full_path = _local_path(app_root_path, os.path.join("private_uploads", rel_path))
-    os.makedirs(os.path.dirname(full_path), exist_ok=True)
-    file_storage.save(full_path)
+    buf = io.BytesIO()
+    file_storage.save(buf)
+    write_encrypted(full_path, buf.getvalue())
     return full_path, None
 
 
 def open_private(stored_ref):
     """Read back a private upload's bytes given the stored_ref save_private()
-    returned."""
+    returned. Decrypts transparently (legacy plaintext files pass through)."""
     with open(stored_ref, "rb") as f:
-        return f.read()
+        return _get_cipher().decrypt_bytes(f.read())
 
 
 def delete_private(stored_ref):

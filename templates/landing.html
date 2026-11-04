@@ -9,7 +9,7 @@
   <link rel="canonical" href="{{ seo_base_url }}/">
   {% if google_site_verification %}<meta name="google-site-verification" content="{{ google_site_verification }}">{% endif %}
 
-  <!-- Social sharing previews (Slack, WhatsApp, LinkedIn, etc.) -->
+  {# Social sharing previews (Slack, WhatsApp, LinkedIn, etc.) #}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="HRzest">
   <meta property="og:title" content="HRzest.com - HR, Attendance & Payroll Platform">
@@ -36,19 +36,19 @@
   }
   </script>
 
-  <!-- Icons: local Tabler set (no external CDN -- the app's CSP is style-src-elem 'self', which blocks cross-origin stylesheets) -->
+  {# Icons: local Tabler set (no external CDN -- the app's CSP is style-src-elem 'self', which blocks cross-origin stylesheets) #}
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}">
-  <!-- Stylesheet -->
+  {# Stylesheet #}
   <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}">
-  <!-- Shared Zoho-style public theme (blue, clean light canvas), loaded last -->
+  {# Shared Zoho-style public theme (blue, clean light canvas), loaded last #}
   <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
-  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
   <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
 
-  <!-- Navigation Bar -->
+  {# Navigation Bar #}
   <nav class="navbar" id="navbar">
     <div class="container nav-container">
       <a href="/" class="logo">
@@ -77,7 +77,7 @@
     </div>
   </nav>
 
-  <!-- Hero Section -->
+  {# Hero Section #}
   <section class="hero-section">
     <div class="container hero-grid">
       <div class="hero-content">
@@ -107,9 +107,9 @@
         </div>
       </div>
 
-      <!-- Hero Interactive Terminal Widget -->
+      {# Hero Interactive Terminal Widget #}
       <div class="hero-widget">
-        <!-- Floating Metrics -->
+        {# Floating Metrics #}
         <div class="floating-metric fm-1">
           <div class="fm-icon green"><i class="ti ti-fingerprint"></i></div>
           <div class="fm-text-group">
@@ -131,7 +131,7 @@
           </div>
         </div>
 
-        <!-- Scanner Viewport -->
+        {# Scanner Viewport #}
         <div class="scanner-viewport">
           <div class="scanner-overlay"></div>
           <div class="face-target-box" id="faceTargetBox">
@@ -153,7 +153,7 @@
     </div>
   </section>
 
-  <!-- Interactive Sandbox / Module Showcase -->
+  {# Interactive Sandbox / Module Showcase #}
   <section class="sandbox-section" id="sandbox">
     <div class="container">
       <div class="section-header">
@@ -161,8 +161,8 @@
         <p class="section-subtitle">No sign-up required — explore attendance, payroll, leave, and ID badges with sample data.</p>
       </div>
 
-      <!-- Module Cards -- double as the tab switcher (see .sandbox-tab in
-           landing_v2.js); the data-tab/active-class contract is unchanged. -->
+      {# Module Cards -- double as the tab switcher (see .sandbox-tab in
+           landing_v2.js); the data-tab/active-class contract is unchanged. #}
       <div class="module-cards">
         <button class="sandbox-tab module-card active" data-tab="tab-attendance">
           <div class="module-card-icon"><i class="ti ti-clock-check"></i></div>
@@ -190,7 +190,7 @@
         </button>
       </div>
 
-      <!-- Interactive Window -->
+      {# Interactive Window #}
       <div class="sandbox-window">
         <div class="window-bar">
           <div class="window-dots">
@@ -202,7 +202,7 @@
         </div>
 
         <div class="sandbox-content">
-          <!-- Panel 1: Attendance Logs -->
+          {# Panel 1: Attendance Logs #}
           <div class="sandbox-panel active" id="tab-attendance">
             <div class="attendance-demo-grid">
               <div>
@@ -265,7 +265,7 @@
             </div>
           </div>
 
-          <!-- Panel 2: Payroll Engine -->
+          {# Panel 2: Payroll Engine #}
           <div class="sandbox-panel" id="tab-payroll">
             <div class="payroll-calculator-grid">
               <div>
@@ -297,7 +297,7 @@
                 </div>
               </div>
 
-              <!-- Payslip Preview Card -->
+              {# Payslip Preview Card #}
               <div class="payslip-card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
                   <div>
@@ -331,7 +331,7 @@
             </div>
           </div>
 
-          <!-- Panel 3: Leave Workflow -->
+          {# Panel 3: Leave Workflow #}
           <div class="sandbox-panel" id="tab-leave">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
               <div>
@@ -379,7 +379,7 @@
             </div>
           </div>
 
-          <!-- Panel 4: Org Vault -->
+          {# Panel 4: Org Vault #}
           <div class="sandbox-panel" id="tab-org">
             <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 2rem; align-items: center;">
               <div>
@@ -394,7 +394,7 @@
               </div>
 
               <div style="display: flex; justify-content: center;">
-                <!-- Vertical ID badge, styled like a real employee credential card -->
+                {# Vertical ID badge, styled like a real employee credential card #}
                 <div style="width: 232px; background: var(--bg-card); border: 1px solid var(--border-color-glow); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; position: relative;">
                   <div style="position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 36px; height: 8px; border-radius: 6px; background: rgba(0,0,0,0.18); z-index: 2;" aria-hidden="true"></div>
                   <div style="background: var(--gradient-brand); padding: 1.7rem 1rem 2.6rem; text-align: center;">
@@ -426,7 +426,7 @@
     </div>
   </section>
 
-  <!-- Chapter 1: Attendance -->
+  {# Chapter 1: Attendance #}
   <section class="chapter-section" id="features">
     <div class="container">
       <div class="chapter">
@@ -452,7 +452,7 @@
     </div>
   </section>
 
-  <!-- Chapter 2: Payroll -->
+  {# Chapter 2: Payroll #}
   <section class="chapter-section">
     <div class="container">
       <div class="chapter chapter-reverse">
@@ -497,7 +497,7 @@
     </div>
   </section>
 
-  <!-- Chapter 3: Security -->
+  {# Chapter 3: Security #}
   <section class="chapter-section" id="security">
     <div class="container">
       <div class="chapter">
@@ -527,7 +527,7 @@
     </div>
   </section>
 
-  <!-- Pricing Section -->
+  {# Pricing Section #}
   <section class="chapter-section" id="pricing">
     <div class="container">
       <div class="section-header">
@@ -556,9 +556,9 @@
     </div>
   </section>
 
-  <!-- Company Registration (manual). Step 1 of blueprints/org.py's signup
+  {# Company Registration (manual). Step 1 of blueprints/org.py's signup
        wizard (create_org): the admin's email, mobile number and password;
-       the email code, company profile and documents follow on /create_org/*. -->
+       the email code, company profile and documents follow on /create_org/*. #}
   <section class="contact-section" id="register">
     <div class="container">
       <div class="section-header">
@@ -653,7 +653,7 @@
     </div>
   </section>
 
-  <!-- FAQ Section -->
+  {# FAQ Section #}
   <section class="chapter-section" id="faq" style="background: var(--bg-secondary); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
     <div class="container">
       <div class="section-header">
@@ -689,7 +689,7 @@
     </div>
   </section>
 
-  <!-- Contact Us Section -->
+  {# Contact Us Section #}
   <section class="contact-section" id="contact">
     <div class="container">
       <div class="section-header">
@@ -698,7 +698,7 @@
       </div>
 
       <div class="contact-grid">
-        <!-- Contact Information Info Card -->
+        {# Contact Information Info Card #}
         <div class="contact-info-card">
           <div class="contact-company-badge">
             <i class="ti ti-building"></i> <span class="hrzest-brand" style="font-size:0.85rem;">HRzest.com</span>
@@ -731,7 +731,7 @@
           </div>
         </div>
 
-        <!-- Contact Form Box -->
+        {# Contact Form Box #}
         <div class="contact-form-box">
           <h3 style="font-size: 1.4rem; margin-bottom: 1.25rem;"><i class="ti ti-send" style="color:var(--accent-cyan)"></i> Send Us a Message</h3>
           <form id="contactForm" method="post">
@@ -771,7 +771,7 @@
     </div>
   </section>
 
-  <!-- Feedback Section -->
+  {# Feedback Section #}
   <section class="feedback-section" id="feedback">
     <div class="container">
       <div class="section-header">
@@ -786,16 +786,16 @@
               <label style="font-weight:700; font-size:0.92rem; display:block; margin-bottom:0.6rem;">Feedback Category <span class="req">*</span></label>
               <div class="feedback-categories">
                 <label class="category-pill active">
-                  <input type="radio" name="feedbackType" value="Feature Request" checked> <i class="ti ti-bulb"></i> Feature Request
+                  <input type="radio" name="feedbackType" data-type="Feature Request" checked> <i class="ti ti-bulb"></i> Feature Request
                 </label>
                 <label class="category-pill">
-                  <input type="radio" name="feedbackType" value="User Experience"> <i class="ti ti-wand"></i> User Experience
+                  <input type="radio" name="feedbackType" data-type="User Experience"> <i class="ti ti-wand"></i> User Experience
                 </label>
                 <label class="category-pill">
-                  <input type="radio" name="feedbackType" value="Biometrics"> <i class="ti ti-fingerprint"></i> Biometrics & Security
+                  <input type="radio" name="feedbackType" data-type="Biometrics"> <i class="ti ti-fingerprint"></i> Biometrics & Security
                 </label>
                 <label class="category-pill">
-                  <input type="radio" name="feedbackType" value="General Praise"> <i class="ti ti-heart"></i> General Feedback
+                  <input type="radio" name="feedbackType" data-type="General Praise"> <i class="ti ti-heart"></i> General Feedback
                 </label>
               </div>
 
@@ -841,7 +841,7 @@
     </div>
   </section>
 
-  <!-- CTA Banner -->
+  {# CTA Banner #}
   <div class="container">
     <div class="cta-banner">
       <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Ready to simplify your HR operations?</h2>
@@ -852,7 +852,7 @@
     </div>
   </div>
 
-  <!-- Footer -->
+  {# Footer #}
   <footer class="footer">
     <div class="container">
       <div class="footer-grid">
@@ -898,7 +898,7 @@
     </div>
   </footer>
 
-  <!-- Lead Registration Modal -->
+  {# Lead Registration Modal #}
   <div class="modal-backdrop" id="leadModal">
     <div class="modal-card">
       <button class="modal-close-btn" id="closeLeadModal">&times;</button>
@@ -938,7 +938,7 @@
         </button>
       </form>
 
-      <!-- Confirmation Screen -->
+      {# Confirmation Screen #}
       <div class="modal-success-msg" id="modalSuccessMsg" style="display: none;">
         <div class="success-icon"><i class="ti ti-circle-check"></i></div>
         <h3>Request Received!</h3>
@@ -949,7 +949,7 @@
     </div>
   </div>
 
-  <!-- App JavaScript Logic -->
+  {# App JavaScript Logic #}
   <script src="{{ static_url('landing_v2.js') }}"></script>
 </body>
 </html>

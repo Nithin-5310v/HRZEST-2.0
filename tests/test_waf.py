@@ -11,8 +11,17 @@ import utils.waf as waf_module
 def _unban(db_engine, ip):
     cur = db_engine.cursor()
     cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
+    cur.execute("DELETE FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
     db_engine.commit()
     cur.close()
+
+
+def _review(db_engine, ip):
+    cur = db_engine.cursor()
+    cur.execute("SELECT status, source, suggested_minutes FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
+    row = cur.fetchone()
+    cur.close()
+    return row
 
 
 class TestSqliSignature:
@@ -210,8 +219,32 @@ class TestWafBlocksRealRequests:
 
 
 class TestProgressiveAutoBan:
-    def test_repeated_breaches_ban_the_ip(self, db_engine):
+    def test_repeated_breaches_raise_a_review_not_a_ban(self, db_engine, monkeypatch):
+        """Crossing the breach threshold queues the address for an analyst's
+        decision (SOC console, Ban review) instead of banning it: a per-IP
+        threshold can't tell an attacker from a customer office behind one
+        shared address."""
+        monkeypatch.delenv("SOC_AUTO_BAN", raising=False)
         ip = "198.51.100.201"
+        waf_module._breach_log.pop(ip, None)
+        _unban(db_engine, ip)
+        try:
+            for _ in range(waf_module._BREACH_THRESHOLD):
+                waf_module.record_breach_and_maybe_ban(ip, "test breach")
+            cur = db_engine.cursor()
+            cur.execute("SELECT 1 FROM banned_ips WHERE ip=%s", (ip,))
+            assert cur.fetchone() is None
+            cur.close()
+            assert _review(db_engine, ip) == ("pending", "waf", waf_module._BAN_MINUTES)
+        finally:
+            waf_module._breach_log.pop(ip, None)
+            _unban(db_engine, ip)
+
+    def test_soc_auto_ban_still_bans_at_once(self, db_engine, monkeypatch):
+        """SOC_AUTO_BAN=true keeps the old immediate ban for deployments nobody
+        watches, and records it as already decided by system:auto."""
+        monkeypatch.setenv("SOC_AUTO_BAN", "true")
+        ip = "198.51.100.204"
         waf_module._breach_log.pop(ip, None)
         _unban(db_engine, ip)
         try:
@@ -223,6 +256,7 @@ class TestProgressiveAutoBan:
             cur.close()
             assert row is not None
             assert row[0] > datetime.datetime.now()
+            assert _review(db_engine, ip)[0] == "banned"
         finally:
             waf_module._breach_log.pop(ip, None)
             _unban(db_engine, ip)

@@ -74,9 +74,9 @@
     body.dark-mode .empty-state h3{color:#cdd9e5!important}
     body.dark-mode .empty-state p{color:#768390!important}
   </style>
-  <!-- Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles -->
+  {# Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles #}
   <link rel="stylesheet" href="{{ static_url('employee-theme.css') }}" />
-  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
   <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
@@ -151,7 +151,7 @@
       </div>
 
       <div class="review-body">
-        <!-- KPIs -->
+        {# KPIs #}
         {% if kpis %}
         <div class="sec-title"><i class="ti ti-target"></i> My KPIs</div>
         {% for kpi_title, target, achievement, weight, kpi_rating, comments in kpis %}
@@ -182,7 +182,7 @@
         {% endfor %}
         {% endif %}
 
-        <!-- Reviewer feedback -->
+        {# Reviewer feedback #}
         {% if feedback %}
         <div class="u-mt-16 u-pt-14 u-bdt-1-solid-e2e8f0">
           <div class="sec-title"><i class="ti ti-message-circle"></i> Manager Feedback</div>
@@ -192,7 +192,7 @@
         </div>
         {% endif %}
 
-        <!-- Employee comment -->
+        {# Employee comment #}
         {% if status == 'Submitted' %}
         <div class="u-mt-16 u-pt-14 u-bdt-1-solid-e2e8f0">
           <div class="sec-title"><i class="ti ti-user"></i> Your Comment</div>
@@ -222,8 +222,8 @@
     <p>Your manager will assign KPIs and conduct quarterly reviews — check back later to see your progress here.</p>
   </div>
   {% endif %}
-    </div><!-- /app-content -->
-  </div><!-- /main-area -->
+    </div>{# /app-content #}
+  </div>{# /main-area #}
 <script src="{{ static_url('darkmode.min.js') }}"></script>
 <script src="{{ static_url('employee_sidebar.js') }}"></script>
 </body>

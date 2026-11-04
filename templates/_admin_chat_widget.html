@@ -1,10 +1,10 @@
-<!-- ═══ COMPANY <-> PLATFORM ADMIN CHAT (admin_base.html only) ═══
+{# ═══ COMPANY <-> PLATFORM ADMIN CHAT (admin_base.html only) ═══
      Floating widget for the company admin/HR side of the one shared thread
      with the platform operator (utils/chat_utils.py). Polls rather than
      pushes -- consistent with this app's other real-time-ish UI (the
      dashboard's pollLiveStats in admin_base.html itself). The thread itself
      is drawn by static/chat.js (styles: static/chat.css, linked in
-     admin_base.html's <head>), shared with super_admin_dashboard.html. -->
+     admin_base.html's <head>), shared with super_admin_dashboard.html. #}
 <button id="chatFab" class="hz-chat-fab" data-on-click="chatToggle()" title="Chat with the platform team" aria-label="Chat with the platform team">
   <i class="ti ti-message-circle"></i>
   <span id="chatUnreadBadge" class="hz-chat-fab-badge"></span>

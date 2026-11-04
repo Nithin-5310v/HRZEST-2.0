@@ -12,7 +12,7 @@ from database import get_db_connection
 from utils.auth import employee_required, employee_api_required, validate_new_password, session_account_ok
 from utils.helpers import (
     tpath,
-    _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
+    _audit, _db, encrypt_pii, encrypt_contact, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
     company_today, company_now, coerce_datetime, int_param, app_gps_checkin_allowed,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
@@ -49,8 +49,10 @@ def _fmt_t(t):
 @employee_required
 def update_my_profile():
     emp_id = session["employee_id"]
+    _phone, _phone_bidx = encrypt_contact("phone", request.form.get("phone", "").strip() or None)
     fields = {
-        "phone": request.form.get("phone", "").strip() or None,
+        "phone": _phone,
+        "phone_bidx": _phone_bidx,
         "gender": encrypt_pii(request.form.get("gender", "").strip() or None),
         "dob": encrypt_pii(request.form.get("dob", "").strip() or None),
         "blood_group": encrypt_pii(request.form.get("blood_group", "").strip() or None),
@@ -67,7 +69,7 @@ def update_my_profile():
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         UPDATE employees SET
-            phone=%s, gender=%s, dob=%s, blood_group=%s,
+            phone=%s, phone_bidx=%s, gender=%s, dob=%s, blood_group=%s,
             address=%s, city=%s, state=%s, pincode=%s,
             emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s,
             about_me=%s
@@ -1590,8 +1592,10 @@ def api_update_my_profile():
     from flask import g as _g
     emp_id = _g.api_emp_id
     data = request.get_json(silent=True) or {}
+    _phone, _phone_bidx = encrypt_contact("phone", (data.get("phone") or "").strip() or None)
     fields = {
-        "phone": (data.get("phone") or "").strip() or None,
+        "phone": _phone,
+        "phone_bidx": _phone_bidx,
         "gender": encrypt_pii((data.get("gender") or "").strip() or None),
         "dob": encrypt_pii((data.get("dob") or "").strip() or None),
         "blood_group": encrypt_pii((data.get("blood_group") or "").strip() or None),
@@ -1608,7 +1612,7 @@ def api_update_my_profile():
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         UPDATE employees SET
-            phone=%s, gender=%s, dob=%s, blood_group=%s,
+            phone=%s, phone_bidx=%s, gender=%s, dob=%s, blood_group=%s,
             address=%s, city=%s, state=%s, pincode=%s,
             emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s,
             about_me=%s
