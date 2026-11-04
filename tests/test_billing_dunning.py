@@ -129,12 +129,10 @@ class TestPayOverdueBillPage:
         assert str(expected_amount // 100) in body or f"{expected_amount // 100:,}" in body
 
 
-class TestEnforceBillingLockSessionBranch:
-    """app.py's _enforce_billing_lock() -- confirms an employee session
-    blocked by a locked account gets a real explanation instead of
-    bouncing to the admin login it can never complete (regression test for
-    the fix; /pay_overdue_bill is @admin_required, so an employee hitting
-    it just lands back at the admin login with nothing useful shown)."""
+class TestBillingLock:
+    """utils/auth.py's billing lock: while a company is locked, its admins,
+    HR and managers reach only the pay page; its employees carry on as
+    normal -- attendance included."""
 
     def _make_billing_locked(self, client):
         """app.py's _resolve_tenant() only respects session["_billing_locked"]
@@ -150,25 +148,71 @@ class TestEnforceBillingLockSessionBranch:
             sess["_tenant_status_checked_at"] = _time.time()
             sess["_billing_locked"] = True
 
-    def test_locked_admin_session_redirects_to_pay_overdue_bill(self, client, seed_admin):
+    @pytest.mark.parametrize("path", ["/admin", "/employees", "/settings"])
+    def test_admin_pages_go_to_the_pay_page(self, client, seed_admin, path):
         _admin_session(client, seed_admin["username"])
         self._make_billing_locked(client)
-        resp = client.post("/toggle_feature", json={"feature": "qr_enabled", "value": True}, follow_redirects=False)
+        resp = client.get(path, follow_redirects=False)
         assert resp.status_code in (301, 302)
         assert "/pay_overdue_bill" in resp.headers["Location"]
 
-    def test_locked_employee_session_redirects_to_employee_portal_with_message(self, client, seed_employee):
+    def test_admin_ajax_gets_402(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        self._make_billing_locked(client)
+        resp = client.post("/toggle_feature", json={"feature": "qr_enabled", "value": True})
+        assert resp.status_code == 402
+        body = resp.get_json()
+        assert body["billing_locked"] is True and "Employees can still mark" in body["msg"]
+
+    def test_the_pay_page_stays_open(self, client, seed_admin, restore_tenant_billing_state):
+        _admin_session(client, seed_admin["username"])
+        self._make_billing_locked(client)
+        assert client.get("/pay_overdue_bill").status_code == 200
+
+    def test_unlocked_admin_is_unaffected(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"])
+        assert client.get("/employees").status_code == 200
+
+    def test_employee_portal_still_works(self, client, seed_employee):
         with client.session_transaction() as sess:
             sess["employee_id"] = seed_employee["employee_id"]
         self._make_billing_locked(client)
-        resp = client.post("/update_my_profile", data={}, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert "/employee_portal" in resp.headers["Location"]
-        assert "/pay_overdue_bill" not in resp.headers["Location"]
+        assert client.get("/employee_portal").status_code == 200
 
-        followed = client.get(resp.headers["Location"], follow_redirects=True)
-        body = followed.data.decode("utf-8", "ignore")
-        assert "contact your admin" in body.lower()
+    def test_employee_can_still_check_in(self, client, db_engine, seed_employee, restore_tenant_billing_state):
+        from tests.conftest import TEST_OFFICE
+        from utils.helpers import invalidate_settings_cache
+        _set_billing_state(db_engine, "locked", locked_at=datetime.datetime.now())
+        cur = db_engine.cursor()
+        cur.execute("SELECT app_gps_checkin FROM company_settings LIMIT 1")
+        gps_before = cur.fetchone()[0]
+        cur.execute("UPDATE company_settings SET app_gps_checkin=1")  # the company allows app check-in
+        invalidate_settings_cache()
+        cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date >= CURRENT_DATE - 1",
+                    (seed_employee["employee_id"],))
+        cur.close()
+        token = client.post("/att-test-suite/api/employee/login", json={
+            "employee_id": seed_employee["employee_id"], "password": seed_employee["password"],
+        }).get_json()["token"]
+        resp = client.post("/att-test-suite/api/employee/checkin", json=TEST_OFFICE,
+                           headers={"Authorization": f"Bearer {token}"})
+        cur = db_engine.cursor()
+        cur.execute("DELETE FROM attendance WHERE employee_id=%s AND date >= CURRENT_DATE - 1",
+                    (seed_employee["employee_id"],))
+        cur.execute("UPDATE company_settings SET app_gps_checkin=%s", (gps_before,))
+        cur.close()
+        invalidate_settings_cache()
+        assert resp.status_code == 200, resp.get_data(as_text=True)
+        assert resp.get_json()["ok"] is True
+
+    def test_admin_app_api_is_locked(self, client, db_engine, seed_admin, restore_tenant_billing_state):
+        _set_billing_state(db_engine, "locked", locked_at=datetime.datetime.now())
+        token = client.post("/att-test-suite/api/login", json={
+            "username": seed_admin["username"], "password": seed_admin["password"],
+        }).get_json()["token"]
+        resp = client.get("/att-test-suite/api/employees", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 402
+        assert resp.get_json()["billing_locked"] is True
 
 
 class TestCreateOverdueOrder:

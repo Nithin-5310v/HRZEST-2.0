@@ -306,7 +306,7 @@
           <label class="field-label" for="company_name_input"><i class="ti ti-building"></i> Company Name</label>
           <input class="field-input" type="text" name="company_name" id="company_name_input"
                  placeholder="e.g. Acme Corporation" required maxlength="200" autocomplete="organization"
-                 oninput="previewCompanyUrl(this.value)" />
+                 data-preview-url />
         </div>
 
         <div class="field-group">
@@ -358,11 +358,11 @@
         {% else %}
         <input type="hidden" name="signup_plan" id="signup_plan_input" value="pay_now" />
         <div class="plan-toggle">
-          <div class="plan-option selected" id="planOptionPayNow" onclick="selectSignupPlan('pay_now')">
+          <div class="plan-option selected" id="planOptionPayNow" data-signup-plan="pay_now">
             <div class="plan-option-title"><i class="ti ti-credit-card"></i> Pay Now</div>
             <div class="plan-option-sub">Activate immediately, billed this month.</div>
           </div>
-          <div class="plan-option" id="planOptionTrial" onclick="selectSignupPlan('trial')">
+          <div class="plan-option" id="planOptionTrial" data-signup-plan="trial">
             <div class="plan-option-title"><i class="ti ti-gift"></i> 2-Day Free Trial</div>
             <div class="plan-option-sub">Full access, card required, cancel anytime.</div>
           </div>
@@ -377,7 +377,7 @@
         <div class="field-group">
           <label class="field-label" for="company_name_input"><i class="ti ti-building"></i> Company Name</label>
           <input class="field-input" type="text" name="company_name" id="company_name_input"
-                 placeholder="e.g. Acme Corporation" required oninput="autoFillSubdomain(this.value)" />
+                 placeholder="e.g. Acme Corporation" required data-autofill-subdomain />
         </div>
 
         <div class="field-group">
@@ -386,7 +386,7 @@
                  placeholder="27AAAAA0000A1Z5" required maxlength="15"
                  pattern="[0-9]{2}[A-Za-z]{5}[0-9]{4}[A-Za-z][1-9A-Za-z]Z[0-9A-Za-z]"
                  title="15-character GSTIN, e.g. 27AAAAA0000A1Z5"
-                 oninput="this.value = this.value.toUpperCase().replace(/\s+/g, '')" />
+                 data-gstin />
           <div class="field-hint">Verifies your company is a real, distinct business.</div>
         </div>
 
@@ -396,7 +396,7 @@
             <div class="subdomain-prefix">{{ portal_base }}/</div>
             <input class="field-input subdomain-input" type="text" name="subdomain" id="subdomain_input"
                    placeholder="acme" pattern="[a-z0-9\-]+" required title="Lowercase letters, digits and hyphens only"
-                   oninput="cleanSubdomainInput(this)" onblur="cleanSubdomainInput(this)" />
+                   data-clean-subdomain />
           </div>
           <div class="field-hint">Your team will access their portal at: <strong id="liveUrlPreview" style="color: var(--accent-cyan);">{{ portal_base }}/acme/login</strong></div>
         </div>
@@ -459,6 +459,22 @@
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
     preview.textContent = PORTAL_BASE + '/' + (slug || 'your-company') + '/login';
   }
+
+  // Bound here rather than with inline oninput/onclick attributes: each
+  // inline handler forces 'unsafe-hashes' into the page's CSP script-src
+  // (ZAP 10055 on /create_org).
+  document.querySelectorAll('[data-preview-url]').forEach(el =>
+    el.addEventListener('input', () => previewCompanyUrl(el.value)));
+  document.querySelectorAll('[data-autofill-subdomain]').forEach(el =>
+    el.addEventListener('input', () => autoFillSubdomain(el.value)));
+  document.querySelectorAll('[data-signup-plan]').forEach(el =>
+    el.addEventListener('click', () => selectSignupPlan(el.dataset.signupPlan)));
+  document.querySelectorAll('[data-clean-subdomain]').forEach(el => {
+    el.addEventListener('input', () => cleanSubdomainInput(el));
+    el.addEventListener('blur', () => cleanSubdomainInput(el));
+  });
+  document.querySelectorAll('[data-gstin]').forEach(el =>
+    el.addEventListener('input', () => { el.value = el.value.toUpperCase().replace(/\s+/g, ''); }));
   </script>
 </body>
 </html>

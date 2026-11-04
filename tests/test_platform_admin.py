@@ -330,9 +330,10 @@ class TestDashboard:
             html_text = resp.data.decode("utf-8")
             assert f'data-tenant-id="{tenant_id}"' in html_text
             assert "&#34;" in html_text or "&quot;" in html_text  # the embedded quote, safely escaped
-            assert 'onclick="tenantChatOpen(this.dataset.tenantId, this.dataset.companyName)"' in html_text
-            # The old bug: a literal, unescaped `"` breaking out of the onclick attribute.
-            assert f'onclick="tenantChatOpen({tenant_id}, "' not in html_text
+            # data-on-click (static/hz-actions.js) since the CSP work replaced inline onclick.
+            assert 'data-on-click="tenantChatOpen(this.dataset.tenantId, this.dataset.companyName)"' in html_text
+            # The old bug: a literal, unescaped `"` breaking out of the handler attribute.
+            assert f'click="tenantChatOpen({tenant_id}, "' not in html_text
         finally:
             cur.execute("DELETE FROM att_master.tenants WHERE id=%s", (tenant_id,))
             cur.close()

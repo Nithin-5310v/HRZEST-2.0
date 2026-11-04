@@ -129,7 +129,7 @@
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn-approve"><i class="ti ti-check"></i> Approve</button>
           </form>
-          <form action="/super_admin/applications/{{ application.id }}/reject" method="POST" style="flex:1;min-width:180px;" onsubmit="return document.getElementById('rejectReason').value.trim().length > 0 || hzConfirmSubmit(event, 'Reject without a reason?');">
+          <form action="/super_admin/applications/{{ application.id }}/reject" method="POST" style="flex:1;min-width:180px;" data-on-submit="return confirmRejectWithoutReason(event)">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
             <textarea aria-label="Reason (shown to the applicant)..." class="reject-reason" name="reason" id="rejectReason" placeholder="Reason (shown to the applicant)..."></textarea>
             <button type="submit" class="btn-reject"><i class="ti ti-x"></i> Reject</button>
@@ -143,5 +143,12 @@
       </div>
       {% endif %}
     </div>
+    <script>
+      // Rejecting with a reason goes straight through; without one, confirm first.
+      function confirmRejectWithoutReason(ev) {
+        if (document.getElementById('rejectReason').value.trim().length > 0) return true;
+        return hzConfirmSubmit(ev, 'Reject without a reason?');
+      }
+    </script>
   </body>
 </html>

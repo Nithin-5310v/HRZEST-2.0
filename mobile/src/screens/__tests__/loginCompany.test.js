@@ -1,8 +1,10 @@
 // The sign-in page: one box for an email, username or employee ID (the
-// server's /api/signin decides admin or employee, like the website), sent
-// to the company typed in the Company box -- applied (api/client.js's
-// setCompanySlug) before the call, and remembered by the session
-// (signIn's companySlug).
+// server's /api/signin decides admin or employee, like the website). The
+// server also finds the company from those details and answers which
+// (company_slug); the Company box is hidden unless the person opens it,
+// the details fit more than one company, or for Forgot password. A typed
+// company is applied (api/client.js's setCompanySlug) before the call, and
+// the session remembers the company (signIn's companySlug).
 import React from 'react';
 import { Alert, Linking } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
@@ -37,6 +39,7 @@ jest.mock('../../api/client', () => ({
 jest.setTimeout(30000);
 
 const COMPANY = "Company name or web address";
+const SHOW_COMPANY = 'Sign in to a specific company';
 const IDENT = 'e.g. you@company.com or EMP-1001';
 const PASS = 'Your password';
 
@@ -46,8 +49,15 @@ beforeEach(() => {
   jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 });
 
+async function openCompanyBox(screen) {
+  await fireEvent.press(screen.getByText(SHOW_COMPANY));
+}
+
 async function signInWith(screen, { company, ident, password = 'password123' }) {
-  if (company !== undefined) await fireEvent.changeText(screen.getByPlaceholderText(COMPANY), company);
+  if (company !== undefined) {
+    await openCompanyBox(screen);
+    await fireEvent.changeText(screen.getByPlaceholderText(COMPANY), company);
+  }
   await fireEvent.changeText(screen.getByPlaceholderText(IDENT), ident);
   await fireEvent.changeText(screen.getByPlaceholderText(PASS), password);
   await fireEvent.press(screen.getAllByText('Sign in').at(-1)); // the button, not the page title
@@ -176,6 +186,7 @@ describe('Forgot password', () => {
 
   it("opens the reset page of the company in the Company box", async () => {
     const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    await openCompanyBox(screen);
     await fireEvent.changeText(screen.getByPlaceholderText(COMPANY), 'acme');
     await fireEvent.press(screen.getByText('Forgot password?'));
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Reset Your Password', expect.any(String), expect.any(Array)));
@@ -188,9 +199,67 @@ describe('Forgot password', () => {
   it("doesn't open anything for a company that doesn't exist", async () => {
     api.resolveCompany.mockRejectedValueOnce({ response: { status: 404, data: { ok: false, msg: 'No such company.' } } });
     const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    await openCompanyBox(screen);
     await fireEvent.changeText(screen.getByPlaceholderText(COMPANY), 'nope');
     await fireEvent.press(screen.getByText('Forgot password?'));
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Company Not Found', 'No such company.'));
     expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+
+  it('asks for the company first when none is known', async () => {
+    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    expect(screen.queryByPlaceholderText(COMPANY)).toBeNull();
+    await fireEvent.press(screen.getByText('Forgot password?'));
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Your company', expect.any(String)));
+    expect(screen.getByPlaceholderText(COMPANY)).toBeTruthy();
+    expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+});
+
+describe('No company box', () => {
+  it('is hidden at first', async () => {
+    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    expect(screen.queryByPlaceholderText(COMPANY)).toBeNull();
+    expect(screen.getByText(SHOW_COMPANY)).toBeTruthy();
+  });
+
+  it('signs in to the company the server found from the details', async () => {
+    api.signInAccount.mockImplementation(async () => {
+      expect(mockSlug).toBe(''); // no company sent: the server finds it
+      return { data: { ok: true, account: 'employee', token: 'tok', name: 'Asha', employee_id: 'EMP1',
+                       company_slug: 'acme-foods' } };
+    });
+    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    await signInWith(screen, { ident: 'emp1' });
+    await waitFor(() => expect(mockSignIn).toHaveBeenCalled());
+    expect(mockSignIn.mock.calls[0][1]).toMatchObject({ role: 'employee', companySlug: 'acme-foods' });
+  });
+
+  it('sends the emailed-code step to the company the server found', async () => {
+    api.signInAccount.mockResolvedValue({
+      data: { ok: true, account: 'admin', mfa_required: true, challenge_id: 'ch1', company_slug: 'acme' },
+    });
+    api.verifyAdminLogin.mockImplementation(async () => {
+      expect(mockSlug).toBe('acme');
+      return { data: { ok: true, token: 'tok', username: 'owner', role: 'admin' } };
+    });
+    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    await signInWith(screen, { ident: 'owner' });
+    await waitFor(() => expect(screen.getByText('VERIFICATION CODE')).toBeTruthy());
+    await fireEvent.changeText(screen.getByPlaceholderText('000000'), '123456');
+    await fireEvent.press(screen.getByText('Verify and continue'));
+    await waitFor(() => expect(mockSignIn).toHaveBeenCalled());
+    expect(mockSignIn.mock.calls[0][1]).toMatchObject({ companySlug: 'acme' });
+  });
+
+  it('asks which company when the details fit more than one', async () => {
+    api.signInAccount.mockRejectedValueOnce({
+      response: { status: 409, data: { ok: false, company_required: true, msg: 'This account is in more than one company.' } },
+    });
+    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+    await signInWith(screen, { ident: 'EMP1' });
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Which company?', 'This account is in more than one company.'));
+    expect(screen.getByPlaceholderText(COMPANY)).toBeTruthy();
+    expect(mockSignIn).not.toHaveBeenCalled();
   });
 });

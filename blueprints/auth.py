@@ -65,12 +65,21 @@ _INJECTION_PATTERN_RE = re.compile(
 _MFA_OTP_TTL_SEC = 300
 
 
+def _login_asks_for_company():
+    """LOGIN_ASKS_FOR_COMPANY: this server hosts many companies, so a bare
+    /login never signs in to the default database."""
+    return os.environ.get("LOGIN_ASKS_FOR_COMPANY", "").strip().lower() in ("1", "true", "yes")
+
+
 def _login_needs_company():
     """True when /login has no company to sign in to: LOGIN_ASKS_FOR_COMPANY
     is on (a multi-company server) and neither the URL (/<company>/login)
     nor this session names one. Off, a bare /login keeps signing in to the
-    default single-company database, as local dev and the tests use it."""
-    if os.environ.get("LOGIN_ASKS_FOR_COMPANY", "").strip().lower() not in ("1", "true", "yes"):
+    default single-company database, as local dev and the tests use it.
+    Either way a bare /login finds the company from the credentials
+    (_bare_login_company); the company step is only for ?company= links
+    and for an account that exists in more than one company."""
+    if not _login_asks_for_company():
         return False
     return not (request.environ.get("hrz.tenant_slug") or session.get("tenant_slug"))
 
@@ -103,6 +112,111 @@ def _find_company_slug(typed):
         cur.close()
         conn.close()
     return row[0] if row else None
+
+
+def _accounts_matching(cursor, identifier, password):
+    """(exists, matches) for one schema: whether an account with this
+    sign-in name is there -- an admin/HR/manager username or the lowercased
+    email sign-up admins use, or an employee ID -- and whether the password
+    is its password. The same names /login itself accepts."""
+    names = [identifier] + ([identifier.lower()] if identifier != identifier.lower() else [])
+    cursor.execute("SELECT password FROM admin_users WHERE username = ANY(%s)", (names,))
+    hashes = [r[0] for r in cursor.fetchall()]
+    cursor.execute("SELECT password FROM employees WHERE employee_id=%s", (identifier.upper(),))
+    hashes += [r[0] for r in cursor.fetchall()]
+    return bool(hashes), any(h and check_password_hash(h, password) for h in hashes)
+
+
+def _company_for_credentials(identifier, password):
+    """For a /login with no company in its URL (the landing page's Sign in):
+    which active company these credentials belong to.
+
+    -> (slug, db_name) for exactly one company whose account has this
+       password -- or, when none does, the one company that has this sign-in
+       name at all, so its own lockout and failed-attempt records still run;
+    -> "many" when the password matches in more than one company;
+    -> None otherwise (no such account anywhere)."""
+    from database import get_master_db, get_tenant_db
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    try:
+        cur.execute("SELECT subdomain, db_name FROM tenants WHERE status='active' AND schema_missing_tables IS NULL")
+        companies = cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+    exists, matches = [], []
+    for slug, db_name in companies:
+        try:
+            tconn = get_tenant_db(db_name)
+            tcur = tconn.cursor(buffered=True)
+            try:
+                found, ok = _accounts_matching(tcur, identifier, password)
+            finally:
+                tcur.close()
+                tconn.close()
+        except Exception:
+            app_log.warning("login: account lookup failed in '%s'", db_name, exc_info=True)
+            continue
+        if found:
+            exists.append((slug, db_name))
+        if ok:
+            matches.append((slug, db_name))
+    if len(matches) > 1:
+        return "many"
+    if matches:
+        return matches[0]
+    return exists[0] if len(exists) == 1 else None
+
+
+def _sign_in_under_company(slug, db_name, bind_session=True):
+    """Runs the rest of this request -- and, for the website, binds the
+    session -- as this company, as if the person had opened /<slug>/login.
+    The app's /api/signin passes bind_session=False: it's token-based."""
+    from database import get_master_db
+    from flask import g as _g
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    try:
+        cur.execute("SELECT billing_state FROM tenants WHERE db_name=%s", (db_name,))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+        conn.close()
+    _g.tenant_db = db_name
+    _g.tenant_slug = slug
+    _g.billing_locked = bool(row) and row[0] == "locked"
+    if not bind_session:
+        return
+    session["tenant_db"] = db_name
+    session["tenant_slug"] = slug
+    session["_tenant_status_checked_at"] = time.time()
+    session["_billing_locked"] = _g.billing_locked
+
+
+def _bare_login_company(identifier, password, bind_session=True):
+    """/login with no company in its URL: switches this request to the
+    company these credentials belong to. Returns "many" when they fit more
+    than one company (the person then names theirs), else None.
+
+    Without LOGIN_ASKS_FOR_COMPANY (local dev, the tests) an account in the
+    default database still signs in there, as before; with it (a multi-
+    company server) only the companies are searched."""
+    if request.environ.get("hrz.tenant_slug") or not identifier or not password:
+        return None
+    if not _login_asks_for_company():
+        try:
+            with _db() as (cursor, _conn):
+                if _accounts_matching(cursor, identifier, password)[1]:
+                    return None
+        except Exception:
+            app_log.warning("login: default-database account check failed", exc_info=True)
+    found = _company_for_credentials(identifier, password)
+    if found == "many":
+        return "many"
+    if found:
+        _sign_in_under_company(*found, bind_session=bind_session)
+    return None
 
 
 @auth_bp.route("/api/company/resolve", methods=["GET"])
@@ -493,21 +607,25 @@ def admin_login():
         return redirect(tpath("/admin"))
     if session.get("employee_id"):
         return redirect(tpath("/employee_portal"))
-    if _login_needs_company():
-        # Which company first (a GET form: ?company=), then that company's
-        # own /<company>/login -- a bare /login has no company to sign in to.
+    if _login_needs_company() and request.method == "GET" and request.args.get("company") is not None:
+        # The company step (?company=, or after an account that's in more
+        # than one company): sends the person to that company's own
+        # /<company>/login. A plain bare /login is the sign-in form -- the
+        # credentials themselves name the company (_bare_login_company).
         typed = request.args.get("company")
-        error = None
-        if typed is not None:
-            slug = _find_company_slug(typed)
-            if slug:
-                return redirect(f"/{slug}/login")
-            error = "We couldn't find that company. Check the company URL in your welcome email."
-        return render_template("admin_login.html", co=co, pick_company=True, error=error,
-                               company=typed or "")
+        slug = _find_company_slug(typed)
+        if slug:
+            return redirect(f"/{slug}/login")
+        return render_template("admin_login.html", co=co, pick_company=True, company=typed or "",
+                               error="We couldn't find that company. Check the company URL in your welcome email.")
     if request.method == "POST":
         identifier = request.form.get("identifier", "").strip()
         password = request.form.get("password", "").strip()
+        if _bare_login_company(identifier, password) == "many":
+            return render_template("admin_login.html", co=co, pick_company=True, company="",
+                                   error="This account is in more than one company. Enter your company's "
+                                         "name or URL to continue.")
+        co = get_company_settings()  # the company the credentials named, if they named one
         # Password is intentionally never inspected or logged here -- only
         # the identifier field is checked, and only its shape (matched
         # pattern name), never the raw value, goes into the alert.

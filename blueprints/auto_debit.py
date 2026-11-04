@@ -201,14 +201,49 @@ def confirm():
         "WHERE tenant_schema=%s AND razorpay_subscription_id=%s",
         (g.tenant_db, subscription_id)
     )
+    # The company is paid for from here on. A trial that ended with no
+    # payment method (trial_billing.py) comes back to normal, out of its
+    # grace period or lock; a trial still running ends now rather than at
+    # trial_end_date -- this is the upgrade its 2-employee cap points to
+    # (utils/helpers.add_employee_seat_cap_check()).
+    cur.execute(
+        "UPDATE tenants SET subscription_status='active', payment_option='online', billing_state='current', "
+        "grace_period_ends_at=NULL, locked_at=NULL "
+        "WHERE db_name=%s AND subscription_status IN ('past_due', 'trialing')",
+        (g.tenant_db,)
+    )
+    reactivated = cur.rowcount == 1
     conn.commit()
     cur.close()
     conn.close()
+    if reactivated:
+        session["_billing_locked"] = False
+        g.billing_locked = False
 
     log_security_event(
         "auto_debit.activated", "Monthly auto-debit enabled", level="INFO", subscription_id=subscription_id,
     )
     return jsonify({"ok": True})
+
+
+@auto_debit_bp.route("/api/auto_debit/update_quantity", methods=["POST"])
+@admin_required
+@limiter.limit("10 per minute")
+def update_quantity():
+    """Settings > Billing's "Update Auto-Debit" (and the employee-added
+    email's link to it): bill the current headcount from the next charge
+    on, now, instead of at the daily sync."""
+    mandate = _get_mandate(g.tenant_db)
+    if not mandate or mandate["status"] != "active":
+        return jsonify({"ok": False, "msg": "Auto-debit isn't currently enabled."}), 400
+    count = get_tenant_employee_count(g.tenant_db)
+    subscription_id = mandate["subscription_id"] or ""
+    if not _sync_mandate_quantity(g.tenant_db, subscription_id, mandate["quantity_synced"], count,
+                                  is_demo_sub=subscription_id.startswith(_DEMO_SUBSCRIPTION_PREFIX)):
+        return jsonify({"ok": False, "msg": "Razorpay didn't accept the update. Please try again in a few minutes."}), 502
+    log_security_event("auto_debit.quantity_updated", f"Auto-debit updated to {count} employees",
+                       level="INFO", subscription_id=subscription_id)
+    return jsonify({"ok": True, "employees": count, "amount_display": format_price_inr(calculate_price(count))})
 
 
 @auto_debit_bp.route("/api/auto_debit/cancel", methods=["POST"])
@@ -324,11 +359,11 @@ def _migrate_mandate_if_needed(subscription_id):
 
 def _notify_rate_change(tenant_schema, company_name):
     """Switches g.tenant_db to the target tenant's schema for the duration
-    of the send (get_admin_emails()/get_email_config() both resolve against
+    of the send (get_billing_emails()/get_email_config() both resolve against
     whichever schema get_db_connection() currently points to), same
     pattern as blueprints/billing_dunning.py's _notify_tenant()."""
     from flask import g as _g
-    from utils.email_utils import get_email_config, get_admin_emails, send_email_async
+    from utils.email_utils import get_email_config, get_billing_emails, send_email_async
     from utils.plan_limits import get_per_employee_paise
     prev_tenant_db = getattr(_g, "tenant_db", None)
     try:
@@ -336,7 +371,7 @@ def _notify_rate_change(tenant_schema, company_name):
         config = get_email_config()
         if not config:
             return
-        recipients = get_admin_emails()
+        recipients = get_billing_emails()
         if not recipients:
             return
         rate_display = format_price_inr(get_per_employee_paise())
@@ -579,14 +614,15 @@ def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, curr
     the same sync done once, immediately, right as a trial converts, rather
     than waiting for this job's own daily run). Real mode only calls
     Razorpay when the count actually changed; demo mode has no live
-    subscription to PATCH, so it just records the new count."""
+    subscription to PATCH, so it just records the new count. Returns
+    whether the mandate now matches current_count."""
     if current_count == quantity_synced:
-        return
+        return True
     if not is_demo_sub:
         ok, error = update_subscription_quantity(subscription_id, current_count or 1)
         if not ok:
             app_log.warning("_sync_mandate_quantity: quantity sync failed for %s: %s", tenant_schema, error)
-            return
+            return False
     conn = get_master_db()
     cur = conn.cursor()
     cur.execute(
@@ -596,6 +632,7 @@ def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, curr
     conn.commit()
     cur.close()
     conn.close()
+    return True
 
 
 def _maybe_simulate_demo_charge(tenant_schema, company_name, subscription_id, employee_count, activated_at):

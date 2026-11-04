@@ -15,9 +15,12 @@ and (since payment_option is flipped to 'online' below) comes under
 billing_dunning.py's daily cron for every bill after that -- no separate
 trial-specific dunning path is needed.
 """
+import datetime
+
 from extensions import app, app_log, log_security_event
 from database import get_master_db
 from utils.plan_limits import get_tenant_employee_count, get_per_employee_paise, format_price_inr
+from utils.helpers import coerce_datetime
 
 # Trial length, in days, from first login (not from approval/provisioning --
 # see app.py's inject_billing_lock_status(), which is what actually stamps
@@ -30,6 +33,9 @@ TRIAL_DURATION_DAYS = 2
 
 # How long before trial_end_date the one-time "ending soon" reminder fires.
 TRIAL_REMINDER_WINDOW_HOURS = 24
+# What a billing lock does (utils/auth.py's billing lock), for the emails.
+_LOCK_EFFECT = ("admins and HR can't open attendance, payslips or reports until it's paid. "
+                "Employees can still mark their attendance.")
 
 
 def check_trial_ending_soon():
@@ -108,6 +114,59 @@ def _run_trial_check():
             _convert_one_trial(tenant_id, company_name, db_name)
         except Exception:
             app_log.exception(f"trial_billing: conversion failed for tenant '{db_name}'")
+    _run_ended_trial_grace_check()
+
+
+def _run_ended_trial_grace_check(now=None):
+    """A trial that ended with no payment method (subscription_status=
+    'past_due') gets the same grace as a missed bill: a reminder every day
+    of it, then billing_state='locked' (admins and HR lose the admin side;
+    employees can still mark attendance -- utils/auth.py's billing lock).
+    Paying the overdue bill or switching on auto-debit lifts it
+    (billing_dunning._mark_invoice_paid_and_unlock / auto_debit.confirm)."""
+    from blueprints.billing_dunning import _GRACE_DAYS
+    now = now or datetime.datetime.now()
+    today = now.date()
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    cur.execute(
+        "SELECT id, company_name, db_name, billing_state, grace_period_ends_at, grace_reminder_sent_on "
+        "FROM tenants WHERE subscription_status='past_due' AND status='active' AND schema_missing_tables IS NULL"
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    for tenant_id, company_name, db_name, billing_state, grace_ends, reminded_on in rows:
+        try:
+            grace_ends = coerce_datetime(grace_ends)
+            if billing_state == "current" or (billing_state == "grace" and not grace_ends):
+                grace_ends = now + datetime.timedelta(days=_GRACE_DAYS)
+                _set_grace(tenant_id, grace_ends, today)
+                _notify_trial_tenant(db_name, company_name, "no_mandate", grace_ends=grace_ends)
+            elif billing_state == "grace" and now > grace_ends:
+                _update_tenant(tenant_id, "billing_state='locked', locked_at=%s", (now,))
+                log_security_event("trial_billing.locked", f"Ended trial for '{db_name}' unpaid after grace; locked",
+                                   level="WARNING", tenant_id=tenant_id)
+                _notify_trial_tenant(db_name, company_name, "locked")
+            elif billing_state == "grace" and (reminded_on is None or reminded_on < today):
+                _update_tenant(tenant_id, "grace_reminder_sent_on=%s", (today,))
+                _notify_trial_tenant(db_name, company_name, "grace_reminder", grace_ends=grace_ends)
+        except Exception:
+            app_log.exception(f"trial_billing: grace check failed for tenant '{db_name}'")
+
+
+def _set_grace(tenant_id, grace_ends, today):
+    _update_tenant(tenant_id, "billing_state='grace', grace_period_ends_at=%s, locked_at=NULL, "
+                              "grace_reminder_sent_on=%s", (grace_ends, today))
+
+
+def _update_tenant(tenant_id, assignments, params):
+    conn = get_master_db()
+    cur = conn.cursor()
+    cur.execute(f"UPDATE tenants SET {assignments} WHERE id=%s", (*params, tenant_id))  # nosec B608 -- fixed literals from this module
+    conn.commit()
+    cur.close()
+    conn.close()
 
 
 def _convert_one_trial(tenant_id, company_name, db_name):
@@ -134,13 +193,16 @@ def _convert_one_trial(tenant_id, company_name, db_name):
         # 'trial' tenant with no mandate at all -- degrade safely instead
         # of crashing: flag it so the admin can add a payment method, no
         # charge is ever silently skipped or fabricated.
+        from blueprints.billing_dunning import _GRACE_DAYS
         _set_subscription_status(tenant_id, "past_due")
+        grace_ends = datetime.datetime.now() + datetime.timedelta(days=_GRACE_DAYS)
+        _set_grace(tenant_id, grace_ends, datetime.date.today())
         log_security_event(
             "trial_billing.no_mandate_at_expiry",
             f"Trial ended for '{db_name}' with no payment mandate on file",
             level="WARNING", tenant_id=tenant_id,
         )
-        _notify_trial_tenant(db_name, company_name, "no_mandate")
+        _notify_trial_tenant(db_name, company_name, "no_mandate", grace_ends=grace_ends)
         return
 
     subscription_id, quantity_synced, _status = mandate
@@ -179,19 +241,19 @@ def _set_subscription_status(tenant_id, status):
     conn.close()
 
 
-def _notify_trial_tenant(tenant_schema, company_name, kind, employee_count=None):
+def _notify_trial_tenant(tenant_schema, company_name, kind, employee_count=None, grace_ends=None):
     """Switches g.tenant_db to the target tenant's schema for the duration
     of the send -- same pattern as blueprints/billing_dunning.py's
     _notify_tenant() / blueprints/auto_debit.py's _notify_rate_change()."""
     from flask import g as _g
-    from utils.email_utils import get_email_config, get_admin_emails, send_email_async
+    from utils.email_utils import get_email_config, get_billing_emails, send_email_async
     prev_tenant_db = getattr(_g, "tenant_db", None)
     try:
         _g.tenant_db = tenant_schema
         config = get_email_config()
         if not config:
             return
-        recipients = get_admin_emails()
+        recipients = get_billing_emails()
         if not recipients:
             return
         if kind == "converted":
@@ -212,13 +274,26 @@ def _notify_trial_tenant(tenant_schema, company_name, kind, employee_count=None)
                 f"needed to continue. If you'd rather not continue, you can cancel any time before then from "
                 f"<strong>Settings &rarr; Finances &rarr; Billing</strong>.</p>"
             )
-        else:  # no_mandate
-            subject = "Action needed: your HRzest trial has ended"
+        elif kind == "locked":
+            subject = "Your HRzest account is locked until you renew"
             body = (
-                f"<p>Your {TRIAL_DURATION_DAYS}-day free trial for <strong>{company_name}</strong> has ended, "
-                f"but we don't have a payment method on file.</p>"
-                f"<p>Log in and add one from <strong>Settings &rarr; Finances &rarr; Billing</strong> to keep your "
-                f"account active.</p>"
+                f"<p>The free trial for <strong>{company_name}</strong> ended and no payment came in during "
+                f"the grace period, so the account is now locked.</p>"
+                f"<p>Now {_LOCK_EFFECT}</p>"
+                f"<p>Sign in as an admin and pay, or switch on Auto-Debit, to unlock everything straight away.</p>"
+            )
+        else:  # no_mandate, grace_reminder
+            ends = grace_ends.strftime("%d %b %Y, %I:%M %p") if grace_ends else "within a few days"
+            if kind == "no_mandate":
+                subject = "Action needed: your HRzest trial has ended"
+            else:
+                subject = f"Reminder: renew HRzest by {grace_ends.strftime('%d %b') if grace_ends else 'the deadline'}"
+            body = (
+                f"<p>The {TRIAL_DURATION_DAYS}-day free trial for <strong>{company_name}</strong> has ended, "
+                f"and there's no payment method on file.</p>"
+                f"<p>Renew by <strong>{ends}</strong>: sign in as an admin and pay, or switch on Auto-Debit "
+                f"from <strong>Settings &rarr; Billing</strong>.</p>"
+                f"<p>After that: {_LOCK_EFFECT}</p>"
             )
         html = f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">

@@ -139,9 +139,9 @@
 
   <!-- Tabs -->
   <div class="tab-bar">
-    <div class="tab active" onclick="switchTab('kpis',this)">KPIs &amp; Ratings</div>
-    <div class="tab" onclick="switchTab('feedback',this)">Reviewer Feedback</div>
-    <div class="tab" onclick="switchTab('history',this)">Review History</div>
+    <div class="tab active" data-on-click="switchTab('kpis',this)">KPIs &amp; Ratings</div>
+    <div class="tab" data-on-click="switchTab('feedback',this)">Reviewer Feedback</div>
+    <div class="tab" data-on-click="switchTab('history',this)">Review History</div>
   </div>
 
   <!-- ── TAB 1: KPIs ────────────────────────────────── -->
@@ -212,7 +212,7 @@
             <input type="hidden" name="quarter" value="{{ quarter }}"/>
             <input type="hidden" name="year" value="{{ year }}"/>
             <button type="submit" class="btn btn-danger u-p-5-10 u-fs-11"
-                    onclick="return hzConfirmSubmit(event, 'Delete this KPI?')">
+                    data-on-click="return hzConfirmSubmit(event, 'Delete this KPI?')">
               <i class="ti ti-trash"></i>
             </button>
           </form>
@@ -241,7 +241,7 @@
             <div class="star-rating" id="stars_{{ kpi_id }}">
               {% for i in range(1,6) %}
               <button type="button" class="star-btn {% if rating and i <= rating %}on{% endif %}"
-                      onclick="setRating({{ kpi_id }}, {{ i }})" title="{{ rating_labels[i] }}">★</button>
+                      data-on-click="setRating({{ kpi_id }}, {{ i }})" title="{{ rating_labels[i] }}">★</button>
               {% endfor %}
               <input type="hidden" name="rating" id="rating_{{ kpi_id }}" value="{{ rating or 0 }}"/>
               <span class="u-fs-12 u-c-64748b u-ml-6" id="rlbl_{{ kpi_id }}">

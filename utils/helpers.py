@@ -1145,17 +1145,38 @@ TRIAL_EMPLOYEE_CAP = 2
 def _tenant_is_trialing() -> bool:
     """Cheap, lock-free check against the master control-plane DB (a
     different DB/connection than the tenant DB entirely, so it can't
-    share the tenant-side row lock below anyway)."""
+    share the tenant-side row lock below anyway).
+
+    A trial with auto-debit already active is over: enabling auto-debit
+    ends the trial (blueprints/auto_debit.py's confirm()), but a company
+    that enabled it before that rule existed is still marked 'trialing'
+    and would stay capped at TRIAL_EMPLOYEE_CAP while paying -- end its
+    trial here the same way, then treat it as paid."""
     try:
         from flask import g as _g
         from database import get_master_db
         db = get_master_db()
         cur = db.cursor(buffered=True)
-        cur.execute("SELECT subscription_status FROM tenants WHERE db_name=%s", (_g.tenant_db,))
-        row = cur.fetchone()
-        cur.close()
-        db.close()
-        return bool(row and row[0] == "trialing")
+        try:
+            cur.execute(
+                "SELECT t.subscription_status, m.status FROM tenants t "
+                "LEFT JOIN auto_debit_mandates m ON m.tenant_schema = t.db_name WHERE t.db_name=%s",
+                (_g.tenant_db,)
+            )
+            row = cur.fetchone()
+            if not row or row[0] != "trialing":
+                return False
+            if row[1] != "active":
+                return True
+            cur.execute(
+                "UPDATE tenants SET subscription_status='active', payment_option='online' "
+                "WHERE db_name=%s AND subscription_status='trialing'", (_g.tenant_db,)
+            )
+            db.commit()
+            return False
+        finally:
+            cur.close()
+            db.close()
     except Exception:
         return False
 

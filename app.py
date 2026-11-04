@@ -265,8 +265,8 @@ def inject_overdue_onboardings():
 @app.context_processor
 def inject_billing_lock_status():
     """Lets templates/admin_base.html show a proactive grace/locked banner
-    without every route handler having to fetch it -- _enforce_billing_lock()
-    only warns reactively (on the first blocked write attempt), this is what
+    without every route handler having to fetch it -- the billing lock
+    (utils/auth.py) only acts once the grace period is over, this is what
     lets an admin see the deadline *before* they hit that block. Cheap
     single-row lookup, same posture as inject_overdue_onboardings above
     (only runs for a logged-in admin session, fails soft to "nothing to
@@ -534,8 +534,8 @@ def _resolve_tenant():
         if row is None or row[0] == "active":
             session["_tenant_status_checked_at"] = time.time()
             # billing_state='locked' does NOT block resolution/login here --
-            # only _enforce_billing_lock() (below) blocks state-changing
-            # requests, per this feature's "can log in, can't act" design.
+            # only the admin-side guards (utils/auth.py) act on it: employees
+            # carry on, admins reach only the pay page.
             session["_billing_locked"] = bool(row) and row[1] == "locked"
             _g.tenant_db = session["tenant_db"]
             _g.billing_locked = session["_billing_locked"]
@@ -623,49 +623,11 @@ def _flag_login_success(response):
     return response
 
 
-# Exempt from the billing-lock write-block below: the pages/actions a
-# locked tenant must still be able to reach to pay their way back out
-# (blueprints/billing_dunning.py), plus the universal login/logout/static
-# exemptions every other gate in this file also carries.
-_BILLING_LOCK_EXEMPT_PATHS = {
-    "/logout", "/login", "/admin_login", "/employee_login",
-    "/pay_overdue_bill", "/api/billing/overdue/create_order", "/api/billing/overdue/verify",
-}
-
-
-@app.before_request
-def _enforce_billing_lock():
-    """A tenant past its 5-day payment grace period (billing_state='locked',
-    set by blueprints/billing_dunning.py's daily check) can still log in and
-    browse -- _resolve_tenant() above deliberately doesn't block resolution
-    on this -- but every state-changing request is refused here until a
-    payment clears it, automatically, via that module's Razorpay webhook.
-    No admin action is needed on either side of that transition.
-
-    GET/HEAD/OPTIONS always pass (read-only viewing, including payroll
-    pages themselves -- the user's requirement is "can't make changes",
-    not "can't see the page"); only mutating methods on non-exempt paths
-    are refused."""
-    if not getattr(_g, "billing_locked", False):
-        return
-    if request.method in ("GET", "HEAD", "OPTIONS"):
-        return
-    if request.path.startswith("/static/") or request.path == "/healthz" or request.path in _BILLING_LOCK_EXEMPT_PATHS:
-        return
-    # An employee session hitting this has no way to pay the bill --
-    # /pay_overdue_bill is @admin_required, so redirecting them there just
-    # bounces them straight to the admin login with no explanation of why.
-    # Point them back at their own portal with a message telling them who
-    # actually needs to act, instead.
-    is_employee_session = bool(session.get("employee_id")) and not session.get("admin_logged_in")
-    if is_employee_session:
-        msg = "Your company's account needs attention -- please contact your admin."
-    else:
-        msg = "Your account is locked because of an overdue payment. Pay your outstanding bill to unlock it."
-    if request.path.startswith("/api/"):
-        return jsonify({"ok": False, "msg": msg, "billing_locked": True}), 402
-    flash(msg, "error")
-    return redirect(_tpath("/employee_portal") if is_employee_session else _tpath("/pay_overdue_bill"))
+# A billing-locked tenant (billing_state='locked') is enforced by the
+# admin-side guards (utils/auth.py's _reject_if_billing_locked: admin_required,
+# role_required, api_required): its admins, HR and managers reach only the
+# pay page until it's paid, while its employees -- attendance included --
+# carry on as normal.
 
 
 @app.before_request
@@ -1059,7 +1021,9 @@ def _add_csrf_fields(html, token):
 # Matches <script>/<style> tags without a nonce -- used to inject CSP nonces
 _SCRIPT_TAG_RE = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
 _STYLE_TAG_RE = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
-# Capture inline event-handler values for dynamic CSP sha256 hash generation.
+# Inline event-handler attributes. No longer hashed into the CSP (see
+# _security_headers); kept so tests/test_csp_inline_handlers.py can find any
+# that creep back into templates, matching exactly what browsers would block.
 # Two patterns: double-quoted and single-quoted attribute values.
 _CSP_EV_DQ = re.compile(
     rb'\bon(?:animationend|blur|change|click|contextmenu|copy|cut|dblclick|drag|dragend'
@@ -1221,23 +1185,16 @@ def _security_headers(response):
     if "text/html" in ct:
         from flask import g
         nonce = getattr(g, "csp_nonce", "")
-        # Scan for inline event-handler values and compute sha256 hashes so
-        # they pass CSP without needing 'unsafe-inline'.
+        # Inline event handlers (onclick="" etc.) are deliberately NOT hashed
+        # into script-src any more: allowing them takes 'unsafe-hashes', which
+        # lets injected markup reuse any hashed snippet (ZAP 10055, Medium).
+        # Templates use data-on-<event>="fn(...)" instead, bound by
+        # static/hz-actions.js; tests/test_csp_inline_handlers.py keeps
+        # templates free of inline handlers, which the browser would block.
         try:
             data = response.get_data()
-            _ev_hashes: set = set()
-            for _pat in (_CSP_EV_DQ, _CSP_EV_SQ):
-                for _m in _pat.finditer(data):
-                    _body = _html.unescape(_m.group(1).decode("utf-8", errors="replace"))
-                    _ev_hashes.add(
-                        "'sha256-" + base64.b64encode(
-                            hashlib.sha256(_body.encode("utf-8")).digest()
-                        ).decode() + "'"
-                    )
         except Exception:
-            _ev_hashes = set()
-        _unsafe_hashes = " 'unsafe-hashes'" if _ev_hashes else ""
-        _hash_src = (" " + " ".join(sorted(_ev_hashes))) if _ev_hashes else ""
+            data = b""
         # Same treatment for inline style="" attribute values, so
         # style-src-attr can drop 'unsafe-inline' -- every remaining
         # dynamic style/cssText write in app JS was migrated to
@@ -1302,7 +1259,7 @@ def _security_headers(response):
         _agent_src = " http://127.0.0.1:47823" if _is_employee_portal_page else ""
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}'{_unsafe_hashes}{_hash_src}{_turnstile_src}{_razorpay_script_src}; "
+            f"script-src 'self' 'nonce-{nonce}'{_turnstile_src}{_razorpay_script_src}; "
             f"style-src-elem 'self' 'nonce-{nonce}'; "
             f"style-src-attr{_style_unsafe_hashes}{_style_hash_src}; "
             f"style-src 'self' 'nonce-{nonce}'; "
@@ -1317,8 +1274,18 @@ def _security_headers(response):
             # to this site, and no page uses a <base> tag.
             "form-action 'self'; "
             "base-uri 'self'; "
+            # Both reporting directives, per MDN: browsers that support
+            # report-to (Chrome, Edge, Safari) use it -- the endpoint named in
+            # the Reporting-Endpoints header below -- and ignore report-uri;
+            # Firefox, which has no report-to, falls back to report-uri.
+            # blueprints/core.py's csp_report() accepts both payload formats.
+            # Scanners still note report-uri as deprecated (ZAP 10055 "CSP:
+            # Notices", Low): accepted, since dropping it would stop Firefox
+            # reporting CSP violations at all.
+            "report-to csp-endpoint; "
             "report-uri /csp-report;"
         )
+        response.headers["Reporting-Endpoints"] = 'csp-endpoint="/csp-report"'
     else:
         # Non-HTML responses: minimal restrictive CSP -- blocks MIME sniffing
         # and any attempt to embed API responses as documents or frames.
@@ -1363,7 +1330,13 @@ def _inject_csrf_meta(response):
             meta = f'<meta name="csrf-token" content="{token}" />'.encode()
             data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
             data = _add_csrf_fields(data, token)
-            _body_scripts = _CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
+            # hz-actions.js binds the templates' data-on-<event>="fn(...)"
+            # attributes -- the CSP-safe stand-in for inline onclick=""
+            # handlers, which script-src no longer allows (see
+            # _security_headers).
+            _actions_src = _static_url("hz-actions.js").encode()
+            _body_scripts = (_CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
+                             + b'<script src="' + _actions_src + b'"></script>')
             if session.get("admin_logged_in") or session.get("employee_id"):
                 _body_scripts += _KILLSWITCH_SCRIPT
             data = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)

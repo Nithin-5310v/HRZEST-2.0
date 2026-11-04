@@ -199,6 +199,33 @@ def _reject_if_password_changed(login_endpoint: str):
     return None
 
 
+# A company whose plan ran out (tenants.billing_state='locked': an unpaid
+# bill or trial past its grace period -- blueprints/billing_dunning.py,
+# trial_billing.py) keeps its employee side working, attendance included,
+# but its admins, HR and managers see nothing on the admin side (attendance,
+# payslips, reports, ...) until it's paid. Only these stay open to them.
+_BILLING_LOCK_OPEN_PATHS = ("/pay_overdue_bill", "/api/billing/overdue/", "/api/auto_debit/", "/logout", "/api/logout")
+BILLING_LOCKED_MSG = ("Your company's HRzest plan has expired. Pay the outstanding bill to see attendance, "
+                      "payslips and reports again. Employees can still mark their attendance.")
+
+
+def _reject_if_billing_locked(api: bool = False):
+    """The admin-side guards' billing-lock check (see above): None to carry
+    on, else the response -- the pay page, or 402 for an API/AJAX call."""
+    if not getattr(_flask_g, "billing_locked", False):
+        return None
+    path = request.path
+    if any(path == p or (p.endswith("/") and path.startswith(p)) for p in _BILLING_LOCK_OPEN_PATHS):
+        return None
+    from utils.helpers import tpath
+    if api or _is_ajax_request():
+        return jsonify({"ok": False, "billing_locked": True, "msg": BILLING_LOCKED_MSG,
+                        "pay_url": tpath("/pay_overdue_bill")}), 402
+    from flask import flash
+    flash(BILLING_LOCKED_MSG, "error")
+    return redirect(tpath("/pay_overdue_bill"))
+
+
 def _is_ajax_request() -> bool:
     return (
         request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -644,6 +671,9 @@ def admin_required(f):
         _killed = _reject_if_password_changed("auth.admin_login")
         if _killed:
             return _killed
+        _killed = _reject_if_billing_locked()
+        if _killed:
+            return _killed
         return f(*args, **kwargs)
     wrapper._hrz_auth_guard = "admin"  # read by tests/test_route_auth_guards.py
     return wrapper
@@ -795,6 +825,9 @@ def role_required(*allowed_roles):
                         reason="Repeated insufficient-role access attempts",
                     )
                 return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+            _killed = _reject_if_billing_locked()
+            if _killed:
+                return _killed
             return f(*args, **kwargs)
         wrapper._hrz_auth_guard = "role"  # read by tests/test_route_auth_guards.py
         return wrapper
@@ -861,6 +894,9 @@ def api_required(f):
                                level="WARNING", required="admin_api", identifier=row[0])
             return jsonify({"ok": False, "msg": "This account has been deactivated. Contact your administrator."}), 403
         _flask_g.api_user = row[0]
+        _killed = _reject_if_billing_locked(api=True)
+        if _killed:
+            return _killed
         return f(*args, **kwargs)
     wrapper._hrz_auth_guard = "admin_api"  # read by tests/test_route_auth_guards.py
     return wrapper
