@@ -316,7 +316,9 @@
         : (s.change_pct > 0 ? '↑ ' : s.change_pct < 0 ? '↓ ' : '') + Math.abs(s.change_pct) + '% vs previous ' + d.hours + 'h (' + fmt.n(s.previous) + ')';
       out.append(
         h('div', { class: 'row brief-head' }, h('a', { href: '#/overview' }, '← Overview'), h('span', { class: 'spacer' }),
-          h('a', { class: 'btn ghost small', href: '#/events' + api.qs(d.events_filter) }, 'Open these events')),
+          // null = no matching event types, so there is nothing to open (an empty
+          // filter would list every event instead).
+          d.events_filter ? h('a', { class: 'btn ghost small', href: '#/events' + api.qs(d.events_filter) }, 'Open these events') : null),
         h('div', null, h('h2', null, d.title), h('div', { class: 'note' }, (d.subtitle ? d.subtitle + ' · ' : '') + 'last ' + d.hours + ' hours'),
           d.mitre.length ? h('div', { class: 'row' }, d.mitre.map((m) => h('span', { class: 'row' }, SOC.mitre([m.id]), h('span', { class: 'note' }, m.name)))) : null),
         h('div', { class: 'grid kpis' },
@@ -612,7 +614,11 @@
       out.append(SOC.callout('Every security event is hash-chained at insert time (migrations/audit_integrity.py). Verification recomputes the chain end to end; any edited, deleted or reordered row breaks it. Anchors are shipped off-box so a database owner cannot rewrite history unnoticed.'),
         needs('analyst') ? h('button', { class: 'btn', type: 'button', id: 'runVerify', onclick: (e) => {
           const b = e.currentTarget; b.disabled = true; b.textContent = 'Verifying…';
-          act(api.post('/soc/api/integrity/verify'), 'Verification finished').then((r) => show(r.report, r.at, r.by)).catch(() => {}).finally(() => { b.disabled = false; b.textContent = 'Verify now'; });
+          act(api.post('/soc/api/integrity/verify'), 'Verification finished').then((r) => {
+            show(r.report, r.at, r.by);
+            // The audit write failed: this result exists only on this screen.
+            if (r.stored === false) result.prepend(SOC.callout('This result could not be saved to the SOC audit log, so it will not appear after a reload. Copy it now if you need it.', 'warn'));
+          }).catch(() => {}).finally(() => { b.disabled = false; b.textContent = 'Verify now'; });
         } }, 'Verify now') : null, result);
       show(last.report, last.at, last.by);
       root.textContent = ''; root.appendChild(out);

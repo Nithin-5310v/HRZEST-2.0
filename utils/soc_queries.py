@@ -94,7 +94,30 @@ def _banned_set(cur, ips):
     if not ips:
         return set()
     cur.execute("SELECT ip FROM public.banned_ips WHERE ip = ANY(%s) AND (expires_at IS NULL OR expires_at > NOW())", (ips,))
-    return {r[0] for r in cur.fetchall()}
+    return {r[0] for r in cur.fetchall()} | (set(ips) & set(_tenant_active_bans()))
+
+
+def _tenant_active_bans():
+    """{ip: number of companies} for still-enforced bans in companies' own
+    banned_ips tables. Those rows are no longer written but app.py's ban hook
+    still enforces them, so every "is this IP banned" answer must include them,
+    not only the Response view (bans()). Cached; ban/unban clears the cache."""
+    def build():
+        def per_tenant(t, cur):
+            if t["schema"] == "public":
+                return None
+            table = banned_ips_table(t["schema"])
+            cur.execute("SELECT to_regclass(%s)", (table,))
+            if cur.fetchone()[0] is None:
+                return None
+            cur.execute("SELECT ip FROM " + table + " WHERE expires_at IS NULL OR expires_at > NOW()")  # nosec B608 -- validated schema name
+            return [ip for (ip,) in cur.fetchall()] or None
+        out = {}
+        for ips in each_tenant(per_tenant)[0]:
+            for ip in ips:
+                out[ip] = out.get(ip, 0) + 1
+        return out
+    return _cached(("tenant_active_bans",), build)
 
 
 def _protected(ip):
@@ -198,8 +221,12 @@ def overview(hours=24):
         # Behind a proxy that is not trusted (TRUSTED_PROXY_HOPS unset/wrong) every
         # visitor shows up as the proxy's private address, and IP-based analysis --
         # location included -- is meaningless. Say so instead of showing it quietly.
-        top = out["top_ips"][0] if out["top_ips"] else None
-        out["proxy_hint"] = bool(top and top["protected"] and total and top["events"] * 2 >= total)
+        # top_ips is ordered by high-severity count, so its first row is not
+        # necessarily the busiest address; ask for that one directly.
+        cur.execute("SELECT ip, COUNT(*) FROM security_events WHERE " + _WINDOW +
+                    " AND ip IS NOT NULL GROUP BY ip ORDER BY 2 DESC LIMIT 1", (hours,))
+        busiest = cur.fetchone()
+        out["proxy_hint"] = bool(busiest and total and _protected(busiest[0]) and busiest[1] * 2 >= total)
         cur.execute(
             "SELECT identifier, COUNT(*), COUNT(DISTINCT ip), MAX(created_at) FROM security_events "
             "WHERE " + _WINDOW + " AND identifier IS NOT NULL AND identifier NOT IN ('', 'None') "
@@ -209,7 +236,8 @@ def overview(hours=24):
                     " ORDER BY id DESC LIMIT 12", (hours,))
         out["recent_alerts"] = [shape_event(r) for r in cur.fetchall()]
         cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
-        out["active_bans"] = cur.fetchone()[0]
+        # Same count as the Response view's active_total (platform + company rows).
+        out["active_bans"] = cur.fetchone()[0] + sum(_tenant_active_bans().values())
     with read_cursor("att_master") as cur:
         cur.execute("SELECT status, COUNT(*) FROM soc_cases GROUP BY status")
         cases = dict(cur.fetchall())
@@ -428,18 +456,24 @@ def platform_log_text(hours=24, max_bytes=None, max_events=PLATFORM_LOG_MAX_EVEN
     # The console's own activity (soc.* -- analysts signing in, banning, exporting)
     # is not platform traffic: analysing it would inflate the numbers and could
     # put an analyst's own address among the "block" recommendations.
-    not_soc = " AND event_type NOT LIKE 'soc.%%'"
+    # Console traffic also produces non-soc.* events (a 429 or access.denied on
+    # /soc/api/...), so drop events on /soc/ paths from addresses that signed in
+    # to or acted in the console. Strangers probing /soc/ stay in the analysis.
+    # The lookback is wider than the window: a session can outlive it.
+    not_soc = (" AND event_type NOT LIKE 'soc.%%' AND NOT (COALESCE(path, '') LIKE '/soc/%%' AND ip IN ("
+               "SELECT ip FROM security_events WHERE event_type IN ('soc.login_success', 'soc.action') "
+               "AND ip IS NOT NULL AND created_at >= NOW() - ((%s + 24) * INTERVAL '1 hour')))")
     with read_cursor("public", 20000) as cur:
-        cur.execute("SELECT COUNT(*) FROM security_events WHERE " + _WINDOW + not_soc, (hours,))
+        cur.execute("SELECT COUNT(*) FROM security_events WHERE " + _WINDOW + not_soc, (hours, hours))
         total = cur.fetchone()[0]
         cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + _WINDOW + not_soc + " ORDER BY id DESC LIMIT %s",
-                    (hours, max_events))
+                    (hours, hours, max_events))
         rows = cur.fetchall()
     lines, size = [], 0
     for eid, et, level, msg, ident, ip, path, method, extra, ts in rows:      # newest first
         rec = {"created_at": iso(ts), "ip": ip, "method": method, "path": path, "event_type": et,
                "level": level, "identifier": ident if ident not in (None, "", "None") else None, "message": msg}
-        x = _extra(extra, 2000)
+        x = _extra(extra)           # parse whole: cutting first breaks the JSON and loses the UA
         for key in ("user_agent", "ua", "status", "status_code"):
             if x.get(key):
                 rec[key] = x[key]
@@ -488,7 +522,8 @@ def _slice(cur, kind, value, hours):
         else:
             types = [t for t in seen if any(m["id"] == value or m["id"].startswith(value + ".")
                                             for m in tax.classify(t)["mitre"])]
-            filt = {"event_type": ",".join(types[:50])} if types else None
+            # No matching types -> no events; an empty filter would open ALL events.
+            filt = {"event_type": ",".join(types[:50])} if types else False
         return "event_type = ANY(%s)", [types], filt
     raise ValueError("Unknown selection.")
 
@@ -561,7 +596,8 @@ def brief(kind, value, hours=24):
         "sources": sources, "accounts": accounts, "paths": paths, "recent": recent,
         "countries": sorted(({"country": k, "events": v} for k, v in countries.items()), key=lambda x: -x["events"]),
         "masked": {"events": masked, "of": located},
-        "events_filter": filt or {},
+        # None = nothing to open (the UI hides the links); {} = every event.
+        "events_filter": None if filt is False else (filt or {}),
     })
     return out
 

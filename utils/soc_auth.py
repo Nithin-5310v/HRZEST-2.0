@@ -112,13 +112,16 @@ _LOGIN_ACTIONS = frozenset({"login", "login_failed", "account_locked", "login_bl
 
 def audit(actor, action, target=None, detail=None, ip=None):
     """Append to soc_audit_log. Never raises: auditing must not break the action
-    (a failure is logged loudly instead)."""
+    (a failure is logged loudly instead). -> the stored row's created_at, or
+    None when the write failed."""
+    stored_at = None
     try:
         with write_cursor("att_master") as cur:
             cur.execute(
-                "INSERT INTO soc_audit_log (actor, action, target, detail, ip) VALUES (%s,%s,%s,%s,%s)",
+                "INSERT INTO soc_audit_log (actor, action, target, detail, ip) VALUES (%s,%s,%s,%s,%s) RETURNING created_at",
                 ((actor or "-")[:60], action[:80], (target or None) and str(target)[:200],
                  (detail or None) and str(detail)[:2000], (ip or None) and str(ip)[:64]))
+            stored_at = cur.fetchone()[0]
     except Exception as exc:        # pragma: no cover - logged for operators
         try:
             from extensions import app_log
@@ -130,6 +133,7 @@ def audit(actor, action, target=None, detail=None, ip=None):
     if action not in _LOGIN_ACTIONS:
         event("soc.action", f"SOC action: {action}", level="INFO", identifier=actor, soc_action=action,
               soc_target=(str(target)[:120] if target else None))
+    return stored_at
 
 
 def event(event_type, message, level="WARNING", **fields):

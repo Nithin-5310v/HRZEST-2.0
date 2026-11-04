@@ -25,6 +25,10 @@
     ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
     drop.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) fileIn.files = e.dataTransfer.files; });
 
+    // The platform analysis (auto-run on open) and an upload share `results`;
+    // only the most recently started request may render, so a slow one that
+    // finishes late can't replace the report the analyst asked for.
+    let latest = 0;
     const form = h('form', { class: 'stack', onsubmit: (e) => {
       e.preventDefault();
       const fd = new FormData();
@@ -33,8 +37,9 @@
       else { SOC.toast('Choose a file or paste some log lines first.', 'bad'); return; }
       go.disabled = true; go.textContent = 'Analysing…';
       results.textContent = ''; results.appendChild(SOC.skeleton());
-      api.form('/soc/api/loganalysis', fd).then((r) => show(r.report))
-        .catch((err) => { results.textContent = ''; results.appendChild(SOC.callout(err.message, 'bad')); })
+      const mine = ++latest;
+      api.form('/soc/api/loganalysis', fd).then((r) => { if (mine === latest) show(r.report); })
+        .catch((err) => { if (mine === latest) { results.textContent = ''; results.appendChild(SOC.callout(err.message, 'bad')); } })
         .finally(() => { go.disabled = false; go.textContent = 'Analyse'; });
     } }, drop, paste, h('div', { class: 'row' }, go,
       h('span', { class: 'note' }, 'Read-only. Nothing is stored. Up to 5 MB / 100,000 lines; format is detected per line.')));
@@ -43,13 +48,15 @@
     const platBtn = h('button', { class: 'btn', type: 'button' }, 'Analyse platform activity');
     const runPlatform = (force) => {
       const cached = SOC._platformReport;
+      const mine = ++latest;
       if (!force && cached && cached.hours === SOC.hours && Date.now() - cached.at < 5 * 60 * 1000) { show(cached.report); return; }
       platBtn.disabled = true; platBtn.textContent = 'Analysing…';
       results.textContent = ''; results.appendChild(SOC.skeleton());
-      api.post('/soc/api/loganalysis/platform', { hours: SOC.hours }).then((r) => {
-        SOC._platformReport = { hours: SOC.hours, at: Date.now(), report: r.report };
-        show(r.report);
-      }).catch((err) => { results.textContent = ''; results.appendChild(SOC.callout(err.message, 'bad')); })
+      const hours = SOC.hours;
+      api.post('/soc/api/loganalysis/platform', { hours }).then((r) => {
+        SOC._platformReport = { hours, at: Date.now(), report: r.report };
+        if (mine === latest) show(r.report);
+      }).catch((err) => { if (mine === latest) { results.textContent = ''; results.appendChild(SOC.callout(err.message, 'bad')); } })
         .finally(() => { platBtn.disabled = false; platBtn.textContent = 'Re-analyse platform activity'; });
     };
     platBtn.addEventListener('click', () => runPlatform(true));

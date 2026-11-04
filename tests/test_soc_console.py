@@ -746,6 +746,13 @@ class TestResponseActions:
         cur.execute(f'SELECT COUNT(*) FROM "{schema}".banned_ips')
         assert cur.fetchone()[0] == 0
         # The no-table company falls back to nothing, not to public.banned_ips.
+        # (Lifted above; re-add to check the other views agree with the list.)
+        cur.execute(f'INSERT INTO "{schema}".banned_ips (ip, reason, banned_by) VALUES (%s,\'legacy\',\'admin\')', (PUBLIC_IP,))
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP)
+        soc_queries.clear_cache()
+        ov = c.get("/soc/api/overview").get_json()
+        assert ov["active_bans"] == c.get("/soc/api/bans").get_json()["active_total"] == 2
+        assert next(t for t in ov["top_ips"] if t["ip"] == PUBLIC_IP)["banned"] is True
         noban = next(t for t in soc_queries.list_tenants() if t["slug"] == "noban-co")
         assert c.post("/soc/api/bans/remove", json={"ip": "44.4.4.4", "tenant_id": noban["id"]}).status_code == 400
         cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE ip='44.4.4.4'")
@@ -944,6 +951,19 @@ class TestAssessmentViews:
         last = c.get("/soc/api/integrity").get_json()
         assert last["report"] == {"ok": True, "rows_chained": 7} and last["by"] == "bob"
 
+    def test_verify_reports_its_own_time_and_whether_it_was_saved(self, soc, monkeypatch):
+        import blueprints.soc as soc_blueprint
+        c, _ = soc("ann", "analyst")
+        # The audit write fails: the response says so, and is not built by
+        # reading back "the newest row" (an older or concurrent run's result).
+        monkeypatch.setattr(soc_auth, "audit", lambda *a, **k: None)
+        monkeypatch.setattr(soc_blueprint, "_latest_integrity", lambda: pytest.fail("read back the newest row"))
+        r = c.post("/soc/api/integrity/verify").get_json()
+        assert r["stored"] is False and r["at"]
+        monkeypatch.undo()
+        r = c.post("/soc/api/integrity/verify").get_json()
+        assert r["stored"] is True and r["at"] == c.get("/soc/api/integrity").get_json()["at"]
+
     def test_long_reports_are_trimmed_to_valid_json(self):
         import blueprints.soc as soc_blueprint
         report = {"ok": False, "rows_chained": 9, "violations": [{"id": i, "reason": "x" * 50} for i in range(500)]}
@@ -1045,6 +1065,25 @@ class TestLogAnalysisEndpoint:
         assert src["events"] == 2 and src["total"] == 5 and src["capped"] is True
         assert [json.loads(x)["message"] for x in text.split("\n")] == ["m3", "m4"]   # newest, oldest first
 
+    def test_platform_activity_leaves_out_analysts_console_traffic_but_not_probes(self, soc, db_engine):
+        c, _ = soc("ann", "analyst")
+        analyst_ip, prober = "198.51.100.77", "203.0.113.99"
+        add_event(db_engine, "soc.login_success", "INFO", ip=analyst_ip, identifier="ann", path="/soc/login")
+        add_event(db_engine, "ratelimit.exceeded", ip=analyst_ip, path="/soc/api/loganalysis/platform")
+        add_event(db_engine, "access.denied", ip=prober, path="/soc/api/events")
+        add_event(db_engine, "auth.failure", ip=analyst_ip, path="/acme/login")     # outside /soc/: kept
+        text, src = soc_queries.platform_log_text(24)
+        rows = [json.loads(x) for x in text.split("\n") if x]
+        assert {(r["ip"], r["path"]) for r in rows if r.get("ip") in (analyst_ip, prober)} == {
+            (prober, "/soc/api/events"), (analyst_ip, "/acme/login")}
+        assert src["total"] == len(rows)
+
+    def test_platform_activity_keeps_the_user_agent_of_long_extras(self, db_engine):
+        add_event(db_engine, "waf.xss_blocked", "ERROR", ip=PUBLIC_IP, path="/x",
+                  extra={"payload": "A" * 3000, "user_agent": "sqlmap/1.8"})
+        rows = [json.loads(x) for x in soc_queries.platform_log_text(24)[0].split("\n") if x]
+        assert any(r.get("user_agent") == "sqlmap/1.8" for r in rows)
+
     def test_platform_analysis_needs_analyst(self, soc):
         v, _ = soc("vic", "viewer")
         assert v.post("/soc/api/loganalysis/platform", json={}).status_code == 403
@@ -1136,6 +1175,17 @@ class TestIpIntel:
             add_event(db_engine, "auth.failure", ip=TOR_IP)
         assert c.get("/soc/api/overview").get_json()["proxy_hint"] is False
 
+    def test_proxy_hint_looks_at_the_busiest_address_not_the_most_severe(self, soc, db_engine):
+        # The proxy carries most traffic at WARNING; one scanner has fewer but
+        # ERROR events, so it sorts first in top_ips. The hint must still fire.
+        c, _ = soc()
+        for _ in range(10):
+            add_event(db_engine, "auth.failure", ip="10.0.0.2")
+        for _ in range(2):
+            add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP)
+        d = c.get("/soc/api/overview").get_json()
+        assert d["top_ips"][0]["ip"] == PUBLIC_IP and d["proxy_hint"] is True
+
 
 # ════════════════════════════════════════════════════════════════════
 # analyst brief (Overview drill-down)
@@ -1174,6 +1224,10 @@ class TestBrief:
         assert get(kind="family", value="waf")["stats"]["events"] == 1
         t = get(kind="technique", value="T1190")
         assert t["stats"]["events"] == 1 and t["events_filter"] == {"event_type": "waf.xss_blocked"}
+        # No event of this technique in the window: nothing to open. An empty
+        # filter ({}) would have opened every event instead.
+        none = get(kind="technique", value="T1059.007")
+        assert none["stats"]["events"] == 0 and none["events_filter"] is None
         lv = get(kind="level", value="error")
         assert lv["stats"]["events"] == 2 and lv["title"] == "Error events" and "alert" in lv["why"]
         d = get(kind="event_type", value="detection.credential_stuffing")

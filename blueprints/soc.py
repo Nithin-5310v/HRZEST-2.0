@@ -416,11 +416,13 @@ def api_integrity_verify():
         return _err(str(exc))
     except Exception as exc:
         return _err(f"Verification could not complete ({type(exc).__name__}). Try a quieter moment.", 503)
-    soc_auth.audit(_actor(), _INTEGRITY_ACTION, detail=_integrity_detail(report), ip=_ip())
-    # The response carries the full report; `at` is the stored row's time (same
-    # clock as GET /integrity), falling back to now if the audit write failed.
-    _, at, _ = _latest_integrity()
-    return _ok(report=report, at=at or datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), by=_actor())
+    stored_at = soc_auth.audit(_actor(), _INTEGRITY_ACTION, detail=_integrity_detail(report), ip=_ip())
+    # `at` is THIS run's stored row time (same clock as GET /integrity). Reading
+    # back "the newest row" could return an older or a concurrent run's result.
+    # stored=False tells the UI the result was not saved and won't show on reload.
+    from utils.soc_util import iso
+    at = iso(stored_at) if stored_at else datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
+    return _ok(report=report, at=at, by=_actor(), stored=stored_at is not None)
 
 
 # ── API: log analysis ────────────────────────────────────────────────
