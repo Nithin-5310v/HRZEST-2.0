@@ -197,10 +197,10 @@
   {# HEADER #}
   <div class="profile-header">
     <div class="profile-top">
-      <div class="avatar" onclick="openLb()" title="View photo">
+      <div class="avatar" data-on-click="openLb()" title="View photo">
         {% if face_image %}
           <img src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
-               onerror="this.parentNode.innerHTML='<span class=\'avatar-ph\'><i class="ti ti-user hz-ico" aria-hidden="true"></i></span>'">
+               data-on-error="HZ.avatarIcon(this, 'avatar-ph', 'ti ti-user hz-ico')">
         {% else %}
           <span class="avatar-ph"><i class="ti ti-user hz-ico" aria-hidden="true"></i></span>
         {% endif %}
@@ -225,7 +225,7 @@
         <i class="ti ti-download"></i> Download ID Card
       </a>
       <form class="u-ml-auto" action="/delete_employee/{{ emp_id }}" method="POST"
-            onsubmit="return hzConfirmSubmit(event, 'Delete {{ name }}? This cannot be undone.')">
+            data-on-submit="return hzConfirmSubmit(event, 'Delete {{ name }}? This cannot be undone.')">
         <button type="submit" class="btn-act btn-del">
           <i class="ti ti-trash"></i> Delete
         </button>
@@ -531,7 +531,7 @@
             <a class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-eff6ff u-c-1e3a8a u-bd-1-solid-bfdbfe u-br-7 u-fs-12 u-fw-700 u-tdec-none" href="/download_document/{{ did }}">
               <i class="ti ti-download"></i> Download
             </a>
-            <form action="/delete_document/{{ did }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this document?');">
+            <form action="/delete_document/{{ did }}" method="POST" data-on-submit="return hzConfirmSubmit(event, 'Delete this document?');">
               <button class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-fff5f5 u-c-dc2626 u-bd-1-solid-fecaca u-br-7 u-fs-12 u-fw-700 u-cur-pointer" type="submit">
                 <i class="ti ti-trash"></i> Delete
               </button>
@@ -602,7 +602,7 @@
                   <i class="ti ti-check"></i> Approve
                 </button>
               </form>
-              <button class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-fff5f5 u-c-dc2626 u-bd-1-solid-fecaca u-br-7 u-fs-12 u-fw-700 u-cur-pointer" type="button" onclick="var f=document.getElementById('reject-form-{{ vd[0] }}');f.style.display=(f.style.display==='none')?'flex':'none';">
+              <button class="u-d-inline-flex u-ai-center u-gap-5 u-p-7-14 u-bg-fff5f5 u-c-dc2626 u-bd-1-solid-fecaca u-br-7 u-fs-12 u-fw-700 u-cur-pointer" type="button" data-on-click="HZ.toggleDisplay('reject-form-{{ vd[0] }}', 'flex')">
                 <i class="ti ti-x"></i> Reject
               </button>
               {% endif %}
@@ -668,7 +668,7 @@
       <div class="card-title"><i class="ti ti-camera"></i> Profile Photo</div>
       <div class="center-col">
         {% if face_image %}
-          <img class="photo" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}" onclick="openLb()">
+          <img class="photo" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}" data-on-click="openLb()">
           <a class="btn-dl" href="/dataset/{{ emp_id }}.jpg" download="{{ emp_id }}_photo.jpg">
             <i class="ti ti-download"></i> Download Photo
           </a>
@@ -723,7 +723,7 @@
 {% if face_image %}
 <div class="lb-backdrop" id="lb">
   <div class="lb-box">
-    <button class="lb-close" onclick="closeLb()">&times;</button>
+    <button class="lb-close" data-on-click="closeLb()">&times;</button>
     <div class="lb-img-wrap">
       <img src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}">
     </div>

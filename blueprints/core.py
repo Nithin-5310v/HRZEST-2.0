@@ -20,11 +20,11 @@ from utils.login_otp import issue_challenge, verify_challenge
 from utils.totp import send_mfa_login_email
 from utils.helpers import (
     _db, get_auth_config, validate_employee_email_domain,
-    employee_login_url, get_pending_counts, tpath, add_employee_seat_cap_check,
+    get_pending_counts, tpath, add_employee_seat_cap_check,
     get_company_settings, _safe_app_url, company_today,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
-from utils.email_utils import get_email_config, send_email_smtp, public_contact_email
+from utils.email_utils import public_contact_email
 from utils.billing_notices import notify_employee_added
 from utils.session_risk import is_session_compromised, ensure_session_id
 
@@ -775,12 +775,22 @@ def api_signin():
     (auth.admin_login): an admin, HR or manager account whose username --
     or lowercased email -- and password match signs in as that; anything
     else is tried as an employee ID. The answer is /api/login's or
-    /api/employee/login's, plus "account": "admin" | "employee"."""
+    /api/employee/login's, plus "account": "admin" | "employee" and
+    "company_slug": the company signed in to.
+
+    Called without a company in the URL (the app's sign-in has no company
+    box), the credentials name the company, as on the website's bare /login
+    (auth._bare_login_company); 409 company_required when they fit more
+    than one, so the app asks which."""
+    from blueprints.auth import _bare_login_company
     data = request.get_json(silent=True) or {}
     identifier = str(data.get("identifier") or "").strip()
     password = str(data.get("password") or "")
     if "\x00" in identifier or "\x00" in password or not identifier or not password:
         return jsonify({"ok": False, "msg": "Invalid credentials"}), 401
+    if _bare_login_company(identifier, password, bind_session=False) == "many":
+        return jsonify({"ok": False, "company_required": True,
+                        "msg": "This account is in more than one company. Enter your company's name."}), 409
     if _admin_password_matches(identifier, password):
         account, result = "admin", _api_admin_login(identifier, password)
     else:
@@ -792,6 +802,7 @@ def api_signin():
     body = resp.get_json(silent=True)
     if isinstance(body, dict) and body.get("ok"):
         body["account"] = account
+        body["company_slug"] = request.environ.get("hrz.tenant_slug") or getattr(g, "tenant_slug", None) or ""
         return jsonify(body), status
     return resp, status
 
@@ -909,16 +920,14 @@ def api_employee_signup():
         db.close()
         notify_employee_added()
         if email:
-            _ecfg = get_email_config()
-            if _ecfg:
-                _login_url = employee_login_url()
-                _html = (f"<p>Hi <strong>{name}</strong>, your account is ready.</p>"
-                         f"<p>Employee ID: <strong>{emp_id}</strong></p>"
-                         f"<p><a href=\"{_login_url}\">{_login_url}</a></p>")
-                try:
-                    send_email_smtp(email, f"Welcome {name} -- Your Account is Ready", _html, _ecfg)
-                except Exception:
-                    app_log.error("api_employee_signup: welcome email failed", exc_info=True)
+            # The same welcome as the website's Add Employee: sign-in link,
+            # Employee ID, the password the admin typed, and a set-password
+            # link. This account isn't made to change it at first sign-in.
+            from blueprints.employees import _send_welcome_credentials_email
+            try:
+                _send_welcome_credentials_email(emp_id, name, email, password, must_change=False)
+            except Exception:
+                app_log.error("api_employee_signup: welcome email failed", exc_info=True)
         return jsonify({
             "ok": True,
             "msg": f"Employee account for {name} ({emp_id}) created successfully! You can now sign in.",

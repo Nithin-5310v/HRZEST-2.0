@@ -103,7 +103,7 @@
     <div class="u-d-flex u-gap-10 u-ai-center">
       <a href="/offer_letter/{{ ob[0] }}" class="btn btn-navy"><i class="ti ti-file-text"></i> Offer Letter</a>
       {% if ob[8] != 'Completed' %}
-      <form class="u-d-inline" action="{{ tpath('/onboarding_close') }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Mark this onboarding as completed?')">
+      <form class="u-d-inline" action="{{ tpath('/onboarding_close') }}" method="POST" data-on-submit="return hzConfirmSubmit(event, 'Mark this onboarding as completed?')">
         <input type="hidden" name="ob_id" value="{{ ob[0] }}" />
         <button type="submit" class="btn btn-green"><i class="ti ti-check"></i> Mark Complete</button>
       </form>
@@ -170,7 +170,7 @@
         {% if t[9] %}<div class="u-fs-12 u-c-374151 u-mt-6 u-bg-f0fdf4 u-p-6-10 u-br-6 u-bdl-3-solid-86efac"><strong>Employee note:</strong> {{ t[9] }}</div>{% endif %}
       </div>
       <div class="u-fxs-0">
-        <button class="btn btn-gray btn-sm" onclick="openUpdateModal({{ t[0] }}, '{{ t[5] }}', '{{ (t[8] or '')|replace("'","\\'") }}')">
+        <button class="btn btn-gray btn-sm" data-on-click="openUpdateModal({{ t[0] }}, '{{ t[5] }}', '{{ (t[8] or '')|replace("'","\\'") }}')">
           <i class="ti ti-pencil"></i> Update
         </button>
       </div>
@@ -187,7 +187,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3><i class="ti ti-pencil"></i> Update Task Status</h3>
-      <button class="modal-close" onclick="closeModal('updateModal')">✕</button>
+      <button class="modal-close" data-on-click="closeModal('updateModal')">✕</button>
     </div>
     <form action="{{ tpath('/onboarding_admin_task_update') }}" method="POST">
       <input type="hidden" name="task_id" id="upd_task_id" />
@@ -205,7 +205,7 @@
       </div>
       <div class="u-d-flex u-gap-10 u-mt-4">
         <button type="submit" class="btn btn-navy u-fx-1">Save</button>
-        <button type="button" class="btn btn-gray" onclick="closeModal('updateModal')">Cancel</button>
+        <button type="button" class="btn btn-gray" data-on-click="closeModal('updateModal')">Cancel</button>
       </div>
     </form>
   </div>

@@ -234,7 +234,7 @@
     <script src="{{ static_url('portal-search.js') }}" defer></script>
     <div class="header-actions">
       <a href="/monthly_report_export?month={{ now_month }}&year={{ now_year }}" class="hbtn hbtn-green"><i class="ti ti-download"></i> Export Month</a>
-      <button type="button" onclick="sendAbsenteeReport()" class="hbtn hbtn-blue"><i class="ti ti-mail"></i> Email Absentees</button>
+      <button type="button" data-on-click="sendAbsenteeReport()" class="hbtn hbtn-blue"><i class="ti ti-mail"></i> Email Absentees</button>
     </div>
   </div>
 
@@ -322,7 +322,7 @@
     <div class="u-d-grid u-gtc-repeat3_1fr u-gap-14">
 
       <a class="u-tdec-none" href="{{ tpath('/employees') }}">
-        <div class="u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(30,58,138,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(30,58,138,0.12)">
           <div class="u-w-26 u-h-26 u-bg-dbeafe u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-users" style="color:#1e40af"></i></div>
           <div>
             <div class="u-fs-13 u-fw-800 u-c-1e40af">Employee Management</div>
@@ -332,7 +332,7 @@
       </a>
 
       <a class="u-tdec-none" href="{{ tpath('/monthly_report') }}">
-        <div class="u-bg-f0fdf4 u-bd-1d5-solid-86efac u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(21,128,61,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="u-bg-f0fdf4 u-bd-1d5-solid-86efac u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(21,128,61,0.12)">
           <div class="u-w-26 u-h-26 u-bg-dcfce7 u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-chart-bar" style="color:#15803d"></i></div>
           <div>
             <div class="u-fs-13 u-fw-800 u-c-15803d">Attendance Tracking</div>
@@ -342,7 +342,7 @@
       </a>
 
       <a class="u-tdec-none" href="{{ tpath('/employees?tab=schedule') }}">
-        <div class="u-bg-faf5ff u-bd-1d5-solid-d8b4fe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(124,58,237,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="u-bg-faf5ff u-bd-1d5-solid-d8b4fe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(124,58,237,0.12)">
           <div class="u-w-26 u-h-26 u-bg-ede9fe u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-clock-hour-4" style="color:#7c3aed"></i></div>
           <div>
             <div class="u-fs-13 u-fw-800 u-c-7c3aed">Shifts &amp; Breaks</div>
@@ -352,7 +352,7 @@
       </a>
 
       <a class="u-tdec-none" href="{{ tpath('/salary_report') }}">
-        <div class="u-bg-fefce8 u-bd-1d5-solid-fde047 u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(133,77,14,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="u-bg-fefce8 u-bd-1d5-solid-fde047 u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(133,77,14,0.12)">
           <div class="u-w-26 u-h-26 u-bg-fef9c3 u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-coin" style="color:#854d0e"></i></div>
           <div>
             <div class="u-fs-13 u-fw-800 u-c-854d0e">Salary &amp; Payslips</div>
@@ -362,7 +362,7 @@
       </a>
 
       <a class="u-tdec-none" href="{{ tpath('/leave_holidays?tab=leaves') }}">
-        <div class="u-bg-fff7ed u-bd-1d5-solid-fed7aa u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(194,65,12,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="u-bg-fff7ed u-bd-1d5-solid-fed7aa u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(194,65,12,0.12)">
           <div class="u-w-26 u-h-26 u-bg-ffedd5 u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-clipboard-list" style="color:#c2410c"></i></div>
           <div>
             <div class="u-fs-13 u-fw-800 u-c-c2410c">Tickets · Leaves · Resign.</div>
@@ -376,7 +376,7 @@
       </a>
 
       <a class="u-tdec-none" href="{{ tpath('/announcements') }}">
-        <div class="u-bg-fff1f2 u-bd-1d5-solid-fda4af u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(190,18,60,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div class="u-bg-fff1f2 u-bd-1d5-solid-fda4af u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(190,18,60,0.12)">
           <div class="u-w-26 u-h-26 u-bg-ffe4e6 u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-speakerphone" style="color:#be123c"></i></div>
           <div>
             <div class="u-fs-13 u-fw-800 u-c-be123c">Announcements</div>
@@ -447,7 +447,7 @@
     <div class="u-bg-fff u-br-18 u-p-32 u-w-100pct u-maxw-440 u-c-0f172a u-shad-0-24-60-rgba0_0_0_0d2">
       <div class="u-d-flex u-ai-center u-jc-space-between u-mb-22">
         <h3 class="u-fs-17 u-fw-800"><i class="ti ti-edit"></i> Edit Employee</h3>
-        <button class="u-bd-none u-bg-f1f5f9 u-br-8 u-w-32 u-h-32 u-cur-pointer u-fs-16" type="button" aria-label="Close" onclick="closeEdit()"><i class="ti ti-x" aria-hidden="true"></i></button>
+        <button class="u-bd-none u-bg-f1f5f9 u-br-8 u-w-32 u-h-32 u-cur-pointer u-fs-16" type="button" aria-label="Close" data-on-click="closeEdit()"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
       <form action="{{ tpath('/edit_employee') }}" method="POST" id="editForm">
         <input type="hidden" name="emp_id" id="edit_emp_id" />
@@ -475,11 +475,11 @@
           <label>Work Mode</label>
           <div class="u-d-flex u-gap-10 u-mt-4">
             <label class="u-d-flex u-ai-center u-gap-6 u-cur-pointer u-fs-13 u-fw-600">
-              <input class="u-accent-1e3a8a" type="radio" name="work_mode" id="edit_wm_office" value="office" onchange="editToggleLocation(this.value)" />
+              <input class="u-accent-1e3a8a" type="radio" name="work_mode" id="edit_wm_office" value="office" data-on-change="editToggleLocation(this.value)" />
               <i class="ti ti-building"></i> Office
             </label>
             <label class="u-d-flex u-ai-center u-gap-6 u-cur-pointer u-fs-13 u-fw-600">
-              <input class="u-accent-059669" type="radio" name="work_mode" id="edit_wm_wfh" value="wfh" onchange="editToggleLocation(this.value)" />
+              <input class="u-accent-059669" type="radio" name="work_mode" id="edit_wm_wfh" value="wfh" data-on-change="editToggleLocation(this.value)" />
               <i class="ti ti-home"></i> Work from Home
             </label>
           </div>
@@ -496,7 +496,7 @@
               <input aria-label="Longitude" class="u-w-100pct u-p-8-10 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="edit_work_lon" step="0.000001" min="-180" max="180" />
             </div>
           </div>
-          <button class="u-p-7-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" onclick="useMyLocationForEdit()">
+          <button class="u-p-7-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" data-on-click="useMyLocationForEdit()">
             <i class="ti ti-map-pin"></i> Use My Location
           </button>
         </div>
@@ -510,7 +510,7 @@
         </div>
         <div class="u-d-flex u-gap-10">
           <button class="u-fx-1 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-white u-fs-14 u-fw-700 u-cur-pointer" type="submit">Save Changes</button>
-          <button class="u-p-11-18 u-bd-1-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-cur-pointer" type="button" onclick="closeEdit()">Cancel</button>
+          <button class="u-p-11-18 u-bd-1-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-cur-pointer" type="button" data-on-click="closeEdit()">Cancel</button>
         </div>
       </form>
     </div>
@@ -630,8 +630,8 @@
             <td>${buildLogoutBadge(r)}</td>
             <td>${buildAttTypeBadge(r)}</td>
             <td>
-              <button class="tbl-btn tbl-btn-edit" onclick="openEdit('${jsEsc(r.emp_id)}')"><i class="ti ti-edit"></i> Edit</button>
-              <button class="tbl-btn tbl-btn-delete" onclick="confirmDelete('${jsEsc(r.emp_id)}','${jsEsc(r.name)}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
+              <button class="tbl-btn tbl-btn-edit" data-on-click="openEdit('${jsEsc(r.emp_id)}')"><i class="ti ti-edit"></i> Edit</button>
+              <button class="tbl-btn tbl-btn-delete" data-on-click="confirmDelete('${jsEsc(r.emp_id)}','${jsEsc(r.name)}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
             </td>
           </tr>`;
         });

@@ -208,10 +208,10 @@
       </div>
     </div>
     <div class="tabs">
-      <button class="tab-btn {% if tab == 'org_chart' %}active{% endif %}" onclick="switchTab('org_chart')">
+      <button class="tab-btn {% if tab == 'org_chart' %}active{% endif %}" data-on-click="switchTab('org_chart')">
         <i class="ti ti-hierarchy"></i> Org Chart
       </button>
-      <button class="tab-btn {% if tab == 'activity_log' %}active{% endif %}" onclick="switchTab('activity_log')">
+      <button class="tab-btn {% if tab == 'activity_log' %}active{% endif %}" data-on-click="switchTab('activity_log')">
         <i class="ti ti-history"></i> Activity Log
       </button>
     </div>
@@ -227,16 +227,16 @@
   {# ORG CHART TAB #}
   <div id="tab-org_chart" class="tab-panel {% if tab == 'org_chart' %}active{% endif %}">
     <div class="org-controls">
-      <input class="search-box" type="text" id="searchBox" placeholder="Search name, role, department…" oninput="doSearch(this.value)">
-      <select class="dept-select" id="deptFilter" onchange="loadChart()">
+      <input class="search-box" type="text" id="searchBox" placeholder="Search name, role, department…" data-on-input="doSearch(this.value)">
+      <select class="dept-select" id="deptFilter" data-on-change="loadChart()">
         <option value="">All Departments</option>
         {% for d in departments %}
         <option value="{{ d }}">{{ d }}</option>
         {% endfor %}
       </select>
-      <button class="btn" onclick="fitToScreen()"><i class="ti ti-maximize"></i> Fit</button>
-      <button class="btn" onclick="zoom(0.15)"><i class="ti ti-zoom-in"></i></button>
-      <button class="btn" onclick="zoom(-0.15)"><i class="ti ti-zoom-out"></i></button>
+      <button class="btn" data-on-click="fitToScreen()"><i class="ti ti-maximize"></i> Fit</button>
+      <button class="btn" data-on-click="zoom(0.15)"><i class="ti ti-zoom-in"></i></button>
+      <button class="btn" data-on-click="zoom(-0.15)"><i class="ti ti-zoom-out"></i></button>
       <div class="stat-chip" id="statChip"><i class="ti ti-users u-fs-12"></i> —</div>
     </div>
     <div id="viewport">
@@ -266,7 +266,7 @@
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.querySelector(`[data-on-click="switchTab('${name}')"]`).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'org_chart' && !chartLoaded) loadChart();
   history.replaceState(null, '', '/admin_tools?tab=' + name);
@@ -370,7 +370,7 @@ function render() {
     div.innerHTML = `<div class="node-card">
       ${cc > 0 ? `<div class="reports-badge">${cc}</div>` : ''}
       <div class="avatar-wrap">${n.has_photo
-        ? `<img class="avatar-img" src="/dataset/${esc(n.id)}.jpg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><div class="avatar-placeholder" style="display:none;background:${color}">${initials(n.name)}</div>`
+        ? `<img class="avatar-img" src="/dataset/${esc(n.id)}.jpg" data-on-error="HZ.showNextOnError(this)"/><div class="avatar-placeholder" style="display:none;background:${color}">${initials(n.name)}</div>`
         : `<div class="avatar-placeholder" style="background:${color}">${initials(n.name)}</div>`}</div>
       <div class="node-name" title="${esc(n.name)}">${esc(n.name)}</div>
       <div class="node-role" title="${esc(n.role)}">${esc(n.role)}</div>

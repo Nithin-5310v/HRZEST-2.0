@@ -41,8 +41,12 @@ export default function LoginScreen({ navigation }) {
 
   // The company's address (its URL slug, e.g. "acme" from
   // https://<server>/acme/login) -- which company the sign-in goes to.
-  // Blank means the server's default company. Filled in with the last one used.
+  // Hidden unless needed: the server finds the company from the sign-in
+  // details (/api/signin), like the website's /login. Shown when the person
+  // asks, when those details fit more than one company, and for Forgot
+  // password. Filled in with the last one used.
   const [companyUrl, setCompanyUrl] = useState("");
+  const [showCompany, setShowCompany] = useState(false);
   useEffect(() => {
     getLastCompanySlug().then((slug) => slug && setCompanyUrl((typed) => typed || slug)).catch(() => {});
   }, []);
@@ -96,10 +100,10 @@ export default function LoginScreen({ navigation }) {
     if (status === 403 && /denied|blocked/i.test(err?.response?.data?.msg || "")) {
       return "HRzest paused sign-ins from this network after too many attempts. Wait 15 minutes, then try again.";
     }
-    if (status === 403 || status === 404) return "That company isn't right. Check the Company box.";
-    let msg = "Wrong email, username, employee ID or password.";
-    if (!companyUrl.trim()) msg += " Did you enter your company?";
-    return msg;
+    if ((status === 403 || status === 404) && showCompany && companyUrl.trim()) {
+      return "That company isn't right. Check the Company box.";
+    }
+    return "Wrong email, username, employee ID or password.";
   };
 
   // A server not yet updated with /api/signin answers 404 "Page Not Found":
@@ -146,7 +150,9 @@ export default function LoginScreen({ navigation }) {
       return;
     }
     setLoading(true);
-    if (!(await applyTypedCompany())) {
+    if (!showCompany) {
+      setCompanySlug(""); // the server finds the company from the details
+    } else if (!(await applyTypedCompany())) {
       setLoading(false);
       return;
     }
@@ -161,6 +167,9 @@ export default function LoginScreen({ navigation }) {
         if (!notThere) throw err;
         ({ account, data } = await legacySignIn(typed));
       }
+      // The company the server signed in to: every later call -- the
+      // emailed-code step included -- goes there.
+      if (data?.ok && data?.company_slug) setCompanySlug(data.company_slug);
       if (data?.ok && data?.mfa_required && data?.challenge_id) {
         setChallengeId(data.challenge_id);
         setOtpCode("");
@@ -181,6 +190,13 @@ export default function LoginScreen({ navigation }) {
       const body = err?.response?.data || {};
       const serverMsg = body.msg;
       const status = err?.response?.status;
+      if (status === 409 && body.company_required) {
+        // The same details work in more than one company: ask which.
+        setShowCompany(true);
+        Alert.alert("Which company?", serverMsg || "Enter your company's name, then sign in again.");
+        setLoading(false);
+        return;
+      }
       const specific = body.password_change_required || body.access_ended;
       const generic = !serverMsg || (!specific &&
         ([403, 404, 429].includes(status) || /invalid (employee )?credentials/i.test(serverMsg)));
@@ -219,6 +235,11 @@ export default function LoginScreen({ navigation }) {
   // company). Admins reset by email; employees -- HR staff included, who
   // sign in with their employee ID -- by employee ID.
   const handleForgotPassword = async () => {
+    if (!companyUrl.trim()) {
+      setShowCompany(true);
+      Alert.alert("Your company", "Enter your company's name above, then tap Forgot password again.");
+      return;
+    }
     if (!(await applyTypedCompany())) return;
     const slug = getCompanySlug();
     const base = `${API_BASE_URL}${slug ? `/${slug}` : ""}`;
@@ -282,6 +303,7 @@ export default function LoginScreen({ navigation }) {
                 <Text style={styles.sub}>Use the same details you use on the website.</Text>
               </View>
 
+              {showCompany ? (
               <View>
                 <Text style={styles.label}>COMPANY</Text>
                 <View style={fieldStyle("company")}>
@@ -301,6 +323,7 @@ export default function LoginScreen({ navigation }) {
                 </View>
                 <Text style={styles.hint}>Your company's name or its web address, from your welcome email.</Text>
               </View>
+              ) : null}
 
               <View>
                 <Text style={styles.label}>EMAIL, USERNAME OR EMPLOYEE ID</Text>
@@ -357,6 +380,11 @@ export default function LoginScreen({ navigation }) {
               </View>
 
               <AppButton title="Sign in" onPress={handleSignIn} loading={loading} />
+              {!showCompany ? (
+                <TouchableOpacity style={styles.centerLink} onPress={() => setShowCompany(true)}>
+                  <Text style={styles.link}>Sign in to a specific company</Text>
+                </TouchableOpacity>
+              ) : null}
               {__DEV__ && (
                 <TouchableOpacity
                   style={styles.centerLink}

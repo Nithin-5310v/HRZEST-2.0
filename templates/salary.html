@@ -151,7 +151,7 @@
           <div class="u-pos-relative">
             <span class="u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-14 u-pe-none"><i class="ti ti-search hz-ico" aria-hidden="true"></i></span>
             <input class="u-p-8-12-8-34 u-bd-1d5-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none u-w-200" type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
-              oninput="filterEmpTable(this.value)" />
+              data-on-input="filterEmpTable(this.value)" />
           </div>
           <h3 class="u-m-0"><i class="ti ti-users hz-ico" aria-hidden="true"></i> All Employees</h3>
         </div>
@@ -214,7 +214,7 @@
                   {# Edit form #}
                   <form action="{{ tpath('/update_salary') }}" method="POST"
                         id="form-{{ loop.index }}" class="edit-form"
-                        onsubmit="prepareSubmit('{{ loop.index }}')">
+                        data-on-submit="prepareSubmit('{{ loop.index }}')">
                     <input type="hidden" name="emp_id" value="{{ emp_id }}" />
                     <input type="hidden" name="salary" id="hidden-spd-{{ loop.index }}" />
                     <div class="ef-row">
@@ -223,7 +223,7 @@
                              step="0.01" min="0"
                              value="{{ '%.2f'|format(spd) if spd else '' }}"
                              placeholder="0.00"
-                             oninput="calcFromDay('{{ loop.index }}')" />
+                             data-on-input="calcFromDay('{{ loop.index }}')" />
                     </div>
                     <div class="ef-row">
                       <span class="ef-lbl">Monthly (₹)</span>
@@ -231,7 +231,7 @@
                              step="0.01" min="0"
                              value="{{ '%.2f'|format(mon) if spd else '' }}"
                              placeholder="0.00"
-                             oninput="calcFromMon('{{ loop.index }}')" />
+                             data-on-input="calcFromMon('{{ loop.index }}')" />
                     </div>
                     <div class="ef-row">
                       <span class="ef-lbl">Yearly (₹)</span>
@@ -239,7 +239,7 @@
                              step="0.01" min="0"
                              value="{{ '%.2f'|format(yr) if spd else '' }}"
                              placeholder="0.00"
-                             oninput="calcFromYr('{{ loop.index }}')" />
+                             data-on-input="calcFromYr('{{ loop.index }}')" />
                       <span class="lpa-hint" id="lpa-hint-{{ loop.index }}">
                         {%- if yr > 0 -%}{{ "%.3g"|format(yr / 100000) }} LPA{%- endif -%}
                       </span>

@@ -496,7 +496,7 @@
             <div class="profile-avatar u-mb-0 u-fxs-0">
               {% if emp[4] %}
                 <img src="/my_photo?v={{ photo_v }}" alt="{{ emp[1] }}"
-                     onerror="this.parentNode.innerHTML='{{ emp[1][0] | upper }}'" />
+                     data-on-error="HZ.avatarText(this, '{{ emp[1][0] | upper }}')" />
               {% else %}
                 {{ emp[1][0] | upper }}
               {% endif %}
@@ -664,7 +664,7 @@
           </div>
 
           {% if attendance_auth_cfg.qr_enabled or attendance_auth_cfg.face_enabled or attendance_auth_cfg.fingerprint_enabled %}
-          <button class="u-mt-8 u-w-100pct u-p-9 u-bd-none u-br-10 u-bg-linear-gradienb4a52d u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-jc-center u-gap-8" onclick="openWfhScanner()">
+          <button class="u-mt-8 u-w-100pct u-p-9 u-bd-none u-br-10 u-bg-linear-gradienb4a52d u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-jc-center u-gap-8" data-on-click="openWfhScanner()">
             Mark Attendance
           </button>
           {% endif %}
@@ -830,7 +830,7 @@
             <option value="{{ y }}" {% if y == sel_year %}selected{% endif %}>{{ y }}</option>
             {% endfor %}
           </select>
-          <button class="btn-view" onclick="applyFilter()">View</button>
+          <button class="btn-view" data-on-click="applyFilter()">View</button>
           <a id="pdfLink" href="/my_attendance_pdf?month={{ sel_month }}&year={{ sel_year }}" class="btn-pdf"><i class="ti ti-download hz-ico" aria-hidden="true"></i> Download PDF</a>
         </div>
 
@@ -934,7 +934,7 @@
           {% endfor %}
           {# Comp-off balance card #}
           <a class="u-tdec-none" href="{{ tpath('/my_compoff') }}">
-          <div style="background:#fff;border:1.5px solid {% if compoff_avail_days > 0 %}#bbf7d0{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;cursor:pointer;transition:.2s;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='{% if compoff_avail_days > 0 %}#bbf7d0{% else %}#e2e8f0{% endif %}'">
+          <div style="background:#fff;border:1.5px solid {% if compoff_avail_days > 0 %}#bbf7d0{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;cursor:pointer;transition:.2s;" data-hover-style="border-color:#3b82f6">
             <div class="u-fs-10 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-mb-8">Comp-off <span class="u-bg-eff6ff u-c-3b82f6 u-br-4 u-p-1-5 u-fs-9">OT</span></div>
             <div class="u-d-flex u-ai-baseline u-gap-4 u-mb-6">
               <span style="font-size:28px;font-weight:800;color:{% if compoff_avail_days > 0 %}#16a34a{% else %}#94a3b8{% endif %};line-height:1;">{{ compoff_avail_days }}</span>
@@ -975,7 +975,7 @@
           <div class="u-mb-14">
             <label class="u-d-flex u-ai-center u-gap-10 u-cur-pointer u-p-10-14 u-bg-f8fafc u-bd-1-solid-dbeafe u-br-9">
               <input class="u-w-16 u-h-16 u-accent-1e3a8a u-cur-pointer" type="checkbox" name="is_half_day" id="half-day-chk" value="1"
-                     onchange="toggleHalfDay(this.checked)">
+                     data-on-change="toggleHalfDay(this.checked)">
               <span class="u-fs-14 u-fw-600 u-c-1e293b">Half Day Leave</span>
               <span class="u-fs-12 u-c-64748b">(counts as 0.5 days)</span>
             </label>
@@ -985,13 +985,13 @@
               <div class="u-d-flex u-gap-10">
                 <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-p-8-16 u-bd-2-solid-dbeafe u-br-8 u-bg-fff u-fx-1 u-trs-d18s" id="lbl-morning">
                   <input class="u-accent-1e3a8a u-w-15 u-h-15" type="radio" name="half_day_session" value="Morning" checked
-                         onchange="highlightSession()">
+                         data-on-change="highlightSession()">
                   <span class="u-fs-13 u-fw-600 u-c-1e293b"><i class="ti ti-sunrise hz-ico" aria-hidden="true"></i> Morning</span>
                   <span class="u-fs-11 u-c-64748b u-ml-auto">1st half</span>
                 </label>
                 <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-p-8-16 u-bd-2-solid-dbeafe u-br-8 u-bg-fff u-fx-1 u-trs-d18s" id="lbl-afternoon">
                   <input class="u-accent-1e3a8a u-w-15 u-h-15" type="radio" name="half_day_session" value="Afternoon"
-                         onchange="highlightSession()">
+                         data-on-change="highlightSession()">
                   <span class="u-fs-13 u-fw-600 u-c-1e293b"><i class="ti ti-sunset hz-ico" aria-hidden="true"></i> Afternoon</span>
                   <span class="u-fs-11 u-c-64748b u-ml-auto">2nd half</span>
                 </label>
@@ -1074,7 +1074,7 @@
                 </td>
                 <td>
                   {% if lv_status == 'Pending' and lv_id and lv_date > today_date %}
-                  <form class="u-d-inline" action="/cancel_leave/{{ lv_id }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Cancel your leave request for {{ lv_date }}?');">
+                  <form class="u-d-inline" action="/cancel_leave/{{ lv_id }}" method="POST" data-on-submit="return hzConfirmSubmit(event, 'Cancel your leave request for {{ lv_date }}?');">
                     <button class="u-p-4-10 u-bd-1-solid-fca5a5 u-bg-fee2e2 u-c-dc2626 u-br-6 u-fs-12 u-fw-700 u-cur-pointer" type="submit">Cancel</button>
                   </form>
                   {% else %}—{% endif %}
@@ -1185,12 +1185,12 @@
             To continue, type <strong class="u-c-b91c1c u-ls-2">RESIGN</strong> below.
           </p>
           <input aria-label="Type RESIGN to confirm" class="u-w-100pct u-bxs-border-box u-p-10-14 u-bd-2-solid-e5e7eb u-br-8 u-fs-15 u-ta-center u-ls-2 u-ttr-uppercase u-out-none u-mb-16" id="resign-gate-input" type="text" placeholder="Type RESIGN to confirm"
-                 oninput="checkResignGate()" />
+                 data-on-input="checkResignGate()" />
           <div class="u-d-flex u-gap-12 u-jc-center">
-            <button class="u-p-10-24 u-bd-none u-br-8 u-bg-e5e7eb u-c-374151 u-fs-14 u-cur-pointer u-fw-600" onclick="closeResignGate()">
+            <button class="u-p-10-24 u-bd-none u-br-8 u-bg-e5e7eb u-c-374151 u-fs-14 u-cur-pointer u-fw-600" data-on-click="closeResignGate()">
               Cancel
             </button>
-            <button class="u-p-10-24 u-bd-none u-br-8 u-bg-d1d5db u-c-9ca3af u-fs-14 u-cur-not-allowed u-fw-600 u-trs-all-d2s" id="resign-gate-btn" onclick="confirmResignGate()" disabled>
+            <button class="u-p-10-24 u-bd-none u-br-8 u-bg-d1d5db u-c-9ca3af u-fs-14 u-cur-not-allowed u-fw-600 u-trs-all-d2s" id="resign-gate-btn" data-on-click="confirmResignGate()" disabled>
               Proceed
             </button>
           </div>
@@ -1314,13 +1314,13 @@
 
         {# Tab bar #}
         <div class="u-d-flex u-gap-6 u-bg-fff u-bd-1-solid-dbeafe u-br-12 u-p-8-10 u-mb-20 u-fxw-wrap">
-          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" onclick="switchEarningsTab('salary')" id="etab-salary">
+          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" data-on-click="switchEarningsTab('salary')" id="etab-salary">
             <i class="ti ti-coin hz-ico" aria-hidden="true"></i> Salary
           </button>
-          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-transparent u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" onclick="switchEarningsTab('incentives')" id="etab-incentives">
+          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-transparent u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" data-on-click="switchEarningsTab('incentives')" id="etab-incentives">
             <i class="ti ti-trophy hz-ico" aria-hidden="true"></i> Incentives
           </button>
-          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-transparent u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" onclick="switchEarningsTab('overtime')" id="etab-overtime">
+          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-transparent u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" data-on-click="switchEarningsTab('overtime')" id="etab-overtime">
             <i class="ti ti-alarm hz-ico" aria-hidden="true"></i> Overtime
           </button>
         </div>
@@ -1403,7 +1403,7 @@
                   {% endfor %}
                 </select>
               </div>
-              <button class="u-p-10-22 u-bg-1e3a8a u-c-fff u-bd-none u-br-9 u-fs-13 u-fw-700 u-cur-pointer u-ws-nowrap" onclick="viewInlinePayslip()">
+              <button class="u-p-10-22 u-bg-1e3a8a u-c-fff u-bd-none u-br-9 u-fs-13 u-fw-700 u-cur-pointer u-ws-nowrap" data-on-click="viewInlinePayslip()">
                 <i class="ti ti-eye"></i> View Payslip
               </button>
             </div>
@@ -1585,7 +1585,7 @@
                 <div class="u-c-fff u-fs-18 u-fw-700" id="payslip-modal-title"><i class="ti ti-credit-card hz-ico" aria-hidden="true"></i> Salary Breakdown</div>
                 <div class="u-c-bfdbfe u-fs-13 u-mt-4">Employee Payslip</div>
               </div>
-              <button class="u-bg-rgba255_255_255_0d15 u-bd-1-solid-rgba25fd9fad u-c-fff u-br-10 u-p-8-14 u-fs-13 u-fw-600 u-cur-pointer" onclick="closePayslipModal()">✕ Close</button>
+              <button class="u-bg-rgba255_255_255_0d15 u-bd-1-solid-rgba25fd9fad u-c-fff u-br-10 u-p-8-14 u-fs-13 u-fw-600 u-cur-pointer" data-on-click="closePayslipModal()">✕ Close</button>
             </div>
             {# Modal body #}
             <div class="u-p-28" id="payslip-modal-content">
@@ -1681,7 +1681,7 @@
                 {% if emp[4] %}
                   <a class="u-d-block u-w-100pct u-h-100pct" href="{{ tpath('/my_photo') }}?v={{ photo_v }}" title="View full photo">
                     <img class="u-w-100pct u-h-100pct u-objf-cover" src="/my_photo?v={{ photo_v }}" alt="{{ emp[1] }}" id="profilePreview"
-                         onerror="this.parentNode.parentNode.innerHTML='{{ emp[1][0]|upper }}'" />
+                         data-on-error="HZ.avatarText(this, '{{ emp[1][0]|upper }}', 2)" />
                   </a>
                 {% else %}
                   <span id="profileInitial">{{ emp[1][0]|upper }}</span>
@@ -1694,7 +1694,7 @@
               <div class="u-fs-18 u-fw-700 u-c-1e293b">{{ emp[1] }}</div>
               <div class="u-fs-13 u-c-64748b u-mt-2">{{ emp[2] or 'Employee' }} &bull; {{ emp[0] }}</div>
               <form class="u-mt-10 u-d-flex u-ai-center u-gap-10" action="{{ tpath('/update_my_photo') }}" method="POST" enctype="multipart/form-data" id="photoForm">
-                <input class="u-d-none" type="file" name="photo" id="photoUpload" accept=".jpg,.jpeg,.png" onchange="previewPhoto(this)" />
+                <input class="u-d-none" type="file" name="photo" id="photoUpload" accept=".jpg,.jpeg,.png" data-on-change="previewPhoto(this)" />
                 <span class="u-fs-12 u-c-94a3b8" id="photoFileName">No file chosen</span>
               </form>
             </div>
@@ -1925,7 +1925,7 @@
                         <i class="ti ti-download"></i> Download
                       </a>
                       {% if d[3] == 'employee' %}
-                      <form class="u-d-inline" action="/delete_my_document/{{ d[0] }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this document?');">
+                      <form class="u-d-inline" action="/delete_my_document/{{ d[0] }}" method="POST" data-on-submit="return hzConfirmSubmit(event, 'Delete this document?');">
                         <button class="u-d-inline-flex u-ai-center u-gap-4 u-p-5-10 u-bg-fef2f2 u-c-ef4444 u-bd-1-solid-fecaca u-br-7 u-fs-12 u-fw-600 u-cur-pointer" type="submit">
                           <i class="ti ti-trash"></i> Delete
                         </button>
@@ -1964,7 +1964,7 @@
                 <div class="u-fs-12 u-c-64748b u-mt-6">{{ exp.description }}</div>
                 {% endif %}
               </div>
-              <form action="/delete_experience/{{ exp.id }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this experience entry?')">
+              <form action="/delete_experience/{{ exp.id }}" method="POST" data-on-submit="return hzConfirmSubmit(event, 'Delete this experience entry?')">
                 <button class="u-p-6-12 u-bd-1-solid-fecaca u-br-7 u-bg-fef2f2 u-c-dc2626 u-fs-12 u-cur-pointer u-fw-600" type="submit">Delete</button>
               </form>
             </div>
@@ -1995,7 +1995,7 @@
                 </div>
                 <div class="form-group u-m-0 u-d-flex u-ai-center u-gap-8 u-pt-20">
                   <input class="u-w-16 u-h-16" type="checkbox" name="is_current" id="isCurrentChk"
-                         onchange="document.getElementById('toYearInputExp').disabled=this.checked;if(this.checked)document.getElementById('toYearInputExp').value='';" />
+                         data-on-change="HZ.disableIf('toYearInputExp', this.checked, true)" />
                   <label class="u-fs-13 u-fw-400 u-m-0" for="isCurrentChk">Currently working here</label>
                 </div>
                 <div class="form-group u-m-0 u-gc-1_-1">
@@ -2023,7 +2023,7 @@
                   {% if edu.percentage %} &bull; {{ edu.percentage }}{% endif %}
                 </div>
               </div>
-              <form action="/delete_education_entry/{{ edu.id }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this education entry?')">
+              <form action="/delete_education_entry/{{ edu.id }}" method="POST" data-on-submit="return hzConfirmSubmit(event, 'Delete this education entry?')">
                 <button class="u-p-6-12 u-bd-1-solid-fecaca u-br-7 u-bg-fef2f2 u-c-dc2626 u-fs-12 u-cur-pointer u-fw-600" type="submit">Delete</button>
               </form>
             </div>
@@ -2158,11 +2158,11 @@
           <div class="u-fs-13 u-c-dc2626 u-mb-10 u-d-none" id="fpEnrollMsg"></div>
 
           <div class="u-d-flex u-gap-10 u-fxw-wrap">
-            <button class="u-p-10-22 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer" id="fpEnrollBtn" onclick="startFpEnroll()">
+            <button class="u-p-10-22 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer" id="fpEnrollBtn" data-on-click="startFpEnroll()">
               &#128400; {% if fp_enrolled %}Re-enroll Fingerprint{% else %}Enroll Fingerprint{% endif %}
             </button>
             {% if fp_enrolled %}
-            <button class="u-p-10-22 u-bd-1-solid-fca5a5 u-br-10 u-bg-fff u-c-dc2626 u-fs-14 u-fw-600 u-cur-pointer" id="fpRemoveBtn" onclick="removeFpEnroll()">
+            <button class="u-p-10-22 u-bd-1-solid-fca5a5 u-br-10 u-bg-fff u-c-dc2626 u-fs-14 u-fw-600 u-cur-pointer" id="fpRemoveBtn" data-on-click="removeFpEnroll()">
               &#128465; Remove Fingerprint
             </button>
             {% endif %}
@@ -2277,7 +2277,7 @@
               if (!rmBtn) {
                 const d = document.createElement('button');
                 d.id = 'fpRemoveBtn';
-                d.setAttribute('onclick','removeFpEnroll()');
+                d.addEventListener('click', removeFpEnroll);
                 Object.assign(d.style, {padding:'10px 22px', border:'1px solid #fca5a5', borderRadius:'10px', background:'#fff', color:'#dc2626', fontSize:'14px', fontWeight:'600', cursor:'pointer'});
                 d.textContent = '🗑️ Remove Fingerprint';
                 btn.parentNode.appendChild(d);
@@ -2330,13 +2330,13 @@
 
         {# Policy Tabs #}
         <div class="u-d-flex u-gap-8 u-fxw-wrap u-mb-22">
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-3b82f6 u-bg-eff6ff u-c-1e40af u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('terms')" id="ptab-terms"><i class="ti ti-certificate hz-ico" aria-hidden="true"></i> Terms</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('rules')" id="ptab-rules"><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> Rules</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('limitations')" id="ptab-limitations"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Limitations</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('instructions')" id="ptab-instructions"><i class="ti ti-pin hz-ico" aria-hidden="true"></i> Instructions</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('posh')" id="ptab-posh"><i class="ti ti-shield-check hz-ico" aria-hidden="true"></i> POSH</button>
-          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('resignation')" id="ptab-resignation"><i class="ti ti-door-exit hz-ico" aria-hidden="true"></i> Resignation</button>
-          <button class="u-d-none u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" onclick="showPolicy('other')" id="ptab-other"><i class="ti ti-folder hz-ico" aria-hidden="true"></i> Other</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-3b82f6 u-bg-eff6ff u-c-1e40af u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('terms')" id="ptab-terms"><i class="ti ti-certificate hz-ico" aria-hidden="true"></i> Terms</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('rules')" id="ptab-rules"><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> Rules</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('limitations')" id="ptab-limitations"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Limitations</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('instructions')" id="ptab-instructions"><i class="ti ti-pin hz-ico" aria-hidden="true"></i> Instructions</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('posh')" id="ptab-posh"><i class="ti ti-shield-check hz-ico" aria-hidden="true"></i> POSH</button>
+          <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('resignation')" id="ptab-resignation"><i class="ti ti-door-exit hz-ico" aria-hidden="true"></i> Resignation</button>
+          <button class="u-d-none u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('other')" id="ptab-other"><i class="ti ti-folder hz-ico" aria-hidden="true"></i> Other</button>
         </div>
 
         {# Policy content is fetched from /api/employee/policies and rendered
@@ -2472,7 +2472,7 @@
                 <a class="u-fx-1 u-minw-160 u-d-inline-flex u-ai-center u-jc-center u-gap-8 u-p-13-24 u-bg-linear-gradiene7a6cb u-c-fff u-br-11 u-fs-14 u-fw-600 u-tdec-none u-shad-0-4-14-rgba37_e838f4" href="/view_payslip/{{ emp[0] }}/${Number(year)}/${Number(month)}">
                   🖨️ Open & Print Full Slip
                 </a>
-                <button class="u-fx-1 u-minw-120 u-p-13-24 u-bg-f1f5f9 u-bd-1-solid-e2e8f0 u-c-475569 u-br-11 u-fs-14 u-fw-600 u-cur-pointer" onclick="closePayslipModal()">
+                <button class="u-fx-1 u-minw-120 u-p-13-24 u-bg-f1f5f9 u-bd-1-solid-e2e8f0 u-c-475569 u-br-11 u-fs-14 u-fw-600 u-cur-pointer" data-on-click="closePayslipModal()">
                   Close
                 </button>
               </div>`;
@@ -3354,7 +3354,7 @@
           @keyframes wfhScan { 0%,100% { top:0; } 50% { top:calc(100% - 3px); } }
         </style>
 
-        <button class="u-w-100pct u-p-13 u-bd-none u-br-13 u-bg-linear-gradienb4a52d u-c-fff u-fs-14 u-fw-800 u-cur-pointer u-mb-10" id="wfhStartBtn" onclick="startWfhFlow()">
+        <button class="u-w-100pct u-p-13 u-bd-none u-br-13 u-bg-linear-gradienb4a52d u-c-fff u-fs-14 u-fw-800 u-cur-pointer u-mb-10" id="wfhStartBtn" data-on-click="startWfhFlow()">
           &#128247; <span id="wfhStartBtnLabel">Start Attendance Check-In</span>
         </button>
 
@@ -3362,7 +3362,7 @@
         <div class="u-d-none u-bg-linear-gradien0da440 u-bd-1d5-solid-86efac u-br-14 u-p-16 u-ta-left u-mb-10" id="wfhResult"></div>
         <div class="u-d-none u-bg-fef2f2 u-bd-1d5-solid-fca5a5 u-br-12 u-p-13 u-fs-13 u-c-dc2626 u-fw-600 u-mb-10" id="wfhError"></div>
 
-        <button class="u-w-100pct u-p-10 u-bd-1-solid-e2e8f0 u-br-12 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" onclick="closeWfhScanner()">&#10005; Close</button>
+        <button class="u-w-100pct u-p-10 u-bd-1-solid-e2e8f0 u-br-12 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" data-on-click="closeWfhScanner()">&#10005; Close</button>
       </div>
     </div>
     {# /WFH SCANNER MODAL #}
@@ -3374,8 +3374,8 @@
         <div class="u-fs-19 u-fw-800 u-c-1e293b u-mb-6" id="breakNotifTitle"></div>
         <div class="u-fs-13 u-c-64748b u-mb-22" id="breakNotifSub"></div>
         <div class="u-d-flex u-gap-10">
-          <button class="u-fx-1 u-p-11 u-bd-1-solid-e2e8f0 u-br-11 u-bg-f8fafc u-c-374151 u-fs-14 u-fw-600 u-cur-pointer" onclick="dismissBreakNotif()">Dismiss</button>
-          <button class="u-fx-1 u-p-11 u-bd-none u-br-11 u-bg-linear-gradienafc76a u-c-fff u-fs-14 u-fw-700 u-cur-pointer" onclick="snoozeBreakNotif()">Snooze 5 min</button>
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-e2e8f0 u-br-11 u-bg-f8fafc u-c-374151 u-fs-14 u-fw-600 u-cur-pointer" data-on-click="dismissBreakNotif()">Dismiss</button>
+          <button class="u-fx-1 u-p-11 u-bd-none u-br-11 u-bg-linear-gradienafc76a u-c-fff u-fs-14 u-fw-700 u-cur-pointer" data-on-click="snoozeBreakNotif()">Snooze 5 min</button>
         </div>
       </div>
     </div>

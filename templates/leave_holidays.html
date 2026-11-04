@@ -310,11 +310,11 @@
     </div>
     {% if page == 'leaves' %}
     <div class="module-tabs">
-      <button class="mtab-btn {% if tab == 'leaves' %}active{% endif %}" onclick="switchModule('leaves')">
+      <button class="mtab-btn {% if tab == 'leaves' %}active{% endif %}" data-on-click="switchModule('leaves')">
         <i class="ti ti-calendar-minus"></i> Leaves
         {% if pending_leaves > 0 %}<span class="mtab-badge tb-pending">{{ pending_leaves }}</span>{% endif %}
       </button>
-      <button class="mtab-btn {% if tab == 'holidays' %}active{% endif %}" onclick="switchModule('holidays')">
+      <button class="mtab-btn {% if tab == 'holidays' %}active{% endif %}" data-on-click="switchModule('holidays')">
         <i class="ti ti-calendar-event"></i> Holidays
       </button>
     </div>
@@ -343,10 +343,10 @@
           <div id="bulkIdInputs"></div>
           <button type="submit" name="action" value="Approved" class="btn-bulk-approve">✓ Approve selected</button>
           <button type="submit" name="action" value="Rejected" class="btn-bulk-reject">✗ Reject selected</button>
-          <button type="button" onclick="clearBulk()" class="btn-bulk-cancel">Cancel</button>
+          <button type="button" data-on-click="clearBulk()" class="btn-bulk-cancel">Cancel</button>
         </form>
         <label class="bulk-select-all">
-          <input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this)" class="bulk-chk"> Select all pending
+          <input type="checkbox" id="selectAllChk" data-on-change="toggleSelectAll(this)" class="bulk-chk"> Select all pending
         </label>
       </div>
       {% set av_colors = ['#6366f1','#3b82f6','#14b8a6','#22c55e','#f59e0b','#ef4444','#a855f7','#ec4899','#06b6d4','#f97316'] %}
@@ -377,7 +377,7 @@
             <div class="balance-row"><strong>Used this year:</strong> {{ _used }} day{{ 's' if _used != 1 else '' }}<span class="dot-sep">·</span>Applied on {{ created_at.strftime('%d %b') if created_at else '—' }}</div>
             <div class="card-actions">
               {% if status == 'Pending' %}
-                <input type="checkbox" class="bulk-chk leave-chk" data-lid="{{ lid }}" onchange="updateBulk()" title="Select">
+                <input type="checkbox" class="bulk-chk leave-chk" data-lid="{{ lid }}" data-on-change="updateBulk()" title="Select">
                 <form action="/leave_action/{{ lid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Approved"><button type="submit" class="btn-approve">✓ Approve</button></form>
                 <form action="/leave_action/{{ lid }}" method="POST" class="form-inline"><input type="hidden" name="action" value="Rejected"><button type="submit" class="btn-reject">✗ Reject</button></form>
               {% else %}<span class="done-label">{{ status }}</span>{% endif %}
@@ -467,11 +467,11 @@
             <label>Visibility</label>
             <div class="vis-toggle">
               <label>
-                <input type="radio" name="visibility" value="public" checked onchange="annVisChange(this)"/>
+                <input type="radio" name="visibility" value="public" checked data-on-change="annVisChange(this)"/>
                 <span><i class="ti ti-world u-fs-13 u-va-middle u-mr-4"></i>Public</span>
               </label>
               <label>
-                <input type="radio" name="visibility" value="private" onchange="annVisChange(this)"/>
+                <input type="radio" name="visibility" value="private" data-on-change="annVisChange(this)"/>
                 <span><i class="ti ti-lock u-fs-13 u-va-middle u-mr-4"></i>Private</span>
               </label>
             </div>
@@ -520,7 +520,7 @@
               <form class="u-d-inline u-ml-auto" action="{{ tpath('/announcements') }}" method="POST">
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="ann_id" value="{{ aid }}"/>
-                <button type="submit" class="btn-del" onclick="return hzConfirmSubmit(event, 'Delete this announcement?')">
+                <button type="submit" class="btn-del" data-on-click="return hzConfirmSubmit(event, 'Delete this announcement?')">
                   <i class="ti ti-trash"></i> Delete
                 </button>
               </form>
@@ -555,7 +555,7 @@
               <form class="u-d-inline u-ml-auto" action="{{ tpath('/announcements') }}" method="POST">
                 <input type="hidden" name="action" value="delete"/>
                 <input type="hidden" name="ann_id" value="{{ aid }}"/>
-                <button type="submit" class="btn-del" onclick="return hzConfirmSubmit(event, 'Delete this announcement?')">
+                <button type="submit" class="btn-del" data-on-click="return hzConfirmSubmit(event, 'Delete this announcement?')">
                   <i class="ti ti-trash"></i> Delete
                 </button>
               </form>
@@ -588,11 +588,11 @@
     <div class="toolbar">
       <form class="u-d-inline" action="{{ tpath('/import_indian_holidays') }}" method="POST">
         <input type="hidden" name="year" value="{{ year }}">
-        <button type="submit" class="btn-import" onclick="return hzConfirmSubmit(event, 'Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
+        <button type="submit" class="btn-import" data-on-click="return hzConfirmSubmit(event, 'Import Indian public holidays for {{ year }}? Existing entries will not be overwritten.')">
           🇮🇳 Import Indian Holidays for {{ year }}
         </button>
       </form>
-      <button class="btn-add-custom" onclick="openAddModal()"><i class="ti ti-plus hz-ico" aria-hidden="true"></i> Add Custom Holiday</button>
+      <button class="btn-add-custom" data-on-click="openAddModal()"><i class="ti ti-plus hz-ico" aria-hidden="true"></i> Add Custom Holiday</button>
     </div>
 
     <div class="legend">
@@ -606,9 +606,9 @@
     <div class="info-note">ℹ️ <span><strong>Saturday is a working day.</strong> Only Sunday is marked as weekly off. Holidays are paid days — they count toward salary calculation.</span></div>
 
     <div class="month-nav-bar">
-      <button type="button" class="mnav-btn" onclick="changeMonth(-1)">&#8592; Prev</button>
+      <button type="button" class="mnav-btn" data-on-click="changeMonth(-1)">&#8592; Prev</button>
       <span class="mnav-label" id="mnav-label"></span>
-      <button type="button" class="mnav-btn" onclick="changeMonth(1)">Next &#8594;</button>
+      <button type="button" class="mnav-btn" data-on-click="changeMonth(1)">Next &#8594;</button>
     </div>
 
     <div class="cal-single-wrap" id="cal-wrap" data-year="{{ year }}">
@@ -631,7 +631,7 @@
               <div class="cal-day {% if is_holiday %}day-holiday{% elif is_sun %}day-sunday{% elif is_today %}day-today{% else %}day-normal{% endif %}"
                    title="{% if is_holiday %}{{ hol_name }}{% elif is_sun %}Sunday (Weekly Off){% else %}{{ m.month_name }} {{ day }}, {{ year }}{% endif %}"
                    data-holiday="{{ is_holiday|tojson }}" data-hname="{{ hol_name|e }}" data-hid="{{ hol_id }}"
-                   data-date="{{ date_str }}" data-year="{{ year }}" onclick="dayClick(this)">
+                   data-date="{{ date_str }}" data-year="{{ year }}" data-on-click="dayClick(this)">
                 {{ day }}
                 {% if is_holiday %}<span class="hol-name">{{ hol_name }}</span>{% endif %}
               </div>
@@ -659,7 +659,7 @@
                 <td class="u-c-64748b u-fs-12">{{ h[1].strftime('%A') }}</td>
                 <td>{% if h[2].startswith('Leave:') %}<span class="badge-leave"><i class="ti ti-leaf hz-ico" aria-hidden="true"></i> {{ h[2][6:] }}</span>{% else %}<span class="badge-holiday"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> {{ h[2] }}</span>{% endif %}</td>
                 <td>
-                  <form action="/delete_holiday/{{ h[0] }}" method="POST" onsubmit="return hzConfirmSubmit(event, 'Delete this entry?');" class="form-inline">
+                  <form action="/delete_holiday/{{ h[0] }}" method="POST" data-on-submit="return hzConfirmSubmit(event, 'Delete this entry?');" class="form-inline">
                     <input type="hidden" name="year" value="{{ year }}">
                     <button type="submit" class="btn-del"><i class="ti ti-trash hz-ico" aria-hidden="true"></i> Remove</button>
                   </form>
@@ -737,7 +737,7 @@
       </div>
       <div class="form-group"><label>Name / Description</label><input type="text" name="holiday_name" id="modalName" placeholder="e.g. Diwali, Dussehra…" required /></div>
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+        <button type="button" class="btn-cancel" data-on-click="closeAddModal()">Cancel</button>
         <button type="submit" class="btn-save">Save Holiday</button>
       </div>
     </form>
@@ -750,7 +750,7 @@
 function switchModule(name) {
   document.querySelectorAll('.mtab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.module-panel').forEach(p => p.classList.remove('active'));
-  document.querySelector(`.mtab-btn[onclick="switchModule('${name}')"]`).classList.add('active');
+  document.querySelector(`.mtab-btn[data-on-click="switchModule('${name}')"]`).classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
   history.replaceState(null, '', '/leave_holidays?tab=' + name);
 }

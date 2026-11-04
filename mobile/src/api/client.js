@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Alert } from 'react-native';
 import { API_BASE_URL } from '../config';
 import { secureGetItem } from '../utils/secureStorage';
 
@@ -69,10 +70,31 @@ export const setUnauthorizedHandler = (handler) => {
   unauthorizedHandler = handler;
 };
 
+// A company whose plan has run out (402 billing_locked -- the server's
+// utils/auth.py billing lock): its admins and HR can't use the admin
+// screens until it's paid; employees aren't affected. Every admin screen's
+// calls fail at once, so say why just once a minute, not per call.
+const BILLING_ALERT_EVERY_MS = 60000;
+let lastBillingAlertAt = 0;
+export const explainBillingLock = (data, now = Date.now()) => {
+  if (now - lastBillingAlertAt < BILLING_ALERT_EVERY_MS) return false;
+  lastBillingAlertAt = now;
+  Alert.alert(
+    'Plan expired',
+    `${data?.msg || "Your company's HRzest plan has expired."}
+
+An admin can renew it at hrzest.com (sign in, then pay the outstanding bill).`,
+  );
+  return true;
+};
+
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
     const status = error?.response?.status;
+    if (status === 402 && error?.response?.data?.billing_locked) {
+      explainBillingLock(error.response.data);
+    }
     if (status === 401) {
       const url = error?.config?.url || '';
       const isSessionCritical = SESSION_CRITICAL_PATHS.some((p) => url.includes(p));

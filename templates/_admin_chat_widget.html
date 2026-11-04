@@ -19,10 +19,10 @@
     </div>
     <a class="hz-chat-icon-btn" href="mailto:admin@magzest.tech" title="Prefer email? admin@magzest.tech"
        aria-label="Email the platform team at admin@magzest.tech"><i class="ti ti-mail"></i></a>
-    <button type="button" class="hz-chat-icon-btn" onclick="chatToggle()" title="Close" aria-label="Close chat"><i class="ti ti-x"></i></button>
+    <button type="button" class="hz-chat-icon-btn" data-on-click="chatToggle()" title="Close" aria-label="Close chat"><i class="ti ti-x"></i></button>
   </div>
   <div id="chatMsgs" class="hz-chat-body" aria-live="polite"></div>
-  <form id="chatSendForm" class="hz-chat-compose" onsubmit="return chatSend(event)">
+  <form id="chatSendForm" method="post" class="hz-chat-compose" data-on-submit="return chatSend(event)">
     <textarea aria-label="Message the platform team" id="chatInput" rows="1" maxlength="2000"
               placeholder="Message the platform team&hellip;" autocomplete="off"></textarea>
     <button type="submit" class="hz-chat-send" title="Send" aria-label="Send message"><i class="ti ti-send"></i></button>

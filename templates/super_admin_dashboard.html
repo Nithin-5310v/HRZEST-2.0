@@ -444,56 +444,56 @@
                style="text-decoration:none;display:inline-flex;align-items:center;">
               New Company (Free)
             </a>
-            <button type="button" class="new-co-btn" onclick="document.getElementById('editRatePanel').hidden = !document.getElementById('editRatePanel').hidden;"
+            <button type="button" class="new-co-btn" data-on-click="HZ.toggleHidden('editRatePanel')"
                     title="Change the flat per-employee monthly rate — applies to every new signup, top-up, and bill immediately">
               Edit Rate ({{ per_employee_paise | plan_price }})
             </button>
             <a href="/create_org" target="_blank" rel="noopener" title="Opens the same public registration + Razorpay checkout a self-service customer would use — hand this to a client to pay on the spot."
                style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);border:1px solid var(--primary-soft-border);color:var(--primary-dark);padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
-               onmouseover="this.style.background='#e0e2fa';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
-               onmouseout="this.style.background='var(--primary-soft)';this.style.boxShadow='none';this.style.transform='none';">
+               data-hover-style="background:#e0e2fa;box-shadow:var(--shadow-md);transform:translateY(-1px)"
+              >
               New Company (Paid Signup)
             </a>
             <a href="/super_admin/applications" title="Review pending company-signup applications (OTP-verified, documents uploaded, awaiting your approval)"
                style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);border:1px solid var(--primary-soft-border);color:var(--primary-dark);padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;position:relative;transition:background-color .15s,box-shadow .15s,transform .15s;"
-               onmouseover="this.style.background='#e0e2fa';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
-               onmouseout="this.style.background='var(--primary-soft)';this.style.boxShadow='none';this.style.transform='none';">
+               data-hover-style="background:#e0e2fa;box-shadow:var(--shadow-md);transform:translateY(-1px)"
+              >
               Applications
               {% if pending_applications_count %}<span style="background:var(--warning);color:#fff;border-radius:999px;padding:1px 7px;font-size:13px;margin-left:2px;">{{ pending_applications_count }}</span>{% endif %}
             </a>
             <a href="/super_admin/duplicate-alerts" title="Signups blocked because the company name matched an existing tenant"
                style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
-               onmouseover="this.style.background='#fee2e2';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
-               onmouseout="this.style.background='#fef2f2';this.style.boxShadow='none';this.style.transform='none';">
+               data-hover-style="background:#fee2e2;box-shadow:var(--shadow-md);transform:translateY(-1px)"
+              >
               Duplicate Alerts
               {% if unacknowledged_alerts_count %}<span style="background:var(--danger);color:#fff;border-radius:999px;padding:1px 7px;font-size:13px;margin-left:2px;">{{ unacknowledged_alerts_count }}</span>{% endif %}
             </a>
             <a href="/super_admin/audit-log" title="Search and browse the full history of platform admin actions"
                style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
-               onmouseover="this.style.background='#e2e8f0';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
-               onmouseout="this.style.background='#f1f5f9';this.style.boxShadow='none';this.style.transform='none';">
+               data-hover-style="background:#e2e8f0;box-shadow:var(--shadow-md);transform:translateY(-1px)"
+              >
               Audit Log
             </a>
             {% if soc_dashboard_configured %}
             <a href="/super_admin/soc" title="Cross-app Security Operations Center — login attempts, failed logins, and suspicious activity across HRMS Portal, Job Portal, Gradzest Portal and Food Delivery App"
                style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
-               onmouseover="this.style.background='#fee2e2';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
-               onmouseout="this.style.background='#fef2f2';this.style.boxShadow='none';this.style.transform='none';">
+               data-hover-style="background:#fee2e2;box-shadow:var(--shadow-md);transform:translateY(-1px)"
+              >
               <i class="ti ti-shield-lock"></i> SOC Dashboard
             </a>
             {% endif %}
             <a href="/super_admin/tickets" title="Trackable support tickets across every company"
                style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);border:1px solid var(--primary-soft-border);color:var(--primary-dark);padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
-               onmouseover="this.style.background='#e0e2fa';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
-               onmouseout="this.style.background='var(--primary-soft)';this.style.boxShadow='none';this.style.transform='none';">
+               data-hover-style="background:#e0e2fa;box-shadow:var(--shadow-md);transform:translateY(-1px)"
+              >
               Support Tickets
               {% if open_tickets_count %}<span style="background:var(--warning);color:#fff;border-radius:999px;padding:1px 7px;font-size:13px;margin-left:2px;">{{ open_tickets_count }}</span>{% endif %}
             </a>
             {% if grafana_url %}
             <a href="{{ grafana_url }}" target="_blank" rel="noopener" title="Self-hosted log analysis (Grafana/Loki) -- opens on a separate server, reachable only from an allowed admin IP"
                style="display:inline-flex;align-items:center;gap:6px;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
-               onmouseover="this.style.background='#e2e8f0';this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-1px)';"
-               onmouseout="this.style.background='#f1f5f9';this.style.boxShadow='none';this.style.transform='none';">
+               data-hover-style="background:#e2e8f0;box-shadow:var(--shadow-md);transform:translateY(-1px)"
+              >
               <i class="ti ti-chart-line"></i> Log Analysis
             </a>
             {% endif %}
@@ -547,8 +547,8 @@
 
           <div class="bulk-action-bar" id="bulkActionBar" hidden>
             <span><strong id="bulkSelectedCount">0</strong> selected</span>
-            <button type="submit" form="bulkTenantForm" class="mini-btn mini-btn-success" onclick="document.getElementById('bulkStatusInput').value='active';">Activate Selected</button>
-            <button type="submit" form="bulkTenantForm" class="mini-btn mini-btn-danger" onclick="return bulkDeactivateConfirm(event);">Deactivate Selected</button>
+            <button type="submit" form="bulkTenantForm" class="mini-btn mini-btn-success" data-on-click="HZ.setValue('bulkStatusInput', 'active')">Activate Selected</button>
+            <button type="submit" form="bulkTenantForm" class="mini-btn mini-btn-danger" data-on-click="return bulkDeactivateConfirm(event);">Deactivate Selected</button>
           </div>
 
           <div class="card">
@@ -556,14 +556,14 @@
             <table>
               <thead>
                 <tr>
-                  <th><input type="checkbox" id="selectAllTenants" onchange="toggleAllTenants(this)" aria-label="Select all companies" /></th>
+                  <th><input type="checkbox" id="selectAllTenants" data-on-change="toggleAllTenants(this)" aria-label="Select all companies" /></th>
                   <th>Company</th><th>Source</th><th>Payment</th><th>Employees</th><th>Monthly Bill</th><th>Status</th><th>Created</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {% for t in tenants %}
                 <tr>
-                  <td><input type="checkbox" class="tenant-select" form="bulkTenantForm" name="tenant_ids" value="{{ t.id }}" onchange="updateBulkBar()" aria-label="Select {{ t.company_name }}" /></td>
+                  <td><input type="checkbox" class="tenant-select" form="bulkTenantForm" name="tenant_ids" value="{{ t.id }}" data-on-change="updateBulkBar()" aria-label="Select {{ t.company_name }}" /></td>
                   <td>
                     <div class="co-name">{{ t.company_name }}</div>
                     <a class="subdomain" href="{{ portal_base_url }}/{{ t.subdomain }}/login" target="_blank" rel="noopener" style="text-decoration:underline;">{{ t.subdomain }}</a>
@@ -596,7 +596,7 @@
                       <a class="mini-btn mini-btn-link" href="/super_admin/companies/{{ t.id }}" title="Financials, notes, and support tickets for this company">Profile</a>
                       <a class="mini-btn mini-btn-link" href="{{ portal_base_url }}/{{ t.subdomain }}/admin" target="_blank" rel="noopener" title="Open this company's Admin Dashboard">Admin</a>
                       <a class="mini-btn mini-btn-link" href="{{ portal_base_url }}/{{ t.subdomain }}/employees" target="_blank" rel="noopener" title="Open this company's Employees page">Employees</a>
-                      <button type="button" class="mini-btn mini-btn-link" data-tenant-id="{{ t.id }}" data-company-name="{{ t.company_name }}" onclick="tenantChatOpen(this.dataset.tenantId, this.dataset.companyName)" title="Chat with this company's admin/HR">Chat</button>
+                      <button type="button" class="mini-btn mini-btn-link" data-tenant-id="{{ t.id }}" data-company-name="{{ t.company_name }}" data-on-click="tenantChatOpen(this.dataset.tenantId, this.dataset.companyName)" title="Chat with this company's admin/HR">Chat</button>
                       <form action="/super_admin/tenants/{{ t.id }}/status" method="POST" style="margin:0;">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                         {% if t.status == 'active' %}
@@ -607,7 +607,7 @@
                         <button type="submit" class="mini-btn mini-btn-success">Reactivate</button>
                         {% endif %}
                       </form>
-                      <button type="button" class="mini-btn mini-btn-danger" data-tenant-id="{{ t.id }}" data-company-name="{{ t.company_name }}" data-subdomain="{{ t.subdomain }}" onclick="openDeleteModal(this)" title="Permanently delete this company and all its data">Delete</button>
+                      <button type="button" class="mini-btn mini-btn-danger" data-tenant-id="{{ t.id }}" data-company-name="{{ t.company_name }}" data-subdomain="{{ t.subdomain }}" data-on-click="openDeleteModal(this)" title="Permanently delete this company and all its data">Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -665,7 +665,7 @@
               <td>
                 <form action="/super_admin/leads/{{ lead.id }}/status" method="POST" style="margin:0;">
                   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-                  <select name="status" onchange="this.form.submit()" aria-label="Lead status for {{ lead.name }}" title="Lead status">
+                  <select name="status" data-on-change="this.form.submit()" aria-label="Lead status for {{ lead.name }}" title="Lead status">
                     <option value="new" {% if lead.status == 'new' %}selected{% endif %}>New</option>
                     <option value="contacted" {% if lead.status == 'contacted' %}selected{% endif %}>Contacted</option>
                     <option value="converted" {% if lead.status == 'converted' %}selected{% endif %}>Converted</option>
@@ -737,7 +737,7 @@
                 data-admin-username="{{ p.admin_username or '—' }}" data-admin-email="{{ p.admin_email or '—' }}"
                 data-created="{{ p.created_at.strftime('%Y-%m-%d %H:%M:%S') if p.created_at else '—' }}"
                 data-paid="{{ p.paid_at.strftime('%Y-%m-%d %H:%M:%S') if p.paid_at else '—' }}"
-                onclick="openPaymentModal(this)" onkeydown="if(event.key==='Enter')openPaymentModal(this)">
+                data-on-click="openPaymentModal(this)" data-on-keydown="HZ.onEnter(event, 'openPaymentModal', this)">
               <td>
                 <div class="co-name">{{ p.company_name }}</div>
                 <div class="subdomain">{{ p.subdomain }}</div>
@@ -760,11 +760,11 @@
         </div>
       </section>
 
-      <div class="pay-modal-overlay" id="payModalOverlay" role="dialog" aria-modal="true" aria-label="Transaction details" onclick="if(event.target===this)closePaymentModal()">
+      <div class="pay-modal-overlay" id="payModalOverlay" role="dialog" aria-modal="true" aria-label="Transaction details" data-on-click="HZ.ifSelf(event, this, 'closePaymentModal')">
         <div class="pay-modal-sheet">
           <div class="pay-modal-head">
             <h3><img class="icon-photo" src="{{ static_url('icons/photos/receipt-2.jpg') }}" alt=""> Transaction Details</h3>
-            <button type="button" class="pay-modal-close" onclick="closePaymentModal()" aria-label="Close">&times;</button>
+            <button type="button" class="pay-modal-close" data-on-click="closePaymentModal()" aria-label="Close">&times;</button>
           </div>
           <div class="pay-modal-body">
             <div class="pay-modal-row"><span>Company</span><strong id="pmCompany"></strong></div>
@@ -783,11 +783,11 @@
         </div>
       </div>
 
-      <div class="pay-modal-overlay" id="deleteModalOverlay" role="dialog" aria-modal="true" aria-label="Delete company" onclick="if(event.target===this)closeDeleteModal()">
+      <div class="pay-modal-overlay" id="deleteModalOverlay" role="dialog" aria-modal="true" aria-label="Delete company" data-on-click="HZ.ifSelf(event, this, 'closeDeleteModal')">
         <div class="pay-modal-sheet">
           <div class="pay-modal-head">
             <h3><img class="icon-photo" src="{{ static_url('icons/photos/trash.jpg') }}" alt=""> Delete Company</h3>
-            <button type="button" class="pay-modal-close" onclick="closeDeleteModal()" aria-label="Close">&times;</button>
+            <button type="button" class="pay-modal-close" data-on-click="closeDeleteModal()" aria-label="Close">&times;</button>
           </div>
           <div class="pay-modal-body">
             <p style="font-size:15px;color:var(--text-bright);line-height:1.6;">
@@ -800,10 +800,10 @@
               <label style="display:block;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);font-weight:700;margin-bottom:6px;">
                 Type <strong id="delSubdomainLabel" style="color:var(--danger);"></strong> to confirm
               </label>
-              <input aria-label="Type to confirm" type="text" id="delConfirmInput" oninput="checkDeleteConfirm()" autocomplete="off"
+              <input aria-label="Type to confirm" type="text" id="delConfirmInput" data-on-input="checkDeleteConfirm()" autocomplete="off"
                      style="width:100%;background:#fff;border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;font-size:15.5px;margin-bottom:14px;" />
               <div style="display:flex;justify-content:flex-end;gap:10px;">
-                <button type="button" class="mini-btn" onclick="closeDeleteModal()">Cancel</button>
+                <button type="button" class="mini-btn" data-on-click="closeDeleteModal()">Cancel</button>
                 <button type="submit" id="delSubmitBtn" class="mini-btn mini-btn-danger" disabled>Permanently Delete</button>
               </div>
             </form>
@@ -909,10 +909,10 @@
           </div>
           <a class="hz-chat-icon-btn" href="mailto:admin@magzest.tech" title="Escalate by email · admin@magzest.tech"
              aria-label="Escalate by email to admin@magzest.tech"><i class="ti ti-mail"></i></a>
-          <button type="button" class="hz-chat-icon-btn" onclick="tenantChatClose()" title="Close" aria-label="Close chat"><i class="ti ti-x"></i></button>
+          <button type="button" class="hz-chat-icon-btn" data-on-click="tenantChatClose()" title="Close" aria-label="Close chat"><i class="ti ti-x"></i></button>
         </div>
         <div id="tcMsgs" class="hz-chat-body" aria-live="polite"></div>
-        <form id="tcSendForm" class="hz-chat-compose" onsubmit="return tenantChatSend(event)">
+        <form id="tcSendForm" method="post" class="hz-chat-compose" data-on-submit="return tenantChatSend(event)">
           <textarea aria-label="Message this company's admin/HR" id="tcInput" rows="1" maxlength="2000"
                     placeholder="Message this company's admin/HR&hellip;" autocomplete="off"></textarea>
           <button type="submit" class="hz-chat-send" title="Send" aria-label="Send message"><i class="ti ti-send"></i></button>

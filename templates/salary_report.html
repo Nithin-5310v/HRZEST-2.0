@@ -223,7 +223,7 @@
           <div class="u-pos-relative">
             <i class="ti ti-search u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-15 u-c-3b82f6 u-pe-none"></i>
             <input class="u-p-9-12-9-34 u-bd-2-solid-3b82f6 u-br-10 u-bg-eff6ff u-c-1e293b u-fs-13 u-out-none u-w-220 u-shad-0-2-10-rgba59_832e37 u-fw-500" type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
-              oninput="filterEmpTable(this.value)" />
+              data-on-input="filterEmpTable(this.value)" />
           </div>
         </div>
       </div>
@@ -246,23 +246,23 @@
           <button type="submit"><i class="ti ti-report-analytics"></i> Generate</button>
         </div>
         <div class="filter-actions">
-          <button type="button" class="btn-action btn-print" onclick="window.print()"><i class="ti ti-printer"></i> Print</button>
+          <button type="button" class="btn-action btn-print" data-on-click="window.print()"><i class="ti ti-printer"></i> Print</button>
           <a href="/salary_report_export?year={{ year }}&month={{ month }}" class="btn-action btn-export">
             <i class="ti ti-file-spreadsheet"></i> Export Excel
           </a>
           {% if email_configured %}
-          <button type="button" class="btn-action btn-email-all" id="sendAllBtn" onclick="sendAllEmails()">
+          <button type="button" class="btn-action btn-email-all" id="sendAllBtn" data-on-click="sendAllEmails()">
             <i class="ti ti-send"></i> Send All Salary Slips
           </button>
           {% else %}
           <a href="{{ tpath('/email_config') }}" class="btn-action btn-setup-email"><i class="ti ti-alert-triangle"></i> Setup Email First</a>
           {% endif %}
           {% if is_locked %}
-          <button class="btn-action btn-lock" type="button" onclick="unlockPayroll()">
+          <button class="btn-action btn-lock" type="button" data-on-click="unlockPayroll()">
             <i class="ti ti-lock-open"></i> Unlock Payroll
           </button>
           {% else %}
-          <button class="btn-action btn-unlock" type="button" onclick="lockPayroll()">
+          <button class="btn-action btn-unlock" type="button" data-on-click="lockPayroll()">
             <i class="ti ti-lock"></i> Lock Payroll
           </button>
           {% endif %}
@@ -409,7 +409,7 @@
                       </a>
                       {% if email_configured and e.email %}
                       <button class="ag-send" title="Send Payslip Email"
-                        onclick="sendEmail('{{ e.emp_id }}', '{{ e.name }}', this)">
+                        data-on-click="sendEmail('{{ e.emp_id }}', '{{ e.name }}', this)">
                         <i class="ti ti-send"></i>
                       </button>
                       {% elif not email_configured %}

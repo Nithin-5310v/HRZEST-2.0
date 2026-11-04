@@ -89,16 +89,16 @@
   </div>
 
   <div class="hr-tabs">
-    <button type="button" class="hr-tab active" id="hrtab-overview" onclick="showHrView('overview')">Overview</button>
-    <button type="button" class="hr-tab" id="hrtab-employees" onclick="showHrView('employees')">Employees</button>
-    <button type="button" class="hr-tab" id="hrtab-attendance" onclick="showHrView('attendance')">Attendance</button>
-    <button type="button" class="hr-tab" id="hrtab-leave" onclick="showHrView('leave')">Leave</button>
-    <button type="button" class="hr-tab" id="hrtab-payroll" onclick="showHrView('payroll')">Payroll</button>
-    <button type="button" class="hr-tab" id="hrtab-reports" onclick="showHrView('reports')">Reports</button>
-    <button type="button" class="hr-tab" id="hrtab-onboarding" onclick="showHrView('onboarding')">Onboarding</button>
-    <button type="button" class="hr-tab" id="hrtab-performance" onclick="showHrView('performance')">Performance</button>
-    <button type="button" class="hr-tab" id="hrtab-tickets" onclick="showHrView('tickets')">Tickets</button>
-    <button type="button" class="hr-tab" id="hrtab-policies" onclick="showHrView('policies')">Policies &amp; Holidays</button>
+    <button type="button" class="hr-tab active" id="hrtab-overview" data-on-click="showHrView('overview')">Overview</button>
+    <button type="button" class="hr-tab" id="hrtab-employees" data-on-click="showHrView('employees')">Employees</button>
+    <button type="button" class="hr-tab" id="hrtab-attendance" data-on-click="showHrView('attendance')">Attendance</button>
+    <button type="button" class="hr-tab" id="hrtab-leave" data-on-click="showHrView('leave')">Leave</button>
+    <button type="button" class="hr-tab" id="hrtab-payroll" data-on-click="showHrView('payroll')">Payroll</button>
+    <button type="button" class="hr-tab" id="hrtab-reports" data-on-click="showHrView('reports')">Reports</button>
+    <button type="button" class="hr-tab" id="hrtab-onboarding" data-on-click="showHrView('onboarding')">Onboarding</button>
+    <button type="button" class="hr-tab" id="hrtab-performance" data-on-click="showHrView('performance')">Performance</button>
+    <button type="button" class="hr-tab" id="hrtab-tickets" data-on-click="showHrView('tickets')">Tickets</button>
+    <button type="button" class="hr-tab" id="hrtab-policies" data-on-click="showHrView('policies')">Policies &amp; Holidays</button>
   </div>
 
   {# ═══ OVERVIEW ═══ #}
@@ -165,7 +165,7 @@
   <div class="hr-view" id="hrview-employees">
     <div class="hr-section">
       <div class="hr-section-hd">
-        <input aria-label="Search name, ID, department…" class="hr-search" type="text" id="hrEmpSearch" placeholder="Search name, ID, department…" oninput="_hrFilterEmployees()" />
+        <input aria-label="Search name, ID, department…" class="hr-search" type="text" id="hrEmpSearch" placeholder="Search name, ID, department…" data-on-input="_hrFilterEmployees()" />
         <a href="{{ tpath('/employees') }}">Manage Employees <i class="ti ti-arrow-right"></i></a>
       </div>
       <div class="hr-table-wrap">
@@ -321,7 +321,7 @@
     <div class="hr-section">
       <div class="hr-section-hd">
         <h3>Company Policies</h3>
-        <button type="button" class="quick-link" style="padding:6px 12px;" onclick="_hrTogglePolicyForm()">
+        <button type="button" class="quick-link" style="padding:6px 12px;" data-on-click="_hrTogglePolicyForm()">
           <i class="ti ti-plus"></i> Add Policy
         </button>
       </div>
@@ -683,7 +683,7 @@
 
   function _hrPolicyActionForm(action, policyId, label, danger) {
     return '<form action="{{ tpath("/policies/") }}' + policyId + '/' + action + '" method="POST" style="display:inline;margin-left:6px;"' +
-      (danger ? ' onsubmit="return hzConfirmSubmit(event, \'Delete this policy?\');"' : '') + '>' +
+      (danger ? ' data-on-submit="return hzConfirmSubmit(event, \'Delete this policy?\');"' : '') + '>' +
       '<input type="hidden" name="_csrf_token" value="' + CSRF_TOKEN + '" />' +
       '<button type="submit" style="background:none;border:none;padding:0;cursor:pointer;color:' + (danger ? '#dc2626' : '#1e3a8a') + ';font-size:14px;font-weight:700;">' + label + '</button>' +
       '</form>';

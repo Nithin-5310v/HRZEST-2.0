@@ -108,8 +108,8 @@
     </div>
     <div class="u-d-flex u-gap-10">
       <a href="{{ tpath('/export_onboarding_csv') }}" class="btn btn-gray"><i class="ti ti-file-spreadsheet"></i> Export CSV</a>
-      <button class="btn btn-navy" onclick="openModal('assignModal')"><i class="ti ti-user-plus"></i> Assign Onboarding</button>
-      <button class="btn btn-green" onclick="openModal('templateModal')"><i class="ti ti-plus"></i> New Template</button>
+      <button class="btn btn-navy" data-on-click="openModal('assignModal')"><i class="ti ti-user-plus"></i> Assign Onboarding</button>
+      <button class="btn btn-green" data-on-click="openModal('templateModal')"><i class="ti ti-plus"></i> New Template</button>
     </div>
   </div>
 
@@ -131,10 +131,10 @@
 
   {# TABS #}
   <div class="tabs">
-    <button class="tab-btn {% if active_tab=='active' %}active{% endif %}" onclick="switchTab('active')">
+    <button class="tab-btn {% if active_tab=='active' %}active{% endif %}" data-on-click="switchTab('active')">
       <i class="ti ti-user-check"></i> Active Onboardings
     </button>
-    <button class="tab-btn {% if active_tab=='templates' %}active{% endif %}" onclick="switchTab('templates')">
+    <button class="tab-btn {% if active_tab=='templates' %}active{% endif %}" data-on-click="switchTab('templates')">
       <i class="ti ti-template"></i> Templates
     </button>
   </div>
@@ -247,7 +247,7 @@
               <button type="submit" class="btn btn-gray btn-sm" title="Duplicate template"><i class="ti ti-copy"></i></button>
             </form>
             <form class="u-d-inline" action="{{ tpath('/onboarding_template_delete') }}" method="POST"
-                  onsubmit="return hzConfirmSubmit(event, 'Delete this template?')">
+                  data-on-submit="return hzConfirmSubmit(event, 'Delete this template?')">
               <input type="hidden" name="template_id" value="{{ t[0] }}" />
               <button type="submit" class="btn btn-red btn-sm"><i class="ti ti-trash"></i></button>
             </form>
@@ -260,7 +260,7 @@
     <div class="section u-ta-center u-p-40">
       <i class="ti ti-template u-fs-48 u-c-cbd5e1"></i>
       <p class="u-c-94a3b8 u-mt-12 u-fs-14">No templates yet. Create your first onboarding template.</p>
-      <button class="btn btn-navy u-mt-16" onclick="openModal('templateModal')"><i class="ti ti-plus"></i> Create Template</button>
+      <button class="btn btn-navy u-mt-16" data-on-click="openModal('templateModal')"><i class="ti ti-plus"></i> Create Template</button>
     </div>
     {% endif %}
 
@@ -271,7 +271,7 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3><i class="ti ti-template"></i> New Onboarding Template</h3>
-      <button class="modal-close" onclick="closeModal('templateModal')">✕</button>
+      <button class="modal-close" data-on-click="closeModal('templateModal')">✕</button>
     </div>
     <form action="{{ tpath('/onboarding_template_save') }}" method="POST">
       <input type="hidden" name="template_id" value="" />
@@ -294,7 +294,7 @@
       </div>
       <div class="u-d-flex u-gap-10 u-mt-4">
         <button type="submit" class="btn btn-navy u-fx-1">Create Template</button>
-        <button type="button" class="btn btn-gray" onclick="closeModal('templateModal')">Cancel</button>
+        <button type="button" class="btn btn-gray" data-on-click="closeModal('templateModal')">Cancel</button>
       </div>
     </form>
   </div>
@@ -305,12 +305,12 @@
   <div class="modal-box">
     <div class="modal-header">
       <h3><i class="ti ti-user-plus"></i> Assign Onboarding</h3>
-      <button class="modal-close" onclick="closeModal('assignModal')">✕</button>
+      <button class="modal-close" data-on-click="closeModal('assignModal')">✕</button>
     </div>
     <form action="{{ tpath('/onboarding_assign') }}" method="POST">
       <div class="field">
         <label>Employee *</label>
-        <select name="employee_id" id="assignEmpSel" required onchange="assignSyncRole(this)">
+        <select name="employee_id" id="assignEmpSel" required data-on-change="assignSyncRole(this)">
           <option value="">Select employee...</option>
           {% for e in emp_list %}
           <option value="{{ e[0] }}" data-role="{{ e[2] or '' }}">{{ e[1] }} ({{ e[0] }}) {% if e[2] %}— {{ e[2] }}{% endif %}</option>
@@ -319,7 +319,7 @@
       </div>
       <div class="field">
         <label>Role</label>
-        <select id="assignRoleSel" onchange="assignFilterTemplates(this.value)">
+        <select id="assignRoleSel" data-on-change="assignFilterTemplates(this.value)">
           <option value="">— All templates —</option>
           {% for r in employee_roles %}
           <option value="{{ r }}">{{ r }}</option>
@@ -341,7 +341,7 @@
       </div>
       <div class="u-d-flex u-gap-10 u-mt-4">
         <button type="submit" class="btn btn-green u-fx-1"><i class="ti ti-user-plus"></i> Assign</button>
-        <button type="button" class="btn btn-gray" onclick="closeModal('assignModal')">Cancel</button>
+        <button type="button" class="btn btn-gray" data-on-click="closeModal('assignModal')">Cancel</button>
       </div>
     </form>
   </div>

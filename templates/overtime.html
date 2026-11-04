@@ -148,14 +148,14 @@
 
   {# Tabs #}
   <div class="tab-bar">
-    <div class="tab {% if active_tab == 'ot' %}active{% endif %}" onclick="switchTab('ot',this)">
+    <div class="tab {% if active_tab == 'ot' %}active{% endif %}" data-on-click="switchTab('ot',this)">
       <i class="ti ti-clock-overtime"></i> OT Records
       {% if pending_count > 0 %}<span class="u-bg-ef4444 u-c-fff u-br-20 u-p-1-7 u-fs-10 u-fw-700">{{ pending_count }}</span>{% endif %}
     </div>
-    <div class="tab {% if active_tab == 'compoff' %}active{% endif %}" onclick="switchTab('compoff',this)">
+    <div class="tab {% if active_tab == 'compoff' %}active{% endif %}" data-on-click="switchTab('compoff',this)">
       <i class="ti ti-replace"></i> Comp-off Balances
     </div>
-    <div class="tab {% if active_tab == 'settings' %}active{% endif %}" onclick="switchTab('settings',this)">
+    <div class="tab {% if active_tab == 'settings' %}active{% endif %}" data-on-click="switchTab('settings',this)">
       <i class="ti ti-adjustments-horizontal"></i> Settings
     </div>
   </div>
@@ -267,7 +267,7 @@
       <div class="card-pad">
         <div class="search-wrap">
           <i class="ti ti-search"></i>
-          <input type="text" placeholder="Search employee…" oninput="filterTable('coTable',this.value)"/>
+          <input type="text" placeholder="Search employee…" data-on-input="filterTable('coTable',this.value)"/>
         </div>
       </div>
       <div class="u-ovx-auto">

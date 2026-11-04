@@ -785,6 +785,28 @@ class TestSecurityHeaders:
         assert "form-action 'self'" in csp
         assert "base-uri 'self'" in csp
 
+    @pytest.mark.parametrize("path", ["/", "/login", "/create_org", "/super_admin/login"])
+    def test_csp_reports_via_report_to_with_report_uri_fallback(self, client, path):
+        """report-to for browsers that support it (its endpoint name must match
+        a Reporting-Endpoints entry); report-uri kept as Firefox's fallback."""
+        resp = client.get(path)
+        csp = resp.headers.get("Content-Security-Policy", "")
+        assert "report-to csp-endpoint" in csp
+        assert "report-uri /csp-report" in csp
+        assert resp.headers.get("Reporting-Endpoints") == 'csp-endpoint="/csp-report"'
+
+    def test_csp_report_accepts_reporting_api_batches(self, client, monkeypatch):
+        """report-to delivers a list of reports as application/reports+json,
+        with the CSRF check live (browsers can't attach a token)."""
+        import json
+        from extensions import app as flask_app
+        monkeypatch.setitem(flask_app.config, "TESTING", False)
+        batch = [{"type": "csp-violation", "url": "https://hrzest.com/login",
+                  "body": {"documentURL": "https://hrzest.com/login", "blockedURL": "inline",
+                           "effectiveDirective": "script-src-elem", "sourceFile": "", "lineNumber": 1}}]
+        resp = client.post("/csp-report", data=json.dumps(batch), content_type="application/reports+json")
+        assert resp.status_code == 204
+
     def test_non_html_csp_sets_directives_without_a_fallback(self, client):
         csp = client.get("/healthz").headers.get("Content-Security-Policy", "")
         assert "form-action 'none'" in csp
@@ -847,7 +869,8 @@ class TestCSRF:
         assert resp.status_code in (200, 401)  # not 403
 
     def test_csp_report_endpoint_is_exempt_from_csrf(self, client, monkeypatch):
-        """app.py's CSP header sets "report-uri /csp-report", so the browser
+        """app.py's CSP header sets "report-to csp-endpoint" (Reporting-Endpoints:
+        csp-endpoint="/csp-report") and "report-uri /csp-report", so the browser
         itself POSTs violation reports there -- with no page JS or <form> in
         the loop to attach a CSRF token. The hook is skipped entirely in
         testing mode, so this flips it back on: the control request proves

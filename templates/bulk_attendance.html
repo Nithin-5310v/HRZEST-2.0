@@ -121,17 +121,17 @@
     {# Quick mark all #}
     <div class="quick-bar">
       <span>Quick Mark All:</span>
-      <button type="button" class="qbtn" onclick="markAll('Full Day')"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> All Present</button>
-      <button type="button" class="qbtn" onclick="markAll('Absent')"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> All Absent</button>
-      <button type="button" class="qbtn" onclick="markAll('Half Day')"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> All Half Day</button>
-      <button type="button" class="qbtn" onclick="markAll('Holiday')"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> All Holiday</button>
-      <button type="button" class="qbtn" onclick="markAll('Leave')"><i class="ti ti-beach hz-ico" aria-hidden="true"></i> All On Leave</button>
+      <button type="button" class="qbtn" data-on-click="markAll('Full Day')"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> All Present</button>
+      <button type="button" class="qbtn" data-on-click="markAll('Absent')"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> All Absent</button>
+      <button type="button" class="qbtn" data-on-click="markAll('Half Day')"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> All Half Day</button>
+      <button type="button" class="qbtn" data-on-click="markAll('Holiday')"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> All Holiday</button>
+      <button type="button" class="qbtn" data-on-click="markAll('Leave')"><i class="ti ti-beach hz-ico" aria-hidden="true"></i> All On Leave</button>
     </div>
 
     {# Search #}
     <div class="search-wrap">
       <i class="ti ti-search"></i>
-      <input type="text" id="empSearch" placeholder="Search employee by name or ID…" oninput="filterRows(this.value)" />
+      <input type="text" id="empSearch" placeholder="Search employee by name or ID…" data-on-input="filterRows(this.value)" />
     </div>
 
     {# Main form (POST) #}
@@ -198,7 +198,7 @@
                 {% endif %}
               </td>
               <td>
-                <select name="att_{{ eid }}" class="att-select" onchange="styleSelect(this)" title="Attendance status">
+                <select name="att_{{ eid }}" class="att-select" data-on-change="styleSelect(this)" title="Attendance status">
                   <option value="">— Skip —</option>
                   <option value="Full Day"   {% if cur_type == 'Full Day' %}selected{% endif %}>Full Day</option>
                   <option value="Late - Full Day" {% if cur_type == 'Late - Full Day' %}selected{% endif %}>Late – Full Day</option>

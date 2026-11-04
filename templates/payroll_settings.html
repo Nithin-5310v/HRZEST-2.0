@@ -168,11 +168,11 @@
                 <input type="number" class="tbl-input ctc-inp" name="ctc_{{ emp_id }}"
                        value="{{ ctc|int if ctc > 0 else '' }}"
                        placeholder="e.g. 30000" step="100" min="0"
-                       data-empid="{{ emp_id }}" oninput="updateRow(this)"/>
+                       data-empid="{{ emp_id }}" data-on-input="updateRow(this)"/>
               </td>
               <td>
                 <select class="tbl-input u-w-80" name="bpct_{{ emp_id }}"
-                        data-empid="{{ emp_id }}" onchange="updateRow(document.querySelector('[name=ctc_{{ emp_id }}]'))">
+                        data-empid="{{ emp_id }}" data-on-change="updateRowFor(this)">
                   {% for pct in [40,45,50,55,60] %}
                   <option value="{{ pct }}" {% if bpct == pct %}selected{% endif %}>{{ pct }}%</option>
                   {% endfor %}
@@ -203,6 +203,11 @@
 {% block scripts %}
 
 <script>
+// The basic-% select's row: recompute from that employee's CTC input.
+function updateRowFor(el) {
+  updateRow(document.querySelector('[name="ctc_' + el.dataset.empid + '"]'));
+}
+
 function updateRow(ctcInp) {
   const eid  = ctcInp.dataset.empid;
   const ctc  = parseFloat(ctcInp.value) || 0;

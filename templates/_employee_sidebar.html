@@ -17,8 +17,8 @@
 {# Blue top banner (company, date, bell, profile menu) -- same as the admin side #}
 {% include "_employee_topbar.html" %}
 
-<div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
-<button type="button" class="sb-toggle" id="sbToggleBtn" onclick="toggleSidebar()" aria-label="Toggle menu"><i class="ti ti-menu-2"></i></button>
+<div class="sb-overlay" id="sbOverlay" data-on-click="closeSidebar()"></div>
+<button type="button" class="sb-toggle" id="sbToggleBtn" data-on-click="toggleSidebar()" aria-label="Toggle menu"><i class="ti ti-menu-2"></i></button>
 
 <nav class="sidebar" id="sidebar">
   {# Company name/logo and the employee's name/role now live in the top banner;
@@ -26,11 +26,11 @@
   <div class="sb-scroll-nav">
     <div class="sb-nav-label">Main</div>
     {% if sb_mode == 'portal' %}
-      <button type="button" class="sb-item" id="sbn-dashboard" onclick="showView('dashboard')"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</button>
-      <button type="button" class="sb-item" id="sbn-attendance" onclick="showView('attendance')"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</button>
-      <button type="button" class="sb-item" id="sbn-apply-leave" onclick="showView('apply-leave')"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Apply Leave</button>
-      <button type="button" class="sb-item" id="sbn-earnings" onclick="showView('earnings')"><span class="nav-icon"><i class="ti ti-coin"></i></span>Earnings</button>
-      <button type="button" class="sb-item" id="sbn-holidays" onclick="showView('holidays')"><span class="nav-icon"><i class="ti ti-beach"></i></span>Holidays</button>
+      <button type="button" class="sb-item" id="sbn-dashboard" data-on-click="showView('dashboard')"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</button>
+      <button type="button" class="sb-item" id="sbn-attendance" data-on-click="showView('attendance')"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</button>
+      <button type="button" class="sb-item" id="sbn-apply-leave" data-on-click="showView('apply-leave')"><span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Apply Leave</button>
+      <button type="button" class="sb-item" id="sbn-earnings" data-on-click="showView('earnings')"><span class="nav-icon"><i class="ti ti-coin"></i></span>Earnings</button>
+      <button type="button" class="sb-item" id="sbn-holidays" data-on-click="showView('holidays')"><span class="nav-icon"><i class="ti ti-beach"></i></span>Holidays</button>
     {% else %}
       <a href="{{ tpath('/employee_portal#dashboard') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
       <a href="{{ tpath('/employee_portal#attendance') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance</a>
@@ -44,8 +44,8 @@
     <a href="{{ tpath('/my_performance') }}" class="sb-item u-tdec-none{{ ' active' if sb_active == 'performance' else '' }}"><span class="nav-icon"><i class="ti ti-chart-line"></i></span>My Performance</a>
     <a href="{{ tpath('/my_onboarding') }}" class="sb-item u-tdec-none{{ ' active' if sb_active == 'onboarding' else '' }}"><span class="nav-icon"><i class="ti ti-checklist"></i></span>My Onboarding</a>
     {% if sb_mode == 'portal' %}
-      <button type="button" class="sb-item" id="sbn-tickets" onclick="showView('tickets')"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Support Tickets</button>
-      <button type="button" class="sb-item" id="sbn-my-profile" onclick="showView('my-profile')"><span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Profile</button>
+      <button type="button" class="sb-item" id="sbn-tickets" data-on-click="showView('tickets')"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Support Tickets</button>
+      <button type="button" class="sb-item" id="sbn-my-profile" data-on-click="showView('my-profile')"><span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Profile</button>
     {% else %}
       <a href="{{ tpath('/employee_portal#tickets') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-ticket"></i></span>Support Tickets</a>
       <a href="{{ tpath('/employee_portal#my-profile') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Profile</a>
@@ -53,7 +53,7 @@
 
     <div class="sb-nav-label">Policies</div>
     {% if sb_mode == 'portal' %}
-      <button type="button" class="sb-item" id="sbn-policies" onclick="showView('policies')"><span class="nav-icon"><i class="ti ti-file-text"></i></span>Policies &amp; Guidelines</button>
+      <button type="button" class="sb-item" id="sbn-policies" data-on-click="showView('policies')"><span class="nav-icon"><i class="ti ti-file-text"></i></span>Policies &amp; Guidelines</button>
     {% else %}
       <a href="{{ tpath('/employee_portal#policies') }}" class="sb-item u-tdec-none"><span class="nav-icon"><i class="ti ti-file-text"></i></span>Policies &amp; Guidelines</a>
     {% endif %}
@@ -61,7 +61,7 @@
 
   <div class="sb-bottom">
     {% if sb_mode == 'portal' %}
-      <button type="button" class="sb-item danger" id="sbn-resign" onclick="openResignGate()"><span class="nav-icon"><i class="ti ti-door-exit"></i></span>Resignation</button>
+      <button type="button" class="sb-item danger" id="sbn-resign" data-on-click="openResignGate()"><span class="nav-icon"><i class="ti ti-door-exit"></i></span>Resignation</button>
     {% else %}
       <a href="{{ tpath('/employee_portal#resign') }}" class="sb-item danger u-tdec-none"><span class="nav-icon"><i class="ti ti-door-exit"></i></span>Resignation</a>
     {% endif %}

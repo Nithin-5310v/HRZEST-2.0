@@ -190,7 +190,7 @@
       <div class="logo">
         <div class="logo-icon{{ '' if co and co.logo_url else ' is-mark' }}">
           {% if co and co.logo_url %}
-            <img src="{{ co.logo_url }}" alt="{{ co.company_name }}" style="width:100%;height:100%;object-fit:contain;" onerror="this.outerHTML='<i class=\'ti ti-shield-check\'></i>'" />
+            <img src="{{ co.logo_url }}" alt="{{ co.company_name }}" style="width:100%;height:100%;object-fit:contain;" data-fallback-icon />
           {% else %}
             <img src="{{ static_url('brand/hrzest-mark.svg') }}" alt="HRzest" width="44" height="44">
           {% endif %}
@@ -303,5 +303,19 @@
       {% endif %}
     </div>
     </main>
+    <script>
+      // Company logo that fails to load falls back to the shield icon. Not
+      // an inline onerror attribute: such a handler forces 'unsafe-hashes' into script-src.
+      // The image may already have failed before this runs, so check that too.
+      document.querySelectorAll('img[data-fallback-icon]').forEach(function (img) {
+        function fallback() {
+          var icon = document.createElement('i');
+          icon.className = 'ti ti-shield-check';
+          img.replaceWith(icon);
+        }
+        if (img.complete && img.naturalWidth === 0) fallback();
+        else img.addEventListener('error', fallback);
+      });
+    </script>
   </body>
 </html>

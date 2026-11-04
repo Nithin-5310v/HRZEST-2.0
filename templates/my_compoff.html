@@ -220,7 +220,7 @@
   <div class="u-bg-fff u-br-18 u-p-28 u-w-460 u-maxw-95pct u-shad-0-20-60-rgba0_0_0_d25">
     <div class="u-d-flex u-jc-space-between u-ai-center u-mb-20">
       <h2 class="u-fs-17 u-fw-800 u-c-1e293b"><i class="ti ti-calendar-plus u-c-3b82f6"></i> Apply for Comp-off Leave</h2>
-      <button class="u-bg-none u-bd-none u-cur-pointer u-fs-20 u-c-64748b" onclick="document.getElementById('applyModal').style.display='none'">&times;</button>
+      <button class="u-bg-none u-bd-none u-cur-pointer u-fs-20 u-c-64748b" data-on-click="HZ.display('applyModal')">&times;</button>
     </div>
 
     {% if avail_days <= 0 %}
@@ -242,7 +242,7 @@
         </div>
         <div class="form-group">
           <label>Type</label>
-          <select onchange="this.form.is_half_day.checked = (this.value === '1')">
+          <select data-on-change="syncHalfDay(this)">
             <option value="0">Full Day</option>
             <option value="1">Half Day</option>
           </select>
@@ -254,7 +254,7 @@
         <textarea name="reason" rows="3" placeholder="Reason for comp-off leave…"></textarea>
       </div>
       <div class="u-d-flex u-jc-flex-end u-gap-10 u-mt-16">
-        <button type="button" onclick="document.getElementById('applyModal').style.display='none'" class="btn u-bg-f1f5f9 u-c-64748b">Cancel</button>
+        <button type="button" data-on-click="HZ.display('applyModal')" class="btn u-bg-f1f5f9 u-c-64748b">Cancel</button>
         <button type="submit" class="btn btn-primary" {% if avail_days <= 0 %}disabled{% endif %}><i class="ti ti-send"></i> Apply</button>
       </div>
     </form>
@@ -263,6 +263,11 @@
 {% endif %}
 
 <script>
+// Half-day dropdown -> the form's is_half_day checkbox.
+function syncHalfDay(sel) {
+  sel.form.is_half_day.checked = (sel.value === '1');
+}
+
 var today = new Date().toISOString().split('T')[0];
 document.querySelectorAll('input[type=date]').forEach(function(el){ el.min = today; });
 </script>

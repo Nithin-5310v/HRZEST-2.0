@@ -125,7 +125,7 @@
       <p>Quarterly KPI reviews, ratings, hikes and incentives</p>
     </div>
     <div class="u-d-flex u-gap-10 u-ai-center u-fxw-wrap">
-      <button type="button" onclick="openImportModal()" class="btn u-bg-f0fdf4 u-c-15803d u-bd-1d5-solid-86efac u-fs-13 u-p-9-16">
+      <button type="button" data-on-click="openImportModal()" class="btn u-bg-f0fdf4 u-c-15803d u-bd-1d5-solid-86efac u-fs-13 u-p-9-16">
         <i class="ti ti-file-import"></i> Import Excel
       </button>
       <a href="/performance_export?quarter={{ quarter }}&year={{ year }}" class="btn u-bg-eff6ff u-c-1e3a8a u-bd-1d5-solid-bfdbfe u-fs-13 u-p-9-16" id="exportBtn">
@@ -142,7 +142,7 @@
           <div class="u-fs-18 u-fw-800 u-c-1e293b"><i class="ti ti-file-import u-c-16a34a"></i> Import Performance Data</div>
           <div class="u-fs-12 u-c-64748b u-mt-3">Upload an Excel file to bulk-import KPIs and ratings</div>
         </div>
-        <button class="u-bg-none u-bd-none u-fs-20 u-c-94a3b8 u-cur-pointer" type="button" onclick="closeImportModal()">✕</button>
+        <button class="u-bg-none u-bd-none u-fs-20 u-c-94a3b8 u-cur-pointer" type="button" data-on-click="closeImportModal()">✕</button>
       </div>
 
       <form action="{{ tpath('/performance_import') }}" method="POST" enctype="multipart/form-data">
@@ -168,13 +168,13 @@
 
         <div class="u-mb-16">
           <label class="u-fs-11 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-d-block u-mb-6">Excel File <span class="u-c-dc2626">*</span></label>
-          <div class="u-bd-2-dashed-93c5fd u-br-12 u-p-28 u-ta-center u-cur-pointer u-bg-f8fafc u-trs-d15s" id="dropZone" onclick="document.getElementById('importFile').click()"
-               ondragover="event.preventDefault();this.style.borderColor='#1e3a8a'" ondragleave="this.style.borderColor='#93c5fd'"
-               ondrop="handleDrop(event)">
+          <div class="u-bd-2-dashed-93c5fd u-br-12 u-p-28 u-ta-center u-cur-pointer u-bg-f8fafc u-trs-d15s" id="dropZone" data-on-click="HZ.click('importFile')"
+               data-on-dragover="importDragOver(event, this)" data-on-dragleave="importDragLeave(this)"
+               data-on-drop="handleDrop(event)">
             <i class="ti ti-cloud-upload u-fs-28 u-c-3b82f6 u-d-block u-mb-6"></i>
             <div class="u-fs-13 u-c-64748b" id="dropLabel">Click to browse or drag &amp; drop .xlsx file here</div>
           </div>
-          <input class="u-d-none" type="file" name="excel_file" id="importFile" accept=".xlsx,.xls" onchange="onFileChosen(this)" required/>
+          <input class="u-d-none" type="file" name="excel_file" id="importFile" accept=".xlsx,.xls" data-on-change="onFileChosen(this)" required/>
         </div>
 
         <div class="u-bg-f0fdf4 u-bd-1-solid-bbf7d0 u-br-10 u-p-12-14 u-mb-18 u-fs-12 u-c-15803d u-lh-1d7">
@@ -186,7 +186,7 @@
         </div>
 
         <div class="u-d-flex u-gap-10 u-jc-flex-end">
-          <button class="u-p-10-20 u-bd-1d5-solid-e2e8f0 u-br-9 u-bg-fff u-c-64748b u-fw-700 u-fs-13 u-cur-pointer" type="button" onclick="closeImportModal()">Cancel</button>
+          <button class="u-p-10-20 u-bd-1d5-solid-e2e8f0 u-br-9 u-bg-fff u-c-64748b u-fw-700 u-fs-13 u-cur-pointer" type="button" data-on-click="closeImportModal()">Cancel</button>
           <button class="u-p-10-24 u-bd-none u-br-9 u-bg-1e3a8a u-c-fff u-fw-700 u-fs-13 u-cur-pointer u-d-flex u-ai-center u-gap-7" type="submit">
             <i class="ti ti-upload"></i> Import &amp; Calculate
           </button>
@@ -197,10 +197,10 @@
 
   {# Module Tabs #}
   <div class="tab-bar">
-    <div class="tab {% if active_tab == 'performance' %}active{% endif %}" onclick="switchTab('performance',this)">
+    <div class="tab {% if active_tab == 'performance' %}active{% endif %}" data-on-click="switchTab('performance',this)">
       <i class="ti ti-chart-line"></i> Performance Reviews
     </div>
-    <div class="tab {% if active_tab == 'hike' %}active{% endif %}" onclick="switchTab('hike',this)">
+    <div class="tab {% if active_tab == 'hike' %}active{% endif %}" data-on-click="switchTab('hike',this)">
       <i class="ti ti-trending-up"></i> Hike &amp; Incentives
     </div>
   </div>
@@ -229,7 +229,7 @@
     {# Dept + Search filters #}
     <div class="filters">
       <label>Department</label>
-      <select onchange="location.href='/performance?tab=performance&quarter={{ quarter }}&year={{ year }}&dept='+this.value">
+      <select data-quarter="{{ quarter }}" data-year="{{ year }}" data-on-change="filterPerformanceDept(this)">
         <option value="">All Departments</option>
         {% for d in departments %}
         <option value="{{ d }}" {% if d == selected_dept %}selected{% endif %}>{{ d }}</option>
@@ -237,7 +237,7 @@
       </select>
       <div class="search-box">
         <i class="ti ti-search"></i>
-        <input type="text" placeholder="Search employee…" oninput="filterTable(this.value)"/>
+        <input type="text" placeholder="Search employee…" data-on-input="filterTable(this.value)"/>
       </div>
     </div>
 
@@ -343,7 +343,7 @@
 
     {# Band Configuration (collapsible) #}
     <div class="card u-mb-18">
-      <div class="card-pad u-cur-pointer u-usel-none" onclick="toggleHikeCfg()">
+      <div class="card-pad u-cur-pointer u-usel-none" data-on-click="toggleHikeCfg()">
         <div class="sec-title u-m-0 u-d-flex u-jc-space-between u-ai-center">
           <span><i class="ti ti-adjustments-horizontal"></i> Hike Band Configuration</span>
           <i class="ti ti-chevron-down u-fs-18 u-trs-d2s" id="hikeCfgChev"></i>
@@ -410,12 +410,12 @@
         <div class="sec-title u-m-0"><i class="ti ti-trending-up"></i> Hike &amp; Incentive Calculation — Q{{ quarter }} {{ year }}</div>
         <div class="u-d-flex u-gap-8 u-fxw-wrap u-ai-center">
           <label class="u-fs-12 u-c-64748b u-d-flex u-ai-center u-gap-6 u-cur-pointer">
-            <input type="checkbox" id="hikeSelectAll" onchange="hikeSelectAll(this)"> Select all
+            <input type="checkbox" id="hikeSelectAll" data-on-change="hikeSelectAll(this)"> Select all
           </label>
-          <button type="button" class="btn u-bg-dcfce7 u-c-15803d u-bd-1d5-solid-86efac u-fs-12" onclick="submitHikeForm('/apply_hike')">
+          <button type="button" class="btn u-bg-dcfce7 u-c-15803d u-bd-1d5-solid-86efac u-fs-12" data-on-click="submitHikeForm('/apply_hike')">
             <i class="ti ti-arrow-up-circle"></i> Apply Hike to Selected
           </button>
-          <button type="button" class="btn u-bg-fef9c3 u-c-854d0e u-bd-1d5-solid-fde68a u-fs-12" onclick="submitHikeForm('/award_performance_bonus')">
+          <button type="button" class="btn u-bg-fef9c3 u-c-854d0e u-bd-1d5-solid-fde68a u-fs-12" data-on-click="submitHikeForm('/award_performance_bonus')">
             <i class="ti ti-gift"></i> Award Bonus to Selected
           </button>
         </div>
@@ -553,6 +553,23 @@ function onFileChosen(input) {
     label.style.fontWeight = '700';
   }
 }
+function importDragOver(e, zone) {
+  e.preventDefault();  // required for the drop event to fire
+  zone.style.borderColor = '#1e3a8a';
+}
+
+function importDragLeave(zone) {
+  zone.style.borderColor = '#93c5fd';
+}
+
+// Department filter: reload the performance tab for that department.
+function filterPerformanceDept(sel) {
+  location.href = '/performance?tab=performance'
+    + '&quarter=' + encodeURIComponent(sel.dataset.quarter)
+    + '&year=' + encodeURIComponent(sel.dataset.year)
+    + '&dept=' + encodeURIComponent(sel.value);
+}
+
 function handleDrop(e) {
   e.preventDefault();
   document.getElementById('dropZone').style.borderColor = '#93c5fd';

@@ -499,21 +499,21 @@
         {% if show_qr_face or show_qr_only or show_fp %}
         <div class="att-methods">
           {% if show_qr_face %}
-          <button type="button" class="att-method {% if first_method == 'qr_face' %}active{% endif %}" id="mc-qr-face" onclick="selectMethod('qr_face')">
+          <button type="button" class="att-method {% if first_method == 'qr_face' %}active{% endif %}" id="mc-qr-face" data-select-method="qr_face">
             <span class="am-icon"><i class="ti ti-camera hz-ico" aria-hidden="true"></i></span>
             <span class="am-title">QR + Face</span>
             <span class="am-desc">QR &amp; face scan</span>
           </button>
           {% endif %}
           {% if show_qr_only %}
-          <button type="button" class="att-method {% if first_method == 'qr_only' %}active{% endif %}" id="mc-qr-only" onclick="selectMethod('qr_only')">
+          <button type="button" class="att-method {% if first_method == 'qr_only' %}active{% endif %}" id="mc-qr-only" data-select-method="qr_only">
             <span class="am-icon"><i class="ti ti-qrcode hz-ico" aria-hidden="true"></i></span>
             <span class="am-title">QR Only</span>
             <span class="am-desc">Quick QR scan</span>
           </button>
           {% endif %}
           {% if show_fp %}
-          <button type="button" class="att-method {% if first_method == 'fingerprint_only' %}active{% endif %}" id="mc-fp" onclick="selectMethod('fingerprint_only')">
+          <button type="button" class="att-method {% if first_method == 'fingerprint_only' %}active{% endif %}" id="mc-fp" data-select-method="fingerprint_only">
             <span class="am-icon"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></span>
             <span class="am-title">Fingerprint</span>
             <span class="am-desc">Biometric scan</span>
@@ -540,13 +540,13 @@
           <div class="phase-label" id="phaseLabel"></div>
         </div>
 
-        <button class="btn" id="startBtn" type="button" onclick="startFlow()"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Start Scanner</button>
+        <button class="btn" id="startBtn" type="button"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Start Scanner</button>
 
         {# shown when fingerprint is enabled by admin #}
         <div class="mode-row u-d-none" id="modeSelector">
-          <button type="button" class="mode-pill active-mode" id="modeFace" onclick="setMode('qr_face')"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Face Mode</button>
-          <button type="button" class="mode-pill" id="modeFp" onclick="setMode('qr_fingerprint')"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> QR + FP</button>
-          <button type="button" class="mode-pill" id="modeFpOnly" onclick="setMode('fingerprint_only')"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> FP Only</button>
+          <button type="button" class="mode-pill active-mode" id="modeFace" data-set-mode="qr_face"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Face Mode</button>
+          <button type="button" class="mode-pill" id="modeFp" data-set-mode="qr_fingerprint"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> QR + FP</button>
+          <button type="button" class="mode-pill" id="modeFpOnly" data-set-mode="fingerprint_only"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> FP Only</button>
         </div>
 
         <div class="status-bar u-d-none" id="statusBar">
@@ -594,26 +594,26 @@
     {# ── METHOD PICKER OVERLAY ── #}
     <div class="overlay u-d-none" id="methodOverlay">
       <div class="method-card">
-        <button class="method-card-close" onclick="closeMethodPicker()">✕</button>
+        <button type="button" class="method-card-close" id="methodPickerClose">✕</button>
         <div class="u-ta-center u-fs-42 u-mb-10"><i class="ti ti-shield-check hz-ico" aria-hidden="true"></i></div>
         <h3>Choose Verification</h3>
         <p class="method-sub">Select your two-factor combination</p>
 
-        <button class="combo-btn" id="cmbQrFace" onclick="selectCombo('qr_face')">
+        <button class="combo-btn" id="cmbQrFace" data-select-combo="qr_face">
           <div class="combo-icon"><i class="ti ti-camera hz-ico" aria-hidden="true"></i></div>
           <div>
             <div class="combo-label">QR + Face</div>
             <div class="combo-desc">Scan QR code, then face capture</div>
           </div>
         </button>
-        <button class="combo-btn" id="cmbQrFp" onclick="selectCombo('qr_fingerprint')">
+        <button class="combo-btn" id="cmbQrFp" data-select-combo="qr_fingerprint">
           <div class="combo-icon"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></div>
           <div>
             <div class="combo-label">QR + Fingerprint</div>
             <div class="combo-desc">Scan QR code, then fingerprint verify</div>
           </div>
         </button>
-        <button class="combo-btn" id="cmbFpOnly" onclick="selectCombo('fingerprint_only')">
+        <button class="combo-btn" id="cmbFpOnly" data-select-combo="fingerprint_only">
           <div class="combo-icon"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></div>
           <div>
             <div class="combo-label">Fingerprint Only</div>
@@ -630,7 +630,7 @@
     {# ── FINGERPRINT OVERLAY ── #}
     <div class="overlay u-d-none" id="fingerprintOverlay">
       <div class="fp-card">
-        <button class="fp-back" onclick="fpBack()">←</button>
+        <button type="button" class="fp-back" id="fpBackBtn">←</button>
 
         <div class="fp-icon-wrap">
           <span class="fp-emoji"><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></span>
@@ -652,10 +652,10 @@
           Place your finger on the sensor or tap the button to verify your biometric.
         </p>
 
-        <button class="fp-verify-btn" id="fpVerifyBtn" onclick="handleFingerprintVerify()">
+        <button class="fp-verify-btn" id="fpVerifyBtn">
           <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Verify Biometric
         </button>
-        <button class="fp-verify-btn fp-enrol-btn u-d-none" id="fpEnrolBtn" onclick="handleFingerprintEnroll()">
+        <button class="fp-verify-btn fp-enrol-btn u-d-none" id="fpEnrolBtn">
           <i class="ti ti-shield-lock hz-ico" aria-hidden="true"></i> Enrol Fingerprint
         </button>
       </div>
@@ -1448,6 +1448,22 @@
           $("shiftRow").style.display = "none";
         }
       }
+
+      /* ── button wiring ──
+         Bound here rather than with inline onclick attributes: each inline
+         handler forces 'unsafe-hashes' into the page's CSP script-src
+         (ZAP 10055 on /checkin). */
+      document.querySelectorAll("[data-select-method]").forEach(b =>
+        b.addEventListener("click", () => selectMethod(b.dataset.selectMethod)));
+      document.querySelectorAll("[data-set-mode]").forEach(b =>
+        b.addEventListener("click", () => setMode(b.dataset.setMode)));
+      document.querySelectorAll("[data-select-combo]").forEach(b =>
+        b.addEventListener("click", () => selectCombo(b.dataset.selectCombo)));
+      $("startBtn")?.addEventListener("click", () => startFlow());
+      $("methodPickerClose")?.addEventListener("click", () => closeMethodPicker());
+      $("fpBackBtn")?.addEventListener("click", () => fpBack());
+      $("fpVerifyBtn")?.addEventListener("click", () => handleFingerprintVerify());
+      $("fpEnrolBtn")?.addEventListener("click", () => handleFingerprintEnroll());
     </script>
   <script src="{{ static_url('darkmode.min.js') }}"></script>
 

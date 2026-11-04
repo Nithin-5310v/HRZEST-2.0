@@ -103,7 +103,7 @@
         <table>
           <thead>
             <tr>
-              <th><input type="checkbox" id="selectAllAlerts" onchange="toggleAllAlerts(this)" aria-label="Select all unacknowledged alerts" /></th>
+              <th><input type="checkbox" id="selectAllAlerts" data-on-change="toggleAllAlerts(this)" aria-label="Select all unacknowledged alerts" /></th>
               <th>Attempted Name</th><th>Attempted By</th><th>Existing Tenant</th><th>Existing Admin</th><th>Match</th><th>When</th><th>Status</th><th>Actions</th>
             </tr>
           </thead>
@@ -112,7 +112,7 @@
             <tr class="{{ 'row-new' if not alert.acknowledged }}">
               <td>
                 {% if not alert.acknowledged %}
-                <input type="checkbox" class="alert-select" form="bulkAlertForm" name="alert_ids" value="{{ alert.id }}" onchange="updateAlertBulkBar()" aria-label="Select alert for {{ alert.attempted_company_name }}" />
+                <input type="checkbox" class="alert-select" form="bulkAlertForm" name="alert_ids" value="{{ alert.id }}" data-on-change="updateAlertBulkBar()" aria-label="Select alert for {{ alert.attempted_company_name }}" />
                 {% endif %}
               </td>
               <td class="co-name">{{ alert.attempted_company_name }}</td>
