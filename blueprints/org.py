@@ -1362,6 +1362,11 @@ def create_org():
     admin_email = request.form.get("admin_email", "").strip().lower()
     admin_mobile = _clean_mobile(request.form.get("admin_mobile", ""))
     admin_password = request.form.get("admin_password", "").strip()
+    confirm_password = request.form.get("confirm_password", "").strip()
+
+    if admin_password != confirm_password:
+        flash("Password and confirm password do not match.", "error")
+        return _back_to_signup_form()
 
     error = _check_new_signup(company_name, admin_email, admin_mobile, admin_password)
     if error:
