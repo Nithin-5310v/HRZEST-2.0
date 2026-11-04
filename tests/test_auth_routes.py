@@ -100,7 +100,7 @@ class TestAdminLoginEdgeBranches:
             }, follow_redirects=False)
             assert resp.status_code == 302
             cur.execute("SELECT password FROM admin_users WHERE username='legacy_admin_route_test'")
-            assert cur.fetchone()[0].startswith("$2")
+            assert cur.fetchone()[0].startswith("$argon2id$")
         finally:
             cur.execute("DELETE FROM admin_users WHERE username='legacy_admin_route_test'")
             cur.close()

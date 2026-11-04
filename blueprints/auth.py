@@ -15,7 +15,7 @@ from flask import (
 from extensions import app, limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import (
-    generate_password_hash, check_password_hash, _hash_token,
+    generate_password_hash, check_password_hash, password_needs_rehash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     admin_required, role_required, employee_required, employee_api_required,
     _get_failed_count, verify_turnstile, turnstile_enabled,
@@ -708,8 +708,8 @@ def admin_login():
                 return render_template("admin_login.html", co=co, error=access_ended_message(ended_on))
             if _kyc_verification_blocks_login():
                 return render_template("admin_login.html", co=co, error=_KYC_REJECTED_LOGIN_MSG)
-            # Upgrade legacy hash to bcrypt on first successful login
-            if admin_row[0] and not admin_row[0].startswith("$2"):
+            # Upgrade bcrypt/pbkdf2 (or weaker Argon2) hashes to Argon2id on successful login
+            if password_needs_rehash(admin_row[0]):
                 with _db() as (_uc, _ud):
                     _uc.execute("UPDATE admin_users SET password=%s WHERE username=%s",
                                 (generate_password_hash(password), identifier))
@@ -751,8 +751,8 @@ def admin_login():
             ended_on = employment_ended_on(emp_row[0])
             if ended_on:
                 return render_template("admin_login.html", co=co, error=access_ended_message(ended_on))
-            # Upgrade legacy hash to bcrypt on first successful login
-            if stored_pwd and not stored_pwd.startswith("$2"):
+            # Upgrade bcrypt/pbkdf2 (or weaker Argon2) hashes to Argon2id on successful login
+            if password_needs_rehash(stored_pwd):
                 with _db() as (_uc, _ud):
                     _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
                                 (generate_password_hash(password), emp_row[0]))

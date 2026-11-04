@@ -11,7 +11,7 @@ from flask import Blueprint, request, session, jsonify, render_template, redirec
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
 from utils.auth import (
-    api_required, api_role_required, HR_ROLE, check_password_hash, generate_password_hash, _hash_token,
+    api_required, api_role_required, HR_ROLE, check_password_hash, generate_password_hash, password_needs_rehash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
     turnstile_enabled, _TURNSTILE_SITE_KEY, employment_ended_on, access_ended_message,
@@ -690,8 +690,8 @@ def _api_employee_login(emp_id, password):
         return jsonify({"ok": False, "password_change_required": True,
                         "msg": "Your password was reset by your administrator. Sign in on the web portal "
                                "to set a new password, then sign in here again."}), 403
-    # Upgrade legacy hash to bcrypt transparently
-    if row[2] and not row[2].startswith("$2"):
+    # Upgrade bcrypt/pbkdf2 (or weaker Argon2) hashes to Argon2id transparently
+    if password_needs_rehash(row[2]):
         with _db() as (_uc, _ud):
             _uc.execute("UPDATE employees SET password=%s WHERE employee_id=%s",
                         (generate_password_hash(password), emp_id))
