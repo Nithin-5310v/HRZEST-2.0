@@ -241,6 +241,9 @@ from utils.async_writer import set_synchronous_mode
 set_synchronous_mode(True)
 
 
+_TEST_RUN_LOCK_KEY = 0x48525A54   # "HRZT": advisory-lock id held for a whole test run
+
+
 @pytest.fixture(scope="session")
 def db_engine():
     """Return a raw psycopg2 connection to the test database for fixture setup."""
@@ -258,6 +261,23 @@ def db_engine():
         dbname=os.environ["DB_NAME"],
     )
     conn.autocommit = True
+    # One test run per database. Every test ends by restoring the whole
+    # database to the session's snapshot, so a second run on the same database
+    # wipes and reinserts rows under the first one; both then fail with bogus
+    # duplicate-key / foreign-key errors that look like flaky tests. Advisory
+    # locks are per database and are released when this connection closes
+    # (including when the process is killed), so separate HRZEST_TEST_DB
+    # databases still run side by side.
+    cur = conn.cursor()
+    cur.execute("SELECT pg_try_advisory_lock(%s)", (_TEST_RUN_LOCK_KEY,))
+    got_lock = cur.fetchone()[0]
+    cur.close()
+    if not got_lock:
+        conn.close()
+        pytest.exit(
+            f"Another test run is already using database '{os.environ['DB_NAME']}'. Running two suites on one "
+            "database corrupts both. Wait for it to finish, or give this run its own database: "
+            "HRZEST_TEST_DB=att_test_<name> python -m pytest ...", returncode=3)
     yield conn
     conn.close()
 
