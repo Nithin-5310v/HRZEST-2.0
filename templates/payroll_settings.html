@@ -75,7 +75,7 @@
 
   <form method="POST" action="{{ tpath('/payroll_settings') }}">
 
-    <!-- Statutory deductions config -->
+    {# Statutory deductions config #}
     <div class="card">
       <div class="sec-title"><i class="ti ti-building-bank"></i> Statutory Deduction Rates</div>
       <div class="info-box">
@@ -83,7 +83,7 @@
         <span>These rates apply to all employees. PF is on Basic salary (capped at the basic cap). LOP = Gross ÷ 26 × absent days (standard Indian payroll). TDS is annual % ÷ 12 per month.</span>
       </div>
 
-      <!-- Row 1: PF settings (3 columns) -->
+      {# Row 1: PF settings (3 columns) #}
       <div class="u-bg-eff6ff u-br-10 u-p-16-18 u-mb-14">
         <div class="u-fs-11 u-fw-800 u-c-1e3a8a u-ttr-uppercase u-ls-d4 u-mb-12">
           <i class="ti ti-building-bank"></i> Provident Fund (PF)
@@ -107,7 +107,7 @@
         </div>
       </div>
 
-      <!-- Row 2: PT + TDS (2 columns) -->
+      {# Row 2: PT + TDS (2 columns) #}
       <div class="u-bg-f0fdf4 u-br-10 u-p-16-18">
         <div class="u-fs-11 u-fw-800 u-c-15803d u-ttr-uppercase u-ls-d4 u-mb-12">
           <i class="ti ti-receipt-tax"></i> Tax Deductions
@@ -127,7 +127,7 @@
       </div>
     </div>
 
-    <!-- Per-employee CTC -->
+    {# Per-employee CTC #}
     <div class="card">
       <div class="sec-title"><i class="ti ti-users"></i> Employee Monthly CTC</div>
       <div class="info-box">

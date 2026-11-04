@@ -2,8 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Raw-IP loopback → localhost normalization now happens server-side
-         (app.py's _normalize_loopback_host), before login sets any cookie. -->
+    {# Raw-IP loopback → localhost normalization now happens server-side
+         (app.py's _normalize_loopback_host), before login sets any cookie. #}
     <script>
       (function(){
       })();
@@ -13,10 +13,10 @@
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
     <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
     <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
-    <!-- defer: jsQR() is only ever called from inside the camera-scan loop,
+    {# defer: jsQR() is only ever called from inside the camera-scan loop,
          well after user interaction starts a scan -- nothing needs this
          130KB library synchronously during initial parse, so deferring it
-         lets the rest of the page render without waiting on it. -->
+         lets the rest of the page render without waiting on it. #}
     <script src="{{ static_url('jsQR.min.js') }}" defer></script>
     <script src="{{ static_url('toast.js') }}"></script>
     <link rel="stylesheet" href="{{ static_url('toast.css') }}" />
@@ -419,9 +419,9 @@
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('employee_sidebar.css') }}" />
   <link rel="stylesheet" href="{{ static_url('animate-core.min.css') }}" />
-    <!-- Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles -->
+    {# Light Zoho-style theme layer, loaded last so it sits on top of this page's own styles #}
   <link rel="stylesheet" href="{{ static_url('employee-theme.css') }}" />
-  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
   <script src="{{ static_url('ui-motion.js') }}"></script>
   <link rel="stylesheet" href="{{ static_url('dashboard-unify.css') }}" />
@@ -437,15 +437,15 @@
     {% set sb_photo_url = '/my_photo?v=' ~ photo_v %}
     {% include "_employee_sidebar.html" %}
 
-    <!-- ══ MAIN AREA ══ -->
+    {# ══ MAIN AREA ══ #}
     <div class="main-area">
 
 
     <div class="app-content" id="appContent">
 
-      <!-- Portal search (top of the content, below the blue banner -- same
+      {# Portal search (top of the content, below the blue banner -- same
            layout as the admin dashboard): employee features and settings,
-           engine static/portal-search.js with the employee feature list. -->
+           engine static/portal-search.js with the employee feature list. #}
       <link rel="stylesheet" href="{{ static_url('portal-search.css') }}" />
       <div class="emp-search-row">
         <div class="admin-search-wrap emp-search" id="adminSearchWrap" role="search">
@@ -470,7 +470,7 @@
       <div class="flash-banner flash-banner-blue"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Ticket raised successfully! Admin will respond shortly.</div>
       {% endif %}
 
-      <!-- ═══ VIEW: DASHBOARD ═══ -->
+      {# ═══ VIEW: DASHBOARD ═══ #}
       <div id="view-dashboard" class="view">
       <div class="page-header u-d-flex u-ai-flex-start u-jc-space-between u-gap-12 u-fxw-wrap">
         <div>
@@ -486,10 +486,10 @@
         {% endif %}
       </div>
 
-      <!-- PROFILE + TODAY ROW -->
+      {# PROFILE + TODAY ROW #}
       <div class="cards-row">
 
-        <!-- PROFILE CARD -->
+        {# PROFILE CARD #}
         <div class="card" data-tilt>
           <div class="card-title">My Profile</div>
           <div class="u-d-flex u-ai-center u-gap-12 u-mb-10">
@@ -552,13 +552,13 @@
           </div>
         </div>
 
-        <!-- TODAY'S ATTENDANCE -->
+        {# TODAY'S ATTENDANCE #}
         <div class="card u-d-flex u-fxd-column u-ov-hidden" data-tilt>
           {% if today_att %}
             {% set login_t, logout_t, login_s, logout_s, att_type = today_att %}
           {% endif %}
 
-          <!-- title + status badge -->
+          {# title + status badge #}
           <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-8 u-mb-4">
             <div class="u-fs-13 u-fw-700 u-c-1e293b">Today's Attendance</div>
             {% if today_att %}
@@ -578,14 +578,14 @@
           <div class="u-fs-11 u-c-94a3b8 u-mb-12">{{ today_long }}</div>
           <div class="u-h-1 u-bg-f1f5f9"></div>
 
-          <!-- body grows to fill card height -->
+          {# body grows to fill card height #}
           <div class="u-fx-1 u-d-flex u-ai-stretch u-gap-14 u-pt-14">
 
-            <!-- left column: items space-between to fill height -->
+            {# left column: items space-between to fill height #}
             <div class="u-fx-1 u-minw-0 u-d-flex u-fxd-column u-jc-space-between">
               {% if today_att %}
 
-                <!-- login row -->
+                {# login row #}
                 <div class="u-d-flex u-ai-center u-gap-8">
                   <span class="u-fs-10 u-fw-700 u-c-94a3b8 u-w-46 u-ttr-uppercase u-ls-0d4 u-fxs-0">Login</span>
                   <span class="u-fs-15 u-fw-800 u-c-1e293b u-fx-1 u-minw-0">{{ (login_t | fmt_time)[:5] if login_t else '—' }}</span>
@@ -600,7 +600,7 @@
                   {% endif %}
                 </div>
 
-                <!-- logout row -->
+                {# logout row #}
                 <div class="u-d-flex u-ai-center u-gap-8">
                   <span class="u-fs-10 u-fw-700 u-c-94a3b8 u-w-46 u-ttr-uppercase u-ls-0d4 u-fxs-0">Logout</span>
                   <span class="u-fs-15 u-fw-800 u-c-1e293b u-fx-1 u-minw-0">{{ (logout_t | fmt_time)[:5] if logout_t else '—' }}</span>
@@ -617,7 +617,7 @@
                   {% endif %}
                 </div>
 
-                <!-- duration / elapsed -->
+                {# duration / elapsed #}
                 <div class="u-d-flex u-ai-center u-gap-6 u-p-7-10 u-bg-f8fafc u-br-8">
                   <span class="u-fs-12"><i class="ti ti-clock-hour-4 hz-ico" aria-hidden="true"></i></span>
                   {% if login_t and logout_t %}
@@ -634,7 +634,7 @@
                   {% endif %}
                 </div>
 
-                <!-- shift info row -->
+                {# shift info row #}
                 <div class="u-d-flex u-ai-center u-gap-6 u-pt-2">
                   <span class="u-fs-11"><i class="ti ti-clock hz-ico" aria-hidden="true"></i></span>
                   {% if emp[7] %}
@@ -653,7 +653,7 @@
               {% endif %}
             </div>
 
-            <!-- QR code -->
+            {# QR code #}
             {% if emp[27] %}
             <div class="u-fxs-0 u-d-flex u-fxd-column u-ai-center u-jc-flex-start u-pt-4 u-bdl-1-solid-f1f5f9 u-pl-14 u-gap-4">
               <img class="u-w-100 u-h-100 u-br-8 u-bd-1-solid-e2e8f0 u-d-block" src="{{ tpath('/my_qr') }}" alt="My QR" />
@@ -688,10 +688,10 @@
 
       </div>
 
-      <!-- DONUT + HOLIDAYS ROW -->
+      {# DONUT + HOLIDAYS ROW #}
       <div class="u-d-grid u-gtc-1fr-1fr u-gap-12 u-mb-14">
 
-        <!-- SVG Donut Chart -->
+        {# SVG Donut Chart #}
         <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-16" data-tilt>
           {% set total_shown = full_days + late_days + half_days + absent_days %}
           {% if total_shown > 0 %}
@@ -747,7 +747,7 @@
           </div>
         </div>
 
-        <!-- Upcoming Holidays -->
+        {# Upcoming Holidays #}
         <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-16-18" data-tilt>
           <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-8">Upcoming Holidays</div>
           {% if upcoming_holidays %}
@@ -767,7 +767,7 @@
 
       </div>
 
-      <!-- MONTHLY STATS -->
+      {# MONTHLY STATS #}
       <div class="stats">
         <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i></div><div><div class="stat-num sn-green" data-animate-counter>{{ full_days }}</div><div class="stat-lbl">Full Days</div></div></div>
         <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-yellow"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i></div><div><div class="stat-num sn-yellow" data-animate-counter>{{ late_days }}</div><div class="stat-lbl">Late Days</div></div></div>
@@ -777,13 +777,13 @@
         <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-blue"><i class="ti ti-clock-hour-4 hz-ico" aria-hidden="true"></i></div><div><div class="stat-num stat-num-sm sn-blue" data-animate-counter>{{ total_hours }}</div><div class="stat-lbl">Hours Worked</div></div></div>
       </div>
 
-      <!-- BREAK SCHEDULE WIDGET -->
+      {# BREAK SCHEDULE WIDGET #}
       <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mb-20 u-d-none" id="breakScheduleWidget">
         <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i> Today's Break Schedule</div>
         <div class="u-d-flex u-fxw-wrap u-gap-10" id="breakScheduleList"></div>
       </div>
 
-      <!-- Announcements widget -->
+      {# Announcements widget #}
       {% if announcements %}
       <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mb-20">
         <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8"><i class="ti ti-speakerphone hz-ico" aria-hidden="true"></i> Announcements</div>
@@ -809,14 +809,14 @@
       </div>
       {% endif %}
 
-      </div><!-- /view-dashboard -->
+      </div>{# /view-dashboard #}
 
-      <!-- ═══ VIEW: MY ATTENDANCE ═══ -->
+      {# ═══ VIEW: MY ATTENDANCE ═══ #}
       <div id="view-attendance" class="view">
       <div class="mod-title"><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> My Attendance <span>View and filter your monthly attendance records</span></div>
       <div id="attendance">
 
-        <!-- Filter bar -->
+        {# Filter bar #}
         <div class="cal-filter">
           <label>Month</label>
           <select aria-label="Month" id="selMonth">
@@ -834,7 +834,7 @@
           <a id="pdfLink" href="/my_attendance_pdf?month={{ sel_month }}&year={{ sel_year }}" class="btn-pdf"><i class="ti ti-download hz-ico" aria-hidden="true"></i> Download PDF</a>
         </div>
 
-        <!-- Calendar -->
+        {# Calendar #}
         <div class="calendar">
           <div class="u-fs-15 u-fw-700 u-c-1e293b u-mb-12">
             <i class="ti ti-calendar hz-ico" aria-hidden="true"></i> {{ month_name }}
@@ -854,7 +854,7 @@
           </div>
         </div>
 
-        <!-- Attendance Table -->
+        {# Attendance Table #}
         <div class="section">
           <h3><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> {{ month_name }} Attendance
             <span class="billable-note">({{ billable }} working days)</span>
@@ -902,12 +902,12 @@
         </div>
 
       </div>
-      </div><!-- /view-attendance -->
+      </div>{# /view-attendance #}
 
-      <!-- ═══ VIEW: APPLY LEAVE ═══ -->
+      {# ═══ VIEW: APPLY LEAVE ═══ #}
       <div id="view-apply-leave" class="view">
       <div class="mod-title"><i class="ti ti-notes hz-ico" aria-hidden="true"></i> Apply for Leave <span>Submit a leave request and view your history</span></div>
-      <!-- Leave balance per type -->
+      {# Leave balance per type #}
       <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-18-20 u-mb-16">
         <div class="u-d-flex u-ai-center u-jc-space-between u-mb-14">
           <div class="u-fs-14 u-fw-800 u-c-1e293b u-d-flex u-ai-center u-gap-7">
@@ -932,7 +932,7 @@
             <div class="u-fs-10 u-c-94a3b8">{{ ltb.used }} used · {{ ltb.balance }} remaining</div>
           </div>
           {% endfor %}
-          <!-- Comp-off balance card -->
+          {# Comp-off balance card #}
           <a class="u-tdec-none" href="{{ tpath('/my_compoff') }}">
           <div style="background:#fff;border:1.5px solid {% if compoff_avail_days > 0 %}#bbf7d0{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;cursor:pointer;transition:.2s;" data-hover-style="border-color:#3b82f6">
             <div class="u-fs-10 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-mb-8">Comp-off <span class="u-bg-eff6ff u-c-3b82f6 u-br-4 u-p-1-5 u-fs-9">OT</span></div>
@@ -971,7 +971,7 @@
           </div>
           {% endif %}
 
-          <!-- Half day toggle -->
+          {# Half day toggle #}
           <div class="u-mb-14">
             <label class="u-d-flex u-ai-center u-gap-10 u-cur-pointer u-p-10-14 u-bg-f8fafc u-bd-1-solid-dbeafe u-br-9">
               <input class="u-w-16 u-h-16 u-accent-1e3a8a u-cur-pointer" type="checkbox" name="is_half_day" id="half-day-chk" value="1"
@@ -979,7 +979,7 @@
               <span class="u-fs-14 u-fw-600 u-c-1e293b">Half Day Leave</span>
               <span class="u-fs-12 u-c-64748b">(counts as 0.5 days)</span>
             </label>
-            <!-- Morning / Afternoon selector — shown only when half-day is checked -->
+            {# Morning / Afternoon selector — shown only when half-day is checked #}
             <div class="u-d-none u-mt-10 u-p-12-14 u-bg-fffbeb u-bd-1-solid-fde68a u-br-9" id="session-picker">
               <div class="u-fs-12 u-fw-700 u-c-92400e u-mb-8 u-ttr-uppercase u-ls-d4">Which session?</div>
               <div class="u-d-flex u-gap-10">
@@ -1089,14 +1089,14 @@
           </table>
         </div>
       </div>
-      </div><!-- /view-apply-leave -->
+      </div>{# /view-apply-leave #}
 
       <div id="view-tickets" class="view">
       <div class="mod-title"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Support Tickets <span>Raise a complaint or request admin support</span></div>
       <div class="section" id="tickets">
         <h3><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Support Tickets &amp; Complaints</h3>
 
-        <!-- Raise Ticket Form -->
+        {# Raise Ticket Form #}
         <form method="POST" action="{{ tpath('/raise_ticket') }}" class="ticket-raise-form">
           <div class="ticket-form-grid">
             <div class="form-group ticket-field">
@@ -1133,7 +1133,7 @@
           <button type="submit" class="btn-ticket"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Raise Ticket</button>
         </form>
 
-        <!-- Ticket History -->
+        {# Ticket History #}
         <h3 class="ticket-history-label">My Tickets</h3>
         {% if my_tickets %}
           {% for t in my_tickets %}
@@ -1171,10 +1171,10 @@
           <div class="ticket-empty">No tickets raised yet.</div>
         {% endif %}
       </div>
-      </div><!-- /view-tickets -->
+      </div>{# /view-tickets #}
 
-      <!-- ═══ VIEW: RESIGN ═══ -->
-      <!-- ═══ RESIGNATION GATE MODAL ═══ -->
+      {# ═══ VIEW: RESIGN ═══ #}
+      {# ═══ RESIGNATION GATE MODAL ═══ #}
       <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d65 u-zi-9999 u-ai-center u-jc-center u-backdr-blur4" id="resign-gate-overlay">
         <div class="u-bg-fff u-br-16 u-maxw-420 u-w-90pct u-p-36-32 u-shad-0-24-60-rgba0_0_0_0d35 u-ta-center">
           <div class="u-fs-48 u-mb-12"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i></div>
@@ -1304,15 +1304,15 @@
           </form>
         {% endif %}
       </div>
-      </div><!-- /view-resign -->
+      </div>{# /view-resign #}
 
-      <!-- ═══ VIEW: PAY SLIPS ═══ -->
-      <!-- ═══ VIEW: MY INCENTIVES ═══ -->
-      <!-- ═══ VIEW: EARNINGS (Incentives + Overtime) ═══ -->
+      {# ═══ VIEW: PAY SLIPS ═══ #}
+      {# ═══ VIEW: MY INCENTIVES ═══ #}
+      {# ═══ VIEW: EARNINGS (Incentives + Overtime) ═══ #}
       <div id="view-earnings" class="view">
         <div class="mod-title"><i class="ti ti-coin hz-ico" aria-hidden="true"></i> Earnings <span>Incentives and overtime in one place</span></div>
 
-        <!-- Tab bar -->
+        {# Tab bar #}
         <div class="u-d-flex u-gap-6 u-bg-fff u-bd-1-solid-dbeafe u-br-12 u-p-8-10 u-mb-20 u-fxw-wrap">
           <button class="u-p-8-20 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" data-on-click="switchEarningsTab('salary')" id="etab-salary">
             <i class="ti ti-coin hz-ico" aria-hidden="true"></i> Salary
@@ -1325,9 +1325,9 @@
           </button>
         </div>
 
-        <!-- Salary tab -->
+        {# Salary tab #}
         <div id="epanel-salary">
-          <!-- Current month live summary -->
+          {# Current month live summary #}
           <div class="u-bg-linear-gradien92de10 u-br-16 u-p-24-28 u-c-fff u-mb-18">
             <div class="u-fs-12 u-fw-700 u-op-d7 u-ttr-uppercase u-ls-d5 u-mb-4">{{ today_date.strftime('%B %Y') }} — Live Estimate</div>
             <div class="u-fs-36 u-fw-800 u-mb-12">₹{{ "%.2f"|format(net_this_month) }}</div>
@@ -1347,7 +1347,7 @@
             </div>
           </div>
 
-          <!-- Attendance breakdown -->
+          {# Attendance breakdown #}
           <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mb-18">
             <div class="u-fs-13 u-fw-800 u-c-1e3a8a u-ttr-uppercase u-ls-d5 u-mb-14 u-bdb-2-solid-dbeafe u-pb-10">
               <i class="ti ti-calculator u-c-3b82f6"></i> This Month Breakdown
@@ -1376,7 +1376,7 @@
             </div>
           </div>
 
-          <!-- Pay Slips advanced selector -->
+          {# Pay Slips advanced selector #}
           <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mt-18">
             <div class="u-bg-linear-gradiene204f8 u-br-10 u-p-12-18 u-mb-16 u-d-flex u-ai-center u-gap-10">
               <i class="ti ti-file-invoice u-c-fff u-fs-18"></i>
@@ -1384,7 +1384,7 @@
               <span class="u-fs-11 u-c-rgba255_255_255_d65 u-fw-400 u-ttr-none u-ls-0 u-ml-4">— Select month &amp; year to view breakdown</span>
             </div>
 
-            <!-- Month + Year selector -->
+            {# Month + Year selector #}
             <div class="u-d-flex u-gap-10 u-ai-flex-end u-fxw-wrap u-mb-20">
               <div class="u-fx-1 u-minw-130">
                 <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Month</label>
@@ -1408,7 +1408,7 @@
               </button>
             </div>
 
-            <!-- Inline payslip result -->
+            {# Inline payslip result #}
             <div class="u-d-none" id="inline-payslip-box"></div>
             <div class="u-ta-center u-p-36 u-c-94a3b8 u-bg-f8fafc u-br-10" id="inline-payslip-empty">
               <i class="ti ti-file-invoice u-fs-38 u-d-block u-mb-10 u-c-cbd5e1"></i>
@@ -1418,7 +1418,7 @@
           </div>
         </div>
 
-        <!-- Incentives tab -->
+        {# Incentives tab #}
         <div class="u-d-none" id="epanel-incentives">
           {% if total_incentive_year > 0 %}
           <div class="u-bg-linear-gradien709188 u-bd-1d5-solid-86efac u-br-16 u-p-20-28 u-d-flex u-ai-center u-gap-20 u-mb-22">
@@ -1477,7 +1477,7 @@
           {% endif %}
         </div>
 
-        <!-- Overtime tab -->
+        {# Overtime tab #}
         <div class="u-d-none" id="epanel-overtime">
           {% if my_overtime %}
           <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-ov-hidden">
@@ -1531,20 +1531,20 @@
           {% endif %}
         </div>
 
-      </div><!-- /view-earnings -->
+      </div>{# /view-earnings #}
 
-      <!-- ═══ VIEW: HOLIDAYS ═══ -->
+      {# ═══ VIEW: HOLIDAYS ═══ #}
       <div id="view-holidays" class="view">
         <div class="mod-title"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Holiday Calendar <span>Public holidays &amp; company leaves</span></div>
 
-        <!-- Year navigation -->
+        {# Year navigation #}
         <div class="hol-year-nav">
           <a href="/employee_portal?hol_year={{ hol_year - 1 }}#holidays">&#8592; {{ hol_year - 1 }}</a>
           <span class="hol-cur-yr">{{ hol_year }}</span>
           <a href="/employee_portal?hol_year={{ hol_year + 1 }}#holidays">{{ hol_year + 1 }} &#8594;</a>
         </div>
 
-        <!-- Holidays list -->
+        {# Holidays list #}
         <div class="section">
           <h3><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> All Holidays &amp; Leaves ({{ hol_year }})</h3>
           <div class="u-ovx-auto u-br-10">
@@ -1573,13 +1573,13 @@
             </table>
           </div>
         </div>
-      </div><!-- /view-holidays -->
+      </div>{# /view-holidays #}
 
-      <!-- ═══ PAYSLIP FULL-SCREEN MODAL ═══ -->
+      {# ═══ PAYSLIP FULL-SCREEN MODAL ═══ #}
       <div class="u-d-none u-pos-fixed u-ins-0 u-zi-9999 u-bg-rgba15_23_42_0d7 u-backdr-blur6 u-ovy-auto" id="payslip-modal">
         <div class="u-minh-100vh u-d-flex u-ai-center u-jc-center u-p-24">
           <div class="u-bg-fff u-br-20 u-w-100pct u-maxw-680 u-shad-0-25-60-rgba0_0_0_0d3 u-ov-hidden">
-            <!-- Modal header -->
+            {# Modal header #}
             <div class="u-bg-linear-gradienff64c5 u-p-22-28 u-d-flex u-ai-center u-jc-space-between">
               <div>
                 <div class="u-c-fff u-fs-18 u-fw-700" id="payslip-modal-title"><i class="ti ti-credit-card hz-ico" aria-hidden="true"></i> Salary Breakdown</div>
@@ -1587,7 +1587,7 @@
               </div>
               <button class="u-bg-rgba255_255_255_0d15 u-bd-1-solid-rgba25fd9fad u-c-fff u-br-10 u-p-8-14 u-fs-13 u-fw-600 u-cur-pointer" data-on-click="closePayslipModal()">✕ Close</button>
             </div>
-            <!-- Modal body -->
+            {# Modal body #}
             <div class="u-p-28" id="payslip-modal-content">
               <div class="u-ta-center u-c-94a3b8 u-p-40">Loading…</div>
             </div>
@@ -1595,7 +1595,7 @@
         </div>
       </div>
 
-      <!-- ══ VIEW: MY PROFILE ══ -->
+      {# ══ VIEW: MY PROFILE ══ #}
       <div id="view-my-profile" class="view">
         <div class="mod-title">My Profile <span>View and update your personal details</span></div>
 
@@ -1626,7 +1626,7 @@
         <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Please fill Degree and Institution.</div>
         {% endif %}
 
-        <!-- PROFILE COMPLETION -->
+        {# PROFILE COMPLETION #}
         {% set _pf = [
           ('Profile Photo',              emp[4]),
           ('Phone Number',               emp[10]),
@@ -1672,10 +1672,10 @@
           </div>
         </div>
 
-        <!-- PHOTO + DOWNLOAD ACTIONS -->
+        {# PHOTO + DOWNLOAD ACTIONS #}
         <div class="section u-mb-18">
           <div class="u-d-flex u-ai-center u-gap-28 u-fxw-wrap">
-            <!-- Avatar with upload overlay -->
+            {# Avatar with upload overlay #}
             <div class="u-pos-relative u-w-100 u-h-100 u-fxs-0">
               <div class="profile-avatar u-w-100 u-h-100 u-fs-36 u-mb-0">
                 {% if emp[4] %}
@@ -1689,7 +1689,7 @@
               </div>
               <label class="u-pos-absolute u-bot-0 u-rgt-0 u-w-30 u-h-30 u-br-50pct u-bg-3b82f6 u-bd-2-solid-white u-d-flex u-ai-center u-jc-center u-cur-pointer u-fs-14" for="photoUpload" title="Change photo"><i class="ti ti-camera hz-ico" aria-hidden="true"></i></label>
             </div>
-            <!-- Name + upload form -->
+            {# Name + upload form #}
             <div class="u-fx-1">
               <div class="u-fs-18 u-fw-700 u-c-1e293b">{{ emp[1] }}</div>
               <div class="u-fs-13 u-c-64748b u-mt-2">{{ emp[2] or 'Employee' }} &bull; {{ emp[0] }}</div>
@@ -1698,7 +1698,7 @@
                 <span class="u-fs-12 u-c-94a3b8" id="photoFileName">No file chosen</span>
               </form>
             </div>
-            <!-- Download buttons -->
+            {# Download buttons #}
             <div class="u-d-flex u-fxd-column u-gap-10">
               <a class="u-p-9-18 u-br-9 u-bg-ede9fe u-c-6d28d9 u-fs-13 u-fw-600 u-tdec-none u-bd-1-solid-c4b5fd u-d-flex u-ai-center u-gap-7" href="{{ tpath('/my_qr') }}">
                 <i class="ti ti-device-mobile hz-ico" aria-hidden="true"></i> Download QR Code
@@ -1713,10 +1713,10 @@
         <form action="{{ tpath('/update_my_profile') }}" method="POST">
           <div class="u-d-grid u-gtc-1fr-1fr u-gap-22 u-ai-start">
 
-            <!-- LEFT COLUMN -->
+            {# LEFT COLUMN #}
             <div class="u-d-flex u-fxd-column u-gap-18">
 
-              <!-- Personal Info -->
+              {# Personal Info #}
               <div class="section">
                 <h3><i class="ti ti-user hz-ico" aria-hidden="true"></i> Personal Information</h3>
                 <div class="u-d-grid u-gtc-1fr-1fr u-gap-14">
@@ -1757,7 +1757,7 @@
                 </div>
               </div>
 
-              <!-- Address -->
+              {# Address #}
               <div class="section">
                 <h3><i class="ti ti-home hz-ico" aria-hidden="true"></i> Contact Details &amp; Address</h3>
                 <div class="form-group">
@@ -1780,7 +1780,7 @@
                 </div>
               </div>
 
-              <!-- About Me -->
+              {# About Me #}
               <div class="section">
                 <h3><i class="ti ti-notes hz-ico" aria-hidden="true"></i> About Me</h3>
                 <div class="form-group">
@@ -1789,12 +1789,12 @@
                 </div>
               </div>
 
-            </div><!-- /LEFT -->
+            </div>{# /LEFT #}
 
-            <!-- RIGHT COLUMN -->
+            {# RIGHT COLUMN #}
             <div class="u-d-flex u-fxd-column u-gap-18">
 
-              <!-- Work Info (read-only) -->
+              {# Work Info (read-only) #}
               <div class="section">
                 <h3><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Role &amp; Work Information</h3>
                 <div class="u-d-flex u-fxd-column u-gap-0">
@@ -1816,7 +1816,7 @@
                 <p class="u-fs-11 u-c-94a3b8 u-mt-10">Work details are managed by admin and cannot be edited here.</p>
               </div>
 
-              <!-- Hierarchy Information (read-only) -->
+              {# Hierarchy Information (read-only) #}
               <div class="section">
                 <h3><i class="ti ti-building hz-ico" aria-hidden="true"></i> Hierarchy Information</h3>
                 <div class="u-d-flex u-fxd-column u-gap-0">
@@ -1835,7 +1835,7 @@
                 <p class="u-fs-11 u-c-94a3b8 u-mt-10">Hierarchy details are assigned by admin.</p>
               </div>
 
-              <!-- Emergency Contact -->
+              {# Emergency Contact #}
               <div class="section">
                 <h3><i class="ti ti-urgent hz-ico" aria-hidden="true"></i> Emergency Contact</h3>
                 <div class="form-group">
@@ -1857,8 +1857,8 @@
                 </div>
               </div>
 
-            </div><!-- /RIGHT -->
-          </div><!-- /grid -->
+            </div>{# /RIGHT #}
+          </div>{# /grid #}
 
           <div class="u-mt-20">
             <button class="u-p-13-36 u-bd-none u-br-10 u-bg-1e3a8a u-c-white u-fs-14 u-fw-700 u-cur-pointer" type="submit">
@@ -1867,14 +1867,14 @@
           </div>
         </form>
 
-        <!-- DOCUMENTS SECTION inside My Profile -->
+        {# DOCUMENTS SECTION inside My Profile #}
         <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-22 u-mt-20">
           <div class="u-fs-14 u-fw-800 u-c-1e3a8a u-ttr-uppercase u-ls-d6 u-mb-16 u-d-flex u-ai-center u-gap-7 u-bdb-2-solid-dbeafe u-pb-10">
             <i class="ti ti-files u-fs-16 u-c-3b82f6"></i> My Documents
           </div>
 
-          <!-- Upload form -->
-          <form class="u-d-flex u-gap-10 u-fxw-wrap u-ai-flex-end u-mb-16" action="{{ tpath('/upload_my_document') }}" method="POST" enctype="multipart/form-data" data-on-submit="HZ.disableSubmit(this)">
+          {# Upload form #}
+          <form class="u-d-flex u-gap-10 u-fxw-wrap u-ai-flex-end u-mb-16" action="{{ tpath('/upload_my_document') }}" method="POST" enctype="multipart/form-data" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
             <div class="u-fx-1 u-minw-160">
               <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Document Type</label>
               <select aria-label="Document Type" class="u-w-100pct u-p-9-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" name="doc_type" required>
@@ -1897,7 +1897,7 @@
           </form>
           <div class="u-fs-11 u-c-94a3b8 u-mb-14">Allowed: PDF, JPG, PNG, DOC, DOCX</div>
 
-          <!-- Docs table -->
+          {# Docs table #}
           {% if my_docs %}
           <div class="u-ovx-auto u-br-10 u-bd-1-solid-e2e8f0">
             <table class="u-w-100pct u-border-collapse">
@@ -1947,7 +1947,7 @@
           {% endif %}
         </div>
 
-        <!-- WORK EXPERIENCE -->
+        {# WORK EXPERIENCE #}
         <div class="section u-mt-22">
           <h3><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Work Experience</h3>
           {% if my_experience %}
@@ -2008,7 +2008,7 @@
           </details>
         </div>
 
-        <!-- EDUCATION -->
+        {# EDUCATION #}
         <div class="section u-mt-22">
           <h3><i class="ti ti-school hz-ico" aria-hidden="true"></i> Education</h3>
           {% if my_education %}
@@ -2058,8 +2058,8 @@
           </details>
         </div>
 
-        <!-- IDENTITY INFORMATION -->
-        <!-- BANK & ID DETAILS (separate form) -->
+        {# IDENTITY INFORMATION #}
+        {# BANK & ID DETAILS (separate form) #}
         <form class="u-mt-22" action="{{ tpath('/update_my_bank_details') }}" method="POST">
           <div class="section">
             <h3><i class="ti ti-id hz-ico" aria-hidden="true"></i> Identity Information &amp; Bank Details
@@ -2103,7 +2103,7 @@
           </div>
         </form>
 
-        <!-- CHANGE PASSWORD -->
+        {# CHANGE PASSWORD #}
         <div class="section u-mt-22">
           <h3><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Change Password</h3>
           {% if request.args.get('pwd_ok') %}
@@ -2138,7 +2138,7 @@
         </div>
 
         {% if fp_enabled %}
-        <!-- FINGERPRINT ENROLLMENT -->
+        {# FINGERPRINT ENROLLMENT #}
         <div class="section u-mt-22" id="fp-enroll-section">
           <h3 class="u-m-0-0-4">&#128400; Fingerprint Enrollment</h3>
           <p class="u-fs-13 u-c-64748b u-m-0-0-16">Register your fingerprint so you can use it to mark attendance at the kiosk.</p>
@@ -2321,14 +2321,14 @@
         </script>
         {% endif %}
 
-      </div><!-- /view-my-profile -->
+      </div>{# /view-my-profile #}
 
-      <!-- ═══ VIEW: TERMS & CONDITIONS ═══ -->
-      <!-- ═══ VIEW: POLICIES (merged) ═══ -->
+      {# ═══ VIEW: TERMS & CONDITIONS ═══ #}
+      {# ═══ VIEW: POLICIES (merged) ═══ #}
       <div id="view-policies" class="view">
         <div class="mod-title"><i class="ti ti-books hz-ico" aria-hidden="true"></i> Policies &amp; Guidelines <span>All workplace policies in one place</span></div>
 
-        <!-- Policy Tabs -->
+        {# Policy Tabs #}
         <div class="u-d-flex u-gap-8 u-fxw-wrap u-mb-22">
           <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-3b82f6 u-bg-eff6ff u-c-1e40af u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('terms')" id="ptab-terms"><i class="ti ti-certificate hz-ico" aria-hidden="true"></i> Terms</button>
           <button class="u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('rules')" id="ptab-rules"><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> Rules</button>
@@ -2339,11 +2339,11 @@
           <button class="u-d-none u-p-8-16 u-br-20 u-bd-1d5-solid-e2e8f0 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-700 u-cur-pointer" data-on-click="showPolicy('other')" id="ptab-other"><i class="ti ti-folder hz-ico" aria-hidden="true"></i> Other</button>
         </div>
 
-        <!-- Policy content is fetched from /api/employee/policies and rendered
+        {# Policy content is fetched from /api/employee/policies and rendered
              into these containers by the script block below (see
              loadPolicies()) -- content is HR/admin-editable plain text via
              the HR Dashboard's Policies tab, so it's rendered as text
-             (white-space:pre-line), never as raw HTML. -->
+             (white-space:pre-line), never as raw HTML. #}
         <div class="u-lh-1d8 u-c-334155" id="policy-terms">
           <div class="u-bg-eff6ff u-bdl-4-solid-3b82f6 u-p-14-18 u-br-0-10-10-0 u-mb-22">
             <strong class="u-c-1e40af" id="policy-terms-title">Terms &amp; Conditions</strong>
@@ -2386,16 +2386,16 @@
           <div id="policy-resignation-body" style="white-space:pre-line;">Loading…</div>
         </div>
 
-        <!-- Policies filed under a company's own custom category (anything
-             outside POLICY_CATEGORIES below); the tab stays hidden if none. -->
+        {# Policies filed under a company's own custom category (anything
+             outside POLICY_CATEGORIES below); the tab stays hidden if none. #}
         <div class="u-d-none u-lh-1d8 u-c-334155" id="policy-other"></div>
-      </div><!-- /view-policies -->
+      </div>{# /view-policies #}
 
 
-      <!-- ═══ VIEW: OVERTIME ═══ -->
+      {# ═══ VIEW: OVERTIME ═══ #}
 
-    </div><!-- /app-content -->
-    </div><!-- /main-area -->
+    </div>{# /app-content #}
+    </div>{# /main-area #}
 
     <script>
       // Server-sourced strings (incentive titles/notes below, and
@@ -3333,7 +3333,7 @@
       })();
     </script>
 
-    <!-- ═══ WFH SCANNER MODAL ═══ -->
+    {# ═══ WFH SCANNER MODAL ═══ #}
     <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d75 u-zi-9999 u-ai-center u-jc-center u-p-20" id="wfhScanModal">
       <div class="u-bg-fff u-br-24 u-p-28-24-22 u-w-100pct u-maxw-440 u-ta-center u-shad-0-24-64-rgba15e5c1b1">
         <div class="u-fs-17 u-fw-800 u-c-1e293b u-mb-6">&#128205; Mark Attendance</div>
@@ -3365,9 +3365,9 @@
         <button class="u-w-100pct u-p-10 u-bd-1-solid-e2e8f0 u-br-12 u-bg-f8fafc u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" data-on-click="closeWfhScanner()">&#10005; Close</button>
       </div>
     </div>
-    <!-- /WFH SCANNER MODAL -->
+    {# /WFH SCANNER MODAL #}
 
-    <!-- ═══ BREAK TIME NOTIFICATION ═══ -->
+    {# ═══ BREAK TIME NOTIFICATION ═══ #}
     <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10000 u-ai-center u-jc-center" id="breakNotifOverlay">
       <div class="u-bg-fff u-br-22 u-p-32-28-24 u-w-360 u-maxw-94vw u-ta-center u-shad-0-24-60-rgba0_0_0_0d25 u-anim-breakpop-0d35sd3de66">
         <div class="u-fs-52 u-mb-10" id="breakNotifIcon"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i></div>
@@ -3482,13 +3482,13 @@
       startBreakWatcher();
     })();
     </script>
-    <!-- /BREAK TIME NOTIFICATION -->
+    {# /BREAK TIME NOTIFICATION #}
 
   <script src="{{ static_url('darkmode.min.js') }}"></script>
   <script src="{{ static_url('employee_sidebar.js') }}"></script>
   <script src="{{ static_url('animate-core.min.js') }}"></script>
 
-  <!-- AI CHAT ASSISTANT -->
+  {# AI CHAT ASSISTANT #}
   <style>
     #aiChatBubble {
       position: fixed; right: 24px; bottom: 24px; z-index: 900;
@@ -3663,9 +3663,9 @@
     });
   })();
   </script>
-  <!-- /AI CHAT ASSISTANT -->
+  {# /AI CHAT ASSISTANT #}
 
-  <!-- NOTIFICATION BELL -->
+  {# NOTIFICATION BELL #}
   <style>
     #notifBell {
       position: fixed; right: 24px; top: 20px; z-index: 901;
@@ -3823,9 +3823,9 @@
     load();
   })();
   </script>
-  <!-- /NOTIFICATION BELL -->
+  {# /NOTIFICATION BELL #}
 
-  <!-- DEVICE POSTURE RELAY
+  {# DEVICE POSTURE RELAY
        No web page can read Wi-Fi encryption type, ARP tables, or DNS
        config — that's an OS-level capability, not a browser one. This
        script does NOT compute a risk score. It only polls a locally-
@@ -3840,7 +3840,7 @@
        Expected agent contract (adjust AGENT_URL once the real agent is
        built): GET http://127.0.0.1:<port>/risk ->
          {"risk_score": 0-100, "threat_vectors": ["weak_encryption", ...]}
-  -->
+  #}
   <script>
   (function() {
     var AGENT_URL = 'http://127.0.0.1:47823/risk'; // placeholder — match the real agent's port
@@ -3884,7 +3884,7 @@
     poll();
   })();
   </script>
-  <!-- /DEVICE POSTURE RELAY -->
+  {# /DEVICE POSTURE RELAY #}
   <script src="{{ static_url('js/i18n.js') }}"></script>
   <script>
     function enrollTouchID() {

@@ -275,10 +275,10 @@
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('enterprise-ui.css') }}" />
   {% block page_css %}{% endblock %}
-  <!-- Light professional theme layer: loaded AFTER each page's own CSS so
-       cards, tables, inputs and buttons look the same on every admin page. -->
+  {# Light professional theme layer: loaded AFTER each page's own CSS so
+       cards, tables, inputs and buttons look the same on every admin page. #}
   <link rel="stylesheet" href="{{ static_url('admin-theme.css') }}" />
-  <!-- 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer -->
+  {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
   <script src="{{ static_url('ui-motion.js') }}"></script>
   <link rel="stylesheet" href="{{ static_url('dashboard-unify.css') }}" />
@@ -287,7 +287,7 @@
 
 <a class="skip-link" href="#main-content">Skip to main content</a>
 
-<!-- ── SIDEBAR ── -->
+{# ── SIDEBAR ── #}
 {% set _org_locked = co.org_profile_pending and session.admin_role not in ('hr', 'manager') %}
 <div class="sidebar{{ ' sidebar--locked' if _org_locked }}" role="navigation" aria-label="Primary">
   {% set _is_hr = session.admin_role == 'hr' %}
@@ -370,9 +370,9 @@
 </div>
 
 <div class="app-col">
-<!-- ── TOP BAR ── -->
+{# ── TOP BAR ── #}
 <header class="app-topbar app-topbar--brand">
-  <!-- Company logo + name -->
+  {# Company logo + name #}
   <a class="app-brand" href="{{ tpath('/hr_dashboard') if _is_hr else tpath('/admin') }}" aria-label="{{ co.company_name }} – dashboard">
     <span class="app-brand-logo">
       {% if co.logo_url %}
@@ -385,15 +385,15 @@
       <span class="app-brand-name">{{ co.company_name }}</span>
     </span>
   </a>
-  <!-- Search (filled by pages that offer it -- the admin dashboard) -->
+  {# Search (filled by pages that offer it -- the admin dashboard) #}
   {% block topbar_search %}{% endblock %}
   <div class="app-top-actions">
-    <!-- Date + live time (time ticks via darkmode.min.js's .sb-live-clock) -->
+    {# Date + live time (time ticks via darkmode.min.js's .sb-live-clock) #}
     <span class="app-date" aria-label="Today">
       <i class="ti ti-calendar" aria-hidden="true"></i>
       <span id="appTopDate"></span><span class="app-date-sep" aria-hidden="true">·</span><span id="appTopTime"></span>
     </span>
-    <!-- Notifications: admin feed from /web/admin/notifications/list -->
+    {# Notifications: admin feed from /web/admin/notifications/list #}
     <div class="app-notif" id="appNotif"
          data-list-url="{{ tpath('/web/admin/notifications/list') }}"
          data-read-url="{{ tpath('/web/admin/notifications/mark_read') }}"
@@ -417,7 +417,7 @@
     {% set _urole = 'HR' if _is_hr else ('Manager' if _is_manager else 'Administrator') %}
     {% set _uphoto = admin_avatar_url %}
     {% set _uinit = admin_initials or _uname[:2]|upper %}
-    <!-- Admin profile menu (Profile / Settings / Logout) -->
+    {# Admin profile menu (Profile / Settings / Logout) #}
     <div class="app-user-menu" id="appUserMenu">
       <button type="button" class="app-user" id="appUserBtn" aria-haspopup="true" aria-expanded="false" aria-label="Account menu for {{ _uname }}">
         <span class="app-avatar" aria-hidden="true">{% if _uphoto %}<img src="{{ _uphoto }}" alt="" />{% else %}{{ _uinit }}{% endif %}</span>
@@ -440,7 +440,7 @@
   </div>
 </header>
 
-<!-- ── MAIN ── -->
+{# ── MAIN ── #}
 <div class="main" id="main-content" role="main" tabindex="-1">
   {% if billing_lock_status %}
   <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
@@ -472,7 +472,7 @@
 
   {% block main %}{% endblock %}
 </div>
-</div><!-- /.app-col -->
+</div>{# /.app-col #}
 
 <script src="{{ static_url('darkmode.min.js') }}"></script>
 <script src="{{ static_url('admin-topbar.js') }}"></script><script>

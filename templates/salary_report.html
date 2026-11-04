@@ -228,7 +228,7 @@
         </div>
       </div>
 
-      <!-- FILTER -->
+      {# FILTER #}
       <form class="filter-bar" method="GET" action="{{ tpath('/salary_report') }}">
         <div class="filter-group">
           <label>Month</label>
@@ -278,7 +278,7 @@
       </div>
       {% endif %}
 
-      <!-- SUMMARY TOTALS -->
+      {# SUMMARY TOTALS #}
       {% set total_gross     = salary_data | sum(attribute='gross') %}
       {% set total_ded       = salary_data | sum(attribute='deduction') %}
       {% set total_net       = salary_data | sum(attribute='net') %}
@@ -324,7 +324,7 @@
         </div>
       </div>
 
-      <!-- SALARY TABLE -->
+      {# SALARY TABLE #}
       <div class="section">
         <h3>
           <span class="u-d-flex u-ai-center u-gap-8"><i class="ti ti-table u-c-2563eb"></i> Employee Salary Breakdown — {{ month_name }}</span>
@@ -457,7 +457,7 @@
         </div>
       </div>
 
-      <!-- DEDUCTION RULES -->
+      {# DEDUCTION RULES #}
       <div class="rules-box">
         <div class="rb-title"><i class="ti ti-info-circle"></i> Salary Rules for {{ month_name }}</div>
         <ul class="rules-list">

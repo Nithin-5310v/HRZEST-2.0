@@ -78,7 +78,7 @@
     </a>
   </div>
 
-  <!-- Year selector -->
+  {# Year selector #}
   <div class="u-d-flex u-ai-center u-gap-12 u-mb-20">
     <span class="u-fs-13 u-fw-700 u-c-64748b">Year:</span>
     {% for y in range(2023, 2028) %}
@@ -92,7 +92,7 @@
     {% endfor %}
   </div>
 
-  <!-- Summary stat cards -->
+  {# Summary stat cards #}
   <div class="u-d-grid u-gtc-repeatauto-fil285bf9 u-gap-14 u-mb-24">
     {% for lt in leave_types %}
     {% set lt_id, lt_name, lt_quota = lt %}
@@ -114,13 +114,13 @@
     {% endfor %}
   </div>
 
-  <!-- Employee Balance Table -->
+  {# Employee Balance Table #}
   <div class="card">
     <div class="section-title">
       <i class="ti ti-users u-c-3b82f6"></i> Employee Leave Balances — {{ year }}
     </div>
 
-    <!-- Search -->
+    {# Search #}
     <div class="u-pos-relative u-mb-16 u-maxw-300">
       <i class="ti ti-search u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-c-3b82f6 u-fs-14 u-pe-none"></i>
       <input class="u-w-100pct u-p-8-12-8-34 u-bd-2-solid-3b82f6 u-br-10 u-bg-eff6ff u-fs-13 u-out-none u-c-1e293b" type="text" id="srch" placeholder="Search employee…" data-on-input="filterTable(this.value)"/>
@@ -176,7 +176,7 @@
 
 {% block scripts %}
 
-<!-- Edit Modal -->
+{# Edit Modal #}
 <div class="modal" id="editModal">
   <div class="modal-box">
     <div class="modal-title"><i class="ti ti-calendar-edit u-c-3b82f6"></i> Edit Leave Balance</div>

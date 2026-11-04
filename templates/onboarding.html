@@ -113,7 +113,7 @@
     </div>
   </div>
 
-  <!-- STATS ROW -->
+  {# STATS ROW #}
   <div class="u-d-grid u-gtc-repeat3_1fr u-gap-14 u-mb-24">
     <div class="u-bg-fff u-bd-1-solid-e2e8f0 u-br-14 u-p-16-20 u-d-flex u-ai-center u-gap-14">
       <div class="u-w-42 u-h-42 u-br-11 u-bg-dbeafe u-d-flex u-ai-center u-jc-center"><i class="ti ti-users u-c-1e3a8a u-fs-20"></i></div>
@@ -129,7 +129,7 @@
     </div>
   </div>
 
-  <!-- TABS -->
+  {# TABS #}
   <div class="tabs">
     <button class="tab-btn {% if active_tab=='active' %}active{% endif %}" data-on-click="switchTab('active')">
       <i class="ti ti-user-check"></i> Active Onboardings
@@ -139,7 +139,7 @@
     </button>
   </div>
 
-  <!-- TAB: ACTIVE ONBOARDINGS -->
+  {# TAB: ACTIVE ONBOARDINGS #}
   <div class="tab-content {% if active_tab=='active' %}active{% endif %}" id="tab-active">
     <div class="section">
       <div class="section-title"><i class="ti ti-users u-c-1e3a8a"></i> Current Onboardings</div>
@@ -205,10 +205,10 @@
     </div>
   </div>
 
-  <!-- TAB: TEMPLATES -->
+  {# TAB: TEMPLATES #}
   <div class="tab-content {% if active_tab=='templates' %}active{% endif %}" id="tab-templates">
 
-    <!-- DEFAULT TEMPLATE SETTING -->
+    {# DEFAULT TEMPLATE SETTING #}
     <div class="u-bg-fff u-bd-1-solid-e2e8f0 u-br-14 u-p-18-22 u-mb-22 u-d-flex u-ai-center u-gap-16 u-fxw-wrap">
       <div class="u-fx-1 u-minw-200">
         <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-2"><i class="ti ti-bolt u-c-1e3a8a"></i> Auto-Assign Default Template</div>
@@ -266,7 +266,7 @@
 
   </div>
 
-<!-- MODAL: New Template -->
+{# MODAL: New Template #}
 <div class="modal" id="templateModal">
   <div class="modal-box">
     <div class="modal-header">
@@ -300,7 +300,7 @@
   </div>
 </div>
 
-<!-- MODAL: Assign Onboarding -->
+{# MODAL: Assign Onboarding #}
 <div class="modal" id="assignModal">
   <div class="modal-box">
     <div class="modal-header">
