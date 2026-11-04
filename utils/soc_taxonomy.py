@@ -190,6 +190,9 @@ DETECTIONS = {
                          "An account revealing masked personal fields at an unusual rate."),
     "waf_burst_distributed": ("Distributed WAF burst", ["T1190"],
                               "Many addresses hitting the WAF at once."),
+    "csp_violation_burst": ("CSP violation burst", ["T1059.007"],
+                            "Many browsers reporting blocked content on the same page at once: "
+                            "a likely injected script or hijacked third-party resource."),
     "mass_export": ("Mass data export", ["T1213", "T1567"],
                     "Repeated bulk exports by one account."),
     "sensitive_admin_change": ("Sensitive admin change", ["T1098"],
