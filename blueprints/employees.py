@@ -23,7 +23,7 @@ from utils.auth import (
     record_password_change, any_user_required, session_account_ok,
 )
 from utils.helpers import (
-    tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
+    tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, encrypt_contact, validate_emp_id,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
     add_employee_seat_cap_check, company_url, hr_scope_denied as _hr_scope_denied, company_today,
     int_param, notify_new_holiday,
@@ -442,15 +442,17 @@ def edit_employee():
             _reassign_sql = ", assigned_hr_username=NULL"
             _new_hr = None
 
+    _enc_email, _email_bidx = encrypt_contact("email", email)
+    _enc_phone, _phone_bidx = encrypt_contact("phone", phone)
     cursor.execute(
-        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
-        "department=%s, manager_name=%s, manager_id=%s, phone=%s, gender=%s, dob=%s, blood_group=%s, "
+        "UPDATE employees SET name=%s, email=%s, email_bidx=%s, role=%s, date_of_joining=%s, "
+        "department=%s, manager_name=%s, manager_id=%s, phone=%s, phone_bidx=%s, gender=%s, dob=%s, blood_group=%s, "
         "shift_id=%s, address=%s, city=%s, state=%s, pincode=%s, "
         "emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s, "
         f"work_mode=%s, work_lat=%s, work_lon=%s{_reassign_sql} "  # nosec B608 -- _reassign_sql is a hardcoded literal, never user input
         "WHERE employee_id=%s",
-        (name, email, role, date_of_joining, department, manager_name, manager_id,
-         phone, gender, dob, blood_group, shift_id,
+        (name, _enc_email, _email_bidx, role, date_of_joining, department, manager_name, manager_id,
+         _enc_phone, _phone_bidx, gender, dob, blood_group, shift_id,
          address, city, state, pincode,
          ec_name, ec_phone, ec_rel,
          work_mode, work_lat, work_lon) + _reassign_params + (emp_id,)
@@ -1135,16 +1137,20 @@ def add_employee_page():
                     _mgr_id = request.form.get("manager_id", "").strip() or None
                     _mgr_name = request.form.get("manager_name", "").strip() or None
                     _dept = request.form.get("department", "").strip() or None
+                    _enc_email, _email_bidx = encrypt_contact("email", email)
+                    _enc_phone, _phone_bidx = encrypt_contact("phone", phone)
                     cursor.execute(
-                        "INSERT INTO employees (name, employee_id, email, role, phone, face_image, qr_code, password, "
+                        "INSERT INTO employees (name, employee_id, email, email_bidx, role, phone, phone_bidx, "
+                        "face_image, qr_code, password, "
                         "date_of_joining, work_mode, work_lat, work_lon, company_id, manager_id, manager_name, department, "
                         "shift_id, gender, dob, blood_group, address, city, state, pincode, "
                         "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
                         "aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number, "
                         "assigned_hr_username, force_pin_change) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
                         "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1)",
-                        (name, emp_id, email, role, phone, filepath, qr_path, hashed_pwd,
+                        (name, emp_id, _enc_email, _email_bidx, role, _enc_phone, _phone_bidx,
+                         filepath, qr_path, hashed_pwd,
                          date_of_joining, work_mode, work_lat, work_lon, company_id,
                          _mgr_id, _mgr_name, _dept, shift_id,
                          gender, dob, blood_group, address, city, state, pincode,
@@ -2291,10 +2297,11 @@ def api_register_employee():
         with transaction(db):
             _seat_error = add_employee_seat_cap_check(cursor)
             if not _seat_error:
+                _enc_email, _email_bidx = encrypt_contact("email", email)
                 cursor.execute(
-                    "INSERT INTO employees (name, employee_id, email, face_image, qr_code, password, force_pin_change) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,1)",
-                    (name, emp_id, email, filepath, qr_path, hashed_pwd)
+                    "INSERT INTO employees (name, employee_id, email, email_bidx, face_image, qr_code, password, "
+                    "force_pin_change) VALUES (%s,%s,%s,%s,%s,%s,%s,1)",
+                    (name, emp_id, _enc_email, _email_bidx, filepath, qr_path, hashed_pwd)
                 )
         if _seat_error:
             cursor.close()
@@ -2361,9 +2368,10 @@ def api_edit_employee(emp_id):
     cursor.execute("SELECT role FROM employees WHERE employee_id=%s", (emp_id,))
     _prev_row = cursor.fetchone()
     _prev_role = _prev_row[0] if _prev_row else None
+    _enc_email, _email_bidx = encrypt_contact("email", email)
     cursor.execute(
-        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s WHERE employee_id=%s",
-        (name, email, role, date_of_joining, emp_id)
+        "UPDATE employees SET name=%s, email=%s, email_bidx=%s, role=%s, date_of_joining=%s WHERE employee_id=%s",
+        (name, _enc_email, _email_bidx, role, date_of_joining, emp_id)
     )
     db.commit()
     cursor.close()

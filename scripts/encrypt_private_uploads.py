@@ -28,6 +28,10 @@ def main(argv=None):
     ap.add_argument("--root", default=os.path.join(ROOT, "private_uploads"), help="directory to process")
     args = ap.parse_args(argv)
 
+    # Bare-metal hosts keep ENCRYPTION_KEY in .env (containers get it via
+    # env_file). override=False: real environment variables still win.
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(ROOT, ".env"))
     if not os.environ.get("ENCRYPTION_KEY", "").strip():
         sys.exit("ENCRYPTION_KEY is not set")
     from utils.pii_crypto import cipher_from_env, DecryptionError

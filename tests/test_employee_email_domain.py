@@ -159,7 +159,9 @@ class TestDomainConfigured:
             cur.execute("SELECT email FROM employees WHERE employee_id=%s", (emp_id,))
             row = cur.fetchone()
             assert row is not None
-            assert row[0] == "new.hire@acme.com"
+            from utils.helpers import decrypt_pii
+            assert row[0].startswith("hz2:"), "employee email must be encrypted at rest"
+            assert decrypt_pii(row[0]) == "new.hire@acme.com"
             cur.close()
         finally:
             _cleanup_employee(db_engine, emp_id)

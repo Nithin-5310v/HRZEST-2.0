@@ -281,6 +281,24 @@ def encrypt_pii(value: str) -> str:
     return _pii_cipher.encrypt(value)
 
 
+def encrypt_contact(kind: str, value):
+    """Encrypt an employee email ("email") or phone ("phone") for storage.
+    Returns (stored_value, blind_index): write both, into e.g. email and
+    email_bidx. Empty input stays empty with a NULL index."""
+    if value is None:
+        return None, None
+    value = str(value).strip()
+    if not value:
+        return value, None
+    return _pii_cipher.encrypt(value), _pii_cipher.blind_index(kind, value)
+
+
+def contact_lookup_keys(kind: str, value):
+    """Blind indexes to match with `<kind>_bidx = ANY(%s)` -- one per
+    configured key, so rows indexed before a key rotation still match."""
+    return _pii_cipher.blind_index_candidates(kind, value)
+
+
 def decrypt_pii(value: str) -> str:
     if not value:
         return value

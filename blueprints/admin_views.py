@@ -40,7 +40,7 @@ from utils.helpers import (
     tpath,
     get_company_settings, get_co_features, _upsert_co_feature,
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
-    encrypt_pii, decrypt_pii, invalidate_companies_cache,
+    encrypt_pii, decrypt_pii, invalidate_companies_cache, contact_lookup_keys,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
     post_announcement, _validate_upload, company_today, company_now, int_param, parse_finite_float,
     get_auth_config, app_gps_checkin_allowed,
@@ -250,9 +250,12 @@ def api_admin_search():
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
     cursor.execute(
         f"SELECT e.employee_id, e.name, e.email, e.role FROM employees e "  # nosec B608
-        f"WHERE (e.name ILIKE %s OR e.employee_id ILIKE %s OR e.email ILIKE %s OR e.phone ILIKE %s) {_co_filter} "
+        # email/phone are encrypted: matched exactly via their blind index
+        # (ILIKE on them only still finds rows not yet migrated).
+        f"WHERE (e.name ILIKE %s OR e.employee_id ILIKE %s OR e.email ILIKE %s OR e.phone ILIKE %s "
+        f"OR e.email_bidx = ANY(%s) OR e.phone_bidx = ANY(%s)) {_co_filter} "
         f"ORDER BY e.name LIMIT 8",
-        (like, like, like, like) + _co_args
+        (like, like, like, like, contact_lookup_keys("email", q), contact_lookup_keys("phone", q)) + _co_args
     )
     for eid, name, email, role in cursor.fetchall():
         results.append({
@@ -1033,7 +1036,8 @@ def api_save_email_settings():
     else:
         cursor.execute("SELECT smtp_pass FROM email_config ORDER BY id DESC LIMIT 1")
         prev = cursor.fetchone()
-        encrypted_password = prev[0] if prev else ""
+        # re-encrypt, not copy: the fetch already decrypted it (database.py)
+        encrypted_password = encrypt_pii(decrypt_pii(prev[0])) if prev and prev[0] else ""
     cursor.execute("DELETE FROM email_config")
     cursor.execute(
         "INSERT INTO email_config (smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email) "

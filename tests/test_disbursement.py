@@ -132,7 +132,11 @@ class TestBankConfigSaveAndEncryption:
         holder, second_encrypted = cur.fetchone()
         cur.close()
         assert holder == "Test Co Renamed"
-        assert second_encrypted == first_encrypted
+        # Still encrypted at rest (not written back as the plaintext the
+        # fetch decrypted), and still the same account number.
+        from utils.helpers import decrypt_pii
+        assert second_encrypted.startswith("hz2:")
+        assert decrypt_pii(second_encrypted) == decrypt_pii(first_encrypted)
 
 
 class TestFirstTimeTotpEnrollment:

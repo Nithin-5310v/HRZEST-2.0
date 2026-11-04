@@ -38,6 +38,7 @@ from cryptography.exceptions import InvalidTag
 PREFIX = "hz2:"
 FERNET_PREFIX = "gAAAAA"
 _HKDF_INFO = b"hrzest/pii/aes-256-gcm/v2"
+_BIDX_INFO = b"hrzest/blind-index/hmac-sha512/v1"
 _AAD = b"hrzest-pii-v2"
 _KID_LEN = 4
 _NONCE_LEN = 12
@@ -71,6 +72,25 @@ def _b64e(b: bytes) -> str:
 
 def _b64d(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def normalize(kind: str, value):
+    """Canonical form for blind indexing: emails trimmed + lowercased;
+    phones reduced to digits, last 10 kept (so "+91 98765-43210",
+    "098765 43210" and "9876543210" are the same number)."""
+    if value is None:
+        return ""
+    v = str(value).strip()
+    if kind == "email":
+        return v.lower()
+    if kind == "phone":
+        digits = "".join(ch for ch in v if ch.isdigit())
+        return digits[-10:] if len(digits) >= 10 else digits
+    raise ValueError(f"unknown blind-index kind {kind!r}")
+
+
+def _hmac_hex(key: bytes, kind: str, norm: str) -> str:
+    return hmac.new(key, f"{kind}:{norm}".encode("utf-8"), hashlib.sha512).hexdigest()
 
 
 def looks_like_fernet(value: str) -> bool:
@@ -112,6 +132,38 @@ class PiiCipher:
         for kid, aes in self._aes:
             self._by_kid.setdefault(kid, aes)
         self._fernet = MultiFernet([Fernet(k.encode()) for k in keys])
+        # Blind-index keys: a separate HKDF output, so the index key and the
+        # encryption key are independent even though both come from one secret.
+        self._bidx_keys = [
+            HKDF(algorithm=hashes.SHA512(), length=64, salt=None, info=_BIDX_INFO).derive(raw)
+            for raw in raws
+        ]
+
+    # ── blind index (exact-match lookup on encrypted columns) ──────────────
+    # HMAC-SHA-512 of the normalized value. Deterministic, so
+    # `WHERE email_bidx = ANY(%s)` finds a row without decrypting anything,
+    # while the index reveals nothing without the key (no dictionary attack
+    # on a leaked database, unlike a bare hash of an email/phone).
+    def blind_index(self, kind: str, value):
+        """Index under the primary key (what gets stored), or None."""
+        norm = normalize(kind, value)
+        if not norm:
+            return None
+        return _hmac_hex(self._bidx_keys[0], kind, norm)
+
+    def blind_index_candidates(self, kind: str, value):
+        """Indexes under every configured key -- what lookups match against,
+        so rows indexed before a key rotation keep matching until
+        scripts/rotate_encryption_key.py has re-indexed them."""
+        norm = normalize(kind, value)
+        if not norm:
+            return []
+        out = []
+        for k in self._bidx_keys:
+            h = _hmac_hex(k, kind, norm)
+            if h not in out:
+                out.append(h)
+        return out
 
     @property
     def primary_kid(self) -> bytes:

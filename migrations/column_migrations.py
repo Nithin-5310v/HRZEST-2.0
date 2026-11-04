@@ -698,6 +698,7 @@ def _run_data_integrity_migrations(cursor, db):
     _run_incentives_unique_constraint_migration(cursor, db)
     _run_pii_widen_migration_v1(cursor, db)
     _run_pii_widen_migration_v2(cursor, db)
+    _run_contact_encryption_migration_v1(cursor, db)
     _run_fk_backstop_migration(cursor, db)
 
 
@@ -1241,6 +1242,63 @@ def _run_pii_widen_migration_v2(cursor, db):
             db.commit()
     except Exception as exc:
         app_log.warning("Migration 'employee_pii_columns_to_text_v2' failed: %s", exc, exc_info=True)
+
+
+def encrypt_plaintext_contacts(cursor, table="employees"):
+    """Encrypt every employees.email / employees.phone still stored as
+    plaintext and fill its blind index. Idempotent (rows already "hz2:" are
+    skipped by the WHERE). Returns the number of rows updated. Also called by
+    scripts/rotate_encryption_key.py to sweep up rows written by any path
+    that bypassed encrypt_contact(). `table` may be schema-qualified
+    ('"tenant_x".employees'); callers pass only validated identifiers."""
+    from utils.helpers import encrypt_contact
+    cursor.execute(
+        f"SELECT employee_id, email, phone FROM {table} "  # nosec B608 -- fixed/validated identifier
+        "WHERE (email IS NOT NULL AND email <> '' AND email NOT LIKE 'hz2:%') "
+        "   OR (phone IS NOT NULL AND phone <> '' AND phone NOT LIKE 'hz2:%')")
+    rows = cursor.fetchall()
+    for emp_id, email, phone in rows:
+        sets, params = [], []
+        if email and not email.startswith("hz2:"):
+            enc, bidx = encrypt_contact("email", email)
+            sets += ["email=%s", "email_bidx=%s"]
+            params += [enc, bidx]
+        if phone and not phone.startswith("hz2:"):
+            enc, bidx = encrypt_contact("phone", phone)
+            sets += ["phone=%s", "phone_bidx=%s"]
+            params += [enc, bidx]
+        cursor.execute(f"UPDATE {table} SET {', '.join(sets)} WHERE employee_id=%s",  # nosec B608 -- fixed names
+                       params + [emp_id])
+    return len(rows)
+
+
+def _run_contact_encryption_migration_v1(cursor, db):
+    """Encrypt employees.email and employees.phone at rest (AES-256-GCM) with
+    an HMAC-SHA-512 blind index beside each (email_bidx / phone_bidx) for
+    exact-match lookups. Widens both to TEXT so ciphertext fits, then
+    encrypts existing rows. Reads stay unchanged: database.py decrypts "hz2:"
+    values on fetch."""
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='employee_contact_encryption_v1'")
+        if cursor.fetchone():
+            return
+        for stmt in (
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS email_bidx TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone_bidx TEXT",
+            "ALTER TABLE employees ALTER COLUMN email TYPE TEXT",
+            "ALTER TABLE employees ALTER COLUMN phone TYPE TEXT",
+            "CREATE INDEX IF NOT EXISTS idx_employees_email_bidx ON employees (email_bidx)",
+            "CREATE INDEX IF NOT EXISTS idx_employees_phone_bidx ON employees (phone_bidx)",
+        ):
+            cursor.execute(stmt)
+        n = encrypt_plaintext_contacts(cursor)
+        cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('employee_contact_encryption_v1')")
+        db.commit()
+        if n:
+            app_log.info("employee_contact_encryption_v1: encrypted email/phone on %d employee rows", n)
+    except Exception as exc:
+        db.rollback()
+        app_log.warning("Migration 'employee_contact_encryption_v1' failed: %s", exc, exc_info=True)
 
 
 def _run_fk_backstop_migration(cursor, db):
