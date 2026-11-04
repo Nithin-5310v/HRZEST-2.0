@@ -338,6 +338,38 @@ def _reset_attendance_lockouts(db_engine, _init_test_db):
     cur.close()
 
 
+# Rows the seed_* fixtures below create, keyed by the identities they use.
+_FIXTURE_EMPLOYEES = ("TST001", "TST002")
+_FIXTURE_ADMINS = ("test_admin", "test_hr_admin", "test_manager_admin")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _purge_stale_fixture_rows(db_engine, _init_test_db):
+    """Remove rows a previous, interrupted run left behind, BEFORE the
+    baseline snapshot is taken.
+
+    _reset_db_after_test restores every test to _db_baseline_snapshot, which
+    is whatever the database held when this session started. A run killed
+    mid-test (Ctrl+C, a crash, a timeout) skips fixture teardown, so its
+    seed rows stay in att_test, the next session snapshots them as
+    "baseline", and every test restores them. Seen twice: a TST001 left with
+    force_pin_change=1 failed 175 employee-login tests with KeyError 'token',
+    and SOC users left behind failed every SOC console test with "That
+    username already exists". Delete exactly those fixture identities, and
+    nothing a real seed (init_db, the tenant registry) creates.
+    """
+    cur = db_engine.cursor()
+    ids = list(_FIXTURE_EMPLOYEES + _FIXTURE_ADMINS)
+    cur.execute("DELETE FROM api_tokens WHERE identity = ANY(%s)", (ids,))
+    cur.execute("DELETE FROM employees WHERE employee_id = ANY(%s)", (list(_FIXTURE_EMPLOYEES),))
+    cur.execute("DELETE FROM admin_users WHERE username = ANY(%s)", (list(_FIXTURE_ADMINS),))
+    # tests/test_soc_console.py's make_user() passes created_by="test".
+    cur.execute("SELECT to_regclass('att_master.soc_users')")
+    if cur.fetchone()[0] is not None:
+        cur.execute("DELETE FROM att_master.soc_users WHERE created_by = 'test'")
+    cur.close()
+
+
 # ── Per-test database isolation ──────────────────────────────────────────────
 # The suite previously shared one persistent att_test database across every
 # test with no reset between tests -- rows (and mutated config: several
@@ -493,7 +525,8 @@ def _restore_snapshot(cur, schema_snapshots, extra_schemas):
 
 
 @pytest.fixture(scope="session")
-def _db_baseline_snapshot(db_engine, _init_test_db, _reset_login_attempts, _reset_attendance_lockouts):
+def _db_baseline_snapshot(db_engine, _init_test_db, _reset_login_attempts, _reset_attendance_lockouts,
+                          _purge_stale_fixture_rows):
     """Captured once, after every one-time baseline fixture above has run
     (schema/table creation, seeded company_settings/admin/tenant-registry
     rows, and the one-time login_attempts/attendance_lockouts clears) --
@@ -630,7 +663,7 @@ def seed_admin(db_engine):
     cur.execute("DELETE FROM login_attempts WHERE identifier='test_admin'")
     cur.execute(
         "INSERT INTO admin_users (username, password, email) VALUES (%s,%s,%s) "
-        "ON CONFLICT (username) DO NOTHING",
+        "ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password, email=EXCLUDED.email",
         ("test_admin", generate_password_hash("Test@1234"), "admin@test.local"),
     )
     yield {"username": "test_admin", "password": "Test@1234"}
@@ -649,7 +682,8 @@ def seed_employee(db_engine):
     cur.execute("DELETE FROM login_attempts WHERE identifier='TST001'")
     cur.execute(
         "INSERT INTO employees (employee_id, name, email, password, force_pin_change) "
-        "VALUES (%s,%s,%s,%s,0) ON CONFLICT (employee_id) DO NOTHING",
+        "VALUES (%s,%s,%s,%s,0) ON CONFLICT (employee_id) DO UPDATE SET name=EXCLUDED.name, "
+        "email=EXCLUDED.email, password=EXCLUDED.password, force_pin_change=0",
         ("TST001", "Test Employee", "emp@test.local", generate_password_hash("EmpPass@1")),
     )
     yield {"employee_id": "TST001", "password": "EmpPass@1", "name": "Test Employee"}
@@ -670,7 +704,8 @@ def seed_hr_admin(db_engine):
     cur.execute("DELETE FROM login_attempts WHERE identifier='test_hr_admin'")
     cur.execute(
         "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1) "
-        "ON CONFLICT (username) DO NOTHING",
+        "ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password, role=EXCLUDED.role, "
+        "email=EXCLUDED.email, is_active=1",
         ("test_hr_admin", generate_password_hash("Test@1234"), HR_ROLE, "hr@test.local"),
     )
     yield {"username": "test_hr_admin", "password": "Test@1234"}
@@ -689,7 +724,8 @@ def seed_assigned_employee(db_engine, seed_hr_admin):
     cur.execute(
         "INSERT INTO employees (employee_id, name, email, password, force_pin_change, assigned_hr_username) "
         "VALUES (%s,%s,%s,%s,0,%s) "
-        "ON CONFLICT (employee_id) DO UPDATE SET assigned_hr_username=EXCLUDED.assigned_hr_username",
+        "ON CONFLICT (employee_id) DO UPDATE SET assigned_hr_username=EXCLUDED.assigned_hr_username, "
+        "name=EXCLUDED.name, email=EXCLUDED.email, password=EXCLUDED.password, force_pin_change=0",
         ("TST002", "Test Assigned Employee", "emp2@test.local",
          generate_password_hash("EmpPass@1"), seed_hr_admin["username"]),
     )
@@ -711,7 +747,8 @@ def seed_manager_admin(db_engine):
     cur.execute("DELETE FROM login_attempts WHERE identifier='test_manager_admin'")
     cur.execute(
         "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1) "
-        "ON CONFLICT (username) DO NOTHING",
+        "ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password, role=EXCLUDED.role, "
+        "email=EXCLUDED.email, is_active=1",
         ("test_manager_admin", generate_password_hash("Test@1234"), MANAGER_ROLE, "manager@test.local"),
     )
     yield {"username": "test_manager_admin", "password": "Test@1234"}
