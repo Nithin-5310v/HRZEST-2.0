@@ -14,6 +14,7 @@ def _run_schema_migrations(cursor, db):
     _run_column_migrations(cursor, db)
     _run_password_migrations(cursor, db)
     _run_qr_signing_migration(cursor, db)
+    _run_qr_tenant_signing_migration(cursor, db)
     _run_index_migrations(cursor, db)
     _run_data_integrity_migrations(cursor, db)
     _run_company_policies_seed_v2(cursor, db)
@@ -529,10 +530,11 @@ def _run_qr_signing_migration(cursor, db):
         if cursor.fetchone():
             return
         from qr_generator import generate_qr
+        tenant = _cursor_tenant(cursor)
         cursor.execute("SELECT employee_id FROM employees WHERE qr_code IS NOT NULL")
         for (eid,) in cursor.fetchall():
             try:
-                new_path = generate_qr(eid)
+                new_path = generate_qr(eid, tenant)
                 cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (new_path, eid))
             except Exception as exc:
                 app_log.warning("QR regeneration failed for '%s' during 'qr_code_signing' migration: %s", eid, exc)
@@ -540,6 +542,42 @@ def _run_qr_signing_migration(cursor, db):
         db.commit()
     except Exception as exc:
         app_log.warning("Migration 'qr_code_signing' failed: %s", exc, exc_info=True)
+
+
+def _cursor_tenant(cursor):
+    """The tenant schema this migration cursor runs against: the first entry
+    of its search_path (database.py's _set_search_path sets it to
+    '"<tenant>", public'). Never flask.g -- a tenant is often provisioned
+    from inside another request (signup, the platform-admin console)."""
+    cursor.execute("SHOW search_path")
+    first = (cursor.fetchone()[0] or "public").split(",")[0].strip().strip('"')
+    if not first or first.startswith("$"):
+        return "public"
+    import os
+    return "public" if first == os.environ.get("DB_NAME", "employee_attendance") else first
+
+
+def _run_qr_tenant_signing_migration(cursor, db):
+    """One-time: re-sign every employee's QR with the company in the signed
+    message (qr_generator._qr_signature) and store it per company. Badges
+    printed before this keep scanning until QR_LEGACY_ACCEPT_UNTIL, then
+    need the regenerated image."""
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='qr_code_tenant_signing'")
+        if cursor.fetchone():
+            return
+        from qr_generator import generate_qr
+        tenant = _cursor_tenant(cursor)
+        cursor.execute("SELECT employee_id FROM employees WHERE qr_code IS NOT NULL")
+        for (eid,) in cursor.fetchall():
+            try:
+                cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (generate_qr(eid, tenant), eid))
+            except Exception as exc:
+                app_log.warning("QR re-signing failed for '%s' during 'qr_code_tenant_signing': %s", eid, exc)
+        cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('qr_code_tenant_signing')")
+        db.commit()
+    except Exception as exc:
+        app_log.warning("Migration 'qr_code_tenant_signing' failed: %s", exc, exc_info=True)
 
 
 def _run_index_migrations(cursor, db):
