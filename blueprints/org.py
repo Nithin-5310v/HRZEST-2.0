@@ -1362,9 +1362,11 @@ def create_org():
     admin_email = request.form.get("admin_email", "").strip().lower()
     admin_mobile = _clean_mobile(request.form.get("admin_mobile", ""))
     admin_password = request.form.get("admin_password", "").strip()
-    confirm_password = request.form.get("confirm_password", "").strip()
+    # Only the /create_org page has a "confirm password" box; the landing-page
+    # form and API clients don't send one, so check it only when present.
+    confirm_password = request.form.get("confirm_password")
 
-    if admin_password != confirm_password:
+    if confirm_password is not None and admin_password != confirm_password.strip():
         flash("Password and confirm password do not match.", "error")
         return _back_to_signup_form()
 
