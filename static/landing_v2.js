@@ -519,7 +519,7 @@ function initFeedbackForm() {
     const textEl = document.getElementById('feedbackText');
 
     const payload = {
-      feedback_type: typeInput ? typeInput.value : 'Feature Request',
+      feedback_type: (typeInput && typeInput.dataset.type) || 'Feature Request',
       rating: activeStarCount > 0 ? activeStarCount : null,
       email: emailEl ? emailEl.value.trim() : '',
       message: textEl ? textEl.value.trim() : '',
