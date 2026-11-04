@@ -297,7 +297,7 @@
           <h1><i class="ti ti-users u-c-1e3a8a"></i> Employee Management</h1>
           <p>Add, edit, manage photos, QR codes and full employee profiles.</p>
         </div>
-        <!-- Page-level tab switcher -->
+        {# Page-level tab switcher #}
         <div class="u-d-flex u-gap-0 u-bd-1d5-solid-dbeafe u-br-12 u-ov-hidden u-fxs-0">
           <button class="u-p-8-18 u-bd-none u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-gap-6 u-trs-d15s" id="pgTabEmp" data-on-click="switchPageTab('employees')">
             <i class="ti ti-users"></i> Employees
@@ -308,12 +308,12 @@
         </div>
       </div>
 
-      <!-- FLASH -->
+      {# FLASH #}
 
-      <!-- ═══ EMPLOYEES PANEL ═══ -->
+      {# ═══ EMPLOYEES PANEL ═══ #}
       <div id="panelEmployees">
 
-      <!-- STAT CARDS -->
+      {# STAT CARDS #}
       <div class="stat-row">
         <div class="stat-card" data-on-click="filterByStatus('')" id="card-all">
           <div class="stat-icon total"><i class="ti ti-users"></i></div>
@@ -333,11 +333,11 @@
         </div>
       </div>
 
-      <!-- HR PENDING-ACTION CARDS -- this page is where HR-role sessions
+      {# HR PENDING-ACTION CARDS -- this page is where HR-role sessions
            land after login (blueprints/auth.py's _finish_employee_login;
            app.py's _is_hr makes the sidebar's own "Dashboard" link point
            here too), so it doubles as their dashboard, not just an
-           employee list. -->
+           employee list. #}
       <div class="stat-row">
         <a class="stat-card" href="{{ tpath('/leave_holidays?tab=leaves') }}" style="text-decoration:none;">
           <div class="stat-icon onleave"><i class="ti ti-calendar-due"></i></div>
@@ -357,7 +357,7 @@
         </a>
       </div>
 
-      <!-- HR QUICK LINKS -->
+      {# HR QUICK LINKS #}
       <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
         <a href="{{ tpath('/monthly_report') }}" style="display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; background:#fff; border:1px solid #dbeafe; color:#1e3a8a; font-size:15px; font-weight:700; text-decoration:none;">
           <i class="ti ti-calendar-check"></i> Attendance
@@ -388,7 +388,7 @@
       </div>
       {% endif %}
 
-      <!-- DEPARTMENT TABS -->
+      {# DEPARTMENT TABS #}
       {% if departments %}
       <div class="dept-tabs" id="deptTabs">
         <button class="dept-tab all-tab active" data-on-click="filterByDept('')" data-dept="">All</button>
@@ -399,7 +399,7 @@
       {% endif %}
 
 
-      <!-- TOOLBAR -->
+      {# TOOLBAR #}
       <div class="toolbar">
         <div class="toolbar-row1">
           <div class="search-wrap">
@@ -444,10 +444,10 @@
         </div>
       </div>
 
-      <!-- hidden dept value for JS -->
+      {# hidden dept value for JS #}
       <input type="hidden" id="filterDept" value="">
 
-      <!-- BULK ASSIGN TOOLBAR -->
+      {# BULK ASSIGN TOOLBAR #}
       <div class="u-d-none u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-12 u-p-12-16 u-mb-12 u-d-none u-ai-center u-gap-12 u-fxw-wrap" id="bulkToolbar">
         <span class="u-fs-13 u-fw-700 u-c-1e3a8a" id="bulkCount">0 selected</span>
         <select class="u-p-7-10 u-bd-1-solid-bfdbfe u-br-8 u-fs-13 u-minw-200" id="bulkTemplateSelect">
@@ -462,7 +462,7 @@
         <button class="u-bg-f1f5f9 u-c-64748b u-p-7-12 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13 u-cur-pointer" type="button" data-on-click="clearSelection()">Clear</button>
       </div>
 
-      <!-- TABLE -->
+      {# TABLE #}
       <div class="section">
         <div class="table-scroll-hint">Swipe left for more details &rarr;</div>
         <div class="table-wrap">
@@ -575,7 +575,7 @@
             </tbody>
           </table>
         </div>
-        <!-- PAGINATION BAR -->
+        {# PAGINATION BAR #}
         <div id="paginationBar" class="pagination-bar">
           <span id="pageInfo" class="page-info"></span>
           <div class="page-btns">
@@ -586,12 +586,12 @@
         </div>
       </div>
 
-      </div><!-- /panelEmployees -->
+      </div>{# /panelEmployees #}
 
-      <!-- ═══ SCHEDULE PANEL ═══ -->
+      {# ═══ SCHEDULE PANEL ═══ #}
       <div class="u-d-none" id="panelSchedule">
 
-        <!-- Action bar -->
+        {# Action bar #}
         <div class="u-d-flex u-ai-center u-jc-space-between u-gap-12 u-mb-20 u-fxw-wrap">
           <div>
             <div class="u-fs-18 u-fw-800 u-c-0f172a u-d-flex u-ai-center u-gap-8"><i class="ti ti-calendar-time u-c-6366f1"></i> Shifts &amp; Breaks</div>
@@ -746,11 +746,11 @@
         </div>
         {% endif %}
 
-      </div><!-- /panelSchedule -->
+      </div>{# /panelSchedule #}
 
-    </div><!-- /main -->
+    </div>{# /main #}
 
-    <!-- ═══ CAMERA MODAL ═══ -->
+    {# ═══ CAMERA MODAL ═══ #}
     <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d75 u-zi-3000 u-ai-center u-jc-center" id="empCameraModal">
       <div class="u-bg-1e1b3a u-br-20 u-p-28 u-w-100pct u-maxw-420 u-c-white u-ta-center u-shad-0-24-60-rgba0_0_0_0d6">
         <h3 class="u-mb-6"><i class="ti ti-camera hz-ico" aria-hidden="true"></i> Take Face Photo</h3>
@@ -777,9 +777,9 @@
       </div>
     </div>
 
-    <!-- ================================================================
+    {# ================================================================
          PHOTO LIGHTBOX
-    ================================================================ -->
+    ================================================================ #}
     <div class="lb-backdrop" id="lbModal">
       <div class="lb-box">
         <button class="lb-close" data-on-click="closeLightbox()">&times;</button>
@@ -801,9 +801,9 @@
       </div>
     </div>
 
-    <!-- ================================================================
+    {# ================================================================
          ADD EMPLOYEE MODAL
-    ================================================================ -->
+    ================================================================ #}
     <div class="modal-backdrop" id="addModal">
       <div class="modal-box u-maxw-600">
         <button class="modal-close" data-on-click="closeModal('addModal')">&times;</button>
@@ -1120,9 +1120,9 @@
       </div>
     </div>
 
-    <!-- ================================================================
+    {# ================================================================
          EDIT EMPLOYEE MODAL  (full management form)
-    ================================================================ -->
+    ================================================================ #}
     <div class="modal-backdrop" id="editModal">
       <div class="modal-box u-maxw-640">
         <button class="modal-close" data-on-click="closeModal('editModal')">&times;</button>
@@ -1130,7 +1130,7 @@
           <span class="u-fs-13 u-c-64748b u-fw-600 u-ml-4" id="editEmpBadge"></span>
         </h3>
 
-        <!-- TABS -->
+        {# TABS #}
         <div class="tab-bar">
           <button class="tab-btn active" data-on-click="switchTab('tab-basic',this)"><i class="ti ti-user"></i> Basic</button>
           <button class="tab-btn" data-on-click="switchTab('tab-work',this)"><i class="ti ti-building"></i> Work</button>
@@ -1141,7 +1141,7 @@
         <form action="{{ tpath('/edit_employee') }}" method="POST" id="editForm">
           <input type="hidden" name="emp_id" id="edit_emp_id" />
 
-          <!-- TAB: BASIC -->
+          {# TAB: BASIC #}
           <div class="tab-pane active" id="tab-basic">
             <div class="form-grid">
               <div class="field-group">
@@ -1225,7 +1225,7 @@
             </div>
           </div>
 
-          <!-- TAB: WORK -->
+          {# TAB: WORK #}
           <div class="tab-pane" id="tab-work">
             <div class="form-grid">
               <div class="field-group full">
@@ -1260,7 +1260,7 @@
             </div>
           </div>
 
-          <!-- TAB: ADDRESS -->
+          {# TAB: ADDRESS #}
           <div class="tab-pane" id="tab-address">
             <div class="form-grid">
               <div class="field-group full">
@@ -1282,7 +1282,7 @@
             </div>
           </div>
 
-          <!-- TAB: EMERGENCY -->
+          {# TAB: EMERGENCY #}
           <div class="tab-pane" id="tab-emergency">
             <div class="form-grid">
               <div class="field-group">
@@ -1300,7 +1300,7 @@
             </div>
           </div>
 
-          <!-- Fingerprint status — populated dynamically by openEdit() -->
+          {# Fingerprint status — populated dynamically by openEdit() #}
           <div class="u-d-none u-m-0-0-12 u-p-12-16 u-br-10 u-bd-1-solid-e2e8f0 u-bg-f8fafc" id="editFpSection">
             <div class="u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-8">
               <div class="u-fs-13 u-fw-600 u-c-374151">
@@ -1329,9 +1329,9 @@
       </div>
     </div>
 
-    <!-- ================================================================
+    {# ================================================================
          UPDATE PHOTO MODAL
-    ================================================================ -->
+    ================================================================ #}
     <div class="modal-backdrop" id="photoModal">
       <div class="modal-box u-maxw-380">
         <button class="modal-close" data-on-click="closeModal('photoModal')">&times;</button>
@@ -1356,9 +1356,9 @@
       </div>
     </div>
 
-    <!-- ================================================================
+    {# ================================================================
          QR CODE MODAL
-    ================================================================ -->
+    ================================================================ #}
     <div class="modal-backdrop" id="qrModal">
       <div class="modal-box qr-modal-box">
         <button class="modal-close" data-on-click="closeModal('qrModal')">&times;</button>
@@ -1382,9 +1382,9 @@
       </div>
     </div>
 
-    <!-- ================================================================
+    {# ================================================================
          ID CARD MODAL
-    ================================================================ -->
+    ================================================================ #}
     <div class="modal-backdrop" id="idCardModal">
       <div class="modal-box u-maxw-560 u-p-20 u-ta-center">
         <button class="modal-close" data-on-click="closeModal('idCardModal')">&times;</button>
@@ -2269,7 +2269,7 @@
   }
   </script>
 
-  <!-- ═══ ADD SHIFT MODAL ═══ -->
+  {# ═══ ADD SHIFT MODAL ═══ #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="addShiftModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-420 u-shad-0-20-60-rgba30b88226 u-pos-relative">
       <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('addShiftModal')">&#x2715;</button>
@@ -2304,7 +2304,7 @@
     </div>
   </div>
 
-  <!-- ═══ EDIT SHIFT MODAL ═══ -->
+  {# ═══ EDIT SHIFT MODAL ═══ #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="editShiftModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-420 u-shad-0-20-60-rgba30b88226 u-pos-relative">
       <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('editShiftModal')">&#x2715;</button>
@@ -2338,7 +2338,7 @@
     </div>
   </div>
 
-  <!-- ═══ ADD BREAK MODAL ═══ -->
+  {# ═══ ADD BREAK MODAL ═══ #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="addBreakModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-400 u-shad-0-20-60-rgba30b88226 u-pos-relative">
       <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('addBreakModal')">&#x2715;</button>
@@ -2369,7 +2369,7 @@
     </div>
   </div>
 
-  <!-- ═══ EDIT BREAK MODAL ═══ -->
+  {# ═══ EDIT BREAK MODAL ═══ #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="editBreakModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-400 u-shad-0-20-60-rgba30b88226 u-pos-relative">
       <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('editBreakModal')">&#x2715;</button>

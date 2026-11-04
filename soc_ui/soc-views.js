@@ -312,7 +312,7 @@
       root.textContent = '';
       const out = h('div', { class: 'stack' });
 
-      const trend = s.previous === 0 ? (s.events ? 'new in this window' : 'none before either')
+      const trend = s.previous === 0 ? (s.events ? 'new in this window' : 'none in the previous ' + d.hours + 'h either')
         : (s.change_pct > 0 ? '↑ ' : s.change_pct < 0 ? '↓ ' : '') + Math.abs(s.change_pct) + '% vs previous ' + d.hours + 'h (' + fmt.n(s.previous) + ')';
       out.append(
         h('div', { class: 'row brief-head' }, h('a', { href: '#/overview' }, '← Overview'), h('span', { class: 'spacer' }),

@@ -85,8 +85,15 @@ a:hover { text-decoration: underline; }
 .cols-21 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .kpis { grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); margin-bottom: 14px; }
 /* Five across on wide screens: the Overview's ten tiles make two full rows
-   instead of six plus an orphaned four. */
-@media (min-width: 1200px) { .kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+   instead of six plus an orphaned four. Other tile counts get the column
+   count that fills their rows (Posture / Attendance's 4 left an empty fifth
+   slot; Log analysis's 6 orphaned one tile on a second row). */
+@media (min-width: 1200px) {
+  .kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .kpis:has(> :nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpis:has(> :nth-child(4):last-child), .kpis:has(> :nth-child(8):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .kpis:has(> :nth-child(6):last-child) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
 @media (max-width: 1100px) { .cols-3, .cols-21 { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 700px) { .cols-2 { grid-template-columns: minmax(0, 1fr); } }
 .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

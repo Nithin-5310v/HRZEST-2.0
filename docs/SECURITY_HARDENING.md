@@ -68,8 +68,10 @@ service in `compose.yaml` has an explicit environment allow-list (alert
 webhook + a dedicated `HONEYPOT_REPORT_SECRET`) and no `env_file`. Hits are
 reported to the app over a signed channel (`/webhooks/honeypot`, HMAC over
 `timestamp.body`, 5-minute skew, payload = `{ip, port, protocol, bytes}` only —
-never attacker bytes). The app records `honeypot.tcp_decoy_hit` and bans the
-source (`HONEYPOT_TCP_BAN_MINUTES`, default 24 h).
+never attacker bytes). The app records `honeypot.tcp_decoy_hit` and raises the
+source in the SOC console's **Ban review** queue with a suggested ban of
+`HONEYPOT_TCP_BAN_MINUTES` (default 24 h); an analyst decides, or it is banned
+at once with `SOC_AUTO_BAN=true` (see docs/SOC.md).
 
 **Limits.** The honeypot still uses the app *image*, so the code is present
 (secrets are not). It runs read-only, `cap_drop: ALL`, no backend network.
@@ -204,9 +206,37 @@ ranges — tune them against real kiosk captures before enforcing.
   (`/api/employee/consent`). Enforcement `BIOMETRIC_CONSENT_REQUIRED` is **off**
   by default because no consent screen exists in the clients yet — build the
   screen, then enable it.
+* **Encryption at rest: AES-256-GCM** (`utils/pii_crypto.py`). PII columns
+  (`encrypt_pii`) and every private upload (`utils/storage.py`
+  `save_private`/`open_private`) are encrypted with AES-256-GCM, using a key
+  derived from `ENCRYPTION_KEY` via HKDF-SHA-512. No new secret is needed.
+  Legacy Fernet (AES-128-CBC) values and plaintext files still read correctly.
+  **After deploying, run once:** `scripts/rotate_encryption_key.py` (upgrades
+  Fernet column values to AES-256-GCM) and `scripts/encrypt_private_uploads.py`
+  (encrypts existing files in place). Use `--dry-run` first for both.
+* **Employee email and phone** are encrypted the same way, with an
+  HMAC-SHA-512 blind index beside each (`email_bidx`, `phone_bidx`) for
+  exact-match lookups (admin search, email blast). Partial search on them
+  no longer works. Existing rows are encrypted by the
+  `employee_contact_encryption_v1` migration on startup. Write with
+  `encrypt_contact()`; look up with `contact_lookup_keys()`.
+* **Decrypt on fetch** (`database.py`): any text value starting `hz2:` is
+  decrypted as psycopg2 reads it, so application code always sees plaintext.
+  Consequence: **code that reads an encrypted column and writes it back
+  must re-encrypt** (`encrypt_pii(decrypt_pii(v))`), or it stores plaintext.
+  Use `raw_text(cursor)` when you need the stored ciphertext.
+* **Passwords: Argon2id** (`utils/auth.py`, 19 MiB / t=2 / p=1, the OWASP
+  baseline). bcrypt and pbkdf2 hashes still verify and are rehashed to Argon2id
+  on the user's next successful login (`password_needs_rehash`).
+* **TLS** (`nginx/nginx.conf.template`): TLS 1.2+ with 256-bit AEAD suites
+  only (ECDHE + AES-256-GCM-SHA384 / ChaCha20-Poly1305). TLS 1.3 is pinned
+  to `TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256`, with X25519/P-384
+  key exchange.
 * **Key rotation.** `ENCRYPTION_KEY` encrypts; `ENCRYPTION_KEY_PREVIOUS`
   (comma-separated) only decrypts. `scripts/rotate_encryption_key.py` finds
-  every Fernet token in every text column and re-encrypts it (dry-run first).
+  every encrypted value (AES-256-GCM `hz2:` or legacy Fernet) in every text
+  column and re-encrypts it under the current key (dry-run first). Run
+  `scripts/encrypt_private_uploads.py` as well to re-key uploaded files.
 * **Backups** (`scripts/backup_db.sh`, `scripts/restore_test.sh`). Encrypted to a
   *public* key (`BACKUP_ENCRYPTION=gpg|age`) so the host can write but not read
   history; SHA-256 sidecar; offsite copy (`BACKUP_REMOTE=s3://…|rclone:…`);

@@ -42,9 +42,22 @@ class TestPasswordHashing:
         legacy = wz_hash("OldPass123", method="pbkdf2:sha256")
         assert check_password_hash(legacy, "OldPass123")
 
-    def test_bcrypt_hash_starts_with_2b(self):
+    def test_new_hashes_are_argon2id(self):
         pw_hash = generate_password_hash("anything")
-        assert pw_hash.startswith("$2b$")
+        assert pw_hash.startswith("$argon2id$")
+        assert "m=19456,t=2,p=1" in pw_hash
+
+    def test_legacy_bcrypt_still_verifies_and_needs_rehash(self):
+        import bcrypt
+        from utils.auth import password_needs_rehash
+        legacy = bcrypt.hashpw(b"OldPass123", bcrypt.gensalt(rounds=4)).decode()
+        assert check_password_hash(legacy, "OldPass123")
+        assert not check_password_hash(legacy, "wrong")
+        assert password_needs_rehash(legacy)
+        assert not password_needs_rehash(generate_password_hash("OldPass123"))
+
+    def test_garbage_argon2_hash_is_rejected_not_raised(self):
+        assert not check_password_hash("$argon2id$garbage", "x")
 
     def test_different_users_get_different_hashes(self):
         h1 = generate_password_hash("SamePassword")
