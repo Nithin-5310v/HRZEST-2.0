@@ -34,13 +34,13 @@
       .page-header { margin-bottom: 22px; }
       .page-header h1 { font-size: 26px; color: #1e293b; }
       .page-header h1 { display: flex; align-items: center; gap: 12px; }
-      .page-icon { width: 40px; height: 40px; border-radius: 10px; background: #eff6ff; border: 1px solid #dbeafe; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+      .page-icon { width: 40px; height: 40px; border-radius: 10px; background: #eef2ff; border: 1px solid #c7d2fe; color: #4f46e5; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
       .page-header p  { font-size: 15px; color: #64748b; margin-top: 4px; }
 
       /* FILTER BAR */
       .filter-bar {
         background: #ffffff;
-        border: 1px solid #dbeafe;
+        border: 1px solid #e2e8f0;
         border-radius: 14px;
         padding: 18px 22px;
         display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
@@ -48,67 +48,69 @@
       }
       .filter-bar label { font-size: 16px; color: #475569; }
       .filter-bar select {
-        padding: 8px 12px; border-radius: 8px; border: 1px solid #dbeafe;
+        padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0;
         background: #f8fafc; color: #1e293b;
         font-size: 16px; cursor: pointer; outline: none;
       }
-      .filter-bar select:focus { border-color: #93c5fd; }
+      .filter-bar select:focus { border-color: #c7d2fe; }
       .filter-bar button {
         padding: 9px 22px; border: none; border-radius: 8px;
-        background: #3b82f6; color: white; font-size: 16px;
+        background: #4f46e5; color: white; font-size: 16px;
         font-weight: 600; cursor: pointer; transition: 0.2s;
       }
-      .filter-bar button:hover { background: #2563eb; }
+      .filter-bar button:hover { background: #4338ca; }
 
       /* SUMMARY CARDS */
       .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 22px; }
       .sum-card {
         background: #ffffff;
-        border: 1px solid #dbeafe;
+        border: 1px solid #e2e8f0;
         border-radius: 12px; padding: 16px; text-align: center;
       }
       .sum-card .num { font-size: 32px; font-weight: 700; }
       .sum-card .lbl { font-size: 14px; color: #64748b; margin-top: 4px; }
-      .c-blue   .num { color: #2563eb; }
-      .c-green  .num { color: #16a34a; }
-      .c-yellow .num { color: #d97706; }
-      .c-red    .num { color: #dc2626; }
+      .c-blue   .num { color: #4f46e5; }
+      .c-green  .num { color: #4f46e5; }
+      .c-yellow .num { color: #4f46e5; }
+      .c-red    .num { color: #4f46e5; }
 
       /* TABLE SECTION */
       .section {
         background: #ffffff;
-        border: 1px solid #dbeafe;
+        border: 1px solid #e2e8f0;
         border-radius: 16px; padding: 22px;
       }
       .section h3 { font-size: 18px; margin-bottom: 16px; color: #1e293b; }
       .table-wrap { overflow-x: auto; border-radius: 10px; }
       table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 700px; }
       th {
-        background: #dbeafe; color: #1e3a8a;
+        background: #f8fafc; color: #4f46e5;
         padding: 11px 14px; text-align: center;
-        font-weight: 600; white-space: nowrap;
+        font-weight: 700; white-space: nowrap; font-size: 13px;
+        text-transform: uppercase; letter-spacing: 0.3px;
+        border-bottom: 1px solid #eef2f7;
       }
       th:first-child, th:nth-child(2) { text-align: left; }
       td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #1e293b; }
       td:first-child, td:nth-child(2) { text-align: left; }
       tr:last-child td { border-bottom: none; }
-      tr:hover td { background: #eff6ff; }
+      tr:hover td { background: #f5f6ff; }
 
       /* BADGES */
       .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 14px; font-weight: 600; }
-      .b-green  { background: #dcfce7; color: #15803d; }
-      .b-yellow { background: #fef9c3; color: #92400e; }
-      .b-red    { background: #fee2e2; color: #dc2626; }
-      .b-blue   { background: #dbeafe; color: #1d4ed8; }
+      .b-green  { background: #f1f5f9; color: #334155; }
+      .b-yellow { background: #f1f5f9; color: #334155; }
+      .b-red    { background: #eef2ff; color: #4f46e5; }
+      .b-blue   { background: #f1f5f9; color: #334155; }
 
       /* PROGRESS BAR */
       .pbar-wrap { width: 80px; background: #e2e8f0; border-radius: 20px; height: 8px; display: inline-block; vertical-align: middle; margin-left: 6px; }
       .pbar { height: 8px; border-radius: 20px; width: var(--w, 0%); }
       .empty-cell { text-align: center; padding: 30px; color: #94a3b8; }
       .legend { margin-top: 18px; font-size: 14px; color: #64748b; line-height: 2; }
-      .pbar-high   { background: #22c55e; }
-      .pbar-medium { background: #f59e0b; }
-      .pbar-low    { background: #ef4444; }
+      .pbar-high   { background: #4f46e5; }
+      .pbar-medium { background: #818cf8; }
+      .pbar-low    { background: #c7d2fe; }
 
       /* EMP ID TAG */
       .emp-id { font-size: 13px; color: #94a3b8; }
@@ -145,8 +147,8 @@
           <p>{{ month_name }} &nbsp;·&nbsp; {{ total_working }} working days &nbsp;·&nbsp; {{ holiday_count }} holiday(s)</p>
         </div>
         <div class="u-pos-relative">
-          <i class="ti ti-search u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-15 u-c-3b82f6 u-pe-none"></i>
-          <input class="u-p-9-12-9-34 u-bd-2-solid-3b82f6 u-br-10 u-bg-eff6ff u-c-1e293b u-fs-13 u-out-none u-w-220 u-shad-0-2-10-rgba59_832e37 u-fw-500" type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
+          <i class="ti ti-search u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-15 u-pe-none" style="color:#4f46e5;"></i>
+          <input class="u-p-9-12-9-34 u-br-10 u-c-1e293b u-fs-13 u-out-none u-w-220 u-fw-500" style="border:2px solid #c7d2fe;background:#eef2ff;" type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
             data-on-input="filterEmpTable(this.value)" />
         </div>
       </div>
@@ -168,7 +170,7 @@
         </select>
 
         <button type="submit">View Report</button>
-        <a class="u-p-9-22 u-bd-none u-br-8 u-bg-16a34a u-c-white u-fs-14 u-fw-600 u-cur-pointer u-tdec-none u-d-inline-flex u-ai-center u-gap-6" href="/monthly_report_export?month={{ month }}&year={{ year }}">
+        <a class="u-p-9-22 u-bd-none u-br-8 u-c-white u-fs-14 u-fw-600 u-cur-pointer u-tdec-none u-d-inline-flex u-ai-center u-gap-6" style="background:#4f46e5;" href="/monthly_report_export?month={{ month }}&year={{ year }}">
           <i class="ti ti-download hz-ico" aria-hidden="true"></i> Download Excel
         </a>
       </form>
@@ -219,13 +221,13 @@
               {% for r in report %}
               <tr data-search="{{ r.emp_id }} {{ r.name }} {{ r.role }} {{ r.phone }} {{ r.email }}">
                 <td>
-                  <a class="u-c-1d4ed8 u-fw-600 u-tdec-none" href="/employee_attendance_detail/{{ r.emp_id }}/{{ year }}/{{ month }}"
+                  <a class="u-fw-600 u-tdec-none" style="color:#4f46e5;" href="/employee_attendance_detail/{{ r.emp_id }}/{{ year }}/{{ month }}"
                      title="View day-by-day attendance">{{ r.name }}</a>
                 </td>
                 <td><span class="emp-id">{{ r.emp_id }}</span></td>
                 <td><span class="badge b-green">{{ r.full_days }}</span></td>
                 <td><span class="badge b-yellow">{{ r.late_days }}</span></td>
-                <td><span class="badge b-red">{{ r.half_days }}</span></td>
+                <td><span class="badge b-yellow">{{ r.half_days }}</span></td>
                 <td>
                   {% if r.absent > 0 %}
                     <span class="badge b-red">{{ r.absent }}</span>
