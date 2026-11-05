@@ -26,6 +26,7 @@ from utils.attendance_utils import (
 )
 from utils.leave_utils import assign_leave_balances_for_employee
 from utils.face_utils import face_recognition, _face_recognition_available, _get_known_face_encoding
+from utils.tenant_files import face_logs_dir, face_photo_path, resolve_face_photo
 from utils.webauthn_utils import _wa_fingerprint_recently_verified, _mobile_biometric_recently_verified
 from qr_generator import generate_qr
 from utils.storage import open_private
@@ -198,7 +199,7 @@ def update_my_photo():
             locs = face_recognition.face_locations(img_array)
             if not locs:
                 return redirect(tpath("/employee_portal?photo_error=no_face#my-profile"))
-        save_path = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        save_path = face_photo_path(emp_id)
         img.save(save_path, "JPEG", quality=90)
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
@@ -678,7 +679,7 @@ def employee_portal():
     # fetch exactly when the photo actually changed, without needing a
     # dedicated "photo updated at" column.
     try:
-        _photo_path = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        _photo_path = resolve_face_photo(emp_id) or ""
         photo_v = int(os.path.getmtime(_photo_path))
     except OSError:
         photo_v = 0
@@ -1304,7 +1305,7 @@ def api_employee_qr_face_checkin():
             return jsonify({"ok": False, "msg": "No registered face found. Please contact your admin."}), 400
         try:
             from PIL import Image as _PILImage
-            face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+            face_dir = face_logs_dir()
             os.makedirs(face_dir, exist_ok=True)
             ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
@@ -1350,7 +1351,7 @@ def api_employee_qr_face_checkin():
     elif face_photo:
         try:
             from PIL import Image as _PILImage
-            face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+            face_dir = face_logs_dir()
             os.makedirs(face_dir, exist_ok=True)
             ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
@@ -1796,8 +1797,16 @@ def api_employee_upload_photo():
         return jsonify({"ok": False, "msg": err}), 400
     try:
         img = Image.open(file.stream).convert("RGB")
-        save_path = os.path.join(UPLOAD_FOLDER, emp_id + ".jpg")
+        save_path = face_photo_path(emp_id)
         img.save(save_path, "JPEG", quality=85)
+        # Same file the old flat path was, so record it as this company's
+        # reference photo (resolve_face_photo reads face_image first).
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (save_path, emp_id))
+        db.commit()
+        cursor.close()
+        db.close()
         return jsonify({"ok": True, "msg": "Photo uploaded successfully", "photo_url": f"/dataset/{emp_id}.jpg"})
     except Exception:
         return jsonify({"ok": False, "msg": "Failed to process image"}), 500

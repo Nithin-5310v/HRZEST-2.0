@@ -545,16 +545,10 @@ def _run_qr_signing_migration(cursor, db):
 
 
 def _cursor_tenant(cursor):
-    """The tenant schema this migration cursor runs against: the first entry
-    of its search_path (database.py's _set_search_path sets it to
-    '"<tenant>", public'). Never flask.g -- a tenant is often provisioned
-    from inside another request (signup, the platform-admin console)."""
-    cursor.execute("SHOW search_path")
-    first = (cursor.fetchone()[0] or "public").split(",")[0].strip().strip('"')
-    if not first or first.startswith("$"):
-        return "public"
-    import os
-    return "public" if first == os.environ.get("DB_NAME", "employee_attendance") else first
+    """Never flask.g here -- a tenant is often provisioned from inside
+    another request (signup, the platform-admin console)."""
+    from utils.tenant_files import cursor_tenant
+    return cursor_tenant(cursor)
 
 
 def _run_qr_tenant_signing_migration(cursor, db):

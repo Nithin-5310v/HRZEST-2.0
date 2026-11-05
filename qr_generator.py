@@ -18,18 +18,9 @@ _LEGACY_QR_DEFAULT_UNTIL = "2026-12-04"
 
 
 def _default_tenant_key():
-    """Tenant the current request runs as: flask.g.tenant_db, with the
-    single-tenant default (DB_NAME, or no tenant at all) normalised to
-    "public" -- the schema it actually lives in, and what a migration's
-    search_path reports for it."""
-    try:
-        from flask import g, has_app_context
-        tenant = getattr(g, "tenant_db", None) if has_app_context() else None
-    except Exception:
-        tenant = None
-    if not tenant or tenant == os.environ.get("DB_NAME", "employee_attendance"):
-        return "public"
-    return tenant
+    """The current request's company -- see utils/tenant_files.tenant_key()."""
+    from utils.tenant_files import tenant_key
+    return tenant_key()
 
 
 def _qr_signature(emp_id: str, tenant: str = None) -> str:

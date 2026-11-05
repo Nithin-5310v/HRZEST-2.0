@@ -61,13 +61,14 @@ def _get_known_face_encoding(emp_id: str, face_path: str):
         mtime = os.path.getmtime(face_path)
     except OSError:
         return None
-    cached = _face_enc_cache.get(emp_id)
+    # Keyed by file path, not emp_id: employee IDs repeat across companies.
+    cached = _face_enc_cache.get(face_path)
     if cached and cached[0] == mtime:
         return cached[1]
     img = face_recognition.load_image_file(face_path)
     encs = face_recognition.face_encodings(img)
     enc = encs[0] if encs else None
-    _face_enc_cache[emp_id] = (mtime, enc)
+    _face_enc_cache[face_path] = (mtime, enc)
     return enc
 
 

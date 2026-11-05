@@ -389,7 +389,8 @@ def inject_admin_avatar():
         return {"admin_avatar_url": _tpath("/profile/photo") + f"?v={version}"}
     if not username or os.path.basename(username) != username:
         return {}
-    path = os.path.join(app.config["UPLOAD_FOLDER"], username + ".jpg")
+    from utils.tenant_files import resolve_face_photo
+    path = resolve_face_photo(username) or ""
     try:
         version = int(os.path.getmtime(path))
     except OSError:

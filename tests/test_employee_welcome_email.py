@@ -26,6 +26,7 @@ from PIL import Image
 
 import utils.face_utils as face_utils
 from extensions import app as flask_app
+from utils.tenant_files import face_photo_path
 
 UPLOAD_FOLDER = flask_app.config["UPLOAD_FOLDER"]
 QR_FOLDER = os.path.join(flask_app.root_path, "private_uploads", "qrcodes")
@@ -56,7 +57,7 @@ def _cleanup_employee(db_engine, emp_id):
     cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (emp_id,))
     cur.execute("DELETE FROM employees WHERE employee_id=%s", (emp_id,))
     cur.close()
-    for path in (os.path.join(UPLOAD_FOLDER, emp_id + ".jpg"),
+    for path in (os.path.join(UPLOAD_FOLDER, emp_id + ".jpg"), face_photo_path(emp_id, "public"),
                  os.path.join(QR_FOLDER, emp_id + ".png")):
         if os.path.exists(path):
             os.remove(path)
