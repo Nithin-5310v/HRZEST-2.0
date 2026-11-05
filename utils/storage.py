@@ -173,3 +173,9 @@ def send_image(path, mimetype="image/jpeg", **kwargs):
     path checks first."""
     from flask import send_file
     return send_file(io.BytesIO(read_file(path)), mimetype=mimetype, **kwargs)
+
+
+def decrypted_stream(path):
+    """In-memory file object of a decrypted image, for libraries that take a
+    path or file (face_recognition.load_image_file, PIL)."""
+    return io.BytesIO(read_file(path))

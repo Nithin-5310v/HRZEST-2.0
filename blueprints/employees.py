@@ -17,7 +17,7 @@ from flask import (
 from extensions import app, app_log, limiter, log_security_event
 from database import get_db_connection, transaction
 from qr_generator import generate_qr
-from utils.storage import open_private
+from utils.storage import open_private, save_upload, decrypted_stream, send_image, open_image
 from utils.auth import (
     admin_required, generate_password_hash, api_required, role_required, api_role_required, HR_ROLE,
     record_password_change, any_user_required, session_account_ok,
@@ -125,9 +125,9 @@ def admin_action():
             db.close()
             return redirect(tpath("/admin"))
         filepath = face_photo_path(emp_id)
-        file.save(filepath)
+        save_upload(file, filepath)
         if _face_recognition_available:
-            test_img = face_recognition.load_image_file(filepath)
+            test_img = face_recognition.load_image_file(decrypted_stream(filepath))
             if not face_recognition.face_encodings(test_img):
                 os.remove(filepath)
                 flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
@@ -1092,7 +1092,7 @@ def add_employee_page():
             db.close()
             return redirect(tpath("/employees"))
         filepath = face_photo_path(emp_id)
-        file.save(filepath)
+        save_upload(file, filepath)
 
     auto_pass = secrets.token_urlsafe(8)
     hashed_pwd = generate_password_hash(auto_pass)
@@ -1280,10 +1280,10 @@ def update_employee_photo(emp_id):
         return redirect(tpath("/employees"))
 
     filepath = face_photo_path(emp_id)
-    file.save(filepath)
+    save_upload(file, filepath)
 
     if _face_recognition_available:
-        test_img = face_recognition.load_image_file(filepath)
+        test_img = face_recognition.load_image_file(decrypted_stream(filepath))
         if not face_recognition.face_encodings(test_img):
             os.remove(filepath)
             flash("No face detected in the uploaded photo. Please upload a clear front-facing photo.", "error")
@@ -1356,7 +1356,7 @@ def serve_dataset(filename):
     path = resolve_face_photo(stem)
     if not path:
         abort(404)
-    return send_file(path, mimetype="image/jpeg", max_age=0)
+    return send_image(path, max_age=0)
 
 
 @employees_bp.route("/my_photo")
@@ -1368,7 +1368,7 @@ def my_photo():
     photo_path = resolve_face_photo(emp_id)
     if not photo_path:
         return "", 404
-    return send_file(photo_path, mimetype="image/jpeg", max_age=0)
+    return send_image(photo_path, max_age=0)
 
 
 @employees_bp.route("/api/generate_emp_id")
@@ -1768,7 +1768,7 @@ def _render_default_front(emp_id, row, company_name=None, logo_path=None, compan
     fd.rounded_rectangle([(PH_X - 2, PH_Y - 2), (PH_X + PH_W + 2, PH_Y + PH_H + 2)], radius=6, fill=_IDC_WHITE)
     photo_path = resolve_face_photo(emp_id) or ""
     try:
-        ph = Image.open(photo_path).convert("RGB").resize((PH_W, PH_H), Image.LANCZOS)
+        ph = open_image(photo_path).convert("RGB").resize((PH_W, PH_H), Image.LANCZOS)
         front.paste(ph, (PH_X, PH_Y))
     except Exception:
         fd.rounded_rectangle([(PH_X, PH_Y), (PH_X + PH_W, PH_Y + PH_H)], radius=4, fill=_IDC_MID)
@@ -1991,7 +1991,7 @@ def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, compan
         if key == "photo":
             photo_path = resolve_face_photo(emp_id) or ""
             try:
-                ph = Image.open(photo_path).convert("RGB").resize((w, h), Image.LANCZOS)
+                ph = open_image(photo_path).convert("RGB").resize((w, h), Image.LANCZOS)
                 img.paste(ph, (x, y))
             except Exception:
                 draw.rectangle([(x, y), (x + w, y + h)], fill=_IDC_MID)
@@ -2279,9 +2279,9 @@ def api_register_employee():
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
     filepath = face_photo_path(emp_id)
-    file.save(filepath)
+    save_upload(file, filepath)
     if _face_recognition_available:
-        test_img = face_recognition.load_image_file(filepath)
+        test_img = face_recognition.load_image_file(decrypted_stream(filepath))
         if not face_recognition.face_encodings(test_img):
             os.remove(filepath)
             return jsonify({"ok": False, "msg": "No face detected in uploaded photo."}), 400

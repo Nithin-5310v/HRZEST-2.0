@@ -29,7 +29,7 @@ from utils.face_utils import face_recognition, _face_recognition_available, _get
 from utils.tenant_files import face_logs_dir, face_photo_path, resolve_face_photo
 from utils.webauthn_utils import _wa_fingerprint_recently_verified, _mobile_biometric_recently_verified
 from qr_generator import generate_qr
-from utils.storage import open_private
+from utils.storage import open_private, save_image, decrypted_stream
 from utils import punch_integrity as pi
 
 employee_portal_bp = Blueprint("employee_portal", __name__)
@@ -200,7 +200,7 @@ def update_my_photo():
             if not locs:
                 return redirect(tpath("/employee_portal?photo_error=no_face#my-profile"))
         save_path = face_photo_path(emp_id)
-        img.save(save_path, "JPEG", quality=90)
+        save_image(img, save_path, "JPEG", quality=90)
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (save_path, emp_id))
@@ -1310,10 +1310,10 @@ def api_employee_qr_face_checkin():
             ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
-            img.save(face_path, "JPEG", quality=80)
+            save_image(img, face_path, "JPEG", quality=80)
 
             known_enc = _get_known_face_encoding(employee_id, registered_face)
-            test_img_data = face_recognition.load_image_file(face_path)
+            test_img_data = face_recognition.load_image_file(decrypted_stream(face_path))
             test_encs = face_recognition.face_encodings(test_img_data)
             if known_enc is None or not test_encs:
                 cursor.close()
@@ -1356,7 +1356,7 @@ def api_employee_qr_face_checkin():
             ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
-            img.save(face_path, "JPEG", quality=80)
+            save_image(img, face_path, "JPEG", quality=80)
         except Exception as exc:
             # Best-effort audit-log attachment -- must not block attendance
             # marking, but silently missing the face-log photo is worth
@@ -1798,7 +1798,7 @@ def api_employee_upload_photo():
     try:
         img = Image.open(file.stream).convert("RGB")
         save_path = face_photo_path(emp_id)
-        img.save(save_path, "JPEG", quality=85)
+        save_image(img, save_path, "JPEG", quality=85)
         # Same file the old flat path was, so record it as this company's
         # reference photo (resolve_face_photo reads face_image first).
         db = get_db_connection()

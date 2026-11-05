@@ -63,3 +63,31 @@ def test_send_image_serves_decrypted_bytes(tmp_path, img):
         resp.direct_passthrough = False
         assert resp.mimetype == "image/jpeg"
         assert resp.get_data()[:2] == b"\xff\xd8"      # JPEG SOI marker, not ciphertext
+
+
+# ── routes: photos are stored encrypted and served decrypted ──────────────
+def test_employee_photo_upload_is_encrypted_and_served_decrypted(client, seed_employee, monkeypatch):
+    import utils.face_utils as face_utils
+    from utils.tenant_files import resolve_face_photo
+    from extensions import app
+    monkeypatch.setattr(face_utils, "_face_recognition_available", False, raising=False)
+    import blueprints.employee_portal as ep
+    monkeypatch.setattr(ep, "_face_recognition_available", False, raising=False)
+    emp_id = seed_employee["employee_id"]
+    with client.session_transaction() as sess:
+        sess["employee_id"] = emp_id
+        sess["role"] = "employee"
+    data = _jpeg_bytes((5, 200, 90))
+    resp = client.post("/update_my_photo", data={"photo": (io.BytesIO(data), "me.jpg", "image/jpeg")},
+                       content_type="multipart/form-data")
+    assert resp.status_code in (302, 303)
+    with app.test_request_context():
+        path = resolve_face_photo(emp_id)
+    try:
+        assert path and open(path, "rb").read()[:4] == b"HZF2", "face photo must be encrypted on disk"
+        served = client.get("/my_photo")
+        assert served.status_code == 200 and served.data[:2] == b"\xff\xd8"
+    finally:
+        import os
+        if path and os.path.exists(path):
+            os.remove(path)

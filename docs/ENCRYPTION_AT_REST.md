@@ -128,4 +128,5 @@ root device, start). Then delete the unencrypted snapshot and volume.
 - [ ] `DB_SSLMODE=verify-full`, `DB_SSLROOTCERT` set; app starts
 - [ ] App server EBS volumes `Encrypted = True`; EBS encryption by default on
 - [ ] `scripts/rotate_encryption_key.py` and `scripts/encrypt_private_uploads.py` run after deploy
+- [ ] `scripts/encrypt_private_uploads.py --root dataset` run after deploy (face photos)
 - [ ] `ENCRYPTION_KEY` stored in Secrets Manager and backed up
