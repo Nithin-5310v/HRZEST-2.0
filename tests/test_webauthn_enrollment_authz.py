@@ -140,6 +140,23 @@ class TestKioskFaceVerifyGate:
         opts_resp = client.get(f"/webauthn/registration-options?emp_id={emp_id}")
         assert opts_resp.status_code == 200
 
+    def test_face_match_cannot_replace_an_existing_passkey(self, client, seed_employee_with_face,
+                                                           db_engine, monkeypatch):
+        """A kiosk face match may enroll a first passkey, never overwrite
+        one -- that would let a fooled face check lock out the real
+        employee and enroll the attacker's device."""
+        _mock_face_match(monkeypatch, True)
+        emp_id = seed_employee_with_face["employee_id"]
+        cur = db_engine.cursor()
+        cur.execute("UPDATE employees SET fingerprint_credential_id='existing-cred' WHERE employee_id=%s", (emp_id,))
+        cur.close()
+        client.post("/api/employee/kiosk-enroll-face-verify", data={
+            "employee_id": emp_id,
+            "face_photo": (io.BytesIO(_fake_jpeg_bytes()), "f.jpg"),
+        })
+        resp = client.get(f"/webauthn/registration-options?emp_id={emp_id}")
+        assert resp.status_code == 409
+
     def test_face_match_is_single_use(self, client, seed_employee_with_face, monkeypatch):
         _mock_face_match(monkeypatch, True)
         emp_id = seed_employee_with_face["employee_id"]

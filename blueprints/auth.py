@@ -25,7 +25,7 @@ from utils.auth import (
     session_account_ok, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
-from utils.helpers import tpath, get_company_settings, _audit, _db, company_url
+from utils.helpers import tpath, get_company_settings, _audit, _db, company_url, _safe_redirect
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async, notify_if_new_login_ip
 from utils.session_risk import ensure_session_id
 from utils.totp import verify_totp_code, send_mfa_login_email, mark_totp_enabled
@@ -1237,6 +1237,18 @@ def webauthn_status():
     })
 
 
+def _wa_has_credential(emp_id):
+    db = get_db_connection()
+    try:
+        cur = db.cursor()
+        cur.execute("SELECT fingerprint_credential_id FROM employees WHERE employee_id=%s", (emp_id,))
+        row = cur.fetchone()
+        cur.close()
+    finally:
+        db.close()
+    return bool(row and row[0])
+
+
 def _wa_authorize_enrollment(emp_id):
     """Return None if this session is allowed to enroll a passkey for emp_id,
     else an error string. Three legitimate paths, none of which trust a bare
@@ -1308,6 +1320,13 @@ def webauthn_registration_options():
         auth_err = _wa_authorize_enrollment(emp_id)
         if auth_err:
             return jsonify({"ok": False, "msg": auth_err}), 403
+        # Authorized only by a kiosk face match (no admin or employee
+        # login): that may enroll a first passkey, never replace one -- a
+        # face match is weaker proof than the passkey it would overwrite,
+        # and replacing it would silently lock the real employee out.
+        if not (session.get("admin_logged_in") and session.get("admin_role") == "admin")                 and not session.get("employee_id") and _wa_has_credential(emp_id):
+            return jsonify({"ok": False, "msg": "A fingerprint/passkey is already enrolled for this employee. "
+                                                "Ask your admin to reset it first."}), 409
         # Single-use: a face match only ever authorizes the enrollment it was
         # taken for, never a second later request in the same session.
         session.pop("wa_face_verified_emp_id", None)
@@ -1693,6 +1712,7 @@ def api_mobile_biometric_attest():
 
 
 @auth_bp.route("/admin/step-up-mfa", methods=["GET", "POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def step_up_mfa():
     """Step-Up MFA challenge: a fresh TOTP re-check before a high-privilege
     action, on top of (not instead of) the admin session already
@@ -1703,11 +1723,13 @@ def step_up_mfa():
 
     if request.method == "POST":
         totp_code = request.form.get("totp_code", "").strip()
-        valid = verify_totp_code(username, totp_code, require_enabled=False)
+        # require_enabled=True: a secret that was generated but never
+        # confirmed (enrollment abandoned) must not satisfy a step-up.
+        valid = verify_totp_code(username, totp_code, require_enabled=True)
 
         if valid:
             session["_step_up_mfa_verified_at"] = time.time()
-            target_url = session.pop("_step_up_target_url", "/admin")
+            target_url = _safe_redirect(session.pop("_step_up_target_url", "") or "", "/admin")
             log_security_event(
                 "mfa.step_up_success",
                 "Step-Up MFA verified successfully",
