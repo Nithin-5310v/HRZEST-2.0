@@ -204,7 +204,11 @@ def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
     """Validate that a redirect target is a relative path (prevents open
     redirect), then stamp it with the current tenant's URL prefix via
     tpath() so every caller gets a correctly-scoped link for free."""
-    if dest and dest.startswith("/") and not dest.startswith("//"):
+    # Browsers treat "/\evil.com" like "//evil.com" and drop tabs/newlines
+    # inside URLs ("/	/evil.com"), so a backslash or control character
+    # anywhere is refused, not just a leading "//".
+    if (dest and dest.startswith("/") and not dest.startswith("//")
+            and "\\" not in dest and not any(ord(c) < 32 or ord(c) == 127 for c in dest)):
         return tpath(dest)
     return tpath(fallback)
 
