@@ -202,7 +202,7 @@ class TestWafBlocksRealRequests:
 
     def test_block_is_logged(self, client, monkeypatch):
         calls = []
-        import app as app_module
+        import app_setup.security as app_module   # the WAF request hook lives here now
         monkeypatch.setattr(app_module, "log_security_event",
                             lambda event_type, message, level="WARNING", **f: calls.append((event_type, level)))
         client.get("/employee_forgot_password", query_string={"next": "<script>alert(1)</script>"})
