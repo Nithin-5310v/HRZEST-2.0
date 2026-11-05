@@ -19,7 +19,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from extensions import check_production_safety, check_secret_key_configured, check_redis_requirement
+from extensions import (check_production_safety, check_secret_key_configured, check_redis_requirement,
+                        check_app_url_configured)
 
 
 def _fake_logger():
@@ -91,6 +92,30 @@ class TestSecretKeyBootCheck:
         finding the default logger, matching check_production_safety()'s
         own default-logger test."""
         check_secret_key_configured("development", "")
+
+
+class TestAppUrlBootCheck:
+    """Without APP_URL, emailed reset links were built from the Host header
+    (password-reset poisoning). Outside development the app now refuses to
+    start instead of only logging a warning."""
+
+    @pytest.mark.parametrize("value", ["", "   ", "hrzest.com", "https://", "//hrzest.com"])
+    def test_production_without_absolute_app_url_refuses_to_boot(self, value):
+        logger = _fake_logger()
+        with pytest.raises(RuntimeError, match="APP_URL"):
+            check_app_url_configured("production", value, logger=logger)
+        logger.critical.assert_called_once()
+
+    @pytest.mark.parametrize("value", ["https://www.hrzest.com", "https://hrzest.com/", "http://10.0.0.5:8080"])
+    def test_production_with_absolute_app_url_boots_cleanly(self, value):
+        logger = _fake_logger()
+        check_app_url_configured("production", value, logger=logger)
+        logger.critical.assert_not_called()
+
+    def test_development_without_app_url_boots_cleanly(self):
+        logger = _fake_logger()
+        check_app_url_configured("development", "", logger=logger)
+        logger.critical.assert_not_called()
 
 
 class TestClamavProductionCheck:
@@ -372,3 +397,33 @@ class TestRazorpayProductionBootCheck:
         finally:
             monkeypatch.undo()
             self._reload()
+
+
+class TestDbTlsBootCheck:
+    """A remote database (RDS) outside development must be reached over TLS."""
+
+    def _check(self, *a, **k):
+        from extensions import check_db_tls
+        return check_db_tls(*a, logger=_fake_logger(), **k)
+
+    def test_remote_db_with_prefer_refuses_to_boot(self):
+        with pytest.raises(RuntimeError, match="TLS"):
+            self._check("production", "hrzest.abc123.ap-south-1.rds.amazonaws.com", "prefer")
+
+    def test_remote_db_with_disable_refuses_to_boot(self):
+        with pytest.raises(RuntimeError):
+            self._check("production", "10.0.3.7", "disable")
+
+    @pytest.mark.parametrize("mode", ["require", "verify-ca", "verify-full", "VERIFY-FULL"])
+    def test_remote_db_with_tls_boots(self, mode):
+        self._check("production", "hrzest.abc123.rds.amazonaws.com", mode)
+
+    @pytest.mark.parametrize("host", ["localhost", "127.0.0.1", "db", "/var/run/postgresql", ""])
+    def test_local_db_is_exempt(self, host):
+        self._check("production", host, "prefer")
+
+    def test_development_is_exempt(self):
+        self._check("development", "remote.example.com", "disable")
+
+    def test_explicit_override_allows_plaintext(self):
+        self._check("production", "remote.example.com", "prefer", allow_plaintext=True)

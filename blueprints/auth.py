@@ -1285,7 +1285,8 @@ def api_kiosk_enroll_face_verify():
     if not row:
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
 
-    face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+    from utils.tenant_files import face_logs_dir
+    face_dir = face_logs_dir()
     ok, msg = verify_uploaded_face(employee_id, row[0], face_photo, face_dir)
     if not ok:
         return jsonify({"ok": False, "msg": msg}), 401

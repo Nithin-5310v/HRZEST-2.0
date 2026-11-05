@@ -14,6 +14,7 @@ positive in every case here -- the interpolated fragment is always one of:
 All actual values are always passed as %s-bound params, never interpolated.
 """
 import os
+import shutil
 import re
 import uuid
 import json
@@ -46,6 +47,8 @@ from utils.helpers import (
     get_auth_config, app_gps_checkin_allowed,
 )
 from utils.storage import save_private, open_private, delete_private
+from utils.tenant_files import face_photo_path, legacy_face_photo_path
+from qr_generator import generate_qr
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.graph_mail import GraphMailError
 
@@ -1749,12 +1752,10 @@ def edit_company(cid):
                     )
 
                 for old_eid, new_eid in to_rename:
-                    new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
-                    # qr_code stores save_private()'s stored_ref (private_uploads/,
-                    # never static/ -- see qr_generator.py's generate_qr()) --
-                    # this mirrors that same local-mode path convention so a
-                    # renamed employee's QR file and DB pointer stay in sync.
-                    new_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", new_eid + ".png")
+                    new_img = face_photo_path(new_eid)
+                    # The QR signs the employee ID, so a renamed employee
+                    # needs a freshly signed badge, not the old file renamed.
+                    new_qr = generate_qr(new_eid)
                     cursor.execute(
                         "UPDATE employees SET employee_id=%s, face_image=%s, qr_code=%s "
                         "WHERE employee_id=%s AND company_id=%s",
@@ -1772,20 +1773,18 @@ def edit_company(cid):
     # rollback above never leaves files renamed out from under DB rows that
     # still point at the old employee_id.
     for old_eid, new_eid in to_rename:
-        old_img = os.path.join(app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
-        new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
-        old_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", old_eid + ".png")
-        new_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", new_eid + ".png")
-        if os.path.exists(old_img):
-            try:
-                os.rename(old_img, new_img)
-            except Exception as exc:
-                app_log.warning("Could not rename employee photo %s -> %s during company edit: %s", old_img, new_img, exc)
-        if os.path.exists(old_qr):
-            try:
-                os.rename(old_qr, new_qr)
-            except Exception as exc:
-                app_log.warning("Could not rename employee QR %s -> %s during company edit: %s", old_qr, new_qr, exc)
+        new_img = face_photo_path(new_eid)
+        own_img = face_photo_path(old_eid)
+        shared_img = legacy_face_photo_path(old_eid)
+        try:
+            if os.path.exists(own_img):
+                os.replace(own_img, new_img)
+            elif os.path.exists(shared_img):
+                # Pre-migration flat file: copy, never move -- another
+                # company's employee with the same ID may still use it.
+                shutil.copy2(shared_img, new_img)
+        except Exception as exc:
+            app_log.warning("Could not move employee photo for %s -> %s during company edit: %s", old_eid, new_eid, exc)
 
     if logo_file and logo_file.filename:
         new_logo_path = _save_company_image(logo_file, cid, "logo")

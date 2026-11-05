@@ -218,11 +218,11 @@ class TestGetKnownFaceEncoding:
         import utils.face_utils as fu
         sentinel = object()
         mtime = 12345.0
-        fu._face_enc_cache["CACHE_HIT_EMP"] = (mtime, sentinel)
+        fu._face_enc_cache["/fake/path.jpg"] = (mtime, sentinel)
         mocker.patch("blueprints.attendance.os.path.getmtime", return_value=mtime)
         result = att._get_known_face_encoding("CACHE_HIT_EMP", "/fake/path.jpg")
         assert result is sentinel
-        del fu._face_enc_cache["CACHE_HIT_EMP"]
+        del fu._face_enc_cache["/fake/path.jpg"]
 
     def test_cache_miss_calls_face_recognition(self, mocker):
         import blueprints.attendance as att
@@ -235,11 +235,11 @@ class TestGetKnownFaceEncoding:
         fr_mock.load_image_file.return_value = fake_img
         fr_mock.face_encodings.return_value = [fake_enc]
         mocker.patch.object(fu, "face_recognition", fr_mock)
-        fu._face_enc_cache.pop("MISS_EMP", None)
+        fu._face_enc_cache.pop("/fake/path.jpg", None)
         result = att._get_known_face_encoding("MISS_EMP", "/fake/path.jpg")
         assert result == fake_enc
-        assert fu._face_enc_cache.get("MISS_EMP") == (mtime, fake_enc)
-        del fu._face_enc_cache["MISS_EMP"]
+        assert fu._face_enc_cache.get("/fake/path.jpg") == (mtime, fake_enc)
+        del fu._face_enc_cache["/fake/path.jpg"]
 
     def test_no_encodings_returns_none_cached(self, mocker):
         import blueprints.attendance as att
@@ -250,10 +250,10 @@ class TestGetKnownFaceEncoding:
         fr_mock.load_image_file.return_value = object()
         fr_mock.face_encodings.return_value = []  # no faces in image
         mocker.patch.object(fu, "face_recognition", fr_mock)
-        fu._face_enc_cache.pop("NOENC_EMP", None)
+        fu._face_enc_cache.pop("/fake/path.jpg", None)
         result = att._get_known_face_encoding("NOENC_EMP", "/fake/path.jpg")
         assert result is None
-        del fu._face_enc_cache["NOENC_EMP"]
+        del fu._face_enc_cache["/fake/path.jpg"]
 
 
 class TestSafeReferrerRedirect:

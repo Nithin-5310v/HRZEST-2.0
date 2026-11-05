@@ -12,6 +12,7 @@ import pytest
 from PIL import Image
 from extensions import app as flask_app
 import utils.face_utils as face_utils
+from utils.tenant_files import face_photo_path
 
 
 def _jpeg_bytes():
@@ -54,8 +55,9 @@ def cleanup_emp_files():
     for eid in ids:
         jpg = os.path.join(UPLOAD_FOLDER, eid + ".jpg")
         qr = os.path.join(flask_app.root_path, "private_uploads", "qrcodes", eid + ".png")
-        if os.path.exists(jpg):
-            os.remove(jpg)
+        for photo in (jpg, face_photo_path(eid, "public")):
+            if os.path.exists(photo):
+                os.remove(photo)
         if os.path.exists(qr):
             os.remove(qr)
 
