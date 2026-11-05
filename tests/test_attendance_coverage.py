@@ -229,6 +229,7 @@ class TestGetKnownFaceEncoding:
         import utils.face_utils as fu
         mtime = 99999.0
         mocker.patch("blueprints.attendance.os.path.getmtime", return_value=mtime)
+        mocker.patch("utils.storage.read_file", return_value=b"")   # no real file: photos are read decrypted
         fake_img = object()
         fake_enc = [0.1] * 128
         fr_mock = mocker.MagicMock()
@@ -246,6 +247,7 @@ class TestGetKnownFaceEncoding:
         import utils.face_utils as fu
         mtime = 77777.0
         mocker.patch("blueprints.attendance.os.path.getmtime", return_value=mtime)
+        mocker.patch("utils.storage.read_file", return_value=b"")   # no real file: photos are read decrypted
         fr_mock = mocker.MagicMock()
         fr_mock.load_image_file.return_value = object()
         fr_mock.face_encodings.return_value = []  # no faces in image
