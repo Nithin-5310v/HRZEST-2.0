@@ -575,7 +575,7 @@ class TestOfferLetterCandidateFacingRoutes:
 
     def test_accept_response_recorded(self, client, db_engine, sent_letter):
         token, letter_id = sent_letter
-        resp = client.get(f"/offer_letter_respond/{token}/accept")
+        resp = client.post(f"/offer_letter_respond/{token}/accept")
         assert resp.status_code == 200
         assert b"Accepted" in resp.data
         cur = db_engine.cursor()
@@ -585,7 +585,7 @@ class TestOfferLetterCandidateFacingRoutes:
 
     def test_reject_response_recorded(self, client, db_engine, sent_letter):
         token, letter_id = sent_letter
-        resp = client.get(f"/offer_letter_respond/{token}/reject")
+        resp = client.post(f"/offer_letter_respond/{token}/reject")
         assert resp.status_code == 200
         assert b"Declined" in resp.data
         cur = db_engine.cursor()
@@ -595,10 +595,23 @@ class TestOfferLetterCandidateFacingRoutes:
 
     def test_responding_twice_shows_already_responded(self, client, sent_letter):
         token, _ = sent_letter
-        client.get(f"/offer_letter_respond/{token}/accept")
-        resp = client.get(f"/offer_letter_respond/{token}/accept")
+        client.post(f"/offer_letter_respond/{token}/accept")
+        resp = client.get(f"/offer_letter_respond/{token}/reject")
         assert resp.status_code == 200
         assert b"already" in resp.data.lower()
+
+    def test_opening_link_does_not_record_an_answer(self, client, db_engine, sent_letter):
+        """A mail scanner pre-opening both links (GET) must not decide the
+        offer -- only the confirmation page's POST records it."""
+        token, letter_id = sent_letter
+        for action in ("accept", "reject"):
+            resp = client.get(f"/offer_letter_respond/{token}/{action}")
+            assert resp.status_code == 200
+            assert b'method="POST"' in resp.data
+        cur = db_engine.cursor()
+        cur.execute("SELECT candidate_response FROM offer_letters WHERE id=%s", (letter_id,))
+        assert cur.fetchone() == (None,)
+        cur.close()
 
     def test_invalid_action_rejected(self, client, sent_letter):
         token, _ = sent_letter

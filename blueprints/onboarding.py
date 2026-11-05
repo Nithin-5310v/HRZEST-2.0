@@ -6,7 +6,7 @@ import html as _html
 import secrets
 import uuid
 from io import BytesIO
-from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, send_file
+from flask import Blueprint, request, session, redirect, render_template, render_template_string, flash, jsonify, send_file
 from database import get_db_connection
 from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required
@@ -1398,8 +1398,14 @@ def offer_letter_pdf(token):
     return resp
 
 
-@onboarding_bp.route("/offer_letter_respond/<token>/<action>")
+@onboarding_bp.route("/offer_letter_respond/<token>/<action>", methods=["GET", "POST"])
+@limiter.limit("20 per minute")
 def offer_letter_respond(token, action):
+    """The emailed accept/decline links. GET only shows a confirmation page;
+    the answer is recorded by that page's POST. A GET used to record it
+    directly, and the first answer is final -- so a corporate mail scanner
+    pre-opening the links (Safe Links, Mimecast, ...) could accept or
+    decline an offer before the candidate ever saw it."""
     if action not in ("accept", "reject"):
         return "Invalid action.", 400
     db = get_db_connection()
@@ -1425,8 +1431,24 @@ def offer_letter_respond(token, action):
         return f"""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <h2 style="color:{color};">You have already {label} this offer.</h2>
           <p>Please contact HR if you wish to change your response.</p></body></html>"""
+    if request.method == "GET":
+        cursor.close()
+        db.close()
+        verb, color = ("Accept", "#16a34a") if action == "accept" else ("Decline", "#dc2626")
+        return render_template_string(
+            """<html><head><meta name="robots" content="noindex"></head>
+            <body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+              <h2>{{ verb }} this offer?</h2>
+              <p style="font-size:15px;margin-top:8px;">Your answer is final once submitted.</p>
+              <form method="POST" style="margin-top:24px;">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" style="background:{{ color }};color:#fff;border:0;border-radius:8px;
+                        padding:12px 28px;font-size:15px;cursor:pointer;">Yes, {{ verb|lower }} the offer</button>
+              </form>
+            </body></html>""", verb=verb, color=color)
     cursor.execute(
-        "UPDATE offer_letters SET candidate_response=%s, responded_at=NOW(), status=%s WHERE id=%s",
+        "UPDATE offer_letters SET candidate_response=%s, responded_at=NOW(), status=%s "
+        "WHERE id=%s AND candidate_response IS NULL",
         (action, "accepted" if action == "accept" else "rejected", letter_id)
     )
     db.commit()
