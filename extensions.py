@@ -222,6 +222,48 @@ def check_secret_key_configured(app_env, secret_key_env_value, logger=None):
 check_secret_key_configured(os.environ.get("APP_ENV", "production"), os.environ.get("SECRET_KEY", ""))
 
 
+# Hosts that never leave the machine / compose network: TLS is optional there.
+_LOCAL_DB_HOSTS = {"", "localhost", "127.0.0.1", "::1", "db"}
+_SECURE_DB_SSLMODES = {"require", "verify-ca", "verify-full"}
+
+
+def check_db_tls(app_env, db_host, sslmode, allow_plaintext=False, logger=None):
+    """Outside development, a database reached over the network (RDS or any
+    remote host) must use TLS: sslmode require / verify-ca / verify-full.
+    The default "prefer" silently falls back to plaintext if TLS can't be
+    negotiated, which would send every query -- and every decrypted-on-read
+    value's ciphertext plus all plaintext columns -- over the wire in the
+    clear. Local hosts (localhost, a unix socket path, the compose "db"
+    service) are exempt. DB_ALLOW_PLAINTEXT=1 overrides, loudly."""
+    logger = logger or app_log
+    if app_env == "development":
+        return
+    host = (db_host or "").strip().lower()
+    if host in _LOCAL_DB_HOSTS or host.startswith("/"):
+        return
+    mode = (sslmode or "prefer").strip().lower()
+    if mode in _SECURE_DB_SSLMODES:
+        if mode == "require":
+            logger.warning("DB_SSLMODE=require encrypts the database connection but does not verify the "
+                           "server certificate -- prefer verify-full with DB_SSLROOTCERT set to the RDS CA bundle.")
+        return
+    if allow_plaintext:
+        logger.critical("DB_ALLOW_PLAINTEXT=1: connecting to remote database %s with DB_SSLMODE=%s -- "
+                        "traffic may be unencrypted.", host, mode)
+        return
+    logger.critical(
+        "FATAL: APP_ENV=%s, remote database %s, DB_SSLMODE=%s -- refusing to start without TLS to the "
+        "database. Set DB_SSLMODE=verify-full and DB_SSLROOTCERT=<path to the RDS CA bundle> "
+        "(or DB_SSLMODE=require).", app_env, host, mode)
+    raise RuntimeError(
+        f"DB_SSLMODE={mode} for remote database host -- refusing to start without TLS (fail-secure).")
+
+
+check_db_tls(os.environ.get("APP_ENV", "production"), os.environ.get("DB_HOST", "localhost"),
+             os.environ.get("DB_SSLMODE", "prefer"),
+             os.environ.get("DB_ALLOW_PLAINTEXT", "").strip() == "1")
+
+
 def check_redis_requirement(app_env, redis_configured, require_redis=None, logger=None):
     """Pure-ish (env values passed in, not read internally), same pattern as
     check_secret_key_configured() above -- unit-tested directly without

@@ -372,3 +372,33 @@ class TestRazorpayProductionBootCheck:
         finally:
             monkeypatch.undo()
             self._reload()
+
+
+class TestDbTlsBootCheck:
+    """A remote database (RDS) outside development must be reached over TLS."""
+
+    def _check(self, *a, **k):
+        from extensions import check_db_tls
+        return check_db_tls(*a, logger=_fake_logger(), **k)
+
+    def test_remote_db_with_prefer_refuses_to_boot(self):
+        with pytest.raises(RuntimeError, match="TLS"):
+            self._check("production", "hrzest.abc123.ap-south-1.rds.amazonaws.com", "prefer")
+
+    def test_remote_db_with_disable_refuses_to_boot(self):
+        with pytest.raises(RuntimeError):
+            self._check("production", "10.0.3.7", "disable")
+
+    @pytest.mark.parametrize("mode", ["require", "verify-ca", "verify-full", "VERIFY-FULL"])
+    def test_remote_db_with_tls_boots(self, mode):
+        self._check("production", "hrzest.abc123.rds.amazonaws.com", mode)
+
+    @pytest.mark.parametrize("host", ["localhost", "127.0.0.1", "db", "/var/run/postgresql", ""])
+    def test_local_db_is_exempt(self, host):
+        self._check("production", host, "prefer")
+
+    def test_development_is_exempt(self):
+        self._check("development", "remote.example.com", "disable")
+
+    def test_explicit_override_allows_plaintext(self):
+        self._check("production", "remote.example.com", "prefer", allow_plaintext=True)
