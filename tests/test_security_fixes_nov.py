@@ -8,7 +8,7 @@ from utils.helpers import _safe_redirect
 
 
 class TestSafeRedirect:
-    @pytest.mark.parametrize("dest", ["/\evil.com", "/\/evil.com", "/\t/evil.com", "/\n/evil.com",
+    @pytest.mark.parametrize("dest", ["/\\evil.com", "/\\/evil.com", "/\t/evil.com", "/\n/evil.com",
                                       "//evil.com", "https://evil.com", "evil.com", ""])
     def test_offsite_or_ambiguous_targets_fall_back(self, dest):
         with flask_app.test_request_context("/"):
@@ -48,7 +48,7 @@ class TestStepUpMfa:
         secret = self._set_totp(db_engine, seed_admin["username"], enabled=True)
         self._login(client, seed_admin)
         with client.session_transaction() as sess:
-            sess["_step_up_target_url"] = "/\evil.com"
+            sess["_step_up_target_url"] = "/\\evil.com"
         resp = client.post("/admin/step-up-mfa", data={"totp_code": pyotp.TOTP(secret).now()})
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/admin")
