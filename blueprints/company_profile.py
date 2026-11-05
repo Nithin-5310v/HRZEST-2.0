@@ -18,7 +18,7 @@ import time
 from urllib.parse import urlsplit
 
 from flask import (
-    Blueprint, request, session, redirect, render_template, flash, g, Response, current_app, send_file, jsonify,
+    Blueprint, request, session, redirect, render_template, flash, g, Response, current_app, jsonify,
 )
 from PIL import Image, UnidentifiedImageError
 
@@ -82,7 +82,8 @@ def profile_photo():
     path = admin_photo_path()
     if not os.path.exists(path):
         return "", 404
-    return send_file(path, mimetype="image/jpeg", max_age=0)
+    from utils.storage import send_image
+    return send_image(path, max_age=0)
 
 
 @company_profile_bp.route("/welcome", methods=["GET"])
@@ -316,7 +317,8 @@ def profile_details_save():
 
     if img:
         os.makedirs(os.path.dirname(photo_path), exist_ok=True)
-        img.save(photo_path, "JPEG", quality=88)
+        from utils.storage import save_image
+        save_image(img, photo_path, "JPEG", quality=88)
     db = get_db_connection()
     cursor = db.cursor()
     cursor.execute("UPDATE admin_users SET display_name=%s, job_title=%s, email=%s, mobile=%s WHERE username=%s",
