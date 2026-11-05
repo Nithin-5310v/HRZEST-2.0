@@ -406,6 +406,14 @@ app.config["SESSION_COOKIE_SECURE"] = True
 # never attached to a cross-site request — closes CSRF via cookie-riding
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_PATH"] = "/"    # explicit for clarity; Flask's own default, stated rather than implied
+# "__Host-" prefix: browsers only accept this cookie if it is Secure, has
+# Path=/ and NO Domain attribute, and only from this exact host. Host-only
+# alone (below) stops the cookie being SENT to other subdomains, but a page
+# on any other *.hrzest.com subdomain could still SET a Domain=hrzest.com
+# cookie named "session" that the browser sends here (cookie tossing /
+# session fixation). A subdomain cannot set a __Host- cookie at all.
+# Renaming it logs every user out once, on the deploy that ships it.
+app.config["SESSION_COOKIE_NAME"] = "__Host-session"
 # SESSION_COOKIE_DOMAIN deliberately left unset: omitting it makes the
 # cookie host-only (RFC 6265) — it's sent ONLY to this exact hostname, not
 # to sibling subdomains. Setting an explicit Domain here would WIDEN scope
