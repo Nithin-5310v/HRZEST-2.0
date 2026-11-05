@@ -2537,6 +2537,6 @@ if __name__ == "__main__":
             pass
     else:
         print(f"⚠   No cert.pem / key.pem -- starting on http://0.0.0.0:{_port}")
-        print("    Fingerprint / WebAuthn requires HTTPS. Run: python generate_cert.py")
+        print("    Fingerprint / WebAuthn requires HTTPS. Run: python scripts/generate_cert.py")
         app.run(host='0.0.0.0', port=_port, debug=False, use_reloader=False, threaded=True,  # nosec B104
                 request_handler=_QuietRequestHandler)

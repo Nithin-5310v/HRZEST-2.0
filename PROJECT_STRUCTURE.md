@@ -56,7 +56,7 @@ HRZEST/
 ├── soc_ui/                         SOC console CSS + JavaScript
 ├── vendor/tabler-icons/            full icon set (source of the subset in static/)
 ├── assets/                         marketing images
-├── minify_static.py                rebuilds static/*.min.{css,js}
+├── scripts/minify_static.py                rebuilds static/*.min.{css,js}
 │
 │ ═══ 4. Back end  +  5. API ══════════════════════════════════════════════════════
 ├── wsgi.py                         entry point: registers routes, middleware, scheduled jobs
@@ -71,7 +71,7 @@ HRZEST/
 ├── utils/                          ~60 helpers: salary, billing, attendance, email, AI,
 │                                   multi-company routing (tenant_routing.py), security
 ├── qr_generator.py                 signed employee QR codes
-├── seed_platform_admin.py, setup_env.py, factory_reset.py, generate_cert.py
+├── scripts/seed_platform_admin.py, scripts/setup_env.py, scripts/factory_reset.py, scripts/generate_cert.py
 │
 │ ═══ 6. Database  +  7. Multi-company ═══════════════════════════════════════════
 ├── database.py                     connection pools, company schemas, owner/runtime roles
@@ -181,7 +181,7 @@ Plain JavaScript (no framework, no build step).
 **Rules worth knowing**
 - `app.py` injects a CSRF token into every page and every `fetch()` POST; inline `<script>` tags get a CSP nonce automatically.
 - Put user-supplied text into the page with `textContent`, never `innerHTML` (the dashboard audit test `tests/test_dashboard_wiring.py` checks this).
-- `minify_static.py` regenerates the `.min` files from their sources — run it after editing e.g. `static/shared.css`.
+- `scripts/minify_static.py` regenerates the `.min` files from their sources — run it after editing e.g. `static/shared.css`.
 
 ---
 
@@ -196,7 +196,7 @@ Plain JavaScript (no framework, no build step).
 | Shared objects | `extensions.py` | The Flask `app`, rate limiter, logging, security-event logger, Redis |
 | Routes ("blueprints") | `blueprints/` — 34 modules, one per area | See the table below |
 | Business logic & helpers | `utils/` — ~60 modules | Calculations, integrations and security helpers called by the routes |
-| One-off tools | `qr_generator.py` (signed employee QR codes), `seed_platform_admin.py`, `setup_env.py`, `factory_reset.py`, `generate_cert.py` | |
+| One-off tools | `qr_generator.py` (signed employee QR codes), `scripts/seed_platform_admin.py`, `scripts/setup_env.py`, `scripts/factory_reset.py`, `scripts/generate_cert.py` | |
 
 **Blueprints by area**
 

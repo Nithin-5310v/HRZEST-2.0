@@ -63,7 +63,7 @@ def _ensure_test_database(name):
 # Override values for testing
 # HRZEST_TEST_DB lets two suites run side by side against separate databases: this harness
 # TRUNCATEs every table after each test, so two runs sharing one database corrupt each other.
-# The name must contain "test" (scripts/profile_requests.py and factory_reset.py refuse otherwise).
+# The name must contain "test" (scripts/profile_requests.py and scripts/factory_reset.py refuse otherwise).
 os.environ["DB_NAME"] = _test_db_name(os.environ)
 assert "test" in os.environ["DB_NAME"], "HRZEST_TEST_DB must contain 'test'"
 _ensure_test_database(os.environ["DB_NAME"])
