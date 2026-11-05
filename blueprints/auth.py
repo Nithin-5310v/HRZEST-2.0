@@ -1324,7 +1324,8 @@ def webauthn_registration_options():
         # login): that may enroll a first passkey, never replace one -- a
         # face match is weaker proof than the passkey it would overwrite,
         # and replacing it would silently lock the real employee out.
-        if not (session.get("admin_logged_in") and session.get("admin_role") == "admin")                 and not session.get("employee_id") and _wa_has_credential(emp_id):
+        is_admin = session.get("admin_logged_in") and session.get("admin_role") == "admin"
+        if not is_admin and not session.get("employee_id") and _wa_has_credential(emp_id):
             return jsonify({"ok": False, "msg": "A fingerprint/passkey is already enrolled for this employee. "
                                                 "Ask your admin to reset it first."}), 409
         # Single-use: a face match only ever authorizes the enrollment it was
