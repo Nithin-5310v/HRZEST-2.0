@@ -1022,27 +1022,7 @@ def _add_csrf_fields(html, token):
 # Matches <script>/<style> tags without a nonce -- used to inject CSP nonces
 _SCRIPT_TAG_RE = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
 _STYLE_TAG_RE = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
-# Inline event-handler attributes. No longer hashed into the CSP (see
-# _security_headers); kept so tests/test_csp_inline_handlers.py can find any
-# that creep back into templates, matching exactly what browsers would block.
-# Two patterns: double-quoted and single-quoted attribute values.
-_CSP_EV_DQ = re.compile(
-    rb'\bon(?:animationend|blur|change|click|contextmenu|copy|cut|dblclick|drag|dragend'
-    rb'|dragenter|dragleave|dragover|dragstart|drop|error|focus|input|invalid|keydown|keypress'
-    rb'|keyup|load|mousedown|mousemove|mouseout|mouseover|mouseup|paste|pointerdown'
-    rb'|pointermove|pointerup|reset|scroll|select|submit|touchend|touchmove|touchstart'
-    rb'|transitionend|wheel)\s*=\s*"([^"]*)"',
-    re.IGNORECASE,
-)
-_CSP_EV_SQ = re.compile(
-    rb"\bon(?:animationend|blur|change|click|contextmenu|copy|cut|dblclick|drag|dragend"
-    rb"|dragenter|dragleave|dragover|dragstart|drop|error|focus|input|invalid|keydown|keypress"
-    rb"|keyup|load|mousedown|mousemove|mouseout|mouseover|mouseup|paste|pointerdown"
-    rb"|pointermove|pointerup|reset|scroll|select|submit|touchend|touchmove|touchstart"
-    rb"|transitionend|wheel)\s*=\s*'([^']*)'",
-    re.IGNORECASE,
-)
-# Same idea for inline style="" attribute values, so style-src-attr can drop
+# Inline style="" attribute values, hashed so style-src-attr can drop
 # 'unsafe-inline' in favor of per-response sha256 hashes.
 _CSP_STYLE_DQ = re.compile(rb'\bstyle\s*=\s*"([^"]*)"', re.IGNORECASE)
 _CSP_STYLE_SQ = re.compile(rb"\bstyle\s*=\s*'([^']*)'", re.IGNORECASE)
