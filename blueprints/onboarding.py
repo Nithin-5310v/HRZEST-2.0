@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required
 from utils.helpers import (
     tpath, get_company_settings, company_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
-    company_today, company_now, _create_notification, int_param,
+    company_today, company_now, _create_notification, int_param, encrypt_amount, amount,
 )
 from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
@@ -712,9 +712,9 @@ def offer_letter(ob_id):
         flash("Onboarding record not found.", "danger")
         return redirect(tpath("/onboarding"))
     cursor.execute(
-        "SELECT COALESCE(monthly_ctc,0), COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s", (ob[1],))
-    sal = cursor.fetchone() or (0, 0)
-    monthly_ctc = float(sal[0]) or round(float(sal[1]) * 26, 2)
+        "SELECT monthly_ctc, salary_per_day FROM salary_config WHERE employee_id=%s", (ob[1],))
+    sal = cursor.fetchone() or (None, None)
+    monthly_ctc = float(amount(sal[0])) or round(float(amount(sal[1])) * 26, 2)
     cursor.execute("SELECT * FROM offer_letters WHERE onboarding_id=%s ORDER BY id DESC LIMIT 1", (ob_id,))
     existing = cursor.fetchone()
     co = get_company_settings()
@@ -735,7 +735,11 @@ def offer_letter_save():
     designation = request.form.get("designation", "")
     department = request.form.get("department", "")
     work_location = request.form.get("work_location", "")
-    monthly_ctc = request.form.get("monthly_ctc", 0) or 0
+    try:
+        monthly_ctc = encrypt_amount(request.form.get("monthly_ctc", "") or 0)
+    except ValueError:
+        flash("Monthly CTC must be a number.", "danger")
+        return redirect(tpath("/onboarding"))
     joining_date = request.form.get("joining_date") or None
     valid_until = request.form.get("offer_valid_until") or None
     probation = int_param(request.form.get("probation_months", 6))

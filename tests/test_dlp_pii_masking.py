@@ -6,6 +6,7 @@ PII clearance is mapped onto the existing role model: admin_role=="admin"
 sees unmasked aadhar/pan/bank_account/uan/salary; manager and soc_analyst
 see the record with those fields masked — mirrors the restriction
 payroll.py's view_payslip already enforces for payslips specifically."""
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import pytest
 from utils.helpers import encrypt_pii
 
@@ -35,7 +36,7 @@ def pii_employee(db_engine):
     cur.execute(
         "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s, %s) "
         "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day",
-        ("DLP001", 2000.00),
+        ("DLP001", _pay(2000.00)),
     )
     db_engine.commit()
     cur.close()

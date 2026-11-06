@@ -2,6 +2,7 @@
 indirectly through blueprint tests: time conversion, shift lookup,
 legacy status inference, and overtime detection.
 """
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import datetime
 import utils.attendance_utils as au
 
@@ -76,7 +77,7 @@ class TestDetectOvertime:
         cur.execute(
             "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s) "
             "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day",
-            (emp_id, 800),
+            (emp_id, _pay(800)),
         )
         today = datetime.date.today()
         try:

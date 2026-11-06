@@ -28,7 +28,8 @@ from utils.auth import (
     payout_settings_step_up_clear,
 )
 from utils.totp import verify_totp_code, mark_totp_enabled
-from utils.helpers import tpath, _audit, encrypt_pii, decrypt_pii, company_today
+from utils.helpers import tpath, _audit, encrypt_pii, decrypt_pii, company_today, encrypt_amount
+from utils.helpers import amount as _amt
 from utils.email_utils import send_email_async
 from utils.salary_utils import build_salary_slip_html
 from utils.payout_utils import (
@@ -414,7 +415,7 @@ def _send_disbursement_payslip(emp_id, name, email, year, month, amount):
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
-        SELECT COALESCE(s.salary_per_day,0), COALESCE(s.monthly_ctc,0), COALESCE(s.basic_pct,50),
+        SELECT s.salary_per_day, s.monthly_ctc, s.basic_pct,
                COALESCE(e.role,''), COALESCE(e.department,''),
                COALESCE(e.pan_number,''), COALESCE(e.uan_number,''),
                COALESCE(e.bank_account,''), COALESCE(e.bank_name,'')
@@ -427,7 +428,7 @@ def _send_disbursement_payslip(emp_id, name, email, year, month, amount):
     if not row:
         return
     spd, ctc, basic_pct, role, dept, pan, uan, bank_account, bank_name = row
-    salary_data = {"spd": float(spd), "monthly_ctc": float(ctc), "basic_pct": basic_pct,
+    salary_data = {"spd": float(_amt(spd)), "monthly_ctc": float(_amt(ctc)), "basic_pct": _amt(basic_pct, 50),
                    "net": float(amount)}
     month_name = datetime.date(year, month, 1).strftime("%B %Y")
     html_body = build_salary_slip_html(
@@ -511,7 +512,7 @@ def _prepare_one_tenant(tenant_schema):
         cursor.execute(
             "INSERT INTO salary_disbursement_runs (year, month, status, total_amount, employee_count) "
             "VALUES (%s,%s,'pending_approval',%s,%s) RETURNING id",
-            (today.year, today.month, total, len(salary_data))
+            (today.year, today.month, encrypt_amount(total), len(salary_data))
         )
         run_id = cursor.fetchone()[0]
         missing_count = 0
@@ -539,14 +540,14 @@ def _prepare_one_tenant(tenant_schema):
             cursor.execute(
                 "INSERT INTO salary_disbursement_items (run_id, employee_id, amount, bank_last4, status) "
                 "VALUES (%s,%s,%s,%s,%s)",
-                (run_id, entry["emp_id"], entry["net"], last4, item_status)
+                (run_id, entry["emp_id"], encrypt_amount(entry["net"]), last4, item_status)
             )
         db.commit()
         cursor.close()
         db.close()
         log_security_event("payout.disbursement_prepared",
                            f"Disbursement run {run_id} prepared for {today.year}-{today.month:02d} "
-                           f"({len(salary_data)} employees, total {total}, {missing_count} missing bank details) "
+                           f"({len(salary_data)} employees, {missing_count} missing bank details) "
                            "-- awaiting admin approval",
                            level="INFO", identifier="system")
     finally:

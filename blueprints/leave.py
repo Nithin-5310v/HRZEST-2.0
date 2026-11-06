@@ -25,7 +25,7 @@ from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
     hr_scope_subquery, hr_scope_column, hr_scope_denied, get_pending_counts, company_today,
     get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache, int_param,
-    notify_new_holiday,
+    notify_new_holiday, encrypt_amount,
     manager_scope_subquery, manager_scope_column, manager_scope_denied,
 )
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
@@ -1411,8 +1411,8 @@ def api_employee_request_overtime():
     cursor.execute("""
         INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay,
                                       status, requested_by_employee, employee_reason)
-        VALUES (%s, %s, %s, %s, 0, 0, 'Pending', 1, %s) RETURNING id
-    """, (emp_id, ot_date, shift_end, shift_end, reason))
+        VALUES (%s, %s, %s, %s, 0, %s, 'Pending', 1, %s) RETURNING id
+    """, (emp_id, ot_date, shift_end, shift_end, encrypt_amount(0), reason))
     oid = cursor.fetchone()[0]
     db.commit()
     cursor.close()
@@ -1439,7 +1439,7 @@ def api_employee_my_overtime():
     return jsonify({
         "ok": True,
         "records": [
-            {"id": r[0], "date": str(r[1]), "ot_minutes": r[2], "ot_pay": float(r[3]),
+            {"id": r[0], "date": str(r[1]), "ot_minutes": r[2], "ot_pay": float(r[3] or 0),
              "status": r[4], "notes": r[5], "self_requested": bool(r[6]), "reason": r[7]}
             for r in rows
         ]
@@ -1641,7 +1641,7 @@ def overtime():
 
     total_ot_minutes = sum(r[6] for r in records)
     total_ot_hours = round(total_ot_minutes / 60, 1)
-    total_ot_pay = sum(float(r[7]) for r in records)
+    total_ot_pay = sum(float(r[7] or 0) for r in records)
     pending_count = sum(1 for r in records if r[8] == 'Pending')
     approved_count = sum(1 for r in records if r[8] == 'Approved')
 

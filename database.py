@@ -99,9 +99,9 @@ def _get_hz_cipher():
 def _hz_text_cast(value, cur):
     if value is None or not value.startswith(_HZ_PREFIX):
         return value
-    from utils.pii_crypto import DecryptionError
+    from utils.pii_crypto import DecryptionError, decode_plaintext
     try:
-        return _get_hz_cipher().decrypt(value)
+        return decode_plaintext(_get_hz_cipher().decrypt(value))   # pay amounts come back as Decimal
     except ValueError:
         return value                      # "hz2:" typed as plain text, not ciphertext
     except DecryptionError:
