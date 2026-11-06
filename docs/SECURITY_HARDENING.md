@@ -150,7 +150,7 @@ coordinates, and no evidence of a punch was kept. The landing page advertised
 "Liveness Detection: Active".
 
 **What changed** (`utils/liveness.py`, `utils/punch_integrity.py`, hooks in
-`blueprints/attendance.py` and `blueprints/employee_portal.py`, web + mobile clients)
+`blueprints/attendance.py` and `blueprints/employee_portal/checkin.py`, web + mobile clients)
 
 | Layer | Detail |
 |---|---|
