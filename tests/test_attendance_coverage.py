@@ -5,6 +5,7 @@ Does NOT duplicate any test already in test_attendance_checkin.py or test_leave_
 """
 import datetime
 import io
+import os
 import time as _time_stdlib
 
 import pytest
@@ -1149,7 +1150,14 @@ class TestQrFaceCheckinCoverage:
             "fingerprint_enabled": False, "location_enabled": False,
         })
         mock_package(mocker, "blueprints.employee_portal", "_face_recognition_available", True)
-        mocker.patch("blueprints.employee_portal.checkin.os.path.exists", return_value=True)
+        # Fake only the registered-face file. os.path is the global module, so a
+        # blanket exists=True also fools os.makedirs into skipping missing parent
+        # dirs of the face-log folder -> FileNotFoundError on a fresh checkout.
+        _real_exists = os.path.exists
+        mocker.patch(
+            "blueprints.employee_portal.checkin.os.path.exists",
+            side_effect=lambda p: p == "/tmp/fake_face.jpg" or _real_exists(p),
+        )
         mock_package(mocker, "blueprints.employee_portal", "_get_known_face_encoding", return_value=None)
         # PIL.Image.open will be called; provide a valid JPEG
         rv = client.post("/api/employee/qr-face-checkin", data={
