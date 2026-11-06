@@ -115,7 +115,7 @@ class TestSaveSalaryRules:
         # save_salary_rules now lives in blueprints/admin_views.py (moved during
         # the podman-migration/master merge), which imports _upsert_co_features
         # by name from utils.helpers — patch admin_views' own bound reference.
-        mock_upsert = mocker.patch("blueprints.admin_views._upsert_co_features")
+        mock_upsert = mocker.patch("blueprints.admin_views.settings._upsert_co_features")
         _admin_session(client, seed_admin)
         with client.session_transaction() as sess:
             sess["active_company_id"] = 99

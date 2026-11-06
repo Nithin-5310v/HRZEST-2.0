@@ -50,10 +50,10 @@ def _assert_detail_logged(server_log):
 
 class TestSmtpTestEmail:
     def test_exception_text_not_returned(self, client, seed_admin, mocker, server_log):
-        mocker.patch.object(admin_views, "get_email_config", return_value={
+        mocker.patch.object(admin_views.tools, "get_email_config", return_value={
             "host": "smtp.test.local", "port": 587, "user": "u@test.local", "password": "p",
             "from_name": "HR", "from_email": "u@test.local"})
-        mocker.patch.object(admin_views, "send_email_smtp", side_effect=RuntimeError(DETAIL))
+        mocker.patch.object(admin_views.tools, "send_email_smtp", side_effect=RuntimeError(DETAIL))
         client.post("/login", data={"identifier": seed_admin["username"], "password": seed_admin["password"]})
 
         resp = client.post("/api/admin/test_email", json={"to_email": "to@test.local"})

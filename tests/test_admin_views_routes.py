@@ -6,6 +6,7 @@ tests/test_email_2fa.py, tests/test_org.py, or tests/test_admin_search.py
 """
 import secrets
 import pytest
+from tests.conftest import patch_package  # noqa: E402
 
 
 def _admin_session(client, username, role="admin"):
@@ -591,36 +592,32 @@ class TestAnnouncementsAdmin:
 
 class TestTestEmail:
     def test_no_config_returns_ok_false(self, client, seed_admin, monkeypatch):
-        import blueprints.admin_views as av
-        monkeypatch.setattr(av, "get_email_config", lambda: None)
+        patch_package(monkeypatch, "blueprints.admin_views", "get_email_config", lambda: None)
         _admin_session(client, seed_admin["username"])
         resp = client.post("/test_email", data={"test_to": "x@y.com"})
         assert resp.get_json()["ok"] is False
 
     def test_missing_recipient_returns_ok_false(self, client, seed_admin, monkeypatch):
-        import blueprints.admin_views as av
-        monkeypatch.setattr(av, "get_email_config", lambda: {"host": "x"})
+        patch_package(monkeypatch, "blueprints.admin_views", "get_email_config", lambda: {"host": "x"})
         _admin_session(client, seed_admin["username"])
         resp = client.post("/test_email", data={"test_to": ""})
         assert resp.get_json()["ok"] is False
 
     def test_success(self, client, seed_admin, monkeypatch):
-        import blueprints.admin_views as av
-        monkeypatch.setattr(av, "get_email_config", lambda: {
+        patch_package(monkeypatch, "blueprints.admin_views", "get_email_config", lambda: {
             "host": "x", "port": 587, "user": "u", "password": "p", "from_name": "N", "from_email": "u@x.com"})
-        monkeypatch.setattr(av, "send_email_smtp", lambda *a, **k: None)
+        patch_package(monkeypatch, "blueprints.admin_views", "send_email_smtp", lambda *a, **k: None)
         _admin_session(client, seed_admin["username"])
         resp = client.post("/test_email", data={"test_to": "recipient@test.local"})
         assert resp.get_json()["ok"] is True
 
     def test_send_failure_returns_ok_false(self, client, seed_admin, monkeypatch):
-        import blueprints.admin_views as av
-        monkeypatch.setattr(av, "get_email_config", lambda: {
+        patch_package(monkeypatch, "blueprints.admin_views", "get_email_config", lambda: {
             "host": "x", "port": 587, "user": "u", "password": "p", "from_name": "N", "from_email": "u@x.com"})
 
         def _raise(*a, **k):
             raise RuntimeError("smtp down")
-        monkeypatch.setattr(av, "send_email_smtp", _raise)
+        patch_package(monkeypatch, "blueprints.admin_views", "send_email_smtp", _raise)
         _admin_session(client, seed_admin["username"])
         resp = client.post("/test_email", data={"test_to": "recipient@test.local"})
         assert resp.get_json()["ok"] is False
