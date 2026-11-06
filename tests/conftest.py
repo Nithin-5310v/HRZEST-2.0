@@ -181,6 +181,51 @@ set_synchronous_mode(True)
 _TEST_RUN_LOCK_KEY = 0x48525A54   # "HRZT": advisory-lock id held for a whole test run
 
 
+def _package_modules(package):
+    import importlib
+    import pkgutil
+    pkg = importlib.import_module(package)
+    return pkg, [importlib.import_module(f"{package}.{info.name}") for info in pkgutil.iter_modules(pkg.__path__)]
+
+
+def patch_package(monkeypatch, package, name, value, raising=True):
+    """Monkeypatch `name` on a package AND on every submodule that holds it.
+    Split modules (utils.helpers, blueprints.employees, ...) look names up in
+    their own submodule, so patching only the package attribute would silently
+    stop affecting the code under test."""
+    pkg, mods = _package_modules(package)
+    found = hasattr(pkg, name)
+    monkeypatch.setattr(pkg, name, value, raising=False)
+    for mod in mods:
+        if hasattr(mod, name):
+            monkeypatch.setattr(mod, name, value)
+            found = True
+    if raising and not found:
+        raise AttributeError(f"no module in {package} holds {name!r}")
+
+
+def mock_package(mocker, package, name, *args, **kwargs):
+    """mocker.patch() counterpart of patch_package(): creates the mock once
+    (same arguments as mocker.patch) and installs that same object on every
+    submodule holding `name`, so assertions on the returned mock see every
+    call. The package itself may not hold an imported name -- only its
+    submodules do -- so the package attribute is created if missing."""
+    pkg, mods = _package_modules(package)
+    holders = [m for m in mods if hasattr(m, name)]
+    if not hasattr(pkg, name) and not holders:
+        raise AttributeError(f"no module in {package} holds {name!r}")
+    kwargs.setdefault("create", not hasattr(pkg, name))
+    mock = mocker.patch(f"{package}.{name}", *args, **kwargs)
+    for mod in holders:
+        mocker.patch.object(mod, name, mock)
+    return mock
+
+
+def patch_helpers(monkeypatch, name, value):
+    """patch_package() for utils.helpers."""
+    patch_package(monkeypatch, "utils.helpers", name, value)
+
+
 @pytest.fixture(scope="session")
 def db_engine():
     """Return a raw psycopg2 connection to the test database for fixture setup."""

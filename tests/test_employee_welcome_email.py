@@ -83,7 +83,7 @@ class TestEmployeeLoginUrlHelper:
 class TestAddEmployeePageWelcomeEmail:
     def test_add_employee_sends_email_with_set_password_link(self, client, seed_admin, db_engine, monkeypatch):
         _mock_face_detected(monkeypatch)
-        import blueprints.employees as employees_module
+        import blueprints.employees.registration as employees_module   # welcome email lives here
         monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
         monkeypatch.setattr(employees_module, "send_email_smtp",
@@ -112,7 +112,7 @@ class TestAddEmployeePageWelcomeEmail:
 class TestApiRegisterEmployeeWelcomeEmail:
     def test_api_register_sends_email_with_set_password_link(self, client, seed_admin, db_engine, monkeypatch):
         _mock_face_detected(monkeypatch)
-        import blueprints.employees as employees_module
+        import blueprints.employees.registration as employees_module   # welcome email lives here
         monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
         monkeypatch.setattr(employees_module, "send_email_smtp",
@@ -147,7 +147,7 @@ class TestApiRegisterEmployeeWelcomeEmail:
 
 class TestApiEmployeeSignupWelcomeEmail:
     def test_signup_sends_the_same_welcome_with_the_typed_password(self, client, seed_admin, db_engine, monkeypatch):
-        import blueprints.employees as employees_module
+        import blueprints.employees.registration as employees_module   # welcome email lives here
         monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
         monkeypatch.setattr(employees_module, "send_email_smtp",
@@ -192,7 +192,7 @@ class TestApiEmployeeSignupWelcomeEmail:
 
 class TestWelcomeEmailEscaping:
     def test_name_and_password_are_escaped(self, client, seed_employee, monkeypatch):
-        import blueprints.employees as employees_module
+        import blueprints.employees.registration as employees_module   # welcome email lives here
         monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
         monkeypatch.setattr(employees_module, "send_email_smtp",

@@ -10,6 +10,7 @@ import pytest
 
 import utils.email_utils as email_utils
 from utils import graph_mail
+from tests.conftest import patch_package  # noqa: E402
 
 GRAPH_ENV = {
     "EMAIL_PROVIDER": "microsoft_graph",
@@ -198,7 +199,7 @@ class TestQueueAndTestButton:
 
     def test_test_email_button_shows_microsofts_reason(self, client, seed_admin, graph_env, monkeypatch):
         monkeypatch.setattr(graph_mail, "_post", FakeMicrosoft(send_statuses=(403,)))
-        monkeypatch.setattr("blueprints.admin_views.get_email_config", graph_mail.config_from_env)
+        patch_package(monkeypatch, "blueprints.admin_views", "get_email_config", graph_mail.config_from_env)
         with client.session_transaction() as sess:
             sess["admin_logged_in"] = True
             sess["admin_username"] = seed_admin["username"]

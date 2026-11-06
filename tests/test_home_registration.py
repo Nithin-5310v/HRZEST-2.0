@@ -11,6 +11,7 @@ load there when it is configured.
 import re
 
 import blueprints.core as core_module
+from tests.conftest import patch_package  # noqa: E402
 
 _FORM_RE = re.compile(r'<form[^>]*id="homeRegisterForm".*?</form>', re.S)
 _SHORT_PASSWORD = {"company_name": "Home Form Co", "admin_email": "admin@homeform.test",
@@ -83,8 +84,7 @@ class TestHomeRegistrationErrors:
 
 class TestHomeRegistrationSuccess:
     def test_valid_submission_starts_an_application(self, client, db_engine, monkeypatch):
-        import blueprints.org as org_module
-        monkeypatch.setattr(org_module, "send_org_signup_otp_email", lambda email, company, otp: True)
+        patch_package(monkeypatch, "blueprints.org", "send_org_signup_otp_email", lambda email, company, otp: True)
         resp = client.post("/create_org", data={
             "company_name": "Home Form Valid Co", "admin_email": "hf@homeformvalid.test",
             "admin_mobile": "9876543210", "admin_password": "password123", "return_to": "home",

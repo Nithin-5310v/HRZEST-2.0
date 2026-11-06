@@ -12,6 +12,7 @@ import zlib
 import pytest
 
 from extensions import app as flask_app
+from tests.conftest import mock_package  # noqa: E402
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -578,7 +579,7 @@ class TestCheckinCombosServerSide:
 
     def test_mobile_checkin_rejects_qr_fingerprint_when_face_enabled(self, client, seed_employee, mocker,
                                                                      signed_qr):
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value=dict(_FACE_ON))
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value=dict(_FACE_ON))
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]), "auth_combo": "qr_fingerprint"})
         assert rv.status_code == 403

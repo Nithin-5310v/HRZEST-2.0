@@ -10,6 +10,7 @@ from PIL import Image
 from werkzeug.datastructures import FileStorage
 from extensions import app as flask_app
 import utils.helpers as helpers
+from tests.conftest import patch_helpers  # noqa: E402
 
 
 def _jpeg_bytes():
@@ -148,34 +149,34 @@ class TestCreateNotification:
         assert row is not None
 
     def test_db_error_is_swallowed(self, monkeypatch):
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         helpers._create_notification("admin", "x", "y")
 
 
 class TestScanForMalware:
     def test_disabled_returns_clean(self, monkeypatch):
-        monkeypatch.setattr(helpers, "_MALWARE_SCAN_ENABLED", False)
+        patch_helpers(monkeypatch, "_MALWARE_SCAN_ENABLED", False)
         clean, err = helpers._scan_for_malware(_fs("x.pdf", b"%PDF-1.4"))
         assert clean is True and err is None
 
     def test_unavailable_in_dev_fails_open(self, monkeypatch):
-        monkeypatch.setattr(helpers, "_MALWARE_SCAN_ENABLED", True)
-        monkeypatch.setattr(helpers, "_clamav_available", False)
+        patch_helpers(monkeypatch, "_MALWARE_SCAN_ENABLED", True)
+        patch_helpers(monkeypatch, "_clamav_available", False)
         monkeypatch.setenv("APP_ENV", "development")
         clean, err = helpers._scan_for_malware(_fs("x.pdf", b"%PDF-1.4"))
         assert clean is True
 
     def test_unavailable_in_production_fails_closed(self, monkeypatch):
-        monkeypatch.setattr(helpers, "_MALWARE_SCAN_ENABLED", True)
-        monkeypatch.setattr(helpers, "_clamav_available", False)
+        patch_helpers(monkeypatch, "_MALWARE_SCAN_ENABLED", True)
+        patch_helpers(monkeypatch, "_clamav_available", False)
         monkeypatch.setenv("APP_ENV", "production")
         clean, err = helpers._scan_for_malware(_fs("x.pdf", b"%PDF-1.4"))
         assert clean is False
         assert err
 
     def test_clean_scan_result(self, monkeypatch):
-        monkeypatch.setattr(helpers, "_MALWARE_SCAN_ENABLED", True)
-        monkeypatch.setattr(helpers, "_clamav_available", True)
+        patch_helpers(monkeypatch, "_MALWARE_SCAN_ENABLED", True)
+        patch_helpers(monkeypatch, "_clamav_available", True)
 
         class _FakeSocket:
             def __init__(self, **kw):
@@ -184,13 +185,13 @@ class TestScanForMalware:
             def instream(self, stream):
                 return {"stream": ("OK", None)}
 
-        monkeypatch.setattr(helpers, "_clamd_lib", type("m", (), {"ClamdNetworkSocket": _FakeSocket}))
+        patch_helpers(monkeypatch, "_clamd_lib", type("m", (), {"ClamdNetworkSocket": _FakeSocket}))
         clean, err = helpers._scan_for_malware(_fs("x.pdf", b"%PDF-1.4"))
         assert clean is True
 
     def test_malware_detected(self, monkeypatch):
-        monkeypatch.setattr(helpers, "_MALWARE_SCAN_ENABLED", True)
-        monkeypatch.setattr(helpers, "_clamav_available", True)
+        patch_helpers(monkeypatch, "_MALWARE_SCAN_ENABLED", True)
+        patch_helpers(monkeypatch, "_clamav_available", True)
 
         class _FakeSocket:
             def __init__(self, **kw):
@@ -199,19 +200,19 @@ class TestScanForMalware:
             def instream(self, stream):
                 return {"stream": ("FOUND", "Eicar-Test-Signature")}
 
-        monkeypatch.setattr(helpers, "_clamd_lib", type("m", (), {"ClamdNetworkSocket": _FakeSocket}))
+        patch_helpers(monkeypatch, "_clamd_lib", type("m", (), {"ClamdNetworkSocket": _FakeSocket}))
         clean, err = helpers._scan_for_malware(_fs("x.pdf", b"%PDF-1.4"))
         assert clean is False
 
     def test_scan_exception_fails_closed_in_prod(self, monkeypatch):
-        monkeypatch.setattr(helpers, "_MALWARE_SCAN_ENABLED", True)
-        monkeypatch.setattr(helpers, "_clamav_available", True)
+        patch_helpers(monkeypatch, "_MALWARE_SCAN_ENABLED", True)
+        patch_helpers(monkeypatch, "_clamav_available", True)
 
         class _FakeSocket:
             def __init__(self, **kw):
                 raise ConnectionError("clamav down")
 
-        monkeypatch.setattr(helpers, "_clamd_lib", type("m", (), {"ClamdNetworkSocket": _FakeSocket}))
+        patch_helpers(monkeypatch, "_clamd_lib", type("m", (), {"ClamdNetworkSocket": _FakeSocket}))
         monkeypatch.setenv("APP_ENV", "production")
         clean, err = helpers._scan_for_malware(_fs("x.pdf", b"%PDF-1.4"))
         assert clean is False
@@ -219,7 +220,7 @@ class TestScanForMalware:
 
 class TestValidateUpload:
     def _ok_scan(self, monkeypatch):
-        monkeypatch.setattr(helpers, "_scan_for_malware", lambda f: (True, None))
+        patch_helpers(monkeypatch, "_scan_for_malware", lambda f: (True, None))
 
     def test_no_file_rejected(self, monkeypatch):
         self._ok_scan(monkeypatch)
@@ -331,7 +332,7 @@ class TestValidateUpload:
 
 class TestValidateImageFile:
     def _ok_scan(self, monkeypatch):
-        monkeypatch.setattr(helpers, "_scan_for_malware", lambda f: (True, None))
+        patch_helpers(monkeypatch, "_scan_for_malware", lambda f: (True, None))
 
     def test_no_file_rejected(self, monkeypatch):
         self._ok_scan(monkeypatch)
@@ -375,14 +376,14 @@ class TestCompanySettingsCache:
     def test_cache_hit_avoids_requery(self, monkeypatch):
         helpers.invalidate_settings_cache()
         first = helpers.get_company_settings()
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         second = helpers.get_company_settings()
         assert second == first
         helpers.invalidate_settings_cache()
 
     def test_db_error_falls_back_to_defaults(self, monkeypatch):
         helpers.invalidate_settings_cache()
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         result = helpers.get_company_settings()
         assert result["company_name"] == "My Company"
         helpers.invalidate_settings_cache()
@@ -411,7 +412,7 @@ class TestCompaniesListCache:
 
     def test_db_error_returns_empty_list(self, monkeypatch):
         helpers.invalidate_companies_cache()
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         assert helpers.get_companies_list() == []
         helpers.invalidate_companies_cache()
 
@@ -424,7 +425,7 @@ class TestOverdueOnboardingCount:
 
     def test_db_error_returns_zero(self, monkeypatch):
         helpers._onboarding_cache.clear()
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         assert helpers.get_overdue_onboarding_count() == 0
         helpers._onboarding_cache.clear()
 
@@ -437,7 +438,7 @@ class TestAuthConfig:
 
     def test_db_error_falls_back_to_defaults(self, monkeypatch):
         helpers._auth_cache.clear()
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         result = helpers.get_auth_config()
         assert result == helpers._AUTH_CONFIG_DEFAULTS
         helpers._auth_cache.clear()
@@ -449,7 +450,7 @@ class TestReadGlobalFeatures:
         assert "shift_start" in result and "geo_radius" in result
 
     def test_db_error_returns_hardcoded_defaults(self, monkeypatch):
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         result = helpers._read_global_features()
         assert result["shift_start"] == "09:00:00"
 
@@ -488,7 +489,7 @@ class TestGetCoFeatures:
         cur.execute("INSERT INTO companies (name) VALUES ('Helper Err Co') RETURNING id")
         cid = cur.fetchone()[0]
         try:
-            monkeypatch.setattr(helpers, "get_db_connection", _raise)
+            patch_helpers(monkeypatch, "get_db_connection", _raise)
             result = helpers.get_co_features(cid)
             assert "geo_radius" in result
         finally:
@@ -521,7 +522,7 @@ class TestUpsertCoFeature:
             cur.close()
 
     def test_db_error_swallowed(self, monkeypatch):
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         helpers._upsert_co_feature(1, "geo_radius", 1)
 
 
@@ -556,7 +557,7 @@ class TestUpsertCoFeatures:
             cur.close()
 
     def test_db_error_swallowed(self, monkeypatch):
-        monkeypatch.setattr(helpers, "get_db_connection", _raise)
+        patch_helpers(monkeypatch, "get_db_connection", _raise)
         helpers._upsert_co_features(1, {"geo_radius": 1})
 
 

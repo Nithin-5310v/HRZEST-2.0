@@ -53,8 +53,9 @@ jobs:
 
       - name: Check Python syntax
         run: |
+          # utils/helpers is a package since the restructure (#180): compile all of it.
           for f in app.py wsgi.py extensions.py \
-                   utils/auth.py utils/helpers.py utils/config.py \
+                   utils/auth.py utils/helpers/*.py utils/config.py \
                    utils/email_utils.py utils/attendance_utils.py; do
             python -m py_compile "$f" && echo "✅ $f" || (echo "❌ $f syntax error" && exit 1)
           done
@@ -91,7 +92,7 @@ jobs:
 
       - name: Check utils package exists
         run: |
-          for f in utils/__init__.py utils/auth.py utils/helpers.py \
+          for f in utils/__init__.py utils/auth.py utils/helpers/__init__.py \
                    utils/config.py utils/email_utils.py utils/attendance_utils.py; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done

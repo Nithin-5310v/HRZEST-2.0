@@ -34,6 +34,7 @@ import pytest
 
 from utils.auth import _hash_token, generate_password_hash
 from utils.plan_limits import calculate_price, format_price_inr
+from tests.conftest import patch_package  # noqa: E402
 
 pytestmark = pytest.mark.usefixtures("razorpay_demo_mode")
 
@@ -318,9 +319,9 @@ class TestVerifyPayment:
             return True, None, f"http://testserver/{subdomain}/login", f"http://testserver/{subdomain}/checkin"
 
         email_calls = []
-        monkeypatch.setattr("blueprints.org.provision_tenant", fake_provision_tenant)
-        monkeypatch.setattr("blueprints.org.send_payment_confirmation_email",
-                            lambda *a, **k: email_calls.append((a, k)))
+        patch_package(monkeypatch, "blueprints.org", "provision_tenant", fake_provision_tenant)
+        patch_package(monkeypatch, "blueprints.org", "send_payment_confirmation_email",
+                      lambda *a, **k: email_calls.append((a, k)))
 
         application_id, fields = _insert_application(db_engine)
         order_id = "order_real_" + secrets.token_hex(6)
@@ -407,11 +408,9 @@ class TestVerifyPayment:
         monkeypatch.setattr("utils.razorpay_utils.razorpay_configured", lambda: True)
         monkeypatch.setattr("blueprints.billing.verify_payment_signature", lambda *a, **k: True)
         provision_calls = []
-        monkeypatch.setattr(
-            "blueprints.org.provision_tenant",
-            lambda *a, **k: provision_calls.append(1) or (True, None, "http://x/login", "http://x/checkin"),
-        )
-        monkeypatch.setattr("blueprints.org.send_payment_confirmation_email", lambda *a, **k: None)
+        patch_package(monkeypatch, "blueprints.org", "provision_tenant",
+                      lambda *a, **k: provision_calls.append(1) or (True, None, "http://x/login", "http://x/checkin"))
+        patch_package(monkeypatch, "blueprints.org", "send_payment_confirmation_email", lambda *a, **k: None)
 
         application_id, fields = _insert_application(db_engine)
         order_id = "order_race_" + secrets.token_hex(6)
@@ -458,8 +457,8 @@ class TestSignupPaymentCapturedWebhook:
             provision_calls.append({"subdomain": subdomain})
             return True, None, f"http://testserver/{subdomain}/login", f"http://testserver/{subdomain}/checkin"
 
-        monkeypatch.setattr("blueprints.org.provision_tenant", fake_provision_tenant)
-        monkeypatch.setattr("blueprints.org.send_payment_confirmation_email", lambda *a, **k: None)
+        patch_package(monkeypatch, "blueprints.org", "provision_tenant", fake_provision_tenant)
+        patch_package(monkeypatch, "blueprints.org", "send_payment_confirmation_email", lambda *a, **k: None)
 
         application_id, fields = _insert_application(db_engine)
         order_id = "order_webhook_" + secrets.token_hex(6)
@@ -507,10 +506,8 @@ class TestSignupPaymentCapturedWebhook:
         """The normal case -- verify_payment() already finished the job
         before the webhook arrives. Must not attempt to re-provision."""
         provision_calls = []
-        monkeypatch.setattr(
-            "blueprints.org.provision_tenant",
-            lambda *a, **k: provision_calls.append(1) or (True, None, "http://x/login", "http://x/checkin"),
-        )
+        patch_package(monkeypatch, "blueprints.org", "provision_tenant",
+                      lambda *a, **k: provision_calls.append(1) or (True, None, "http://x/login", "http://x/checkin"))
 
         application_id, fields = _insert_application(db_engine)
         order_id = "order_already_done_" + secrets.token_hex(6)
