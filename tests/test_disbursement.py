@@ -4,6 +4,7 @@ REQUIRE_PAYOUT_2FA defaults to False (same convention as REQUIRE_EMAIL_2FA),
 so these tests exercise the routes without a TOTP step-up unless a test
 explicitly flips that config flag.
 """
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import datetime
 from utils.payout_utils import validate_ifsc, mask_account_number
 
@@ -232,13 +233,13 @@ class TestMissingBankDetailsFlaggedAtPrepTime:
              encrypt_pii("987654321098"), "Some Bank", "HDFC0009999")
         )
         cur.execute(
-            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s, 1000) "
-            "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=1000",
-            (seed_employee["employee_id"],)
+            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s, %s) "
+            "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day",
+            (seed_employee["employee_id"], _pay(1000))
         )
         cur.execute(
-            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST002', 1000) "
-            "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=1000"
+            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST002', %s) "
+            "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day", (_pay(1000),)
         )
         cur.execute("DELETE FROM salary_disbursement_runs WHERE year=%s AND month=%s", (today.year, today.month))
         db_engine.commit()
@@ -277,9 +278,9 @@ class TestRunPreparationIdempotent:
         })
         cur = db_engine.cursor()
         cur.execute(
-            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s, 1000) "
-            "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=1000",
-            (seed_employee["employee_id"],)
+            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s, %s) "
+            "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day",
+            (seed_employee["employee_id"], _pay(1000))
         )
         cur.execute("DELETE FROM salary_disbursement_runs WHERE year=%s AND month=%s", (today.year, today.month))
         db_engine.commit()
@@ -309,7 +310,7 @@ class TestApprovalGuards:
         cur.execute("DELETE FROM salary_disbursement_runs WHERE year=2020 AND month=1")
         cur.execute(
             "INSERT INTO salary_disbursement_runs (year, month, status, total_amount, employee_count) "
-            "VALUES (2020, 1, 'completed', 500, 1) RETURNING id"
+            "VALUES (2020, 1, 'completed', %s, 1) RETURNING id", (_pay(500),)
         )
         run_id = cur.fetchone()[0]
         db_engine.commit()
@@ -330,7 +331,7 @@ class TestApprovalGuards:
         cur.execute("DELETE FROM salary_disbursement_runs WHERE year=2020 AND month=2")
         cur.execute(
             "INSERT INTO salary_disbursement_runs (year, month, status, total_amount, employee_count) "
-            "VALUES (2020, 2, 'pending_approval', 0, 0) RETURNING id"
+            "VALUES (2020, 2, 'pending_approval', %s, 0) RETURNING id", (_pay(0),)
         )
         run_id = cur.fetchone()[0]
         db_engine.commit()
@@ -389,7 +390,7 @@ class TestApprovalRace:
         cur.execute("DELETE FROM salary_disbursement_runs WHERE year=2020 AND month=%s", (month,))
         cur.execute(
             "INSERT INTO salary_disbursement_runs (year, month, status, total_amount, employee_count) "
-            "VALUES (2020, %s, 'pending_approval', 0, 0) RETURNING id", (month,)
+            "VALUES (2020, %s, 'pending_approval', %s, 0) RETURNING id", (month, _pay(0))
         )
         run_id = cur.fetchone()[0]
         db_engine.commit()
@@ -477,12 +478,12 @@ class TestStubNeverClaimsSuccess:
         cur.execute("DELETE FROM salary_disbursement_runs WHERE year=2020 AND month=3")
         cur.execute(
             "INSERT INTO salary_disbursement_runs (year, month, status, total_amount, employee_count) "
-            "VALUES (2020, 3, 'processing', 1000, 1) RETURNING id"
+            "VALUES (2020, 3, 'processing', %s, 1) RETURNING id", (_pay(1000),)
         )
         run_id = cur.fetchone()[0]
         cur.execute(
-            "INSERT INTO salary_disbursement_items (run_id, employee_id, amount) VALUES (%s,%s,1000)",
-            (run_id, seed_employee["employee_id"])
+            "INSERT INTO salary_disbursement_items (run_id, employee_id, amount) VALUES (%s,%s,%s)",
+            (run_id, seed_employee["employee_id"], _pay(1000))
         )
         cur.execute("DELETE FROM payroll_runs WHERE year=2020 AND month=3")
         db_engine.commit()

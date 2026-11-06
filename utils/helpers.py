@@ -285,6 +285,32 @@ def encrypt_pii(value: str) -> str:
     return _pii_cipher.encrypt(value)
 
 
+def encrypt_amount(value):
+    """Encrypt a pay amount for a pay column (salary_config, offer_letters.
+    monthly_ctc, employee_incentives.amount, overtime_records.ot_pay,
+    salary_disbursement_*). Reads need nothing: the value comes back as a
+    Decimal. None/"" -> None; raises ValueError for a non-number. The
+    columns carry a CHECK that rejects anything not encrypted, so a write
+    that skips this fails instead of storing pay in plaintext."""
+    return _pii_cipher.encrypt_number(value)
+
+
+def amount(value, default=0):
+    """A pay column value as read back (Decimal, or None for NULL) -> Decimal,
+    with `default` for NULL. Replaces SQL `COALESCE(col, 0)`, which no longer
+    type-checks on the TEXT pay columns. Anything unreadable (a value that
+    failed to decrypt, already logged by database.py) also gives `default`."""
+    from decimal import Decimal, InvalidOperation
+    if value is None:
+        return Decimal(str(default))
+    if isinstance(value, Decimal):
+        return value
+    try:
+        return Decimal(str(value).strip())
+    except (InvalidOperation, ValueError):
+        return Decimal(str(default))
+
+
 def encrypt_contact(kind: str, value):
     """Encrypt an employee email ("email") or phone ("phone") for storage.
     Returns (stored_value, blind_index): write both, into e.g. email and
@@ -309,7 +335,7 @@ def decrypt_pii(value: str) -> str:
     if not isinstance(value, str):
         return value
     try:
-        return _pii_cipher.decrypt(value)
+        return _pii_crypto.decode_plaintext(_pii_cipher.decrypt(value))
     except ValueError:
         # Not ciphertext at all: legacy plaintext written before PII
         # encryption existed (e.g. a bare "Female" seeded by an old

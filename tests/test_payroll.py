@@ -5,6 +5,8 @@ Covers: view_salary, update_salary, salary_report, lock/unlock,
 
 Target: payroll.py 22% → ~65%
 """
+from utils.helpers import decrypt_pii as _unpay  # pay columns hold ciphertext; this reads them
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import datetime
 import pytest
 
@@ -51,10 +53,11 @@ def salary_config(db_engine, seed_employee):
     cur = db_engine.cursor()
     cur.execute("""
         INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc, basic_pct)
-        VALUES (%s, 1500.00, 39000.00, 50)
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT (employee_id) DO UPDATE
-            SET salary_per_day=1500.00, monthly_ctc=39000.00, basic_pct=50
-    """, (seed_employee["employee_id"],))
+            SET salary_per_day=EXCLUDED.salary_per_day, monthly_ctc=EXCLUDED.monthly_ctc,
+                basic_pct=EXCLUDED.basic_pct
+    """, (seed_employee["employee_id"], _pay(1500), _pay(39000), _pay(50)))
     yield {"employee_id": seed_employee["employee_id"], "spd": 1500.0}
     cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (seed_employee["employee_id"],))
     cur.close()
@@ -159,7 +162,7 @@ class TestUpdateSalary:
         row = cur.fetchone()
         cur.close()
         assert row is not None
-        assert float(row[0]) == 2000.0
+        assert float(_unpay(row[0])) == 2000.0
 
     def test_updates_existing_salary_config(self, client, seed_admin, seed_employee, salary_config, db_engine):
         _admin_session(client, seed_admin)
@@ -171,7 +174,7 @@ class TestUpdateSalary:
         cur = db_engine.cursor()
         cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s",
                     (seed_employee["employee_id"],))
-        assert float(cur.fetchone()[0]) == 1800.0
+        assert float(_unpay(cur.fetchone()[0])) == 1800.0
         cur.close()
 
     def test_accepts_no_hike_date(self, client, seed_admin, seed_employee):
@@ -506,7 +509,7 @@ class TestApiSalaryConfigPost:
         )
         row = cur.fetchone()
         assert row is not None, "api_salary_config_post's write was not audited"
-        assert "4242" in row[0]
+        assert "4242" not in row[0], "the salary amount must not be written to the audit log in plaintext"
         cur.close()
 
 

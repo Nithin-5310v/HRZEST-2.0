@@ -84,7 +84,7 @@ def _init_core_tables(cursor, db):
         CREATE TABLE IF NOT EXISTS salary_config (
             id SERIAL PRIMARY KEY,
             employee_id VARCHAR(50) UNIQUE NOT NULL,
-            salary_per_day DECIMAL(10,2) DEFAULT 0
+            salary_per_day TEXT              -- encrypted (encrypt_amount)
         )
     """)
     cursor.execute("""
@@ -232,7 +232,7 @@ def _init_core_tables(cursor, db):
             goal_id INT NOT NULL,
             month INT NOT NULL,
             year INT NOT NULL,
-            amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+            amount TEXT NOT NULL,            -- encrypted (encrypt_amount)
             notes TEXT,
             awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -355,7 +355,7 @@ def _init_core_tables(cursor, db):
             shift_end TIME NOT NULL,
             actual_logout TIME NOT NULL,
             ot_minutes INT NOT NULL DEFAULT 0,
-            ot_pay DECIMAL(10,2) DEFAULT 0,
+            ot_pay TEXT,                     -- encrypted (encrypt_amount)
             status VARCHAR(20) DEFAULT 'Pending',
             notes TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -417,7 +417,7 @@ def _init_core_tables(cursor, db):
             designation VARCHAR(150),
             department VARCHAR(150),
             work_location VARCHAR(200),
-            monthly_ctc DECIMAL(12,2) DEFAULT 0,
+            monthly_ctc TEXT,                -- encrypted (encrypt_amount)
             joining_date DATE,
             offer_valid_until DATE,
             probation_months INT DEFAULT 6,
@@ -634,7 +634,7 @@ def _init_core_tables(cursor, db):
             month INT NOT NULL,
             status VARCHAR(20) NOT NULL DEFAULT 'pending_approval'
                 CHECK (status IN ('pending_approval','approved','processing','completed','failed','cancelled')),
-            total_amount DECIMAL(14,2) DEFAULT 0,
+            total_amount TEXT,               -- encrypted (encrypt_amount)
             employee_count INT DEFAULT 0,
             prepared_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             approved_by VARCHAR(100),
@@ -647,7 +647,7 @@ def _init_core_tables(cursor, db):
             id SERIAL PRIMARY KEY,
             run_id INT NOT NULL REFERENCES salary_disbursement_runs(id) ON DELETE CASCADE,
             employee_id VARCHAR(50) NOT NULL,
-            amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+            amount TEXT NOT NULL,            -- encrypted (encrypt_amount)
             bank_last4 VARCHAR(4),
             status VARCHAR(30) NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending','sent','failed','stub_not_configured','missing_bank_details')),
