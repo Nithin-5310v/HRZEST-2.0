@@ -135,7 +135,7 @@ class TestReporterIsInjected:
 
 class TestServerErrorsAreLogged:
     def test_unhandled_exception_is_persisted_without_the_traceback(self, monkeypatch, db_engine):
-        import app as app_module
+        import app_setup.errors as app_module   # error handlers moved out of app.py
         monkeypatch.setattr(app_module, "_alert_on_error", lambda *a, **k: None)
         marker = f"MarkerBoom{uuid.uuid4().hex[:8]}"
         exc_type = type(marker, (Exception,), {})

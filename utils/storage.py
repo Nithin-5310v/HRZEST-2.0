@@ -119,3 +119,63 @@ def delete_private(stored_ref):
     with their own context (which employee/application/etc. it belonged to)."""
     os.remove(stored_ref)
     return True
+
+
+# ── Biometric images (face photos, kiosk face logs, admin photos) ────────────
+# Same AES-256-GCM file encryption as private uploads, for images that live
+# under UPLOAD_FOLDER (dataset/) and are addressed by plain filesystem paths.
+# Every reader must go through these helpers: they decrypt in memory and
+# also accept legacy plaintext files, so files can be encrypted in place
+# (scripts/encrypt_private_uploads.py --root dataset) only once no raw
+# open()/Image.open()/load_image_file()/send_file() on these paths remains.
+
+def read_file(path):
+    """Decrypted bytes of an encrypted (or legacy plaintext) file."""
+    with open(path, "rb") as f:
+        return _get_cipher().decrypt_bytes(f.read())
+
+
+def save_image(img, path, fmt="JPEG", **save_kwargs):
+    """Encode a PIL image and write it encrypted to `path`."""
+    buf = io.BytesIO()
+    img.save(buf, fmt, **save_kwargs)
+    write_encrypted(path, buf.getvalue())
+    return path
+
+
+def save_upload(file_storage, path):
+    """Write an uploaded file (werkzeug FileStorage) encrypted to `path`."""
+    buf = io.BytesIO()
+    file_storage.save(buf)
+    write_encrypted(path, buf.getvalue())
+    return path
+
+
+def open_image(path):
+    """PIL image from an encrypted (or legacy plaintext) file, fully loaded
+    so no file handle or buffer is left dangling."""
+    from PIL import Image
+    img = Image.open(io.BytesIO(read_file(path)))
+    img.load()
+    return img
+
+
+def load_face_image(path, mode="RGB"):
+    """Drop-in for face_recognition.load_image_file(path) on an encrypted
+    file: a numpy array in `mode`."""
+    import numpy as np
+    return np.array(open_image(path).convert(mode))
+
+
+def send_image(path, mimetype="image/jpeg", **kwargs):
+    """Flask response for an encrypted image -- replaces send_file(path) /
+    send_from_directory(dir, name). Callers still do their own auth and
+    path checks first."""
+    from flask import send_file
+    return send_file(io.BytesIO(read_file(path)), mimetype=mimetype, **kwargs)
+
+
+def decrypted_stream(path):
+    """In-memory file object of a decrypted image, for libraries that take a
+    path or file (face_recognition.load_image_file, PIL)."""
+    return io.BytesIO(read_file(path))

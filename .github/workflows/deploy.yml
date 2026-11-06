@@ -53,8 +53,9 @@ jobs:
 
       - name: Check Python syntax
         run: |
+          # utils/helpers is a package since the restructure (#180): compile all of it.
           for f in app.py wsgi.py extensions.py \
-                   utils/auth.py utils/helpers.py utils/config.py \
+                   utils/auth.py utils/helpers/*.py utils/config.py \
                    utils/email_utils.py utils/attendance_utils.py; do
             python -m py_compile "$f" && echo "✅ $f" || (echo "❌ $f syntax error" && exit 1)
           done
@@ -85,13 +86,13 @@ jobs:
           for f in Containerfile entrypoint.sh wsgi.py extensions.py \
                    compose.yaml compose.prod.yaml \
                    nginx/nginx.conf.template \
-                   generate_cert.py init-letsencrypt.sh deploy.sh; do
+                   scripts/generate_cert.py init-letsencrypt.sh deploy.sh; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
 
       - name: Check utils package exists
         run: |
-          for f in utils/__init__.py utils/auth.py utils/helpers.py \
+          for f in utils/__init__.py utils/auth.py utils/helpers/__init__.py \
                    utils/config.py utils/email_utils.py utils/attendance_utils.py; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
@@ -244,7 +245,7 @@ jobs:
         # extra_args, so including it here duplicates the flag; v3.95.9's
         # parser rejects that outright ("flag 'fail' cannot be repeated"),
         # which is what was actually failing this job, not a real secret.
-        uses: trufflesecurity/trufflehog@31ce31ee1abbcc7dc8eee5764c17121c3044c8b2 # v3.99.7
+        uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
         with:
           extra_args: --only-verified --exclude-paths=.github/trufflehog-exclude.txt
 

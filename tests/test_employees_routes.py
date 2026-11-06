@@ -6,12 +6,15 @@ sub-actions, delete/edit/profile/detail pages, the add_employee_page
 flow, photo/QR management, ID generation, and the REST-ish /api/employees
 endpoints.
 """
+from utils.helpers import decrypt_pii as _unpay  # pay columns hold ciphertext; this reads them
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import io
 import os
 import pytest
 from PIL import Image
 from extensions import app as flask_app
 import utils.face_utils as face_utils
+from utils.tenant_files import face_photo_path
 
 
 def _jpeg_bytes():
@@ -54,8 +57,9 @@ def cleanup_emp_files():
     for eid in ids:
         jpg = os.path.join(UPLOAD_FOLDER, eid + ".jpg")
         qr = os.path.join(flask_app.root_path, "private_uploads", "qrcodes", eid + ".png")
-        if os.path.exists(jpg):
-            os.remove(jpg)
+        for photo in (jpg, face_photo_path(eid, "public")):
+            if os.path.exists(photo):
+                os.remove(photo)
         if os.path.exists(qr):
             os.remove(qr)
 
@@ -114,20 +118,20 @@ class TestAdminActionSalary:
         cur = db_engine.cursor()
         cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s",
                     (seed_employee["employee_id"],))
-        assert float(cur.fetchone()[0]) == 500.0
+        assert float(_unpay(cur.fetchone()[0])) == 500.0
         cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.close()
 
     def test_updates_existing_salary_config(self, client, seed_admin, seed_employee, db_engine):
         cur = db_engine.cursor()
         cur.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s)",
-                    (seed_employee["employee_id"], 400))
+                    (seed_employee["employee_id"], _pay(400)))
         _admin_session(client, seed_admin["username"])
         client.post("/admin_action", data={
             "action": "salary", "emp_id": seed_employee["employee_id"], "salary": "700"})
         cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s",
                     (seed_employee["employee_id"],))
-        assert float(cur.fetchone()[0]) == 700.0
+        assert float(_unpay(cur.fetchone()[0])) == 700.0
         cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.close()
 
@@ -316,7 +320,7 @@ class TestAddEmployeePage:
             ("M.Tech", "XYZ Institute", "2018", "75"),
         ]
         assert salary_row is not None
-        assert float(salary_row[0]) == 1800.0
+        assert float(_unpay(salary_row[0])) == 1800.0
 
 
 class TestUpdateEmployeePhoto:

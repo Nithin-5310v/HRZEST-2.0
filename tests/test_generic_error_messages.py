@@ -12,7 +12,6 @@ import pytest
 
 import blueprints.admin_views as admin_views
 import blueprints.oauth_signup as oauth_signup
-import blueprints.platform_admin as platform_admin
 from extensions import app_log
 from utils.oauth_client import OAuthError
 
@@ -51,10 +50,10 @@ def _assert_detail_logged(server_log):
 
 class TestSmtpTestEmail:
     def test_exception_text_not_returned(self, client, seed_admin, mocker, server_log):
-        mocker.patch.object(admin_views, "get_email_config", return_value={
+        mocker.patch.object(admin_views.tools, "get_email_config", return_value={
             "host": "smtp.test.local", "port": 587, "user": "u@test.local", "password": "p",
             "from_name": "HR", "from_email": "u@test.local"})
-        mocker.patch.object(admin_views, "send_email_smtp", side_effect=RuntimeError(DETAIL))
+        mocker.patch.object(admin_views.tools, "send_email_smtp", side_effect=RuntimeError(DETAIL))
         client.post("/login", data={"identifier": seed_admin["username"], "password": seed_admin["password"]})
 
         resp = client.post("/api/admin/test_email", json={"to_email": "to@test.local"})
@@ -104,8 +103,9 @@ class TestDeleteTenantSchemaDropFailure:
         tenant_id = cur.fetchone()[0]
         # The delete route runs DROP SCHEMA on the owner connection
         # (database.get_owner_master_db), not the runtime one.
-        real_get_owner_master_db = platform_admin.get_owner_master_db
-        monkeypatch.setattr(platform_admin, "get_owner_master_db",
+        import blueprints.platform_admin.dashboard as pa_dashboard   # tenant delete lives here
+        real_get_owner_master_db = pa_dashboard.get_owner_master_db
+        monkeypatch.setattr(pa_dashboard, "get_owner_master_db",
                             lambda *a, **k: _DropSchemaFails(real_get_owner_master_db(*a, **k)))
         with client.session_transaction() as s:
             s["platform_admin_logged_in"] = True

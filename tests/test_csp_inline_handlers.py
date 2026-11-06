@@ -8,15 +8,33 @@ Templates use data-on-<event>="fn(...)" attributes instead, bound by
 static/hz-actions.js (exercised in a real browser by
 tests_e2e/test_hz_actions.py).
 
-The template check uses app.py's own handler patterns over the whole file,
+The template check scans each whole file for the handler attributes below,
 <script> bodies and comments included: a handler written into HTML built by
 JavaScript is blocked just the same.
 """
+import re
 from pathlib import Path
 
 import pytest
 
-from app import _CSP_EV_DQ, _CSP_EV_SQ
+# Inline event-handler attributes a browser blocks under the nonce-only CSP.
+# Two patterns: double-quoted and single-quoted attribute values.
+_CSP_EV_DQ = re.compile(
+    rb'\bon(?:animationend|blur|change|click|contextmenu|copy|cut|dblclick|drag|dragend'
+    rb'|dragenter|dragleave|dragover|dragstart|drop|error|focus|input|invalid|keydown|keypress'
+    rb'|keyup|load|mousedown|mousemove|mouseout|mouseover|mouseup|paste|pointerdown'
+    rb'|pointermove|pointerup|reset|scroll|select|submit|touchend|touchmove|touchstart'
+    rb'|transitionend|wheel)\s*=\s*"([^"]*)"',
+    re.IGNORECASE,
+)
+_CSP_EV_SQ = re.compile(
+    rb"\bon(?:animationend|blur|change|click|contextmenu|copy|cut|dblclick|drag|dragend"
+    rb"|dragenter|dragleave|dragover|dragstart|drop|error|focus|input|invalid|keydown|keypress"
+    rb"|keyup|load|mousedown|mousemove|mouseout|mouseover|mouseup|paste|pointerdown"
+    rb"|pointermove|pointerup|reset|scroll|select|submit|touchend|touchmove|touchstart"
+    rb"|transitionend|wheel)\s*=\s*'([^']*)'",
+    re.IGNORECASE,
+)
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 

@@ -49,7 +49,7 @@ seeds and cleans up that row itself.
 Five flows, chosen to be both genuinely critical and achievable without a
 real detectable face photo (Add Employee's web form and `/api/employees`
 both reject a photo with no detected face via
-`face_recognition.face_encodings()` -- see `blueprints/employees.py` --
+`face_recognition.face_encodings()` -- see `blueprints/employees/` --
 and this environment has no legitimate way to supply one without either a
 real photograph or monkeypatching the live server process, which an
 external browser-driven test can't do):

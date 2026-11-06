@@ -56,22 +56,37 @@ HRZEST/
 ├── soc_ui/                         SOC console CSS + JavaScript
 ├── vendor/tabler-icons/            full icon set (source of the subset in static/)
 ├── assets/                         marketing images
-├── minify_static.py                rebuilds static/*.min.{css,js}
 │
 │ ═══ 4. Back end  +  5. API ══════════════════════════════════════════════════════
 ├── wsgi.py                         entry point: registers routes, middleware, scheduled jobs
-├── app.py                          security headers/CSP, CSRF, sessions, which company a
-│                                   request belongs to, template context, error pages
+├── app.py                          thin entry point: loads app_setup/ in hook order,
+│                                   registers blueprints, /api/v1 aliases, dev server
+├── app_setup/                      Flask wiring, one concern per module (imported in order):
+│   ├── config.py                   shared constants (session max age, upload folder)
+│   ├── templating.py               Jinja filters, globals, context processors
+│   ├── tenant.py                   which company a request belongs to; session binding
+│   ├── security.py                 IP bans, WAF, session lifetime/idle, mandatory MFA
+│   ├── csrf_csp.py                 CSRF, CSP nonces, security headers
+│   └── errors.py                   error pages, alerting on unhandled errors
 ├── extensions.py                   Flask app, rate limiter, logging, security events
 ├── run_dev.py                      local development server
-├── blueprints/                     34 route modules — the web pages AND the /api/... JSON API
-│                                   org.py, auth.py, employees.py, employee_portal.py,
-│                                   attendance.py, leave.py, payroll.py, billing.py,
-│                                   platform_admin.py, soc.py, webhooks.py, …
+├── blueprints/                     33 route modules — the web pages AND the /api/... JSON API;
+│                                   __init__.py holds the one registry (register_all)
+│                                   auth.py, attendance.py, leave.py, payroll.py, billing.py,
+│                                   soc.py, webhooks.py, … The five largest are packages
+│                                   with one file per area, e.g. employees/{manage,
+│                                   directory, registration, photos, id_cards, api}.py:
+│                                   admin_views/, employees/, employee_portal/, org/,
+│                                   platform_admin/ (import paths unchanged)
 ├── utils/                          ~60 helpers: salary, billing, attendance, email, AI,
 │                                   multi-company routing (tenant_routing.py), security
+│   └── helpers/                    shared helpers, by concern: validation, urls, http,
+│                                   crypto, db, settings, uploads, scoping, notifications,
+│                                   gates (import from utils.helpers as before)
 ├── qr_generator.py                 signed employee QR codes
-├── seed_platform_admin.py, setup_env.py, factory_reset.py, generate_cert.py
+├── scripts/                        operator tools: setup_env, seed_platform_admin,
+│                                   factory_reset, generate_cert, minify_static,
+│                                   rotate_encryption_key, encrypt_private_uploads, backups
 │
 │ ═══ 6. Database  +  7. Multi-company ═══════════════════════════════════════════
 ├── database.py                     connection pools, company schemas, owner/runtime roles
@@ -102,7 +117,7 @@ HRZEST/
 │     (inside wsgi.py, blueprints/ and utils/ — no folder of their own)
 │
 │ ═══ 10. Security ═════════════════════════════════════════════════════════════════
-│     (inside app.py, utils/ and blueprints/ — see section 10; SOC console UI in soc_ui/)
+│     (inside app_setup/, utils/ and blueprints/ — see section 10; SOC console UI in soc_ui/)
 │
 │ ═══ 11. Tests & QA ═══════════════════════════════════════════════════════════════
 ├── tests/                          ~160 pytest files (back end, API, pages)
@@ -162,7 +177,7 @@ HRZEST/
 | Page-specific styles | A `<style>` block inside the page itself — 71 of 77 templates have one |
 
 **Rules worth knowing**
-- The page **Content-Security-Policy** (set in `app.py`) blocks `style="..."` attributes created by JavaScript at runtime. Use CSS classes, or `element.style.setProperty(...)`. Server-rendered `style=""` attributes are allowed (they're hashed into the CSP).
+- The page **Content-Security-Policy** (set in `app_setup/csrf_csp.py`) blocks `style="..."` attributes created by JavaScript at runtime. Use CSS classes, or `element.style.setProperty(...)`. Server-rendered `style=""` attributes are allowed (they're hashed into the CSP).
 - Dark mode: admin pages add `body.dark-mode` (`static/darkmode.min.js`); give new components a `body.dark-mode …` rule.
 
 ---
@@ -179,9 +194,9 @@ Plain JavaScript (no framework, no build step).
 | SOC console | `soc_ui/soc-core.js`, `soc-views.js`, `soc-analysis.js` |
 
 **Rules worth knowing**
-- `app.py` injects a CSRF token into every page and every `fetch()` POST; inline `<script>` tags get a CSP nonce automatically.
+- `app_setup/csrf_csp.py` injects a CSRF token into every page and every `fetch()` POST; inline `<script>` tags get a CSP nonce automatically.
 - Put user-supplied text into the page with `textContent`, never `innerHTML` (the dashboard audit test `tests/test_dashboard_wiring.py` checks this).
-- `minify_static.py` regenerates the `.min` files from their sources — run it after editing e.g. `static/shared.css`.
+- `scripts/minify_static.py` regenerates the `.min` files from their sources — run it after editing e.g. `static/shared.css`.
 
 ---
 
@@ -192,11 +207,11 @@ Plain JavaScript (no framework, no build step).
 | Layer | Where | What it does |
 | --- | --- | --- |
 | Entry points | `wsgi.py` (production / `python wsgi.py` locally), `run_dev.py` | Builds the app, registers every blueprint, adds the multi-company and proxy middleware, starts the scheduler |
-| App core | `app.py` | Security headers + CSP, CSRF, session rules, which company a request belongs to (`_resolve_tenant`), template context (company settings, billing banners, registration checklist), error pages. No routes of its own. |
+| App core | `app.py` + `app_setup/` | Security headers + CSP, CSRF, session rules, which company a request belongs to (`_resolve_tenant`), template context (company settings, billing banners, registration checklist), error pages. No routes of its own. |
 | Shared objects | `extensions.py` | The Flask `app`, rate limiter, logging, security-event logger, Redis |
 | Routes ("blueprints") | `blueprints/` — 34 modules, one per area | See the table below |
 | Business logic & helpers | `utils/` — ~60 modules | Calculations, integrations and security helpers called by the routes |
-| One-off tools | `qr_generator.py` (signed employee QR codes), `seed_platform_admin.py`, `setup_env.py`, `factory_reset.py`, `generate_cert.py` | |
+| One-off tools | `qr_generator.py` (signed employee QR codes), `scripts/seed_platform_admin.py`, `scripts/setup_env.py`, `scripts/factory_reset.py`, `scripts/generate_cert.py` | |
 
 **Blueprints by area**
 
@@ -275,8 +290,8 @@ https://<server>/<company>/login   ──►  tenants.subdomain = "<company>"  �
 ```
 
 - `utils/tenant_routing.py` reads the first part of the URL, looks the company up in `att_master.tenants`, and hides that prefix from the rest of the app.
-- `app.py`'s `_resolve_tenant()` binds the session to that company; switching to another company's URL clears the session.
-- Sign-up makes the URL from the company name (`blueprints/org.py`, `_slug_for_company()`: "Acme Pvt. Ltd." → `acme-pvt-ltd`, plus `-2`… if taken).
+- `app_setup/tenant.py`'s `_resolve_tenant()` binds the session to that company; switching to another company's URL clears the session.
+- Sign-up makes the URL from the company name (`blueprints/org/validation.py`, `_slug_for_company()`: "Acme Pvt. Ltd." → `acme-pvt-ltd`, plus `-2`… if taken).
 - In templates, build links with `tpath('/path')` so they stay inside the current company.
 
 ---
@@ -321,7 +336,7 @@ https://<server>/<company>/login   ──►  tenants.subdomain = "<company>"  �
 | --- | --- |
 | Login, passwords, lockout, MFA, passkeys | `utils/auth.py`, `utils/totp.py`, `utils/login_otp.py`, `utils/webauthn_utils.py`, `blueprints/auth.py` |
 | Web firewall, IP trust, session risk | `utils/waf.py`, `utils/client_ip.py`, `utils/session_risk.py`, `utils/request_guard.py` |
-| Headers, CSP, CSRF | `app.py` |
+| Headers, CSP, CSRF | `app_setup/csrf_csp.py` |
 | Attendance fraud (fake GPS, replay, liveness) | `utils/punch_integrity.py`, `utils/liveness.py` |
 | Tamper-evident audit log | `migrations/audit_integrity.py`, `utils/audit_chain.py`, `utils/audit_jobs.py`, `scripts/verify_audit_chain.py` |
 | Personal data (DPDP / GDPR) | `utils/privacy.py`, `utils/privacy_jobs.py`, `utils/dlp.py`, `blueprints/privacy.py` |
@@ -375,10 +390,10 @@ In `docs/`: `docs/SECURITY_HARDENING.md` · `docs/SOC.md` · `docs/RESTORE.md` (
 | A button or form behaviour on a page | Front-end JS | the page's `<script>` block, or `static/*.js` |
 | What happens when a form is submitted | Back end | the route in `blueprints/<area>.py` |
 | A calculation (salary, leave, billing) | Back end | `utils/salary_utils.py`, `utils/leave_utils.py`, `utils/plan_limits.py` |
-| Company sign-up / registration checklist | Back end + UI | `blueprints/org.py`, `templates/create_org.html`, `templates/_registration_checklist.html` |
+| Company sign-up / registration checklist | Back end + UI | `blueprints/org/`, `templates/create_org.html`, `templates/_registration_checklist.html` |
 | A table or column | Database | `migrations/core_tables.py` / `column_migrations.py` (per company) or `migrations/master.py` (platform) |
 | Something the mobile app calls | API + Mobile | the `/api/...` route in `blueprints/`, and `mobile/src/api/client.js` |
 | A mobile screen | Mobile app | `mobile/src/screens/...`, components in `mobile/src/components/...` |
 | A scheduled job | Background jobs | `wsgi.py` (schedule) + the job's module |
-| Security headers / CSP | Security | `app.py` (`_security_headers`) |
+| Security headers / CSP | Security | `app_setup/csrf_csp.py` (`_security_headers`) |
 | Deployment | Operations | `scripts/ec2_autodeploy.sh`, `.github/workflows/ci-cd.yml` |

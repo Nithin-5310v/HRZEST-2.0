@@ -7,11 +7,12 @@ urllib.request layer) is monkeypatched in `ask_assistant` tests, and the
 route tests monkeypatch `ask_assistant` itself, matching the existing
 convention of not mocking the code under test but isolating the
 third-party network call (see tests/test_face_utils.py)."""
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import utils.ai_assistant as ai_assistant
-import blueprints.employee_portal as employee_portal_module
 from utils.ai_assistant import (
     build_employee_context, ask_assistant, _sanitize_history, MAX_MESSAGE_LEN,
 )
+from tests.conftest import patch_package  # noqa: E402
 
 
 class TestBuildEmployeeContext:
@@ -56,8 +57,8 @@ class TestBuildEmployeeContext:
             (seed_employee["employee_id"], 960, 0))
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s,CURRENT_DATE,'18:00:00','20:00:00',120,0,'Pending')",
-            (seed_employee["employee_id"],))
+            "VALUES (%s,CURRENT_DATE,'18:00:00','20:00:00',120,%s,'Pending')",
+            (seed_employee["employee_id"], _pay(0)))
         context = build_employee_context(cur, seed_employee["employee_id"])
         cur.execute("DELETE FROM compoff_balance WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.execute("DELETE FROM overtime_records WHERE employee_id=%s", (seed_employee["employee_id"],))
@@ -394,7 +395,7 @@ class TestChatRoute:
         with client.session_transaction() as sess:
             sess["employee_id"] = seed_employee["employee_id"]
 
-        monkeypatch.setattr(employee_portal_module, "ask_assistant", lambda context, message, history, emp_id=None: (True, "Mocked reply"))
+        patch_package(monkeypatch, "blueprints.employee_portal", "ask_assistant", lambda context, message, history, emp_id=None: (True, "Mocked reply"))
 
         resp = client.post("/api/employee/chat", json={"message": "How much leave do I have?"})
         assert resp.status_code == 200
@@ -418,7 +419,7 @@ class TestChatRoute:
             captured["history"] = history
             return True, "ok"
 
-        monkeypatch.setattr(employee_portal_module, "ask_assistant", _fake_ask)
+        patch_package(monkeypatch, "blueprints.employee_portal", "ask_assistant", _fake_ask)
         resp = client.post("/api/employee/chat", json={"message": "hi", "history": "not-a-list"})
         assert resp.status_code == 200
         assert captured["history"] == []

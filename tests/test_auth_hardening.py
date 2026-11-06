@@ -12,6 +12,7 @@ import zlib
 import pytest
 
 from extensions import app as flask_app
+from tests.conftest import mock_package  # noqa: E402
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ def _decode_session_cookie(raw_value):
 def _session_cookie_payloads(resp):
     out = []
     for header in resp.headers.getlist("Set-Cookie"):
-        if header.startswith("session="):
+        if header.startswith(flask_app.config["SESSION_COOKIE_NAME"] + "="):
             value = header.split("=", 1)[1].split(";", 1)[0]
             if value:
                 out.append(_decode_session_cookie(value))
@@ -222,7 +223,7 @@ class TestPlatformAdminCodeServerSide:
 
     @pytest.fixture
     def platform_codes(self, client, monkeypatch):
-        import blueprints.platform_admin as pa
+        import blueprints.platform_admin.auth as pa   # login lives in the auth submodule
         codes = []
         monkeypatch.setattr(pa, "send_mfa_login_email", lambda to, u, r, s, code: codes.append(code))
         original = client.application.config.get("MANDATORY_PLATFORM_ADMIN_MFA")
@@ -578,7 +579,7 @@ class TestCheckinCombosServerSide:
 
     def test_mobile_checkin_rejects_qr_fingerprint_when_face_enabled(self, client, seed_employee, mocker,
                                                                      signed_qr):
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value=dict(_FACE_ON))
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value=dict(_FACE_ON))
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]), "auth_combo": "qr_fingerprint"})
         assert rv.status_code == 403

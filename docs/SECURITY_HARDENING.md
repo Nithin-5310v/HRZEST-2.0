@@ -150,7 +150,7 @@ coordinates, and no evidence of a punch was kept. The landing page advertised
 "Liveness Detection: Active".
 
 **What changed** (`utils/liveness.py`, `utils/punch_integrity.py`, hooks in
-`blueprints/attendance.py` and `blueprints/employee_portal.py`, web + mobile clients)
+`blueprints/attendance.py` and `blueprints/employee_portal/checkin.py`, web + mobile clients)
 
 | Layer | Detail |
 |---|---|
@@ -214,6 +214,14 @@ ranges — tune them against real kiosk captures before enforcing.
   **After deploying, run once:** `scripts/rotate_encryption_key.py` (upgrades
   Fernet column values to AES-256-GCM) and `scripts/encrypt_private_uploads.py`
   (encrypts existing files in place). Use `--dry-run` first for both.
+* **Biometric images** (face photos, kiosk face logs, admin photos under
+  `dataset/`) are AES-256-GCM on disk too. Every read and write goes through
+  `utils/storage.py` (`save_image`, `save_upload`, `open_image`,
+  `decrypted_stream`, `send_image`). Never `open()`, `Image.open()`,
+  `load_image_file()` or `send_file()` these paths directly. **After
+  deploying, run once:**
+  `python scripts/encrypt_private_uploads.py --root dataset` (dry-run first).
+  Run it only after this release is live: older code can't read encrypted photos.
 * **Employee email and phone** are encrypted the same way, with an
   HMAC-SHA-512 blind index beside each (`email_bidx`, `phone_bidx`) for
   exact-match lookups (admin search, email blast). Partial search on them

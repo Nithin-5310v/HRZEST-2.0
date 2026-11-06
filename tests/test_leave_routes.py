@@ -5,6 +5,7 @@ route-level coverage (only incidentally touched by tests/test_comprehensive.py),
 so these tests cover each route's success path plus its most important
 branch (validation failure, not-found, already-processed, permission gate).
 """
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import datetime
 
 from utils.async_writer import _write_queue
@@ -499,8 +500,8 @@ class TestLeaveApprovalRoleGating:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s,%s,'18:00:00','19:00:00',60,0,'Pending') RETURNING id",
-            (seed_employee["employee_id"], datetime.date.today()))
+            "VALUES (%s,%s,'18:00:00','19:00:00',60,%s,'Pending') RETURNING id",
+            (seed_employee["employee_id"], datetime.date.today(), _pay(0)))
         oid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"], role="soc_analyst")
         resp = client.post(f"/overtime_action/{oid}", data={"action": "approve"}, follow_redirects=False)
@@ -584,8 +585,8 @@ class TestLeaveApprovalRoleGating:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s,%s,'18:00:00','19:00:00',60,0,'Pending') RETURNING id",
-            (seed_employee["employee_id"], datetime.date.today()))
+            "VALUES (%s,%s,'18:00:00','19:00:00',60,%s,'Pending') RETURNING id",
+            (seed_employee["employee_id"], datetime.date.today(), _pay(0)))
         oid = cur.fetchone()[0]
         token = _admin_bearer_token(client, seed_admin)
         cur.execute("UPDATE admin_users SET role='soc_analyst' WHERE username=%s", (seed_admin["username"],))
@@ -867,8 +868,8 @@ class TestApiEmployeeOvertime:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s,%s,'18:00:00','19:00:00',60,100,'Pending')",
-            (seed_employee["employee_id"], datetime.date.today()))
+            "VALUES (%s,%s,'18:00:00','19:00:00',60,%s,'Pending')",
+            (seed_employee["employee_id"], datetime.date.today(), _pay(100)))
         token = _employee_bearer_token(client, seed_employee)
         resp = client.get("/api/employee/my_overtime", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
@@ -901,8 +902,8 @@ class TestOvertimeAction:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s,%s,'18:00:00','20:30:00',150,0,'Pending') RETURNING id",
-            (seed_employee["employee_id"], datetime.date.today()))
+            "VALUES (%s,%s,'18:00:00','20:30:00',150,%s,'Pending') RETURNING id",
+            (seed_employee["employee_id"], datetime.date.today(), _pay(0)))
         oid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"])
         resp = client.post(f"/overtime_action/{oid}", data={"action": "approve"}, follow_redirects=False)
@@ -920,8 +921,8 @@ class TestOvertimeAction:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s,%s,'18:00:00','20:30:00',150,0,'Approved') RETURNING id",
-            (seed_employee["employee_id"], datetime.date.today()))
+            "VALUES (%s,%s,'18:00:00','20:30:00',150,%s,'Approved') RETURNING id",
+            (seed_employee["employee_id"], datetime.date.today(), _pay(0)))
         oid = cur.fetchone()[0]
         cur.execute(
             "INSERT INTO compoff_balance (employee_id, earned_minutes, used_minutes) VALUES (%s,150,0)",
@@ -938,8 +939,8 @@ class TestOvertimeAction:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s,%s,'18:00:00','19:00:00',60,0,'Pending') RETURNING id",
-            (seed_employee["employee_id"], datetime.date.today()))
+            "VALUES (%s,%s,'18:00:00','19:00:00',60,%s,'Pending') RETURNING id",
+            (seed_employee["employee_id"], datetime.date.today(), _pay(0)))
         oid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"])
         resp = client.post(f"/overtime_action/{oid}", data={"action": "bogus"}, follow_redirects=False)

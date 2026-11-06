@@ -2127,6 +2127,8 @@
 
 {% block scripts %}
 
+  <script src="{{ static_url('a11y-tabs.js') }}"></script>
+
   {# ══ SET COMPANY PIN MODAL ══ #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10002 u-ai-center u-jc-center" id="setPinModal">
     <div class="u-bg-fff u-br-20 u-p-28 u-w-360 u-shad-0-24-64-rgba0_0_0_0d25">
@@ -2504,6 +2506,19 @@
         requestAnimationFrame(function(){ requestAnimationFrame(applyTab); });
       }
     })();
+
+    /* ── Accessibility: ARIA roles + keyboard nav for the tab/dropdown system
+       (see static/a11y-tabs.js — wraps the switchGroup/switchSub logic above
+       without changing it) ── */
+    if (window.ezWireTabList) {
+      window.ezWireTabList('.s3-tab', function (tab) { return 's3panel-' + tab.id.replace('s3tab-', ''); }, { observe: true });
+      document.querySelectorAll('.subnav-dd-menu').forEach(function (menu) {
+        window.ezWireTabList('#' + menu.id + ' .subnav-dd-item', function (item) { return 'ss-' + item.id.replace('ddi-', ''); }, { observe: true });
+      });
+    }
+    if (window.ezWireDropdown) {
+      window.ezWireDropdown('.subnav-dd-btn', '.subnav-dd-menu');
+    }
 
     /* ── FEATURE TOGGLE (AJAX) ── */
     function saveToggle(feature, value, extraId) {

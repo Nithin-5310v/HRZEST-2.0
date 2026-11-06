@@ -23,9 +23,22 @@ SERVER_CLOCK = re.compile(r"datetime\.date\.today\(\)|datetime\.datetime\.now\(\
     "blueprints/employees.py",          # BUG-25
 ])
 def test_blueprint_does_not_read_the_server_clock(path):
-    hits = [f"{path}:{n}" for n, line in enumerate((ROOT / path).read_text(encoding="utf-8").splitlines(), 1)
-            if SERVER_CLOCK.search(line)]
+    hits = [f"{rel}:{n}" for rel, src in _sources(path)
+            for n, line in enumerate(src.splitlines(), 1) if SERVER_CLOCK.search(line)]
     assert hits == []
+
+
+def _sources(path):
+    """(relative name, source) for a module -- or, once a module has been split
+    into a package (blueprints/x.py -> blueprints/x/), every file in it, so the
+    guard keeps covering the code instead of failing or silently passing."""
+    file = ROOT / path
+    if file.is_file():
+        return [(path, file.read_text(encoding="utf-8"))]
+    pkg = file.with_suffix("")
+    files = sorted(pkg.glob("*.py"))
+    assert files, f"{path}: neither the module nor a package of that name exists"
+    return [(f"{pkg.relative_to(ROOT).as_posix()}/{f.name}", f.read_text(encoding="utf-8")) for f in files]
 
 
 # ── BUG-27: platform billing periods are on the platform's clock (IST) ─────

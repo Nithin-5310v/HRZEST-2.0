@@ -68,12 +68,18 @@ class TestExport:
 class TestErasure:
     def test_anonymises_and_removes_artefacts(self, db_engine, rich_employee, tmp_path):
         emp = rich_employee["employee_id"]
+        company = tmp_path / "tenants" / "public"
+        (company / "face_logs").mkdir(parents=True)
+        reg = company / f"{emp}.jpg"
+        log1 = company / "face_logs" / f"{emp}_20260101_000000.jpg"
+        other = company / "face_logs" / "TST0010_20260101_000000.jpg"   # prefix-adjacent id
+        stranger = company / "ZZZ.jpg"
+        # The old shared flat files may belong to another company's employee
+        # with the same ID -- erasure must leave them alone.
         (tmp_path / "face_logs").mkdir()
-        reg = tmp_path / f"{emp}.jpg"
-        log1 = tmp_path / "face_logs" / f"{emp}_20260101_000000.jpg"
-        other = tmp_path / "face_logs" / "TST0010_20260101_000000.jpg"   # prefix-adjacent id
-        stranger = tmp_path / "ZZZ.jpg"
-        for f in (reg, log1, other, stranger):
+        shared_reg = tmp_path / f"{emp}.jpg"
+        shared_log = tmp_path / "face_logs" / f"{emp}_20260101_000000.jpg"
+        for f in (reg, log1, other, stranger, shared_reg, shared_log):
             f.write_bytes(b"x")
 
         cur = db_engine.cursor()
@@ -81,6 +87,7 @@ class TestErasure:
 
         assert not reg.exists() and not log1.exists()
         assert other.exists() and stranger.exists()
+        assert shared_reg.exists() and shared_log.exists()
         assert manifest["files_removed"] == 2
 
         cur.execute("SELECT name, email, phone, pan_number, bank_account, dob, address, face_image, "
@@ -122,6 +129,21 @@ class TestRetention:
         removed = privacy.purge_face_logs(str(tmp_path), days=30)
         assert removed == 1
         assert not old.exists() and fresh.exists() and keep_txt.exists() and registered.exists()
+
+    def test_purge_face_logs_covers_every_company_folder(self, tmp_path):
+        long_ago = time.time() - 40 * 86400
+        files = []
+        for company in ("public", "att_company_a"):
+            logs = tmp_path / "tenants" / company / "face_logs"
+            logs.mkdir(parents=True)
+            old, registered = logs / "a_1.jpg", tmp_path / "tenants" / company / "a.jpg"
+            for f in (old, registered):
+                f.write_bytes(b"x")
+                os.utime(f, (long_ago, long_ago))
+            files.append((old, registered))
+        assert privacy.purge_face_logs(str(tmp_path), days=30) == 2
+        for old, registered in files:
+            assert not old.exists() and registered.exists()
 
     def test_purge_expired_db_rows(self, db_engine, tmp_path):
         cur = db_engine.cursor()

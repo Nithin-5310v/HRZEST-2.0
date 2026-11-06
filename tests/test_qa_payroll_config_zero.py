@@ -7,6 +7,7 @@ so a configured 0 came back as the default and the payslip deducted 12%
 PF and Rs.200 PT anyway. Only a NULL column should fall back to the
 default.
 """
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import re
 
 import pytest
@@ -41,8 +42,9 @@ def zero_statutory(db_engine, seed_employee):
     cur.execute("INSERT INTO payroll_config (pf_employee_pct, pf_employer_pct, professional_tax, tds_annual_pct, "
                 "pf_basic_cap) VALUES (0, 0, 0, 0, 15000)")
     cur.execute("INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc, basic_pct) "
-                "VALUES (%s, 1000, 26000, 50) ON CONFLICT (employee_id) DO UPDATE "
-                "SET salary_per_day=1000, monthly_ctc=26000, basic_pct=50", (seed_employee["employee_id"],))
+                "VALUES (%s, %s, %s, %s) ON CONFLICT (employee_id) DO UPDATE "
+                "SET salary_per_day=EXCLUDED.salary_per_day, monthly_ctc=EXCLUDED.monthly_ctc, "
+                "basic_pct=EXCLUDED.basic_pct", (seed_employee["employee_id"], _pay(1000), _pay(26000), _pay(50)))
     # A full month present: with no attendance the whole month is loss of
     # pay and the payslip scales every deduction down to the zero earned.
     for day in range(1, 31):

@@ -1,3 +1,5 @@
+import re
+
 import psycopg2
 
 from extensions import app_log
@@ -14,6 +16,7 @@ def _run_schema_migrations(cursor, db):
     _run_column_migrations(cursor, db)
     _run_password_migrations(cursor, db)
     _run_qr_signing_migration(cursor, db)
+    _run_qr_tenant_signing_migration(cursor, db)
     _run_index_migrations(cursor, db)
     _run_data_integrity_migrations(cursor, db)
     _run_company_policies_seed_v2(cursor, db)
@@ -348,8 +351,8 @@ def _run_column_migrations(cursor, db):
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS phone VARCHAR(30) DEFAULT NULL",
         "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS worked_minutes INT DEFAULT 0",
         "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS last_relogin TIME DEFAULT NULL",
-        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS monthly_ctc DECIMAL(12,2) DEFAULT 0",
-        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS basic_pct INT DEFAULT 50",
+        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS monthly_ctc TEXT",
+        "ALTER TABLE salary_config ADD COLUMN IF NOT EXISTS basic_pct TEXT",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS compoff_min_ot_minutes INT DEFAULT 120",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS compoff_minutes_per_day INT DEFAULT 480",
         "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS late_deduction_pct DECIMAL(5,2) DEFAULT 10.00",
@@ -529,10 +532,11 @@ def _run_qr_signing_migration(cursor, db):
         if cursor.fetchone():
             return
         from qr_generator import generate_qr
+        tenant = _cursor_tenant(cursor)
         cursor.execute("SELECT employee_id FROM employees WHERE qr_code IS NOT NULL")
         for (eid,) in cursor.fetchall():
             try:
-                new_path = generate_qr(eid)
+                new_path = generate_qr(eid, tenant)
                 cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (new_path, eid))
             except Exception as exc:
                 app_log.warning("QR regeneration failed for '%s' during 'qr_code_signing' migration: %s", eid, exc)
@@ -540,6 +544,36 @@ def _run_qr_signing_migration(cursor, db):
         db.commit()
     except Exception as exc:
         app_log.warning("Migration 'qr_code_signing' failed: %s", exc, exc_info=True)
+
+
+def _cursor_tenant(cursor):
+    """Never flask.g here -- a tenant is often provisioned from inside
+    another request (signup, the platform-admin console)."""
+    from utils.tenant_files import cursor_tenant
+    return cursor_tenant(cursor)
+
+
+def _run_qr_tenant_signing_migration(cursor, db):
+    """One-time: re-sign every employee's QR with the company in the signed
+    message (qr_generator._qr_signature) and store it per company. Badges
+    printed before this keep scanning until QR_LEGACY_ACCEPT_UNTIL, then
+    need the regenerated image."""
+    try:
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='qr_code_tenant_signing'")
+        if cursor.fetchone():
+            return
+        from qr_generator import generate_qr
+        tenant = _cursor_tenant(cursor)
+        cursor.execute("SELECT employee_id FROM employees WHERE qr_code IS NOT NULL")
+        for (eid,) in cursor.fetchall():
+            try:
+                cursor.execute("UPDATE employees SET qr_code=%s WHERE employee_id=%s", (generate_qr(eid, tenant), eid))
+            except Exception as exc:
+                app_log.warning("QR re-signing failed for '%s' during 'qr_code_tenant_signing': %s", eid, exc)
+        cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('qr_code_tenant_signing')")
+        db.commit()
+    except Exception as exc:
+        app_log.warning("Migration 'qr_code_tenant_signing' failed: %s", exc, exc_info=True)
 
 
 def _run_index_migrations(cursor, db):
@@ -699,6 +733,7 @@ def _run_data_integrity_migrations(cursor, db):
     _run_pii_widen_migration_v1(cursor, db)
     _run_pii_widen_migration_v2(cursor, db)
     _run_contact_encryption_migration_v1(cursor, db)
+    _run_pay_encryption_migration(cursor, db)
     _run_fk_backstop_migration(cursor, db)
 
 
@@ -1299,6 +1334,82 @@ def _run_contact_encryption_migration_v1(cursor, db):
     except Exception as exc:
         db.rollback()
         app_log.warning("Migration 'employee_contact_encryption_v1' failed: %s", exc, exc_info=True)
+
+
+# Pay amounts encrypted at rest (utils/helpers.py encrypt_amount). Each is a
+# TEXT column holding "hz2:" ciphertext, guarded by a CHECK so a plaintext
+# write fails loudly instead of quietly storing pay unencrypted.
+PAY_COLUMNS = (
+    ("salary_config", "salary_per_day"),
+    ("salary_config", "monthly_ctc"),
+    ("salary_config", "basic_pct"),
+    ("offer_letters", "monthly_ctc"),
+    ("employee_incentives", "amount"),
+    ("overtime_records", "ot_pay"),
+    ("salary_disbursement_items", "amount"),
+    ("salary_disbursement_runs", "total_amount"),
+)
+
+
+def pay_check_name(table, column):
+    return f"chk_{table}_{column}_enc"
+
+
+def encrypt_plaintext_pay(cursor, table, column):
+    """Encrypt every plaintext value left in one pay column. Idempotent.
+    `table` may be schema-qualified; callers pass only fixed/validated
+    identifiers. Returns the number of rows updated."""
+    from utils.helpers import encrypt_amount
+    cursor.execute(
+        f'SELECT id, "{column}" FROM {table} '  # nosec B608 -- fixed/validated identifiers
+        f'WHERE "{column}" IS NOT NULL AND "{column}" NOT LIKE %s', ("hz2:%",))
+    rows = cursor.fetchall()
+    for row_id, value in rows:
+        cursor.execute(f'UPDATE {table} SET "{column}"=%s WHERE id=%s',  # nosec B608 -- fixed identifiers
+                       (encrypt_amount(value), row_id))
+    return len(rows)
+
+
+def _run_pay_encryption_migration(cursor, db):
+    """Move every pay column to encrypted TEXT, one column at a time:
+    convert the type (dropping the numeric DEFAULT, which a TEXT column
+    holding ciphertext can't have), encrypt the existing values, then add
+    the CHECK that keeps plaintext out. Every step is skipped when already
+    done, so this is cheap on each start and safe to re-run; a column that
+    fails is rolled back and retried on the next start."""
+    cursor.execute("SELECT current_schema()")
+    schema = cursor.fetchone()[0]
+    if not schema or not re.match(r"^[A-Za-z0-9_]+$", schema):
+        app_log.warning("Pay encryption skipped: unexpected schema name %r", schema)
+        return
+    for table, column in PAY_COLUMNS:
+        qualified = f'"{schema}"."{table}"'
+        try:
+            cursor.execute(
+                "SELECT data_type FROM information_schema.columns "
+                "WHERE table_schema=%s AND table_name=%s AND column_name=%s",
+                (schema, table, column))
+            row = cursor.fetchone()
+            if row is None:
+                continue                       # table/column not in this schema
+            if row[0] != "text":
+                cursor.execute(f'ALTER TABLE {qualified} ALTER COLUMN "{column}" DROP DEFAULT')  # nosec B608
+                cursor.execute(f'ALTER TABLE {qualified} ALTER COLUMN "{column}" TYPE TEXT '  # nosec B608
+                               f'USING "{column}"::text')
+            n = encrypt_plaintext_pay(cursor, qualified, column)
+            cursor.execute(
+                "SELECT 1 FROM pg_constraint WHERE conname=%s AND conrelid=%s::regclass",
+                (pay_check_name(table, column), qualified))
+            if cursor.fetchone() is None:
+                cursor.execute(
+                    f'ALTER TABLE {qualified} ADD CONSTRAINT {pay_check_name(table, column)} '  # nosec B608
+                    f'CHECK ("{column}" IS NULL OR "{column}" LIKE \'hz2:%\')')
+            db.commit()
+            if n:
+                app_log.info("pay encryption: encrypted %d value(s) in %s.%s", n, table, column)
+        except Exception as exc:
+            db.rollback()
+            app_log.warning("Pay encryption of %s.%s failed: %s", table, column, exc, exc_info=True)
 
 
 def _run_fk_backstop_migration(cursor, db):

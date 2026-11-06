@@ -41,7 +41,7 @@ class TestGetKnownFaceEncoding:
         result = face_utils._get_known_face_encoding("EMP1", face_file)
         assert result == "encoding-1"
         assert len(calls) == 1
-        assert "EMP1" in face_utils._face_enc_cache
+        assert face_file in face_utils._face_enc_cache
 
     def test_second_call_with_unchanged_mtime_uses_cache(self, face_file, monkeypatch):
         calls = []
@@ -91,15 +91,30 @@ class TestGetKnownFaceEncoding:
         f2 = tmp_path / "emp2.jpg"
         f1.write_bytes(b"a")
         f2.write_bytes(b"b")
-        monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda path: path)
+        # load_image_file receives a decrypted BytesIO, not a path. Key the fake
+        # encoding on the bytes: the stream's repr holds a memory address CPython
+        # can reuse once the first stream is freed, so two encodings could collide.
+        monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda f: f.read())
         monkeypatch.setattr(face_utils.face_recognition, "face_encodings",
                             lambda img: [f"enc-for-{img}"])
 
         r1 = face_utils._get_known_face_encoding("EMP1", str(f1))
         r2 = face_utils._get_known_face_encoding("EMP2", str(f2))
         assert r1 != r2
-        assert "EMP1" in face_utils._face_enc_cache
-        assert "EMP2" in face_utils._face_enc_cache
+        assert str(f1) in face_utils._face_enc_cache
+        assert str(f2) in face_utils._face_enc_cache
+
+    def test_same_employee_id_in_two_companies_cached_separately(self, tmp_path, monkeypatch):
+        """Keyed by file, not employee ID: two companies' EMP1 have different
+        reference photos and must never share one cached encoding."""
+        a = tmp_path / "a" / "EMP1.jpg"
+        b = tmp_path / "b" / "EMP1.jpg"
+        for f, data in ((a, b"a"), (b, b"b")):
+            f.parent.mkdir()
+            f.write_bytes(data)
+        monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda f: f.read())
+        monkeypatch.setattr(face_utils.face_recognition, "face_encodings", lambda img: [f"enc-for-{img}"])
+        assert face_utils._get_known_face_encoding("EMP1", str(a)) != face_utils._get_known_face_encoding("EMP1", str(b))
 
 
 class TestModuleAvailabilityFlag:

@@ -17,6 +17,7 @@ import extensions
 import utils.helpers as helpers
 import utils.totp as totp
 from extensions import app as flask_app
+from tests.conftest import patch_helpers  # noqa: E402
 
 
 class FakeRedis:
@@ -40,26 +41,26 @@ class FakeRedis:
 @pytest.fixture
 def redis(monkeypatch):
     fake = FakeRedis()
-    monkeypatch.setattr(helpers, "redis_client", fake)
+    patch_helpers(monkeypatch, "redis_client", fake)
     monkeypatch.setattr(extensions, "redis_client", fake)
     return fake
 
 
 def test_pending_counts_are_shared_between_workers(redis, monkeypatch):
-    monkeypatch.setattr(helpers, "get_pending_action_counts", lambda cursor, *a, **k: (3, 1, 2))
+    patch_helpers(monkeypatch, "get_pending_action_counts", lambda cursor, *a, **k: (3, 1, 2))
     with flask_app.test_request_context():
         assert helpers.get_pending_counts() == (3, 1, 2)          # worker A computes and caches
     helpers._pending_counts_cache.clear()                          # worker B: empty local memory
 
     def _no_query(*a, **k):
         raise AssertionError("worker B should read the shared cache")
-    monkeypatch.setattr(helpers, "get_pending_action_counts", _no_query)
+    patch_helpers(monkeypatch, "get_pending_action_counts", _no_query)
     with flask_app.test_request_context():
         assert helpers.get_pending_counts() == (3, 1, 2)
 
 
 def test_invalidating_pending_counts_clears_the_shared_cache(redis, monkeypatch):
-    monkeypatch.setattr(helpers, "get_pending_action_counts", lambda cursor, *a, **k: (3, 1, 2))
+    patch_helpers(monkeypatch, "get_pending_action_counts", lambda cursor, *a, **k: (3, 1, 2))
     with flask_app.test_request_context():
         helpers.get_pending_counts()
     helpers.invalidate_pending_counts_cache()

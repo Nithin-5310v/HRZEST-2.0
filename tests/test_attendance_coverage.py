@@ -5,12 +5,13 @@ Does NOT duplicate any test already in test_attendance_checkin.py or test_leave_
 """
 import datetime
 import io
+import os
 import time as _time_stdlib
 
 import pytest
 
 import utils.config as _cfg
-from tests.conftest import TEST_OFFICE
+from tests.conftest import TEST_OFFICE, mock_package
 
 _REAL_SHIFT_RULES = _cfg.shift_rules
 
@@ -218,42 +219,44 @@ class TestGetKnownFaceEncoding:
         import utils.face_utils as fu
         sentinel = object()
         mtime = 12345.0
-        fu._face_enc_cache["CACHE_HIT_EMP"] = (mtime, sentinel)
+        fu._face_enc_cache["/fake/path.jpg"] = (mtime, sentinel)
         mocker.patch("blueprints.attendance.os.path.getmtime", return_value=mtime)
         result = att._get_known_face_encoding("CACHE_HIT_EMP", "/fake/path.jpg")
         assert result is sentinel
-        del fu._face_enc_cache["CACHE_HIT_EMP"]
+        del fu._face_enc_cache["/fake/path.jpg"]
 
     def test_cache_miss_calls_face_recognition(self, mocker):
         import blueprints.attendance as att
         import utils.face_utils as fu
         mtime = 99999.0
         mocker.patch("blueprints.attendance.os.path.getmtime", return_value=mtime)
+        mocker.patch("utils.storage.read_file", return_value=b"")   # no real file: photos are read decrypted
         fake_img = object()
         fake_enc = [0.1] * 128
         fr_mock = mocker.MagicMock()
         fr_mock.load_image_file.return_value = fake_img
         fr_mock.face_encodings.return_value = [fake_enc]
         mocker.patch.object(fu, "face_recognition", fr_mock)
-        fu._face_enc_cache.pop("MISS_EMP", None)
+        fu._face_enc_cache.pop("/fake/path.jpg", None)
         result = att._get_known_face_encoding("MISS_EMP", "/fake/path.jpg")
         assert result == fake_enc
-        assert fu._face_enc_cache.get("MISS_EMP") == (mtime, fake_enc)
-        del fu._face_enc_cache["MISS_EMP"]
+        assert fu._face_enc_cache.get("/fake/path.jpg") == (mtime, fake_enc)
+        del fu._face_enc_cache["/fake/path.jpg"]
 
     def test_no_encodings_returns_none_cached(self, mocker):
         import blueprints.attendance as att
         import utils.face_utils as fu
         mtime = 77777.0
         mocker.patch("blueprints.attendance.os.path.getmtime", return_value=mtime)
+        mocker.patch("utils.storage.read_file", return_value=b"")   # no real file: photos are read decrypted
         fr_mock = mocker.MagicMock()
         fr_mock.load_image_file.return_value = object()
         fr_mock.face_encodings.return_value = []  # no faces in image
         mocker.patch.object(fu, "face_recognition", fr_mock)
-        fu._face_enc_cache.pop("NOENC_EMP", None)
+        fu._face_enc_cache.pop("/fake/path.jpg", None)
         result = att._get_known_face_encoding("NOENC_EMP", "/fake/path.jpg")
         assert result is None
-        del fu._face_enc_cache["NOENC_EMP"]
+        del fu._face_enc_cache["/fake/path.jpg"]
 
 
 class TestSafeReferrerRedirect:
@@ -271,7 +274,7 @@ class TestSafeReferrerRedirect:
         # patch that, not attendance's separately-imported copy.
         import blueprints.attendance as att
         import utils.helpers as helpers
-        mock_redirect = mocker.patch.object(helpers, "_safe_redirect", return_value="/settings")
+        mock_redirect = mocker.patch.object(helpers.urls, "_safe_redirect", return_value="/settings")
         with client.application.test_request_context("/"):
             result = att._safe_referrer_redirect("/settings?tab=shifts", "/fallback")
             assert result == "/settings"
@@ -1085,7 +1088,7 @@ class TestQrFaceCheckinCoverage:
             "WHERE employee_id='TST001'"
         )
         cur.close()
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": True,
             "fingerprint_enabled": False, "location_enabled": True,
         })
@@ -1119,7 +1122,7 @@ class TestQrFaceCheckinCoverage:
             sess["wa_fp_verified_emp_id"] = emp_id
             sess["wa_fp_verified_at"] = _time_stdlib.time()
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
@@ -1142,13 +1145,20 @@ class TestQrFaceCheckinCoverage:
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET face_image='/tmp/fake_face.jpg' WHERE employee_id='TST001'")
         cur.close()
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": True,
             "fingerprint_enabled": False, "location_enabled": False,
         })
-        mocker.patch("blueprints.employee_portal._face_recognition_available", True)
-        mocker.patch("blueprints.employee_portal.os.path.exists", return_value=True)
-        mocker.patch("blueprints.employee_portal._get_known_face_encoding", return_value=None)
+        mock_package(mocker, "blueprints.employee_portal", "_face_recognition_available", True)
+        # Fake only the registered-face file. os.path is the global module, so a
+        # blanket exists=True also fools os.makedirs into skipping missing parent
+        # dirs of the face-log folder -> FileNotFoundError on a fresh checkout.
+        _real_exists = os.path.exists
+        mocker.patch(
+            "blueprints.employee_portal.checkin.os.path.exists",
+            side_effect=lambda p: p == "/tmp/fake_face.jpg" or _real_exists(p),
+        )
+        mock_package(mocker, "blueprints.employee_portal", "_get_known_face_encoding", return_value=None)
         # PIL.Image.open will be called; provide a valid JPEG
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
@@ -1176,7 +1186,7 @@ class TestQrFaceCheckinCoverage:
         cur.close()
         self._qr_fp_session(client, seed_employee["employee_id"])
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
@@ -1200,7 +1210,7 @@ class TestQrFaceCheckinCoverage:
         cur.close()
         self._qr_fp_session(client, seed_employee["employee_id"])
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
@@ -1220,7 +1230,7 @@ class TestQrFaceCheckinCoverage:
         """Line 1687: current_time < s_half → Half Day Logout."""
         self._qr_fp_session(client, seed_employee["employee_id"])
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
@@ -1237,7 +1247,7 @@ class TestQrFaceCheckinCoverage:
         """Line 1689: s_half < current_time < s_end → Early Logout."""
         self._qr_fp_session(client, seed_employee["employee_id"])
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
@@ -1254,7 +1264,7 @@ class TestQrFaceCheckinCoverage:
         """Lines 1704-1711: relogin after a completed session."""
         self._qr_fp_session(client, seed_employee["employee_id"])
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })

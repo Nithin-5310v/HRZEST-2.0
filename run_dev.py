@@ -46,7 +46,7 @@ if __name__ == "__main__":
     print(f"   • Employee Portal: {_scheme}://127.0.0.1:{port}/employee_portal")
     print(f"   • Health Check:    {_scheme}://127.0.0.1:{port}/healthz")
     if not _https:
-        print("\n⚠   No cert.pem / key.pem found -- run `python generate_cert.py` for HTTPS.")
+        print("\n⚠   No cert.pem / key.pem found -- run `python scripts/generate_cert.py` for HTTPS.")
     print("="*60 + "\n")
 
     # threaded=True matters here: /api/session/risk-stream (blueprints/

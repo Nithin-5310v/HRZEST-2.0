@@ -51,6 +51,45 @@ class DecryptionError(Exception):
     """Value looks like ciphertext but no configured key can decrypt it."""
 
 
+# ── Encrypted numbers (pay amounts) ──────────────────────────────────────────
+# Pay columns (salary_config, offer_letters.monthly_ctc, incentives, overtime
+# pay, disbursement amounts) are TEXT holding ordinary "hz2:" ciphertext whose
+# plaintext starts with NUM_TAG. database.py's decrypt-on-fetch turns a
+# tagged plaintext back into a Decimal, so those columns read exactly as the
+# DECIMAL columns they replaced. The tag lives inside the ciphertext: it is
+# not visible in the database and needs no schema of its own.
+NUM_TAG = "\x00num:"
+
+
+def encode_number(value):
+    """Plaintext for an encrypted number: NUM_TAG + the value rounded to 2
+    places (what the DECIMAL(..,2) columns stored). None/"" -> None.
+    Raises ValueError for anything that is not a finite number."""
+    from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    if isinstance(value, bool):
+        raise ValueError("not a number")
+    try:
+        d = Decimal(str(value).strip())
+    except (InvalidOperation, ValueError) as e:
+        raise ValueError("not a number") from e
+    if not d.is_finite():
+        raise ValueError("not a finite number")
+    return NUM_TAG + str(d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def decode_plaintext(plain):
+    """Decrypted plaintext -> Decimal for a tagged number, else unchanged."""
+    if isinstance(plain, str) and plain.startswith(NUM_TAG):
+        from decimal import Decimal, InvalidOperation
+        try:
+            return Decimal(plain[len(NUM_TAG):])
+        except InvalidOperation:
+            return plain
+    return plain
+
+
 def _raw_key(key: str) -> bytes:
     raw = base64.urlsafe_b64decode(key.strip().encode())
     if len(raw) != 32:
@@ -168,6 +207,11 @@ class PiiCipher:
     @property
     def primary_kid(self) -> bytes:
         return self._aes[0][0]
+
+    def encrypt_number(self, value):
+        """Ciphertext for a pay amount (see encode_number); None stays None."""
+        plain = encode_number(value)
+        return None if plain is None else self.encrypt(plain)
 
     def encrypt(self, plaintext: str) -> str:
         kid, aes = self._aes[0]

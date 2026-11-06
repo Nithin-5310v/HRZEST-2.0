@@ -571,8 +571,12 @@ def mobile_bridge_login(token):
     minutes, same hash-and-expire shape as admin_users.reset_token."""
     token_hash = _hash_token(token)
     with _db() as (cursor, conn):
+        # Claim and consume in one statement: a SELECT followed by a
+        # separate DELETE let two simultaneous requests both redeem the
+        # same single-use token.
         cursor.execute(
-            "SELECT admin_username, target_path FROM mobile_bridge_tokens WHERE token_hash=%s AND expires_at > NOW()",
+            "DELETE FROM mobile_bridge_tokens WHERE token_hash=%s AND expires_at > NOW() "
+            "RETURNING admin_username, target_path",
             (token_hash,)
         )
         row = cursor.fetchone()
@@ -583,7 +587,6 @@ def mobile_bridge_login(token):
         username, target_path = row
         if target_path not in _BRIDGE_TARGET_ALLOWLIST:
             target_path = _BRIDGE_DEFAULT_TARGET
-        cursor.execute("DELETE FROM mobile_bridge_tokens WHERE token_hash=%s", (token_hash,))
         cursor.execute("SELECT COALESCE(role,'admin') FROM admin_users WHERE username=%s", (username,))
         role_row = cursor.fetchone()
         conn.commit()

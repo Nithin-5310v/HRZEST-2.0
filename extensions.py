@@ -222,6 +222,78 @@ def check_secret_key_configured(app_env, secret_key_env_value, logger=None):
 check_secret_key_configured(os.environ.get("APP_ENV", "production"), os.environ.get("SECRET_KEY", ""))
 
 
+# Hosts that never leave the machine / compose network: TLS is optional there.
+_LOCAL_DB_HOSTS = {"", "localhost", "127.0.0.1", "::1", "db"}
+_SECURE_DB_SSLMODES = {"require", "verify-ca", "verify-full"}
+
+
+def check_db_tls(app_env, db_host, sslmode, allow_plaintext=False, logger=None):
+    """Outside development, a database reached over the network (RDS or any
+    remote host) must use TLS: sslmode require / verify-ca / verify-full.
+    The default "prefer" silently falls back to plaintext if TLS can't be
+    negotiated, which would send every query -- and every decrypted-on-read
+    value's ciphertext plus all plaintext columns -- over the wire in the
+    clear. Local hosts (localhost, a unix socket path, the compose "db"
+    service) are exempt. DB_ALLOW_PLAINTEXT=1 overrides, loudly."""
+    logger = logger or app_log
+    if app_env == "development":
+        return
+    host = (db_host or "").strip().lower()
+    if host in _LOCAL_DB_HOSTS or host.startswith("/"):
+        return
+    mode = (sslmode or "prefer").strip().lower()
+    if mode in _SECURE_DB_SSLMODES:
+        if mode == "require":
+            logger.warning("DB_SSLMODE=require encrypts the database connection but does not verify the "
+                           "server certificate -- prefer verify-full with DB_SSLROOTCERT set to the RDS CA bundle.")
+        return
+    if allow_plaintext:
+        logger.critical("DB_ALLOW_PLAINTEXT=1: connecting to remote database %s with DB_SSLMODE=%s -- "
+                        "traffic may be unencrypted.", host, mode)
+        return
+    logger.critical(
+        "FATAL: APP_ENV=%s, remote database %s, DB_SSLMODE=%s -- refusing to start without TLS to the "
+        "database. Set DB_SSLMODE=verify-full and DB_SSLROOTCERT=<path to the RDS CA bundle> "
+        "(or DB_SSLMODE=require).", app_env, host, mode)
+    raise RuntimeError(
+        f"DB_SSLMODE={mode} for remote database host -- refusing to start without TLS (fail-secure).")
+
+
+check_db_tls(os.environ.get("APP_ENV", "production"), os.environ.get("DB_HOST", "localhost"),
+             os.environ.get("DB_SSLMODE", "prefer"),
+             os.environ.get("DB_ALLOW_PLAINTEXT", "").strip() == "1")
+
+
+def check_app_url_configured(app_env, app_url_env_value, logger=None):
+    """Pure-ish, same pattern as check_secret_key_configured() above.
+
+    Password-reset, welcome and OAuth links in emails are built from APP_URL
+    (utils/helpers.py's _safe_app_url()). Without it they fall back to the
+    request's Host header, which the client controls: a forgot-password
+    request sent with `Host: attacker.example` would mail the victim a
+    genuine reset token on a link to the attacker's server. A boot-time
+    warning was the only guard, so refuse to start instead, outside
+    development."""
+    logger = logger or app_log
+    if app_env == "development":
+        return
+    url = (app_url_env_value or "").strip()
+    if url.startswith(("https://", "http://")) and len(url.split("://", 1)[1].strip("/")) > 0:
+        return
+    logger.critical(
+        "FATAL: APP_ENV=%s but APP_URL is %s -- refusing to start: emailed links (password "
+        "reset, welcome, OAuth) would be built from the client-controlled Host header. "
+        "Set APP_URL=https://yourdomain.com (see .env.example).",
+        app_env, "not set" if not url else "not an absolute http(s) URL",
+    )
+    raise RuntimeError(
+        "APP_URL is not set to an absolute http(s) URL outside APP_ENV=development -- refusing to start (fail-secure)."
+    )
+
+
+check_app_url_configured(os.environ.get("APP_ENV", "production"), os.environ.get("APP_URL", ""))
+
+
 def check_redis_requirement(app_env, redis_configured, require_redis=None, logger=None):
     """Pure-ish (env values passed in, not read internally), same pattern as
     check_secret_key_configured() above -- unit-tested directly without
@@ -334,6 +406,14 @@ app.config["SESSION_COOKIE_SECURE"] = True
 # never attached to a cross-site request — closes CSRF via cookie-riding
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_PATH"] = "/"    # explicit for clarity; Flask's own default, stated rather than implied
+# "__Host-" prefix: browsers only accept this cookie if it is Secure, has
+# Path=/ and NO Domain attribute, and only from this exact host. Host-only
+# alone (below) stops the cookie being SENT to other subdomains, but a page
+# on any other *.hrzest.com subdomain could still SET a Domain=hrzest.com
+# cookie named "session" that the browser sends here (cookie tossing /
+# session fixation). A subdomain cannot set a __Host- cookie at all.
+# Renaming it logs every user out once, on the deploy that ships it.
+app.config["SESSION_COOKIE_NAME"] = "__Host-session"
 # SESSION_COOKIE_DOMAIN deliberately left unset: omitting it makes the
 # cookie host-only (RFC 6265) — it's sent ONLY to this exact hostname, not
 # to sibling subdomains. Setting an explicit Domain here would WIDEN scope

@@ -20,7 +20,7 @@ PASSWORD = os.environ.get("LT_PASSWORD") or "LoadTest-Only-Pw-2026"
 N_EMPLOYEES = int(os.environ.get("LT_EMPLOYEES", "200"))
 _ip = itertools.count(1)
 _emp = itertools.count(1)
-_COOKIE_RE = re.compile(r"(?:^|,\s*)session=([^;]*)")
+_COOKIE_RE = re.compile(r"(?:^|,\s*)__Host-session=([^;]*)")
 TODAY = datetime.date.today()
 PAYSLIP_YEAR, PAYSLIP_MONTH = (TODAY.year, TODAY.month - 1) if TODAY.month > 1 else (TODAY.year - 1, 12)
 
@@ -39,7 +39,7 @@ class _Base(HttpUser):
         m = _COOKIE_RE.search(raw)
         if m:
             self.session_cookie = m.group(1)
-            self.client.headers["Cookie"] = f"session={self.session_cookie}"
+            self.client.headers["Cookie"] = f"__Host-session={self.session_cookie}"
 
     def web_login(self, identifier, name):
         self.client.headers.pop("Cookie", None)

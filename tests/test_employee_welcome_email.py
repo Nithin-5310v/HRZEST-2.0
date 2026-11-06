@@ -26,6 +26,7 @@ from PIL import Image
 
 import utils.face_utils as face_utils
 from extensions import app as flask_app
+from utils.tenant_files import face_photo_path
 
 UPLOAD_FOLDER = flask_app.config["UPLOAD_FOLDER"]
 QR_FOLDER = os.path.join(flask_app.root_path, "private_uploads", "qrcodes")
@@ -56,7 +57,7 @@ def _cleanup_employee(db_engine, emp_id):
     cur.execute("DELETE FROM salary_config WHERE employee_id=%s", (emp_id,))
     cur.execute("DELETE FROM employees WHERE employee_id=%s", (emp_id,))
     cur.close()
-    for path in (os.path.join(UPLOAD_FOLDER, emp_id + ".jpg"),
+    for path in (os.path.join(UPLOAD_FOLDER, emp_id + ".jpg"), face_photo_path(emp_id, "public"),
                  os.path.join(QR_FOLDER, emp_id + ".png")):
         if os.path.exists(path):
             os.remove(path)
@@ -82,7 +83,7 @@ class TestEmployeeLoginUrlHelper:
 class TestAddEmployeePageWelcomeEmail:
     def test_add_employee_sends_email_with_set_password_link(self, client, seed_admin, db_engine, monkeypatch):
         _mock_face_detected(monkeypatch)
-        import blueprints.employees as employees_module
+        import blueprints.employees.registration as employees_module   # welcome email lives here
         monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
         monkeypatch.setattr(employees_module, "send_email_smtp",
@@ -111,7 +112,7 @@ class TestAddEmployeePageWelcomeEmail:
 class TestApiRegisterEmployeeWelcomeEmail:
     def test_api_register_sends_email_with_set_password_link(self, client, seed_admin, db_engine, monkeypatch):
         _mock_face_detected(monkeypatch)
-        import blueprints.employees as employees_module
+        import blueprints.employees.registration as employees_module   # welcome email lives here
         monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
         monkeypatch.setattr(employees_module, "send_email_smtp",
@@ -146,7 +147,7 @@ class TestApiRegisterEmployeeWelcomeEmail:
 
 class TestApiEmployeeSignupWelcomeEmail:
     def test_signup_sends_the_same_welcome_with_the_typed_password(self, client, seed_admin, db_engine, monkeypatch):
-        import blueprints.employees as employees_module
+        import blueprints.employees.registration as employees_module   # welcome email lives here
         monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
         monkeypatch.setattr(employees_module, "send_email_smtp",
@@ -191,7 +192,7 @@ class TestApiEmployeeSignupWelcomeEmail:
 
 class TestWelcomeEmailEscaping:
     def test_name_and_password_are_escaped(self, client, seed_employee, monkeypatch):
-        import blueprints.employees as employees_module
+        import blueprints.employees.registration as employees_module   # welcome email lives here
         monkeypatch.setattr(employees_module, "get_email_config", lambda: {"host": "smtp.test"})
         sent = []
         monkeypatch.setattr(employees_module, "send_email_smtp",

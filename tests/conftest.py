@@ -63,7 +63,7 @@ def _ensure_test_database(name):
 # Override values for testing
 # HRZEST_TEST_DB lets two suites run side by side against separate databases: this harness
 # TRUNCATEs every table after each test, so two runs sharing one database corrupt each other.
-# The name must contain "test" (scripts/profile_requests.py and factory_reset.py refuse otherwise).
+# The name must contain "test" (scripts/profile_requests.py and scripts/factory_reset.py refuse otherwise).
 os.environ["DB_NAME"] = _test_db_name(os.environ)
 assert "test" in os.environ["DB_NAME"], "HRZEST_TEST_DB must contain 'test'"
 _ensure_test_database(os.environ["DB_NAME"])
@@ -113,72 +113,9 @@ os.environ.setdefault("MOBILE_REQUIRE_LOCATION", "false")
 # this order previously had: /api/v1/employees 404'd in tests while
 # working in production, because wsgi.py's order is already correct).
 from extensions import app as flask_app
-from blueprints.health import health_bp
-from blueprints.notifications import notifications_bp
-from blueprints.payroll import payroll_bp
-from blueprints.leave import leave_bp
-from blueprints.admin_views import admin_views_bp
-from blueprints.auth import auth_bp
-from blueprints.employees import employees_bp
-from blueprints.attendance import attendance_bp
-from blueprints.tickets import tickets_bp
-from blueprints.performance import performance_bp
-from blueprints.documents import documents_bp
-from blueprints.org import org_bp
-from blueprints.oauth_signup import oauth_signup_bp
-from blueprints.onboarding import onboarding_bp
-from blueprints.employee_portal import employee_portal_bp
-from blueprints.core import core_bp
-from blueprints.ai_hrms import ai_hrms_bp
-from blueprints.email_blast import email_blast_bp
-from blueprints.daily_report import daily_report_bp
-from blueprints.billing import billing_bp
-from blueprints.webhooks import webhooks_bp
-from blueprints.seats import seats_bp
-from blueprints.auto_debit import auto_debit_bp
-from blueprints.billing_dunning import billing_dunning_bp
-from blueprints.platform_admin import platform_admin_bp
-from blueprints.honeypot_routes import honeypot_bp
-from blueprints.disbursement import disbursement_bp
-from blueprints.hr_dashboard import hr_dashboard_bp
-from blueprints.policies import policies_bp
-from blueprints.company_profile import company_profile_bp
-from blueprints.seo import seo_bp
-from blueprints.privacy import privacy_bp
-from blueprints.soc import soc_bp
-flask_app.register_blueprint(health_bp)
-flask_app.register_blueprint(notifications_bp)
-flask_app.register_blueprint(payroll_bp)
-flask_app.register_blueprint(leave_bp)
-flask_app.register_blueprint(admin_views_bp)
-flask_app.register_blueprint(auth_bp)
-flask_app.register_blueprint(employees_bp)
-flask_app.register_blueprint(attendance_bp)
-flask_app.register_blueprint(tickets_bp)
-flask_app.register_blueprint(performance_bp)
-flask_app.register_blueprint(documents_bp)
-flask_app.register_blueprint(org_bp)
-flask_app.register_blueprint(oauth_signup_bp)
-flask_app.register_blueprint(onboarding_bp)
-flask_app.register_blueprint(employee_portal_bp)
-flask_app.register_blueprint(core_bp)
-flask_app.register_blueprint(ai_hrms_bp)
-flask_app.register_blueprint(email_blast_bp)
-flask_app.register_blueprint(daily_report_bp)
-flask_app.register_blueprint(billing_bp)
-flask_app.register_blueprint(webhooks_bp)
-flask_app.register_blueprint(seats_bp)
-flask_app.register_blueprint(auto_debit_bp)
-flask_app.register_blueprint(billing_dunning_bp)
-flask_app.register_blueprint(platform_admin_bp)
-flask_app.register_blueprint(honeypot_bp)
-flask_app.register_blueprint(disbursement_bp)
-flask_app.register_blueprint(hr_dashboard_bp)
-flask_app.register_blueprint(policies_bp)
-flask_app.register_blueprint(company_profile_bp)
-flask_app.register_blueprint(seo_bp)
-flask_app.register_blueprint(privacy_bp)
-flask_app.register_blueprint(soc_bp)
+# One shared list (blueprints/__init__.py) -- same set and order as production.
+from blueprints import register_all  # noqa: E402
+register_all(flask_app)
 
 # Mirror wsgi.py's WSGI-level tenant-prefix stripping so tests exercise the
 # real path-based tenant resolution (www.hrzest.com/<slug>/...), not just
@@ -242,6 +179,51 @@ set_synchronous_mode(True)
 
 
 _TEST_RUN_LOCK_KEY = 0x48525A54   # "HRZT": advisory-lock id held for a whole test run
+
+
+def _package_modules(package):
+    import importlib
+    import pkgutil
+    pkg = importlib.import_module(package)
+    return pkg, [importlib.import_module(f"{package}.{info.name}") for info in pkgutil.iter_modules(pkg.__path__)]
+
+
+def patch_package(monkeypatch, package, name, value, raising=True):
+    """Monkeypatch `name` on a package AND on every submodule that holds it.
+    Split modules (utils.helpers, blueprints.employees, ...) look names up in
+    their own submodule, so patching only the package attribute would silently
+    stop affecting the code under test."""
+    pkg, mods = _package_modules(package)
+    found = hasattr(pkg, name)
+    monkeypatch.setattr(pkg, name, value, raising=False)
+    for mod in mods:
+        if hasattr(mod, name):
+            monkeypatch.setattr(mod, name, value)
+            found = True
+    if raising and not found:
+        raise AttributeError(f"no module in {package} holds {name!r}")
+
+
+def mock_package(mocker, package, name, *args, **kwargs):
+    """mocker.patch() counterpart of patch_package(): creates the mock once
+    (same arguments as mocker.patch) and installs that same object on every
+    submodule holding `name`, so assertions on the returned mock see every
+    call. The package itself may not hold an imported name -- only its
+    submodules do -- so the package attribute is created if missing."""
+    pkg, mods = _package_modules(package)
+    holders = [m for m in mods if hasattr(m, name)]
+    if not hasattr(pkg, name) and not holders:
+        raise AttributeError(f"no module in {package} holds {name!r}")
+    kwargs.setdefault("create", not hasattr(pkg, name))
+    mock = mocker.patch(f"{package}.{name}", *args, **kwargs)
+    for mod in holders:
+        mocker.patch.object(mod, name, mock)
+    return mock
+
+
+def patch_helpers(monkeypatch, name, value):
+    """patch_package() for utils.helpers."""
+    patch_package(monkeypatch, "utils.helpers", name, value)
 
 
 @pytest.fixture(scope="session")
