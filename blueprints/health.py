@@ -59,6 +59,11 @@ def favicon():
     ico = os.path.join(static, "favicon.ico")
     if os.path.exists(ico):
         return send_from_directory(static, "favicon.ico", mimetype="image/x-icon")
+    # No .ico shipped: serve the current SVG mark so browsers that request
+    # /favicon.ico directly (and cached an old icon) get the new logo.
+    svg = os.path.join(static, "favicon.svg")
+    if os.path.exists(svg):
+        return send_from_directory(static, "favicon.svg", mimetype="image/svg+xml")
     return ("", 204)
 
 

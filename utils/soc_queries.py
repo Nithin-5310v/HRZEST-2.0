@@ -227,9 +227,15 @@ def overview(hours=24):
                     " AND ip IS NOT NULL GROUP BY ip ORDER BY 2 DESC LIMIT 1", (hours,))
         busiest = cur.fetchone()
         out["proxy_hint"] = bool(busiest and total and _protected(busiest[0]) and busiest[1] * 2 >= total)
+        # "Most active accounts": WAF / honeypot / ban-review events put the
+        # source *address* in `identifier` (the ip column is always the
+        # requester -- for a TCP decoy report, the honeypot container), so
+        # leave address-shaped identifiers out: they are not accounts, and
+        # they already appear under the busiest sources.
         cur.execute(
             "SELECT identifier, COUNT(*), COUNT(DISTINCT ip), MAX(created_at) FROM security_events "
             "WHERE " + _WINDOW + " AND identifier IS NOT NULL AND identifier NOT IN ('', 'None') "
+            "AND identifier !~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' AND identifier NOT LIKE '%%:%%:%%' "
             "GROUP BY identifier ORDER BY 2 DESC LIMIT 10", (hours,))
         out["top_identifiers"] = [{"identifier": i, "events": c, "ips": n, "last": iso(ts)} for i, c, n, ts in cur.fetchall()]
         cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + _WINDOW + " AND " + ALERT_SQL +
