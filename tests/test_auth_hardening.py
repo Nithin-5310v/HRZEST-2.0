@@ -30,7 +30,7 @@ def _decode_session_cookie(raw_value):
 def _session_cookie_payloads(resp):
     out = []
     for header in resp.headers.getlist("Set-Cookie"):
-        if header.startswith("session="):
+        if header.startswith(flask_app.config["SESSION_COOKIE_NAME"] + "="):
             value = header.split("=", 1)[1].split(";", 1)[0]
             if value:
                 out.append(_decode_session_cookie(value))
