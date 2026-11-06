@@ -161,9 +161,15 @@ if deploy_to "$target" "$current" && healthy; then
   rm -f "$STATE_DIR/last_status"
   # Commits from before this script existed don't carry it; keep what's installed.
   [ -f scripts/install_ec2_autodeploy.sh ] || exit 0
-  for f in ec2_autodeploy.sh hrzest-autodeploy.service hrzest-autodeploy.timer; do
+  # nginx-hardening.conf only counts on a host with nginx's conf.d/ (the
+  # installer skips it otherwise, so comparing it there would reinstall on
+  # every deploy).
+  files="ec2_autodeploy.sh hrzest-autodeploy.service hrzest-autodeploy.timer"
+  [ -f scripts/nginx-hardening.conf ] && [ -d /etc/nginx/conf.d ] && files="$files nginx-hardening.conf"
+  for f in $files; do
     installed="/etc/systemd/system/$f"
     [ "$f" = ec2_autodeploy.sh ] && installed=/usr/local/bin/hrzest-autodeploy
+    [ "$f" = nginx-hardening.conf ] && installed=/etc/nginx/conf.d/hrzest-hardening.conf
     if ! cmp -s "scripts/$f" "$installed"; then
       log "auto-deploy files changed in the repo -- reinstalling them"
       bash scripts/install_ec2_autodeploy.sh

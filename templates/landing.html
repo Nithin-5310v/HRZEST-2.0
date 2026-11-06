@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HRzest.com - HR, Attendance & Payroll Platform</title>
   <meta name="description" content="HR platform for attendance (face recognition, QR, GPS geo-fencing), leave, overtime, payroll and payslips, onboarding and performance reviews.">
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}">
   <link rel="canonical" href="{{ seo_base_url }}/">
   {% if google_site_verification %}<meta name="google-site-verification" content="{{ google_site_verification }}">{% endif %}
 
@@ -634,10 +634,51 @@
 
               <div class="form-group">
                 <label for="regAdminPassword">Password <span class="req">*</span></label>
-                <input type="password" id="regAdminPassword" name="admin_password" class="form-control" placeholder="At least 8 characters" required
-                       minlength="8" autocomplete="new-password">
+                <div style="position:relative;">
+                  <input type="password" id="regAdminPassword" name="admin_password" class="form-control" placeholder="At least 8 characters" required
+                         minlength="8" autocomplete="new-password" style="padding-right:44px;">
+                  <button type="button" class="reg-pw-toggle" data-target="regAdminPassword" aria-label="Show password"
+                          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;color:inherit;opacity:.6;font-size:18px;"><i class="ti ti-eye"></i></button>
+                </div>
               </div>
             </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+              <label for="regConfirmPassword">Confirm Password <span class="req">*</span></label>
+              <div style="position:relative;">
+                <input type="password" id="regConfirmPassword" name="confirm_password" class="form-control" placeholder="Re-enter your password" required
+                       minlength="8" autocomplete="new-password" style="padding-right:44px;">
+                <button type="button" class="reg-pw-toggle" data-target="regConfirmPassword" aria-label="Show password"
+                        style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;color:inherit;opacity:.6;font-size:18px;"><i class="ti ti-eye"></i></button>
+              </div>
+              <small id="regPwHint" style="display:none;"></small>
+            </div>
+            <script>
+              (function () {
+                var pw = document.getElementById('regAdminPassword');
+                var cf = document.getElementById('regConfirmPassword');
+                var hint = document.getElementById('regPwHint');
+                document.querySelectorAll('.reg-pw-toggle').forEach(function (b) {
+                  b.addEventListener('click', function () {
+                    var i = document.getElementById(b.dataset.target);
+                    var show = i.type === 'password';
+                    i.type = show ? 'text' : 'password';
+                    b.firstElementChild.className = show ? 'ti ti-eye-off' : 'ti ti-eye';
+                    b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                  });
+                });
+                function check() {
+                  var bad = cf.value && pw.value !== cf.value;
+                  cf.setCustomValidity(bad ? 'Passwords do not match' : '');
+                  if (!cf.value) { hint.style.display = 'none'; return; }
+                  hint.style.display = 'block';
+                  hint.style.color = bad ? '#dc2626' : '#16a34a';
+                  hint.textContent = bad ? 'Passwords do not match' : 'Passwords match';
+                }
+                pw.addEventListener('input', check);
+                cf.addEventListener('input', check);
+              })();
+            </script>
 
             {% if show_captcha %}
             <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom: 1.25rem;"></div>

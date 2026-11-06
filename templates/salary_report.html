@@ -31,12 +31,12 @@
       .main { flex: 1; padding: 28px; color: #1e293b; }
       .page-header { margin-bottom: 24px; }
       .page-header h1 { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; display: flex; align-items: center; gap: 12px; }
-      .page-header h1 .month-tag { font-weight: 600; color: #1e3a8a; }
+      .page-header h1 .month-tag { font-weight: 600; color: #4f46e5; }
       .page-icon {
         width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
-        background: #eff6ff; border: 1px solid #dbeafe;
+        background: #eef2ff; border: 1px solid #c7d2fe;
         display: flex; align-items: center; justify-content: center;
-        color: #2563eb; font-size: 22px;
+        color: #4f46e5; font-size: 22px;
       }
       body.dark-mode .page-icon { background: rgba(37,99,235,.18); border-color: rgba(96,165,250,.3); color: #60a5fa; }
       .page-header p { font-size: 15px; color: #64748b; margin-top: 6px; margin-left: 52px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -53,14 +53,14 @@
         padding: 8px 12px; border-radius: 9px; border: 1.5px solid #e2e8f0; background: #f8fafc;
         color: #1e293b; font-size: 15px; font-weight: 600; cursor: pointer; outline: none; transition: 0.15s;
       }
-      .filter-bar select:hover, .filter-bar select:focus { border-color: #93c5fd; background: #eff6ff; }
+      .filter-bar select:hover, .filter-bar select:focus { border-color: #c7d2fe; background: #eef2ff; }
       .filter-bar button[type="submit"] {
         padding: 7px 14px; border: none; border-radius: 8px;
-        background: linear-gradient(135deg, #22c55e, #16a34a); color: white;
+        background: linear-gradient(135deg, #6366f1, #4f46e5); color: white;
         font-size: 14px; font-weight: 700; cursor: pointer; transition: 0.18s;
-        box-shadow: 0 3px 10px rgba(22,163,74,0.28);
+        box-shadow: 0 3px 10px rgba(79,70,229,0.28);
       }
-      .filter-bar button[type="submit"]:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 5px 14px rgba(22,163,74,0.34); }
+      .filter-bar button[type="submit"]:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 5px 14px rgba(79,70,229,0.34); }
       .filter-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
       .btn-action {
         padding: 7px 12px; border: 1.5px solid transparent; border-radius: 8px; font-size: 14px;
@@ -68,16 +68,16 @@
       }
       .btn-print { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
       .btn-print:hover { background: #eef2f7; border-color: #cbd5e1; }
-      .btn-export { background: #ecfdf5; color: #0f766e; border-color: #a7f3d0; text-decoration: none; }
-      .btn-export:hover { background: #d1fae5; border-color: #6ee7b7; }
+      .btn-export { background: #eef2ff; color: #4f46e5; border-color: #c7d2fe; text-decoration: none; }
+      .btn-export:hover { background: #e0e7ff; border-color: #a5b4fc; }
       .btn-email-all { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 3px 10px rgba(99,102,241,0.28); }
       .btn-email-all:hover { filter: brightness(1.06); transform: translateY(-1px); }
       .btn-email-all:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-      .btn-setup-email { background: #fffbeb; color: #b45309; border: 1.5px solid #fde68a; text-decoration: none; padding: 7px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
-      .btn-lock { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-      .btn-lock:hover { background: #fee2e2; }
-      .btn-unlock { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-      .btn-unlock:hover { background: #dcfce7; }
+      .btn-setup-email { background: #eef2ff; color: #4f46e5; border: 1.5px solid #c7d2fe; text-decoration: none; padding: 7px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+      .btn-lock { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+      .btn-lock:hover { background: #eef2f7; }
+      .btn-unlock { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+      .btn-unlock:hover { background: #eef2f7; }
 
       .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 22px; }
       .sum-card {
@@ -93,45 +93,45 @@
       }
       .sum-card .num { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; font-variant-numeric: tabular-nums; line-height: 1.2; }
       .sum-card .lbl { font-size: 13.5px; color: #64748b; margin-top: 2px; font-weight: 600; }
-      .c-blue   { --accent: #1e3a8a; --accent-bg: #eff6ff; }
-      .c-green  { --accent: #16a34a; --accent-bg: #f0fdf4; }
-      .c-red    { --accent: #dc2626; --accent-bg: #fef2f2; }
-      .c-yellow { --accent: #d97706; --accent-bg: #fffbeb; }
+      .c-blue   { --accent: #4f46e5; --accent-bg: #eef2ff; }
+      .c-green  { --accent: #4f46e5; --accent-bg: #eef2ff; }
+      .c-red    { --accent: #4f46e5; --accent-bg: #eef2ff; }
+      .c-yellow { --accent: #4f46e5; --accent-bg: #eef2ff; }
 
       .section { background: #ffffff; border: 1px solid #eef2f7; border-radius: 16px; padding: 22px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
       .section h3 { font-size: 17px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; color: #0f172a; }
       .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid #eef2f7; }
       table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 960px; }
       thead { position: sticky; top: 0; z-index: 1; }
-      th { background: #f8fafc; color: #1e3a8a; padding: 11px 14px; font-weight: 700; font-size: 13.5px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; text-align: right; border-bottom: 1px solid #eef2f7; }
+      th { background: #f8fafc; color: #4f46e5; padding: 11px 14px; font-weight: 700; font-size: 13.5px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; text-align: right; border-bottom: 1px solid #eef2f7; }
       th:first-child, th:nth-child(2) { text-align: left; }
       th.group-head { text-align: center; font-size: 12.5px; letter-spacing: 0.6px; text-transform: uppercase; color: #64748b; background: #f1f5f9; border-bottom: 1px solid #eef2f7; }
       td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; text-align: right; white-space: nowrap; color: #1e293b; }
       td:first-child, td:nth-child(2) { text-align: left; }
       tr:last-child td { border-bottom: none; }
       tbody tr:nth-child(even) td { background: #fafbfe; }
-      tr:hover td { background: #eff6ff !important; }
-      .total-row td { background: linear-gradient(90deg, #eff6ff, #dbeafe) !important; font-weight: 800; border-top: 2px solid #93c5fd; color: #1e3a8a; }
+      tr:hover td { background: #f5f6ff !important; }
+      .total-row td { background: linear-gradient(90deg, #eef2ff, #e0e7ff) !important; font-weight: 800; border-top: 2px solid #c7d2fe; color: #4f46e5; }
 
       .empty-cell { text-align: center; padding: 48px 20px; color: #94a3b8; }
       .empty-cell .ec-icon { font-size: 34px; opacity: 0.4; margin-bottom: 10px; display: block; }
-      .amt-gross { color: #2563eb; font-weight: 600; } .amt-ded { color: #dc2626; }
-      .amt-net { color: #16a34a; font-weight: 800; } .amt-ded-zero { color: #94a3b8; }
-      .amt-late { color: #d97706; font-weight: 600; } .amt-late-total { color: #d97706; font-weight: 800; }
+      .amt-gross { color: #1e293b; font-weight: 600; } .amt-ded { color: #64748b; }
+      .amt-net { color: #4f46e5; font-weight: 800; } .amt-ded-zero { color: #94a3b8; }
+      .amt-late { color: #1e293b; font-weight: 600; } .amt-late-total { color: #1e293b; font-weight: 800; }
       .emp-id { font-size: 13px; color: #94a3b8; font-weight: 600; }
       .emp-email { font-size: 13px; color: #6366f1; }
 
       .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 13.5px; font-weight: 700; }
-      .b-green { background: #dcfce7; color: #15803d; }
-      .b-yellow { background: #fef9c3; color: #92400e; }
-      .b-red { background: #fee2e2; color: #dc2626; }
+      .b-green { background: #f1f5f9; color: #334155; }
+      .b-yellow { background: #f1f5f9; color: #334155; }
+      .b-red { background: #eef2ff; color: #4f46e5; }
 
       .rules-box { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 14px; padding: 18px 22px; font-size: 14.5px; line-height: 2; color: #475569; margin-top: 6px; }
       .rules-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
       .rules-list li { display: flex; align-items: flex-start; gap: 10px; }
-      .rules-list i { color: #2563eb; font-size: 19px; line-height: 1.3; flex-shrink: 0; }
+      .rules-list i { color: #4f46e5; font-size: 19px; line-height: 1.3; flex-shrink: 0; }
       .rules-note { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #eaecf0; color: #667085; font-size: 14px; }
-      .rules-note i { color: #2563eb; font-size: 16px; vertical-align: -2px; }
+      .rules-note i { color: #4f46e5; font-size: 16px; vertical-align: -2px; }
       .rules-box .rb-title { font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
 
       /* Action buttons */
@@ -148,12 +148,12 @@
       }
       .btn-group a:last-child, .btn-group button:last-child { border-right: none; }
       .btn-group i { font-size: 17px; }
-      .ag-view  { color: #1e3a8a; }
-      .ag-view:hover  { background: #1e3a8a; color: #fff !important; }
-      .ag-dl    { color: #0f766e; }
-      .ag-dl:hover    { background: #0f766e; color: #fff !important; }
-      .ag-send  { color: #6d28d9; }
-      .ag-send:hover  { background: #6d28d9; color: #fff !important; }
+      .ag-view  { color: #4f46e5; }
+      .ag-view:hover  { background: #4f46e5; color: #fff !important; }
+      .ag-dl    { color: #4f46e5; }
+      .ag-dl:hover    { background: #4f46e5; color: #fff !important; }
+      .ag-send  { color: #4f46e5; }
+      .ag-send:hover  { background: #4f46e5; color: #fff !important; }
       .ag-send:disabled { color: #cbd5e1; cursor: not-allowed; background: #fff; }
       .no-email { font-size: 13px; color: #94a3b8; }
 
@@ -214,15 +214,15 @@
           </p>
         </div>
         <div class="u-d-flex u-ai-center u-gap-10 u-mt-32 u-fxw-wrap">
-          <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-f0fdf4 u-c-15803d u-bd-1d5-solid-bbf7d0 u-br-9 u-tdec-none u-fs-13 u-fw-700" href="{{ tpath('/payroll_settings') }}">
+          <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-br-9 u-tdec-none u-fs-13 u-fw-700" style="background:#eef2ff;color:#4f46e5;border:1.5px solid #c7d2fe;" href="{{ tpath('/payroll_settings') }}">
             <i class="ti ti-adjustments-horizontal"></i> Payroll Settings
           </a>
-          <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-eff6ff u-c-1e3a8a u-bd-1d5-solid-bfdbfe u-br-9 u-tdec-none u-fs-13 u-fw-700" href="{{ tpath('/admin_payslips') }}">
+          <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-br-9 u-tdec-none u-fs-13 u-fw-700" style="background:#eef2ff;color:#4f46e5;border:1.5px solid #c7d2fe;" href="{{ tpath('/admin_payslips') }}">
             <i class="ti ti-file-invoice"></i> Payslip Lookup
           </a>
           <div class="u-pos-relative">
-            <i class="ti ti-search u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-15 u-c-3b82f6 u-pe-none"></i>
-            <input class="u-p-9-12-9-34 u-bd-2-solid-3b82f6 u-br-10 u-bg-eff6ff u-c-1e293b u-fs-13 u-out-none u-w-220 u-shad-0-2-10-rgba59_832e37 u-fw-500" type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
+            <i class="ti ti-search u-pos-absolute u-lft-11 u-top-50pct u-trn-translatey-50pct u-fs-15 u-pe-none" style="color:#4f46e5;"></i>
+            <input class="u-p-9-12-9-34 u-br-10 u-c-1e293b u-fs-13 u-out-none u-w-220 u-fw-500" style="border:2px solid #c7d2fe;background:#eef2ff;" type="text" id="empTableSearch" placeholder="Search employee…" autocomplete="off"
               data-on-input="filterEmpTable(this.value)" />
           </div>
         </div>
@@ -270,7 +270,7 @@
       </form>
 
       {% if is_locked %}
-      <div class="u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-10 u-p-11-16 u-mb-16 u-d-flex u-ai-center u-gap-10 u-fs-13 u-c-1e40af">
+      <div class="u-br-10 u-p-11-16 u-mb-16 u-d-flex u-ai-center u-gap-10 u-fs-13" style="background:#eef2ff;border:1px solid #c7d2fe;color:#4338ca;">
         <i class="ti ti-lock" aria-hidden="true"></i> <strong>Payroll locked</strong> — processed by <strong>{{ lock_info.by }}</strong>
         on {{ lock_info.at.strftime('%d %b %Y at %H:%M') }}
         ({{ lock_info.count }} payslip{{ 's' if lock_info.count != 1 else '' }} sent).
@@ -327,7 +327,7 @@
       {# SALARY TABLE #}
       <div class="section">
         <h3>
-          <span class="u-d-flex u-ai-center u-gap-8"><i class="ti ti-table u-c-2563eb"></i> Employee Salary Breakdown — {{ month_name }}</span>
+          <span class="u-d-flex u-ai-center u-gap-8"><i class="ti ti-table" style="color:#4f46e5;"></i> Employee Salary Breakdown — {{ month_name }}</span>
         </h3>
         <div class="table-wrap">
           <table>
@@ -342,14 +342,14 @@
               </tr>
               <tr>
                 <th>Full</th><th>Late</th><th>Half</th><th>Absent</th>
-                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th class="u-c-16a34a"><i class="ti ti-trophy" aria-hidden="true"></i> Incentive</th><th class="u-c-dc2626">PF/PT/TDS</th><th>Net Payable</th>
+                <th>Full Day Pay</th><th>Late Pay</th><th>Half Day Pay</th><th><i class="ti ti-trophy" aria-hidden="true"></i> Incentive</th><th>PF/PT/TDS</th><th>Net Payable</th>
               </tr>
             </thead>
             <tbody id="salaryTbody">
               {% for e in salary_data %}
               <tr data-search="{{ e.emp_id }} {{ e.name }} {{ e.role }} {{ e.phone }} {{ e.email }}">
                 <td>
-                  <a class="u-c-1d4ed8 u-fw-600 u-tdec-none" href="/employee_attendance_detail/{{ e.emp_id }}/{{ year }}/{{ month }}"
+                  <a class="u-fw-600 u-tdec-none" style="color:#4f46e5;" href="/employee_attendance_detail/{{ e.emp_id }}/{{ year }}/{{ month }}"
                      title="View day-by-day attendance">{{ e.name }}</a><br>
                   <span class="emp-id">{{ e.emp_id }}</span><br>
                   {% if e.email %}
@@ -388,11 +388,11 @@
                   ₹{{ "%.2f" | format(e.half_earn) }}
                 </td>
                 {% if (e.incentive | default(0)) > 0 %}
-                <td class="u-c-16a34a u-fw-700" title="Incentive bonus for tasks/goals completed">+₹{{ "%.2f" | format(e.incentive) }}</td>
+                <td class="u-fw-700" style="color:#4f46e5;" title="Incentive bonus for tasks/goals completed">+₹{{ "%.2f" | format(e.incentive) }}</td>
                 {% else %}
                 <td class="u-c-94a3b8">—</td>
                 {% endif %}
-                <td class="u-c-dc2626" title="PF ₹{{ '%.2f'|format(e.pf) }} · PT ₹{{ '%.2f'|format(e.pt) }} · TDS ₹{{ '%.2f'|format(e.tds) }}">−₹{{ "%.2f" | format(e.statutory) }}</td>
+                <td style="color:#64748b;" title="PF ₹{{ '%.2f'|format(e.pf) }} · PT ₹{{ '%.2f'|format(e.pt) }} · TDS ₹{{ '%.2f'|format(e.tds) }}">−₹{{ "%.2f" | format(e.statutory) }}</td>
                 <td class="amt-net">₹{{ "%.2f" | format(e.net) }}</td>
                 <td>
                   <div class="action-col">

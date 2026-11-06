@@ -151,30 +151,34 @@ class TestWafBreachCounterRedisDispatch:
     def test_redis_client_used_when_configured(self, monkeypatch, db_engine):
         fake = FakeRedis(host="x", port=1)
         monkeypatch.setattr(waf_module, "redis_client", fake)
+        monkeypatch.delenv("SOC_AUTO_BAN", raising=False)
         ip = "198.51.100.212"
-        cur = db_engine.cursor()
-        cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
-        db_engine.commit()
-        cur.close()
+
+        def _clear():
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
+            cur.execute("DELETE FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
+            db_engine.commit()
+            cur.close()
+
+        _clear()
         try:
             for _ in range(waf_module._BREACH_THRESHOLD):
                 waf_module.record_breach_and_maybe_ban(ip, "redis test breach")
             # Threshold crossed entirely via the fake Redis client — the
             # in-memory deque for this IP must stay untouched.
             assert ip not in waf_module._breach_log
-            assert f"waf:breach:{ip}" not in fake.store  # deleted once banned
+            assert f"waf:breach:{ip}" not in fake.store  # reset once raised
 
+            # Crossing it raises the address for a SOC decision, not a ban.
             cur = db_engine.cursor()
-            cur.execute("SELECT expires_at FROM banned_ips WHERE ip=%s", (ip,))
-            row = cur.fetchone()
+            cur.execute("SELECT 1 FROM banned_ips WHERE ip=%s", (ip,))
+            assert cur.fetchone() is None
+            cur.execute("SELECT status FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
+            assert cur.fetchone() == ("pending",)
             cur.close()
-            assert row is not None
-            assert row[0] > datetime.datetime.now()
         finally:
-            cur = db_engine.cursor()
-            cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
-            db_engine.commit()
-            cur.close()
+            _clear()
 
     def test_redis_failure_mid_call_falls_back_to_memory(self, monkeypatch):
         monkeypatch.setattr(waf_module, "redis_client", MidCallFailureRedis())

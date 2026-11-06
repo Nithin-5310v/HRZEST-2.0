@@ -12,7 +12,6 @@ import pytest
 
 import blueprints.admin_views as admin_views
 import blueprints.oauth_signup as oauth_signup
-import blueprints.platform_admin as platform_admin
 from extensions import app_log
 from utils.oauth_client import OAuthError
 

@@ -29,7 +29,7 @@ loses their phone, an admin uses **Users & audit → Reset MFA**, which issues a
 |---|:-:|:-:|:-:|
 | Overview, events, alerts, lookups, cases (read), tenants, posture, detections | ✔ | ✔ | ✔ |
 | Open / update cases, add notes | | ✔ | ✔ |
-| Ban / unban IPs, revoke sessions | | ✔ | ✔ |
+| Ban / unban IPs, decide Ban review items, revoke sessions | | ✔ | ✔ |
 | Log analysis, CSV export, audit-chain verification, Loki search | | ✔ | ✔ |
 | Manage SOC users, read the SOC audit trail | | | ✔ |
 
@@ -46,6 +46,7 @@ ends that user's console session on their next request.
 | `LOKI_URL` | unset | Enables the **Logs** view (read-only LogQL). Read from the environment only, never from a request. |
 | `SOC_LOG_MAX_MB` | 5 | Largest log the analyser accepts. |
 | `SOC_VERIFY_MAX_ROWS` | 500000 | Above this many `security_events` rows, use `scripts/verify_audit_chain.py` instead of the button. |
+| `SOC_AUTO_BAN` | false | `true` bans automated detections at once (the old behaviour) instead of queueing them in **Ban review**. Leave off when an analyst watches the queue: customers often share one office or mobile-network address. |
 
 ## What each view shows
 
@@ -55,6 +56,7 @@ ends that user's console session on their next request.
 * **Log analysis** – drop in an nginx/Apache access log, JSON lines (including this app's own) or sshd/auth log. Finds SQL injection, XSS, path traversal, command injection, SSRF, scanner user agents, sensitive-file probes, login brute force, credential stuffing, "possible success after many attempts", path enumeration, request floods and 5xx spikes; scores each source and recommends block/watch; exports IOCs and can ban every recommended public address in one step. Nothing is stored.
 * **Logs (Loki)** – optional LogQL search of shipped logs.
 * **Cases** – open / investigating / contained / resolved / false positive, assignee, notes timeline.
+* **Ban review** – addresses the WAF (repeated attack payloads), the rate limiter (repeated 429s) and the HTTP/TCP honeypots want banned. Nothing is banned automatically: each address waits here with its source, latest reason, hit count and a suggested duration, and an analyst chooses **Ban** (for a chosen time, through the same path and guards as a manual ban), **Dismiss** (false positive; the next detection re-opens it) or **Trust** (known-good address such as a customer office or an authorised scanner; further detections only add to its hit count until the trust ends). The offending requests themselves are still rejected. Every decision is in the SOC audit trail. `SOC_AUTO_BAN=true` restores immediate bans, still listed here.
 * **Response** – current IP bans (add, lift) and risky sessions across tenants (revoke).
 * **Tenant risk**, **Attendance fraud** – per-company activity and punch-integrity signals (mock location, replayed photos, shared devices, liveness failures).
 * **Detections** – the correlation rules, their thresholds and when each last fired.

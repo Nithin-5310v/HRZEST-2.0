@@ -256,11 +256,10 @@ _breach_log = defaultdict(deque)  # ip -> deque[timestamp]
 
 def record_breach_and_maybe_ban(ip, reason):
     """Call on every WAF block or rate-limit breach. Once an IP crosses
-    _BREACH_THRESHOLD breaches inside _BREACH_WINDOW_SECONDS, inserts a
-    temporary ban into banned_ips -- the same table and INSERT shape the SOC
-    dashboard's manual ban-ip endpoint uses (blueprints/admin_views.py), so
-    the existing _enforce_ip_ban before_request hook (app.py) blocks the IP
-    on its very next request with no new blocking mechanism needed.
+    _BREACH_THRESHOLD breaches inside _BREACH_WINDOW_SECONDS, raises it for
+    an analyst's ban decision in the SOC console (_auto_ban ->
+    utils/soc_ban_review.py) rather than banning it outright; with
+    SOC_AUTO_BAN=true it is also banned at once, as this function used to.
 
     Uses Redis (shared across gunicorn workers) when extensions.redis_client
     is configured, falling back to the in-memory per-worker counter
@@ -386,8 +385,11 @@ def ban_ip(ip, reason, banned_by="system:auto", minutes=None):
 
 
 def _auto_ban(ip, reason):
-    if ban_ip(ip, reason, banned_by="system:auto", minutes=_BAN_MINUTES):
-        log_security_event(
-            "waf.auto_ban", f"IP auto-banned for {_BAN_MINUTES} minutes after repeated breaches",
-            level="ERROR", identifier=ip, reason=reason,
-        )
+    """Breach threshold crossed: hand the address to the SOC for a decision
+    instead of banning it here (utils/soc_ban_review.py). A per-IP threshold
+    can't tell an attacker from a customer office whose employees share one
+    address -- a shift-start login rush crosses the rate limits just as well
+    -- so a person decides. SOC_AUTO_BAN=true restores the immediate ban."""
+    from utils import soc_ban_review
+    source = "ratelimit" if "rate-limit" in (reason or "") else "waf"
+    soc_ban_review.raise_review(ip, source, reason, suggested_minutes=_BAN_MINUTES)
