@@ -91,7 +91,10 @@ class TestGetKnownFaceEncoding:
         f2 = tmp_path / "emp2.jpg"
         f1.write_bytes(b"a")
         f2.write_bytes(b"b")
-        monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda path: path)
+        # load_image_file receives a decrypted BytesIO, not a path. Key the fake
+        # encoding on the bytes: the stream's repr holds a memory address CPython
+        # can reuse once the first stream is freed, so two encodings could collide.
+        monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda f: f.read())
         monkeypatch.setattr(face_utils.face_recognition, "face_encodings",
                             lambda img: [f"enc-for-{img}"])
 
@@ -109,7 +112,7 @@ class TestGetKnownFaceEncoding:
         for f, data in ((a, b"a"), (b, b"b")):
             f.parent.mkdir()
             f.write_bytes(data)
-        monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda path: path)
+        monkeypatch.setattr(face_utils.face_recognition, "load_image_file", lambda f: f.read())
         monkeypatch.setattr(face_utils.face_recognition, "face_encodings", lambda img: [f"enc-for-{img}"])
         assert face_utils._get_known_face_encoding("EMP1", str(a)) != face_utils._get_known_face_encoding("EMP1", str(b))
 
