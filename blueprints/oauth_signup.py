@@ -4,7 +4,7 @@
 Replaces the public entry point of the old manual /create_org form
 (company details + GST + document upload + human KYC review) with a
 quick path: sign in with a Google or Microsoft account, enter the 6-digit
-code we email to that address, and the company is provisioned on a 2-day
+code we email to that address, and the company is provisioned on a 30-day
 free trial -- no payment, no waiting on a reviewer. The emailed code is
 mandatory, as on every other signup path: the provider's own
 email_verified claim isn't enough (Microsoft doesn't send one at all --
@@ -20,7 +20,7 @@ review at signup means there is no fraud/duplicate-business check beyond
 (a) one trial per company email domain (personal providers like Gmail
 exempted -- see utils/oauth_client.PERSONAL_EMAIL_DOMAINS) and (b) the
 existing check_duplicate_admin_email() exact-email check. A company that
-wants to fake a business can still get a 2-day trial; the KYC pipeline
+wants to fake a business can still get a 30-day trial; the KYC pipeline
 this bypasses was the thing that would have caught that. Left as an
 accepted trade-off per this feature's explicit spec, not an oversight.
 
