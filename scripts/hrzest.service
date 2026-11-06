@@ -1,0 +1,72 @@
+# /etc/systemd/system/hrzest.service -- the app on the EC2 host (Ubuntu,
+# bare metal, nginx in front). Matches what scripts/ec2_autodeploy.sh
+# expects: service name "hrzest", checkout at /home/ubuntu/apps/HRZEST with
+# its virtualenv in .venv, health at http://localhost:8000/healthz.
+#
+# Not installed automatically. To switch to it:
+#   sudo cp scripts/hrzest.service /etc/systemd/system/hrzest.service
+#   sudo systemctl daemon-reload && sudo systemctl restart hrzest
+#   curl -fsS http://localhost:8000/healthz
+#
+# Replaces the hand-written unit from the Nov 2026 deployment report, which
+# started ONE gunicorn master on three ports (one process, so no real
+# redundancy behind nginx's least_conn) with --workers 3 --threads 2: six
+# requests at a time, ~4 s average response at 50 concurrent users.
+#
+# Worker and thread counts come from gunicorn.conf.py (2 x CPUs + 1 workers,
+# capped at 8, 4 threads each; override with GUNICORN_WORKERS /
+# GUNICORN_THREADS in .env). Only --bind is set here: loopback, so gunicorn
+# is reachable through nginx only. If cert.pem/key.pem exist in the checkout,
+# gunicorn.conf.py turns on TLS in gunicorn itself -- remove them (nginx
+# terminates TLS) or nginx's plain-http proxy_pass to it will fail.
+#
+# Longer term, docs/BARE_METAL_TO_CONTAINERS.md moves this host to the
+# container stack: a nologin service account, read-only root filesystem and
+# automatic rollback.
+
+[Unit]
+Description=HRzest.com (gunicorn)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/apps/HRZEST
+# APP_ENV=production, SECRET_KEY, APP_URL, DB_*, REDIS_HOST, ENCRYPTION_KEY...
+# The app refuses to start without a real SECRET_KEY and APP_URL.
+EnvironmentFile=/home/ubuntu/apps/HRZEST/.env
+ExecStart=/home/ubuntu/apps/HRZEST/.venv/bin/gunicorn -c gunicorn.conf.py --bind 127.0.0.1:8000 wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=40
+Restart=always
+RestartSec=5
+
+# Sandboxing. The app writes only inside its checkout (uploads, keys,
+# logs), so the OS itself is made read-only to it and it gets no way to
+# gain privileges. Deliberately not ProtectSystem=strict/ProtectHome:
+# those need every write path listed, and a missed one breaks uploads.
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
