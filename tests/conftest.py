@@ -181,6 +181,21 @@ set_synchronous_mode(True)
 _TEST_RUN_LOCK_KEY = 0x48525A54   # "HRZT": advisory-lock id held for a whole test run
 
 
+def patch_helpers(monkeypatch, name, value):
+    """Monkeypatch `name` on utils.helpers AND on every utils.helpers.<sub>
+    module that holds it. utils/helpers is a package: a function looks names
+    up in its own submodule, so patching only the package attribute would
+    silently stop affecting it."""
+    import importlib
+    import pkgutil
+    import utils.helpers as pkg
+    monkeypatch.setattr(pkg, name, value, raising=False)
+    for info in pkgutil.iter_modules(pkg.__path__):
+        mod = importlib.import_module(f"utils.helpers.{info.name}")
+        if hasattr(mod, name):
+            monkeypatch.setattr(mod, name, value)
+
+
 @pytest.fixture(scope="session")
 def db_engine():
     """Return a raw psycopg2 connection to the test database for fixture setup."""

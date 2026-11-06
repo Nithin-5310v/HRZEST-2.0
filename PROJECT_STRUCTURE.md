@@ -77,6 +77,9 @@ HRZEST/
 │                                   platform_admin.py, soc.py, webhooks.py, …
 ├── utils/                          ~60 helpers: salary, billing, attendance, email, AI,
 │                                   multi-company routing (tenant_routing.py), security
+│   └── helpers/                    shared helpers, by concern: validation, urls, http,
+│                                   crypto, db, settings, uploads, scoping, notifications,
+│                                   gates (import from utils.helpers as before)
 ├── qr_generator.py                 signed employee QR codes
 ├── scripts/                        operator tools: setup_env, seed_platform_admin,
 │                                   factory_reset, generate_cert, minify_static,

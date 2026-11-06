@@ -273,7 +273,7 @@ class TestSafeReferrerRedirect:
         # patch that, not attendance's separately-imported copy.
         import blueprints.attendance as att
         import utils.helpers as helpers
-        mock_redirect = mocker.patch.object(helpers, "_safe_redirect", return_value="/settings")
+        mock_redirect = mocker.patch.object(helpers.urls, "_safe_redirect", return_value="/settings")
         with client.application.test_request_context("/"):
             result = att._safe_referrer_redirect("/settings?tab=shifts", "/fallback")
             assert result == "/settings"
