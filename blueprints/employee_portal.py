@@ -13,7 +13,7 @@ from utils.auth import employee_required, employee_api_required, validate_new_pa
 from utils.helpers import (
     tpath,
     _audit, _db, encrypt_pii, encrypt_contact, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
-    company_today, company_now, coerce_datetime, int_param, app_gps_checkin_allowed,
+    company_today, company_now, coerce_datetime, int_param, app_gps_checkin_allowed, amount,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
 from utils.session_risk import ensure_session_id, evaluate_session_risk
@@ -315,7 +315,7 @@ def employee_portal():
     cursor.execute("""
         SELECT e.employee_id, e.name, e.role, e.email, e.face_image,
                e.date_of_joining,
-               COALESCE(sc.salary_per_day, 0) AS salary_per_day,
+               sc.salary_per_day AS salary_per_day,
                sh.name AS shift_name, sh.start_time AS shift_start, sh.end_time AS shift_end,
                e.phone, e.gender, e.dob, e.blood_group,
                e.address, e.city, e.state, e.pincode,
@@ -335,6 +335,7 @@ def employee_portal():
         session.clear()
         return redirect(tpath("/login"))
     emp = list(_emp_raw)
+    emp[6] = amount(emp[6])              # salary_per_day (encrypted; NULL -> 0)
     # emp indices:
     # [0]=id [1]=name [2]=role [3]=email [4]=face_image [5]=date_of_joining
     # [6]=salary_per_day [7]=shift_name [8]=shift_start [9]=shift_end
@@ -567,11 +568,11 @@ def employee_portal():
             ORDER BY ei.year DESC, ei.month DESC, ei.awarded_at DESC
         """, (emp_id,))
         my_incentives = cursor.fetchall()
-        cursor.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND year=%s",
+        cursor.execute(   # amount is encrypted: summed here, not in SQL
+            "SELECT amount FROM employee_incentives WHERE employee_id=%s AND year=%s",
             (emp_id, today.year)
         )
-        total_incentive_year = float(cursor.fetchone()[0])
+        total_incentive_year = round(sum(float(amount(r[0])) for r in cursor.fetchall()), 2)
     except Exception:
         my_incentives = []
         total_incentive_year = 0.0
@@ -635,12 +636,12 @@ def employee_portal():
     statutory_this_month = _pay.get("statutory", 0.0)
     net_this_month = _pay.get("net", 0.0)
     try:
-        cursor.execute(
-            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s "
+        cursor.execute(   # ot_pay is encrypted: summed here, not in SQL
+            "SELECT ot_pay FROM overtime_records WHERE employee_id=%s "
             "AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'",
             (emp_id, today.month, today.year)
         )
-        ot_pay_this_month = float(cursor.fetchone()[0] or 0)
+        ot_pay_this_month = round(sum(float(amount(r[0])) for r in cursor.fetchall()), 2)
     except Exception:
         ot_pay_this_month = 0.0
 
@@ -1525,7 +1526,7 @@ def api_employee_profile():
                e.phone, e.dob, e.gender, e.blood_group, e.address, e.city, e.state,
                e.pincode, e.about_me, e.emergency_contact_name, e.emergency_contact_phone,
                e.bank_name, e.bank_account, e.bank_ifsc, e.pan_number, e.aadhar_number,
-               COALESCE(s.salary_per_day, 0), COALESCE(e.joining_date, e.date_of_joining),
+               s.salary_per_day, COALESCE(e.joining_date, e.date_of_joining),
                COALESCE(c.name, (SELECT company_name FROM company_settings LIMIT 1), ''),
                e.emergency_contact_relation, e.uan_number, COALESCE(e.email_alerts_enabled, 1)
         FROM employees e
@@ -1554,7 +1555,7 @@ def api_employee_profile():
             "bank_name": decrypt_pii(row[16]), "bank_account": decrypt_pii(row[17]), "bank_ifsc": decrypt_pii(row[18]),
             "pan_number": decrypt_pii(row[19]), "aadhar_number": decrypt_pii(row[20]),
             "uan_number": decrypt_pii(row[25]),
-            "salary_per_day": float(row[21]),
+            "salary_per_day": float(amount(row[21])),
             "join_date": str(row[22]) if row[22] else None,
             "company_name": row[23],
             "photo_url": f"/dataset/{row[0]}.jpg",

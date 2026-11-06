@@ -5,6 +5,8 @@ view_salary company filter, send_salary_email, send_all_salary_emails,
 lock/unlock_payroll, my_payslip_summary, apply_hike, award_performance_bonus,
 save_hike_config, api_salary_config GET/POST, api_salary_report.
 """
+from utils.helpers import decrypt_pii as _unpay  # pay columns hold ciphertext; this reads them
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import datetime
 import hashlib
 import secrets
@@ -193,8 +195,8 @@ class TestUpdateSalary:
         _admin_session(client, seed_admin)
         cur = db_engine.cursor()
         cur.execute(
-            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST001', 500)"
-            " ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=500"
+            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST001', %s)"
+            " ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day", (_pay(500),)
         )
         cur.close()
         rv = client.post("/update_salary", data={
@@ -206,7 +208,7 @@ class TestUpdateSalary:
         cur.execute("SELECT salary_per_day FROM salary_config WHERE employee_id='TST001'")
         row = cur.fetchone()
         cur.close()
-        assert float(row[0]) == 1500.0
+        assert float(_unpay(row[0])) == 1500.0
 
 
 # ── send_salary_email ─────────────────────────────────────────────────────────
@@ -326,8 +328,8 @@ class TestMyPayslipSummary:
         _emp_session(client, seed_employee)
         cur = db_engine.cursor()
         cur.execute(
-            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST001', 1000)"
-            " ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=1000"
+            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST001', %s)"
+            " ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day", (_pay(1000),)
         )
         cur.close()
         today = datetime.date.today()
@@ -479,8 +481,8 @@ class TestApiSalaryConfig:
         try:
             cur = db_engine.cursor()
             cur.execute(
-                "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST001', 800)"
-                " ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=800"
+                "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST001', %s)"
+                " ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day", (_pay(800),)
             )
             cur.close()
             rv = client.post("/api/salary_config",

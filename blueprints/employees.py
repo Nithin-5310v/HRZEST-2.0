@@ -24,6 +24,7 @@ from utils.auth import (
 )
 from utils.helpers import (
     tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, encrypt_contact, validate_emp_id,
+    encrypt_amount, amount,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
     add_employee_seat_cap_check, company_url, hr_scope_denied as _hr_scope_denied, company_today,
     int_param, notify_new_holiday,
@@ -172,7 +173,7 @@ def admin_action():
 
     elif action == "salary":
         emp_id = request.form["emp_id"]
-        salary = request.form["salary"]
+        salary = encrypt_amount(request.form["salary"])
         cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
         if cursor.fetchone():
             cursor.execute(
@@ -791,7 +792,7 @@ def employee_detail(emp_id):
                         OR (a.login_time IS NOT NULL AND a.attendance_type IS NULL) THEN 1 ELSE 0 END) AS full_days,
                SUM(CASE WHEN a.attendance_type='Half Day' THEN 1 ELSE 0 END) AS half_days,
                SUM(CASE WHEN a.attendance_type LIKE 'Late%%' OR a.status='Late Login' THEN 1 ELSE 0 END) AS late_days,
-               COALESCE(sc.salary_per_day, 0) AS salary_per_day,
+               sc.salary_per_day AS salary_per_day,
                e.about_me
         FROM employees e
         LEFT JOIN shifts s ON e.shift_id = s.id
@@ -828,6 +829,7 @@ def employee_detail(emp_id):
         if _pii_idx < len(row):
             row[_pii_idx] = decrypt_pii(row[_pii_idx])
     row[13] = decrypt_pii_date(row[13])
+    row[36] = amount(row[36])            # salary_per_day (encrypted; NULL -> 0)
 
     # DLP: aadhar/pan/bank_account/uan (indices 24,25,27,29) and salary
     # (index 36) are only shown unmasked to the finance/HR-clearance tier
@@ -1179,7 +1181,8 @@ def add_employee_page():
                 cursor.execute(
                     "INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc) VALUES (%s,%s,%s) "
                     "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=%s, monthly_ctc=%s",
-                    (emp_id, salary_per_day, monthly_salary, salary_per_day, monthly_salary)
+                    (emp_id, encrypt_amount(salary_per_day), encrypt_amount(monthly_salary),
+                     encrypt_amount(salary_per_day), encrypt_amount(monthly_salary))
                 )
             db.commit()
             registered = True
@@ -2224,7 +2227,7 @@ def api_employees():
     # list, and api_edit_employee() saves both as sent -- without them here
     # an edit made in the app blanked the employee's role and joining date.
     cursor.execute("""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+        SELECT e.employee_id, e.name, e.email, s.salary_per_day,
                e.role, e.department, e.phone, e.date_of_joining
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
@@ -2236,7 +2239,7 @@ def api_employees():
     db.close()
     return jsonify({"ok": True, "total": total, "page": page, "per_page": per_page,
                     "employees": [
-                        {"employee_id": r[0], "name": r[1], "email": r[2], "salary_per_day": float(r[3]),
+                        {"employee_id": r[0], "name": r[1], "email": r[2], "salary_per_day": float(amount(r[3])),
                          "role": r[4] or "", "department": r[5] or "", "phone": r[6] or "",
                          "date_of_joining": r[7].isoformat() if r[7] else ""}
                         for r in rows
@@ -2343,7 +2346,7 @@ def api_employee_detail(emp_id):
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT e.employee_id, e.name, e.email, e.role, e.date_of_joining,
-               COALESCE(s.salary_per_day, 0)
+               s.salary_per_day
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         WHERE e.employee_id = %s
@@ -2356,7 +2359,7 @@ def api_employee_detail(emp_id):
     return jsonify({"ok": True, "employee": {
         "employee_id": row[0], "name": row[1], "email": row[2],
         "role": row[3], "date_of_joining": str(row[4]) if row[4] else None,
-        "salary_per_day": float(row[5])
+        "salary_per_day": float(amount(row[5]))
     }})
 
 

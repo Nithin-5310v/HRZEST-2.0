@@ -18,6 +18,7 @@ company's rules plus incentives -- the amount disbursed until now --
 minus the PF/PT/TDS from Payroll settings. Every view now shows that
 figure, and it is what the disbursement pays.
 """
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import calendar
 import datetime
 import io
@@ -55,16 +56,17 @@ def pay_month(db_engine, seed_employee):
                                                     working[6], working[7:])
     cur = db_engine.cursor()
     cur.execute("INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc, basic_pct) "
-                "VALUES (%s, 1000, 26000, 50) ON CONFLICT (employee_id) DO UPDATE "
-                "SET salary_per_day=1000, monthly_ctc=26000, basic_pct=50", (emp,))
+                "VALUES (%s, %s, %s, %s) ON CONFLICT (employee_id) DO UPDATE "
+                "SET salary_per_day=EXCLUDED.salary_per_day, monthly_ctc=EXCLUDED.monthly_ctc, "
+                "basic_pct=EXCLUDED.basic_pct", (emp, _pay(1000), _pay(26000), _pay(50)))
     cur.execute("UPDATE employees SET email='tst001@test.local' WHERE employee_id=%s", (emp,))
     cur.execute("INSERT INTO holidays (date, name) VALUES (%s, 'QA Holiday') ON CONFLICT DO NOTHING", (holiday,))
     cur.execute("SELECT id FROM leave_types LIMIT 1")
     cur.execute("INSERT INTO leave_requests (employee_id, leave_type_id, leave_date, reason, status) "
                 "VALUES (%s,%s,%s,'QA','Approved')", (emp, cur.fetchone()[0], leave_day))
     cur.execute("INSERT INTO incentive_goals (title, incentive_amount) VALUES ('QA goal', 750) RETURNING id")
-    cur.execute("INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount) VALUES (%s,%s,%s,%s,750)",
-                (emp, cur.fetchone()[0], month, year))
+    cur.execute("INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount) VALUES (%s,%s,%s,%s,%s)",
+                (emp, cur.fetchone()[0], month, year, _pay(750)))
     for d in late:
         _attend(cur, emp, d, "Late - Full Day")
     for d in half:

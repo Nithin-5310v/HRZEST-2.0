@@ -63,13 +63,17 @@ def seed(n):
     pw_hash = bcrypt.hashpw(_env.LT_PASSWORD.encode(), bcrypt.gensalt(rounds=12)).decode()
     cur.execute("INSERT INTO admin_users (username, password, email, role) VALUES (%s,%s,%s,'admin') "
                 "ON CONFLICT (username) DO NOTHING", (_env.LT_ADMIN, pw_hash, "lt_admin@example.invalid"))
+    # salary_config pay columns only accept encrypted values (CHECK constraint)
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+    from utils.pii_crypto import cipher_from_env
+    _pay_cipher = cipher_from_env()
     for i in range(1, n + 1):
         emp = f"{_env.LT_PREFIX}{i:04d}"
         cur.execute("INSERT INTO employees (employee_id, name, email, password, force_pin_change) "
                     "VALUES (%s,%s,%s,%s,0) ON CONFLICT (employee_id) DO NOTHING",
                     (emp, f"Load Test {i:04d}", f"{emp.lower()}@example.invalid", pw_hash))
-        cur.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s, 1000) "
-                    "ON CONFLICT (employee_id) DO NOTHING", (emp,))
+        cur.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s, %s) "
+                    "ON CONFLICT (employee_id) DO NOTHING", (emp, _pay_cipher.encrypt_number(1000)))
     print(f"seeded 1 admin + {n} employees; watermark saved ({len(mark)} tables)")
     conn.close()
 

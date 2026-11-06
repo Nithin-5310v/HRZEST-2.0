@@ -7,6 +7,7 @@ holiday or an approved leave day was paid as an absence, so the mobile
 report and the emailed payslip disagreed with the web salary report and
 the payslip the employee downloads for the same month.
 """
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import calendar
 import datetime
 
@@ -31,8 +32,9 @@ def payroll_month(db_engine, seed_employee):
     emp = seed_employee["employee_id"]
     holiday, leave_day, present = working[0], working[1], working[2:]
     cur = db_engine.cursor()
-    cur.execute("INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc) VALUES (%s, 1000, 30000) "
-                "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=1000, monthly_ctc=30000", (emp,))
+    cur.execute("INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc) VALUES (%s, %s, %s) "
+                "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day, "
+                "monthly_ctc=EXCLUDED.monthly_ctc", (emp, _pay(1000), _pay(30000)))
     cur.execute("UPDATE employees SET email='tst001@test.local' WHERE employee_id=%s", (emp,))
     cur.execute("INSERT INTO holidays (date, name) VALUES (%s, 'QA Holiday') ON CONFLICT DO NOTHING", (holiday,))
     cur.execute("SELECT id FROM leave_types LIMIT 1")
@@ -41,8 +43,8 @@ def payroll_month(db_engine, seed_employee):
                 "VALUES (%s,%s,%s,'QA','Approved')", (emp, leave_type, leave_day))
     cur.execute("INSERT INTO incentive_goals (title, incentive_amount) VALUES ('QA goal', 750) RETURNING id")
     goal = cur.fetchone()[0]
-    cur.execute("INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount) VALUES (%s,%s,%s,%s,750)",
-                (emp, goal, month, year))
+    cur.execute("INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount) VALUES (%s,%s,%s,%s,%s)",
+                (emp, goal, month, year, _pay(750)))
     for d in present:
         cur.execute("INSERT INTO attendance (employee_id, date, login_time, logout_time, status, attendance_type) "
                     "VALUES (%s,%s,'09:00','18:00','Full Day Login','Full Day') ON CONFLICT DO NOTHING", (emp, d))

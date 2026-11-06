@@ -6,6 +6,8 @@ settings_page, save_company_code/info, toggle_feature, toggle_fingerprint,
 save_geo_radius, save_security_settings, switch_company, clear_company.
 """
 
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -165,8 +167,8 @@ class TestAdminAction:
         _admin_session(client, seed_admin)
         cur = db_engine.cursor()
         cur.execute(
-            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST001', 600)"
-            " ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=600"
+            "INSERT INTO salary_config (employee_id, salary_per_day) VALUES ('TST001', %s)"
+            " ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day", (_pay(600),)
         )
         cur.close()
         rv = client.post("/admin_action", data={

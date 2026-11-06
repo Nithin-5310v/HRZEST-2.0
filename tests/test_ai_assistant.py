@@ -7,6 +7,7 @@ urllib.request layer) is monkeypatched in `ask_assistant` tests, and the
 route tests monkeypatch `ask_assistant` itself, matching the existing
 convention of not mocking the code under test but isolating the
 third-party network call (see tests/test_face_utils.py)."""
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import utils.ai_assistant as ai_assistant
 import blueprints.employee_portal as employee_portal_module
 from utils.ai_assistant import (
@@ -56,8 +57,8 @@ class TestBuildEmployeeContext:
             (seed_employee["employee_id"], 960, 0))
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s,CURRENT_DATE,'18:00:00','20:00:00',120,0,'Pending')",
-            (seed_employee["employee_id"],))
+            "VALUES (%s,CURRENT_DATE,'18:00:00','20:00:00',120,%s,'Pending')",
+            (seed_employee["employee_id"], _pay(0)))
         context = build_employee_context(cur, seed_employee["employee_id"])
         cur.execute("DELETE FROM compoff_balance WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.execute("DELETE FROM overtime_records WHERE employee_id=%s", (seed_employee["employee_id"],))
