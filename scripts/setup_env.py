@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """
-setup_env.py — One-time local environment setup helper.
+scripts/setup_env.py — One-time local environment setup helper.
 
 Copies .env.example → .env and fills in:
   - SECRET_KEY     (cryptographically random 32-byte hex)
   - ENCRYPTION_KEY (Fernet key for PII encryption at rest)
 
 Run once before first launch:
-  python setup_env.py
+  python scripts/setup_env.py
 """
 import os
 import secrets
 import sys
+
+# Run from anywhere: work relative to the repo root (this file lives in scripts/).
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
+os.chdir(_ROOT)
 
 try:
     from cryptography.fernet import Fernet

@@ -3,20 +3,26 @@ Run once to generate a self-signed SSL certificate for the dev/kiosk server.
 Requires: pip install cryptography
 
 Usage:
-    python generate_cert.py
+    python scripts/generate_cert.py
 
 Produces: cert.pem  key.pem  (in the project root)
 """
 
 import datetime
 import ipaddress
+import os
 import socket
+
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
+
+# Run from anywhere: work relative to the repo root (this file lives in scripts/).
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(_ROOT)
 
 # ── detect local IP ──────────────────────────────────────────────────────────
 try:

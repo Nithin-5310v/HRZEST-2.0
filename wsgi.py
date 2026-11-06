@@ -67,13 +67,10 @@ from utils.document_verification import _document_verification_worker
 threading.Thread(target=_document_verification_worker, daemon=True, name="document-verification-worker").start()
 
 # ── Shared app setup & blueprint registration ─────────────────────────────────
-# The blueprint-split migration mentioned below is long complete -- every
-# route now lives in blueprints/, registered by the single loop near the
-# bottom of app.py (`for _bp in (health_bp, notifications_bp, ...):
-# app.register_blueprint(_bp)`, 29 blueprints as of this writing), not
-# individually here. app.py itself holds only shared setup: init_db, error
-# handlers, before/after_request hooks, template filters. Importing it here
-# is what actually runs that registration loop.
+# Every route lives in blueprints/; the one list of them is
+# blueprints/__init__.py (register_all), which app.py calls. app.py itself
+# holds shared setup: init_db, error handlers, before/after_request hooks,
+# template filters. Importing it here is what registers everything.
 import app as _app_module  # noqa: F401
 
 # ── Nightly daily report scheduler ───────────────────────────────────────────

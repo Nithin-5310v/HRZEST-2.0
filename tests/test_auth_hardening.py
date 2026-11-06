@@ -222,7 +222,7 @@ class TestPlatformAdminCodeServerSide:
 
     @pytest.fixture
     def platform_codes(self, client, monkeypatch):
-        import blueprints.platform_admin as pa
+        import blueprints.platform_admin.auth as pa   # login lives in the auth submodule
         codes = []
         monkeypatch.setattr(pa, "send_mfa_login_email", lambda to, u, r, s, code: codes.append(code))
         original = client.application.config.get("MANDATORY_PLATFORM_ADMIN_MFA")
