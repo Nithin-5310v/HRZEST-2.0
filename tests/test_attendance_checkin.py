@@ -17,7 +17,7 @@ import datetime
 import io
 import pytest
 
-from tests.conftest import TEST_OFFICE
+from tests.conftest import TEST_OFFICE, mock_package
 
 # Location enforcement is on by default (QA SEC-08): live and offline check-ins
 # need coordinates -- these are the office's own.
@@ -537,7 +537,7 @@ class TestApiEmployeeCheckin:
                     (seed_employee["employee_id"], today))
         cur.close()
 
-        mocker.patch("blueprints.employee_portal.is_within_office_range", return_value=False)
+        mock_package(mocker, "blueprints.employee_portal", "is_within_office_range", return_value=False)
         token = _emp_token(client, seed_employee)
         rv = client.post("/api/employee/checkin",
                          json={"lat": 19.0760, "lon": 72.8777},
@@ -569,7 +569,7 @@ class TestApiQrFaceCheckin:
         assert rv.status_code == 400
 
     def test_qr_disabled_returns_403(self, client, seed_employee, mocker, signed_qr):
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": False, "face_enabled": True,
             "fingerprint_enabled": False, "location_enabled": False,
         })
@@ -580,7 +580,7 @@ class TestApiQrFaceCheckin:
         assert rv.status_code == 403
 
     def test_face_disabled_returns_403(self, client, seed_employee, mocker, signed_qr):
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": False, "location_enabled": False,
         })
@@ -591,7 +591,7 @@ class TestApiQrFaceCheckin:
         assert rv.status_code == 403
 
     def test_fingerprint_disabled_returns_403(self, client, seed_employee, mocker, signed_qr):
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": True,
             "fingerprint_enabled": False, "location_enabled": False,
         })
@@ -603,12 +603,12 @@ class TestApiQrFaceCheckin:
 
     def test_fingerprint_not_verified_returns_401(self, client, seed_employee, mocker, signed_qr):
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
-        mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=False)
-        mocker.patch("blueprints.employee_portal._mobile_biometric_recently_verified", return_value=False)
+        mock_package(mocker, "blueprints.employee_portal", "_wa_fingerprint_recently_verified", return_value=False)
+        mock_package(mocker, "blueprints.employee_portal", "_mobile_biometric_recently_verified", return_value=False)
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
             "auth_combo":  "qr_fingerprint",
@@ -616,7 +616,7 @@ class TestApiQrFaceCheckin:
         assert rv.status_code == 401
 
     def test_unknown_employee_returns_404(self, client, mocker, signed_qr):
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": True,
             "fingerprint_enabled": False, "location_enabled": False,
         })
@@ -636,11 +636,11 @@ class TestApiQrFaceCheckin:
         cur.close()
 
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
-        mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=True)
+        mock_package(mocker, "blueprints.employee_portal", "_wa_fingerprint_recently_verified", return_value=True)
 
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
@@ -656,7 +656,7 @@ class TestApiQrFaceCheckin:
         cur.close()
 
     def test_qr_face_without_photo_returns_400(self, client, seed_employee, mocker, signed_qr):
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": True,
             "fingerprint_enabled": False, "location_enabled": False,
         })
@@ -673,11 +673,11 @@ class TestApiQrFaceCheckin:
         _PIL.new("RGB", (100, 100)).save(buf, format="JPEG")
         buf.seek(0)
 
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": True,
             "fingerprint_enabled": False, "location_enabled": False,
         })
-        mocker.patch("blueprints.employee_portal._face_recognition_available", False)
+        mock_package(mocker, "blueprints.employee_portal", "_face_recognition_available", False)
 
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
@@ -690,11 +690,11 @@ class TestApiQrFaceCheckin:
     def test_qr_fingerprint_relogin_after_completed(
             self, client, seed_employee, attendance_completed, mocker, signed_qr):
         # Face off: non-face check-in methods are only permitted then (allowed_checkin_combos).
-        mocker.patch("blueprints.employee_portal.get_auth_config", return_value={
+        mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value={
             "qr_enabled": True, "face_enabled": False,
             "fingerprint_enabled": True, "location_enabled": False,
         })
-        mocker.patch("blueprints.employee_portal._wa_fingerprint_recently_verified", return_value=True)
+        mock_package(mocker, "blueprints.employee_portal", "_wa_fingerprint_recently_verified", return_value=True)
 
         rv = client.post("/api/employee/qr-face-checkin", data={
             "employee_id": signed_qr(seed_employee["employee_id"]),
