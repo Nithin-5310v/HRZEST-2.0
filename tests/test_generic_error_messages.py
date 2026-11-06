@@ -104,8 +104,9 @@ class TestDeleteTenantSchemaDropFailure:
         tenant_id = cur.fetchone()[0]
         # The delete route runs DROP SCHEMA on the owner connection
         # (database.get_owner_master_db), not the runtime one.
-        real_get_owner_master_db = platform_admin.get_owner_master_db
-        monkeypatch.setattr(platform_admin, "get_owner_master_db",
+        import blueprints.platform_admin.dashboard as pa_dashboard   # tenant delete lives here
+        real_get_owner_master_db = pa_dashboard.get_owner_master_db
+        monkeypatch.setattr(pa_dashboard, "get_owner_master_db",
                             lambda *a, **k: _DropSchemaFails(real_get_owner_master_db(*a, **k)))
         with client.session_transaction() as s:
             s["platform_admin_logged_in"] = True
