@@ -16,21 +16,6 @@ not the head-pointer table, so emitting them needs no elevated privilege.
 import json
 
 
-def _tenant_schemas(app_log):
-    from database import get_master_db
-    try:
-        mdb = get_master_db()
-        mcur = mdb.cursor()
-        mcur.execute("SELECT db_name FROM tenants")
-        out = [r[0] for r in mcur.fetchall()]
-        mcur.close()
-        mdb.close()
-        return out
-    except Exception:
-        app_log.warning("audit jobs: could not list tenants", exc_info=True)
-        return []
-
-
 def emit_anchors():
     from extensions import app_log
     from database import get_db_connection

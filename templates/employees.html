@@ -607,7 +607,7 @@
           </div>
         </div>
 
-        <!-- Shifts grid -->
+        {# Shifts grid #}
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;">
           <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;display:inline-flex;align-items:center;gap:7px;">
             <i class="ti ti-clock-hour-9" style="font-size:15px;color:#6366f1;"></i> Work Shifts
@@ -620,7 +620,7 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;margin-bottom:30px;">
           {% for s in shift_full %}
           <div style="background:#fff;border:1px solid #e9ecf5;border-radius:16px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 16px rgba(16,24,40,.04);">
-            <!-- Card head -->
+            {# Card head #}
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;">
               <div style="display:flex;align-items:center;gap:11px;min-width:0;">
                 <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -642,7 +642,7 @@
                 </form>
               </div>
             </div>
-            <!-- Time track -->
+            {# Time track #}
             <div style="display:flex;align-items:stretch;background:#f8fafc;border:1px solid #eef1f6;border-radius:12px;overflow:hidden;">
               <div style="flex:1;padding:11px 8px;text-align:center;">
                 <div style="font-size:9.5px;font-weight:700;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px;">START</div>
@@ -659,7 +659,7 @@
                 <div style="font-size:17px;font-weight:800;color:#1e293b;line-height:1;">{{ s.end }}</div>
               </div>
             </div>
-            <!-- Assign row -->
+            {# Assign row #}
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9;">
               <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#94a3b8;margin-bottom:7px;">Assign to department</div>
               <form style="display:flex;align-items:center;gap:8px;" method="POST" action="{{ tpath('/bulk_assign_shift') }}">
@@ -684,7 +684,7 @@
         </div>
         {% endif %}
 
-        <!-- Breaks section -->
+        {# Breaks section #}
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;">
           <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;display:inline-flex;align-items:center;gap:7px;">
             <i class="ti ti-coffee" style="font-size:15px;color:#64748b;"></i> Break Schedules
