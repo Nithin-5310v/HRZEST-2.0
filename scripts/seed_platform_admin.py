@@ -8,16 +8,23 @@ SQL insert with a manually bcrypt-hashed password. Run this once per
 deployment; safe to re-run (it upserts by username).
 
 Usage:
-    python seed_platform_admin.py --username ops --email ops@hrzest.com --password "..."
+    python scripts/seed_platform_admin.py --username ops --email ops@hrzest.com --password "..."
 
 Omit --password to be prompted for it interactively (not echoed, not put in
 shell history).
 """
 import argparse
 import getpass
+import os
+import sys
 
-import database as db
-from utils.auth import generate_password_hash, validate_new_password
+# Run from anywhere: work relative to the repo root (this file lives in scripts/).
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
+os.chdir(_ROOT)
+
+import database as db  # noqa: E402
+from utils.auth import generate_password_hash, validate_new_password  # noqa: E402
 
 
 def seed(username: str, email: str, password: str) -> None:

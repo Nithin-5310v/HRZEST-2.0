@@ -50,7 +50,7 @@ class TestRateLimitBreachResponse:
         ip = "203.0.113.202"
         _unban(db_engine, ip)
         calls = []
-        import app as app_module
+        import app_setup.errors as app_module   # the 429 handler lives here now
         monkeypatch.setattr(app_module, "log_security_event",
                             lambda event_type, message, level="WARNING", **f: calls.append(event_type))
         try:

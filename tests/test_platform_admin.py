@@ -84,7 +84,7 @@ class TestLoginFlow:
         cur.close()
 
     def _capture_otp(self, monkeypatch):
-        import blueprints.platform_admin as pa_module
+        import blueprints.platform_admin.auth as pa_module   # login lives in the auth submodule
         captured = {}
         monkeypatch.setattr(
             pa_module, "send_mfa_login_email",

@@ -16,15 +16,21 @@ on the EC2 host against RDS), it uses the exact same env vars as the app.
 Safety: dry-run by default. Nothing is deleted until you pass --yes.
 
 Usage:
-    python factory_reset.py                 # dry run — prints what would be wiped
-    python factory_reset.py --yes           # actually wipe it
-    python factory_reset.py --yes --schema public   # limit to one schema
+    python scripts/factory_reset.py                 # dry run — prints what would be wiped
+    python scripts/factory_reset.py --yes           # actually wipe it
+    python scripts/factory_reset.py --yes --schema public   # limit to one schema
 """
 import argparse
 import os
 import shutil
+import sys
 
-import database as db
+# Run from anywhere: work relative to the repo root (this file lives in scripts/).
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
+os.chdir(_ROOT)
+
+import database as db  # noqa: E402
 
 # Tables holding data that belongs to a specific buyer/tenant and must not
 # survive a resale — order matters where foreign keys would otherwise block
@@ -152,7 +158,7 @@ def execute(schemas):
 
 
 def wipe_uploads(dry_run):
-    root = os.path.dirname(os.path.abspath(__file__))
+    root = _ROOT
     for rel in _UPLOAD_DIRS:
         d = os.path.join(root, rel)
         if not os.path.isdir(d):

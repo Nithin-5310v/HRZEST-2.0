@@ -2,14 +2,21 @@
 
 Run this after editing static/shared.css or static/darkmode.js:
     pip install -r requirements-dev.txt
-    python minify_static.py
+    python scripts/minify_static.py
 
 Only minifies first-party source — vendored libraries under static/ (chart,
 jsQR, tabler-icons) already ship pre-minified upstream.
 """
 import os
-import rcssmin
-import rjsmin
+import sys
+
+# Run from anywhere: work relative to the repo root (this file lives in scripts/).
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
+os.chdir(_ROOT)
+
+import rcssmin  # noqa: E402
+import rjsmin  # noqa: E402
 
 _TARGETS = [
     ("static/shared.css", "static/shared.min.css", rcssmin.cssmin),

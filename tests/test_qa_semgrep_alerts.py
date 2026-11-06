@@ -102,12 +102,21 @@ def test_application_document_queries_cover_exactly_the_allowed_kinds():
 
 
 # ── neither pattern comes back ───────────────────────────────────────────────
-@pytest.mark.parametrize("path", ["app.py", "blueprints/admin_views.py", "blueprints/payroll.py",
-                                  "blueprints/platform_admin.py"])
+# A directory means every .py file in it (modules split into packages).
+@pytest.mark.parametrize("path", ["app.py", "app_setup", "blueprints/admin_views.py", "blueprints/payroll.py",
+                                  "blueprints/platform_admin"])
 def test_no_request_value_is_cast_or_formatted_into_sql(path):
     """The shapes the alerts flagged: float()/bool() applied directly to
     request data, and an f-string passed to execute()."""
-    tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+    target = ROOT / path
+    files = sorted(target.glob("*.py")) if target.is_dir() else [target]
+    assert files, f"nothing to scan at {path}"
+    for f in files:
+        _assert_no_request_in_sql(f, f"{path}/{f.name}" if target.is_dir() else path)
+
+
+def _assert_no_request_in_sql(file, path):
+    tree = ast.parse(file.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not node.args:
             continue

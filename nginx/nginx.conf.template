@@ -32,7 +32,7 @@ limit_conn_zone $binary_remote_addr zone=perip:10m;
 
 # gzip must also live in the http{} context (same reasoning as the zones
 # above). This is what actually shrinks bytes over the wire for mobile
-# connections — minify_static.py already strips whitespace, but chart.umd.min.js
+# connections — scripts/minify_static.py already strips whitespace, but chart.umd.min.js
 # and tabler-icons.min.css are still 200KB+ each uncompressed, and every
 # proxied Flask HTML/JSON response goes out uncompressed without this.
 gzip on;

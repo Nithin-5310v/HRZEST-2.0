@@ -21,15 +21,15 @@ echo "=================================================="
 
 # 1. .env present and configured
 if [ ! -f ".env" ]; then
-  echo -e "${YELLOW}No .env found. Running setup_env.py to create one...${NC}"
-  python3 setup_env.py
+  echo -e "${YELLOW}No .env found. Running scripts/setup_env.py to create one...${NC}"
+  python3 scripts/setup_env.py
   echo -e "${RED}Edit .env (APP_URL, ALLOWED_ORIGINS, DB_*, SMTP, ...) then re-run: bash deploy.sh${NC}"
   echo "   (The office location is set per company in Settings, not in .env.)"
   exit 1
 fi
 
 if grep -qE "your_secret_key_here|your_encryption_key_here|YOUR_DOMAIN|change_me" .env; then
-  echo -e "${RED}.env still has placeholder values. Fix them (python3 setup_env.py generates keys).${NC}"
+  echo -e "${RED}.env still has placeholder values. Fix them (python3 scripts/setup_env.py generates keys).${NC}"
   exit 1
 fi
 
