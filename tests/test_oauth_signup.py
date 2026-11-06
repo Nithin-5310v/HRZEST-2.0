@@ -16,6 +16,7 @@ import pytest
 from extensions import app as flask_app
 import utils.oauth_client as oauth_client
 import blueprints.oauth_signup as oauth_signup
+from tests.conftest import patch_package  # noqa: E402
 
 
 def _drop_schema(db_engine, schema_name):
@@ -159,10 +160,9 @@ def _start_signup(client, monkeypatch, sub, email, name):
     """Returns from the provider for `email` and lands on the emailed-code
     step. Returns (pending_id, token, emailed_code)."""
     import urllib.parse
-    import blueprints.org as org_module
     sent = {}
-    monkeypatch.setattr(org_module, "send_org_signup_otp_email",
-                        lambda to, company, otp: sent.update(to=to, otp=otp) or True)
+    patch_package(monkeypatch, "blueprints.org", "send_org_signup_otp_email",
+                  lambda to, company, otp: sent.update(to=to, otp=otp) or True)
     monkeypatch.setattr(
         oauth_signup, "complete_oauth",
         lambda *a, **k: {"sub": sub, "email": email, "name": name,
@@ -255,11 +255,10 @@ class TestSignupEmailVerification:
         assert _tenant_count(db_engine, self.EMAIL) == 0
 
     def test_resend_replaces_the_code(self, client, db_engine, monkeypatch):
-        import blueprints.org as org_module
         pending_id, token, first = _start_signup(client, monkeypatch, "g-otp-6", self.EMAIL, "Admin")
         sent = {}
-        monkeypatch.setattr(org_module, "send_org_signup_otp_email",
-                            lambda to, company, otp: sent.update(to=to, otp=otp) or True)
+        patch_package(monkeypatch, "blueprints.org", "send_org_signup_otp_email",
+                      lambda to, company, otp: sent.update(to=to, otp=otp) or True)
         resp = client.post("/create_org/oauth/resend", data={"application_id": pending_id, "token": token})
         assert resp.headers["Location"] == f"/create_org/oauth/verify?id={pending_id}&token={token}"
         assert sent["to"] == self.EMAIL and sent["otp"]

@@ -9,10 +9,10 @@ convention of not mocking the code under test but isolating the
 third-party network call (see tests/test_face_utils.py)."""
 from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import utils.ai_assistant as ai_assistant
-import blueprints.employee_portal as employee_portal_module
 from utils.ai_assistant import (
     build_employee_context, ask_assistant, _sanitize_history, MAX_MESSAGE_LEN,
 )
+from tests.conftest import patch_package  # noqa: E402
 
 
 class TestBuildEmployeeContext:
@@ -395,7 +395,7 @@ class TestChatRoute:
         with client.session_transaction() as sess:
             sess["employee_id"] = seed_employee["employee_id"]
 
-        monkeypatch.setattr(employee_portal_module, "ask_assistant", lambda context, message, history, emp_id=None: (True, "Mocked reply"))
+        patch_package(monkeypatch, "blueprints.employee_portal", "ask_assistant", lambda context, message, history, emp_id=None: (True, "Mocked reply"))
 
         resp = client.post("/api/employee/chat", json={"message": "How much leave do I have?"})
         assert resp.status_code == 200
@@ -419,7 +419,7 @@ class TestChatRoute:
             captured["history"] = history
             return True, "ok"
 
-        monkeypatch.setattr(employee_portal_module, "ask_assistant", _fake_ask)
+        patch_package(monkeypatch, "blueprints.employee_portal", "ask_assistant", _fake_ask)
         resp = client.post("/api/employee/chat", json={"message": "hi", "history": "not-a-list"})
         assert resp.status_code == 200
         assert captured["history"] == []

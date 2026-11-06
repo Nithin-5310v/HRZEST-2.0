@@ -7,6 +7,7 @@ import pytest
 from PIL import Image
 
 from utils import storage
+from tests.conftest import patch_package  # noqa: E402
 
 
 def _jpeg_bytes(color=(200, 30, 30)):
@@ -71,8 +72,7 @@ def test_employee_photo_upload_is_encrypted_and_served_decrypted(client, seed_em
     from utils.tenant_files import resolve_face_photo
     from extensions import app
     monkeypatch.setattr(face_utils, "_face_recognition_available", False, raising=False)
-    import blueprints.employee_portal as ep
-    monkeypatch.setattr(ep, "_face_recognition_available", False, raising=False)
+    patch_package(monkeypatch, "blueprints.employee_portal", "_face_recognition_available", False, raising=False)
     emp_id = seed_employee["employee_id"]
     with client.session_transaction() as sess:
         sess["employee_id"] = emp_id

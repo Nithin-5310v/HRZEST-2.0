@@ -109,6 +109,8 @@ def test_no_request_value_is_cast_or_formatted_into_sql(path):
     """The shapes the alerts flagged: float()/bool() applied directly to
     request data, and an f-string passed to execute()."""
     target = ROOT / path
+    if not target.exists() and target.with_suffix("").is_dir():
+        target = target.with_suffix("")          # blueprints/x.py split into blueprints/x/
     files = sorted(target.glob("*.py")) if target.is_dir() else [target]
     assert files, f"nothing to scan at {path}"
     for f in files:

@@ -15,6 +15,7 @@ from flask import g
 from extensions import app as flask_app
 from tests.test_auth_hardening import _make_tenant
 from utils.auth import generate_password_hash
+from tests.conftest import patch_package  # noqa: E402
 
 EMP_PW = "Emp-Pass-" + secrets.token_hex(3)
 
@@ -55,8 +56,7 @@ def test_one_company_saving_rules_does_not_change_anothers_checkins(tenants, mon
     assert resp.status_code in (200, 302)
 
     # Company B kept the defaults (09:00 / 13:00 / 18:00, 15 min grace): 08:00 is on time.
-    import blueprints.employee_portal as ep
-    monkeypatch.setattr(ep, "company_now", lambda: _ist(8, 0))
+    patch_package(monkeypatch, "blueprints.employee_portal", "company_now", lambda: _ist(8, 0))
     emp_b = flask_app.test_client()
     tok = emp_b.post(f"/{slug_b}/api/employee/login",
                      json={"employee_id": "RB001", "password": EMP_PW}).get_json()["token"]

@@ -72,11 +72,17 @@ HRZEST/
 ├── run_dev.py                      local development server
 ├── blueprints/                     33 route modules — the web pages AND the /api/... JSON API;
 │                                   __init__.py holds the one registry (register_all)
-│                                   org.py, auth.py, employees.py, employee_portal.py,
-│                                   attendance.py, leave.py, payroll.py, billing.py,
-│                                   platform_admin.py, soc.py, webhooks.py, …
+│                                   auth.py, attendance.py, leave.py, payroll.py, billing.py,
+│                                   soc.py, webhooks.py, … The five largest are packages
+│                                   with one file per area, e.g. employees/{manage,
+│                                   directory, registration, photos, id_cards, api}.py:
+│                                   admin_views/, employees/, employee_portal/, org/,
+│                                   platform_admin/ (import paths unchanged)
 ├── utils/                          ~60 helpers: salary, billing, attendance, email, AI,
 │                                   multi-company routing (tenant_routing.py), security
+│   └── helpers/                    shared helpers, by concern: validation, urls, http,
+│                                   crypto, db, settings, uploads, scoping, notifications,
+│                                   gates (import from utils.helpers as before)
 ├── qr_generator.py                 signed employee QR codes
 ├── scripts/                        operator tools: setup_env, seed_platform_admin,
 │                                   factory_reset, generate_cert, minify_static,
@@ -285,7 +291,7 @@ https://<server>/<company>/login   ──►  tenants.subdomain = "<company>"  �
 
 - `utils/tenant_routing.py` reads the first part of the URL, looks the company up in `att_master.tenants`, and hides that prefix from the rest of the app.
 - `app_setup/tenant.py`'s `_resolve_tenant()` binds the session to that company; switching to another company's URL clears the session.
-- Sign-up makes the URL from the company name (`blueprints/org.py`, `_slug_for_company()`: "Acme Pvt. Ltd." → `acme-pvt-ltd`, plus `-2`… if taken).
+- Sign-up makes the URL from the company name (`blueprints/org/validation.py`, `_slug_for_company()`: "Acme Pvt. Ltd." → `acme-pvt-ltd`, plus `-2`… if taken).
 - In templates, build links with `tpath('/path')` so they stay inside the current company.
 
 ---
@@ -384,7 +390,7 @@ In `docs/`: `docs/SECURITY_HARDENING.md` · `docs/SOC.md` · `docs/RESTORE.md` (
 | A button or form behaviour on a page | Front-end JS | the page's `<script>` block, or `static/*.js` |
 | What happens when a form is submitted | Back end | the route in `blueprints/<area>.py` |
 | A calculation (salary, leave, billing) | Back end | `utils/salary_utils.py`, `utils/leave_utils.py`, `utils/plan_limits.py` |
-| Company sign-up / registration checklist | Back end + UI | `blueprints/org.py`, `templates/create_org.html`, `templates/_registration_checklist.html` |
+| Company sign-up / registration checklist | Back end + UI | `blueprints/org/`, `templates/create_org.html`, `templates/_registration_checklist.html` |
 | A table or column | Database | `migrations/core_tables.py` / `column_migrations.py` (per company) or `migrations/master.py` (platform) |
 | Something the mobile app calls | API + Mobile | the `/api/...` route in `blueprints/`, and `mobile/src/api/client.js` |
 | A mobile screen | Mobile app | `mobile/src/screens/...`, components in `mobile/src/components/...` |

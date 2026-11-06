@@ -9,6 +9,7 @@ import datetime
 import extensions as extensions_module
 import utils.waf as waf_module
 import utils.helpers as helpers_module
+from tests.conftest import patch_helpers  # noqa: E402
 
 
 class FakeRedis:
@@ -203,7 +204,7 @@ class TestSettingsCacheRedisDispatch:
     other tests' cache state."""
 
     def test_none_client_uses_in_memory_path(self, monkeypatch):
-        monkeypatch.setattr(helpers_module, "redis_client", None)
+        patch_helpers(monkeypatch, "redis_client", None)
         mem = {}
         assert helpers_module._cache_get(mem, "t") is helpers_module._CACHE_MISS
         helpers_module._cache_set(mem, "t", {"a": 1}, 60)
@@ -211,7 +212,7 @@ class TestSettingsCacheRedisDispatch:
 
     def test_redis_client_used_when_configured(self, monkeypatch):
         fake = FakeRedisKV()
-        monkeypatch.setattr(helpers_module, "redis_client", fake)
+        patch_helpers(monkeypatch, "redis_client", fake)
         mem = {}
         helpers_module._cache_set(mem, "settings_co", {"company_name": "Acme"}, 60)
         # Went to Redis, not the in-memory fallback.
@@ -225,14 +226,14 @@ class TestSettingsCacheRedisDispatch:
         own docstring claim (callers only index/iterate, never check
         the type) is what every real caller actually does."""
         fake = FakeRedisKV()
-        monkeypatch.setattr(helpers_module, "redis_client", fake)
+        patch_helpers(monkeypatch, "redis_client", fake)
         mem = {}
         helpers_module._cache_set(mem, "settings_companies", [(1, "Acme", "ACM", "")], 30)
         result = helpers_module._cache_get(mem, "settings_companies")
         assert result == [[1, "Acme", "ACM", ""]]
 
     def test_redis_get_failure_falls_back_to_memory(self, monkeypatch):
-        monkeypatch.setattr(helpers_module, "redis_client", RaisingKVRedis())
+        patch_helpers(monkeypatch, "redis_client", RaisingKVRedis())
         mem = {}
         # Prime the in-memory fallback directly, as if an earlier
         # successful in-memory _cache_set had already run.
@@ -243,7 +244,7 @@ class TestSettingsCacheRedisDispatch:
         assert helpers_module._cache_get(mem, "t") == {"a": 1}
 
     def test_redis_set_failure_falls_back_to_memory(self, monkeypatch):
-        monkeypatch.setattr(helpers_module, "redis_client", RaisingKVRedis())
+        patch_helpers(monkeypatch, "redis_client", RaisingKVRedis())
         mem = {}
         helpers_module._cache_set(mem, "t", {"a": 1}, 60)
         assert helpers_module._cache_get(mem, "t") == {"a": 1}
@@ -251,17 +252,17 @@ class TestSettingsCacheRedisDispatch:
     def test_redis_clear_prefix_deletes_only_matching_keys(self, monkeypatch):
         fake = FakeRedisKV()
         fake.store = {"settings_co:tenantA": "1", "settings_co:tenantB": "2", "settings_auth:tenantA": "3"}
-        monkeypatch.setattr(helpers_module, "redis_client", fake)
+        patch_helpers(monkeypatch, "redis_client", fake)
         helpers_module._redis_clear_prefix("settings_co")
         assert fake.store == {"settings_auth:tenantA": "3"}
 
     def test_redis_clear_prefix_noop_when_unconfigured(self, monkeypatch):
-        monkeypatch.setattr(helpers_module, "redis_client", None)
+        patch_helpers(monkeypatch, "redis_client", None)
         helpers_module._redis_clear_prefix("settings_co")  # must not raise
 
     def test_invalidate_settings_cache_clears_redis_too(self, monkeypatch):
         fake = FakeRedisKV()
         fake.store = {"settings_co:__no_tenant__": "1", "settings_auth:__no_tenant__": "2"}
-        monkeypatch.setattr(helpers_module, "redis_client", fake)
+        patch_helpers(monkeypatch, "redis_client", fake)
         helpers_module.invalidate_settings_cache()
         assert fake.store == {}

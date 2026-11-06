@@ -9,6 +9,7 @@ all of it; the step helpers let a test stop at, or fail, any one step."""
 import io
 import re
 import secrets
+from tests.conftest import patch_package  # noqa: E402
 
 FAKE_PDF = b"%PDF-1.4\n" + b"x" * 20
 FAKE_PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 20
@@ -37,10 +38,9 @@ def company_slug(company_name):
 def capture_codes(monkeypatch):
     """Swaps out the signup-code email; returns the list each sent code
     is appended to."""
-    import blueprints.org as org_module
     codes = []
-    monkeypatch.setattr(org_module, "send_org_signup_otp_email",
-                        lambda email, company, otp: codes.append(otp) or True)
+    patch_package(monkeypatch, "blueprints.org", "send_org_signup_otp_email",
+                  lambda email, company, otp: codes.append(otp) or True)
     return codes
 
 

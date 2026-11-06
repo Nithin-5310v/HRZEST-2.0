@@ -10,6 +10,7 @@ login gate, never make a real API call.
 import pytest
 from extensions import app as flask_app
 from utils.auth import generate_password_hash
+from tests.conftest import patch_helpers  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -20,7 +21,7 @@ def _configured_app_url(monkeypatch):
     request.host_url when APP_URL is unset -- a RuntimeError outside a
     request. Production always sets APP_URL; the tests must too, or they
     only pass on a machine whose .env happens to define it."""
-    monkeypatch.setattr("utils.helpers._APP_URL", "http://localhost")
+    patch_helpers(monkeypatch, "_APP_URL", "http://localhost")
 
 
 def _insert_tenant(db_engine, company_name, subdomain, admin_email="owner@test.local",

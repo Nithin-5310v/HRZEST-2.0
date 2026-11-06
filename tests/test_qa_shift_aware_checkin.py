@@ -18,7 +18,7 @@ import time
 import pytest
 import pytz
 
-from tests.conftest import TEST_OFFICE
+from tests.conftest import TEST_OFFICE, mock_package
 
 EMP = "TST001"
 OFFICE = TEST_OFFICE   # location is enforced by default (SEC-08)
@@ -59,7 +59,11 @@ def logged_in_at_six(db_engine, early_shift):
 
 
 def _at(mocker, module, hour, minute):
-    mocker.patch(f"{module}.company_now", return_value=_ist(hour, minute))
+    import importlib
+    if hasattr(importlib.import_module(module), "__path__"):   # split into a package
+        mock_package(mocker, module, "company_now", return_value=_ist(hour, minute))
+    else:
+        mocker.patch(f"{module}.company_now", return_value=_ist(hour, minute))
 
 
 def _emp_token(client, seed_employee):
@@ -95,7 +99,7 @@ def _offline_sync(client, seed_employee, mocker, hour, minute):
 
 def _qr_fingerprint_checkin(client, seed_employee, mocker, hour, minute, signed_qr):
     _at(mocker, "blueprints.employee_portal", hour, minute)
-    mocker.patch("blueprints.employee_portal.get_auth_config", return_value=AUTH_QR_FP)
+    mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value=AUTH_QR_FP)
     with client.session_transaction() as sess:
         sess["wa_fp_verified_emp_id"] = EMP
         sess["wa_fp_verified_at"] = time.time()

@@ -6,6 +6,7 @@ out over the network) rather than urllib itself -- same level Expo's own
 per-token result format is easiest to fake at, and consistent with how
 tests/test_billing.py etc. mock utils.razorpay_utils' equivalent."""
 import pytest
+from tests.conftest import patch_helpers  # noqa: E402
 
 
 def _admin_token(client, seed_admin):
@@ -168,7 +169,7 @@ class TestCreateNotificationTriggersPush:
         def _boom():
             raise RuntimeError("db down")
 
-        monkeypatch.setattr("utils.helpers.get_db_connection", _boom)
+        patch_helpers(monkeypatch, "get_db_connection", _boom)
         calls = []
         monkeypatch.setattr("utils.push_utils.send_push_notification", lambda *a, **k: calls.append(a))
         _create_notification("employee", "Title", "Body", employee_id="TST001")

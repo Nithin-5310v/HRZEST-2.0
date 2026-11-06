@@ -9,8 +9,7 @@ import datetime
 
 import pytest
 
-import blueprints.employee_portal as ep
-from tests.conftest import TEST_OFFICE
+from tests.conftest import TEST_OFFICE, patch_package
 from utils.helpers import get_auth_config
 
 # These tests exercise the location-only app check-in (QA NV-18).
@@ -31,7 +30,7 @@ OFFICE = TEST_OFFICE
 def location(monkeypatch):
     def _set(enabled):
         real = get_auth_config()
-        monkeypatch.setattr(ep, "get_auth_config", lambda: dict(real, location_enabled=enabled))
+        patch_package(monkeypatch, "blueprints.employee_portal", "get_auth_config", lambda: dict(real, location_enabled=enabled))
     return _set
 
 

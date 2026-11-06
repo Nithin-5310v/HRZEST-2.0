@@ -80,7 +80,7 @@ class TestUpsertCoFeatures:
         # _upsert_co_features now lives in utils/helpers.py (moved during the
         # podman-migration/master merge) — patch its own bound app_log, not payroll's.
         from utils.helpers import _upsert_co_features
-        mock_log = mocker.patch("utils.helpers.app_log")
+        mock_log = mocker.patch("utils.helpers.settings.app_log")
         _upsert_co_features(1, {"bad_col_xyz": True})
         mock_log.error.assert_called_once()
 
@@ -89,7 +89,7 @@ class TestUpsertCoFeatures:
         mock_conn = mocker.MagicMock()
         mock_cur = mocker.MagicMock()
         mock_conn.cursor.return_value = mock_cur
-        mocker.patch("utils.helpers.get_db_connection", return_value=mock_conn)
+        mocker.patch("utils.helpers.settings.get_db_connection", return_value=mock_conn)
         _upsert_co_features(99, {"geo_enabled": True, "qr_enabled": False})
         assert mock_cur.execute.called
         assert mock_conn.commit.called
@@ -115,7 +115,7 @@ class TestSaveSalaryRules:
         # save_salary_rules now lives in blueprints/admin_views.py (moved during
         # the podman-migration/master merge), which imports _upsert_co_features
         # by name from utils.helpers — patch admin_views' own bound reference.
-        mock_upsert = mocker.patch("blueprints.admin_views._upsert_co_features")
+        mock_upsert = mocker.patch("blueprints.admin_views.settings._upsert_co_features")
         _admin_session(client, seed_admin)
         with client.session_transaction() as sess:
             sess["active_company_id"] = 99

@@ -25,6 +25,7 @@ from utils.plan_limits import (
     calculate_price, get_tenant_employee_count,
     invalidate_rate_paise_cache, invalidate_extra_cost_cache,
 )
+from tests.conftest import patch_package  # noqa: E402
 
 
 TENANT_SCHEMA = os.environ["DB_NAME"]  # the suite's default tenant schema (see conftest)
@@ -623,7 +624,7 @@ class TestTrialEmployeeCap:
         # INSERT -- unrelated to what this class tests, so bypassed the
         # same way tests/test_attendance_checkin.py already does for the
         # equivalent check elsewhere.
-        monkeypatch.setattr("blueprints.employees._face_recognition_available", False)
+        patch_package(monkeypatch, "blueprints.employees", "_face_recognition_available", False)
         return client.post(f"{self._TENANT_PREFIX}/add_employee_page", data={
             "name": name, "emp_id": emp_id,
             "face": (io.BytesIO(self._FAKE_PNG), "face.png"),
