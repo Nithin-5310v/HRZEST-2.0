@@ -4,7 +4,7 @@ import datetime
 import calendar
 from database import get_db_connection
 from extensions import app_log
-from utils.helpers import company_today
+from utils.helpers import company_today, encrypt_amount, amount
 from utils.geo import haversine_km
 import utils.config as cfg
 
@@ -173,11 +173,11 @@ def detect_overtime(employee_id, date, logout_time):
             db.close()
             return
         cursor.execute(
-            "SELECT COALESCE(salary_per_day,0) FROM salary_config WHERE employee_id=%s",
+            "SELECT salary_per_day FROM salary_config WHERE employee_id=%s",
             (employee_id,)
         )
         sc = cursor.fetchone()
-        spd = float(sc[0]) if sc else 0.0
+        spd = float(amount(sc[0])) if sc else 0.0
         ot_pay = round((spd / 8 / 60) * ot_mins, 2)
         cursor.execute("""
             INSERT INTO overtime_records
@@ -187,7 +187,7 @@ def detect_overtime(employee_id, date, logout_time):
                 actual_logout=EXCLUDED.actual_logout,
                 ot_minutes=EXCLUDED.ot_minutes,
                 ot_pay=EXCLUDED.ot_pay
-        """, (employee_id, date, shift_end, logout_t, ot_mins, ot_pay))
+        """, (employee_id, date, shift_end, logout_t, ot_mins, encrypt_amount(ot_pay)))
         db.commit()
         cursor.close()
         db.close()

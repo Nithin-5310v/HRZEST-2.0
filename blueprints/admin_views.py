@@ -41,7 +41,7 @@ from utils.helpers import (
     tpath,
     get_company_settings, get_co_features, _upsert_co_feature,
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
-    encrypt_pii, decrypt_pii, invalidate_companies_cache, contact_lookup_keys,
+    encrypt_pii, decrypt_pii, invalidate_companies_cache, contact_lookup_keys, amount,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
     post_announcement, _validate_upload, company_today, company_now, int_param, parse_finite_float,
     get_auth_config, app_gps_checkin_allowed,
@@ -619,13 +619,13 @@ def settings_page():
 
     # Salary
     cursor.execute("""
-        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
+        SELECT e.employee_id, e.name, s.salary_per_day, e.role, s.last_revised,
                COALESCE(e.phone,''), COALESCE(e.email,'')
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
     """)
-    salaries = cursor.fetchall()
+    salaries = [(r[0], r[1], amount(r[2])) + tuple(r[3:]) for r in cursor.fetchall()]
 
     # Announcements (admin sees all; include visibility and target employee name)
     cursor.execute("""

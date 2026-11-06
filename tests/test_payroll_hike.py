@@ -12,6 +12,9 @@ Run with:
     python -m pytest tests/test_payroll_hike.py -v
 """
 
+from utils.helpers import decrypt_pii as _unpay  # pay columns hold ciphertext; this reads them
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
+
 
 def _admin_session(client, seed_admin):
     resp = client.post("/login", data={
@@ -55,7 +58,7 @@ def _set_salary(db_engine, emp_id, monthly_ctc, last_hike_quarter=None, last_hik
         "VALUES (%s,%s,%s,%s) ON CONFLICT (employee_id) DO UPDATE SET "
         "monthly_ctc=EXCLUDED.monthly_ctc, last_hike_quarter=EXCLUDED.last_hike_quarter, "
         "last_hike_year=EXCLUDED.last_hike_year",
-        (emp_id, monthly_ctc, last_hike_quarter, last_hike_year),
+        (emp_id, _pay(monthly_ctc), last_hike_quarter, last_hike_year),
     )
     cur.close()
 
@@ -92,7 +95,7 @@ class TestApplyHike:
             cur = db_engine.cursor()
             cur.execute("SELECT monthly_ctc, last_hike_quarter, last_hike_year FROM salary_config WHERE employee_id=%s", (emp_id,))
             ctc, lq, ly = cur.fetchone()
-            assert float(ctc) == 60000.0  # 50000 * 1.20
+            assert float(_unpay(ctc)) == 60000.0  # 50000 * 1.20
             assert lq == 1 and ly == 2026
             cur.close()
         finally:
@@ -109,7 +112,7 @@ class TestApplyHike:
             assert b"hike applied to 0 employee" in resp.data.lower()
             cur = db_engine.cursor()
             cur.execute("SELECT monthly_ctc FROM salary_config WHERE employee_id=%s", (emp_id,))
-            assert float(cur.fetchone()[0]) == 50000.0
+            assert float(_unpay(cur.fetchone()[0])) == 50000.0
             cur.close()
         finally:
             _cleanup(db_engine, [emp_id], 1, 2026)
@@ -151,7 +154,7 @@ class TestApplyHike:
             assert b"hike applied to 0 employee" in resp.data.lower()
             cur = db_engine.cursor()
             cur.execute("SELECT monthly_ctc FROM salary_config WHERE employee_id=%s", (emp_id,))
-            assert float(cur.fetchone()[0]) == 50000.0  # unchanged
+            assert float(_unpay(cur.fetchone()[0])) == 50000.0  # unchanged
             cur.close()
         finally:
             _cleanup(db_engine, [emp_id], 1, 2026)
@@ -182,7 +185,7 @@ class TestAwardPerformanceBonus:
                 "WHERE ei.employee_id=%s AND ig.title='Performance Bonus'", (emp_id,)
             )
             amount = cur.fetchone()[0]
-            assert float(amount) == 7500.0  # 50000 * 15%
+            assert float(_unpay(amount)) == 7500.0  # 50000 * 15%
             cur.close()
         finally:
             _cleanup(db_engine, [emp_id], 1, 2026)
