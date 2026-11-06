@@ -8,6 +8,8 @@ import datetime
 import hashlib
 import urllib.request  # noqa: F401 -- module-level so tests can monkeypatch auth_module.urllib.request.urlopen
 import bcrypt as _bcrypt
+from argon2 import PasswordHasher as _Argon2Hasher
+from argon2.exceptions import Argon2Error as _Argon2Error, InvalidHashError as _Argon2InvalidHash
 from functools import wraps
 from flask import session, request, jsonify, redirect, url_for, g as _flask_g, current_app
 from werkzeug.security import check_password_hash as _wz_check_pw
@@ -16,16 +18,30 @@ from utils.session_risk import is_session_compromised, evaluate_session_risk
 from utils.async_writer import enqueue_write
 from utils.helpers import _db, company_today, platform_today
 
-# ── Password hashing (bcrypt with legacy pbkdf2 fallback) ────────────────────
+# ── Password hashing (Argon2id; bcrypt + pbkdf2 still verify) ────────────────
+# Argon2id (RFC 9106, winner of the Password Hashing Competition) is
+# memory-hard, so GPU/ASIC cracking costs far more than against bcrypt.
+# Parameters: OWASP's Argon2id baseline (19 MiB, t=2, p=1) -- chosen over
+# RFC 9106's 64 MiB profile so concurrent logins stay safe on the
+# compose.lowmem.yaml deployment. Raising them later is safe:
+# password_needs_rehash() upgrades each stored hash on its next login.
+# Existing bcrypt ($2b$) and werkzeug pbkdf2 hashes keep verifying and are
+# upgraded to Argon2id the same way.
+_argon2 = _Argon2Hasher(time_cost=2, memory_cost=19456, parallelism=1, hash_len=32, salt_len=16)
 
 
 def generate_password_hash(pw: str, **_) -> str:
-    return _bcrypt.hashpw(pw.encode(), _bcrypt.gensalt(rounds=12)).decode()
+    return _argon2.hash(pw)
 
 
 def check_password_hash(pw_hash: str, pw: str) -> bool:
     if not pw_hash:
         return False
+    if pw_hash.startswith("$argon2"):
+        try:
+            return _argon2.verify(pw_hash, pw)
+        except (_Argon2Error, _Argon2InvalidHash):
+            return False
     if pw_hash.startswith("$2b$") or pw_hash.startswith("$2a$"):
         try:
             return _bcrypt.checkpw(pw.encode(), pw_hash.encode())
@@ -34,11 +50,25 @@ def check_password_hash(pw_hash: str, pw: str) -> bool:
     return _wz_check_pw(pw_hash, pw)
 
 
+def password_needs_rehash(pw_hash: str) -> bool:
+    """True when a stored hash (that just verified) should be replaced with
+    a fresh Argon2id hash: any bcrypt/pbkdf2 hash, or Argon2 with weaker
+    parameters than the current ones."""
+    if not pw_hash:
+        return False
+    if not pw_hash.startswith("$argon2id$"):
+        return True
+    try:
+        return _argon2.check_needs_rehash(pw_hash)
+    except Exception:
+        return True
+
+
 _DUMMY_PASSWORD_HASH = None
 
 
 def dummy_password_check(pw: str) -> None:
-    """Spend one real bcrypt check on a throwaway hash -- call this when a
+    """Spend one real Argon2id check on a throwaway hash -- call this when a
     login identifier matches no account, so it costs the same time as a
     real wrong-password check and response timing can't reveal whether
     the account exists. The hash is of a random value built once per

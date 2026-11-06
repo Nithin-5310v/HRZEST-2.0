@@ -15,19 +15,60 @@ Data comes from what the product already records (see utils/soc_queries.py);
 actions are in utils/soc_actions.py; log analysis is utils/soc_loganalysis.py.
 """
 import datetime
+import json
 import os
 
 from flask import Blueprint, jsonify, make_response, redirect, render_template, request, send_from_directory, session
 
 from extensions import limiter
-from utils import soc_actions, soc_auth, soc_queries
+from utils import soc_actions, soc_auth, soc_geo, soc_queries
 from utils import soc_loganalysis as loganalysis
 from utils.soc_auth import soc_required
 from utils.soc_util import clamp_int, to_csv
 
 soc_bp = Blueprint("soc", __name__)
 
-_last_integrity = {}
+# The last audit-chain verification is read back from soc_audit_log (the row the
+# verify route already writes), not kept in process memory: every worker sees the
+# same result and it survives a restart.
+_INTEGRITY_ACTION = "verify_audit_chain"
+_DETAIL_MAX = 2000      # soc_auth.audit() caps detail at this length
+
+
+def _integrity_detail(report):
+    """Compact JSON of a verification report that fits the audit detail column.
+    Long lists (e.g. violations) are trimmed, keeping their full length in
+    `<name>_total`, so the stored JSON is never cut mid-way."""
+    for keep in (None, 20, 5, 0):
+        rec = {}
+        for k, v in report.items():
+            if isinstance(v, list) and keep is not None and len(v) > keep:
+                rec[k], rec[k + "_total"] = v[:keep], len(v)
+            else:
+                rec[k] = v
+        text = json.dumps(rec, default=str, separators=(",", ":"))
+        if len(text) <= _DETAIL_MAX:
+            return text
+    return json.dumps({"ok": report.get("ok")})
+
+
+def _latest_integrity():
+    """-> (report, at, by) of the newest recorded verification, or (None, None, None)."""
+    from utils.soc_db import read_cursor
+    from utils.soc_util import iso
+    with read_cursor("att_master") as cur:
+        cur.execute("SELECT actor, detail, created_at FROM soc_audit_log WHERE action=%s ORDER BY id DESC LIMIT 1",
+                    (_INTEGRITY_ACTION,))
+        row = cur.fetchone()
+    if not row:
+        return None, None, None
+    try:
+        report = json.loads(row[1] or "")
+    except ValueError:          # rows written before results were stored as JSON ("ok=True")
+        report = None
+    if not isinstance(report, dict):
+        return None, None, None
+    return report, iso(row[2]), row[0]
 
 
 @soc_bp.after_request
@@ -169,7 +210,7 @@ def logout():
 # not downloadable by anonymous visitors. Only the login stylesheet is public.
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "soc_ui")
 _PUBLIC_ASSETS = frozenset({"login.css"})
-_PRIVATE_ASSETS = frozenset({"soc.css", "soc-core.js", "soc-views.js", "soc-analysis.js"})
+_PRIVATE_ASSETS = frozenset({"soc.css", "soc-core.js", "soc-views.js", "soc-analysis.js", "soc-banreview.js"})
 
 
 @soc_bp.route("/soc/assets/<name>")
@@ -205,7 +246,8 @@ def api_change_own_password():
     from utils.auth import check_password_hash
     u = soc_auth.current_user()
     data = _body()
-    if not check_password_hash(u["password_hash"], data.get("current", "") or ""):
+    current = data.get("current")
+    if not isinstance(current, str) or not check_password_hash(u["password_hash"], current):
         soc_auth.register_failure(u, _ip(), "bad current password on change")
         return _err("Current password is incorrect.", 403)
     ok, err = soc_auth.set_password(u["id"], data.get("new", "") or "", u["username"])
@@ -241,7 +283,7 @@ def _event_filters():
 @soc_required("viewer")
 def api_events():
     return _ok(**soc_queries.search_events(cursor=request.args.get("cursor"), limit=request.args.get("limit", 100),
-                                           **_event_filters()))
+                                           since=request.args.get("since"), **_event_filters()))
 
 
 @soc_bp.route("/soc/api/events/<int:event_id>")
@@ -285,7 +327,32 @@ def api_entity_ip(ip):
     from utils.soc_util import looks_like_ip
     if not looks_like_ip(ip):
         return _err("That is not a valid IP address.")
-    return _ok(entity=soc_queries.entity_ip(ip, request.args.get("days")))
+    entity = soc_queries.entity_ip(ip, request.args.get("days"))
+    entity["geo"] = soc_geo.lookup([ip]).get(ip)
+    return _ok(entity=entity)
+
+
+@soc_bp.route("/soc/api/geo")
+@soc_required("viewer")
+@limiter.limit("120 per minute")
+def api_geo():
+    """Location / anonymizer info for the IPs on screen (?ips=a,b,c). Server-side
+    only: the browser never contacts the lookup provider."""
+    from utils.soc_util import looks_like_ip
+    ips = [i.strip() for i in (request.args.get("ips") or "").split(",") if looks_like_ip(i.strip())][:soc_geo.MAX_LOOKUPS_PER_CALL]
+    return _ok(geo=soc_geo.lookup(ips), enabled=soc_geo.enabled())
+
+
+@soc_bp.route("/soc/api/brief")
+@soc_required("viewer")
+def api_brief():
+    kind = request.args.get("kind", "")
+    if kind not in soc_queries.BRIEF_KINDS:
+        return _err("Unknown selection.")
+    try:
+        return _ok(brief=soc_queries.brief(kind, (request.args.get("value") or "")[:80], request.args.get("hours")))
+    except ValueError as exc:
+        return _err(str(exc))
 
 
 @soc_bp.route("/soc/api/entity/identifier")
@@ -300,7 +367,7 @@ def api_entity_identifier():
 @soc_bp.route("/soc/api/bans")
 @soc_required("viewer")
 def api_bans():
-    return _ok(bans=soc_queries.bans())
+    return _ok(**soc_queries.bans())
 
 
 @soc_bp.route("/soc/api/sessions")
@@ -335,7 +402,8 @@ def api_posture():
 @soc_bp.route("/soc/api/integrity")
 @soc_required("viewer")
 def api_integrity_last():
-    return _ok(report=_last_integrity.get("report"), at=_last_integrity.get("at"), by=_last_integrity.get("by"))
+    report, at, by = _latest_integrity()
+    return _ok(report=report, at=at, by=by)
 
 
 @soc_bp.route("/soc/api/integrity/verify", methods=["POST"])
@@ -348,9 +416,13 @@ def api_integrity_verify():
         return _err(str(exc))
     except Exception as exc:
         return _err(f"Verification could not complete ({type(exc).__name__}). Try a quieter moment.", 503)
-    _last_integrity.update(report=report, at=datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z", by=_actor())
-    soc_auth.audit(_actor(), "verify_audit_chain", detail=f"ok={report.get('ok')}", ip=_ip())
-    return _ok(report=report, at=_last_integrity["at"], by=_last_integrity["by"])
+    stored_at = soc_auth.audit(_actor(), _INTEGRITY_ACTION, detail=_integrity_detail(report), ip=_ip())
+    # `at` is THIS run's stored row time (same clock as GET /integrity). Reading
+    # back "the newest row" could return an older or a concurrent run's result.
+    # stored=False tells the UI the result was not saved and won't show on reload.
+    from utils.soc_util import iso
+    at = iso(stored_at) if stored_at else datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
+    return _ok(report=report, at=at, by=_actor(), stored=stored_at is not None)
 
 
 # ── API: log analysis ────────────────────────────────────────────────
@@ -370,6 +442,21 @@ def api_loganalysis():
     report["filename"] = (f.filename or "pasted.log")[:100]
     soc_auth.audit(_actor(), "log_analysis", target=report["filename"],
                    detail=f"{report['summary']['lines_read']} lines, {report['summary']['findings']} findings", ip=_ip())
+    return _ok(report=report)
+
+
+@soc_bp.route("/soc/api/loganalysis/platform", methods=["POST"])
+@soc_required("analyst")
+@limiter.limit("30 per hour")
+def api_loganalysis_platform():
+    """Run the log analyser over the security events the platform itself
+    recorded in the window -- no upload and no Loki needed."""
+    text, src = soc_queries.platform_log_text(_body().get("hours"))
+    report = loganalysis.analyze(text)
+    report["filename"] = f"platform-activity-{src['hours']}h"
+    report["source"] = {"kind": "platform", **src}
+    soc_auth.audit(_actor(), "log_analysis", target=report["filename"],
+                   detail=f"{src['events']} events, {report['summary']['findings']} findings", ip=_ip())
     return _ok(report=report)
 
 
@@ -406,7 +493,10 @@ def api_ban():
 @soc_bp.route("/soc/api/bans/remove", methods=["POST"])
 @soc_required("analyst")
 def api_unban():
-    ok, msg = soc_actions.unban_ip(_body().get("ip"), _actor(), _ip())
+    d = _body()
+    tenant_id = d.get("tenant_id")
+    tenant_id = None if tenant_id in (None, "") else clamp_int(tenant_id, 0, 0, 2 ** 31 - 1)
+    ok, msg = soc_actions.unban_ip(d.get("ip"), _actor(), _ip(), tenant_id=tenant_id)
     return _ok(message=msg) if ok else _err(msg)
 
 
@@ -432,7 +522,14 @@ def api_revoke_session():
 @soc_bp.route("/soc/api/cases")
 @soc_required("viewer")
 def api_cases():
-    return _ok(cases=soc_queries.cases(request.args.get("status") or None))
+    return _ok(cases=soc_queries.cases(request.args.get("status") or None, assignee=request.args.get("assignee") or None))
+
+
+@soc_bp.route("/soc/api/assignees")
+@soc_required("viewer")
+def api_assignees():
+    """Who a case can be assigned to (active analysts and admins)."""
+    return _ok(assignees=soc_queries.assignees())
 
 
 @soc_bp.route("/soc/api/cases/<int:case_id>")
@@ -539,3 +636,22 @@ def api_audit():
         rows = [{"id": i, "actor": a, "action": ac, "target": t, "detail": d, "ip": ip, "at": iso(ts)}
                 for i, a, ac, t, d, ip, ts in cur.fetchall()]
     return _ok(entries=rows, next_before=rows[-1]["id"] if len(rows) == 200 else None)
+
+
+# ── ban review: automated detections waiting for an analyst ──────────
+# (utils/soc_ban_review.py; the console view is soc_ui/soc-banreview.js)
+@soc_bp.route("/soc/api/ban-reviews")
+@soc_required("viewer")
+def api_ban_reviews():
+    from utils import soc_ban_review
+    return _ok(**soc_ban_review.list_reviews(request.args.get("status", "pending")))
+
+
+@soc_bp.route("/soc/api/ban-reviews/decide", methods=["POST"])
+@soc_required("analyst")
+def api_ban_review_decide():
+    from utils import soc_ban_review
+    d = _body()
+    ok, msg = soc_ban_review.decide(d.get("ip"), d.get("action"), _actor(), _ip(),
+                                    minutes=d.get("minutes"), days=d.get("days"), note=d.get("note"))
+    return _ok(message=msg) if ok else _err(msg)

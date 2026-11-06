@@ -3,6 +3,7 @@ dashboard (see the approved plan: it replaces the old ?view=dashboard stub
 on /employees). Every route is HR-only and scoped to the session's
 assigned employees via utils/helpers.py's hr_scope_column()/
 hr_scope_subquery()."""
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 from utils.auth import HR_ROLE
 
 
@@ -128,8 +129,8 @@ class TestHrDashboardPayroll:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc, basic_pct) "
-            "VALUES (%s, 1000, 26000, 50) ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=1000",
-            (seed_assigned_employee["employee_id"],),
+            "VALUES (%s, %s, %s, %s) ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day",
+            (seed_assigned_employee["employee_id"], _pay(1000), _pay(26000), _pay(50)),
         )
         cur.close()
         self._hr_session(client, seed_hr_admin)
@@ -169,14 +170,14 @@ class TestHrDashboardPayroll:
         cur = db_engine.cursor()
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s, CURRENT_DATE, '18:00:00', '19:00:00', 60, 100, 'Pending') RETURNING id",
-            (seed_employee["employee_id"],),
+            "VALUES (%s, CURRENT_DATE, '18:00:00', '19:00:00', 60, %s, 'Pending') RETURNING id",
+            (seed_employee["employee_id"], _pay(100)),
         )
         oid1 = cur.fetchone()[0]
         cur.execute(
             "INSERT INTO overtime_records (employee_id, date, shift_end, actual_logout, ot_minutes, ot_pay, status) "
-            "VALUES (%s, CURRENT_DATE, '18:00:00', '19:30:00', 90, 150, 'Pending') RETURNING id",
-            (seed_assigned_employee["employee_id"],),
+            "VALUES (%s, CURRENT_DATE, '18:00:00', '19:30:00', 90, %s, 'Pending') RETURNING id",
+            (seed_assigned_employee["employee_id"], _pay(150)),
         )
         oid2 = cur.fetchone()[0]
         cur.close()

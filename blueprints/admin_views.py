@@ -14,6 +14,7 @@ positive in every case here -- the interpolated fragment is always one of:
 All actual values are always passed as %s-bound params, never interpolated.
 """
 import os
+import shutil
 import re
 import uuid
 import json
@@ -40,12 +41,14 @@ from utils.helpers import (
     tpath,
     get_company_settings, get_co_features, _upsert_co_feature,
     _upsert_co_features, _safe_redirect, co_scope_subquery, co_scope_column,
-    encrypt_pii, decrypt_pii, invalidate_companies_cache,
+    encrypt_pii, decrypt_pii, invalidate_companies_cache, contact_lookup_keys, amount,
     _validate_image_file, get_pending_action_counts, invalidate_settings_cache,
     post_announcement, _validate_upload, company_today, company_now, int_param, parse_finite_float,
     get_auth_config, app_gps_checkin_allowed,
 )
 from utils.storage import save_private, open_private, delete_private
+from utils.tenant_files import face_photo_path, legacy_face_photo_path
+from qr_generator import generate_qr
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.graph_mail import GraphMailError
 
@@ -250,9 +253,12 @@ def api_admin_search():
     _co_filter, _co_args = co_scope_column(active_cid, alias="e")
     cursor.execute(
         f"SELECT e.employee_id, e.name, e.email, e.role FROM employees e "  # nosec B608
-        f"WHERE (e.name ILIKE %s OR e.employee_id ILIKE %s OR e.email ILIKE %s OR e.phone ILIKE %s) {_co_filter} "
+        # email/phone are encrypted: matched exactly via their blind index
+        # (ILIKE on them only still finds rows not yet migrated).
+        f"WHERE (e.name ILIKE %s OR e.employee_id ILIKE %s OR e.email ILIKE %s OR e.phone ILIKE %s "
+        f"OR e.email_bidx = ANY(%s) OR e.phone_bidx = ANY(%s)) {_co_filter} "
         f"ORDER BY e.name LIMIT 8",
-        (like, like, like, like) + _co_args
+        (like, like, like, like, contact_lookup_keys("email", q), contact_lookup_keys("phone", q)) + _co_args
     )
     for eid, name, email, role in cursor.fetchall():
         results.append({
@@ -613,13 +619,13 @@ def settings_page():
 
     # Salary
     cursor.execute("""
-        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
+        SELECT e.employee_id, e.name, s.salary_per_day, e.role, s.last_revised,
                COALESCE(e.phone,''), COALESCE(e.email,'')
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
     """)
-    salaries = cursor.fetchall()
+    salaries = [(r[0], r[1], amount(r[2])) + tuple(r[3:]) for r in cursor.fetchall()]
 
     # Announcements (admin sees all; include visibility and target employee name)
     cursor.execute("""
@@ -1033,7 +1039,8 @@ def api_save_email_settings():
     else:
         cursor.execute("SELECT smtp_pass FROM email_config ORDER BY id DESC LIMIT 1")
         prev = cursor.fetchone()
-        encrypted_password = prev[0] if prev else ""
+        # re-encrypt, not copy: the fetch already decrypted it (database.py)
+        encrypted_password = encrypt_pii(decrypt_pii(prev[0])) if prev and prev[0] else ""
     cursor.execute("DELETE FROM email_config")
     cursor.execute(
         "INSERT INTO email_config (smtp_host, smtp_port, smtp_user, smtp_pass, from_name, from_email) "
@@ -1745,12 +1752,10 @@ def edit_company(cid):
                     )
 
                 for old_eid, new_eid in to_rename:
-                    new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
-                    # qr_code stores save_private()'s stored_ref (private_uploads/,
-                    # never static/ -- see qr_generator.py's generate_qr()) --
-                    # this mirrors that same local-mode path convention so a
-                    # renamed employee's QR file and DB pointer stay in sync.
-                    new_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", new_eid + ".png")
+                    new_img = face_photo_path(new_eid)
+                    # The QR signs the employee ID, so a renamed employee
+                    # needs a freshly signed badge, not the old file renamed.
+                    new_qr = generate_qr(new_eid)
                     cursor.execute(
                         "UPDATE employees SET employee_id=%s, face_image=%s, qr_code=%s "
                         "WHERE employee_id=%s AND company_id=%s",
@@ -1768,20 +1773,18 @@ def edit_company(cid):
     # rollback above never leaves files renamed out from under DB rows that
     # still point at the old employee_id.
     for old_eid, new_eid in to_rename:
-        old_img = os.path.join(app.config["UPLOAD_FOLDER"], old_eid + ".jpg")
-        new_img = os.path.join(app.config["UPLOAD_FOLDER"], new_eid + ".jpg")
-        old_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", old_eid + ".png")
-        new_qr = os.path.join(app.root_path, "private_uploads", "qrcodes", new_eid + ".png")
-        if os.path.exists(old_img):
-            try:
-                os.rename(old_img, new_img)
-            except Exception as exc:
-                app_log.warning("Could not rename employee photo %s -> %s during company edit: %s", old_img, new_img, exc)
-        if os.path.exists(old_qr):
-            try:
-                os.rename(old_qr, new_qr)
-            except Exception as exc:
-                app_log.warning("Could not rename employee QR %s -> %s during company edit: %s", old_qr, new_qr, exc)
+        new_img = face_photo_path(new_eid)
+        own_img = face_photo_path(old_eid)
+        shared_img = legacy_face_photo_path(old_eid)
+        try:
+            if os.path.exists(own_img):
+                os.replace(own_img, new_img)
+            elif os.path.exists(shared_img):
+                # Pre-migration flat file: copy, never move -- another
+                # company's employee with the same ID may still use it.
+                shutil.copy2(shared_img, new_img)
+        except Exception as exc:
+            app_log.warning("Could not move employee photo for %s -> %s during company edit: %s", old_eid, new_eid, exc)
 
     if logo_file and logo_file.filename:
         new_logo_path = _save_company_image(logo_file, cid, "logo")

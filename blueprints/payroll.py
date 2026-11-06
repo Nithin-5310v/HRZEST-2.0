@@ -29,7 +29,7 @@ from utils.auth import (
 )
 from utils.helpers import (
     tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime,
-    hr_scope_column, int_param, parse_finite_float,
+    hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount,
 )
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
 from utils.attendance_utils import (
@@ -53,7 +53,7 @@ def view_salary():
     active_cid = session.get("active_company_id")
     if active_cid:
         cursor.execute("""
-            SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
+            SELECT e.employee_id, e.name, s.salary_per_day, e.role, s.last_revised,
                    COALESCE(e.phone,''), COALESCE(e.email,'')
             FROM employees e
             LEFT JOIN salary_config s ON e.employee_id = s.employee_id
@@ -62,13 +62,13 @@ def view_salary():
         """, (active_cid,))
     else:
         cursor.execute("""
-            SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0), e.role, s.last_revised,
+            SELECT e.employee_id, e.name, s.salary_per_day, e.role, s.last_revised,
                    COALESCE(e.phone,''), COALESCE(e.email,'')
             FROM employees e
             LEFT JOIN salary_config s ON e.employee_id = s.employee_id
             ORDER BY e.name
         """)
-    data = cursor.fetchall()
+    data = [(r[0], r[1], amount(r[2])) + tuple(r[3:]) for r in cursor.fetchall()]
     cursor.close()
     db.close()
     return render_template("salary.html", salaries=data, active_nav="salary")
@@ -87,17 +87,17 @@ def update_salary():
     if cursor.fetchone():
         cursor.execute(
             "UPDATE salary_config SET salary_per_day=%s, last_revised=%s WHERE employee_id=%s",
-            (salary, hike_date or company_today(), emp_id)
+            (encrypt_amount(salary), hike_date or company_today(), emp_id)
         )
     else:
         cursor.execute(
             "INSERT INTO salary_config (employee_id, salary_per_day, last_revised) VALUES (%s,%s,%s)",
-            (emp_id, salary, hike_date or company_today())
+            (emp_id, encrypt_amount(salary), hike_date or company_today())
         )
     db.commit()
     cursor.close()
     db.close()
-    _audit("update_salary", "salary_config", emp_id, f"salary_per_day set to {salary}")
+    _audit("update_salary", "salary_config", emp_id, "salary_per_day updated")  # amount omitted: pay is encrypted
     return redirect(tpath("/settings?tab=salary"))
 
 # ---------------- MONTHLY ATTENDANCE REPORT ----------------
@@ -131,9 +131,9 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
         _where += " AND e.employee_id = ANY(%s)"
         _params.append(list(employee_ids))
     cursor.execute(f"""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+        SELECT e.employee_id, e.name, e.email, s.salary_per_day,
                COALESCE(e.role,''), COALESCE(e.phone,''),
-               COALESCE(s.monthly_ctc, 0), COALESCE(s.basic_pct, 50), COALESCE(e.department,'')
+               s.monthly_ctc, s.basic_pct, COALESCE(e.department,'')
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         {_where}
@@ -176,12 +176,15 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
     try:
         db2 = get_db_connection()
         cursor2 = db2.cursor(buffered=True)
+        # amount is encrypted (encrypt_amount), so it is summed here, not in SQL.
         cursor2.execute(
-            "SELECT employee_id, COALESCE(SUM(amount),0) FROM employee_incentives "
-            f"WHERE year=%s AND month=%s{_only} GROUP BY employee_id",  # nosec B608 -- fixed literal
+            "SELECT employee_id, amount FROM employee_incentives "
+            f"WHERE year=%s AND month=%s{_only}",  # nosec B608 -- fixed literal
             (year, month) + _only_args
         )
-        incentive_map = {r[0]: float(r[1]) for r in cursor2.fetchall()}
+        incentive_map = {}
+        for _eid, _amt in cursor2.fetchall():
+            incentive_map[_eid] = incentive_map.get(_eid, 0.0) + float(amount(_amt))
         cursor2.close()
         db2.close()
     except Exception:
@@ -189,6 +192,7 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
 
     salary_data = []
     for emp_id, name, email, spd, role, phone, monthly_ctc, basic_pct, dept in employees:
+        spd, monthly_ctc, basic_pct = amount(spd), amount(monthly_ctc), amount(basic_pct, 50)
         entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                                      holidays_set=holidays_set,
                                      leave_dates=leave_map.get(emp_id, set()))
@@ -381,7 +385,8 @@ def email_config():
     else:
         cursor.execute("SELECT smtp_pass FROM email_config ORDER BY id DESC LIMIT 1")
         prev = cursor.fetchone()
-        encrypted_password = prev[0] if prev else ""
+        # re-encrypt, not copy: the fetch already decrypted it (database.py)
+        encrypted_password = encrypt_pii(decrypt_pii(prev[0])) if prev and prev[0] else ""
 
     cursor.execute("DELETE FROM email_config")
     cursor.execute(
@@ -406,8 +411,8 @@ def _payslip_email(emp_id, year, month):
     cursor = db.cursor(buffered=True)
 
     cursor.execute("""
-        SELECT e.name, e.email, COALESCE(s.salary_per_day,0),
-               COALESCE(s.monthly_ctc,0), COALESCE(s.basic_pct,50),
+        SELECT e.name, e.email, s.salary_per_day,
+               s.monthly_ctc, s.basic_pct,
                COALESCE(e.role,''), COALESCE(e.department,'')
         FROM employees e LEFT JOIN salary_config s ON e.employee_id=s.employee_id
         WHERE e.employee_id=%s
@@ -477,12 +482,12 @@ def send_all_salary_emails():
     cursor = db.cursor(buffered=True)
 
     cursor.execute("""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0)
+        SELECT e.employee_id, e.name, e.email, s.salary_per_day
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
     """)
-    employees = cursor.fetchall()
+    employees = [(r[0], r[1], r[2], amount(r[3])) for r in cursor.fetchall()]
 
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
@@ -683,17 +688,18 @@ def my_payslip_summary(year, month):
             JOIN incentive_goals ig ON ei.goal_id = ig.id
             WHERE ei.employee_id=%s AND ei.year=%s AND ei.month=%s
         """, (emp_id, year, month))
-        incentive_details = [{"title": r[0], "amount": float(r[1]), "notes": r[2] or ""} for r in cursor.fetchall()]
+        incentive_details = [{"title": r[0], "amount": float(amount(r[1])), "notes": r[2] or ""}
+                             for r in cursor.fetchall()]
     except Exception:
         incentive_details = []
 
     try:
-        cursor.execute(
-            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s "
+        cursor.execute(   # ot_pay is encrypted: summed here, not in SQL
+            "SELECT ot_pay FROM overtime_records WHERE employee_id=%s "
             "AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'",
             (emp_id, month, year)
         )
-        ot_pay = float(cursor.fetchone()[0])
+        ot_pay = round(sum(float(amount(r[0])) for r in cursor.fetchall()), 2)
     except Exception:
         ot_pay = 0.0
 
@@ -862,11 +868,11 @@ def apply_hike():
     ratings = {row[0]: float(row[1]) for row in cursor.fetchall()}
 
     cursor.execute(
-        "SELECT employee_id, COALESCE(monthly_ctc,0), last_hike_quarter, last_hike_year "
+        "SELECT employee_id, monthly_ctc, last_hike_quarter, last_hike_year "
         "FROM salary_config WHERE employee_id = ANY(%s)",
         (emp_ids,)
     )
-    salaries = {row[0]: (float(row[1]), row[2], row[3]) for row in cursor.fetchall()}
+    salaries = {row[0]: (float(amount(row[1])), row[2], row[3]) for row in cursor.fetchall()}
 
     today = company_today()
     updated = 0
@@ -899,7 +905,7 @@ def apply_hike():
             "UPDATE salary_config SET monthly_ctc=%s, salary_per_day=%s, last_revised=%s, "
             "last_hike_quarter=%s, last_hike_year=%s "
             "WHERE employee_id=%s AND (last_hike_quarter IS DISTINCT FROM %s OR last_hike_year IS DISTINCT FROM %s)",
-            (new_ctc, new_spd, today, q, yr, emp_id, q, yr)
+            (encrypt_amount(new_ctc), encrypt_amount(new_spd), today, q, yr, emp_id, q, yr)
         )
         if cursor.rowcount:
             updated += 1
@@ -952,10 +958,10 @@ def award_performance_bonus():
     ratings = {row[0]: float(row[1]) for row in cursor.fetchall()}
 
     cursor.execute(
-        "SELECT employee_id, COALESCE(monthly_ctc,0) FROM salary_config WHERE employee_id = ANY(%s)",
+        "SELECT employee_id, monthly_ctc FROM salary_config WHERE employee_id = ANY(%s)",
         (emp_ids,)
     )
-    ctcs = {row[0]: float(row[1]) for row in cursor.fetchall()}
+    ctcs = {row[0]: float(amount(row[1])) for row in cursor.fetchall()}
 
     cursor.execute(
         "SELECT DISTINCT employee_id FROM employee_incentives "
@@ -994,7 +1000,8 @@ def award_performance_bonus():
             "INSERT INTO employee_incentives (employee_id, goal_id, month, year, amount, notes) "
             "VALUES (%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT (employee_id, goal_id, month, year) DO NOTHING",
-            (emp_id, goal_id, bonus_month, yr, bonus_amount, f"Performance bonus Q{q} {yr} -- Rating: {rating}/5")
+            (emp_id, goal_id, bonus_month, yr, encrypt_amount(bonus_amount),
+             f"Performance bonus Q{q} {yr} -- Rating: {rating}/5")
         )
         if cursor.rowcount:
             awarded += 1
@@ -1049,7 +1056,7 @@ def api_salary_config_get():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
-        SELECT e.employee_id, e.name, COALESCE(s.salary_per_day, 0)
+        SELECT e.employee_id, e.name, s.salary_per_day
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
@@ -1058,7 +1065,7 @@ def api_salary_config_get():
     cursor.close()
     db.close()
     return jsonify({"ok": True, "salaries": [
-        {"employee_id": r[0], "name": r[1], "salary_per_day": float(r[2])} for r in rows
+        {"employee_id": r[0], "name": r[1], "salary_per_day": float(amount(r[2]))} for r in rows
     ]})
 
 
@@ -1071,17 +1078,24 @@ def api_salary_config_post():
     salary = data.get("salary_per_day")
     if not emp_id or salary is None:
         return jsonify({"ok": False, "msg": "employee_id and salary_per_day required"}), 400
+    try:
+        enc_salary = encrypt_amount(salary)
+    except ValueError:
+        enc_salary = None
+    if enc_salary is None:
+        return jsonify({"ok": False, "msg": "salary_per_day must be a number"}), 400
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
     if cursor.fetchone():
-        cursor.execute("UPDATE salary_config SET salary_per_day=%s WHERE employee_id=%s", (salary, emp_id))
+        cursor.execute("UPDATE salary_config SET salary_per_day=%s WHERE employee_id=%s", (enc_salary, emp_id))
     else:
-        cursor.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s)", (emp_id, salary))
+        cursor.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s)",
+                       (emp_id, enc_salary))
     db.commit()
     cursor.close()
     db.close()
-    _audit("update_salary", "salary_config", emp_id, f"salary_per_day set to {salary} (via API)")
+    _audit("update_salary", "salary_config", emp_id, "salary_per_day updated (via API)")  # amount omitted
     return jsonify({"ok": True})
 
 
@@ -1210,8 +1224,8 @@ def _render_payslip_html(emp_id, year, month):
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""
-        SELECT e.name, e.email, COALESCE(s.salary_per_day, 0),
-               COALESCE(s.monthly_ctc, 0), COALESCE(s.basic_pct, 50),
+        SELECT e.name, e.email, s.salary_per_day,
+               s.monthly_ctc, s.basic_pct,
                COALESCE(e.role,''), COALESCE(e.department,''),
                COALESCE(e.pan_number,''), COALESCE(e.uan_number,''),
                COALESCE(e.bank_account,''), COALESCE(e.bank_name,'')
@@ -1367,7 +1381,7 @@ def payroll_settings():
             bpct = request.form.get(f"bpct_{eid}", "50")
             if ctc:
                 spd = round(float(ctc) / 26, 2)
-                rows.append((eid, spd, ctc, bpct))
+                rows.append((eid, encrypt_amount(spd), encrypt_amount(ctc), encrypt_amount(bpct or "50")))
         if rows:
             placeholders = ",".join(["(%s,%s,%s,%s)"] * len(rows))
             params = [v for row in rows for v in row]
@@ -1391,12 +1405,12 @@ def payroll_settings():
 
     cursor.execute("""
         SELECT e.employee_id, e.name, e.role, e.department,
-               COALESCE(s.monthly_ctc, 0), COALESCE(s.salary_per_day, 0), COALESCE(s.basic_pct, 50)
+               s.monthly_ctc, s.salary_per_day, s.basic_pct
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
     """)
-    employees = cursor.fetchall()
+    employees = [tuple(r[:4]) + (amount(r[4]), amount(r[5]), amount(r[6], 50)) for r in cursor.fetchall()]
 
     pending_leaves, pending_resignations, pending_tickets = get_pending_counts()
     co = get_company_settings()
@@ -1425,9 +1439,9 @@ def download_tax_statement(emp_id, year):
     cur = db.cursor()
     cur.execute("SELECT name, email, role, department FROM employees WHERE employee_id=%s", (emp_id,))
     emp = cur.fetchone()
-    cur.execute("SELECT COALESCE(monthly_ctc, 0) FROM salary_config WHERE employee_id=%s", (emp_id,))
+    cur.execute("SELECT monthly_ctc FROM salary_config WHERE employee_id=%s", (emp_id,))
     row = cur.fetchone()
-    ctc = float(row[0]) if row else 0.0
+    ctc = float(amount(row[0])) if row else 0.0
     cur.close()
     db.close()
 

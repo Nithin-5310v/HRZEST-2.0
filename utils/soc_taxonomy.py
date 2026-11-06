@@ -43,6 +43,7 @@ MITRE = {
     "T1548": "Abuse Elevation Control Mechanism",
     "T1499": "Endpoint Denial of Service",
     "T1059": "Command and Scripting Interpreter",
+    "T1059.007": "Command and Scripting Interpreter: JavaScript",
     "T1083": "File and Directory Discovery",
 }
 
@@ -63,6 +64,7 @@ FAMILIES = {
     "admin": "Administrative activity",
     "validation": "Input validation",
     "app": "Application health",
+    "frontend": "Browser telemetry",
     "soc": "SOC console",
     "other": "Other",
 }
@@ -98,6 +100,10 @@ _EXACT = {
     "waf.xss_blocked": ("waf", "Cross-site scripting blocked", ["T1190"]),
     "waf.path_traversal_blocked": ("waf", "Path traversal blocked", ["T1190", "T1083"]),
     "waf.auto_ban": ("waf", "IP auto-banned after repeated blocks", ["T1190"]),
+    # Named secops.* rather than waf.* so soc_queries' "WAF blocks" counter
+    # (event_type LIKE 'waf.%') doesn't count them as blocks.
+    "secops.ban_review_raised": ("waf", "Address awaiting a SOC ban decision", ["T1190"]),
+    "secops.ban_review_failed": ("waf", "Ban review could not be recorded", []),
     "waf.ban_skipped_shared_ip": ("waf", "Ban withheld (shared address)", []),
     "waf.ban_write_failed": ("waf", "Ban could not be written", []),
     "waf.redis_error": ("waf", "WAF counter store error", []),
@@ -132,6 +138,13 @@ _EXACT = {
     # --- app health ---
     "app.server_error": ("app", "Unhandled server error", []),
     "validation.failure": ("validation", "Input validation failure", []),
+    # --- browser telemetry (blueprints/core.py: /csp-report, /api/client-log) ---
+    # A CSP violation is how an injected script or a hijacked third-party
+    # resource first shows up, so it gets the XSS technique.
+    "frontend.csp_violation": ("frontend", "Content-Security-Policy violation", ["T1059.007"]),
+    "frontend.js_error": ("frontend", "Browser JavaScript error", []),
+    "frontend.unhandled_rejection": ("frontend", "Browser unhandled promise rejection", []),
+    "frontend.resource_error": ("frontend", "Browser resource failed to load", []),
 }
 
 _PREFIX = {
@@ -157,6 +170,7 @@ _PREFIX = {
     "ratelimit": ("ratelimit", []),
     "validation": ("validation", []),
     "app": ("app", []),
+    "frontend": ("frontend", []),
     "db": ("app", []),          # db.unavailable: PostgreSQL down, requests answered 503
     "tenant": ("access", []),
     "mfa": ("auth", []),
@@ -180,6 +194,9 @@ DETECTIONS = {
                          "An account revealing masked personal fields at an unusual rate."),
     "waf_burst_distributed": ("Distributed WAF burst", ["T1190"],
                               "Many addresses hitting the WAF at once."),
+    "csp_violation_burst": ("CSP violation burst", ["T1059.007"],
+                            "Many browsers reporting blocked content on the same page at once: "
+                            "a likely injected script or hijacked third-party resource."),
     "mass_export": ("Mass data export", ["T1213", "T1567"],
                     "Repeated bulk exports by one account."),
     "sensitive_admin_change": ("Sensitive admin change", ["T1098"],

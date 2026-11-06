@@ -14,6 +14,8 @@ import sys
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
+from utils.pii_crypto import PiiCipher, DecryptionError
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -36,12 +38,13 @@ old = Fernet(os.environ["OLD_KEY"].encode())
 legacy = old.encrypt(b"ABCDE1234F").decode()
 assert decrypt_pii(legacy) == "ABCDE1234F", "previous key must still decrypt"
 
+from utils.pii_crypto import PiiCipher, DecryptionError
 fresh = encrypt_pii("ABCDE1234F")
-assert fresh != legacy
-Fernet(os.environ["ENCRYPTION_KEY"].encode()).decrypt(fresh.encode())
+assert fresh.startswith("hz2:"), "new writes must be AES-256-GCM"
+assert PiiCipher([os.environ["ENCRYPTION_KEY"]]).decrypt(fresh) == "ABCDE1234F"
 try:
-    old.decrypt(fresh.encode())
-except InvalidToken:
+    PiiCipher([os.environ["OLD_KEY"]]).decrypt(fresh)
+except DecryptionError:
     pass
 else:
     raise SystemExit("new data must NOT be readable with the old key")
@@ -105,9 +108,10 @@ class TestRotationScript:
 
         assert script.main(["--schema", "public"]) == 0
         stored = self._get(db_engine, "ROT001")
-        assert Fernet(new).decrypt(stored.encode()) == b"ABCDE1234F"
-        with pytest.raises(InvalidToken):
-            Fernet(old).decrypt(stored.encode())
+        assert stored.startswith("hz2:"), "rotation must also upgrade Fernet to AES-256-GCM"
+        assert PiiCipher([new.decode()]).decrypt(stored) == "ABCDE1234F"
+        with pytest.raises(DecryptionError):
+            PiiCipher([old.decode()]).decrypt(stored)
 
         # idempotent: a second pass finds everything already current
         assert script.main(["--schema", "public"]) == 0
@@ -123,6 +127,18 @@ class TestRotationScript:
         monkeypatch.setenv("ENCRYPTION_KEY_PREVIOUS", current.decode())   # but not `stranger`
         assert script.main(["--schema", "public"]) == 2
         assert "undecryptable=" in capsys.readouterr().out
+
+    def test_rotates_aes_gcm_values_from_a_previous_key(self, db_engine, monkeypatch, capsys):
+        script = _load_script()
+        old, new = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+        current = os.environ["ENCRYPTION_KEY"]
+        self._put(db_engine, "ROT003", PiiCipher([old]).encrypt("ABCDE1234F"))
+        monkeypatch.setenv("ENCRYPTION_KEY", new)
+        monkeypatch.setenv("ENCRYPTION_KEY_PREVIOUS", f"{old},{current}")
+        assert script.main(["--schema", "public"]) == 0
+        stored = self._get(db_engine, "ROT003")
+        assert PiiCipher([new]).is_current(stored)
+        assert PiiCipher([new]).decrypt(stored) == "ABCDE1234F"
 
     def test_refuses_to_run_without_a_key(self, monkeypatch):
         script = _load_script()

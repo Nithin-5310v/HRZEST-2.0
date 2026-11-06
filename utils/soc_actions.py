@@ -7,6 +7,7 @@ and records the outcome in the append-only soc_audit_log.
 """
 from utils import soc_auth
 from utils.soc_db import list_tenants, write_cursor
+from utils.soc_queries import banned_ips_table
 from utils.soc_util import clamp_int, looks_like_ip
 
 CASE_STATUSES = ("open", "investigating", "contained", "resolved", "false_positive")
@@ -20,10 +21,17 @@ def _protected(ip):
     return bool(is_protected_ip(ip))
 
 
+def _text(value):
+    """`value` stripped if it is a string, else "". Request bodies are JSON, so a
+    field can arrive as a number, list or object; calling .strip() or slicing one
+    of those raised and answered 500 instead of a validation message."""
+    return value.strip() if isinstance(value, str) else ""
+
+
 # ── IP bans ──────────────────────────────────────────────────────────
 def ban_ip(ip, reason, minutes, actor, actor_ip):
-    ip = (ip or "").strip()
-    reason = (reason or "").strip()
+    ip = _text(ip)
+    reason = _text(reason)
     if not looks_like_ip(ip):
         return False, "That is not a valid IP address."
     if not 3 <= len(reason) <= 240:
@@ -47,13 +55,26 @@ def ban_ip(ip, reason, minutes, actor, actor_ip):
     return True, "banned"
 
 
-def unban_ip(ip, actor, actor_ip):
-    if not looks_like_ip((ip or "").strip()):
+def unban_ip(ip, actor, actor_ip, tenant_id=None):
+    """Lift a platform-wide ban, or with `tenant_id` one left in that company's
+    own banned_ips (older rows; see soc_queries.bans)."""
+    ip = _text(ip)
+    if not looks_like_ip(ip):
         return False, "That is not a valid IP address."
-    with write_cursor("public") as cur:
-        cur.execute("DELETE FROM public.banned_ips WHERE ip=%s", (ip.strip(),))
-        removed = cur.rowcount
-    soc_auth.audit(actor, "unban_ip", target=ip, detail="removed" if removed else "no ban found", ip=actor_ip)
+    schema, where = "public", "platform"
+    if tenant_id is not None:
+        tenant = next((t for t in list_tenants() if t["id"] == tenant_id), None)
+        if not tenant:
+            return False, "Unknown tenant."
+        schema, where = tenant["schema"], tenant["slug"]
+    with write_cursor(schema) as cur:
+        cur.execute("SELECT to_regclass(%s)", (banned_ips_table(schema),))
+        removed = 0
+        if cur.fetchone()[0] is not None:       # a company schema may have no ban table of its own
+            cur.execute("DELETE FROM " + banned_ips_table(schema) + " WHERE ip=%s", (ip,))  # nosec B608 -- validated schema name
+            removed = cur.rowcount
+    soc_auth.audit(actor, "unban_ip", target=ip if where == "platform" else f"{where}:{ip}",
+                   detail="removed" if removed else "no ban found", ip=actor_ip)
     if not removed:
         return False, "That address is not banned."
     _invalidate()
@@ -78,7 +99,7 @@ def bulk_ban(ips, reason, minutes, actor, actor_ip):
 def revoke_session(tenant_id, sid, actor, actor_ip):
     """Mark a session compromised; the app's session guard reads this on the
     session's very next request (utils/session_risk.is_session_compromised)."""
-    sid = (sid or "").strip()
+    sid = _text(sid)
     if not sid or len(sid) > 64:
         return False, "Invalid session id."
     tenant = next((t for t in list_tenants() if t["id"] == tenant_id), None)
@@ -98,7 +119,7 @@ def revoke_session(tenant_id, sid, actor, actor_ip):
 
 # ── cases ────────────────────────────────────────────────────────────
 def create_case(title, severity, source_type, source_event_id, summary, actor, actor_ip):
-    title = (title or "").strip()
+    title = _text(title)
     if not 3 <= len(title) <= 200:
         return False, "Give the case a title (3-200 characters).", None
     severity = severity if severity in SEVERITIES else "medium"
@@ -116,7 +137,7 @@ def create_case(title, severity, source_type, source_event_id, summary, actor, a
         cur.execute(
             "INSERT INTO soc_cases (title, severity, source_type, source_event_id, summary, created_by, assignee) "
             "VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-            (title, severity, source_type, event_id, (summary or "")[:5000] or None, actor, actor))
+            (title, severity, source_type, event_id, _text(summary)[:5000] or None, actor, actor))
         cid = cur.fetchone()[0]
     soc_auth.audit(actor, "case_created", target=f"case:{cid}", detail=title[:200], ip=actor_ip)
     return True, "created", cid
@@ -131,16 +152,27 @@ def update_case(case_id, actor, actor_ip, *, status=None, assignee=None, severit
         params.append(status)
         sets.append("closed_at = " + ("NOW()" if status in ("resolved", "false_positive") else "NULL"))
     if assignee is not None:
+        if not isinstance(assignee, str):
+            return False, "Assign the case to an active analyst or admin."
+        assignee = assignee.strip()
+        if assignee:
+            # Only someone who can actually work the case: a typo would otherwise
+            # create a "person" nobody is, and the case would silently go unowned.
+            from utils.soc_queries import assignees
+            if assignee not in assignees():
+                return False, "Assign the case to an active analyst or admin."
         sets.append("assignee=%s")
-        params.append((assignee or None) and assignee[:60])
+        params.append(assignee or None)
     if severity is not None:
         if severity not in SEVERITIES:
             return False, "Unknown severity."
         sets.append("severity=%s")
         params.append(severity)
     if resolution is not None:
+        if not isinstance(resolution, str):     # "" clears it; anything else that is not text is a mistake
+            return False, "The resolution must be text."
         sets.append("resolution=%s")
-        params.append(resolution[:5000] or None)
+        params.append(resolution.strip()[:5000] or None)
     params.append(case_id)
     with write_cursor("att_master") as cur:
         cur.execute("UPDATE soc_cases SET " + ", ".join(sets) + " WHERE id=%s", params)  # nosec B608 -- fixed fragments, bound values
@@ -153,7 +185,7 @@ def update_case(case_id, actor, actor_ip, *, status=None, assignee=None, severit
 
 
 def add_note(case_id, body, actor, actor_ip):
-    body = (body or "").strip()
+    body = _text(body)
     if not 1 <= len(body) <= 5000:
         return False, "Write a note (1-5000 characters)."
     with write_cursor("att_master") as cur:

@@ -182,7 +182,7 @@
                   {% endif %}
                 </td>
                 <td>
-                  <!-- Display -->
+                  {# Display #}
                   <div id="disp-{{ loop.index }}">
                     {% if spd and spd > 0 %}
                       <div class="salary-stack">
@@ -211,7 +211,7 @@
                       <span class="no-salary">Not set</span>
                     {% endif %}
                   </div>
-                  <!-- Edit form -->
+                  {# Edit form #}
                   <form action="{{ tpath('/update_salary') }}" method="POST"
                         id="form-{{ loop.index }}" class="edit-form"
                         data-on-submit="prepareSubmit('{{ loop.index }}')">

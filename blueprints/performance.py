@@ -272,7 +272,7 @@ def performance():
         cursor.execute(f"""
             SELECT e.employee_id, e.name, COALESCE(e.role,''), COALESCE(e.department,''),
                    COALESCE(pr.overall_rating,0), COALESCE(pr.status,'--'),
-                   COALESCE(sc.monthly_ctc,0)
+                   sc.monthly_ctc
             FROM employees e
             LEFT JOIN performance_reviews pr ON pr.employee_id=e.employee_id AND pr.year=%s AND pr.quarter=%s
             LEFT JOIN salary_config sc ON sc.employee_id=e.employee_id

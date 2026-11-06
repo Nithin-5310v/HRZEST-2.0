@@ -11,19 +11,20 @@ from io import BytesIO
 from urllib.parse import urlencode
 from html import escape as _html_escape
 from flask import (
-    Blueprint, request, session, redirect, jsonify, render_template, flash, send_file,
+    Blueprint, request, session, redirect, jsonify, render_template, flash, send_file, abort,
 )
 
 from extensions import app, app_log, limiter, log_security_event
 from database import get_db_connection, transaction
 from qr_generator import generate_qr
-from utils.storage import open_private
+from utils.storage import open_private, save_upload, decrypted_stream, send_image, open_image
 from utils.auth import (
     admin_required, generate_password_hash, api_required, role_required, api_role_required, HR_ROLE,
     record_password_change, any_user_required, session_account_ok,
 )
 from utils.helpers import (
-    tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, validate_emp_id,
+    tpath, _audit, _db, _validate_image_file, decrypt_pii, decrypt_pii_date, encrypt_pii, encrypt_contact, validate_emp_id,
+    encrypt_amount, amount,
     validate_employee_email_domain, get_company_settings, get_pending_counts,
     add_employee_seat_cap_check, company_url, hr_scope_denied as _hr_scope_denied, company_today,
     int_param, notify_new_holiday,
@@ -34,6 +35,7 @@ from utils.billing_notices import notify_employee_added
 from utils.attendance_utils import _td_to_time
 from utils.leave_utils import assign_leave_balances_for_employee
 from utils.face_utils import face_recognition, _face_recognition_available
+from utils.tenant_files import face_photo_path, resolve_face_photo
 from utils.webauthn_utils import _enroll_fingerprint_from_form
 
 employees_bp = Blueprint("employees", __name__)
@@ -123,10 +125,10 @@ def admin_action():
             cursor.close()
             db.close()
             return redirect(tpath("/admin"))
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
-        file.save(filepath)
+        filepath = face_photo_path(emp_id)
+        save_upload(file, filepath)
         if _face_recognition_available:
-            test_img = face_recognition.load_image_file(filepath)
+            test_img = face_recognition.load_image_file(decrypted_stream(filepath))
             if not face_recognition.face_encodings(test_img):
                 os.remove(filepath)
                 flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
@@ -171,7 +173,7 @@ def admin_action():
 
     elif action == "salary":
         emp_id = request.form["emp_id"]
-        salary = request.form["salary"]
+        salary = encrypt_amount(request.form["salary"])
         cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
         if cursor.fetchone():
             cursor.execute(
@@ -442,15 +444,17 @@ def edit_employee():
             _reassign_sql = ", assigned_hr_username=NULL"
             _new_hr = None
 
+    _enc_email, _email_bidx = encrypt_contact("email", email)
+    _enc_phone, _phone_bidx = encrypt_contact("phone", phone)
     cursor.execute(
-        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s, "
-        "department=%s, manager_name=%s, manager_id=%s, phone=%s, gender=%s, dob=%s, blood_group=%s, "
+        "UPDATE employees SET name=%s, email=%s, email_bidx=%s, role=%s, date_of_joining=%s, "
+        "department=%s, manager_name=%s, manager_id=%s, phone=%s, phone_bidx=%s, gender=%s, dob=%s, blood_group=%s, "
         "shift_id=%s, address=%s, city=%s, state=%s, pincode=%s, "
         "emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s, "
         f"work_mode=%s, work_lat=%s, work_lon=%s{_reassign_sql} "  # nosec B608 -- _reassign_sql is a hardcoded literal, never user input
         "WHERE employee_id=%s",
-        (name, email, role, date_of_joining, department, manager_name, manager_id,
-         phone, gender, dob, blood_group, shift_id,
+        (name, _enc_email, _email_bidx, role, date_of_joining, department, manager_name, manager_id,
+         _enc_phone, _phone_bidx, gender, dob, blood_group, shift_id,
          address, city, state, pincode,
          ec_name, ec_phone, ec_rel,
          work_mode, work_lat, work_lon) + _reassign_params + (emp_id,)
@@ -788,7 +792,7 @@ def employee_detail(emp_id):
                         OR (a.login_time IS NOT NULL AND a.attendance_type IS NULL) THEN 1 ELSE 0 END) AS full_days,
                SUM(CASE WHEN a.attendance_type='Half Day' THEN 1 ELSE 0 END) AS half_days,
                SUM(CASE WHEN a.attendance_type LIKE 'Late%%' OR a.status='Late Login' THEN 1 ELSE 0 END) AS late_days,
-               COALESCE(sc.salary_per_day, 0) AS salary_per_day,
+               sc.salary_per_day AS salary_per_day,
                e.about_me
         FROM employees e
         LEFT JOIN shifts s ON e.shift_id = s.id
@@ -825,6 +829,7 @@ def employee_detail(emp_id):
         if _pii_idx < len(row):
             row[_pii_idx] = decrypt_pii(row[_pii_idx])
     row[13] = decrypt_pii_date(row[13])
+    row[36] = amount(row[36])            # salary_per_day (encrypted; NULL -> 0)
 
     # DLP: aadhar/pan/bank_account/uan (indices 24,25,27,29) and salary
     # (index 36) are only shown unmasked to the finance/HR-clearance tier
@@ -958,6 +963,28 @@ def employee_detail(emp_id):
                            )
 
 
+def _max_emp_seq(cursor, prefix):
+    """Highest numeric suffix among ALL employee IDs of the form <prefix><digits>
+    (case-insensitive, global -- employee_id is unique across tenants). The
+    prefix is LIKE-escaped so '_' / '%' in a company code can't over-match, and
+    only an all-digit remainder counts (so prefix 'AB' ignores 'ABC001')."""
+    like = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    cursor.execute("SELECT employee_id FROM employees WHERE employee_id ILIKE %s", (like,))
+    max_seq = 0
+    for (eid,) in cursor.fetchall():
+        eid = eid or ""
+        sfx = eid[len(prefix):]
+        if eid.upper().startswith(prefix.upper()) and sfx.isdigit():
+            max_seq = max(max_seq, int(sfx))
+    return max_seq
+
+
+def _split_emp_id(emp_id):
+    """'PADW009' -> ('PADW', '009'); 'AB2-007' -> ('AB2-', '007'); 'X' -> ('X', '')."""
+    m = re.match(r"^(.*?)(\d*)$", emp_id or "")
+    return (m.group(1), m.group(2)) if m else (emp_id, "")
+
+
 def _next_emp_id(prefix, max_seq, requested_id):
     """Next free ID after `max_seq`, zero-padded to the width of the numeric
     suffix the admin typed (PADW9 -> PADW10, EMP007 -> EMP008); 3 digits when
@@ -1063,18 +1090,9 @@ def add_employee_page():
     # Auto-increment emp_id if already taken
     cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
     if cursor.fetchone():
-        prefix = ''.join(c for c in emp_id if not c.isdigit())
-        if prefix:
-            cursor.execute(
-                "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
-                (prefix + "%",)
-            )
-            max_seq = 0
-            for (eid,) in cursor.fetchall():
-                sfx = eid[len(prefix):]
-                if sfx.isdigit():
-                    max_seq = max(max_seq, int(sfx))
-            emp_id = _next_emp_id(prefix, max_seq, emp_id)
+        prefix, _digits = _split_emp_id(emp_id)
+        if prefix and _digits:
+            emp_id = _next_emp_id(prefix, _max_emp_seq(cursor, prefix), emp_id)
 
     # Photo is optional when adding an employee, and any valid image is
     # accepted (no face-detection requirement). Face attendance still needs a
@@ -1088,14 +1106,14 @@ def add_employee_page():
             cursor.close()
             db.close()
             return redirect(tpath("/employees"))
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
-        file.save(filepath)
+        filepath = face_photo_path(emp_id)
+        save_upload(file, filepath)
 
     auto_pass = secrets.token_urlsafe(8)
     hashed_pwd = generate_password_hash(auto_pass)
 
     # Retry up to 5 times in case of duplicate ID collision
-    prefix = ''.join(c for c in emp_id if not c.isdigit())
+    prefix, _digits = _split_emp_id(emp_id)
     if not prefix:
         prefix = emp_id
     original_filepath = filepath  # photo was already saved under initial emp_id (or None)
@@ -1103,7 +1121,7 @@ def add_employee_page():
     for _attempt in range(5):
         # Keep photo file in sync with the current emp_id on each retry attempt
         if filepath:
-            new_filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+            new_filepath = face_photo_path(emp_id)
             if new_filepath != original_filepath and os.path.exists(original_filepath):
                 try:
                     os.rename(original_filepath, new_filepath)
@@ -1135,16 +1153,20 @@ def add_employee_page():
                     _mgr_id = request.form.get("manager_id", "").strip() or None
                     _mgr_name = request.form.get("manager_name", "").strip() or None
                     _dept = request.form.get("department", "").strip() or None
+                    _enc_email, _email_bidx = encrypt_contact("email", email)
+                    _enc_phone, _phone_bidx = encrypt_contact("phone", phone)
                     cursor.execute(
-                        "INSERT INTO employees (name, employee_id, email, role, phone, face_image, qr_code, password, "
+                        "INSERT INTO employees (name, employee_id, email, email_bidx, role, phone, phone_bidx, "
+                        "face_image, qr_code, password, "
                         "date_of_joining, work_mode, work_lat, work_lon, company_id, manager_id, manager_name, department, "
                         "shift_id, gender, dob, blood_group, address, city, state, pincode, "
                         "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
                         "aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number, "
                         "assigned_hr_username, force_pin_change) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
                         "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1)",
-                        (name, emp_id, email, role, phone, filepath, qr_path, hashed_pwd,
+                        (name, emp_id, _enc_email, _email_bidx, role, _enc_phone, _phone_bidx,
+                         filepath, qr_path, hashed_pwd,
                          date_of_joining, work_mode, work_lat, work_lon, company_id,
                          _mgr_id, _mgr_name, _dept, shift_id,
                          gender, dob, blood_group, address, city, state, pincode,
@@ -1172,7 +1194,8 @@ def add_employee_page():
                 cursor.execute(
                     "INSERT INTO salary_config (employee_id, salary_per_day, monthly_ctc) VALUES (%s,%s,%s) "
                     "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=%s, monthly_ctc=%s",
-                    (emp_id, salary_per_day, monthly_salary, salary_per_day, monthly_salary)
+                    (emp_id, encrypt_amount(salary_per_day), encrypt_amount(monthly_salary),
+                     encrypt_amount(salary_per_day), encrypt_amount(monthly_salary))
                 )
             db.commit()
             registered = True
@@ -1180,16 +1203,7 @@ def add_employee_page():
         except psycopg2.IntegrityError:
             db.rollback()
             # Find next available ID and retry
-            cursor.execute(
-                "SELECT employee_id FROM employees WHERE employee_id LIKE %s",
-                (prefix + "%",)
-            )
-            max_seq = 0
-            for (eid,) in cursor.fetchall():
-                sfx = eid[len(prefix):]
-                if sfx.isdigit():
-                    max_seq = max(max_seq, int(sfx))
-            emp_id = _next_emp_id(prefix, max_seq, emp_id)
+            emp_id = _next_emp_id(prefix, _max_emp_seq(cursor, prefix), emp_id)
 
     if registered:
         flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
@@ -1272,11 +1286,11 @@ def update_employee_photo(emp_id):
         db.close()
         return redirect(tpath("/employees"))
 
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
-    file.save(filepath)
+    filepath = face_photo_path(emp_id)
+    save_upload(file, filepath)
 
     if _face_recognition_available:
-        test_img = face_recognition.load_image_file(filepath)
+        test_img = face_recognition.load_image_file(decrypted_stream(filepath))
         if not face_recognition.face_encodings(test_img):
             os.remove(filepath)
             flash("No face detected in the uploaded photo. Please upload a clear front-facing photo.", "error")
@@ -1340,21 +1354,28 @@ def admin_view_qr(emp_id):
 @employees_bp.route("/dataset/<path:filename>")
 @admin_required
 def serve_dataset(filename):
-    from flask import send_from_directory
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    """An employee's photo in the CURRENT company only. Used to serve any
+    path under the shared dataset/ folder, so any company's admin could
+    read every company's face photos (and face_logs) by name."""
+    stem, ext = os.path.splitext(filename)
+    if ext.lower() != ".jpg" or not stem or "/" in stem or "\\" in stem:
+        abort(404)
+    path = resolve_face_photo(stem)
+    if not path:
+        abort(404)
+    return send_image(path, max_age=0)
 
 
 @employees_bp.route("/my_photo")
 @any_user_required
 def my_photo():
-    from flask import send_from_directory
     emp_id = session.get("employee_id")
     if not emp_id:
         return "", 403
-    photo_path = os.path.join(UPLOAD_FOLDER, emp_id + ".jpg")
-    if not os.path.exists(photo_path):
+    photo_path = resolve_face_photo(emp_id)
+    if not photo_path:
         return "", 404
-    return send_from_directory(UPLOAD_FOLDER, emp_id + ".jpg")
+    return send_image(photo_path, max_age=0)
 
 
 @employees_bp.route("/api/generate_emp_id")
@@ -1362,40 +1383,24 @@ def generate_emp_id():
     if not session.get("admin_logged_in") or not session_account_ok():
         return jsonify({"error": "not logged in"}), 401
     company_id_raw = request.args.get("company_id", "").strip()
+    if not company_id_raw.isdigit() and session.get("active_company_id"):
+        company_id_raw = str(session.get("active_company_id"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
     if company_id_raw.isdigit():
-        company_id = int(company_id_raw)
-        cursor.execute("SELECT COALESCE(code,''), name FROM companies WHERE id=%s", (company_id,))
+        cursor.execute("SELECT COALESCE(code,''), name FROM companies WHERE id=%s", (int(company_id_raw),))
         row = cursor.fetchone()
         code = (row[0] or "").strip().upper() if row else ""
         company_name = row[1] if row else ""
-        cursor.execute("SELECT employee_id FROM employees WHERE company_id=%s", (company_id,))
     else:
         cursor.execute("SELECT COALESCE(company_code,'') FROM company_settings LIMIT 1")
         row = cursor.fetchone()
         code = (row[0] or "").strip().upper() if row else ""
         company_name = ""
-        cursor.execute("SELECT employee_id FROM employees WHERE company_id IS NULL")
 
-    # Find max existing sequence number to avoid collisions on deletions
     prefix = code if code else "EMP"
-    max_seq = 0
-    for (eid,) in cursor.fetchall():
-        if eid and eid.upper().startswith(prefix):
-            suffix = eid[len(prefix):]
-            if suffix.isdigit():
-                max_seq = max(max_seq, int(suffix))
-
-    # Also check all employees globally in case company_id mismatch
-    cursor.execute("SELECT employee_id FROM employees WHERE employee_id LIKE %s", (f"{prefix}%",))
-    for (eid,) in cursor.fetchall():
-        if eid and eid.upper().startswith(prefix):
-            suffix = eid[len(prefix):]
-            if suffix.isdigit():
-                max_seq = max(max_seq, int(suffix))
-
+    max_seq = _max_emp_seq(cursor, prefix)
     cursor.close()
     db.close()
     seq = max_seq + 1
@@ -1752,9 +1757,9 @@ def _render_default_front(emp_id, row, company_name=None, logo_path=None, compan
     PH_Y = 128
     fd.rounded_rectangle([(PH_X - 5, PH_Y - 5), (PH_X + PH_W + 5, PH_Y + PH_H + 5)], radius=8, fill=_IDC_GOLD)
     fd.rounded_rectangle([(PH_X - 2, PH_Y - 2), (PH_X + PH_W + 2, PH_Y + PH_H + 2)], radius=6, fill=_IDC_WHITE)
-    photo_path = os.path.join("dataset", emp_id + ".jpg")
+    photo_path = resolve_face_photo(emp_id) or ""
     try:
-        ph = Image.open(photo_path).convert("RGB").resize((PH_W, PH_H), Image.LANCZOS)
+        ph = open_image(photo_path).convert("RGB").resize((PH_W, PH_H), Image.LANCZOS)
         front.paste(ph, (PH_X, PH_Y))
     except Exception:
         fd.rounded_rectangle([(PH_X, PH_Y), (PH_X + PH_W, PH_Y + PH_H)], radius=4, fill=_IDC_MID)
@@ -1975,9 +1980,9 @@ def _render_custom_side(image_path, fields, side, emp_id, row, logo_path, compan
             continue
 
         if key == "photo":
-            photo_path = os.path.join("dataset", emp_id + ".jpg")
+            photo_path = resolve_face_photo(emp_id) or ""
             try:
-                ph = Image.open(photo_path).convert("RGB").resize((w, h), Image.LANCZOS)
+                ph = open_image(photo_path).convert("RGB").resize((w, h), Image.LANCZOS)
                 img.paste(ph, (x, y))
             except Exception:
                 draw.rectangle([(x, y), (x + w, y + h)], fill=_IDC_MID)
@@ -2210,7 +2215,7 @@ def api_employees():
     # list, and api_edit_employee() saves both as sent -- without them here
     # an edit made in the app blanked the employee's role and joining date.
     cursor.execute("""
-        SELECT e.employee_id, e.name, e.email, COALESCE(s.salary_per_day, 0),
+        SELECT e.employee_id, e.name, e.email, s.salary_per_day,
                e.role, e.department, e.phone, e.date_of_joining
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
@@ -2222,7 +2227,7 @@ def api_employees():
     db.close()
     return jsonify({"ok": True, "total": total, "page": page, "per_page": per_page,
                     "employees": [
-                        {"employee_id": r[0], "name": r[1], "email": r[2], "salary_per_day": float(r[3]),
+                        {"employee_id": r[0], "name": r[1], "email": r[2], "salary_per_day": float(amount(r[3])),
                          "role": r[4] or "", "department": r[5] or "", "phone": r[6] or "",
                          "date_of_joining": r[7].isoformat() if r[7] else ""}
                         for r in rows
@@ -2264,10 +2269,10 @@ def api_register_employee():
     ok, err = _validate_image_file(file)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
-    file.save(filepath)
+    filepath = face_photo_path(emp_id)
+    save_upload(file, filepath)
     if _face_recognition_available:
-        test_img = face_recognition.load_image_file(filepath)
+        test_img = face_recognition.load_image_file(decrypted_stream(filepath))
         if not face_recognition.face_encodings(test_img):
             os.remove(filepath)
             return jsonify({"ok": False, "msg": "No face detected in uploaded photo."}), 400
@@ -2291,10 +2296,11 @@ def api_register_employee():
         with transaction(db):
             _seat_error = add_employee_seat_cap_check(cursor)
             if not _seat_error:
+                _enc_email, _email_bidx = encrypt_contact("email", email)
                 cursor.execute(
-                    "INSERT INTO employees (name, employee_id, email, face_image, qr_code, password, force_pin_change) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,1)",
-                    (name, emp_id, email, filepath, qr_path, hashed_pwd)
+                    "INSERT INTO employees (name, employee_id, email, email_bidx, face_image, qr_code, password, "
+                    "force_pin_change) VALUES (%s,%s,%s,%s,%s,%s,%s,1)",
+                    (name, emp_id, _enc_email, _email_bidx, filepath, qr_path, hashed_pwd)
                 )
         if _seat_error:
             cursor.close()
@@ -2328,7 +2334,7 @@ def api_employee_detail(emp_id):
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         SELECT e.employee_id, e.name, e.email, e.role, e.date_of_joining,
-               COALESCE(s.salary_per_day, 0)
+               s.salary_per_day
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         WHERE e.employee_id = %s
@@ -2341,7 +2347,7 @@ def api_employee_detail(emp_id):
     return jsonify({"ok": True, "employee": {
         "employee_id": row[0], "name": row[1], "email": row[2],
         "role": row[3], "date_of_joining": str(row[4]) if row[4] else None,
-        "salary_per_day": float(row[5])
+        "salary_per_day": float(amount(row[5]))
     }})
 
 
@@ -2361,9 +2367,10 @@ def api_edit_employee(emp_id):
     cursor.execute("SELECT role FROM employees WHERE employee_id=%s", (emp_id,))
     _prev_row = cursor.fetchone()
     _prev_role = _prev_row[0] if _prev_row else None
+    _enc_email, _email_bidx = encrypt_contact("email", email)
     cursor.execute(
-        "UPDATE employees SET name=%s, email=%s, role=%s, date_of_joining=%s WHERE employee_id=%s",
-        (name, email, role, date_of_joining, emp_id)
+        "UPDATE employees SET name=%s, email=%s, email_bidx=%s, role=%s, date_of_joining=%s WHERE employee_id=%s",
+        (name, _enc_email, _email_bidx, role, date_of_joining, emp_id)
     )
     db.commit()
     cursor.close()

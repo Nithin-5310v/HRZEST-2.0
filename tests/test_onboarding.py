@@ -6,6 +6,8 @@ routes), and the employee-facing my_onboarding self-service page.
 Run with:
     python -m pytest tests/test_onboarding.py -v
 """
+from utils.helpers import decrypt_pii as _unpay  # pay columns hold ciphertext; this reads them
+from utils.helpers import encrypt_amount as _pay  # pay columns only accept ciphertext
 import datetime
 import hashlib
 import io
@@ -377,7 +379,7 @@ def offer_letter_row(db_engine, assigned_onboarding, seed_employee):
         "work_location, monthly_ctc, joining_date, reporting_to) "
         "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (ob_id, seed_employee["employee_id"], "Software Engineer", "Engineering",
-         "Remote", 60000, datetime.date.today(), "Engineering Manager"),
+         "Remote", _pay(60000), datetime.date.today(), "Engineering Manager"),
     )
     letter_id = cur.fetchone()[0]
     cur.close()
@@ -391,7 +393,7 @@ class TestOfferLetterForm:
         cur.execute(
             "INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s) "
             "ON CONFLICT (employee_id) DO UPDATE SET salary_per_day=EXCLUDED.salary_per_day",
-            (seed_employee["employee_id"], 2000),
+            (seed_employee["employee_id"], _pay(2000)),
         )
         cur.close()
         _admin_session(client, seed_admin)
@@ -437,7 +439,7 @@ class TestOfferLetterForm:
         cur.execute("SELECT COUNT(*), MAX(monthly_ctc) FROM offer_letters WHERE onboarding_id=%s", (ob_id,))
         count, ctc = cur.fetchone()
         assert count == 1
-        assert float(ctc) == 55000.0
+        assert float(_unpay(ctc)) == 55000.0
         cur.close()
 
     def test_view_unknown_letter_id_flashes_error(self, client, seed_admin):
@@ -575,7 +577,7 @@ class TestOfferLetterCandidateFacingRoutes:
 
     def test_accept_response_recorded(self, client, db_engine, sent_letter):
         token, letter_id = sent_letter
-        resp = client.get(f"/offer_letter_respond/{token}/accept")
+        resp = client.post(f"/offer_letter_respond/{token}/accept")
         assert resp.status_code == 200
         assert b"Accepted" in resp.data
         cur = db_engine.cursor()
@@ -585,7 +587,7 @@ class TestOfferLetterCandidateFacingRoutes:
 
     def test_reject_response_recorded(self, client, db_engine, sent_letter):
         token, letter_id = sent_letter
-        resp = client.get(f"/offer_letter_respond/{token}/reject")
+        resp = client.post(f"/offer_letter_respond/{token}/reject")
         assert resp.status_code == 200
         assert b"Declined" in resp.data
         cur = db_engine.cursor()
@@ -595,10 +597,23 @@ class TestOfferLetterCandidateFacingRoutes:
 
     def test_responding_twice_shows_already_responded(self, client, sent_letter):
         token, _ = sent_letter
-        client.get(f"/offer_letter_respond/{token}/accept")
-        resp = client.get(f"/offer_letter_respond/{token}/accept")
+        client.post(f"/offer_letter_respond/{token}/accept")
+        resp = client.get(f"/offer_letter_respond/{token}/reject")
         assert resp.status_code == 200
         assert b"already" in resp.data.lower()
+
+    def test_opening_link_does_not_record_an_answer(self, client, db_engine, sent_letter):
+        """A mail scanner pre-opening both links (GET) must not decide the
+        offer -- only the confirmation page's POST records it."""
+        token, letter_id = sent_letter
+        for action in ("accept", "reject"):
+            resp = client.get(f"/offer_letter_respond/{token}/{action}")
+            assert resp.status_code == 200
+            assert b'method="POST"' in resp.data
+        cur = db_engine.cursor()
+        cur.execute("SELECT candidate_response FROM offer_letters WHERE id=%s", (letter_id,))
+        assert cur.fetchone() == (None,)
+        cur.close()
 
     def test_invalid_action_rejected(self, client, sent_letter):
         token, _ = sent_letter

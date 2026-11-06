@@ -85,7 +85,7 @@ jobs:
           for f in Containerfile entrypoint.sh wsgi.py extensions.py \
                    compose.yaml compose.prod.yaml \
                    nginx/nginx.conf.template \
-                   generate_cert.py init-letsencrypt.sh deploy.sh; do
+                   scripts/generate_cert.py init-letsencrypt.sh deploy.sh; do
             [ -f "$f" ] && echo "✅ $f" || (echo "❌ $f missing" && exit 1)
           done
 

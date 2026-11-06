@@ -11,6 +11,8 @@ able to read or write these rows.
   soc_audit_log   every SOC login and action. Append-only: a trigger rejects
                   UPDATE and DELETE, so an analyst (or an attacker holding an
                   analyst session) cannot quietly rewrite their own trail.
+  soc_ban_reviews addresses automated detections want banned, awaiting an
+                  analyst's ban / dismiss / trust decision
 
 The trigger is a speed bump against the application role, not a defence
 against a database owner; for that, ship these rows off-box with the rest of
@@ -87,6 +89,15 @@ STATEMENTS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_soc_audit_created ON soc_audit_log (created_at DESC)",
+    # IP location / anonymizer lookups (utils/soc_geo.py), cached so each public
+    # address is sent to the lookup provider at most once per SOC_GEO_TTL_DAYS.
+    """
+    CREATE TABLE IF NOT EXISTS soc_ip_intel (
+        ip         VARCHAR(64)  PRIMARY KEY,
+        data       TEXT         NOT NULL,
+        fetched_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
     """
     CREATE OR REPLACE FUNCTION soc_audit_log_immutable() RETURNS trigger AS $$
     BEGIN
@@ -100,6 +111,26 @@ STATEMENTS = [
     BEFORE UPDATE OR DELETE ON soc_audit_log
     FOR EACH ROW EXECUTE FUNCTION soc_audit_log_immutable()
     """,
+    # Addresses the WAF / rate limiter / honeypots want banned, waiting for an
+    # analyst's decision (utils/soc_ban_review.py). One row per address.
+    """
+    CREATE TABLE IF NOT EXISTS soc_ban_reviews (
+        ip                  VARCHAR(64)  PRIMARY KEY,
+        status              VARCHAR(12)  NOT NULL DEFAULT 'pending'
+                            CHECK (status IN ('pending','banned','dismissed','trusted')),
+        source              VARCHAR(20)  NOT NULL,
+        reason              TEXT         NOT NULL,
+        suggested_minutes   INT,
+        hits                INT          NOT NULL DEFAULT 1,
+        first_seen          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_seen           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        decided_by          VARCHAR(80),
+        decided_at          TIMESTAMP,
+        decision_note       TEXT,
+        trusted_until       TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_soc_ban_reviews_status ON soc_ban_reviews (status, last_seen DESC)",
 ]
 
 

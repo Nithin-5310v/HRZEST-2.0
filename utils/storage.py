@@ -34,7 +34,44 @@ migrating those needs their matching read-back call sites (send_file,
 send_from_directory, direct Image.open()) updated in the same pass, a
 larger and riskier change to make blind. Follow-up, not done here.
 """
+import io
 import os
+import tempfile
+
+# Encryption at rest for private uploads (AES-256-GCM, utils/pii_crypto.py,
+# same ENCRYPTION_KEY as PII columns). Applied here so every save_private()/
+# open_private() caller gets it with no change: files on disk -- and in
+# backups or a copied volume -- are ciphertext; open_private() returns the
+# original bytes. Files written before this existed have no FILE_MAGIC
+# header and are returned as-is, so nothing breaks before
+# scripts/encrypt_private_uploads.py has upgraded them.
+_cipher = None
+
+
+def _get_cipher():
+    global _cipher
+    if _cipher is None:
+        from utils.pii_crypto import cipher_from_env
+        _cipher = cipher_from_env()
+    return _cipher
+
+
+def write_encrypted(full_path, data):
+    """Atomically write `data` encrypted to full_path (temp file + rename,
+    so a crash can never leave a half-written or plaintext file behind)."""
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    blob = _get_cipher().encrypt_bytes(data)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(full_path), prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(blob)
+        os.replace(tmp, full_path)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _local_path(app_root_path, rel_path):
@@ -62,16 +99,17 @@ def save_private(app_root_path, file_storage, rel_path):
     pass back into open_private()/delete_private(), never a directly
     servable URL."""
     full_path = _local_path(app_root_path, os.path.join("private_uploads", rel_path))
-    os.makedirs(os.path.dirname(full_path), exist_ok=True)
-    file_storage.save(full_path)
+    buf = io.BytesIO()
+    file_storage.save(buf)
+    write_encrypted(full_path, buf.getvalue())
     return full_path, None
 
 
 def open_private(stored_ref):
     """Read back a private upload's bytes given the stored_ref save_private()
-    returned."""
+    returned. Decrypts transparently (legacy plaintext files pass through)."""
     with open(stored_ref, "rb") as f:
-        return f.read()
+        return _get_cipher().decrypt_bytes(f.read())
 
 
 def delete_private(stored_ref):
@@ -81,3 +119,63 @@ def delete_private(stored_ref):
     with their own context (which employee/application/etc. it belonged to)."""
     os.remove(stored_ref)
     return True
+
+
+# ── Biometric images (face photos, kiosk face logs, admin photos) ────────────
+# Same AES-256-GCM file encryption as private uploads, for images that live
+# under UPLOAD_FOLDER (dataset/) and are addressed by plain filesystem paths.
+# Every reader must go through these helpers: they decrypt in memory and
+# also accept legacy plaintext files, so files can be encrypted in place
+# (scripts/encrypt_private_uploads.py --root dataset) only once no raw
+# open()/Image.open()/load_image_file()/send_file() on these paths remains.
+
+def read_file(path):
+    """Decrypted bytes of an encrypted (or legacy plaintext) file."""
+    with open(path, "rb") as f:
+        return _get_cipher().decrypt_bytes(f.read())
+
+
+def save_image(img, path, fmt="JPEG", **save_kwargs):
+    """Encode a PIL image and write it encrypted to `path`."""
+    buf = io.BytesIO()
+    img.save(buf, fmt, **save_kwargs)
+    write_encrypted(path, buf.getvalue())
+    return path
+
+
+def save_upload(file_storage, path):
+    """Write an uploaded file (werkzeug FileStorage) encrypted to `path`."""
+    buf = io.BytesIO()
+    file_storage.save(buf)
+    write_encrypted(path, buf.getvalue())
+    return path
+
+
+def open_image(path):
+    """PIL image from an encrypted (or legacy plaintext) file, fully loaded
+    so no file handle or buffer is left dangling."""
+    from PIL import Image
+    img = Image.open(io.BytesIO(read_file(path)))
+    img.load()
+    return img
+
+
+def load_face_image(path, mode="RGB"):
+    """Drop-in for face_recognition.load_image_file(path) on an encrypted
+    file: a numpy array in `mode`."""
+    import numpy as np
+    return np.array(open_image(path).convert(mode))
+
+
+def send_image(path, mimetype="image/jpeg", **kwargs):
+    """Flask response for an encrypted image -- replaces send_file(path) /
+    send_from_directory(dir, name). Callers still do their own auth and
+    path checks first."""
+    from flask import send_file
+    return send_file(io.BytesIO(read_file(path)), mimetype=mimetype, **kwargs)
+
+
+def decrypted_stream(path):
+    """In-memory file object of a decrypted image, for libraries that take a
+    path or file (face_recognition.load_image_file, PIL)."""
+    return io.BytesIO(read_file(path))

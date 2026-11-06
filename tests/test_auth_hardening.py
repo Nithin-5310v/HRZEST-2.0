@@ -30,7 +30,7 @@ def _decode_session_cookie(raw_value):
 def _session_cookie_payloads(resp):
     out = []
     for header in resp.headers.getlist("Set-Cookie"):
-        if header.startswith("session="):
+        if header.startswith(flask_app.config["SESSION_COOKIE_NAME"] + "="):
             value = header.split("=", 1)[1].split(";", 1)[0]
             if value:
                 out.append(_decode_session_cookie(value))
@@ -222,7 +222,7 @@ class TestPlatformAdminCodeServerSide:
 
     @pytest.fixture
     def platform_codes(self, client, monkeypatch):
-        import blueprints.platform_admin as pa
+        import blueprints.platform_admin.auth as pa   # login lives in the auth submodule
         codes = []
         monkeypatch.setattr(pa, "send_mfa_login_email", lambda to, u, r, s, code: codes.append(code))
         original = client.application.config.get("MANDATORY_PLATFORM_ADMIN_MFA")

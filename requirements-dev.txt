@@ -17,7 +17,7 @@ pytest-xdist>=3.8.0
 # ── Code quality ──────────────────────────────────────────────────────────────
 flake8>=7.5.0
 
-# ── Static asset minification (see minify_static.py) ───────────────────────────
+# ── Static asset minification (see scripts/minify_static.py) ───────────────────────────
 rcssmin>=1.3.0
 rjsmin>=1.3.0
 

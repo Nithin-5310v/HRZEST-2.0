@@ -63,7 +63,7 @@ def _ensure_test_database(name):
 # Override values for testing
 # HRZEST_TEST_DB lets two suites run side by side against separate databases: this harness
 # TRUNCATEs every table after each test, so two runs sharing one database corrupt each other.
-# The name must contain "test" (scripts/profile_requests.py and factory_reset.py refuse otherwise).
+# The name must contain "test" (scripts/profile_requests.py and scripts/factory_reset.py refuse otherwise).
 os.environ["DB_NAME"] = _test_db_name(os.environ)
 assert "test" in os.environ["DB_NAME"], "HRZEST_TEST_DB must contain 'test'"
 _ensure_test_database(os.environ["DB_NAME"])
@@ -113,72 +113,9 @@ os.environ.setdefault("MOBILE_REQUIRE_LOCATION", "false")
 # this order previously had: /api/v1/employees 404'd in tests while
 # working in production, because wsgi.py's order is already correct).
 from extensions import app as flask_app
-from blueprints.health import health_bp
-from blueprints.notifications import notifications_bp
-from blueprints.payroll import payroll_bp
-from blueprints.leave import leave_bp
-from blueprints.admin_views import admin_views_bp
-from blueprints.auth import auth_bp
-from blueprints.employees import employees_bp
-from blueprints.attendance import attendance_bp
-from blueprints.tickets import tickets_bp
-from blueprints.performance import performance_bp
-from blueprints.documents import documents_bp
-from blueprints.org import org_bp
-from blueprints.oauth_signup import oauth_signup_bp
-from blueprints.onboarding import onboarding_bp
-from blueprints.employee_portal import employee_portal_bp
-from blueprints.core import core_bp
-from blueprints.ai_hrms import ai_hrms_bp
-from blueprints.email_blast import email_blast_bp
-from blueprints.daily_report import daily_report_bp
-from blueprints.billing import billing_bp
-from blueprints.webhooks import webhooks_bp
-from blueprints.seats import seats_bp
-from blueprints.auto_debit import auto_debit_bp
-from blueprints.billing_dunning import billing_dunning_bp
-from blueprints.platform_admin import platform_admin_bp
-from blueprints.honeypot_routes import honeypot_bp
-from blueprints.disbursement import disbursement_bp
-from blueprints.hr_dashboard import hr_dashboard_bp
-from blueprints.policies import policies_bp
-from blueprints.company_profile import company_profile_bp
-from blueprints.seo import seo_bp
-from blueprints.privacy import privacy_bp
-from blueprints.soc import soc_bp
-flask_app.register_blueprint(health_bp)
-flask_app.register_blueprint(notifications_bp)
-flask_app.register_blueprint(payroll_bp)
-flask_app.register_blueprint(leave_bp)
-flask_app.register_blueprint(admin_views_bp)
-flask_app.register_blueprint(auth_bp)
-flask_app.register_blueprint(employees_bp)
-flask_app.register_blueprint(attendance_bp)
-flask_app.register_blueprint(tickets_bp)
-flask_app.register_blueprint(performance_bp)
-flask_app.register_blueprint(documents_bp)
-flask_app.register_blueprint(org_bp)
-flask_app.register_blueprint(oauth_signup_bp)
-flask_app.register_blueprint(onboarding_bp)
-flask_app.register_blueprint(employee_portal_bp)
-flask_app.register_blueprint(core_bp)
-flask_app.register_blueprint(ai_hrms_bp)
-flask_app.register_blueprint(email_blast_bp)
-flask_app.register_blueprint(daily_report_bp)
-flask_app.register_blueprint(billing_bp)
-flask_app.register_blueprint(webhooks_bp)
-flask_app.register_blueprint(seats_bp)
-flask_app.register_blueprint(auto_debit_bp)
-flask_app.register_blueprint(billing_dunning_bp)
-flask_app.register_blueprint(platform_admin_bp)
-flask_app.register_blueprint(honeypot_bp)
-flask_app.register_blueprint(disbursement_bp)
-flask_app.register_blueprint(hr_dashboard_bp)
-flask_app.register_blueprint(policies_bp)
-flask_app.register_blueprint(company_profile_bp)
-flask_app.register_blueprint(seo_bp)
-flask_app.register_blueprint(privacy_bp)
-flask_app.register_blueprint(soc_bp)
+# One shared list (blueprints/__init__.py) -- same set and order as production.
+from blueprints import register_all  # noqa: E402
+register_all(flask_app)
 
 # Mirror wsgi.py's WSGI-level tenant-prefix stripping so tests exercise the
 # real path-based tenant resolution (www.hrzest.com/<slug>/...), not just
@@ -241,6 +178,9 @@ from utils.async_writer import set_synchronous_mode
 set_synchronous_mode(True)
 
 
+_TEST_RUN_LOCK_KEY = 0x48525A54   # "HRZT": advisory-lock id held for a whole test run
+
+
 @pytest.fixture(scope="session")
 def db_engine():
     """Return a raw psycopg2 connection to the test database for fixture setup."""
@@ -258,6 +198,23 @@ def db_engine():
         dbname=os.environ["DB_NAME"],
     )
     conn.autocommit = True
+    # One test run per database. Every test ends by restoring the whole
+    # database to the session's snapshot, so a second run on the same database
+    # wipes and reinserts rows under the first one; both then fail with bogus
+    # duplicate-key / foreign-key errors that look like flaky tests. Advisory
+    # locks are per database and are released when this connection closes
+    # (including when the process is killed), so separate HRZEST_TEST_DB
+    # databases still run side by side.
+    cur = conn.cursor()
+    cur.execute("SELECT pg_try_advisory_lock(%s)", (_TEST_RUN_LOCK_KEY,))
+    got_lock = cur.fetchone()[0]
+    cur.close()
+    if not got_lock:
+        conn.close()
+        pytest.exit(
+            f"Another test run is already using database '{os.environ['DB_NAME']}'. Running two suites on one "
+            "database corrupts both. Wait for it to finish, or give this run its own database: "
+            "HRZEST_TEST_DB=att_test_<name> python -m pytest ...", returncode=3)
     yield conn
     conn.close()
 
@@ -335,6 +292,45 @@ def _reset_attendance_lockouts(db_engine, _init_test_db):
     """
     cur = db_engine.cursor()
     cur.execute("DELETE FROM attendance_lockouts")
+    cur.close()
+
+
+# Rows the seed_* fixtures below create, keyed by the identities they use.
+_FIXTURE_EMPLOYEES = ("TST001", "TST002")
+_FIXTURE_ADMINS = ("test_admin", "test_hr_admin", "test_manager_admin")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _purge_stale_fixture_rows(db_engine, _init_test_db):
+    """Remove rows a previous, interrupted run left behind, BEFORE the
+    baseline snapshot is taken.
+
+    _reset_db_after_test restores every test to _db_baseline_snapshot, which
+    is whatever the database held when this session started. A run killed
+    mid-test (Ctrl+C, a crash, a timeout) skips fixture teardown, so its
+    seed rows stay in att_test, the next session snapshots them as
+    "baseline", and every test restores them. Seen twice: a TST001 left with
+    force_pin_change=1 failed 175 employee-login tests with KeyError 'token',
+    and SOC users left behind failed every SOC console test with "That
+    username already exists". Delete exactly those fixture identities, and
+    nothing a real seed (init_db, the tenant registry) creates.
+    """
+    cur = db_engine.cursor()
+    ids = list(_FIXTURE_EMPLOYEES + _FIXTURE_ADMINS)
+    cur.execute("DELETE FROM api_tokens WHERE identity = ANY(%s)", (ids,))
+    cur.execute("DELETE FROM employees WHERE employee_id = ANY(%s)", (list(_FIXTURE_EMPLOYEES),))
+    cur.execute("DELETE FROM admin_users WHERE username = ANY(%s)", (list(_FIXTURE_ADMINS),))
+    # tests/test_soc_console.py's make_user() passes created_by="test".
+    cur.execute("SELECT to_regclass('att_master.soc_users')")
+    if cur.fetchone()[0] is not None:
+        cur.execute("DELETE FROM att_master.soc_users WHERE created_by = 'test'")
+    # Nothing seeds notifications (only runtime code in utils/helpers.py
+    # inserts them), so the baseline holds none. Admin notifications carry no
+    # employee_id, so they can't be matched to fixture identities -- clear the
+    # table. Seen: two "New Support Ticket" rows left by an interrupted
+    # test_tickets_coverage run made test_notifications_flow count 3 admin
+    # notifications instead of 1 in every later session on that database.
+    cur.execute("DELETE FROM notifications")
     cur.close()
 
 
@@ -493,7 +489,8 @@ def _restore_snapshot(cur, schema_snapshots, extra_schemas):
 
 
 @pytest.fixture(scope="session")
-def _db_baseline_snapshot(db_engine, _init_test_db, _reset_login_attempts, _reset_attendance_lockouts):
+def _db_baseline_snapshot(db_engine, _init_test_db, _reset_login_attempts, _reset_attendance_lockouts,
+                          _purge_stale_fixture_rows):
     """Captured once, after every one-time baseline fixture above has run
     (schema/table creation, seeded company_settings/admin/tenant-registry
     rows, and the one-time login_attempts/attendance_lockouts clears) --
@@ -630,7 +627,7 @@ def seed_admin(db_engine):
     cur.execute("DELETE FROM login_attempts WHERE identifier='test_admin'")
     cur.execute(
         "INSERT INTO admin_users (username, password, email) VALUES (%s,%s,%s) "
-        "ON CONFLICT (username) DO NOTHING",
+        "ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password, email=EXCLUDED.email",
         ("test_admin", generate_password_hash("Test@1234"), "admin@test.local"),
     )
     yield {"username": "test_admin", "password": "Test@1234"}
@@ -649,7 +646,8 @@ def seed_employee(db_engine):
     cur.execute("DELETE FROM login_attempts WHERE identifier='TST001'")
     cur.execute(
         "INSERT INTO employees (employee_id, name, email, password, force_pin_change) "
-        "VALUES (%s,%s,%s,%s,0) ON CONFLICT (employee_id) DO NOTHING",
+        "VALUES (%s,%s,%s,%s,0) ON CONFLICT (employee_id) DO UPDATE SET name=EXCLUDED.name, "
+        "email=EXCLUDED.email, password=EXCLUDED.password, force_pin_change=0",
         ("TST001", "Test Employee", "emp@test.local", generate_password_hash("EmpPass@1")),
     )
     yield {"employee_id": "TST001", "password": "EmpPass@1", "name": "Test Employee"}
@@ -670,7 +668,8 @@ def seed_hr_admin(db_engine):
     cur.execute("DELETE FROM login_attempts WHERE identifier='test_hr_admin'")
     cur.execute(
         "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1) "
-        "ON CONFLICT (username) DO NOTHING",
+        "ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password, role=EXCLUDED.role, "
+        "email=EXCLUDED.email, is_active=1",
         ("test_hr_admin", generate_password_hash("Test@1234"), HR_ROLE, "hr@test.local"),
     )
     yield {"username": "test_hr_admin", "password": "Test@1234"}
@@ -689,7 +688,8 @@ def seed_assigned_employee(db_engine, seed_hr_admin):
     cur.execute(
         "INSERT INTO employees (employee_id, name, email, password, force_pin_change, assigned_hr_username) "
         "VALUES (%s,%s,%s,%s,0,%s) "
-        "ON CONFLICT (employee_id) DO UPDATE SET assigned_hr_username=EXCLUDED.assigned_hr_username",
+        "ON CONFLICT (employee_id) DO UPDATE SET assigned_hr_username=EXCLUDED.assigned_hr_username, "
+        "name=EXCLUDED.name, email=EXCLUDED.email, password=EXCLUDED.password, force_pin_change=0",
         ("TST002", "Test Assigned Employee", "emp2@test.local",
          generate_password_hash("EmpPass@1"), seed_hr_admin["username"]),
     )
@@ -711,7 +711,8 @@ def seed_manager_admin(db_engine):
     cur.execute("DELETE FROM login_attempts WHERE identifier='test_manager_admin'")
     cur.execute(
         "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1) "
-        "ON CONFLICT (username) DO NOTHING",
+        "ON CONFLICT (username) DO UPDATE SET password=EXCLUDED.password, role=EXCLUDED.role, "
+        "email=EXCLUDED.email, is_active=1",
         ("test_manager_admin", generate_password_hash("Test@1234"), MANAGER_ROLE, "manager@test.local"),
     )
     yield {"username": "test_manager_admin", "password": "Test@1234"}

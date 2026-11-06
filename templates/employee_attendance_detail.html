@@ -157,7 +157,7 @@
 
       <a class="back-link" href="/monthly_report?year={{ year }}&month={{ month }}">← Back to Monthly Report</a>
 
-      <!-- EMPLOYEE CARD -->
+      {# EMPLOYEE CARD #}
       <div class="emp-card">
         <div class="emp-avatar"><i class="ti ti-user hz-ico" aria-hidden="true"></i></div>
         <div class="emp-info">
@@ -176,7 +176,7 @@
         </div>
       </div>
 
-      <!-- MONTH FILTER -->
+      {# MONTH FILTER #}
       <div class="filter-bar">
         <label>Month</label>
         <select id="selMonth">
@@ -202,7 +202,7 @@
         }
       </script>
 
-      <!-- SUMMARY CARDS -->
+      {# SUMMARY CARDS #}
       <div class="summary">
         <div class="sum-card c-green">
           <div class="num">{{ full_days }}</div>
@@ -222,7 +222,7 @@
         </div>
       </div>
 
-      <!-- DAY-BY-DAY TABLE -->
+      {# DAY-BY-DAY TABLE #}
       <div class="section">
         <div class="section-title"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Day-by-Day Attendance — {{ month_name }}</div>
         <div class="table-wrap">
@@ -317,7 +317,7 @@
           </table>
         </div>
 
-        <!-- Show more / collapse toggle -->
+        {# Show more / collapse toggle #}
         <div class="u-ta-center u-mt-14 u-d-none" id="att-toggle-wrap">
           <button class="u-d-inline-flex u-ai-center u-gap-6 u-p-9-22 u-bd-1-solid-dbeafe u-br-10 u-bg-fff u-c-1e3a8a u-fs-13 u-fw-700 u-cur-pointer u-shad-0-1-4-rgba0_0_0_0d06 u-trs-d18s" id="att-toggle-btn" data-on-click="toggleAttRows()">
             <i id="att-toggle-icon" class="ti ti-chevron-down"></i>
@@ -360,7 +360,7 @@
 
 {% block scripts %}
 
-  <!-- ATTENDANCE CORRECTION MODAL -->
+  {# ATTENDANCE CORRECTION MODAL #}
   <div class="modal-backdrop" id="editModal">
     <div class="modal">
       <button class="modal-close" data-on-click="closeEdit()">✕</button>

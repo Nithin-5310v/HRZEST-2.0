@@ -60,24 +60,31 @@ def challenge_retention_days():
 
 def purge_face_logs(upload_folder, now=None, days=None):
     """Delete check-in photos older than the window. Only *.jpg directly
-    under <upload_folder>/face_logs -- never the registered face images."""
+    under a face_logs folder -- the old shared <upload_folder>/face_logs and
+    every company's <upload_folder>/tenants/<tenant>/face_logs -- never the
+    registered face images."""
     days = days or face_log_retention_days()
     now = now or datetime.datetime.now().timestamp()
     cutoff = now - days * 86400
-    root = os.path.join(upload_folder, "face_logs")
+    roots = [os.path.join(upload_folder, "face_logs")]
+    tenants_root = os.path.join(upload_folder, "tenants")
+    if os.path.isdir(tenants_root):
+        with os.scandir(tenants_root) as it:
+            roots += [os.path.join(e.path, "face_logs") for e in it if e.is_dir(follow_symlinks=False)]
     removed = 0
-    if not os.path.isdir(root):
-        return 0
-    with os.scandir(root) as it:
-        for entry in it:
-            if not entry.is_file(follow_symlinks=False) or not entry.name.lower().endswith(".jpg"):
-                continue
-            try:
-                if entry.stat(follow_symlinks=False).st_mtime < cutoff:
-                    os.remove(entry.path)
-                    removed += 1
-            except OSError:
-                continue
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        with os.scandir(root) as it:
+            for entry in it:
+                if not entry.is_file(follow_symlinks=False) or not entry.name.lower().endswith(".jpg"):
+                    continue
+                try:
+                    if entry.stat(follow_symlinks=False).st_mtime < cutoff:
+                        os.remove(entry.path)
+                        removed += 1
+                except OSError:
+                    continue
     return removed
 
 
@@ -164,7 +171,7 @@ _ENCRYPTED_EMPLOYEE_COLS = (
     "aadhar_number", "pan_number", "bank_name", "bank_account", "bank_ifsc", "uan_number",
 )
 # Never exported: credentials, reset tokens, credential public keys.
-_EMPLOYEE_SECRET_COLS = {"password", "reset_token", "reset_token_expiry",
+_EMPLOYEE_SECRET_COLS = {"password", "email_bidx", "phone_bidx", "reset_token", "reset_token_expiry",
                          "fingerprint_credential_id", "fingerprint_public_key", "fingerprint_sign_count"}
 
 
@@ -206,7 +213,7 @@ def export_employee_data(cursor, employee_id, decrypt=None):
 
 # ── erasure ─────────────────────────────────────────────────────────────────
 _EMPLOYEE_ERASE_NULL = (
-    "email", "phone", "gender", "dob", "blood_group", "address", "city", "state", "pincode",
+    "email", "email_bidx", "phone", "phone_bidx", "gender", "dob", "blood_group", "address", "city", "state", "pincode",
     "emergency_contact_name", "emergency_contact_phone", "emergency_contact_relation",
     "aadhar_number", "pan_number", "bank_name", "bank_account", "bank_ifsc", "uan_number",
     "about_me", "face_image", "qr_code", "work_lat", "work_lon",
@@ -275,9 +282,16 @@ def erase_employee(cursor, employee_id, upload_folder=None, remove_file=None):
     for ref in (face_ref, qr_ref):
         manifest["files_removed"] += 1 if _rm(ref) else 0
     if upload_folder:
-        reg = os.path.join(upload_folder, f"{employee_id}.jpg")
+        # This company's own folder only. The old shared flat files
+        # (<upload_folder>/<id>.jpg, <upload_folder>/face_logs/<id>_*) are
+        # not touched by ID: another company's employee with the same ID
+        # may own them. A pre-migration photo is still removed above via
+        # face_image, and shared face logs age out via purge_face_logs().
+        from utils.tenant_files import cursor_tenant
+        company_dir = os.path.join(upload_folder, "tenants", cursor_tenant(cursor))
+        reg = os.path.join(company_dir, f"{employee_id}.jpg")
         manifest["files_removed"] += 1 if _rm(reg) else 0
-        logs = os.path.join(upload_folder, "face_logs")
+        logs = os.path.join(company_dir, "face_logs")
         if os.path.isdir(logs):
             prefix = f"{employee_id}_"
             with os.scandir(logs) as it:

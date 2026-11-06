@@ -12,6 +12,7 @@ import utils.waf as waf_module
 def _unban(db_engine, ip):
     cur = db_engine.cursor()
     cur.execute("DELETE FROM banned_ips WHERE ip=%s", (ip,))
+    cur.execute("DELETE FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
     db_engine.commit()
     cur.close()
 
@@ -49,7 +50,7 @@ class TestRateLimitBreachResponse:
         ip = "203.0.113.202"
         _unban(db_engine, ip)
         calls = []
-        import app as app_module
+        import app_setup.errors as app_module   # the 429 handler lives here now
         monkeypatch.setattr(app_module, "log_security_event",
                             lambda event_type, message, level="WARNING", **f: calls.append(event_type))
         try:
@@ -62,18 +63,43 @@ class TestRateLimitBreachResponse:
             _unban(db_engine, ip)
 
 
+def _repeated_429s(client, ip):
+    # Each burst of >5/min triggers one 429; repeat past _BREACH_THRESHOLD
+    # 429s to cross the breach counter.
+    for _ in range((waf_module._BREACH_THRESHOLD + 2) * 6):
+        client.post("/login", data={"username": "nobody", "password": "wrong"},
+                    environ_overrides={"REMOTE_ADDR": ip})
+
+
 class TestProgressiveBanFromRepeatedBreaches:
-    def test_repeated_429s_eventually_ban_the_ip(self, client, rate_limiting_enabled, db_engine):
+    def test_repeated_429s_raise_a_review_not_a_ban(self, client, rate_limiting_enabled, db_engine, monkeypatch):
+        """A shift-start login rush from one customer office (many employees,
+        one shared address) looks exactly like this. It stays rate-limited,
+        but is no longer locked out: the address waits for an analyst."""
+        monkeypatch.delenv("SOC_AUTO_BAN", raising=False)
         ip = "203.0.113.203"
         waf_module._breach_log.pop(ip, None)
         _unban(db_engine, ip)
         try:
-            # Each burst of >5/min triggers one 429; repeat past
-            # _BREACH_THRESHOLD 429s to cross the auto-ban counter.
-            for _ in range((waf_module._BREACH_THRESHOLD + 2) * 6):
-                client.post("/login", data={"username": "nobody", "password": "wrong"},
-                            environ_overrides={"REMOTE_ADDR": ip})
+            _repeated_429s(client, ip)
+            cur = db_engine.cursor()
+            cur.execute("SELECT 1 FROM banned_ips WHERE ip=%s", (ip,))
+            assert cur.fetchone() is None
+            cur.execute("SELECT status, source FROM att_master.soc_ban_reviews WHERE ip=%s", (ip,))
+            assert cur.fetchone() == ("pending", "ratelimit")
+            cur.close()
+            assert client.get("/login", environ_overrides={"REMOTE_ADDR": ip}).status_code != 403
+        finally:
+            waf_module._breach_log.pop(ip, None)
+            _unban(db_engine, ip)
 
+    def test_repeated_429s_ban_with_soc_auto_ban(self, client, rate_limiting_enabled, db_engine, monkeypatch):
+        monkeypatch.setenv("SOC_AUTO_BAN", "true")
+        ip = "203.0.113.204"
+        waf_module._breach_log.pop(ip, None)
+        _unban(db_engine, ip)
+        try:
+            _repeated_429s(client, ip)
             cur = db_engine.cursor()
             cur.execute("SELECT expires_at FROM banned_ips WHERE ip=%s", (ip,))
             row = cur.fetchone()

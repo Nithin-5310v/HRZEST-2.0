@@ -65,6 +65,8 @@ def _rules():
     live_n = _int("DETECT_LIVENESS_FAIL_COUNT", 5)
     waf_n = _int("DETECT_WAF_BURST_COUNT", 50)
     waf_ips = _int("DETECT_WAF_BURST_IPS", 5)
+    csp_n = _int("DETECT_CSP_BURST_COUNT", 20)
+    csp_sources = _int("DETECT_CSP_BURST_SOURCES", 3)
 
     return [
         Rule(
@@ -132,6 +134,26 @@ def _rules():
             "HAVING COUNT(*) >= %s AND COUNT(DISTINCT ip) >= %s",
             lambda: (waf_n, waf_ips),
             lambda r: ("waf", f"{r[1]} WAF blocks from {r[2]} addresses in 5 minutes (coordinated scan)", {}),
+        ),
+        # Many browsers reporting CSP violations on the same page at once is how
+        # an injected script or a hijacked third-party resource first shows up
+        # (the CSP blocks it, every visitor's browser reports it). The page is
+        # pulled from extra_json with a regex, not a JSON cast: the column is
+        # truncated at 4000 characters, and one malformed row must not break
+        # the whole detection run. Two kinds of noise are kept out: violations
+        # caused by browser extensions, and a single visitor's browser
+        # repeating itself (several distinct sources are required).
+        Rule(
+            "csp_violation_burst", "ERROR", 60, "global",
+            "SELECT page, COUNT(*), COUNT(DISTINCT src) FROM ("
+            "  SELECT substring(extra_json from '\"page\": \"((?:[^\"\\\\]|\\\\.)*)\"') AS page, "
+            "         COALESCE(ip, identifier) AS src FROM security_events "
+            "  WHERE event_type='frontend.csp_violation' AND created_at > NOW() - INTERVAL '10 minutes' "
+            "  AND COALESCE(extra_json, '') !~ '\"blocked_uri\": \"(chrome|moz|safari-web|ms-browser)-extension:') v "
+            "WHERE page IS NOT NULL GROUP BY page HAVING COUNT(*) >= %s AND COUNT(DISTINCT src) >= %s",
+            lambda: (csp_n, csp_sources),
+            lambda r: (r[0], f"{r[1]} Content-Security-Policy violations on {r[0]} from {r[2]} different "
+                       f"sources in 10 minutes (possible script injection)", {"path": r[0]}),
         ),
         # ── tenant-scoped ──
         Rule(

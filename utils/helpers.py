@@ -3,7 +3,6 @@
 import os
 import re
 import json
-import base64
 import datetime
 import hashlib
 import math
@@ -11,7 +10,7 @@ import threading
 from contextlib import contextmanager
 
 import pytz
-from cryptography.fernet import Fernet, MultiFernet, InvalidToken as _FernetInvalid
+from utils import pii_crypto as _pii_crypto
 from flask import session, request, jsonify, abort
 from database import get_db_connection
 from extensions import app_log, log_security_event, redis_client
@@ -205,7 +204,11 @@ def _safe_redirect(dest: str, fallback: str = "/admin") -> str:
     """Validate that a redirect target is a relative path (prevents open
     redirect), then stamp it with the current tenant's URL prefix via
     tpath() so every caller gets a correctly-scoped link for free."""
-    if dest and dest.startswith("/") and not dest.startswith("//"):
+    # Browsers treat "/\evil.com" like "//evil.com" and drop tabs/newlines
+    # inside URLs ("/	/evil.com"), so a backslash or control character
+    # anywhere is refused, not just a leading "//".
+    if (dest and dest.startswith("/") and not dest.startswith("//")
+            and "\\" not in dest and not any(ord(c) < 32 or ord(c) == 127 for c in dest)):
         return tpath(dest)
     return tpath(fallback)
 
@@ -227,7 +230,7 @@ def _safe_referrer_redirect(referrer: str, fallback: str) -> str:
     return tpath(fallback)
 
 
-# ── PII encryption (Fernet) -- fail-secure bootstrap ────────────────────────────
+# ── PII encryption (AES-256-GCM) -- fail-secure bootstrap ────────────────────────────
 # Canonical location for this check. app.py used to carry a second,
 # stricter copy (hard-fail in production, silent plaintext fallback in
 # development) while this file's copy silently no-op'd in every
@@ -258,10 +261,13 @@ try:
     # (comma-separated, newest first) is accepted for DECRYPTION only, so a
     # rotation is: set the new ENCRYPTION_KEY, move the old one into
     # ENCRYPTION_KEY_PREVIOUS, deploy, run scripts/rotate_encryption_key.py
-    # to re-encrypt stored values, then drop the old key. With no previous
-    # keys this behaves exactly like a single Fernet.
-    _previous_keys = [k.strip() for k in os.environ.get("ENCRYPTION_KEY_PREVIOUS", "").split(",") if k.strip()]
-    _fernet = MultiFernet([Fernet(k.encode()) for k in [_ENCRYPTION_KEY] + _previous_keys])
+    # to re-encrypt stored values, then drop the old key.
+    #
+    # Cipher: AES-256-GCM with an HKDF-SHA-512-derived key (utils/pii_crypto.py).
+    # Values written under the old Fernet (AES-128-CBC) format still decrypt;
+    # every new write uses AES-256-GCM, and the rotation script upgrades the
+    # rest in place.
+    _pii_cipher = _pii_crypto.cipher_from_env()
 except Exception as _key_err:
     app_log.critical(
         "FATAL: ENCRYPTION_KEY is set but malformed (%s) -- refusing to start "
@@ -276,46 +282,71 @@ except Exception as _key_err:
 def encrypt_pii(value: str) -> str:
     if not value:
         return value
-    return _fernet.encrypt(value.encode()).decode()
+    return _pii_cipher.encrypt(value)
 
 
-def _looks_like_fernet_token(value: str) -> bool:
-    """True if `value` is at least shaped like a real Fernet token (right
-    base64 alphabet, right minimum length, right version byte) -- as
-    opposed to legacy plaintext written before PII encryption existed
-    (e.g. a bare "Female" or "1988-03-10" seeded by an old migration or a
-    test fixture), which decrypt_pii() must keep passing through
-    unchanged rather than flagging as a decryption failure."""
+def encrypt_amount(value):
+    """Encrypt a pay amount for a pay column (salary_config, offer_letters.
+    monthly_ctc, employee_incentives.amount, overtime_records.ot_pay,
+    salary_disbursement_*). Reads need nothing: the value comes back as a
+    Decimal. None/"" -> None; raises ValueError for a non-number. The
+    columns carry a CHECK that rejects anything not encrypted, so a write
+    that skips this fails instead of storing pay in plaintext."""
+    return _pii_cipher.encrypt_number(value)
+
+
+def amount(value, default=0):
+    """A pay column value as read back (Decimal, or None for NULL) -> Decimal,
+    with `default` for NULL. Replaces SQL `COALESCE(col, 0)`, which no longer
+    type-checks on the TEXT pay columns. Anything unreadable (a value that
+    failed to decrypt, already logged by database.py) also gives `default`."""
+    from decimal import Decimal, InvalidOperation
+    if value is None:
+        return Decimal(str(default))
+    if isinstance(value, Decimal):
+        return value
     try:
-        raw = base64.urlsafe_b64decode(value.encode())
-    except Exception:
-        return False
-    # Fernet token = 1 version byte + 8 timestamp + 16 IV + >=16 ciphertext
-    # (AES-CBC pads to a full block even for empty input) + 32 HMAC = 73
-    # bytes minimum; version byte is always 0x80.
-    return len(raw) >= 73 and raw[0:1] == b"\x80"
+        return Decimal(str(value).strip())
+    except (InvalidOperation, ValueError):
+        return Decimal(str(default))
+
+
+def encrypt_contact(kind: str, value):
+    """Encrypt an employee email ("email") or phone ("phone") for storage.
+    Returns (stored_value, blind_index): write both, into e.g. email and
+    email_bidx. Empty input stays empty with a NULL index."""
+    if value is None:
+        return None, None
+    value = str(value).strip()
+    if not value:
+        return value, None
+    return _pii_cipher.encrypt(value), _pii_cipher.blind_index(kind, value)
+
+
+def contact_lookup_keys(kind: str, value):
+    """Blind indexes to match with `<kind>_bidx = ANY(%s)` -- one per
+    configured key, so rows indexed before a key rotation still match."""
+    return _pii_cipher.blind_index_candidates(kind, value)
 
 
 def decrypt_pii(value: str) -> str:
     if not value:
         return value
+    if not isinstance(value, str):
+        return value
     try:
-        return _fernet.decrypt(value.encode()).decode()
-    except (_FernetInvalid, Exception):
-        if not _looks_like_fernet_token(value):
-            # Legacy plaintext that was never encrypted in the first
-            # place -- not a failure, just pass it through as-is (existing
-            # behavior, relied on by pre-encryption data / test fixtures).
-            return value
-        # This IS shaped like real ciphertext but failed to decrypt --
-        # almost always ENCRYPTION_KEY having been rotated after this row
-        # was written, or corrupted data. Previously this fell through to
-        # returning the raw gAAAAAB... blob, rendered directly in the UI
-        # and indistinguishable from a template bug to whoever's looking
-        # at it. Log it (so a real key-rotation incident is actually
-        # visible) and return an unambiguous placeholder instead; the
-        # underlying ciphertext is unrecoverable without the original key
-        # either way, so there's nothing useful to show the caller.
+        return _pii_crypto.decode_plaintext(_pii_cipher.decrypt(value))
+    except ValueError:
+        # Not ciphertext at all: legacy plaintext written before PII
+        # encryption existed (e.g. a bare "Female" seeded by an old
+        # migration or a test fixture) -- pass it through unchanged.
+        return value
+    except _pii_crypto.DecryptionError:
+        # Shaped like real ciphertext but failed to decrypt -- almost
+        # always ENCRYPTION_KEY rotated without keeping the old key in
+        # ENCRYPTION_KEY_PREVIOUS, or tampered/corrupted data (GCM's tag
+        # check catches both). Log it and return an unambiguous placeholder
+        # rather than rendering the raw blob in the UI.
         app_log.warning("decrypt_pii: failed to decrypt a PII value (wrong/rotated ENCRYPTION_KEY or corrupted data) -- returning placeholder")
         return "[unable to decrypt]"
 
@@ -323,7 +354,7 @@ def decrypt_pii(value: str) -> str:
 def decrypt_pii_date(value):
     """decrypt_pii() for employees.dob: that column used to be a native DATE
     and callers throughout the app call .strftime() on what it returns --
-    widening it to TEXT so Fernet ciphertext fits (see app.py's
+    widening it to TEXT so ciphertext fits (see app.py's
     employee_pii_columns_to_text_v1 migration) would otherwise silently
     turn every one of those call sites into an AttributeError. Returns a
     datetime.date (or None), never a bare string, so existing .strftime()
@@ -1770,6 +1801,10 @@ def wants_json_response():
         request.path.startswith("/api/")
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"
         or request.accept_mimetypes.best == "application/json"
+        # A request that posts a JSON body (e.g. the attendance check-in
+        # fetch to /attendance) is read as JSON by its caller -- an HTML
+        # error page there shows up as "Unexpected token '<'".
+        or request.is_json
     )
 
 

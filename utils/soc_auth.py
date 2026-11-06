@@ -112,13 +112,16 @@ _LOGIN_ACTIONS = frozenset({"login", "login_failed", "account_locked", "login_bl
 
 def audit(actor, action, target=None, detail=None, ip=None):
     """Append to soc_audit_log. Never raises: auditing must not break the action
-    (a failure is logged loudly instead)."""
+    (a failure is logged loudly instead). -> the stored row's created_at, or
+    None when the write failed."""
+    stored_at = None
     try:
         with write_cursor("att_master") as cur:
             cur.execute(
-                "INSERT INTO soc_audit_log (actor, action, target, detail, ip) VALUES (%s,%s,%s,%s,%s)",
+                "INSERT INTO soc_audit_log (actor, action, target, detail, ip) VALUES (%s,%s,%s,%s,%s) RETURNING created_at",
                 ((actor or "-")[:60], action[:80], (target or None) and str(target)[:200],
                  (detail or None) and str(detail)[:2000], (ip or None) and str(ip)[:64]))
+            stored_at = cur.fetchone()[0]
     except Exception as exc:        # pragma: no cover - logged for operators
         try:
             from extensions import app_log
@@ -130,6 +133,7 @@ def audit(actor, action, target=None, detail=None, ip=None):
     if action not in _LOGIN_ACTIONS:
         event("soc.action", f"SOC action: {action}", level="INFO", identifier=actor, soc_action=action,
               soc_target=(str(target)[:120] if target else None))
+    return stored_at
 
 
 def event(event_type, message, level="WARNING", **fields):
@@ -178,7 +182,7 @@ def public_user(u):
     """The fields safe to return to a browser."""
     return {k: (v.isoformat(sep=" ") if hasattr(v, "isoformat") else v) for k, v in u.items()
             if k in ("id", "username", "email", "role", "totp_enabled", "active", "failed_count",
-                     "locked_until", "last_login_at", "last_login_ip", "created_by", "created_at")}
+                     "locked_until", "is_locked", "last_login_at", "last_login_ip", "created_by", "created_at")}
 
 
 def list_users():
@@ -188,7 +192,7 @@ def list_users():
 
 
 def validate_password(pw, username=""):
-    if not pw or len(pw) < MIN_PASSWORD_LENGTH:
+    if not isinstance(pw, str) or len(pw) < MIN_PASSWORD_LENGTH:
         return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
     if username and username.lower() in pw.lower():
         return False, "Password must not contain the username."
@@ -208,7 +212,7 @@ def new_setup_code():
 
 
 def _norm_setup_code(code):
-    return re.sub(r"[^A-Z0-9]", "", (code or "").upper())
+    return re.sub(r"[^A-Z0-9]", "", code.upper() if isinstance(code, str) else "")
 
 
 def create_user(username, password, role="viewer", email=None, created_by=None):
@@ -217,10 +221,10 @@ def create_user(username, password, role="viewer", email=None, created_by=None):
     authenticator without it, so someone who learns only the password cannot
     claim the second factor first."""
     from utils.auth import generate_password_hash
-    username = (username or "").strip().lower()
+    username = username.strip().lower() if isinstance(username, str) else ""
     if not _USERNAME_RE.match(username):
         return False, "Username must be 3-40 characters: lowercase letters, digits, dot, dash, underscore.", None
-    if role not in ROLE_RANK:
+    if not isinstance(role, str) or role not in ROLE_RANK:
         return False, "Unknown role.", None
     ok, err = validate_password(password, username)
     if not ok:
@@ -231,7 +235,7 @@ def create_user(username, password, role="viewer", email=None, created_by=None):
             cur.execute(
                 "INSERT INTO soc_users (username, email, password_hash, role, created_by, enroll_code_hash) "
                 "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (username) DO NOTHING RETURNING id",
-                (username, (email or None) and email[:200], generate_password_hash(password), role, created_by,
+                (username, (email[:200] or None) if isinstance(email, str) else None, generate_password_hash(password), role, created_by,
                  generate_password_hash(_norm_setup_code(code))))
             if cur.fetchone() is None:
                 return False, "That username already exists.", None
@@ -261,7 +265,7 @@ def set_password(uid, new_password, username=""):
 def update_user(uid, *, role=None, active=None):
     sets, params = [], []
     if role is not None:
-        if role not in ROLE_RANK:
+        if not isinstance(role, str) or role not in ROLE_RANK:
             return False
         sets.append("role=%s")
         params.append(role)

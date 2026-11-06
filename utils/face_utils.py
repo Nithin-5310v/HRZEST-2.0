@@ -61,13 +61,15 @@ def _get_known_face_encoding(emp_id: str, face_path: str):
         mtime = os.path.getmtime(face_path)
     except OSError:
         return None
-    cached = _face_enc_cache.get(emp_id)
+    # Keyed by file path, not emp_id: employee IDs repeat across companies.
+    cached = _face_enc_cache.get(face_path)
     if cached and cached[0] == mtime:
         return cached[1]
-    img = face_recognition.load_image_file(face_path)
+    from utils.storage import decrypted_stream
+    img = face_recognition.load_image_file(decrypted_stream(face_path))
     encs = face_recognition.face_encodings(img)
     enc = encs[0] if encs else None
-    _face_enc_cache[emp_id] = (mtime, enc)
+    _face_enc_cache[face_path] = (mtime, enc)
     return enc
 
 
@@ -89,10 +91,11 @@ def verify_uploaded_face(emp_id: str, registered_face_path: str, face_photo_stor
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         face_path = os.path.join(save_dir, f"{emp_id}_{ts}.jpg")
         img = _PILImage.open(face_photo_storage.stream).convert("RGB")
-        img.save(face_path, "JPEG", quality=80)
+        from utils.storage import save_image, decrypted_stream
+        save_image(img, face_path, "JPEG", quality=80)
 
         known_enc = _get_known_face_encoding(emp_id, registered_face_path)
-        test_img_data = face_recognition.load_image_file(face_path)
+        test_img_data = face_recognition.load_image_file(decrypted_stream(face_path))
         test_encs = face_recognition.face_encodings(test_img_data)
         if known_enc is None or not test_encs:
             return False, "Face not detected clearly. Please retake the photo."

@@ -12,8 +12,8 @@ from database import get_db_connection
 from utils.auth import employee_required, employee_api_required, validate_new_password, session_account_ok
 from utils.helpers import (
     tpath,
-    _audit, _db, encrypt_pii, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
-    company_today, company_now, coerce_datetime, int_param, app_gps_checkin_allowed,
+    _audit, _db, encrypt_pii, encrypt_contact, decrypt_pii, decrypt_pii_date, _validate_image_file, get_auth_config, allowed_checkin_combos,
+    company_today, company_now, coerce_datetime, int_param, app_gps_checkin_allowed, amount,
 )
 from utils.ai_assistant import build_employee_context, ask_assistant
 from utils.session_risk import ensure_session_id, evaluate_session_risk
@@ -26,9 +26,10 @@ from utils.attendance_utils import (
 )
 from utils.leave_utils import assign_leave_balances_for_employee
 from utils.face_utils import face_recognition, _face_recognition_available, _get_known_face_encoding
+from utils.tenant_files import face_logs_dir, face_photo_path, resolve_face_photo
 from utils.webauthn_utils import _wa_fingerprint_recently_verified, _mobile_biometric_recently_verified
 from qr_generator import generate_qr
-from utils.storage import open_private
+from utils.storage import open_private, save_image, decrypted_stream
 from utils import punch_integrity as pi
 
 employee_portal_bp = Blueprint("employee_portal", __name__)
@@ -49,8 +50,10 @@ def _fmt_t(t):
 @employee_required
 def update_my_profile():
     emp_id = session["employee_id"]
+    _phone, _phone_bidx = encrypt_contact("phone", request.form.get("phone", "").strip() or None)
     fields = {
-        "phone": request.form.get("phone", "").strip() or None,
+        "phone": _phone,
+        "phone_bidx": _phone_bidx,
         "gender": encrypt_pii(request.form.get("gender", "").strip() or None),
         "dob": encrypt_pii(request.form.get("dob", "").strip() or None),
         "blood_group": encrypt_pii(request.form.get("blood_group", "").strip() or None),
@@ -67,7 +70,7 @@ def update_my_profile():
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         UPDATE employees SET
-            phone=%s, gender=%s, dob=%s, blood_group=%s,
+            phone=%s, phone_bidx=%s, gender=%s, dob=%s, blood_group=%s,
             address=%s, city=%s, state=%s, pincode=%s,
             emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s,
             about_me=%s
@@ -196,8 +199,8 @@ def update_my_photo():
             locs = face_recognition.face_locations(img_array)
             if not locs:
                 return redirect(tpath("/employee_portal?photo_error=no_face#my-profile"))
-        save_path = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
-        img.save(save_path, "JPEG", quality=90)
+        save_path = face_photo_path(emp_id)
+        save_image(img, save_path, "JPEG", quality=90)
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (save_path, emp_id))
@@ -312,7 +315,7 @@ def employee_portal():
     cursor.execute("""
         SELECT e.employee_id, e.name, e.role, e.email, e.face_image,
                e.date_of_joining,
-               COALESCE(sc.salary_per_day, 0) AS salary_per_day,
+               sc.salary_per_day AS salary_per_day,
                sh.name AS shift_name, sh.start_time AS shift_start, sh.end_time AS shift_end,
                e.phone, e.gender, e.dob, e.blood_group,
                e.address, e.city, e.state, e.pincode,
@@ -332,6 +335,7 @@ def employee_portal():
         session.clear()
         return redirect(tpath("/login"))
     emp = list(_emp_raw)
+    emp[6] = amount(emp[6])              # salary_per_day (encrypted; NULL -> 0)
     # emp indices:
     # [0]=id [1]=name [2]=role [3]=email [4]=face_image [5]=date_of_joining
     # [6]=salary_per_day [7]=shift_name [8]=shift_start [9]=shift_end
@@ -564,11 +568,11 @@ def employee_portal():
             ORDER BY ei.year DESC, ei.month DESC, ei.awarded_at DESC
         """, (emp_id,))
         my_incentives = cursor.fetchall()
-        cursor.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM employee_incentives WHERE employee_id=%s AND year=%s",
+        cursor.execute(   # amount is encrypted: summed here, not in SQL
+            "SELECT amount FROM employee_incentives WHERE employee_id=%s AND year=%s",
             (emp_id, today.year)
         )
-        total_incentive_year = float(cursor.fetchone()[0])
+        total_incentive_year = round(sum(float(amount(r[0])) for r in cursor.fetchall()), 2)
     except Exception:
         my_incentives = []
         total_incentive_year = 0.0
@@ -632,12 +636,12 @@ def employee_portal():
     statutory_this_month = _pay.get("statutory", 0.0)
     net_this_month = _pay.get("net", 0.0)
     try:
-        cursor.execute(
-            "SELECT COALESCE(SUM(ot_pay),0) FROM overtime_records WHERE employee_id=%s "
+        cursor.execute(   # ot_pay is encrypted: summed here, not in SQL
+            "SELECT ot_pay FROM overtime_records WHERE employee_id=%s "
             "AND EXTRACT(MONTH FROM date)=%s AND EXTRACT(YEAR FROM date)=%s AND status='Approved'",
             (emp_id, today.month, today.year)
         )
-        ot_pay_this_month = float(cursor.fetchone()[0] or 0)
+        ot_pay_this_month = round(sum(float(amount(r[0])) for r in cursor.fetchall()), 2)
     except Exception:
         ot_pay_this_month = 0.0
 
@@ -676,7 +680,7 @@ def employee_portal():
     # fetch exactly when the photo actually changed, without needing a
     # dedicated "photo updated at" column.
     try:
-        _photo_path = os.path.join(app.config["UPLOAD_FOLDER"], emp_id + ".jpg")
+        _photo_path = resolve_face_photo(emp_id) or ""
         photo_v = int(os.path.getmtime(_photo_path))
     except OSError:
         photo_v = 0
@@ -1302,15 +1306,15 @@ def api_employee_qr_face_checkin():
             return jsonify({"ok": False, "msg": "No registered face found. Please contact your admin."}), 400
         try:
             from PIL import Image as _PILImage
-            face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+            face_dir = face_logs_dir()
             os.makedirs(face_dir, exist_ok=True)
             ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
-            img.save(face_path, "JPEG", quality=80)
+            save_image(img, face_path, "JPEG", quality=80)
 
             known_enc = _get_known_face_encoding(employee_id, registered_face)
-            test_img_data = face_recognition.load_image_file(face_path)
+            test_img_data = face_recognition.load_image_file(decrypted_stream(face_path))
             test_encs = face_recognition.face_encodings(test_img_data)
             if known_enc is None or not test_encs:
                 cursor.close()
@@ -1348,12 +1352,12 @@ def api_employee_qr_face_checkin():
     elif face_photo:
         try:
             from PIL import Image as _PILImage
-            face_dir = os.path.join(UPLOAD_FOLDER, "face_logs")
+            face_dir = face_logs_dir()
             os.makedirs(face_dir, exist_ok=True)
             ts = company_now().strftime("%Y%m%d_%H%M%S")
             face_path = os.path.join(face_dir, f"{employee_id}_{ts}.jpg")
             img = _PILImage.open(face_photo.stream).convert("RGB")
-            img.save(face_path, "JPEG", quality=80)
+            save_image(img, face_path, "JPEG", quality=80)
         except Exception as exc:
             # Best-effort audit-log attachment -- must not block attendance
             # marking, but silently missing the face-log photo is worth
@@ -1522,7 +1526,7 @@ def api_employee_profile():
                e.phone, e.dob, e.gender, e.blood_group, e.address, e.city, e.state,
                e.pincode, e.about_me, e.emergency_contact_name, e.emergency_contact_phone,
                e.bank_name, e.bank_account, e.bank_ifsc, e.pan_number, e.aadhar_number,
-               COALESCE(s.salary_per_day, 0), COALESCE(e.joining_date, e.date_of_joining),
+               s.salary_per_day, COALESCE(e.joining_date, e.date_of_joining),
                COALESCE(c.name, (SELECT company_name FROM company_settings LIMIT 1), ''),
                e.emergency_contact_relation, e.uan_number, COALESCE(e.email_alerts_enabled, 1)
         FROM employees e
@@ -1551,7 +1555,7 @@ def api_employee_profile():
             "bank_name": decrypt_pii(row[16]), "bank_account": decrypt_pii(row[17]), "bank_ifsc": decrypt_pii(row[18]),
             "pan_number": decrypt_pii(row[19]), "aadhar_number": decrypt_pii(row[20]),
             "uan_number": decrypt_pii(row[25]),
-            "salary_per_day": float(row[21]),
+            "salary_per_day": float(amount(row[21])),
             "join_date": str(row[22]) if row[22] else None,
             "company_name": row[23],
             "photo_url": f"/dataset/{row[0]}.jpg",
@@ -1590,8 +1594,10 @@ def api_update_my_profile():
     from flask import g as _g
     emp_id = _g.api_emp_id
     data = request.get_json(silent=True) or {}
+    _phone, _phone_bidx = encrypt_contact("phone", (data.get("phone") or "").strip() or None)
     fields = {
-        "phone": (data.get("phone") or "").strip() or None,
+        "phone": _phone,
+        "phone_bidx": _phone_bidx,
         "gender": encrypt_pii((data.get("gender") or "").strip() or None),
         "dob": encrypt_pii((data.get("dob") or "").strip() or None),
         "blood_group": encrypt_pii((data.get("blood_group") or "").strip() or None),
@@ -1608,7 +1614,7 @@ def api_update_my_profile():
     cursor = db.cursor(buffered=True)
     cursor.execute("""
         UPDATE employees SET
-            phone=%s, gender=%s, dob=%s, blood_group=%s,
+            phone=%s, phone_bidx=%s, gender=%s, dob=%s, blood_group=%s,
             address=%s, city=%s, state=%s, pincode=%s,
             emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s,
             about_me=%s
@@ -1792,8 +1798,16 @@ def api_employee_upload_photo():
         return jsonify({"ok": False, "msg": err}), 400
     try:
         img = Image.open(file.stream).convert("RGB")
-        save_path = os.path.join(UPLOAD_FOLDER, emp_id + ".jpg")
-        img.save(save_path, "JPEG", quality=85)
+        save_path = face_photo_path(emp_id)
+        save_image(img, save_path, "JPEG", quality=85)
+        # Same file the old flat path was, so record it as this company's
+        # reference photo (resolve_face_photo reads face_image first).
+        db = get_db_connection()
+        cursor = db.cursor()
+        cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (save_path, emp_id))
+        db.commit()
+        cursor.close()
+        db.close()
         return jsonify({"ok": True, "msg": "Photo uploaded successfully", "photo_url": f"/dataset/{emp_id}.jpg"})
     except Exception:
         return jsonify({"ok": False, "msg": "Failed to process image"}), 500

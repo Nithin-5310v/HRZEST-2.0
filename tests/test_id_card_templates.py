@@ -15,6 +15,7 @@ import pytest
 from PIL import Image
 
 from extensions import app as flask_app
+from utils.tenant_files import face_photo_path
 
 
 def _admin_session(client, username, role="admin"):
@@ -75,8 +76,9 @@ def company_employee(db_engine, temp_company):
     cur.close()
     jpg = os.path.join(flask_app.config["UPLOAD_FOLDER"], "IDC001.jpg")
     qr = os.path.join(flask_app.root_path, "private_uploads", "qrcodes", "IDC001.png")
-    if os.path.exists(jpg):
-        os.remove(jpg)
+    for photo in (jpg, face_photo_path("IDC001", "public")):
+        if os.path.exists(photo):
+            os.remove(photo)
     if os.path.exists(qr):
         os.remove(qr)
 

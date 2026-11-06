@@ -121,7 +121,7 @@
     <a class="back-btn" href="{{ tpath('/leave_holidays?tab=leaves') }}"><i class="ti ti-arrow-left"></i> Back to Requests</a>
   </div>
 
-  <!-- MONTH NAVIGATION -->
+  {# MONTH NAVIGATION #}
   <div class="month-nav">
     <a href="/leave_calendar?year={{ prev_y }}&month={{ prev_m }}" title="Previous month">
       <i class="ti ti-chevron-left"></i>
@@ -137,7 +137,7 @@
     </div>
   </div>
 
-  <!-- CALENDAR -->
+  {# CALENDAR #}
   <div class="cal-grid">
     <div class="cal-head">
       <div class="cal-head-cell">Mon</div>
@@ -177,7 +177,7 @@
     {% endfor %}
   </div>
 
-  <!-- SUMMARY BELOW CALENDAR -->
+  {# SUMMARY BELOW CALENDAR #}
   {% set total_on_leave = cal_data.values() | list | map('length') | sum %}
   {% if cal_data %}
   <div class="u-mt-18 u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-18-22">

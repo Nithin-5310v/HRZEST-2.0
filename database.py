@@ -69,12 +69,68 @@ except ValueError:
     _SP_REVALIDATE_EVERY = 200
 
 
+# ── Transparent decryption of AES-256-GCM values on fetch ─────────────────────
+# Every text/varchar value that starts with utils/pii_crypto.py's "hz2:"
+# prefix is decrypted as psycopg2 reads it, so application code always sees
+# plaintext and the ~100 SELECT sites reading encrypted columns (employee
+# email/phone, the PII columns) need no per-site decrypt call -- a missed one
+# can't silently e-mail "hz2:..." or render ciphertext. Writes still go
+# through encrypt_pii() (utils/helpers.py); the database only ever holds
+# ciphertext. Values without the prefix (plaintext, legacy Fernet) are
+# returned untouched at the cost of one startswith().
+#
+# Code that must see raw ciphertext (scripts/rotate_encryption_key.py) calls
+# raw_text(cursor) on its cursor.
+_HZ_PREFIX = "hz2:"
+_hz_cipher = None
+_hz_cipher_lock = threading.Lock()
+
+
+def _get_hz_cipher():
+    global _hz_cipher
+    if _hz_cipher is None:
+        with _hz_cipher_lock:
+            if _hz_cipher is None:
+                from utils.pii_crypto import cipher_from_env
+                _hz_cipher = cipher_from_env()
+    return _hz_cipher
+
+
+def _hz_text_cast(value, cur):
+    if value is None or not value.startswith(_HZ_PREFIX):
+        return value
+    from utils.pii_crypto import DecryptionError, decode_plaintext
+    try:
+        return decode_plaintext(_get_hz_cipher().decrypt(value))   # pay amounts come back as Decimal
+    except ValueError:
+        return value                      # "hz2:" typed as plain text, not ciphertext
+    except DecryptionError:
+        _log.warning("database: an encrypted value failed to decrypt (wrong/rotated ENCRYPTION_KEY "
+                     "or corrupted data) -- returning placeholder")
+        return "[unable to decrypt]"
+
+
+# text, varchar, bpchar
+_HZ_TEXT = psycopg2.extensions.new_type((25, 1043, 1042), "HZ_DECRYPTING_TEXT", _hz_text_cast)
+
+
+def raw_text(cursor):
+    """Turn transparent decryption off for one cursor (it sees stored bytes)."""
+    psycopg2.extensions.register_type(psycopg2.extensions.UNICODE, cursor)
+    return cursor
+
+
 class _TrackedConnection(psycopg2.extensions.connection):
     """psycopg2 connection that remembers which schema its session was last
     SET to. Used as the pools' connection_factory (harmless when the skip is
-    switched off -- the attribute is simply never consulted)."""
+    switched off -- the attribute is simply never consulted). Also decrypts
+    "hz2:" values on fetch (see _hz_text_cast above)."""
     _hrz_sp = None
     _hrz_sp_reuse = 0
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        psycopg2.extensions.register_type(_HZ_TEXT, self)
 
 
 class _PooledConnection:
