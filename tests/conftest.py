@@ -181,19 +181,24 @@ set_synchronous_mode(True)
 _TEST_RUN_LOCK_KEY = 0x48525A54   # "HRZT": advisory-lock id held for a whole test run
 
 
-def patch_helpers(monkeypatch, name, value):
-    """Monkeypatch `name` on utils.helpers AND on every utils.helpers.<sub>
-    module that holds it. utils/helpers is a package: a function looks names
-    up in its own submodule, so patching only the package attribute would
-    silently stop affecting it."""
+def patch_package(monkeypatch, package, name, value):
+    """Monkeypatch `name` on a package AND on every submodule that holds it.
+    Split modules (utils.helpers, blueprints.employees, ...) look names up in
+    their own submodule, so patching only the package attribute would silently
+    stop affecting the code under test."""
     import importlib
     import pkgutil
-    import utils.helpers as pkg
+    pkg = importlib.import_module(package)
     monkeypatch.setattr(pkg, name, value, raising=False)
     for info in pkgutil.iter_modules(pkg.__path__):
-        mod = importlib.import_module(f"utils.helpers.{info.name}")
+        mod = importlib.import_module(f"{package}.{info.name}")
         if hasattr(mod, name):
             monkeypatch.setattr(mod, name, value)
+
+
+def patch_helpers(monkeypatch, name, value):
+    """patch_package() for utils.helpers."""
+    patch_package(monkeypatch, "utils.helpers", name, value)
 
 
 @pytest.fixture(scope="session")

@@ -10,8 +10,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 def _emitted_event_types():
     """Literal first arguments of every log_security_event / send_security_alert call."""
     found = set()
-    files = list((ROOT / "blueprints").glob("*.py")) + list((ROOT / "utils").glob("*.py")) + [
-        ROOT / "app.py", ROOT / "extensions.py", ROOT / "database.py", ROOT / "wsgi.py"]
+    # Recursive, and app_setup/ included: code split into packages must stay covered.
+    files = (list((ROOT / "blueprints").rglob("*.py")) + list((ROOT / "utils").rglob("*.py"))
+             + list((ROOT / "app_setup").glob("*.py"))
+             + [ROOT / "app.py", ROOT / "extensions.py", ROOT / "database.py", ROOT / "wsgi.py"])
     for p in files:
         try:
             tree = ast.parse(p.read_text(encoding="utf-8"))

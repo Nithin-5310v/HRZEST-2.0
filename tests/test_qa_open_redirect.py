@@ -17,7 +17,9 @@ import pytest
 from tests.test_admin_views_routes import _admin_session
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SCANNED = sorted([ROOT / "app.py", *(ROOT / "blueprints").glob("*.py")])
+# Recursive: blueprints split into packages (blueprints/<name>/) and app_setup/
+# (moved out of app.py) must stay covered.
+SCANNED = sorted([ROOT / "app.py", *(ROOT / "app_setup").glob("*.py"), *(ROOT / "blueprints").rglob("*.py")])
 
 
 def _rooted_at_request(node):
