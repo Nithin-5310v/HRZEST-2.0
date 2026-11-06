@@ -33,9 +33,9 @@ class TestCreateOrgPage:
         assert rv.status_code in (200, 302, 400)
 
     def test_post_captcha_rejected_when_turnstile_configured(self, client, monkeypatch):
-        import blueprints.org as _org
-        monkeypatch.setattr(_org, "turnstile_enabled", lambda: True)
-        monkeypatch.setattr(_org, "verify_turnstile", lambda token, ip: False)
+        from tests.conftest import patch_package
+        patch_package(monkeypatch, "blueprints.org", "turnstile_enabled", lambda: True)
+        patch_package(monkeypatch, "blueprints.org", "verify_turnstile", lambda token, ip: False)
         rv = client.post("/create_org", data={
             "company_name": "Test Corp", "subdomain": "testcorp-captcha",
             "admin_username": "admin", "admin_password": "Admin@123",

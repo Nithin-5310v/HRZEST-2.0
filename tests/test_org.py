@@ -24,6 +24,7 @@ from tests.signup_flow import (
     MOBILE, application_id_from, capture_codes, company_slug, random_gst, save_company_details, signup_company,
     signup_verified, start_signup, submit_profile, upload_documents, verify_email,
 )
+from tests.conftest import patch_package  # noqa: E402
 
 _random_gst = random_gst   # other test modules import it from here
 
@@ -912,9 +913,9 @@ class TestSignupOtpCleartextLoggingGate:
     in it at all."""
 
     def test_development_with_no_smtp_still_logs_the_code(self, monkeypatch):
-        import blueprints.org as org_module
+        import blueprints.org.applications as org_module   # the OTP email lives here
         monkeypatch.setenv("APP_ENV", "development")
-        monkeypatch.setattr(org_module, "get_email_config", lambda: None)
+        patch_package(monkeypatch, "blueprints.org", "get_email_config", lambda: None)
         mock_log = type("M", (), {"calls": []})()
         monkeypatch.setattr(org_module.app_log, "warning",
                             lambda *a, **k: mock_log.calls.append(("warning", a, k)))
@@ -925,9 +926,9 @@ class TestSignupOtpCleartextLoggingGate:
         assert any(lvl == "warning" and "123456" in args for lvl, args, _ in mock_log.calls)
 
     def test_production_with_no_smtp_does_not_log_the_code(self, monkeypatch):
-        import blueprints.org as org_module
+        import blueprints.org.applications as org_module   # the OTP email lives here
         monkeypatch.setenv("APP_ENV", "production")
-        monkeypatch.setattr(org_module, "get_email_config", lambda: None)
+        patch_package(monkeypatch, "blueprints.org", "get_email_config", lambda: None)
         mock_log = type("M", (), {"calls": []})()
         monkeypatch.setattr(org_module.app_log, "warning",
                             lambda *a, **k: mock_log.calls.append(("warning", a, k)))

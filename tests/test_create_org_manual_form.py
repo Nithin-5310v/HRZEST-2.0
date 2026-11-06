@@ -11,6 +11,7 @@ import html
 import re
 
 import pytest
+from tests.conftest import patch_package  # noqa: E402
 
 # Every request.form key create_org() reads in blueprints/org.py (plus
 # signup_plan, sent only by a platform admin's free registration).
@@ -127,10 +128,9 @@ class TestManualSignupFormIsOffered:
 
 class TestRenderedFormReachesTheBackend:
     def test_submitting_the_fields_the_page_renders_starts_an_application(self, client, db_engine, monkeypatch):
-        import blueprints.org as org_module
         sent = {}
-        monkeypatch.setattr(org_module, "send_org_signup_otp_email",
-                            lambda email, company, otp: sent.setdefault("otp", otp) or True)
+        patch_package(monkeypatch, "blueprints.org", "send_org_signup_otp_email",
+                      lambda email, company, otp: sent.setdefault("otp", otp) or True)
 
         _, page = _page(client)
         _, body = _manual_form(page)
