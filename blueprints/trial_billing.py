@@ -29,7 +29,7 @@ from utils.helpers import coerce_datetime
 # that first-login stamp and check_trial_ending_soon()'s reminder window
 # below, and from user-facing copy in templates/create_org_setup_trial.html
 # and templates/create_org_status.html.
-TRIAL_DURATION_DAYS = 2
+TRIAL_DURATION_DAYS = 30
 
 # How long before trial_end_date the one-time "ending soon" reminder fires.
 TRIAL_REMINDER_WINDOW_HOURS = 24

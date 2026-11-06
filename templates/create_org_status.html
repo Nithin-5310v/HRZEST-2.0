@@ -62,7 +62,7 @@
     {% elif application.status == 'approved_pending_payment' and application.payment_option == 'trial' %}
       <div class="icon pending"><i class="ti ti-gift"></i></div>
       <h1>Approved — Trial Setup Pending</h1>
-      <p>{{ application.company_name }} has been approved. Check your email for a link to authorize a payment method and start your 2-day free trial — you won't be charged until it ends.</p>
+      <p>{{ application.company_name }} has been approved. Check your email for a link to authorize a payment method and start your 1-month free trial — you won't be charged until it ends.</p>
     {% elif application.status == 'approved_pending_payment' %}
       <div class="icon pending"><i class="ti ti-credit-card"></i></div>
       <h1>Approved — Payment Pending</h1>

@@ -69,7 +69,7 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
     default) preserves that original rule for every existing caller
     (billing.py's paid-verified provisioning, Platform Admin's own
     always-free direct-create tool). Pass 'trialing' explicitly to force
-    trial-lifecycle status (the 2-employee cap, the 2-day expiry cron)
+    trial-lifecycle status (the 2-employee cap, the 30-day expiry cron)
     regardless of payment_option -- used by org.py's self-serve
     create_org_verify_otp(), since every self-serve lane now provisions
     before any payment is collected, so "online"/"manual" no longer imply
