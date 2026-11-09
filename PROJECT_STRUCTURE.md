@@ -205,7 +205,7 @@ Plain JavaScript (no framework, no build step).
 
 ## 4. Back end (Flask)
 
-**Language:** Python 3.13 (`.python-version`). **Framework:** Flask 3, served by Gunicorn.
+**Language:** Python 3.14 (`.python-version`). **Framework:** Flask 3, served by Gunicorn.
 
 | Layer | Where | What it does |
 | --- | --- | --- |

@@ -20,7 +20,7 @@ jobs:
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
           cache: pip
 
       - name: Install dependencies (for import checks)
@@ -48,7 +48,7 @@ jobs:
         continue-on-error: true
         run: |
           pip install --no-cache-dir uv
-          uv pip compile requirements.txt --universal --python-version 3.13 --generate-hashes -o requirements.lock
+          uv pip compile requirements.txt --universal --python-version 3.14 --generate-hashes -o requirements.lock
           git diff --exit-code requirements.lock || { echo "::warning title=requirements.lock is stale::run scripts/relock.sh"; exit 1; }
 
       - name: Check Python syntax
@@ -130,7 +130,7 @@ jobs:
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Audit Python dependencies (pip-audit)
         # Scans requirements.txt/-dev.txt against the OSV vulnerability
@@ -176,7 +176,7 @@ jobs:
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Run Bandit SAST
         # -ll: only report medium+ severity. -iii: only high-confidence
@@ -321,7 +321,7 @@ jobs:
 
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
           cache: pip
 
       - name: Install dependencies
