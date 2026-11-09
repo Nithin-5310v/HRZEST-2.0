@@ -1,4 +1,4 @@
-  <script>
+
   /* ── Page-level tab switcher ── */
   function switchPageTab(tab) {
     var isSchedule = tab === 'schedule';
@@ -66,4 +66,4 @@
     var el = document.getElementById(id);
     if(el) el.addEventListener('click', function(e){ if(e.target===this) closeModal(id); });
   });
-  </script>
+  

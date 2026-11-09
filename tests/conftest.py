@@ -181,6 +181,21 @@ set_synchronous_mode(True)
 _TEST_RUN_LOCK_KEY = 0x48525A54   # "HRZT": advisory-lock id held for a whole test run
 
 
+def with_local_scripts(html):
+    """A rendered page plus the source of every local /static/*.js it loads, so
+    source-text guards keep covering JavaScript a page moved out of inline
+    <script> blocks into static files."""
+    import pathlib
+    import re as _re
+    static = pathlib.Path(__file__).resolve().parents[1] / "static"
+    parts = [html]
+    for src in _re.findall(r'<script\b[^>]*\bsrc="/static/([^"?]+\.js)(?:\?[^"]*)?"', html):
+        f = static / src
+        if f.is_file():
+            parts.append(f.read_text(encoding="utf-8"))
+    return "\n".join(parts)
+
+
 def _package_modules(package):
     import importlib
     import pkgutil

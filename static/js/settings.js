@@ -1,4 +1,4 @@
-  <script>
+
     /* ── handlers bound through data-on-* (static/hz-actions.js) ── */
     function useCurrentOfficeLocation() {
       if (!navigator.geolocation) return;
@@ -682,4 +682,4 @@
       v = Math.min(100, Math.max(0, v + delta));
       inp.value = v;
     }
-  </script>
+  
