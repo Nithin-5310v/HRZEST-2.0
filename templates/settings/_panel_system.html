@@ -1,0 +1,220 @@
+    {# SYSTEM PANEL #}
+    <div class="s3-panel" id="s3panel-sys">
+    <div class="subnav-bar">
+      <div class="subnav-dd-wrap">
+        <button class="subnav-dd-btn" data-on-click="toggleDd('dd-sys')">
+          <div class="lines"><span></span><span></span><span></span></div>
+          Sections
+        </button>
+        <div class="subnav-dd-menu" id="dd-sys">
+          <button class="subnav-dd-item active" id="ddi-email"      data-on-click="switchSub('sys','email')">      <i class="ti ti-mail"></i>       Email</button>
+        </div>
+      </div>
+    </div>
+
+          {# EMAIL #}
+          <div class="s3-section active" id="ss-email">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-f0f9ff"><i class="ti ti-mail u-c-0284c7 u-fs-20"></i></div>
+              <div><div class="sec-title">Email</div><div class="sec-sub">SMTP configuration and notification preferences</div></div>
+            </div>
+            <div class="two-col">
+              <div class="section">
+                <div class="section-title"><i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> SMTP Configuration</div>
+
+                {# Locked state: no SMTP data has been fetched yet -- nothing
+                     sensitive is in the page until this gate is passed. #}
+                <div id="email-2fa-gate">
+                  <div class="u-d-flex u-ai-center u-gap-8 u-mb-10">
+                    <i class="ti ti-shield-lock u-c-dc2626 u-fs-20"></i>
+                    <div class="u-fs-14 u-fw-700 u-c-1e293b">Identity Verification Required</div>
+                  </div>
+                  <div class="u-fs-12 u-c-64748b u-mb-14">
+                    SMTP settings include a stored password. Confirm it's you before this loads.
+                  </div>
+
+                  {# First-time enrollment sub-view (hidden unless no TOTP is set up yet) #}
+                  <div id="email-2fa-enroll" class="u-d-none">
+                    <div class="u-fs-12 u-c-64748b u-mb-10">Scan with Google Authenticator (or any TOTP app), then enter the 6-digit code it shows to confirm setup.</div>
+                    <img id="email-2fa-qr" class="u-mb-10 u-br-8 u-bd-1d5-solid-e2e8f0" width="160" height="160" alt="Scan with your authenticator app" />
+                    <div class="u-fs-11 u-c-94a3b8 u-mb-10">Can't scan? Enter this key manually: <span class="u-ff-monospace u-fw-700" id="email-2fa-secret"></span></div>
+                    <div class="u-d-flex u-gap-8">
+                      <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="email-2fa-enroll-code" placeholder="6-digit code" maxlength="6" />
+                      <button type="button" class="btn-submit" data-on-click="confirmEmail2faEnroll()">Confirm &amp; Enable</button>
+                    </div>
+                    <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-enroll-err"></div>
+                  </div>
+
+                  {# Normal unlock sub-view (shown once TOTP is already enrolled) #}
+                  <div id="email-2fa-verify" class="u-d-none">
+                    <div class="u-fs-13 u-c-64748b u-mb-12">Enter the 6-digit code from your authenticator app.</div>
+                    <div class="u-d-flex u-gap-8">
+                      <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="email-2fa-code" placeholder="6-digit code" maxlength="6" />
+                      <button type="button" class="btn-submit" data-on-click="verifyEmail2fa()">Verify &amp; Unlock</button>
+                    </div>
+                    <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-err"></div>
+                    <div class="u-ta-center u-mt-10">
+                      <a href="#" class="u-fs-11 u-c-94a3b8" data-on-click="showEmail2faLost(event, this)">Lost access to your authenticator?</a>
+                    </div>
+                    <div id="email-2fa-lost" class="u-d-none u-mt-10 u-pt-10 u-bdt-1-solid-e2e8f0">
+                      <div class="u-fs-11 u-c-64748b u-mb-8">Confirm your password to reset MFA and get a fresh QR code.</div>
+                      <div class="field"><label>Password</label><input type="password" id="email-2fa-reset-password" autocomplete="current-password" /></div>
+                      <button type="button" class="btn-submit" data-on-click="resetEmail2fa()">Reset &amp; Get New QR Code</button>
+                      <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="email-2fa-reset-err"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {# Unlocked state: populated from /api/settings/email only
+                     after verifyEmail2fa()/confirmEmail2faEnroll() succeeds. #}
+                <div id="email-settings-panel" class="u-d-none">
+                  <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
+                    <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
+                    <button type="button" class="btn-test" data-on-click="lockEmailSettings()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
+                  </div>
+                  <div class="field"><label>SMTP Host</label><input type="text" id="es-host" placeholder="smtp.gmail.com" /></div>
+                  <div class="field"><label>Port</label><input type="number" id="es-port" placeholder="587" /></div>
+                  <div class="field"><label>Username</label><input type="email" id="es-user" placeholder="you@gmail.com" /></div>
+                  <div class="field">
+                    <label>Password / App Password</label>
+                    <div class="u-d-flex u-gap-8">
+                      <input type="password" id="es-pass" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" style="flex:1;" />
+                      <button type="button" class="btn-test" data-on-click="revealEmailPassword()"><i class="ti ti-eye hz-ico" aria-hidden="true"></i> Reveal</button>
+                    </div>
+                  </div>
+                  <div class="field"><label>From Name</label><input type="text" id="es-from-name" placeholder="HR Team" /></div>
+                  <div class="field"><label>From Email</label><input type="email" id="es-from-email" placeholder="hr@company.com" /></div>
+                  <button type="button" class="btn-submit" data-on-click="saveEmailSettings()">Save SMTP Settings</button>
+                  <div id="email-settings-err" class="err" style="display:none;"></div>
+                </div>
+
+                <div class="test-card u-mt-14">
+                  <div class="u-fs-13 u-fw-700 u-c-1e293b">Test Connection</div>
+                  <div class="test-row"><input type="email" id="testEmail" placeholder="Send test to..." /><button class="btn-test" data-on-click="sendTestEmail()">Send Test</button></div>
+                  <div id="testResult"></div>
+                </div>
+              </div>
+
+              {# SECOND COLUMN: TEMPLATES & NOTIFICATION TRIGGERS #}
+              <div class="section">
+                <div class="section-title"><i class="ti ti-mail hz-ico" aria-hidden="true"></i> HR Email Templates & Preview</div>
+                <div class="u-fs-12 u-c-64748b u-mb-14">Customize automated HR email template subjects and layouts.</div>
+                
+                <div class="field">
+                  <label>Select Template</label>
+                  <select id="email-tmpl-select" data-on-change="loadEmailTemplatePreview()" style="width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; font-size:15px; font-weight:600;">
+                    <option value="welcome">Welcome &amp; Employee Onboarding</option>
+                    <option value="payslip">Monthly Payslip Delivery</option>
+                    <option value="leave_approved">Leave Request Approved</option>
+                    <option value="attendance_alert">Attendance &amp; Lateness Alert</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label>Subject Line</label>
+                  <input type="text" id="email-tmpl-subject" value="Welcome to {company_name}! Get started with your portal" style="width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:10px; font-size:15px;" />
+                </div>
+
+                <div class="field">
+                  <label>Live HTML Preview</label>
+                  <div id="email-tmpl-preview" style="padding:14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; font-size:14px; color:#334155; line-height:1.6; max-height:160px; overflow-y:auto;">
+                    <strong style="color:#1e293b;">Hello {employee_name},</strong><br>
+                    Welcome aboard! Your employee profile has been created at <strong>{company_name}</strong>.<br>
+                    Log in to your portal using your ID: <code>{employee_id}</code>.
+                  </div>
+                </div>
+                <button type="button" class="btn-submit" disabled title="Template customization is preview-only for now — emails are sent using the built-in layout." style="margin-bottom:20px; opacity:0.5; cursor:not-allowed;">Save Template (Preview Only)</button>
+
+                <div class="section-title"><i class="ti ti-bell hz-ico" aria-hidden="true"></i> Notification Triggers</div>
+                <div class="u-fs-12 u-c-64748b u-mb-14">Choose which events send an email to admins.</div>
+                <div class="u-d-flex u-fxd-column u-gap-10">
+                  {% for key,label,desc in [('notify_leave','New Leave Request','When an employee submits a leave'),('notify_payslip','Payslip Sent','Confirmation when payslip is emailed'),('notify_resignation','Resignation Submitted','New resignation request received'),('notify_doc_expiry','Document Expiry Alert','Before employee documents expire')] %}
+                  <div class="feat-card"><div class="feat-body"><div class="feat-name">{{ label }}</div><div class="feat-desc">{{ desc }}</div></div><label class="toggle"><input type="checkbox" {% if features[key] %}checked{% endif %} data-on-change="saveToggle('{{ key }}',this.checked)" /><span class="toggle-slider"></span></label></div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <div class="section" id="password-management">
+              <div class="section-title"><i class="ti ti-shield-lock hz-ico" aria-hidden="true"></i> Password Management</div>
+
+              {% if request.args.get('pwd_ok') %}
+                <div class="u-mb-14 u-c-15803d u-fs-13"><i class="ti ti-circle-check"></i> Password updated successfully.</div>
+              {% elif request.args.get('pwd_error') == 'wrong' %}
+                <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> Current password is incorrect.</div>
+              {% elif request.args.get('pwd_error') == 'mismatch' %}
+                <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> New passwords do not match.</div>
+              {% elif request.args.get('pwd_error') == 'weak' %}
+                <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> Password must be at least 8 characters.</div>
+              {% endif %}
+
+              <div class="u-d-grid u-gtc-1fr-1fr u-gap-24 u-ai-start">
+
+                {# Change Admin Password #}
+                <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
+                  <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-16"><i class="ti ti-lock"></i> Change Admin Password</div>
+                  <form action="{{ tpath('/change_admin_password') }}" method="POST">
+                    <input type="hidden" autocomplete="username" value="admin" />
+                    <div class="field">
+                      <label>Current Password</label>
+                      <input type="password" name="current_password" placeholder="Enter current password" autocomplete="current-password" required />
+                    </div>
+                    <div class="field">
+                      <label>New Password</label>
+                      <input type="password" name="new_password" placeholder="Enter new password" autocomplete="new-password" required />
+                    </div>
+                    <div class="field">
+                      <label>Confirm New Password</label>
+                      <input type="password" name="confirm_password" placeholder="Re-enter new password" autocomplete="new-password" required />
+                    </div>
+                    <button type="submit" class="btn-submit"><i class="ti ti-lock"></i> Update Password</button>
+                  </form>
+                </div>
+
+                {# Reset Employee Password #}
+                <div class="u-bg-f8fafc u-bd-1-solid-e2e8f0 u-br-14 u-p-22">
+                  <div class="u-fs-13 u-fw-700 u-c-0f172a u-mb-4"><i class="ti ti-key"></i> Reset Employee Password</div>
+                  <div class="u-fs-12 u-c-94a3b8 u-mb-18">Sets a random temporary password, shown to you once. The employee must change it at their next sign-in.</div>
+                  <form action="{{ tpath('/admin_action') }}" method="POST">
+                    <input type="hidden" name="action" value="reset_password" />
+                    <input type="hidden" name="next" value="settings" />
+                    <div class="field">
+                      <label>Employee ID</label>
+                      <input type="text" name="emp_id" placeholder="e.g. EMP001" required />
+                    </div>
+                    <button type="submit" class="btn-submit"
+                      data-on-click="return hzConfirmSubmit(event, 'Reset this employee\'s password? Their current sessions will be signed out.')">
+                      <i class="ti ti-key"></i> Reset Password
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+
+              {# Set Admin Recovery Email #}
+              <div class="u-mt-20 u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-14 u-p-22">
+                <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-4"><i class="ti ti-mail"></i> Admin Recovery Email</div>
+                <div class="u-fs-12 u-c-64748b u-mb-16">Set the email address used to receive password reset links when you forget your admin password.</div>
+
+                <div id="recoveryEmailView" class="u-d-flex u-ai-center u-gap-12 u-fxw-wrap{% if not admin_recovery_email %} u-d-none{% endif %}">
+                  <div class="u-fx-1 u-minw-200 u-fs-14 u-fw-600 u-c-1e293b">{{ admin_recovery_email }}</div>
+                  <button type="button" class="btn-test" data-on-click="editRecoveryEmail()"><i class="ti ti-edit"></i> Edit</button>
+                </div>
+
+                <form id="recoveryEmailForm" class="u-d-flex u-ai-flex-end u-gap-12 u-fxw-wrap{% if admin_recovery_email %} u-d-none{% endif %}" action="{{ tpath('/admin_set_recovery_email') }}" method="POST">
+                  <div class="field u-fx-1 u-minw-200 u-mb-0">
+                    <label>Recovery Email</label>
+                    <input type="email" id="recoveryEmailInput" name="recovery_email" placeholder="admin@example.com" value="{{ admin_recovery_email or '' }}" required />
+                  </div>
+                  <button type="submit" class="btn-submit u-mb-0"><i class="ti ti-device-floppy"></i> Save Email</button>
+                </form>
+                {% if request.args.get('email_ok') %}
+                  <div class="u-mt-12 u-c-15803d u-fs-13"><i class="ti ti-circle-check"></i> Recovery email saved successfully.</div>
+                {% endif %}
+              </div>
+
+            </div>
+          </div>
+
+
+    </div>

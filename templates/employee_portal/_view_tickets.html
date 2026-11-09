@@ -1,0 +1,81 @@
+      <div id="view-tickets" class="view">
+      <div class="mod-title"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Support Tickets <span>Raise a complaint or request admin support</span></div>
+      <div class="section" id="tickets">
+        <h3><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Support Tickets &amp; Complaints</h3>
+
+        {# Raise Ticket Form #}
+        <form method="POST" action="{{ tpath('/raise_ticket') }}" class="ticket-raise-form">
+          <div class="ticket-form-grid">
+            <div class="form-group ticket-field">
+              <label for="ticket-category">Category</label>
+              <select id="ticket-category" name="category" class="ticket-select" title="Ticket category" required>
+                <option value="" disabled selected>Select category…</option>
+                <option value="Work Issue">Work Issue</option>
+                <option value="HR Query">HR Query</option>
+                <option value="Salary Query">Salary Query</option>
+                <option value="Leave Query">Leave Query</option>
+                <option value="Technical Problem">Technical Problem</option>
+                <option value="Harassment / Misconduct">Harassment / Misconduct</option>
+                <option value="Facility Issue">Facility Issue</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group ticket-field">
+              <label for="ticket-priority">Priority</label>
+              <select id="ticket-priority" name="priority" class="ticket-select" title="Ticket priority">
+                <option value="Low">Low</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High (Auto)</option>
+              </select>
+            </div>
+            <div class="form-group ticket-full ticket-field">
+              <label for="ticket-subject">Subject</label>
+              <input id="ticket-subject" type="text" name="subject" class="ticket-input" placeholder="Brief summary of the issue…" required maxlength="255">
+            </div>
+            <div class="form-group ticket-full ticket-field">
+              <label for="ticket-desc">Description</label>
+              <textarea id="ticket-desc" name="description" class="ticket-textarea" placeholder="Describe the issue in detail…" required></textarea>
+            </div>
+          </div>
+          <button type="submit" class="btn-ticket"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Raise Ticket</button>
+        </form>
+
+        {# Ticket History #}
+        <h3 class="ticket-history-label">My Tickets</h3>
+        {% if my_tickets %}
+          {% for t in my_tickets %}
+            {% set tid, tcat, tsubj, tpri, tstat, tresp, tdate = t %}
+            <div class="ticket-row" style="border-left:4px solid {% if tpri=='High' %}#ef4444{% elif tpri=='Low' %}#94a3b8{% else %}#f59e0b{% endif %}">
+              <div class="ticket-row-header">
+                <span class="ticket-subject">{{ tsubj }}</span>
+                {% if tpri == 'High' %}
+                  <span class="badge b-red"><i class="ti ti-circle-filled hz-ico hz-bad" aria-hidden="true"></i> High</span>
+                {% elif tpri == 'Low' %}
+                  <span class="badge b-gray">Low</span>
+                {% else %}
+                  <span class="badge b-yellow">Medium</span>
+                {% endif %}
+                {% if tstat == 'Open' %}
+                  <span class="badge b-blue">Open</span>
+                {% elif tstat == 'In Progress' %}
+                  <span class="badge b-orange">In Progress</span>
+                {% elif tstat == 'Resolved' %}
+                  <span class="badge b-green">Resolved</span>
+                {% else %}
+                  <span class="badge b-gray">Closed</span>
+                {% endif %}
+              </div>
+              <div class="ticket-meta">{{ tcat }} &nbsp;·&nbsp; {{ tdate.strftime('%d %b %Y') if tdate else '—' }}</div>
+              {% if tresp %}
+                <div class="ticket-response">
+                  <strong>Admin Response</strong>
+                  {{ tresp }}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="ticket-empty">No tickets raised yet.</div>
+        {% endif %}
+      </div>
+      </div>{# /view-tickets #}

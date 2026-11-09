@@ -1,0 +1,134 @@
+  {# ═══ ADD SHIFT MODAL ═══ #}
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="addShiftModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-420 u-shad-0-20-60-rgba30b88226 u-pos-relative">
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('addShiftModal')">&#x2715;</button>
+      <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-clock u-c-6366f1"></i> Add Shift</h3>
+      <form method="POST" action="{{ tpath('/add_shift') }}">
+        <input type="hidden" name="redirect" value="/employees?tab=schedule" />
+        <div class="u-d-grid u-gap-12">
+          <div>
+            <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Shift Name</label>
+            <input class="u-w-100pct u-p-9-11 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="text" name="shift_name" required placeholder="e.g. Morning Shift" />
+          </div>
+          <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-10">
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Start</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="start_time" required />
+            </div>
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Half Day</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="half_time" required />
+            </div>
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">End</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="end_time" required />
+            </div>
+          </div>
+        </div>
+        <div class="u-d-flex u-gap-10 u-mt-20">
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeModal('addShiftModal')">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save Shift</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ═══ EDIT SHIFT MODAL ═══ #}
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="editShiftModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-420 u-shad-0-20-60-rgba30b88226 u-pos-relative">
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('editShiftModal')">&#x2715;</button>
+      <form method="POST" id="editShiftForm" action="{{ tpath('/edit_shift/0') }}">
+        <input type="hidden" name="redirect" value="/employees?tab=schedule" />
+        <div class="u-d-grid u-gap-12">
+          <div>
+            <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Shift Name</label>
+            <input class="u-w-100pct u-p-9-11 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="text" name="shift_name" id="editShiftName" required />
+          </div>
+          <div class="u-d-grid u-gtc-1fr-1fr-1fr u-gap-10">
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Start</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="start_time" id="editShiftStart" required />
+            </div>
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Half Day</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="half_time" id="editShiftHalf" required />
+            </div>
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">End</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="end_time" id="editShiftEnd" required />
+            </div>
+          </div>
+        </div>
+        <div class="u-d-flex u-gap-10 u-mt-20">
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeModal('editShiftModal')">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Update Shift</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ═══ ADD BREAK MODAL ═══ #}
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="addBreakModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-400 u-shad-0-20-60-rgba30b88226 u-pos-relative">
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('addBreakModal')">&#x2715;</button>
+      <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-coffee u-c-f59e0b"></i> Add Break</h3>
+      <form method="POST" action="{{ tpath('/add_break') }}">
+        <input type="hidden" name="redirect" value="/employees?tab=schedule" />
+        <div class="u-d-grid u-gap-12">
+          <div>
+            <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Break Name</label>
+            <input class="u-w-100pct u-p-9-11 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="text" name="break_name" required placeholder="e.g. Lunch Break" />
+          </div>
+          <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Break Time</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="break_time" required />
+            </div>
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Duration (min)</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="number" name="duration_minutes" required min="1" max="240" value="30" />
+            </div>
+          </div>
+        </div>
+        <div class="u-d-flex u-gap-10 u-mt-20">
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeModal('addBreakModal')">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-f59e0b u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save Break</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ═══ EDIT BREAK MODAL ═══ #}
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d5 u-zi-1200 u-ai-center u-jc-center" id="editBreakModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-100pct u-maxw-400 u-shad-0-20-60-rgba30b88226 u-pos-relative">
+      <button class="u-pos-absolute u-top-14 u-rgt-16 u-bg-none u-bd-none u-fs-22 u-c-94a3b8 u-cur-pointer" data-on-click="closeModal('editBreakModal')">&#x2715;</button>
+      <h3 class="u-fs-17 u-fw-800 u-c-0f172a u-mb-20 u-d-flex u-ai-center u-gap-8"><i class="ti ti-pencil u-c-f59e0b"></i> Edit Break</h3>
+      <form method="POST" id="editBreakForm" action="{{ tpath('/update_break/0') }}">
+        <input type="hidden" name="redirect" value="/employees?tab=schedule" />
+        <div class="u-d-grid u-gap-12">
+          <div>
+            <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Break Name</label>
+            <input class="u-w-100pct u-p-9-11 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="text" name="break_name" id="editBreakName" required />
+          </div>
+          <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Break Time</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="time" name="break_time" id="editBreakTime" required />
+            </div>
+            <div>
+              <label class="u-fs-10 u-fw-700 u-ttr-uppercase u-ls-d5 u-c-64748b u-d-block u-mb-4">Duration (min)</label>
+              <input class="u-w-100pct u-p-9-8 u-bd-1-solid-dbeafe u-br-9 u-fs-13 u-out-none u-ff-inherit" type="number" name="duration_minutes" id="editBreakDur" required min="1" max="240" />
+            </div>
+          </div>
+          <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-fs-13 u-fw-600 u-c-334155">
+            <input class="u-w-16 u-h-16" type="checkbox" name="is_active" id="editBreakActive" value="1" />
+            Active
+          </label>
+        </div>
+        <div class="u-d-flex u-gap-10 u-mt-20">
+          <button class="u-fx-1 u-p-11 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeModal('editBreakModal')">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-f59e0b u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Update Break</button>
+        </div>
+      </form>
+    </div>
+  </div>

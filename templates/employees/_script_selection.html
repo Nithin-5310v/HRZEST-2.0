@@ -1,0 +1,38 @@
+  <script>
+  function syncManagerName(sel, mode) {
+    const text = sel.options[sel.selectedIndex]?.text?.split(' (')[0] || '';
+    if (mode === 'add') document.getElementById('add_manager_name').value = text;
+    else document.getElementById('edit_manager_name').value = text;
+  }
+  function updateBulkToolbar(){
+    const checked = document.querySelectorAll('.emp-check:checked');
+    const bar = document.getElementById('bulkToolbar');
+    if(checked.length > 0){
+      bar.style.display='flex';
+      document.getElementById('bulkCount').textContent = checked.length + ' selected';
+    } else {
+      bar.style.display='none';
+    }
+  }
+  function toggleSelectAll(cb){
+    document.querySelectorAll('.emp-check').forEach(c=>{ c.checked=cb.checked; });
+    updateBulkToolbar();
+  }
+  function clearSelection(){
+    document.querySelectorAll('.emp-check').forEach(c=>{ c.checked=false; });
+    document.getElementById('selectAll').checked=false;
+    document.getElementById('bulkToolbar').style.display='none';
+  }
+  async function bulkAssignOnboarding(){
+    const tplId = document.getElementById('bulkTemplateSelect').value;
+    if(!tplId){ alert('Please select an onboarding template.'); return; }
+    const ids = Array.from(document.querySelectorAll('.emp-check:checked')).map(c=>c.value);
+    if(!ids.length){ alert('Please select at least one employee.'); return; }
+    if(!(await hzConfirm(`Assign this onboarding template to ${ids.length} employee(s)?`))) return;
+    const form = document.createElement('form');
+    form.method='POST'; form.action='/bulk_assign_onboarding';
+    const t=document.createElement('input'); t.type='hidden'; t.name='template_id'; t.value=tplId; form.appendChild(t);
+    ids.forEach(id=>{ const i=document.createElement('input'); i.type='hidden'; i.name='employee_ids'; i.value=id; form.appendChild(i); });
+    document.body.appendChild(form); form.submit();
+  }
+  </script>
