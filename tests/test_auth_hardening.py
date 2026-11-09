@@ -818,11 +818,16 @@ class TestDependencyCompat:
             "print('CLAMD', hasattr(clamd, 'ClamdNetworkSocket'))\n"
         )
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        out = subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True, timeout=180)
+        # UTF-8 output: face_utils' "unavailable" warning would not encode in a
+        # Windows pipe's default code page.
+        out = subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True, timeout=180,
+                             env={**os.environ, "PYTHONIOENCODING": "utf-8"})
         assert out.returncode == 0, out.stderr[-2000:]
         assert "CLAMD True" in out.stdout
         import importlib.util
-        if importlib.util.find_spec("face_recognition") is not None:
+        from utils import face_utils
+        loads_here = not getattr(face_utils.face_recognition, "PLACEHOLDER", False)  # tests/conftest.py
+        if importlib.util.find_spec("face_recognition") is not None and loads_here:
             assert "FACE True" in out.stdout, out.stdout + out.stderr[-2000:]
 
 
