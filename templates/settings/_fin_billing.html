@@ -116,7 +116,7 @@
                   <div class="lbl">Estimated next charge: {{ monthly_bill_display }} for {{ employee_count }} employee{{ 's' if employee_count != 1 }}</div>
                   {% if auto_debit_status and auto_debit_status.status == 'active' and auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
                   {% if auto_debit_status.fixed_amount %}
-                  <div class="lbl" style="color:#b45309;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. It was set up with UPI or net banking, which can't change the amount — set it up again below. Your current Auto-Debit keeps working until then, and nothing is charged twice.</div>
+                  <div class="lbl" style="color:#b45309;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. Razorpay can't change the amount of an Auto-Debit set up with UPI, an Indian card or net banking — set it up again below. Your current Auto-Debit keeps working until then, and nothing is charged twice.</div>
                   {% else %}
                   <div class="lbl" style="color:#1d4ed8;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. Update it now, or it updates itself before the next charge.</div>
                   {% endif %}
@@ -133,7 +133,7 @@
                     {% if auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
                     <button type="button" class="qty-btn" id="updateAutoDebitBtn" {% if auto_debit_status.fixed_amount %}hidden{% endif %} style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Update to {{ _ad_label }}</button>
                     {% endif %}
-                    {# UPI / e-mandate Auto-Debit can't change its amount: a new authorization replaces it. #}
+                    {# UPI / Indian card / e-mandate Auto-Debit can't change its amount: a new authorization replaces it. #}
                     <button type="button" class="qty-btn" id="reauthAutoDebitBtn" data-label="Set up for {{ _ad_label }}" {% if not (auto_debit_status.fixed_amount and auto_debit_status.quantity_synced != employee_count) %}hidden{% endif %} style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Set up for {{ _ad_label }}</button>
                     <button type="button" class="qty-btn" id="cancelAtPeriodEndBtn" style="width:auto; padding:0 16px; background:#fff7ed; border-color:#fdba74; color:#c2410c;">Cancel at Period End</button>
                     <button type="button" class="qty-btn" id="disableAutoDebitBtn" style="width:auto; padding:0 16px; background:#fee2e2; border-color:#fca5a5; color:#dc2626;">Disable Now</button>
@@ -366,7 +366,7 @@
               }
 
               // The button that started the current authorization: "Enable
-              // Auto-Debit", or "Set up for N employees" (replace: a UPI /
+              // Auto-Debit", or "Set up for N employees" (replace: a UPI / card /
               // e-mandate Auto-Debit can't change its amount, so a new one
               // takes over from it).
               let enrollBtn = null;
@@ -512,7 +512,7 @@
                     if (json.ok) {
                       window.location.reload();
                     } else if (json.needs_reauth && reauthAutoDebitBtn) {
-                      // UPI / e-mandate: swap "Update" for "Set up for N employees".
+                      // UPI / Indian card / e-mandate: swap "Update" for "Set up for N employees".
                       adShowError(json.msg);
                       updateAutoDebitBtn.hidden = true;
                       reauthAutoDebitBtn.hidden = false;

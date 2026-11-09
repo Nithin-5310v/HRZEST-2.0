@@ -26,6 +26,8 @@ pytestmark = pytest.mark.usefixtures("razorpay_demo_mode")
 
 TENANT_SCHEMA = os.environ["DB_NAME"]
 UPI_ERROR = "Razorpay request failed: subscriptions cannot be updated when payment mode is UPI"
+DOMESTIC_CARD_ERROR = ("Razorpay request failed: Only offers can be updated for subscriptions "
+                       "when payment mode is domestic card.")
 
 
 @pytest.fixture
@@ -73,6 +75,8 @@ def _admin(client, seed_admin):
 def test_recognises_razorpays_fixed_amount_errors():
     assert auto_debit._is_fixed_amount_error(UPI_ERROR)
     assert auto_debit._is_fixed_amount_error("subscriptions cannot be updated when payment mode is emandate.")
+    assert auto_debit._is_fixed_amount_error(
+        "Razorpay request failed: Only offers can be updated for subscriptions when payment mode is domestic card.")
     assert not auto_debit._is_fixed_amount_error("Request failed because another subscription operation is in progress")
     assert not auto_debit._is_fixed_amount_error(None)
 
@@ -85,9 +89,17 @@ class TestUpdateQuantity:
         resp = client.post("/api/auto_debit/update_quantity", json={})
         body = resp.get_json()
         assert resp.status_code == 409 and body["needs_reauth"] is True
-        assert "UPI or net banking" in body["msg"] and "nothing is charged twice" in body["msg"]
+        assert "UPI, an Indian card or net banking" in body["msg"] and "nothing is charged twice" in body["msg"]
         status, _, quantity, fixed, *_ = _row(db_engine)
         assert fixed is True and quantity == get_tenant_employee_count(TENANT_SCHEMA) + 5
+
+    def test_indian_card_asks_to_set_up_again(self, client, db_engine, seed_admin, mandate, monkeypatch):
+        mandate()
+        monkeypatch.setattr(auto_debit, "update_subscription_quantity", lambda *a: (False, DOMESTIC_CARD_ERROR))
+        _admin(client, seed_admin)
+        resp = client.post("/api/auto_debit/update_quantity", json={})
+        assert resp.status_code == 409 and resp.get_json()["needs_reauth"] is True
+        assert _row(db_engine)[3] is True
 
     def test_upi_mandate_recognised_whatever_razorpay_says(self, client, db_engine, seed_admin, mandate, monkeypatch):
         """An authorized subscription that hasn't charged yet is refused
