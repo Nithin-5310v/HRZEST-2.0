@@ -9,6 +9,14 @@ import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+_INCLUDE = re.compile(r'\{%-?\s*include\s+"([^"]+)"\s*-?%\}')
+
+
+def _template_source(name):
+    """A template's source with {% include "..." %} partials expanded in place,
+    so checks keep covering code a page has moved into partials."""
+    src = (ROOT / "templates" / name).read_text(encoding="utf-8")
+    return _INCLUDE.sub(lambda m: _template_source(m.group(1)), src)
 
 
 def _object_keys(source, name):
@@ -17,7 +25,7 @@ def _object_keys(source, name):
 
 
 def test_settings_tab_metadata_keys_are_unique():
-    html = (ROOT / "templates" / "settings.html").read_text(encoding="utf-8")
+    html = _template_source("settings.html")
     keys = _object_keys(html, "crumbData")
     assert len(keys) == len(set(keys)), sorted(k for k in keys if keys.count(k) > 1)
     assert "company" in keys

@@ -1,0 +1,23 @@
+    {# ================================================================
+         PHOTO LIGHTBOX
+    ================================================================ #}
+    <div class="lb-backdrop" id="lbModal">
+      <div class="lb-box">
+        <button class="lb-close" data-on-click="closeLightbox()">&times;</button>
+        <div class="lb-img-wrap" id="lbImgWrap">
+          <img id="lbImg" src="" alt="" />
+        </div>
+        <div class="lb-info">
+          <div class="lb-name" id="lbName"></div>
+          <div class="lb-id"   id="lbId"></div>
+          <div class="lb-actions">
+            <a id="lbDlBtn" class="lb-btn lb-btn-dl" href="#" download="">
+              <i class="ti ti-download"></i> Download Photo
+            </a>
+            <button id="lbEditBtn" class="lb-btn lb-btn-edit" data-on-click="lbSwitchToEdit()">
+              <i class="ti ti-camera"></i> Change
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>

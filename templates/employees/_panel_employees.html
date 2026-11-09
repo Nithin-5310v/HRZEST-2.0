@@ -1,0 +1,277 @@
+      {# ═══ EMPLOYEES PANEL ═══ #}
+      <div id="panelEmployees">
+
+      {# STAT CARDS #}
+      <div class="stat-row">
+        <div class="stat-card" data-on-click="filterByStatus('')" id="card-all">
+          <div class="stat-icon total"><i class="ti ti-users"></i></div>
+          <div><div class="stat-val">{{ total }}</div><div class="stat-lbl">Total Employees</div></div>
+        </div>
+        <div class="stat-card" data-on-click="filterByStatus('Active')" id="card-active">
+          <div class="stat-icon active"><i class="ti ti-user-check"></i></div>
+          <div><div class="stat-val">{{ active_count }}</div><div class="stat-lbl">Active</div></div>
+        </div>
+        <div class="stat-card" data-on-click="filterByStatus('On Leave')" id="card-onleave">
+          <div class="stat-icon onleave"><i class="ti ti-beach"></i></div>
+          <div><div class="stat-val">{{ on_leave_count }}</div><div class="stat-lbl">On Leave Today</div></div>
+        </div>
+        <div class="stat-card" data-on-click="filterByStatus('Resigned')" id="card-resigned">
+          <div class="stat-icon resigned"><i class="ti ti-user-off"></i></div>
+          <div><div class="stat-val">{{ resigned_count }}</div><div class="stat-lbl">Resigned</div></div>
+        </div>
+      </div>
+
+      {# HR PENDING-ACTION CARDS -- this page is where HR-role sessions
+           land after login (blueprints/auth.py's _finish_employee_login;
+           app.py's _is_hr makes the sidebar's own "Dashboard" link point
+           here too), so it doubles as their dashboard, not just an
+           employee list. #}
+      <div class="stat-row">
+        <a class="stat-card" href="{{ tpath('/leave_holidays?tab=leaves') }}" style="text-decoration:none;">
+          <div class="stat-icon onleave"><i class="ti ti-calendar-due"></i></div>
+          <div><div class="stat-val">{{ pending_leaves }}</div><div class="stat-lbl">Pending Leaves</div></div>
+        </a>
+        <a class="stat-card" href="{{ tpath('/resignations') }}" style="text-decoration:none;">
+          <div class="stat-icon resigned"><i class="ti ti-door-exit"></i></div>
+          <div><div class="stat-val">{{ pending_resignations }}</div><div class="stat-lbl">Pending Resignations</div></div>
+        </a>
+        <a class="stat-card" href="{{ tpath('/tickets') }}" style="text-decoration:none;">
+          <div class="stat-icon active"><i class="ti ti-ticket"></i></div>
+          <div><div class="stat-val">{{ pending_tickets }}</div><div class="stat-lbl">Open Tickets</div></div>
+        </a>
+        <a class="stat-card" href="{{ tpath('/onboarding') }}" style="text-decoration:none;">
+          <div class="stat-icon total"><i class="ti ti-checklist"></i></div>
+          <div><div class="stat-val">{{ ob_active }}</div><div class="stat-lbl">Onboarding In Progress{% if ob_overdue %} &middot; {{ ob_overdue }} overdue{% endif %}</div></div>
+        </a>
+      </div>
+
+      {# HR QUICK LINKS #}
+      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+        <a href="{{ tpath('/monthly_report') }}" style="display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; background:#fff; border:1px solid #dbeafe; color:#1e3a8a; font-size:15px; font-weight:700; text-decoration:none;">
+          <i class="ti ti-calendar-check"></i> Attendance
+        </a>
+        <a href="{{ tpath('/leave_holidays') }}" style="display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; background:#fff; border:1px solid #dbeafe; color:#1e3a8a; font-size:15px; font-weight:700; text-decoration:none;">
+          <i class="ti ti-beach"></i> Leave &amp; Holidays
+        </a>
+        <a href="{{ tpath('/onboarding') }}" style="display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; background:#fff; border:1px solid #dbeafe; color:#1e3a8a; font-size:15px; font-weight:700; text-decoration:none;">
+          <i class="ti ti-checklist"></i> Onboarding
+        </a>
+        <a href="{{ tpath('/tickets') }}" style="display:flex; align-items:center; gap:7px; padding:9px 16px; border-radius:10px; background:#fff; border:1px solid #dbeafe; color:#1e3a8a; font-size:15px; font-weight:700; text-decoration:none;">
+          <i class="ti ti-ticket"></i> Support Tickets
+        </a>
+      </div>
+
+      {% if co.paid_employee_slots is not none %}
+      {% set _at_cap = employee_count >= co.paid_employee_slots %}
+      {% set _near_cap = not _at_cap and co.paid_employee_slots > 0 and (employee_count / co.paid_employee_slots) >= 0.8 %}
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; background:{{ '#fee2e2' if _at_cap else ('#fef9c3' if _near_cap else '#eff6ff') }}; border:1px solid {{ '#fca5a5' if _at_cap else ('#fde68a' if _near_cap else '#bfdbfe') }}; border-radius:12px; padding:12px 16px; margin-bottom:16px;">
+        <div style="font-size:15px; font-weight:700; color:{{ '#991b1b' if _at_cap else ('#854d0e' if _near_cap else '#1e40af') }}; display:flex; align-items:center; gap:8px;">
+          <i class="ti ti-{{ 'lock' if _at_cap else 'users' }}"></i>
+          Employee Seats: {{ employee_count }} / {{ co.paid_employee_slots }} used
+          {% if _at_cap %} — limit reached, new employees need more seats{% endif %}
+        </div>
+        <a href="{{ tpath('/settings?tab=billing') }}" style="flex-shrink:0; padding:7px 14px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none; background:{{ '#dc2626' if _at_cap else '#2563eb' }}; color:#fff;">
+          {{ 'Buy More Seats' if _at_cap else 'Manage Seats' }}
+        </a>
+      </div>
+      {% endif %}
+
+      {# DEPARTMENT TABS #}
+      {% if departments %}
+      <div class="dept-tabs" id="deptTabs">
+        <button class="dept-tab all-tab active" data-on-click="filterByDept('')" data-dept="">All</button>
+        {% for dept in departments %}
+          <button class="dept-tab" data-on-click="filterByDept(this.dataset.dept)" data-dept="{{ dept }}">{{ dept }}</button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+
+      {# TOOLBAR #}
+      <div class="toolbar">
+        <div class="toolbar-row1">
+          <div class="search-wrap">
+            <i class="ti ti-search"></i>
+            <input class="search-box" type="text" id="searchInput"
+                   placeholder="Search name, ID, email, phone…"
+                   autocomplete="off"
+                   data-on-input="applyFilters()" />
+          </div>
+          <span class="emp-count" id="empCount">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
+          <button class="btn-add" data-on-click="openModal('addModal')">
+            <i class="ti ti-plus"></i> Add Employee
+          </button>
+        </div>
+        <div class="toolbar-row2">
+          <span class="filter-label"><i class="ti ti-filter u-fs-12"></i> Filter:</span>
+
+          <select class="filter-select" id="filterShift" data-on-change="applyFilters()">
+            <option value="">All Shifts</option>
+            {% for sid, sname in shifts %}
+              <option value="{{ sname }}">{{ sname }}</option>
+            {% endfor %}
+          </select>
+
+          <select class="filter-select" id="filterStatus" data-on-change="applyFilters()">
+            <option value="">All Status</option>
+            <option value="Active">Active</option>
+            <option value="On Leave">On Leave</option>
+            <option value="Resigned">Resigned</option>
+          </select>
+
+          <select class="filter-select" id="filterGender" data-on-change="applyFilters()">
+            <option value="">All Genders</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <button class="btn-clear-filter" id="btnClearFilter" data-on-click="clearFilters()">
+            <i class="ti ti-x"></i> Clear
+          </button>
+        </div>
+      </div>
+
+      {# hidden dept value for JS #}
+      <input type="hidden" id="filterDept" value="">
+
+      {# BULK ASSIGN TOOLBAR #}
+      <div class="u-d-none u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-12 u-p-12-16 u-mb-12 u-d-none u-ai-center u-gap-12 u-fxw-wrap" id="bulkToolbar">
+        <span class="u-fs-13 u-fw-700 u-c-1e3a8a" id="bulkCount">0 selected</span>
+        <select class="u-p-7-10 u-bd-1-solid-bfdbfe u-br-8 u-fs-13 u-minw-200" id="bulkTemplateSelect">
+          <option value="">— Select Onboarding Template —</option>
+          {% for tpl in onboarding_templates %}
+          <option value="{{ tpl[0] }}">{{ tpl[1] }}</option>
+          {% endfor %}
+        </select>
+        <button class="u-bg-1e3a8a u-c-fff u-p-7-14 u-bd-none u-br-8 u-fs-13 u-fw-600 u-cur-pointer" type="button" data-on-click="bulkAssignOnboarding()">
+          <i class="ti ti-checklist"></i> Assign Onboarding
+        </button>
+        <button class="u-bg-f1f5f9 u-c-64748b u-p-7-12 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13 u-cur-pointer" type="button" data-on-click="clearSelection()">Clear</button>
+      </div>
+
+      {# TABLE #}
+      <div class="section">
+        <div class="table-scroll-hint">Swipe left for more details &rarr;</div>
+        <div class="table-wrap">
+          <table id="empTable">
+            <thead>
+              <tr>
+                <th class="col-mobile-hide"><label class="u-d-contents"><input type="checkbox" id="selectAll" data-on-change="toggleSelectAll(this)" title="Select all" aria-label="Select all employees"></label></th>
+                <th class="col-mobile-hide">#</th>
+                <th class="col-mobile-hide">Photo</th>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th class="col-mobile-hide">Role</th>
+                <th class="col-mobile-hide">Department</th>
+                {% if not is_hr_scoped %}<th class="col-mobile-hide">Assigned HR</th>{% endif %}
+                <th class="col-mobile-hide">Shift</th>
+                <th class="col-mobile-hide">Phone</th>
+                <th>Status</th>
+                <th class="col-mobile-hide">Date of Joining</th>
+                <th class="col-mobile-hide">Days Present</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in employees %}
+              {% set emp_id, name, role, email, doj, total_days, last_seen,
+                     work_mode, work_lat, work_lon, face_image, qr_code,
+                     department, phone, gender, shift_name, shift_id, assigned_hr_username, emp_status = e %}
+              <tr
+                data-emp-id="{{ emp_id }}"
+                data-dept="{{ department or '' }}"
+                data-shift="{{ shift_name or '' }}"
+                data-status="{{ emp_status }}"
+                data-gender="{{ gender or '' }}"
+              >
+                <td class="col-mobile-hide"><input type="checkbox" class="emp-check" value="{{ emp_id }}" data-on-change="updateBulkToolbar()"></td>
+                <td class="muted col-mobile-hide">{{ loop.index }}</td>
+                <td class="col-mobile-hide">
+                  {% if face_image %}
+                    <button class="avatar-btn" data-on-click="openLightbox(this.dataset.empId,this.dataset.empName,true)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="View photo">
+                      <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
+                           data-on-error="HZ.showNextOnError(this)" />
+                      <div class="avatar-ph u-d-none"><i class="ti ti-user"></i></div>
+                      <div class="avatar-eye"><i class="ti ti-eye"></i></div>
+                    </button>
+                  {% else %}
+                    <button class="avatar-btn" data-on-click="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="Upload photo">
+                      <div class="avatar-ph"><i class="ti ti-user"></i></div>
+                      <div class="avatar-eye"><i class="ti ti-camera-plus"></i></div>
+                    </button>
+                  {% endif %}
+                </td>
+                <td><strong>{{ emp_id }}</strong></td>
+                <td class="u-minw-130">
+                  <a class="u-fw-700 u-c-1e3a8a u-tdec-none" href="/employee_detail/{{ emp_id }}" data-hover-style="text-decoration:underline">{{ name }}</a>
+                  {% if email %}<div class="u-fs-11 u-c-94a3b8">{{ email }}</div>{% endif %}
+                </td>
+                <td class="col-mobile-hide">
+                  {% if role %}<span class="badge badge-role">{{ role }}</span>
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </td>
+                <td class="col-mobile-hide">{% if department %}{{ department }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                {% if not is_hr_scoped %}
+                <td class="col-mobile-hide">{% if assigned_hr_username %}{{ assigned_hr_username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
+                {% endif %}
+                <td class="col-mobile-hide">{% if shift_name %}{{ shift_name }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td class="col-mobile-hide">{% if phone %}{{ phone }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td>
+                  <span class="badge
+                    {% if emp_status == 'Active' %}status-active
+                    {% elif emp_status == 'On Leave' %}status-onleave
+                    {% else %}status-resigned{% endif %}">
+                    {{ emp_status }}
+                  </span>
+                </td>
+                <td class="col-mobile-hide">{% if doj %}{{ doj.strftime('%d %b %Y') }}{% else %}<span class="muted">—</span>{% endif %}</td>
+                <td class="col-mobile-hide">
+                  {% if total_days %}<span class="badge badge-green">{{ total_days }}d</span>
+                  {% else %}<span class="muted">0</span>{% endif %}
+                </td>
+                <td>
+                  <div class="actions-cell">
+                    <button class="btn-icon btn-edit"
+                      data-on-click="openEdit(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
+                      <i class="ti ti-pencil"></i> Edit
+                    </button>
+                    <button class="btn-icon btn-photo" title="Update Photo"
+                      data-on-click="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}">
+                      <i class="ti ti-camera"></i>
+                    </button>
+                    <button class="btn-icon btn-qr" title="QR Code"
+                      data-on-click="openQR(this.dataset.empId,this.dataset.empName,this.dataset.hasQr)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" data-has-qr="{{ '1' if qr_code else '' }}">
+                      <i class="ti ti-qrcode"></i>
+                    </button>
+                    <button class="btn-icon btn-idcard" title="ID Card"
+                      data-on-click="openIDCard(this.dataset.empId)" data-emp-id="{{ emp_id|e }}">
+                      <i class="ti ti-id-badge"></i>
+                    </button>
+                    <form class="u-d-inline" action="/delete_employee/{{ emp_id }}" method="POST"
+                          data-on-submit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete {{ name|e }} ({{ emp_id|e }})? This cannot be undone.">
+                      <button type="submit" class="btn-icon btn-del" title="Delete">
+                        <i class="ti ti-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="13" class="empty-cell">No employees yet. Click <strong>Add Employee</strong> to get started.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {# PAGINATION BAR #}
+        <div id="paginationBar" class="pagination-bar">
+          <span id="pageInfo" class="page-info"></span>
+          <div class="page-btns">
+            <button type="button" id="btnPrev" class="btn-page" data-on-click="changePage(-1)">&#8249; Prev</button>
+            <span id="pageButtons" class="page-btns"></span>
+            <button type="button" id="btnNext" class="btn-page" data-on-click="changePage(1)">Next &#8250;</button>
+          </div>
+        </div>
+      </div>
+
+      </div>{# /panelEmployees #}

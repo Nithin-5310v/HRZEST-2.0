@@ -1,0 +1,92 @@
+      {# ═══ VIEW: MY ATTENDANCE ═══ #}
+      <div id="view-attendance" class="view">
+      <div class="mod-title"><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> My Attendance <span>View and filter your monthly attendance records</span></div>
+      <div id="attendance">
+
+        {# Filter bar #}
+        <div class="cal-filter">
+          <label>Month</label>
+          <select aria-label="Month" id="selMonth">
+            {% for m_num, m_name in months %}
+            <option value="{{ m_num }}" {% if m_num == sel_month %}selected{% endif %}>{{ m_name }}</option>
+            {% endfor %}
+          </select>
+          <label>Year</label>
+          <select aria-label="Year" id="selYear">
+            {% for y in years %}
+            <option value="{{ y }}" {% if y == sel_year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn-view" data-on-click="applyFilter()">View</button>
+          <a id="pdfLink" href="/my_attendance_pdf?month={{ sel_month }}&year={{ sel_year }}" class="btn-pdf"><i class="ti ti-download hz-ico" aria-hidden="true"></i> Download PDF</a>
+        </div>
+
+        {# Calendar #}
+        <div class="calendar">
+          <div class="u-fs-15 u-fw-700 u-c-1e293b u-mb-12">
+            <i class="ti ti-calendar hz-ico" aria-hidden="true"></i> {{ month_name }}
+          </div>
+          <div class="cal-header">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
+            <span>Sat</span><span class="u-c-dc2626">Sun</span>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-legend">
+            <div class="leg-item"><div class="leg-dot u-bg-dcfce7 u-bd-1-solid-86efac"></div> Full Day</div>
+            <div class="leg-item"><div class="leg-dot u-bg-fef9c3 u-bd-1-solid-fde047"></div> Late</div>
+            <div class="leg-item"><div class="leg-dot u-bg-fff7ed u-bd-1-solid-fdba74"></div> Half Day</div>
+            <div class="leg-item"><div class="leg-dot u-bg-fee2e2 u-bd-1-solid-fca5a5"></div> Absent</div>
+            <div class="leg-item"><div class="leg-dot u-bg-ede9fe u-bd-1-solid-c4b5fd"></div> Holiday</div>
+            <div class="leg-item"><div class="leg-dot u-bg-f1f5f9 u-bd-1-solid-e2e8f0"></div> Sunday</div>
+          </div>
+        </div>
+
+        {# Attendance Table #}
+        <div class="section">
+          <h3><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> {{ month_name }} Attendance
+            <span class="billable-note">({{ billable }} working days)</span>
+          </h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Login Time</th>
+                  <th>Logout Time</th>
+                  <th>Login Status</th>
+                  <th>Attendance Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for rec in monthly_att %}
+                {% set att_date, login_t, logout_t, login_s, logout_s, att_type = rec %}
+                <tr>
+                  <td>{{ att_date.strftime('%d %b, %a') if att_date else '—' }}</td>
+                  <td>{{ login_t | fmt_time }}</td>
+                  <td>{{ logout_t | fmt_time }}</td>
+                  <td>
+                    {% if login_s == 'Full Day Login' %}<span class="badge b-green">Full Day</span>
+                    {% elif login_s == 'Late Login' %}<span class="badge b-yellow">Late</span>
+                    {% elif login_s == 'Half Day Login' %}<span class="badge b-red">Half Day</span>
+                    {% else %}<span class="badge b-gray">—</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if att_type == 'Full Day' %}<span class="badge b-green">Full Day</span>
+                    {% elif att_type == 'Late - Full Day' %}<span class="badge b-yellow">Late – Full</span>
+                    {% elif att_type == 'Half Day' %}<span class="badge b-red">Half Day</span>
+                    {% elif login_t and not logout_t %}<span class="badge b-blue">In Progress</span>
+                    {% else %}<span class="badge b-gray">—</span>{% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="5" class="empty-cell">No attendance records this month yet.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      </div>{# /view-attendance #}
