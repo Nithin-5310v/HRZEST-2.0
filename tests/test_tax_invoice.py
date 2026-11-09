@@ -145,6 +145,14 @@ class TestIssuing:
         assert again["seller"]["gstin"] == "36ABCDE1234F1Z5"
         assert again["seller"]["signatory"] == "Peddala Ranjith Kumar"
 
+    def test_default_seller_is_hrzest(self, monkeypatch):
+        for name in ("INVOICE_SELLER_NAME", "INVOICE_SELLER_ADDRESS", "INVOICE_SELLER_GSTIN"):
+            monkeypatch.delenv(name, raising=False)
+        seller = ti.seller_details()
+        assert seller["name"] == "HRZEST" and seller["gstin"] == "36AALCG8469R1ZE"
+        assert seller["address_lines"][-1] == "Telangana - 500072"
+        assert not any("sample" in str(v).lower() for v in seller.values())
+
     def test_pdf_renders(self, db_engine, tenant):
         pdf = ti.build_tax_invoice_pdf(ti.issue_invoice("signup", _paid_signup(db_engine, tenant, "pdf")))
         assert pdf[:4] == b"%PDF" and len(pdf) > 5000

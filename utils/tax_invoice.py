@@ -54,15 +54,20 @@ def _env(name, default=""):
     return (os.environ.get(name) or "").strip() or default
 
 
+SELLER_ADDRESS = "301, Rensri Arcade, Bhagyanagar Colony|KPHB, Kukatpally, Hyderabad|Telangana - 500072"
+SELLER_GSTIN = "36AALCG8469R1ZE"
+
+
 def seller_details():
-    """HRZEST's own details as printed on every invoice (INVOICE_SELLER_*).
-    INVOICE_SELLER_ADDRESS takes "|" between lines."""
+    """HRZEST's own details as printed on every invoice. The defaults are
+    the real ones; INVOICE_SELLER_* only overrides them (the address takes
+    "|" between lines)."""
     state_code = _env("INVOICE_SELLER_STATE_CODE", "36")
     return {
         "brand": "HRZEST",
         "name": _env("INVOICE_SELLER_NAME", "HRZEST"),
-        "address_lines": [ln.strip() for ln in _env("INVOICE_SELLER_ADDRESS").split("|") if ln.strip()],
-        "gstin": _env("INVOICE_SELLER_GSTIN").upper(),
+        "address_lines": [ln.strip() for ln in _env("INVOICE_SELLER_ADDRESS", SELLER_ADDRESS).split("|") if ln.strip()],
+        "gstin": _env("INVOICE_SELLER_GSTIN", SELLER_GSTIN).upper(),
         "state": _env("INVOICE_SELLER_STATE", GST_STATE_CODES.get(state_code, "Telangana")),
         "state_code": state_code,
         "email": _env("INVOICE_SELLER_EMAIL", "contact@hrzest.com"),
