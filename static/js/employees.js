@@ -1,4 +1,9 @@
-    <script>
+
+      // This file's CSP nonce. The ID-card print popup below inherits the page's
+      // Content-Security-Policy, so the <style> it writes needs the nonce too.
+      // (When this code was inline, the server's response rewriter stamped it.)
+      var _employeesScriptNonce = (document.currentScript && document.currentScript.nonce) || '';
+
       // ========== FILTERS ==========
       let activeStatusFilter = '';
 
@@ -551,7 +556,7 @@
         if (!img.src || img.style.display === 'none') return;
         var win = window.open('', '_blank', 'width=620,height=900');
         win.document.write('<html><head><title>ID Card - ' + _idCardEmpId + '<\/title>'
-          + '<style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}'
+          + '<style nonce="' + _employeesScriptNonce + '">body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}'
           + 'img{max-width:520px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);}'
           + '@media print{body{background:#fff;}}<\/style><\/head>'
           + '<body><img src="' + img.src + '" \/><\/body><\/html>');
@@ -812,4 +817,4 @@
         box.style.background  = '#f8fafc';
         document.getElementById('fpClearBtn').style.display = 'none';
       }
-    </script>
+    
