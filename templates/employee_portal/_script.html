@@ -7,6 +7,11 @@
       // sink. Mirrors the escape helper already used in admin.html and
       // _admin_chat_widget.html.
       function escHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
+      // Server values for HTML built in template literals below. Passed as JSON
+      // (tojson is safe in a JS expression) and inserted with escHtml(). A Jinja
+      // expression written straight into a `...` literal let a name or designation
+      // containing a backtick or ${ break out and run as script.
+      const _portalEmp = {{ {'id': emp[0], 'name': emp[1] or '', 'role': ((emp[2] if emp|length > 2 else '') or '')} | tojson }};
 
       function loadPayslip(year, month, label) {
         const modal   = document.getElementById('payslip-modal');
@@ -23,8 +28,8 @@
               <div class="u-bg-f0f7ff u-br-12 u-p-16-20 u-mb-20 u-d-flex u-ai-center u-gap-14">
                 <div class="u-fs-36">👤</div>
                 <div>
-                  <div class="u-fs-16 u-fw-700 u-c-1e293b">{{ emp[1] }}</div>
-                  <div class="u-fs-13 u-c-64748b">{{ emp[2] if emp|length > 2 else '' }} &nbsp;|&nbsp; ${escHtml(label)}</div>
+                  <div class="u-fs-16 u-fw-700 u-c-1e293b">${escHtml(_portalEmp.name)}</div>
+                  <div class="u-fs-13 u-c-64748b">${escHtml(_portalEmp.role)} &nbsp;|&nbsp; ${escHtml(label)}</div>
                   <div class="u-fs-12 u-c-94a3b8 u-mt-2">Daily Rate: ₹${d.salary_per_day.toFixed(2)}</div>
                 </div>
               </div>
@@ -70,7 +75,7 @@
                 </div>
               </div>
               <div class="u-d-flex u-gap-12 u-fxw-wrap">
-                <a class="u-fx-1 u-minw-160 u-d-inline-flex u-ai-center u-jc-center u-gap-8 u-p-13-24 u-bg-linear-gradiene7a6cb u-c-fff u-br-11 u-fs-14 u-fw-600 u-tdec-none u-shad-0-4-14-rgba37_e838f4" href="/view_payslip/{{ emp[0] }}/${Number(year)}/${Number(month)}">
+                <a class="u-fx-1 u-minw-160 u-d-inline-flex u-ai-center u-jc-center u-gap-8 u-p-13-24 u-bg-linear-gradiene7a6cb u-c-fff u-br-11 u-fs-14 u-fw-600 u-tdec-none u-shad-0-4-14-rgba37_e838f4" href="/view_payslip/${encodeURIComponent(_portalEmp.id)}/${Number(year)}/${Number(month)}">
                   🖨️ Open & Print Full Slip
                 </a>
                 <button class="u-fx-1 u-minw-120 u-p-13-24 u-bg-f1f5f9 u-bd-1-solid-e2e8f0 u-c-475569 u-br-11 u-fs-14 u-fw-600 u-cur-pointer" data-on-click="closePayslipModal()">
@@ -441,19 +446,19 @@
                   <div class="u-d-flex u-ai-center u-gap-14">
                     <div class="u-w-46 u-h-46 u-br-12 u-bg-rgba255_255_255_d15 u-d-flex u-ai-center u-jc-center u-fs-22">👤</div>
                     <div>
-                      <div class="u-fs-16 u-fw-800 u-c-fff">{{ emp[1] }}</div>
-                      <div class="u-fs-12 u-c-rgba255_255_255_d7">{{ emp[2] or '' }} &nbsp;·&nbsp; ${escHtml(label)}</div>
+                      <div class="u-fs-16 u-fw-800 u-c-fff">${escHtml(_portalEmp.name)}</div>
+                      <div class="u-fs-12 u-c-rgba255_255_255_d7">${escHtml(_portalEmp.role)} &nbsp;·&nbsp; ${escHtml(label)}</div>
                       <div class="u-fs-11 u-c-rgba255_255_255_d5 u-mt-2">Daily Rate: ₹${d.salary_per_day.toFixed(2)}</div>
                     </div>
                   </div>
                   <div class="u-d-flex u-gap-8">
-                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-rgba255_255_255_d15 u-c-fff u-bd-1-solid-rgba255b647a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/download_payslip/{{ emp[0] }}/${Number(year)}/${Number(month)}" download>
+                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-rgba255_255_255_d15 u-c-fff u-bd-1-solid-rgba255b647a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/download_payslip/${encodeURIComponent(_portalEmp.id)}/${Number(year)}/${Number(month)}" download>
                       <i class="ti ti-download"></i> Download
                     </a>
-                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-fff u-c-1e3a8a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/view_payslip/{{ emp[0] }}/${Number(year)}/${Number(month)}">
+                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-fff u-c-1e3a8a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/view_payslip/${encodeURIComponent(_portalEmp.id)}/${Number(year)}/${Number(month)}">
                       <i class="ti ti-printer"></i> Print
                     </a>
-                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-rgba255_255_255_d15 u-c-fff u-bd-1-solid-rgba255b647a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/download_tax_statement/{{ emp[0] }}/${Number(year)}" title="Annual Form 16 / tax statement for ${Number(year)}">
+                    <a class="u-d-inline-flex u-ai-center u-gap-6 u-p-8-16 u-bg-rgba255_255_255_d15 u-c-fff u-bd-1-solid-rgba255b647a u-br-8 u-fs-12 u-fw-700 u-tdec-none" href="/download_tax_statement/${encodeURIComponent(_portalEmp.id)}/${Number(year)}" title="Annual Form 16 / tax statement for ${Number(year)}">
                       <i class="ti ti-file-invoice"></i> Tax Statement
                     </a>
                   </div>
