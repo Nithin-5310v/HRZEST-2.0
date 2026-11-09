@@ -393,6 +393,25 @@ def _init_master_db_impl():
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_duplicate_alerts_ack ON tenant_duplicate_alerts (acknowledged, created_at)")
+        # What the platform admin did about an alert beyond acknowledging it
+        # ('blocked'); NULL for a plain acknowledgement or a new alert.
+        cur.execute("ALTER TABLE tenant_duplicate_alerts ADD COLUMN IF NOT EXISTS action_taken VARCHAR(20) DEFAULT NULL")
+        # Emails and source IPs a platform admin has blocked from starting a
+        # new company (the duplicate-alerts page). Every signup entry point
+        # checks this first: blueprints/org/duplicates.signup_block_for().
+        # Emails are stored lowercased.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS signup_blocks (
+                id SERIAL PRIMARY KEY,
+                kind VARCHAR(10) NOT NULL,
+                value VARCHAR(200) NOT NULL,
+                reason VARCHAR(300) DEFAULT NULL,
+                alert_id INT DEFAULT NULL,
+                blocked_by VARCHAR(100) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (kind, value)
+            )
+        """)
         # Razorpay orders for an EXISTING tenant buying more employee seats
         # after signup (blueprints/seats.py) -- separate from payment_orders
         # above (that table stages a brand-new tenant that doesn't exist yet;
@@ -697,6 +716,24 @@ def _init_master_db_impl():
         cur.execute("ALTER TABLE tenant_support_tickets ADD COLUMN IF NOT EXISTS linked_ticket_id INT DEFAULT NULL")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_tickets_linked ON tenant_support_tickets (linked_ticket_id)")
         cur.execute("ALTER TABLE tenant_ticket_comments ADD COLUMN IF NOT EXISTS author_kind VARCHAR(20) NOT NULL DEFAULT 'platform_admin'")
+        # Screenshots and documents attached to a ticket (comment_id NULL)
+        # or to one reply on it, by either side (utils/support_tickets.py).
+        # The file itself is encrypted under private_uploads/support_tickets/.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tenant_ticket_attachments (
+                id SERIAL PRIMARY KEY,
+                ticket_id INT NOT NULL,
+                comment_id INT DEFAULT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                stored_ref VARCHAR(500) NOT NULL,
+                content_type VARCHAR(100) DEFAULT NULL,
+                size_bytes INT DEFAULT NULL,
+                uploaded_by VARCHAR(100) DEFAULT NULL,
+                uploader_kind VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON tenant_ticket_attachments (ticket_id)")
         # One row per scheduled-job run, claimed by whichever process gets
         # there first -- every gunicorn worker runs the scheduler, and the
         # primary key is what makes each nightly job run once (utils/

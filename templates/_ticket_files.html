@@ -1,0 +1,38 @@
+{# Files attached to a support ticket or to one reply on it (utils/support_tickets.py).
+   Used by the company's ticket page and Platform Admin's. `base` is the URL the
+   attachment id is appended to. #}
+{% macro ticket_files_style() %}
+<style>
+  .tk-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .tk-file { display: inline-flex; align-items: center; gap: 8px; max-width: 260px; padding: 6px 10px 6px 6px;
+    border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #0f172a; text-decoration: none; font-size: 13.5px; }
+  .tk-file:hover { border-color: #93c5fd; background: #f8fafc; }
+  .tk-file img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; flex: none; }
+  .tk-file .ti { font-size: 22px; color: #1d4ed8; width: 32px; text-align: center; flex: none; }
+  .tk-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .tk-file-size { color: #64748b; font-size: 12px; flex: none; }
+  .mine .tk-file { color: #0f172a; }
+  .tk-attach { display: block; font-size: 13.5px; color: #475569; margin: 2px 0 12px; }
+  .tk-attach input[type=file] { display: block; margin-top: 6px; font-size: 14px; max-width: 100%; }
+</style>
+{% endmacro %}
+
+{% macro ticket_files(items, base) %}
+{% if items %}
+<div class="tk-files">
+  {% for f in items %}
+  <a class="tk-file" href="{{ base }}{{ f.id }}{{ '?view=1' if f.is_image }}" {% if f.is_image %}target="_blank" rel="noopener"{% endif %} title="{{ f.name }}">
+    {% if f.is_image %}<img src="{{ base }}{{ f.id }}?view=1" alt="" loading="lazy">{% else %}<i class="ti ti-file-text"></i>{% endif %}
+    <span class="tk-file-name">{{ f.name }}</span><span class="tk-file-size">{{ f.size }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro attach_input(accept, max_files, input_id='tk-attachments') %}
+<label class="tk-attach" for="{{ input_id }}"><i class="ti ti-paperclip"></i> Screenshots or documents
+  <span style="color:#94a3b8;">(optional &middot; up to {{ max_files }} &middot; PDF, PNG, JPG, Word, Excel)</span>
+  <input type="file" id="{{ input_id }}" name="attachments" multiple accept="{{ accept }}">
+</label>
+{% endmacro %}

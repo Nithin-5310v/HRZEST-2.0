@@ -179,9 +179,8 @@ def view_employees():
     companies = cursor.fetchall()
     cursor.execute("SELECT id, name FROM onboarding_templates WHERE is_active=1 ORDER BY name")
     onboarding_templates = cursor.fetchall()
-    cursor.execute("SELECT username FROM admin_users WHERE role=%s AND COALESCE(is_active,1)=1 ORDER BY username",
-                   (HR_ROLE,))
-    hr_accounts = [r[0] for r in cursor.fetchall()]
+    from blueprints.hr_team import hr_choices
+    hr_accounts = hr_choices(cursor)  # [(username, "Name (ID)")]
 
     # Onboarding summary for this page's stats row -- this page is where
     # HR-role sessions land (see blueprints/auth.py's _finish_employee_login
@@ -219,7 +218,7 @@ def view_employees():
                            ob_active=ob_active,
                            ob_overdue=ob_overdue,
                            is_hr_scoped=is_hr_scoped,
-                           hr_accounts=hr_accounts,
+                           hr_accounts=hr_accounts, hr_names=dict(hr_accounts),
                            employees=employees,
                            shifts=shifts,
                            shift_full=shift_full,

@@ -19,6 +19,8 @@ from .applications import (
     send_org_signup_otp_email,
 )
 from .duplicates import (
+    SIGNUP_BLOCKED_MSG,
+    signup_block_for,
     _record_duplicate_alert,
     check_duplicate_admin_email,
     check_duplicate_gst,
@@ -73,6 +75,9 @@ def api_create_org():
         gst_error = _validate_gst_number(gst_number)
         if gst_error:
             return jsonify({"ok": False, "msg": gst_error}), 400
+
+        if signup_block_for(admin_email):
+            return jsonify({"ok": False, "msg": SIGNUP_BLOCKED_MSG}), 403
 
         conflicting, match_type = check_duplicate_name(company_name)
         if not conflicting:

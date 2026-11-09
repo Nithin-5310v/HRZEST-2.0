@@ -51,8 +51,8 @@
                 <label>Assigned HR</label>
                 <select name="assigned_hr_username" id="edit_assigned_hr">
                   <option value="">— No HR Assigned —</option>
-                  {% for hr_username in hr_accounts %}
-                    <option value="{{ hr_username }}">{{ hr_username }}</option>
+                  {% for hr_username, hr_label in hr_accounts %}
+                    <option value="{{ hr_username }}">{{ hr_label }}</option>
                   {% endfor %}
                 </select>
               </div>

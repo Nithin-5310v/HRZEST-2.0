@@ -339,11 +339,16 @@ def _ensure_hr_admin_account(employee_id, email):
     their own employee password exactly as before, and only reaches this
     account via _finish_employee_login()'s session setup, never a direct
     admin_users password check.
+
+    Returns whether the HR has dashboard access: the row's is_active, which
+    the company admin turns on and off on the Organization page's HR team
+    tab (blueprints/hr_team.py). A new row starts with access.
     """
     with _db() as (cursor, db):
-        cursor.execute("SELECT 1 FROM admin_users WHERE username=%s", (employee_id,))
-        if cursor.fetchone():
-            return
+        cursor.execute("SELECT COALESCE(is_active, 1) FROM admin_users WHERE username=%s", (employee_id,))
+        row = cursor.fetchone()
+        if row:
+            return bool(row[0])
         cursor.execute(
             "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1)",
             (employee_id, generate_password_hash(secrets.token_urlsafe(32)), HR_ROLE, email)
@@ -354,6 +359,7 @@ def _ensure_hr_admin_account(employee_id, email):
         f"Auto-created admin_users HR-role account for employee '{employee_id}' (employees.role is exactly 'HR')",
         level="INFO", identifier=employee_id,
     )
+    return True
 
 
 # Same exact-match, case-insensitive caveat as _HR_EMPLOYEE_ROLE above --
@@ -427,8 +433,9 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
             notify_if_new_login_ip(employee_id, "employee", request.remote_addr, name, email)
         return redirect(tpath("/force_change_pin"))
 
-    if (role or "").strip().lower() == _HR_EMPLOYEE_ROLE:
-        _ensure_hr_admin_account(employee_id, email)
+    # An HR whose dashboard access is off falls through to the employee
+    # portal below, like any other employee.
+    if (role or "").strip().lower() == _HR_EMPLOYEE_ROLE and _ensure_hr_admin_account(employee_id, email):
         # If MANDATORY_LOGIN_MFA is on, every call site that can reach this
         # function (the direct branch below, mfa_verify()'s employee
         # branch, and force_change_pin()'s completion) is only reachable

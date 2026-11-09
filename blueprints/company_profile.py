@@ -32,6 +32,7 @@ from utils.helpers import (
 from utils.payment_history import get_payment_history, get_payment_row, get_plan_details
 from utils.tax_invoice import build_tax_invoice_pdf, invoice_filename, issue_invoice, tenant_invoices
 from utils.ticket_constants import TICKET_STATUSES, TICKET_PRIORITIES
+from utils import support_tickets
 from utils.csv_export import csv_response
 from blueprints.org import _MOBILE_RE, _clean_mobile, _load_own_tenant_application
 from migrations.column_migrations import _POLICY_SEED_CONTENT
@@ -582,6 +583,7 @@ def profile_tickets():
         "profile.html", active_nav="profile", active_tab="tickets",
         co=get_company_settings(), tickets=tickets,
         ticket_statuses=TICKET_STATUSES, ticket_priorities=TICKET_PRIORITIES,
+        ticket_file_accept=support_tickets.ACCEPT_ATTR, ticket_max_files=support_tickets.MAX_FILES,
     )
 
 
@@ -601,6 +603,11 @@ def profile_create_ticket():
     if not subject or not description:
         flash("Subject and description are required.", "error")
         return redirect(tpath("/profile/tickets"))
+    files = support_tickets.chosen_files(request)
+    file_error = support_tickets.check_files(files)
+    if file_error:
+        flash(file_error, "error")
+        return redirect(tpath("/profile/tickets"))
 
     linked_ticket_id = request.form.get("linked_ticket_id", type=int)
     conn = get_master_db()
@@ -615,13 +622,18 @@ def profile_create_ticket():
 
     cur.execute(
         "INSERT INTO tenant_support_tickets (tenant_id, subject, description, priority, created_by, linked_ticket_id) "
-        "VALUES (%s,%s,%s,%s,%s,%s)",
+        "VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
         (tenant_id, subject, description, priority, session.get("admin_username"), linked_ticket_id),
     )
+    ticket_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
     conn.close()
-    flash("Support ticket raised.", "success")
+    saved = support_tickets.save_files(files, ticket_id, None, session.get("admin_username"), "company_admin")
+    if saved < len(files):
+        flash("Support ticket raised, but some files couldn't be attached. Try adding them in a reply.", "error")
+    else:
+        flash("Support ticket raised.", "success")
     return redirect(tpath("/profile/tickets"))
 
 
@@ -649,12 +661,12 @@ def _fetch_own_ticket(ticket_id, tenant_id):
         row,
     ))
     cur.execute(
-        "SELECT author, comment, author_kind, created_at FROM tenant_ticket_comments "
+        "SELECT author, comment, author_kind, created_at, id FROM tenant_ticket_comments "
         "WHERE ticket_id=%s ORDER BY created_at ASC",
         (ticket_id,)
     )
     ticket["comments"] = [
-        dict(zip(["author", "comment", "author_kind", "created_at"], r)) for r in cur.fetchall()
+        dict(zip(["author", "comment", "author_kind", "created_at", "id"], r)) for r in cur.fetchall()
     ]
     cur.close()
     conn.close()
@@ -669,7 +681,19 @@ def profile_ticket_detail(ticket_id):
     if not ticket:
         return "Ticket not found.", 404
     return render_template("profile_ticket_detail.html", active_nav="profile", ticket=ticket,
-                           co=get_company_settings())
+                           co=get_company_settings(), attachments=support_tickets.attachments_for(ticket_id),
+                           ticket_file_accept=support_tickets.ACCEPT_ATTR, ticket_max_files=support_tickets.MAX_FILES)
+
+
+@company_profile_bp.route("/profile/tickets/<int:ticket_id>/files/<int:attachment_id>", methods=["GET"])
+@role_required("admin")
+def profile_ticket_file(ticket_id, attachment_id):
+    """A file attached to one of this company's own tickets -- never another
+    company's, whatever ids are typed."""
+    if not _fetch_own_ticket(ticket_id, _resolve_own_tenant_id()):
+        return "Not found.", 404
+    resp = support_tickets.send_attachment(ticket_id, attachment_id, inline=request.args.get("view") == "1")
+    return resp or ("Not found.", 404)
 
 
 @company_profile_bp.route("/profile/tickets/<int:ticket_id>/reply", methods=["POST"])
@@ -681,22 +705,33 @@ def profile_reply_ticket(ticket_id):
         return "Ticket not found.", 404
 
     comment = (request.form.get("comment") or "").strip()[:2000]
-    if not comment:
-        flash("Reply cannot be empty.", "error")
+    files = support_tickets.chosen_files(request)
+    if not comment and not files:
+        flash("Write a reply or attach a file.", "error")
         return redirect(tpath(f"/profile/tickets/{ticket_id}"))
     if ticket["status"] == "closed":
         flash("This ticket is closed. Raise a new ticket linked to it instead.", "error")
+        return redirect(tpath(f"/profile/tickets/{ticket_id}"))
+    file_error = support_tickets.check_files(files)
+    if file_error:
+        flash(file_error, "error")
         return redirect(tpath(f"/profile/tickets/{ticket_id}"))
 
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
-        "INSERT INTO tenant_ticket_comments (ticket_id, author, comment, author_kind) VALUES (%s,%s,%s,'company_admin')",
-        (ticket_id, session.get("admin_username"), comment),
+        "INSERT INTO tenant_ticket_comments (ticket_id, author, comment, author_kind) "
+        "VALUES (%s,%s,%s,'company_admin') RETURNING id",
+        (ticket_id, session.get("admin_username"), comment or "Attached files."),
     )
+    comment_id = cur.fetchone()[0]
     cur.execute("UPDATE tenant_support_tickets SET updated_at=NOW() WHERE id=%s", (ticket_id,))
     conn.commit()
     cur.close()
     conn.close()
-    flash("Reply sent.", "success")
+    saved = support_tickets.save_files(files, ticket_id, comment_id, session.get("admin_username"), "company_admin")
+    if saved < len(files):
+        flash("Reply sent, but some files couldn't be attached.", "error")
+    else:
+        flash("Reply sent.", "success")
     return redirect(tpath(f"/profile/tickets/{ticket_id}"))

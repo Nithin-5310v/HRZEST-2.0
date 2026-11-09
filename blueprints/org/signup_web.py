@@ -30,6 +30,8 @@ from .applications import (
     send_org_signup_otp_email,
 )
 from .duplicates import (
+    SIGNUP_BLOCKED_MSG,
+    signup_block_for,
     _record_duplicate_alert,
     check_duplicate_admin_email,
     check_duplicate_gst,
@@ -143,6 +145,8 @@ def _check_new_signup(company_name, admin_email, admin_mobile, admin_password):
     error = _validate_signup_account(company_name, admin_email, admin_mobile, admin_password)
     if error:
         return error
+    if signup_block_for(admin_email):
+        return SIGNUP_BLOCKED_MSG
     conflicting, match_type = check_duplicate_name(company_name)
     if not conflicting:
         conflicting, match_type = check_duplicate_admin_email(admin_email), "email"
@@ -308,6 +312,9 @@ def _save_company_profile(application, fields, logo_file):
     error = _validate_company_profile(company_name, subdomain, gst_number)
     if error:
         return False, error, None, None
+    # Again here: the block may have been set after step 1.
+    if signup_block_for(application["admin_email"]):
+        return False, SIGNUP_BLOCKED_MSG, None, None
 
     conflicting, match_type = check_duplicate_name(company_name)
     if not conflicting:
