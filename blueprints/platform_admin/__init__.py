@@ -157,8 +157,12 @@ from .applications import (  # noqa: E402,F401
 )
 from .alerts import (  # noqa: E402,F401
     platform_admin_acknowledge_duplicate_alert,
+    platform_admin_block_duplicate_alert,
     platform_admin_bulk_acknowledge_duplicate_alerts,
+    platform_admin_bulk_block_duplicate_alerts,
+    platform_admin_delete_duplicate_alert,
     platform_admin_duplicate_alerts,
+    platform_admin_unblock_signup,
 )
 from .audit import (  # noqa: E402,F401
     platform_admin_audit_log,

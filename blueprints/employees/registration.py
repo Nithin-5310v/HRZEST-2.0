@@ -198,23 +198,18 @@ def add_employee_page():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    # Which HR this new employee is managed by. An HR-role creator can only
-    # ever assign their own account -- never trusts a form value for this,
-    # so an HR session can't hand its own employees off to a DIFFERENT HR
-    # account it doesn't control. An admin (or other non-HR admin-side
-    # role) may pick any real, active HR account from the form, validated
-    # against admin_users itself rather than trusted as free text; leaving
-    # it unset is also valid (the employee stays unassigned/admin-only
-    # until an admin assigns one later).
-    if session.get("admin_role") == HR_ROLE:
+    # Which HR this new employee is managed by: any HR with dashboard access
+    # (blueprints/hr_team.hr_choices), checked here rather than trusted as
+    # free text. An HR adding someone may hand them to another HR, and is
+    # the default (an unknown choice falls back to themselves); an admin may
+    # also leave it unset (unassigned: only admins see the employee until an
+    # HR is assigned). Changing it later is an admin-only action.
+    from blueprints.hr_team import is_assignable_hr
+    assigned_hr_username = request.form.get("assigned_hr_username", "").strip() or None
+    if assigned_hr_username and not is_assignable_hr(cursor, assigned_hr_username):
+        assigned_hr_username = None
+    if session.get("admin_role") == HR_ROLE and not assigned_hr_username:
         assigned_hr_username = session.get("admin_username")
-    else:
-        assigned_hr_username = request.form.get("assigned_hr_username", "").strip() or None
-        if assigned_hr_username:
-            cursor.execute("SELECT 1 FROM admin_users WHERE username=%s AND role=%s AND COALESCE(is_active,1)=1",
-                           (assigned_hr_username, HR_ROLE))
-            if not cursor.fetchone():
-                assigned_hr_username = None
 
     # Auto-increment emp_id if already taken
     cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
@@ -336,6 +331,10 @@ def add_employee_page():
 
     if registered:
         flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
+        if session.get("admin_role") == HR_ROLE and assigned_hr_username != session.get("admin_username"):
+            from blueprints.hr_team import hr_label
+            flash(f"{name} is assigned to {hr_label(cursor, assigned_hr_username)}, who manages them from now on.",
+                  "success")
         # Auto-assign default onboarding template if configured
         cursor.execute("SELECT default_onboarding_template_id FROM company_settings LIMIT 1")
         _cs = cursor.fetchone()

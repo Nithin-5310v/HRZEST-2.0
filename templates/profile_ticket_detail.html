@@ -3,6 +3,7 @@
 {% block title %}Ticket #{{ ticket.id }}{% endblock %}
 
 {% block page_css %}
+{% from "_ticket_files.html" import ticket_files_style %}{{ ticket_files_style() }}
 <style>
   .back-link { display: inline-flex; align-items: center; gap: 6px; color: #1e3a8a; text-decoration: none; font-weight: 600; font-size: 15px; margin-bottom: 16px; }
   .p-card { max-width: 780px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); margin-bottom: 20px; }
@@ -24,6 +25,8 @@
 {% endblock %}
 
 {% block main %}
+  {% from "_ticket_files.html" import ticket_files, attach_input %}
+  {% set _files_base = tpath('/profile/tickets/' + ticket.id|string + '/files/') %}
   <a class="back-link" href="{{ tpath('/profile/tickets') }}"><i class="ti ti-arrow-left"></i> Back to Support Tickets</a>
 
   <div class="p-card">
@@ -35,6 +38,10 @@
       <span class="badge-pill {{ 'badge-success' if ticket.status in ('resolved','closed') else 'badge-pending' }}">{{ ticket.status.replace('_', ' ') }}</span>
     </div>
     <p style="margin-top:16px;font-size:15.5px;color:#334155;white-space:pre-wrap;">{{ ticket.description }}</p>
+    {{ ticket_files(attachments.get(None), _files_base) }}
+    {% if ticket.status in ('resolved', 'closed') %}
+      <div class="banner info" style="margin:16px 0 0;"><i class="ti ti-circle-check"></i> HRZEST support marked this ticket {{ ticket.status }}.</div>
+    {% endif %}
   </div>
 
   <div class="p-card">
@@ -42,8 +49,9 @@
     <div class="thread">
       {% for c in ticket.comments %}
         <div class="bubble {{ 'mine' if c.author_kind == 'company_admin' else 'theirs' }}">
-          {{ c.comment }}
-          <div class="meta">{{ c.author }} &middot; {{ c.created_at.strftime('%d %b %Y, %I:%M %p') if c.created_at else '' }}</div>
+          <div style="white-space:pre-wrap;">{{ c.comment }}</div>
+          {{ ticket_files(attachments.get(c.id), _files_base) }}
+          <div class="meta">{{ c.author if c.author_kind == 'company_admin' else 'HRZEST support' }} &middot; {{ c.created_at.strftime('%d %b %Y, %I:%M %p') if c.created_at else '' }}</div>
         </div>
       {% else %}
         <div style="color:#94a3b8;font-size:15px;">No replies yet.</div>
@@ -57,8 +65,9 @@
         and reference ticket #{{ ticket.id }}.
       </div>
     {% else %}
-      <form method="POST" action="{{ tpath('/profile/tickets/' + ticket.id|string + '/reply') }}" style="margin-top:20px;">
-        <textarea class="p-input" name="comment" rows="3" placeholder="Write a reply…" required maxlength="2000"></textarea>
+      <form method="POST" action="{{ tpath('/profile/tickets/' + ticket.id|string + '/reply') }}" style="margin-top:20px;" enctype="multipart/form-data">
+        <textarea class="p-input" name="comment" rows="3" placeholder="Write a reply…" maxlength="2000" aria-label="Reply"></textarea>
+        {{ attach_input(ticket_file_accept, ticket_max_files) }}
         <button class="p-btn" type="submit">Send Reply</button>
       </form>
     {% endif %}
