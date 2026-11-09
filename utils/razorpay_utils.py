@@ -240,7 +240,7 @@ def create_customer(name: str, email: str, fail_if_exists: bool = False):
     return customer_id, None
 
 
-def create_subscription(plan_id: str, customer_id: str, quantity: int, total_count: int = 1200):
+def create_subscription(plan_id: str, customer_id: str, quantity: int, total_count: int = 1200, start_at=None):
     """POST /v1/subscriptions. `quantity` is the seat-based-billing lever
     Razorpay documents for exactly this case (variable per-unit recurring
     charge): total billed each cycle = plan.item.amount * quantity.
@@ -251,6 +251,9 @@ def create_subscription(plan_id: str, customer_id: str, quantity: int, total_cou
     data, error = _request("/subscriptions", {
         "plan_id": plan_id, "customer_id": customer_id, "quantity": max(1, quantity),
         "total_count": total_count, "customer_notify": 1,
+        # start_at (epoch seconds): first charge on that date instead of at
+        # authorization -- used when one subscription replaces another.
+        **({"start_at": int(start_at)} if start_at else {}),
     })
     if error:
         return None, error
@@ -258,6 +261,12 @@ def create_subscription(plan_id: str, customer_id: str, quantity: int, total_cou
     if not subscription_id:
         return None, "Razorpay did not return a subscription ID."
     return subscription_id, None
+
+
+def fetch_subscription(subscription_id: str):
+    """GET /v1/subscriptions/{id}. Returns (data, error); data carries
+    status, charge_at (next charge, epoch seconds) and current_end."""
+    return _request(f"/subscriptions/{subscription_id}", method="GET")
 
 
 def update_subscription_quantity(subscription_id: str, quantity: int):
