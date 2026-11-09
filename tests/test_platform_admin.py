@@ -675,6 +675,16 @@ class TestDeleteTenant:
             cur.execute("DELETE FROM att_master.payment_orders WHERE tenant_id=%s", (tenant_id,))
             cur.close()
 
+    def test_delete_form_sends_what_was_typed(self, client, deletable_tenant):
+        """The confirmation box has to be submitted under the name the route
+        reads -- without it every delete was refused, however exactly the
+        subdomain was typed."""
+        _login_platform_admin(client)
+        html = client.get("/super_admin").get_data(as_text=True)
+        form = re.search(r'<form id="deleteTenantForm".*?</form>', html, re.S).group(0)
+        box = re.search(r'<input[^>]*id="delConfirmInput"[^>]*>', form).group(0)
+        assert 'name="confirm_subdomain"' in box
+
 
 class TestDashboardSearchPaginationAndExport:
     @pytest.fixture
