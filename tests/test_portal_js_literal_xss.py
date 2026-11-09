@@ -7,8 +7,9 @@ name (set by admin/HR) such as  Eve`;alert(1);`  or  ${alert(1)}  broke out of
 the literal and ran as script in that employee's session -- inside the page's
 own nonce'd script, so the CSP could not stop it.
 
-Server values now reach those literals as JSON (`const _portalEmp = {{ ... |
-tojson }}`) and are inserted with escHtml().
+Server values now reach the page script (static/js/employee-portal.js) only
+through an inert JSON block, <script type="application/json" id="portal-data">,
+and are inserted into HTML with escHtml().
 """
 import pathlib
 import re
@@ -96,9 +97,11 @@ def test_malicious_name_is_never_spliced_into_a_template_literal(client, seed_em
     with client.session_transaction() as sess:
         sess["employee_id"] = emp_id
     html = client.get("/employee_portal").get_data(as_text=True)
-    scripts = [m.group(1) for m in _INLINE_SCRIPT.finditer(html)]
-    with_payload = [s for s in scripts if PAYLOAD.split("`")[0] + "`" in s]
-    # The only script carrying the raw name is the one holding the JSON hand-off ...
-    assert len(with_payload) == 1
-    lines = [ln.strip() for ln in with_payload[0].splitlines() if "Eve`" in ln]
-    assert lines and all(ln.startswith("const _portalEmp = {") for ln in lines), lines
+    marker = PAYLOAD.split("`")[0] + "`"
+    blocks = re.findall(r"<script\b([^>]*)>(.*?)</script>", html, re.S | re.I)
+    executable = [body for attrs, body in blocks if 'type="application/json"' not in attrs and "src=" not in attrs]
+    data = [body for attrs, body in blocks if 'id="portal-data"' in attrs]
+    # The raw name never appears in code that runs; it travels only in the inert
+    # #portal-data JSON block, which static/js/employee-portal.js JSON.parse()s.
+    assert not [b for b in executable if marker in b]
+    assert len(data) == 1 and marker in data[0]
