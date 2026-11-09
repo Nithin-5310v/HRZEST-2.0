@@ -115,7 +115,11 @@
                   </div>
                   <div class="lbl">Estimated next charge: {{ monthly_bill_display }} for {{ employee_count }} employee{{ 's' if employee_count != 1 }}</div>
                   {% if auto_debit_status and auto_debit_status.status == 'active' and auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
+                  {% if auto_debit_status.fixed_amount %}
+                  <div class="lbl" style="color:#b45309;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. It was set up with UPI or net banking, which can't change the amount — set it up again below. Your current Auto-Debit keeps working until then, and nothing is charged twice.</div>
+                  {% else %}
                   <div class="lbl" style="color:#1d4ed8;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. Update it now, or it updates itself before the next charge.</div>
+                  {% endif %}
                   {% endif %}
                   {% if auto_debit_status and auto_debit_status.status == 'rate_changed' %}
                   <div class="lbl" style="color:#d97706;margin-top:2px;">Your previous auto-debit ended after its last payment at the old rate — re-enable below to continue automatic billing at the new rate.</div>
@@ -125,9 +129,12 @@
                 </div>
                 {% if auto_debit_status and auto_debit_status.status == 'active' %}
                   <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    {% set _ad_label = employee_count ~ ' employee' ~ ('s' if employee_count != 1 else '') %}
                     {% if auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
-                    <button type="button" class="qty-btn" id="updateAutoDebitBtn" style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Update to {{ employee_count }} employee{{ 's' if employee_count != 1 }}</button>
+                    <button type="button" class="qty-btn" id="updateAutoDebitBtn" {% if auto_debit_status.fixed_amount %}hidden{% endif %} style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Update to {{ _ad_label }}</button>
                     {% endif %}
+                    {# UPI / e-mandate Auto-Debit can't change its amount: a new authorization replaces it. #}
+                    <button type="button" class="qty-btn" id="reauthAutoDebitBtn" data-label="Set up for {{ _ad_label }}" {% if not (auto_debit_status.fixed_amount and auto_debit_status.quantity_synced != employee_count) %}hidden{% endif %} style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Set up for {{ _ad_label }}</button>
                     <button type="button" class="qty-btn" id="cancelAtPeriodEndBtn" style="width:auto; padding:0 16px; background:#fff7ed; border-color:#fdba74; color:#c2410c;">Cancel at Period End</button>
                     <button type="button" class="qty-btn" id="disableAutoDebitBtn" style="width:auto; padding:0 16px; background:#fee2e2; border-color:#fca5a5; color:#dc2626;">Disable Now</button>
                   </div>
@@ -358,23 +365,31 @@
                 err.style.display = 'flex';
               }
 
+              // The button that started the current authorization: "Enable
+              // Auto-Debit", or "Set up for N employees" (replace: a UPI /
+              // e-mandate Auto-Debit can't change its amount, so a new one
+              // takes over from it).
+              let enrollBtn = null;
               function resetEnrollButton() {
-                const btn = document.getElementById('enableAutoDebitBtn');
+                const btn = enrollBtn || document.getElementById('enableAutoDebitBtn');
                 if (!btn) return;
                 btn.disabled = false;
                 btn.textContent = btn.dataset.label || 'Enable Auto-Debit';
               }
 
-              const enableAutoDebitBtn = document.getElementById('enableAutoDebitBtn');
-              if (enableAutoDebitBtn) {
-                enableAutoDebitBtn.addEventListener('click', async () => {
+              async function startAutoDebitSetup(btn, replace) {
+                  enrollBtn = btn;
                   const err = document.getElementById('adFormError');
                   err.style.display = 'none';
-                  enableAutoDebitBtn.disabled = true;
-                  enableAutoDebitBtn.textContent = 'Setting up...';
+                  btn.disabled = true;
+                  btn.textContent = 'Setting up...';
 
                   try {
-                    const res = await fetch('{{ tpath("/api/auto_debit/enroll") }}', { method: 'POST' });
+                    const res = await fetch('{{ tpath("/api/auto_debit/enroll") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(replace ? { replace: true } : {}),
+                    });
                     const json = await res.json();
                     if (!json.ok) {
                       adShowError(json.msg || 'Could not start auto-debit setup.');
@@ -398,7 +413,15 @@
                     adShowError('Network error. Please check your connection and try again.');
                     resetEnrollButton();
                   }
-                });
+              }
+
+              const enableAutoDebitBtn = document.getElementById('enableAutoDebitBtn');
+              if (enableAutoDebitBtn) {
+                enableAutoDebitBtn.addEventListener('click', () => startAutoDebitSetup(enableAutoDebitBtn, false));
+              }
+              const reauthAutoDebitBtn = document.getElementById('reauthAutoDebitBtn');
+              if (reauthAutoDebitBtn) {
+                reauthAutoDebitBtn.addEventListener('click', () => startAutoDebitSetup(reauthAutoDebitBtn, true));
               }
 
               function openRazorpaySubscriptionCheckout(sub) {
@@ -434,7 +457,9 @@
                   const json = await res.json();
                   if (json.ok) {
                     const success = document.getElementById('adFormSuccess');
-                    success.textContent = 'Auto-debit enabled! You will be billed automatically each month.';
+                    success.textContent = json.replaced
+                      ? 'Auto-Debit set up again for your current headcount. The old one stops at the end of its cycle.'
+                      : 'Auto-debit enabled! You will be billed automatically each month.';
                     success.style.display = 'flex';
                     setTimeout(() => { window.location.reload(); }, 1500);
                   } else {
@@ -486,6 +511,11 @@
                     const json = await res.json();
                     if (json.ok) {
                       window.location.reload();
+                    } else if (json.needs_reauth && reauthAutoDebitBtn) {
+                      // UPI / e-mandate: swap "Update" for "Set up for N employees".
+                      adShowError(json.msg);
+                      updateAutoDebitBtn.hidden = true;
+                      reauthAutoDebitBtn.hidden = false;
                     } else {
                       adShowError(json.msg || 'Could not update auto-debit.');
                       updateAutoDebitBtn.disabled = false;

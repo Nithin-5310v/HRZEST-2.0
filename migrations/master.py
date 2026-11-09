@@ -466,6 +466,20 @@ def _init_master_db_impl():
         # the new rate -- migration happens at the subscriber's own next
         # renewal, never mid-cycle.
         cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS needs_rate_migration BOOLEAN NOT NULL DEFAULT FALSE")
+        # A mandate authorized with UPI Autopay or e-mandate can never change
+        # its amount -- Razorpay refuses the quantity update for those payment
+        # methods -- so a new headcount needs a new authorization
+        # (blueprints/auto_debit.py). fixed_amount: Razorpay said so.
+        # pending_*: the replacement subscription being authorized; the
+        # current one keeps billing until it's confirmed, then is cancelled at
+        # its cycle end while the new one starts at pending_start_at (epoch
+        # seconds; NULL = now). reauth_notified_quantity: the headcount the
+        # admins were last emailed about, so the daily job tells them once.
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS fixed_amount BOOLEAN NOT NULL DEFAULT FALSE")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_subscription_id VARCHAR(100) DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_quantity INT DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_start_at BIGINT DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS reauth_notified_quantity INT DEFAULT NULL")
         # 'pending_cancellation' is a legal status value alongside the ones
         # documented above -- set by /api/auto_debit/cancel when called with
         # at_period_end=true (blueprints/auto_debit.py). The mandate keeps
