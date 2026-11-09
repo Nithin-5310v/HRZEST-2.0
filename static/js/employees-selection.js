@@ -1,4 +1,4 @@
-  <script>
+
   function syncManagerName(sel, mode) {
     const text = sel.options[sel.selectedIndex]?.text?.split(' (')[0] || '';
     if (mode === 'add') document.getElementById('add_manager_name').value = text;
@@ -35,4 +35,4 @@
     ids.forEach(id=>{ const i=document.createElement('input'); i.type='hidden'; i.name='employee_ids'; i.value=id; form.appendChild(i); });
     document.body.appendChild(form); form.submit();
   }
-  </script>
+  

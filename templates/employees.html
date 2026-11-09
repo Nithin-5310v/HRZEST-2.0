@@ -44,15 +44,15 @@
 
 {% include "employees/_modal_qr.html" %}
 
-{% include "employees/_script_main.html" %}
+    <script src="{{ static_url('js/employees.js') }}"></script>
 {% endblock %}
 
 {% block scripts %}
-{% include "employees/_script_selection.html" %}
+  <script src="{{ static_url('js/employees-selection.js') }}"></script>
 
 {% include "employees/_modals_shift_break.html" %}
 
-{% include "employees/_script_shift_break.html" %}
+  <script src="{{ static_url('js/employees-shift-break.js') }}"></script>
 
 
 {% endblock %}
