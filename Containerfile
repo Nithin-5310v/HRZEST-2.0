@@ -1,7 +1,7 @@
 # ── Stage 1: builder ─────────────────────────────────────────────────────────
 # Compilers/headers needed only to build dlib (face_recognition) and psycopg2
 # extension wheels. None of this belongs in the image that actually runs.
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1
 
@@ -34,7 +34,7 @@ RUN if [ "$REQUIREMENTS_FILE" = "requirements.lock" ]; then \
 # Same base so glibc/ABI matches the builder; no compilers, no -dev headers,
 # no build tools — only the shared libs the compiled wheels dlopen at import
 # time (verify with `ldd` against your built .so files if this list drifts).
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -82,7 +82,7 @@ RUN (find / -xdev -type d \( -iname 'wheel-*' -o -iname 'jaraco.context-*' \) -e
     pip install --no-cache-dir --upgrade wheel jaraco.context && \
     python -m pip uninstall -y pip && \
     (find / -xdev -type d -name 'pip-*.dist-info' -exec rm -rf {} + || true) && \
-    rm -rf /usr/local/lib/python3.13/site-packages/pip /root/.cache/pip
+    rm -rf /usr/local/lib/python3.14/site-packages/pip /root/.cache/pip
 
 WORKDIR /app
 COPY --chown=appuser:appuser . .

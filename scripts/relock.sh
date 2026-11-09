@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regenerate requirements.lock -- the hash-pinned, reproducible dependency set
-# for the production image (Linux, Python 3.13).
+# for the production image (Linux, Python 3.14).
 #
 #   bash scripts/relock.sh            # keep existing pins where requirements.txt still allows them
 #   bash scripts/relock.sh --upgrade  # move every pin to the newest release allowed
@@ -20,7 +20,7 @@ UPGRADE=()
 [ "${1:-}" = "--upgrade" ] && UPGRADE=(--upgrade)
 
 uv pip compile requirements.txt \
-  --universal --python-version 3.13 --generate-hashes \
+  --universal --python-version 3.14 --generate-hashes \
   "${UPGRADE[@]}" -o requirements.lock
 
 echo "wrote requirements.lock ($(grep -c '^[a-z]' requirements.lock) packages)."
