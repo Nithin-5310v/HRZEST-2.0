@@ -716,6 +716,24 @@ def _init_master_db_impl():
         cur.execute("ALTER TABLE tenant_support_tickets ADD COLUMN IF NOT EXISTS linked_ticket_id INT DEFAULT NULL")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_tickets_linked ON tenant_support_tickets (linked_ticket_id)")
         cur.execute("ALTER TABLE tenant_ticket_comments ADD COLUMN IF NOT EXISTS author_kind VARCHAR(20) NOT NULL DEFAULT 'platform_admin'")
+        # Screenshots and documents attached to a ticket (comment_id NULL)
+        # or to one reply on it, by either side (utils/support_tickets.py).
+        # The file itself is encrypted under private_uploads/support_tickets/.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tenant_ticket_attachments (
+                id SERIAL PRIMARY KEY,
+                ticket_id INT NOT NULL,
+                comment_id INT DEFAULT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                stored_ref VARCHAR(500) NOT NULL,
+                content_type VARCHAR(100) DEFAULT NULL,
+                size_bytes INT DEFAULT NULL,
+                uploaded_by VARCHAR(100) DEFAULT NULL,
+                uploader_kind VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON tenant_ticket_attachments (ticket_id)")
         # One row per scheduled-job run, claimed by whichever process gets
         # there first -- every gunicorn worker runs the scheduler, and the
         # primary key is what makes each nightly job run once (utils/

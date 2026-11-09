@@ -1508,7 +1508,7 @@ class TestSupportTickets:
         resp = client.post(f"/super_admin/tickets/{open_ticket}/comment",
                            data={"comment": "Escalated to engineering."}, follow_redirects=True)
         assert resp.status_code == 200
-        assert b"Comment added." in resp.data
+        assert b"Reply sent to the company." in resp.data
         assert b"Escalated to engineering." in resp.data
         assert b"comment_admin" in resp.data
 

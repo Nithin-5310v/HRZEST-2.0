@@ -112,7 +112,7 @@
                 {% endif %}
                 <div class="subdomain">{{ t.subdomain }}</div>
               </td>
-              <td>{{ t.subject }}</td>
+              <td>{{ t.subject }}{% if t.file_count %} <span title="{{ t.file_count }} attached file(s)" style="color:#64748b;font-size:13px;white-space:nowrap;"><i class="ti ti-paperclip"></i>{{ t.file_count }}</span>{% endif %}</td>
               <td><span class="badge badge-{{ t.priority }}">{{ t.priority }}</span></td>
               <td><span class="badge badge-{{ t.status }}">{{ t.status.replace('_', ' ') }}</span></td>
               <td class="subdomain">{{ t.updated_at.strftime('%Y-%m-%d %H:%M') if t.updated_at else '—' }}</td>

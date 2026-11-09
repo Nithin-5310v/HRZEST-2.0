@@ -714,7 +714,8 @@
     </div>
     <div class="p-card">
       <h2>Raise a New Ticket</h2>
-      <form method="POST" action="{{ tpath('/profile/tickets') }}">
+      {% from "_ticket_files.html" import ticket_files_style, attach_input %}{{ ticket_files_style() }}
+      <form method="POST" action="{{ tpath('/profile/tickets') }}" enctype="multipart/form-data">
         <label class="field-label" for="tk-subject">Subject</label>
         <input class="p-input" id="tk-subject" name="subject" required maxlength="200">
         <label class="field-label" for="tk-priority">Priority</label>
@@ -723,6 +724,7 @@
         </select>
         <label class="field-label" for="tk-description">Description</label>
         <textarea class="p-input" id="tk-description" name="description" rows="4" required maxlength="4000"></textarea>
+        {{ attach_input(ticket_file_accept, ticket_max_files) }}
         <button class="p-btn" type="submit">Raise Ticket</button>
       </form>
     </div>

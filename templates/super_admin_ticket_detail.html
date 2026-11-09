@@ -70,7 +70,14 @@
       }
       .comment-form textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); outline: none; }
       .comment-form button { align-self: flex-end; }
+      .update-form textarea { flex-basis: 100%; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 9px 10px; font-size: 15px; font-family: inherit; min-height: 54px; }
+      .hint { font-size: 13.5px; color: var(--text-dim); margin-top: 10px; }
+      .who { font-weight: 700; color: var(--text-bright); }
+      .who-company { color: #1d4ed8; }
     </style>
+    {% from "_ticket_files.html" import ticket_files, ticket_files_style, attach_input %}
+    {% set _files_base = '/super_admin/tickets/' ~ ticket.id ~ '/files/' %}
+    {{ ticket_files_style() }}
     {# Shared Zoho-style console theme (blue, clean light canvas), loaded last #}
   <link rel="stylesheet" href="{{ static_url('platform-theme.css') }}" />
   <script src="{{ static_url('platform-topbar.js') }}" defer></script>
@@ -100,6 +107,7 @@
           <span class="badge badge-{{ ticket.priority }}">{{ ticket.priority }}</span>
         </div>
         <div class="desc">{{ ticket.description }}</div>
+        {{ ticket_files(attachments.get(None), _files_base) }}
         <div class="sub-info">
           {% if ticket.tenant_id %}
           Company: <a href="/super_admin/companies/{{ ticket.tenant_id }}">{{ ticket.company_name }}</a> ({{ ticket.subdomain }})
@@ -129,26 +137,32 @@
               {% endfor %}
             </select>
           </label>
+          <textarea name="note" maxlength="2000" aria-label="Message to the company" placeholder="Message to the company (optional) -- e.g. what was fixed"></textarea>
           <button type="submit" class="mini-btn"><i class="ti ti-check"></i> Save</button>
         </form>
+        <p class="hint"><i class="ti ti-mail"></i> Changing the status emails {{ ticket.created_by or 'the person who raised the ticket' }} and notifies the company's admins. A message, if written, is added to the conversation and included.</p>
       </div>
 
       <div class="card">
-        <h2><i class="ti ti-messages"></i> Internal Comments</h2>
+        <h2><i class="ti ti-messages"></i> Conversation with the company</h2>
         {% if comments %}
         {% for c in comments %}
         <div class="comment-item">
-          <div class="comment-meta">{{ c.author }} — {{ c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '' }}</div>
+          <div class="comment-meta">
+            {% if c.author_kind == 'company_admin' %}<span class="who who-company">{{ c.author }} ({{ ticket.company_name }})</span>{% else %}<span class="who">{{ c.author }} (HRZEST)</span>{% endif %}
+            — {{ c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '' }}</div>
           <div class="comment-body">{{ c.comment }}</div>
+          {{ ticket_files(attachments.get(c.id), _files_base) }}
         </div>
         {% endfor %}
         {% else %}
-        <div class="empty-note">No comments yet.</div>
+        <div class="empty-note">No replies yet.</div>
         {% endif %}
-        <form class="comment-form" action="/super_admin/tickets/{{ ticket.id }}/comment" method="POST">
+        <form class="comment-form" action="/super_admin/tickets/{{ ticket.id }}/comment" method="POST" enctype="multipart/form-data">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-          <textarea aria-label="Add an internal comment…" name="comment" placeholder="Add an internal comment…" required></textarea>
-          <button type="submit" class="mini-btn"><i class="ti ti-plus"></i> Add Comment</button>
+          <textarea aria-label="Reply to the company" name="comment" placeholder="Reply to the company -- they see it on the ticket and get it by email" maxlength="2000"></textarea>
+          {{ attach_input(ticket_file_accept, ticket_max_files) }}
+          <button type="submit" class="mini-btn"><i class="ti ti-send"></i> Send Reply</button>
         </form>
       </div>
     </div>
