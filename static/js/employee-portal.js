@@ -1,4 +1,8 @@
-    <script>
+
+      // Server-provided values (templates/employee_portal.html, #portal-data):
+      // a JSON block, never interpolated into this code.
+      const _portalData = JSON.parse(document.getElementById('portal-data').textContent);
+
       // Server-sourced strings (incentive titles/notes below, and
       // result.name further down this same block) reach innerHTML with no
       // escaping elsewhere in this file -- admin-set text (an incentive
@@ -7,11 +11,11 @@
       // sink. Mirrors the escape helper already used in admin.html and
       // _admin_chat_widget.html.
       function escHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
-      // Server values for HTML built in template literals below. Passed as JSON
-      // (tojson is safe in a JS expression) and inserted with escHtml(). A Jinja
-      // expression written straight into a `...` literal let a name or designation
-      // containing a backtick or ${ break out and run as script.
-      const _portalEmp = {{ {'id': emp[0], 'name': emp[1] or '', 'role': ((emp[2] if emp|length > 2 else '') or '')} | tojson }};
+      // Server values for HTML built in template literals below come from the
+      // #portal-data JSON block and are inserted with escHtml(). Never splice a
+      // server value straight into a `...` literal: a backtick or ${ in it would
+      // break out and run as script.
+      const _portalEmp = _portalData.emp;
 
       function loadPayslip(year, month, label) {
         const modal   = document.getElementById('payslip-modal');
@@ -206,11 +210,11 @@
 
       /* ── CALENDAR ── */
       (function() {
-        const data     = {{ cal_data | tojson }};
-        const holNames = {{ cal_hol_names | tojson }};
-        const firstDow = {{ cal_first_dow }};
-        const year     = {{ cal_year }};
-        const month    = {{ cal_month }};
+        const data     = _portalData.cal.data;
+        const holNames = _portalData.cal.holNames;
+        const firstDow = _portalData.cal.firstDow;
+        const year     = _portalData.cal.year;
+        const month    = _portalData.cal.month;
         const daysInMonth = new Date(year, month, 0).getDate();
         const now      = new Date();
         const todayDay = (now.getFullYear() === year && now.getMonth() + 1 === month) ? now.getDate() : -1;
@@ -574,8 +578,8 @@
       /* ── ATTENDANCE SCANNER (QR / Face / Fingerprint, per company auth config) ── */
       var wfhStream   = null;
       var wfhScanLoop = null;
-      var attCfg      = {{ attendance_auth_cfg | tojson }};
-      var myEmpId     = {{ emp[0] | tojson }};
+      var attCfg      = _portalData.attCfg;
+      var myEmpId     = _portalData.emp.id;
 
       function pickAuthCombo() {
         // Face enabled => only face-inclusive methods (server-enforced too).
@@ -911,4 +915,4 @@
         // (sidebar, Dashboard), because it was never actually saved.
         document.getElementById('photoForm').submit();
       }
-    </script>
+    
