@@ -6,6 +6,7 @@ api_employee_auth_config, api_employee_logout.
 import hashlib
 import datetime
 import secrets
+from tests.conftest import with_local_scripts  # noqa: E402
 
 
 def _emp_session(client, seed_employee):
@@ -87,7 +88,7 @@ class TestEmployeePortalStoredXssEscaping:
         _emp_session(client, seed_employee)
         rv = client.get("/employee_portal")
         assert rv.status_code == 200
-        body = rv.data.decode("utf-8")
+        body = with_local_scripts(rv.data.decode("utf-8"))   # + static/js the page loads
         # The innerHTML sink specifically -- NOT the only other b.name
         # reference in the file (a browser Notification() call's `body`
         # text, which renders as plain text, not HTML, so it's not a sink).
@@ -98,7 +99,7 @@ class TestEmployeePortalStoredXssEscaping:
         _emp_session(client, seed_employee)
         rv = client.get("/employee_portal")
         assert rv.status_code == 200
-        body = rv.data.decode("utf-8")
+        body = with_local_scripts(rv.data.decode("utf-8"))   # + static/js the page loads
         assert "escHtml(result.name)" in body
         assert "+ result.name +" not in body
 
@@ -106,7 +107,7 @@ class TestEmployeePortalStoredXssEscaping:
         _emp_session(client, seed_employee)
         rv = client.get("/employee_portal")
         assert rv.status_code == 200
-        body = rv.data.decode("utf-8")
+        body = with_local_scripts(rv.data.decode("utf-8"))   # + static/js the page loads
         assert "escHtml(i.title)" in body
         assert "escHtml(i.notes)" in body
 
@@ -132,7 +133,7 @@ class TestShowViewClosesSidebarSafely:
         _emp_session(client, seed_employee)
         rv = client.get("/employee_portal")
         assert rv.status_code == 200
-        body = rv.data.decode("utf-8")
+        body = with_local_scripts(rv.data.decode("utf-8"))   # + static/js the page loads
         assert "if (typeof closeSidebar === 'function') closeSidebar();" in body
         assert "\n        closeSidebar();" not in body
 

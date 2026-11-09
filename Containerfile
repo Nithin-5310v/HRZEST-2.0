@@ -1,7 +1,7 @@
 # ── Stage 1: builder ─────────────────────────────────────────────────────────
 # Compilers/headers needed only to build dlib (face_recognition) and psycopg2
 # extension wheels. None of this belongs in the image that actually runs.
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1
 
@@ -34,17 +34,16 @@ RUN if [ "$REQUIREMENTS_FILE" = "requirements.lock" ]; then \
 # Same base so glibc/ABI matches the builder; no compilers, no -dev headers,
 # no build tools — only the shared libs the compiled wheels dlopen at import
 # time (verify with `ldd` against your built .so files if this list drifts).
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# `apt-get upgrade` takes Debian's security fixes for what the base image
-# already ships: python:3.13-slim is rebuilt less often than Debian
-# publishes them (Trivy: zlib1g CVE-2026-85091/CVE-2026-76844, fixed in
-# 1.3.1-1+deb13u1, still at 1.3.1-1+b1 in the base image).
-RUN apt-get update && apt-get upgrade -y \
+# `apt-get upgrade` pulls Debian security fixes released after the base image
+# was built (Trivy, Nov 2026: zlib1g CVE-2026-76844/CVE-2026-85091, fixed in
+# deb13u1 but not yet in python:3.13-slim).
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends \
     libopenblas0-pthread liblapack3 \
     libx11-6 \
@@ -83,7 +82,7 @@ RUN (find / -xdev -type d \( -iname 'wheel-*' -o -iname 'jaraco.context-*' \) -e
     pip install --no-cache-dir --upgrade wheel jaraco.context && \
     python -m pip uninstall -y pip && \
     (find / -xdev -type d -name 'pip-*.dist-info' -exec rm -rf {} + || true) && \
-    rm -rf /usr/local/lib/python3.13/site-packages/pip /root/.cache/pip
+    rm -rf /usr/local/lib/python3.14/site-packages/pip /root/.cache/pip
 
 WORKDIR /app
 COPY --chown=appuser:appuser . .

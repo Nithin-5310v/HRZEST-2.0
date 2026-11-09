@@ -198,7 +198,9 @@ def unrouted_urls(text, js, url_map):
         a = dict((k.lower(), (x or y)) for k, x, y in ATTR_RE.findall(attrs))
         href = _tpath(a.get("href", ""))
         if href.startswith("/") and "{{" not in href and not href.startswith("//"):
-            path = re.sub(r"[{]%.*?%[}]", "", href).split("?")[0].split("#")[0]
+            path = re.sub(r"[{]%.*?%[}]", "", href)
+            path = re.sub(r"[$][{][^}]*[}]", "1", path)   # JS template expression, as _url_from_expr does
+            path = path.split("?")[0].split("#")[0]
             if not _routable(url_map, path, "GET"):
                 bad.append(("GET", path))
     return sorted(set(bad))

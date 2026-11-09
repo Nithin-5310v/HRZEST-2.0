@@ -1,0 +1,95 @@
+  {# ══ ADD COMPANY MODAL ══ #}
+  <div class="modal-bg" id="addCompanyModal">
+    <div class="modal u-maxw-580 u-maxh-90vh u-d-flex u-fxd-column">
+      <div class="modal-title u-fxs-0"><i class="ti ti-building hz-ico" aria-hidden="true"></i> Add Company</div>
+      <form class="u-d-flex u-fxd-column u-fx-1 u-minh-0" method="POST" action="{{ tpath('/companies/add') }}" enctype="multipart/form-data">
+        <input type="hidden" name="redirect_to" value="settings" />
+        <div class="u-ovy-auto u-fx-1 u-pr-2">
+          <div class="u-d-grid u-gtc-1fr-160 u-gap-10">
+            <div class="field">
+              <label>Company Name</label>
+              <input type="text" name="name" placeholder="e.g. Magzest Solutions" required />
+            </div>
+            <div class="field">
+              <label>Code <span class="u-fs-11 u-c-94a3b8">(ID prefix)</span></label>
+              <input class="u-ff-monospace u-ls-1" type="text" name="code" placeholder="e.g. MGZ" maxlength="20" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-photo hz-ico" aria-hidden="true"></i> Company Logo <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+            <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/bmp" />
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-map-pin hz-ico" aria-hidden="true"></i> Office Address <span class="u-fs-11 u-c-94a3b8">(optional — shown on ID cards)</span></label>
+            <input type="text" name="address" placeholder="e.g. 4th Floor, Tech Park, Bengaluru, India" />
+          </div>
+          <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+            <div class="field">
+              <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-world hz-ico" aria-hidden="true"></i> Website <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+              <input type="text" name="website" placeholder="e.g. company.com" />
+            </div>
+            <div class="field">
+              <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-mail hz-ico" aria-hidden="true"></i> Contact Email <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+              <input type="email" name="email" placeholder="info@company.com" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-phone hz-ico" aria-hidden="true"></i> Contact Phone <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+            <input type="text" name="phone" placeholder="e.g. +91 98765 43210" />
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Working Days</label>
+            <div class="u-d-flex u-fxw-wrap u-gap-6 u-mt-4">
+              {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+              <label class="u-cur-pointer">
+                <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} data-on-change="styleCoWd(this)" />
+                <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:14px;font-weight:700;border:1.5px solid {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ _d }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Affects payroll calculation for this company.</div>
+          </div>
+
+          {# Shifts #}
+          <div class="field u-mb-6">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
+              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-clock hz-ico" aria-hidden="true"></i> Shifts</label>
+              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-c7d2fe u-br-8 u-bg-eef2ff u-c-4338ca u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" data-on-click="acAddShiftRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
+            </div>
+            {# header row #}
+            <div class="u-d-grid u-gtc-1fr-82-82-82-28 u-gap-6 u-mb-4 u-p-0-2">
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Name</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Start</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Half-day</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">End</span>
+              <span></span>
+            </div>
+            <div class="u-d-flex u-fxd-column u-gap-6" id="acShiftsList"></div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Optional — define shifts for this company.</div>
+          </div>
+
+          {# Breaks #}
+          <div class="field u-mb-6">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
+              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i> Breaks</label>
+              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" data-on-click="acAddBreakRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
+            </div>
+            {# header row #}
+            <div class="u-d-grid u-gtc-1fr-90-70-28 u-gap-6 u-mb-4 u-p-0-2">
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Name</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Time</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Mins</span>
+              <span></span>
+            </div>
+            <div class="u-d-flex u-fxd-column u-gap-6" id="acBreaksList"></div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Optional — define company-wide daily breaks.</div>
+          </div>
+        </div>
+
+        <div class="modal-actions u-fxs-0 u-bdt-1-solid-f1f5f9 u-pt-14 u-mt-4">
+          <button class="u-p-9-18 u-bd-1-solid-e2e8f0 u-br-9 u-bg-f1f5f9 u-c-64748b u-fs-14 u-fw-600 u-cur-pointer" type="button" data-on-click="acCloseModal()">Cancel</button>
+          <button type="submit" class="btn-submit">Add Company</button>
+        </div>
+      </form>
+    </div>
+  </div>

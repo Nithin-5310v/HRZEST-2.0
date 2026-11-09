@@ -41,6 +41,9 @@ HRZEST/
 │   │                               HR, employee self-service, Platform Admin
 │   ├── _*.html                     shared pieces (registration checklist, chat widget,
 │   │                               login promo, employee sidebar)
+│   ├── employee_portal/, settings/,  partials of the three largest pages: one file per
+│   │   employees/                  view / panel / modal, plus _styles and _script(s);
+│   │                               the page template is an outline of {% include %}s
 │   └── soc/                        SOC console pages
 │
 │ ═══ 2. CSS  +  3. Front-end JavaScript ══════════════════════════════════════════
@@ -202,7 +205,7 @@ Plain JavaScript (no framework, no build step).
 
 ## 4. Back end (Flask)
 
-**Language:** Python 3.13 (`.python-version`). **Framework:** Flask 3, served by Gunicorn.
+**Language:** Python 3.14 (`.python-version`). **Framework:** Flask 3, served by Gunicorn.
 
 | Layer | Where | What it does |
 | --- | --- | --- |

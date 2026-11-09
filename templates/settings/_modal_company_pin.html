@@ -1,0 +1,36 @@
+  {# ══ SET COMPANY PIN MODAL ══ #}
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10002 u-ai-center u-jc-center" id="setPinModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-360 u-shad-0-24-64-rgba0_0_0_0d25">
+      <div class="u-fs-15 u-fw-800 u-c-0f172a u-mb-3"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> PIN Protection</div>
+      <div class="u-fs-12 u-c-64748b u-mb-20" id="spn_label">Control access to this company</div>
+      <form method="POST" action="{{ tpath('/set_company_pin') }}" id="spnForm">
+        <input type="hidden" name="company_id" id="spn_cid" />
+        {# Toggle row #}
+        <div class="u-d-flex u-ai-center u-jc-space-between u-p-13-15 u-bg-f8fafc u-bd-1d5-solid-e2e8f0 u-br-12 u-mb-14">
+          <div>
+            <div class="u-fs-13 u-fw-700 u-c-0f172a">Enable PIN Protection</div>
+            <div class="u-fs-11 u-c-64748b u-mt-2">Require PIN when switching to this company</div>
+          </div>
+          <label class="u-pos-relative u-d-inline-block u-w-46 u-h-25 u-cur-pointer u-fxs-0">
+            <input class="u-op-0 u-w-0 u-h-0 u-pos-absolute" type="checkbox" id="spn_toggle" data-on-change="spnToggleChange(this)" />
+            <span class="u-pos-absolute u-ins-0 u-br-25 u-bg-e2e8f0 u-trs-background-d2s" id="spn_track"></span>
+            <span class="u-pos-absolute u-top-3 u-lft-3 u-w-19 u-h-19 u-br-50pct u-bg-fff u-shad-0-1-4-rgba0_0_0_0d25 u-trs-left-d2s" id="spn_thumb"></span>
+          </label>
+        </div>
+        {# PIN input area — shown when toggle ON #}
+        <div class="u-d-none u-mb-14" id="spn_pin_section">
+          <label class="u-fs-12 u-fw-700 u-c-475569 u-d-block u-mb-8">PIN Code</label>
+          <input class="u-w-100pct u-p-13 u-bd-2-solid-e2e8f0 u-br-11 u-fs-22 u-ls-7 u-ta-center u-ff-monospace u-out-none u-trs-border-d15s u-bxs-border-box" type="password" name="pin" id="spn_pin" maxlength="10" placeholder="• • • •" autocomplete="off"
+            data-on-input="markFilledInput(this)" />
+          <div class="u-fs-11 u-c-94a3b8 u-mt-5 u-ta-center">4–10 characters (numbers or letters)</div>
+        </div>
+        <div class="u-fs-11 u-c-64748b u-bg-fffbeb u-bd-1-solid-fde68a u-br-8 u-p-9-12 u-mb-16 u-lh-1d5">
+          <i class="ti ti-bulb hz-ico" aria-hidden="true"></i> When enabled, clicking this company in the top-right switcher will ask for the PIN before showing its data.
+        </div>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeSetPin()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>

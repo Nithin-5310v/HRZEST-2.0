@@ -71,14 +71,14 @@
     <div class="page-intro">
       <div class="intro-icon"><i class="ti ti-gift"></i></div>
       <h1>{{ company_name }}</h1>
-      <p>Your application was approved — set up your 2-day free trial.</p>
+      <p>Your application was approved — set up your 1-month free trial.</p>
     </div>
     <div class="card">
       <div id="formError" class="alert alert-error"></div>
 
       <div class="trial-note">
         <i class="ti ti-info-circle"></i>
-        Full access to every feature for <strong>2 days, free</strong>, starting the first time you log in. We
+        Full access to every feature for <strong>1 month, free</strong>, starting the first time you log in. We
         need a card or UPI on file now so there's no interruption when your trial ends — you
         <strong>won't be charged today</strong>, and you can cancel any time before the trial ends with no charge
         at all.
@@ -164,7 +164,7 @@
       key: sub.key_id,
       subscription_id: sub.subscription_id,
       name: 'HRzest Enterprise',
-      description: {{ company_name|tojson }} + ' -- 2-day free trial authorization',
+      description: {{ company_name|tojson }} + ' -- 1-month free trial authorization',
       handler: function(response) {
         finalizeTrial({
           razorpay_subscription_id: response.razorpay_subscription_id,
