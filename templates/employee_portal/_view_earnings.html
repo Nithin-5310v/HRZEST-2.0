@@ -1,0 +1,225 @@
+      {# ═══ VIEW: MY INCENTIVES ═══ #}
+      {# ═══ VIEW: EARNINGS (Incentives + Overtime) ═══ #}
+      <div id="view-earnings" class="view">
+        <div class="mod-title"><i class="ti ti-coin hz-ico" aria-hidden="true"></i> Earnings <span>Incentives and overtime in one place</span></div>
+
+        {# Tab bar #}
+        <div class="u-d-flex u-gap-6 u-bg-fff u-bd-1-solid-dbeafe u-br-12 u-p-8-10 u-mb-20 u-fxw-wrap">
+          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" data-on-click="switchEarningsTab('salary')" id="etab-salary">
+            <i class="ti ti-coin hz-ico" aria-hidden="true"></i> Salary
+          </button>
+          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-transparent u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" data-on-click="switchEarningsTab('incentives')" id="etab-incentives">
+            <i class="ti ti-trophy hz-ico" aria-hidden="true"></i> Incentives
+          </button>
+          <button class="u-p-8-20 u-bd-none u-br-8 u-bg-transparent u-c-64748b u-fs-13 u-fw-600 u-cur-pointer" data-on-click="switchEarningsTab('overtime')" id="etab-overtime">
+            <i class="ti ti-alarm hz-ico" aria-hidden="true"></i> Overtime
+          </button>
+        </div>
+
+        {# Salary tab #}
+        <div id="epanel-salary">
+          {# Current month live summary #}
+          <div class="u-bg-linear-gradien92de10 u-br-16 u-p-24-28 u-c-fff u-mb-18">
+            <div class="u-fs-12 u-fw-700 u-op-d7 u-ttr-uppercase u-ls-d5 u-mb-4">{{ today_date.strftime('%B %Y') }} — Live Estimate</div>
+            <div class="u-fs-36 u-fw-800 u-mb-12">₹{{ "%.2f"|format(net_this_month) }}</div>
+            <div class="u-d-grid u-gtc-repeat3_1fr u-gap-12">
+              <div class="u-bg-rgba255_255_255_d12 u-br-10 u-p-12">
+                <div class="u-fs-11 u-op-d7 u-mb-3">Gross Pay</div>
+                <div class="u-fs-18 u-fw-800">₹{{ "%.2f"|format(gross_this_month) }}</div>
+              </div>
+              <div class="u-bg-rgba255_255_255_d12 u-br-10 u-p-12">
+                <div class="u-fs-11 u-op-d7 u-mb-3">Incentives</div>
+                <div class="u-fs-18 u-fw-800 u-c-86efac">+₹{{ "%.2f"|format(incentives_this_month) }}</div>
+              </div>
+              <div class="u-bg-rgba255_255_255_d12 u-br-10 u-p-12">
+                <div class="u-fs-11 u-op-d7 u-mb-3">PF, PT &amp; TDS</div>
+                <div class="u-fs-18 u-fw-800 u-c-fecaca">−₹{{ "%.2f"|format(statutory_this_month) }}</div>
+              </div>
+            </div>
+          </div>
+
+          {# Attendance breakdown #}
+          <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mb-18">
+            <div class="u-fs-13 u-fw-800 u-c-1e3a8a u-ttr-uppercase u-ls-d5 u-mb-14 u-bdb-2-solid-dbeafe u-pb-10">
+              <i class="ti ti-calculator u-c-3b82f6"></i> This Month Breakdown
+            </div>
+            <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-f0fdf4 u-br-9">
+                <span class="u-fs-13 u-c-15803d u-fw-600">Full Days</span>
+                <span class="u-fs-13 u-fw-800 u-c-15803d">{{ full_days }} × ₹{{ "%.0f"|format(salary_per_day) }} = ₹{{ "%.2f"|format(full_days * salary_per_day) }}</span>
+              </div>
+              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-fffbeb u-br-9">
+                <span class="u-fs-13 u-c-d97706 u-fw-600">Late Days</span>
+                <span class="u-fs-13 u-fw-800 u-c-d97706">{{ late_days }} × ₹{{ "%.0f"|format(salary_per_day) }} = ₹{{ "%.2f"|format(late_days * salary_per_day) }}</span>
+              </div>
+              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-fff7ed u-br-9">
+                <span class="u-fs-13 u-c-ea580c u-fw-600">Half Days</span>
+                <span class="u-fs-13 u-fw-800 u-c-ea580c">{{ half_days }} × ₹{{ "%.0f"|format(salary_per_day * 0.5) }} = ₹{{ "%.2f"|format(half_days * salary_per_day * 0.5) }}</span>
+              </div>
+              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-fff1f2 u-br-9">
+                <span class="u-fs-13 u-c-dc2626 u-fw-600">Absent (Deduction)</span>
+                <span class="u-fs-13 u-fw-800 u-c-dc2626">−₹{{ "%.2f"|format(absent_days * salary_per_day) }}</span>
+              </div>
+            </div>
+            <div class="u-mt-12 u-p-12-14 u-bg-eff6ff u-br-9 u-d-flex u-jc-space-between u-ai-center">
+              <span class="u-fs-13 u-fw-700 u-c-1e3a8a">Daily Rate</span>
+              <span class="u-fs-15 u-fw-800 u-c-1e3a8a">₹{{ "%.2f"|format(salary_per_day) }} / day</span>
+            </div>
+          </div>
+
+          {# Pay Slips advanced selector #}
+          <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mt-18">
+            <div class="u-bg-linear-gradiene204f8 u-br-10 u-p-12-18 u-mb-16 u-d-flex u-ai-center u-gap-10">
+              <i class="ti ti-file-invoice u-c-fff u-fs-18"></i>
+              <span class="u-fs-14 u-fw-800 u-c-fff u-ls-d5 u-ttr-uppercase">Pay Slips</span>
+              <span class="u-fs-11 u-c-rgba255_255_255_d65 u-fw-400 u-ttr-none u-ls-0 u-ml-4">— Select month &amp; year to view breakdown</span>
+            </div>
+
+            {# Month + Year selector #}
+            <div class="u-d-flex u-gap-10 u-ai-flex-end u-fxw-wrap u-mb-20">
+              <div class="u-fx-1 u-minw-130">
+                <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Month</label>
+                <select aria-label="Month" class="u-w-100pct u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" id="ps-month-sel">
+                  {% set month_names = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
+                  {% for i in range(1, 13) %}
+                  <option value="{{ i }}" {% if i == today_date.month %}selected{% endif %}>{{ month_names[i-1] }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="u-fx-1 u-minw-100">
+                <label class="u-fs-11 u-fw-700 u-c-475569 u-ttr-uppercase u-ls-d4 u-d-block u-mb-5">Year</label>
+                <select aria-label="Year" class="u-w-100pct u-p-10-12 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-13 u-out-none" id="ps-year-sel">
+                  {% for y in range(today_date.year, today_date.year - 4, -1) %}
+                  <option value="{{ y }}">{{ y }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <button class="u-p-10-22 u-bg-1e3a8a u-c-fff u-bd-none u-br-9 u-fs-13 u-fw-700 u-cur-pointer u-ws-nowrap" data-on-click="viewInlinePayslip()">
+                <i class="ti ti-eye"></i> View Payslip
+              </button>
+            </div>
+
+            {# Inline payslip result #}
+            <div class="u-d-none" id="inline-payslip-box"></div>
+            <div class="u-ta-center u-p-36 u-c-94a3b8 u-bg-f8fafc u-br-10" id="inline-payslip-empty">
+              <i class="ti ti-file-invoice u-fs-38 u-d-block u-mb-10 u-c-cbd5e1"></i>
+              <div class="u-fs-14 u-fw-600 u-mb-4">Select a month and year</div>
+              <div class="u-fs-13">Your salary breakdown will appear here.</div>
+            </div>
+          </div>
+        </div>
+
+        {# Incentives tab #}
+        <div class="u-d-none" id="epanel-incentives">
+          {% if total_incentive_year > 0 %}
+          <div class="u-bg-linear-gradien709188 u-bd-1d5-solid-86efac u-br-16 u-p-20-28 u-d-flex u-ai-center u-gap-20 u-mb-22">
+            <div class="u-fs-42 u-lh-1"><i class="ti ti-trophy hz-ico" aria-hidden="true"></i></div>
+            <div>
+              <div class="u-fs-13 u-c-166534 u-fw-600 u-ttr-uppercase u-ls-d05em">Total Incentives Earned — {{ today_date.year }}</div>
+              <div class="u-fs-32 u-fw-800 u-c-15803d">₹{{ "%.2f" | format(total_incentive_year) }}</div>
+              <div class="u-fs-12 u-c-4ade80 u-mt-2">Keep up the great work!</div>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if my_incentives %}
+          <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-ov-hidden">
+            <div class="u-ovx-auto">
+              <table class="u-w-100pct u-border-collapse u-fs-14">
+                <thead>
+                  <tr class="u-bg-1e3a8a u-c-fff">
+                    <th class="u-p-12-16 u-ta-left">Month</th>
+                    <th class="u-p-12-16 u-ta-left">Goal / Task</th>
+                    <th class="u-p-12-16 u-ta-left">Description</th>
+                    <th class="u-p-12-16 u-ta-right">Amount</th>
+                    <th class="u-p-12-16 u-ta-left">Notes</th>
+                    <th class="u-p-12-16 u-ta-left">Awarded On</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for title, desc, mn, yr, amount, notes, awarded_at in my_incentives %}
+                  {% set mnames = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
+                  <tr style="border-bottom:1px solid #e2e8f0;{% if loop.index is even %}background:#f8faff;{% endif %}">
+                    <td class="u-p-12-16 u-fw-700 u-c-1e3a8a u-ws-nowrap">{{ mnames[mn] }} {{ yr }}</td>
+                    <td class="u-p-12-16 u-fw-600 u-c-1e293b">{{ title }}</td>
+                    <td class="u-p-12-16 u-c-64748b u-fs-13">{{ desc or '—' }}</td>
+                    <td class="u-p-12-16 u-ta-right u-fw-800 u-c-16a34a u-fs-15">+₹{{ "%.2f" | format(amount) }}</td>
+                    <td class="u-p-12-16 u-c-64748b u-fs-13">{{ notes or '—' }}</td>
+                    <td class="u-p-12-16 u-c-94a3b8 u-fs-12 u-ws-nowrap">{{ awarded_at.strftime('%d %b %Y') if awarded_at else '—' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot>
+                  <tr class="u-bg-f0fdf4 u-fw-700">
+                    <td class="u-p-12-16 u-c-15803d" colspan="3">Total</td>
+                    <td class="u-p-12-16 u-ta-right u-c-15803d u-fs-16">+₹{{ "%.2f" | format(my_incentives | map(attribute=4) | sum) }}</td>
+                    <td colspan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+          {% else %}
+          <div class="u-ta-center u-p-60-20 u-c-94a3b8 u-bg-fff u-bd-1-solid-dbeafe u-br-14">
+            <div class="u-fs-48 u-mb-12"><i class="ti ti-medal hz-ico" aria-hidden="true"></i></div>
+            <div class="u-fs-15 u-fw-600 u-c-64748b u-mb-6">No incentives yet</div>
+            <div class="u-fs-13">Complete your goals to earn bonuses.</div>
+          </div>
+          {% endif %}
+        </div>
+
+        {# Overtime tab #}
+        <div class="u-d-none" id="epanel-overtime">
+          {% if my_overtime %}
+          <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-ov-hidden">
+            <div class="u-ovx-auto">
+              <table class="u-w-100pct u-border-collapse">
+                <thead>
+                  <tr class="u-bg-1e3a8a u-c-fff">
+                    <th class="u-p-12-16 u-ta-left">Date</th>
+                    <th class="u-p-12-16 u-ta-left">Shift End</th>
+                    <th class="u-p-12-16 u-ta-left">Actual Logout</th>
+                    <th class="u-p-12-16 u-ta-left">OT Duration</th>
+                    <th class="u-p-12-16 u-ta-left">OT Pay</th>
+                    <th class="u-p-12-16 u-ta-left">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for o in my_overtime %}
+                  {% set ot_h = o[3] // 60 %}
+                  {% set ot_m = o[3] % 60 %}
+                  <tr style="border-bottom:1px solid #e2e8f0;{% if loop.index is even %}background:#f8faff;{% endif %}">
+                    <td class="u-p-12-16 u-fs-13 u-fw-600 u-c-1e293b u-ws-nowrap">{{ o[0].strftime('%d %b %Y') if o[0] else '—' }}</td>
+                    <td class="u-p-12-16 u-fs-13 u-c-64748b">
+                      {% set se = o[1] %}{% if se %}{% if se.total_seconds is defined %}{{ "%02d:%02d"|format((se.total_seconds()//3600)|int,((se.total_seconds()%3600)//60)|int) }}{% else %}{{ se.strftime('%H:%M') }}{% endif %}{% else %}—{% endif %}
+                    </td>
+                    <td class="u-p-12-16 u-fs-13 u-c-64748b">
+                      {% set al = o[2] %}{% if al %}{% if al.total_seconds is defined %}{{ "%02d:%02d"|format((al.total_seconds()//3600)|int,((al.total_seconds()%3600)//60)|int) }}{% else %}{{ al.strftime('%H:%M') }}{% endif %}{% else %}—{% endif %}
+                    </td>
+                    <td class="u-p-12-16 u-fs-13 u-fw-700 u-c-1e293b">{% if ot_h > 0 %}{{ ot_h }}h {% endif %}{{ ot_m }}m</td>
+                    <td class="u-p-12-16 u-fs-13 u-fw-700 u-c-16a34a">₹{{ "%.2f"|format(o[4]|float) }}</td>
+                    <td class="u-p-12-16">
+                      {% if o[5] == 'Approved' %}
+                      <span class="u-p-3-10 u-br-20 u-fs-11 u-fw-700 u-bg-f0fdf4 u-c-16a34a">Approved</span>
+                      {% elif o[5] == 'Rejected' %}
+                      <span class="u-p-3-10 u-br-20 u-fs-11 u-fw-700 u-bg-fef2f2 u-c-ef4444">Rejected</span>
+                      {% else %}
+                      <span class="u-p-3-10 u-br-20 u-fs-11 u-fw-700 u-bg-fefce8 u-c-ca8a04">Pending</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% else %}
+          <div class="u-ta-center u-p-60-20 u-c-94a3b8 u-bg-fff u-bd-1-solid-dbeafe u-br-14">
+            <i class="ti ti-clock-off u-fs-42 u-d-block u-mb-12"></i>
+            <div class="u-fs-15 u-fw-600 u-c-64748b u-mb-6">No overtime records</div>
+            <div class="u-fs-13">Your overtime will appear here when logged.</div>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>{# /view-earnings #}

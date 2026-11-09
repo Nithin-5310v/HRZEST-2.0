@@ -1,0 +1,41 @@
+      {# ═══ VIEW: HOLIDAYS ═══ #}
+      <div id="view-holidays" class="view">
+        <div class="mod-title"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Holiday Calendar <span>Public holidays &amp; company leaves</span></div>
+
+        {# Year navigation #}
+        <div class="hol-year-nav">
+          <a href="/employee_portal?hol_year={{ hol_year - 1 }}#holidays">&#8592; {{ hol_year - 1 }}</a>
+          <span class="hol-cur-yr">{{ hol_year }}</span>
+          <a href="/employee_portal?hol_year={{ hol_year + 1 }}#holidays">{{ hol_year + 1 }} &#8594;</a>
+        </div>
+
+        {# Holidays list #}
+        <div class="section">
+          <h3><i class="ti ti-clipboard-list hz-ico" aria-hidden="true"></i> All Holidays &amp; Leaves ({{ hol_year }})</h3>
+          <div class="u-ovx-auto u-br-10">
+            <table class="hol-list-table">
+              <thead><tr><th>#</th><th>Date</th><th>Day</th><th>Name</th></tr></thead>
+              <tbody>
+                {% set ns2 = namespace(cnt=0) %}
+                {% for row in all_holidays_list %}
+                {% set ns2.cnt = ns2.cnt + 1 %}
+                <tr>
+                  <td class="u-c-94a3b8">{{ ns2.cnt }}</td>
+                  <td>{{ row[1].strftime('%d %b %Y') }}</td>
+                  <td class="u-c-64748b u-fs-12">{{ row[1].strftime('%A') }}</td>
+                  <td>
+                    {% if row[2].startswith('Leave:') %}
+                      <span class="hol-badge hol-badge-comp"><i class="ti ti-leaf hz-ico" aria-hidden="true"></i> {{ row[2][6:] }}</span>
+                    {% else %}
+                      <span class="hol-badge hol-badge-pub"><i class="ti ti-confetti hz-ico" aria-hidden="true"></i> {{ row[2] }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td class="u-ta-center u-p-28 u-c-94a3b8" colspan="4">No holidays recorded for {{ hol_year }}.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>{# /view-holidays #}

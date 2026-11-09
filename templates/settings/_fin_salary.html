@@ -1,0 +1,45 @@
+          {# SALARY #}
+          <div class="s3-section" id="ss-salary">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-f0fdf4"><i class="ti ti-cash u-c-16a34a u-fs-20"></i></div>
+              <div><div class="sec-title">Salary</div><div class="sec-sub">Per-employee daily rate configuration</div></div>
+            </div>
+            <div class="section">
+              <div class="section-title"><i class="ti ti-coin"></i> Employee Salary Configuration</div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Employee</th><th>Role</th><th>Daily Rate</th><th>Monthly (26 days)</th><th>Last Revised</th><th>Action</th></tr></thead>
+                  <tbody>
+                  {% for s in salaries %}{% set eid,ename,spd,role,rev,phone,email = s %}
+                  <tr>
+                    <td><strong>{{ ename }}</strong><br><span class="u-fs-11 u-c-94a3b8">{{ eid }}</span></td>
+                    <td>{% if role %}<span class="badge b-blue">{{ role }}</span>{% else %}<span class="badge b-gray">—</span>{% endif %}</td>
+                    <td class="u-fw-800 u-c-16a34a">&#8377;{{ "%.2f"|format(spd) }}</td>
+                    <td class="u-fw-700 u-c-2563eb">&#8377;{{ "%.0f"|format(spd*26) }}</td>
+                    <td>{% if rev %}<span class="rev-badge">{{ rev.strftime('%d %b %Y') }}</span>{% else %}<span class="rev-badge muted">Not set</span>{% endif %}</td>
+                    <td>
+                      <button class="btn-edit" data-on-click="openSalaryEdit('{{ eid }}')">Edit</button>
+                      <div class="edit-form" id="ef_{{ eid }}">
+                        <form method="POST" action="{{ tpath('/update_salary') }}">
+                          <input type="hidden" name="emp_id" value="{{ eid }}" />
+                          <div class="ef-row"><span class="ef-lbl">Daily Rate</span><input class="ef-inp" type="number" name="salary" step="0.01" value="{{ spd }}" /></div>
+                          <div class="ef-btns u-mt-6"><button type="submit" class="btn-save">Save</button><button type="button" class="btn-cancel-sm" data-on-click="HZ.removeClass('ef_{{ eid }}', 'open')">Cancel</button></div>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="6">
+                    <div class="fin-empty">
+                      <span class="fin-empty-icon"><i class="ti ti-coin" aria-hidden="true"></i></span>
+                      <strong>No employees yet</strong>
+                      <span>Add employees to set their daily rate here.</span>
+                      <a class="fin-empty-btn" href="{{ tpath('/employees') }}"><i class="ti ti-user-plus" aria-hidden="true"></i> Add employee</a>
+                    </div>
+                  </td></tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>

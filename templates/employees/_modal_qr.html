@@ -1,0 +1,55 @@
+    {# ================================================================
+         QR CODE MODAL
+    ================================================================ #}
+    <div class="modal-backdrop" id="qrModal">
+      <div class="modal-box qr-modal-box">
+        <button class="modal-close" data-on-click="closeModal('qrModal')">&times;</button>
+        <h3 class="u-jc-center"><i class="ti ti-qrcode u-c-7c3aed"></i> QR Code</h3>
+        <div id="qrImgWrap">
+          <img id="qrImg" src="" alt="QR Code" />
+        </div>
+        <div class="u-fs-16 u-fw-700 u-c-1e293b" id="qrEmpName"></div>
+        <div class="u-fs-13 u-c-64748b u-mb-14" id="qrEmpId"></div>
+        <a id="qrDownload" class="btn-download" href="#" download="">
+          <i class="ti ti-download"></i> Download QR
+        </a>
+        <div>
+          <form class="u-d-inline" id="qrRegenForm" action="" method="POST"
+                data-on-submit="return hzConfirmSubmit(event, 'Regenerate QR? Old code will stop working.')">
+            <button type="submit" class="btn-regen">
+              <i class="ti ti-refresh"></i> Regenerate
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {# ================================================================
+         ID CARD MODAL
+    ================================================================ #}
+    <div class="modal-backdrop" id="idCardModal">
+      <div class="modal-box u-maxw-560 u-p-20 u-ta-center">
+        <button class="modal-close" data-on-click="closeModal('idCardModal')">&times;</button>
+        <h3 class="u-jc-center u-mb-14">
+          <i class="ti ti-id-badge u-c-065f46"></i> Employee ID Card
+        </h3>
+        <div class="u-p-40-0 u-c-64748b u-fs-14" id="idCardLoading">
+          <i class="ti ti-loader u-fs-28 u-d-block u-mb-8"></i>
+          Generating ID card…
+        </div>
+        <img class="u-d-none u-maxw-100pct u-br-12 u-shad-0-4-24-rgba30_cf2683" id="idCardImg" src="" alt="ID Card"
+          data-on-load="idCardLoaded(this)"
+          data-on-error="idCardFailed()" />
+        <div class="u-d-flex u-gap-10 u-jc-center u-mt-18">
+          <a class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-none u-br-10 u-bg-065f46 u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-tdec-none" id="idCardDownload" href="#" download="">
+            <i class="ti ti-download"></i> Download PNG
+          </a>
+          <button class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-cur-pointer" id="idCardPrintBtn" data-on-click="printIDCard()">
+            <i class="ti ti-printer"></i> Print
+          </button>
+          <button class="u-d-flex u-ai-center u-gap-6 u-p-10-20 u-bd-1-solid-dbeafe u-br-10 u-bg-f8fafc u-c-475569 u-fs-13 u-fw-700 u-cur-pointer" data-on-click="closeModal('idCardModal')">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>

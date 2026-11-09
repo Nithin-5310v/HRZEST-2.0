@@ -1,0 +1,134 @@
+      {# ═══ VIEW: RESIGN ═══ #}
+      {# ═══ RESIGNATION GATE MODAL ═══ #}
+      <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d65 u-zi-9999 u-ai-center u-jc-center u-backdr-blur4" id="resign-gate-overlay">
+        <div class="u-bg-fff u-br-16 u-maxw-420 u-w-90pct u-p-36-32 u-shad-0-24-60-rgba0_0_0_0d35 u-ta-center">
+          <div class="u-fs-48 u-mb-12"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i></div>
+          <h2 class="u-c-b91c1c u-m-0-0-10 u-fs-20">Are you sure?</h2>
+          <p class="u-c-374151 u-fs-14 u-lh-1d6 u-mb-20">
+            Submitting a resignation is an <strong>official and irreversible action</strong>.<br>
+            A <strong>1-month notice period</strong> is mandatory.<br><br>
+            To continue, type <strong class="u-c-b91c1c u-ls-2">RESIGN</strong> below.
+          </p>
+          <input aria-label="Type RESIGN to confirm" class="u-w-100pct u-bxs-border-box u-p-10-14 u-bd-2-solid-e5e7eb u-br-8 u-fs-15 u-ta-center u-ls-2 u-ttr-uppercase u-out-none u-mb-16" id="resign-gate-input" type="text" placeholder="Type RESIGN to confirm"
+                 data-on-input="checkResignGate()" />
+          <div class="u-d-flex u-gap-12 u-jc-center">
+            <button class="u-p-10-24 u-bd-none u-br-8 u-bg-e5e7eb u-c-374151 u-fs-14 u-cur-pointer u-fw-600" data-on-click="closeResignGate()">
+              Cancel
+            </button>
+            <button class="u-p-10-24 u-bd-none u-br-8 u-bg-d1d5db u-c-9ca3af u-fs-14 u-cur-not-allowed u-fw-600 u-trs-all-d2s" id="resign-gate-btn" data-on-click="confirmResignGate()" disabled>
+              Proceed
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-resign" class="view">
+      <div class="mod-title"><i class="ti ti-urgent hz-ico" aria-hidden="true"></i> Resignation <span>Submit your official resignation notice</span></div>
+      <div class="section" id="resign">
+
+        {% if my_resignation %}
+          {% set res_lwd, res_reason, res_status, res_created = my_resignation %}
+          <div class="resign-status-card">
+            <div class="rs-row">
+              <span class="rs-lbl">Status</span>
+              {% if res_status == 'Accepted' %}
+                <span class="badge b-red"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Accepted</span>
+              {% elif res_status == 'Declined' %}
+                <span class="badge b-gray"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Declined</span>
+              {% else %}
+                <span class="badge b-yellow"><i class="ti ti-hourglass hz-ico" aria-hidden="true"></i> Pending Review</span>
+              {% endif %}
+            </div>
+            <div class="rs-row">
+              <span class="rs-lbl">Last Working Day</span>
+              <span>{{ res_lwd }}</span>
+            </div>
+            <div class="rs-row">
+              <span class="rs-lbl">Reason</span>
+              <span>{{ res_reason }}</span>
+            </div>
+            <div class="rs-row">
+              <span class="rs-lbl">Submitted On</span>
+              <span class="u-op-0d55 u-fs-12">{{ res_created.strftime('%d %b %Y') if res_created else '—' }}</span>
+            </div>
+            {% if res_status == 'Declined' %}
+            <p class="u-mt-14 u-fs-13 u-op-0d65">Your resignation was declined. You may submit a new one below.</p>
+            {% endif %}
+          </div>
+
+          {% if res_status == 'Declined' %}
+          <div>
+            <p class="reasons-label resign-new-title">Submit New Resignation</p>
+            <div class="resign-warning">
+              <strong><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Please read before proceeding:</strong><br>
+              A <strong>1-month notice period</strong> is required. Your last working day must be at least
+              30 days from today. Submit at least 15 days before your chosen last day.
+              This action is official and cannot be undone.
+            </div>
+            <form action="{{ tpath('/request_resignation') }}" method="POST" id="resign-form-d">
+              <div class="form-group">
+                <label>Last Working Day <span class="lwd-hint">(min. 30 days from today)</span></label>
+                <input type="date" name="last_working_day" id="resign-date-d" required title="Select your last working day" />
+              </div>
+              <div class="reasons-label">Reason for Resignation</div>
+              <div class="reason-chips" id="resign-chips-d">
+                <div class="reason-chip" data-reason="Career Growth"><i class="ti ti-trending-up hz-ico" aria-hidden="true"></i> Career Growth</div>
+                <div class="reason-chip" data-reason="Better Opportunity"><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Better Opportunity</div>
+                <div class="reason-chip" data-reason="Personal Reasons"><i class="ti ti-home hz-ico" aria-hidden="true"></i> Personal Reasons</div>
+                <div class="reason-chip" data-reason="Health Issues"><i class="ti ti-building-hospital hz-ico" aria-hidden="true"></i> Health Issues</div>
+                <div class="reason-chip" data-reason="Relocation"><i class="ti ti-map-pin hz-ico" aria-hidden="true"></i> Relocation</div>
+                <div class="reason-chip" data-reason="__resign_other__"><i class="ti ti-pencil hz-ico" aria-hidden="true"></i> Other...</div>
+              </div>
+              <div class="other-group" id="resign-other-group-d">
+                <textarea id="resign-other-text-d" placeholder="Describe your reason for resignation…" title="Enter resignation reason"></textarea>
+              </div>
+              <input type="hidden" name="resign_reason" id="resign-reason-input-d" />
+              <div class="form-group confirm-group">
+                <label class="confirm-label">
+                  <input type="checkbox" id="resign-confirm-d" class="confirm-check" required />
+                  I understand this resignation notice is official and cannot be undone.
+                </label>
+              </div>
+              <button type="submit" class="btn-resign"><i class="ti ti-upload hz-ico" aria-hidden="true"></i> Submit Resignation</button>
+            </form>
+          </div>
+          {% endif %}
+
+        {% else %}
+          <div class="resign-warning">
+            <strong><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Please read before proceeding:</strong><br>
+            A <strong>1-month notice period</strong> is required. Your last working day must be at least
+            30 days from today. You must apply at least 15 days before your chosen last day.
+            Submitting this form sends a formal resignation notice to the HR/Admin team. This action cannot be undone.
+          </div>
+          <form action="{{ tpath('/request_resignation') }}" method="POST" id="resign-form">
+            <div class="form-group">
+              <label>Last Working Day <span class="lwd-hint">(min. 30 days from today)</span></label>
+              <input type="date" name="last_working_day" id="resign-date" required title="Select your last working day" />
+            </div>
+            <div class="reasons-label">Reason for Resignation</div>
+            <div class="reason-chips" id="resign-chips">
+              <div class="reason-chip" data-reason="Career Growth"><i class="ti ti-trending-up hz-ico" aria-hidden="true"></i> Career Growth</div>
+              <div class="reason-chip" data-reason="Better Opportunity"><i class="ti ti-briefcase hz-ico" aria-hidden="true"></i> Better Opportunity</div>
+              <div class="reason-chip" data-reason="Personal Reasons"><i class="ti ti-home hz-ico" aria-hidden="true"></i> Personal Reasons</div>
+              <div class="reason-chip" data-reason="Health Issues"><i class="ti ti-building-hospital hz-ico" aria-hidden="true"></i> Health Issues</div>
+              <div class="reason-chip" data-reason="Relocation"><i class="ti ti-map-pin hz-ico" aria-hidden="true"></i> Relocation</div>
+              <div class="reason-chip" data-reason="__resign_other__"><i class="ti ti-pencil hz-ico" aria-hidden="true"></i> Other...</div>
+            </div>
+            <div class="other-group" id="resign-other-group">
+              <textarea id="resign-other-text" placeholder="Describe your reason for resignation…" title="Enter resignation reason"></textarea>
+            </div>
+            <input type="hidden" name="resign_reason" id="resign-reason-input" />
+            <div class="form-group confirm-group">
+              <label class="confirm-label">
+                <input type="checkbox" id="resign-confirm" class="confirm-check" required />
+                I understand this resignation notice is official and cannot be undone.
+              </label>
+            </div>
+            <button type="submit" class="btn-resign"><i class="ti ti-upload hz-ico" aria-hidden="true"></i> Submit Resignation</button>
+          </form>
+        {% endif %}
+      </div>
+      </div>{# /view-resign #}
+
+      {# ═══ VIEW: PAY SLIPS ═══ #}

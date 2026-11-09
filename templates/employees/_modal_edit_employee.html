@@ -1,0 +1,208 @@
+    {# ================================================================
+         EDIT EMPLOYEE MODAL  (full management form)
+    ================================================================ #}
+    <div class="modal-backdrop" id="editModal">
+      <div class="modal-box u-maxw-640">
+        <button class="modal-close" data-on-click="closeModal('editModal')">&times;</button>
+        <h3><i class="ti ti-pencil u-c-1e3a8a"></i> Edit Employee
+          <span class="u-fs-13 u-c-64748b u-fw-600 u-ml-4" id="editEmpBadge"></span>
+        </h3>
+
+        {# TABS #}
+        <div class="tab-bar">
+          <button class="tab-btn active" data-on-click="switchTab('tab-basic',this)"><i class="ti ti-user"></i> Basic</button>
+          <button class="tab-btn" data-on-click="switchTab('tab-work',this)"><i class="ti ti-building"></i> Work</button>
+          <button class="tab-btn" data-on-click="switchTab('tab-address',this)"><i class="ti ti-map-pin"></i> Address</button>
+          <button class="tab-btn" data-on-click="switchTab('tab-emergency',this)"><i class="ti ti-phone"></i> Emergency</button>
+        </div>
+
+        <form action="{{ tpath('/edit_employee') }}" method="POST" id="editForm">
+          <input type="hidden" name="emp_id" id="edit_emp_id" />
+
+          {# TAB: BASIC #}
+          <div class="tab-pane active" id="tab-basic">
+            <div class="form-grid">
+              <div class="field-group">
+                <label>Employee ID</label>
+                <input id="edit_emp_id_display" type="text" disabled />
+              </div>
+              <div class="field-group">
+                <label>Full Name *</label>
+                <input name="name" id="edit_name" type="text" required />
+              </div>
+              <div class="field-group">
+                <label>Email</label>
+                <input name="email" id="edit_email" type="email" />
+              </div>
+              <div class="field-group">
+                <label>Phone</label>
+                <input name="phone" id="edit_phone" type="text" placeholder="9876543210" />
+              </div>
+              <div class="field-group">
+                <label>Role / Designation</label>
+                <input name="role" id="edit_role" type="text" />
+              </div>
+              <div class="field-group">
+                <label>Department</label>
+                <input name="department" id="edit_department" type="text" />
+              </div>
+              {% if not is_hr_scoped %}
+              <div class="field-group">
+                <label>Assigned HR</label>
+                <select name="assigned_hr_username" id="edit_assigned_hr">
+                  <option value="">— No HR Assigned —</option>
+                  {% for hr_username in hr_accounts %}
+                    <option value="{{ hr_username }}">{{ hr_username }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endif %}
+              <div class="field-group">
+                <label>Gender</label>
+                <select name="gender" id="edit_gender">
+                  <option value="">Select</option>
+                  <option>Male</option><option>Female</option><option>Other</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>Date of Birth</label>
+                <input name="dob" id="edit_dob" type="date" />
+              </div>
+              <div class="field-group">
+                <label>Blood Group</label>
+                <select name="blood_group" id="edit_blood_group">
+                  <option value="">Select</option>
+                  <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                  <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label>Date of Joining</label>
+                <input name="date_of_joining" id="edit_doj" type="date" />
+              </div>
+              <div class="field-group">
+                <label>Shift</label>
+                <select name="shift_id" id="edit_shift_id">
+                  <option value="">No shift</option>
+                  {% for sid, sname in shifts %}
+                    <option value="{{ sid }}">{{ sname }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field-group">
+                <label>Reporting Manager</label>
+                <select name="manager_id" id="edit_manager_id" data-on-change="syncManagerName(this, 'edit')">
+                  <option value="">— No Manager —</option>
+                  {% for e in employees %}
+                  {% set eid, ename = e[0], e[1] %}
+                  <option value="{{ eid }}">{{ ename }} ({{ eid }})</option>
+                  {% endfor %}
+                </select>
+                <input type="hidden" name="manager_name" id="edit_manager_name" />
+              </div>
+            </div>
+          </div>
+
+          {# TAB: WORK #}
+          <div class="tab-pane" id="tab-work">
+            <div class="form-grid">
+              <div class="field-group full">
+                <label>Work Mode</label>
+                <div class="radio-group u-mt-6">
+                  <label class="radio-label">
+                    <input class="u-accent-1e3a8a" type="radio" name="work_mode" id="emp_edit_wm_office" value="office"
+                           data-on-change="toggleEditLocation(this.value)" /> <i class="ti ti-building hz-ico" aria-hidden="true"></i> Office
+                  </label>
+                  <label class="radio-label">
+                    <input class="u-accent-059669" type="radio" name="work_mode" id="emp_edit_wm_wfh" value="wfh"
+                           data-on-change="toggleEditLocation(this.value)" /> <i class="ti ti-home hz-ico" aria-hidden="true"></i> Work from Home
+                  </label>
+                </div>
+              </div>
+              <div class="location-box u-d-none" id="editLocationBox">
+                <div class="location-box-title">Home Location (within 300m to mark attendance)</div>
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-8 u-mb-8">
+                  <div>
+                    <div class="u-fs-10 u-c-64748b u-mb-3">Latitude</div>
+                    <input class="u-w-100pct u-p-8 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lat" id="emp_edit_work_lat" step="0.000001" />
+                  </div>
+                  <div>
+                    <div class="u-fs-10 u-c-64748b u-mb-3">Longitude</div>
+                    <input class="u-w-100pct u-p-8 u-bd-1-solid-bae6fd u-br-7 u-fs-12 u-out-none" type="number" name="work_lon" id="emp_edit_work_lon" step="0.000001" />
+                  </div>
+                </div>
+                <button class="u-p-6-12 u-bd-none u-br-7 u-bg-0369a1 u-c-fff u-fs-11 u-fw-700 u-cur-pointer" type="button" data-on-click="useMyLocation('emp_edit_work_lat','emp_edit_work_lon')">
+                  <i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> Use My Location
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {# TAB: ADDRESS #}
+          <div class="tab-pane" id="tab-address">
+            <div class="form-grid">
+              <div class="field-group full">
+                <label>Address</label>
+                <textarea name="address" id="edit_address" placeholder="Street, Area"></textarea>
+              </div>
+              <div class="field-group">
+                <label>City</label>
+                <input name="city" id="edit_city" type="text" />
+              </div>
+              <div class="field-group">
+                <label>State</label>
+                <input name="state" id="edit_state" type="text" />
+              </div>
+              <div class="field-group">
+                <label>Pincode</label>
+                <input name="pincode" id="edit_pincode" type="text" />
+              </div>
+            </div>
+          </div>
+
+          {# TAB: EMERGENCY #}
+          <div class="tab-pane" id="tab-emergency">
+            <div class="form-grid">
+              <div class="field-group">
+                <label>Contact Name</label>
+                <input name="ec_name" id="edit_ec_name" type="text" placeholder="Parent / Spouse name" />
+              </div>
+              <div class="field-group">
+                <label>Relation</label>
+                <input name="ec_rel" id="edit_ec_rel" type="text" placeholder="Father / Spouse" />
+              </div>
+              <div class="field-group full">
+                <label>Contact Phone</label>
+                <input name="ec_phone" id="edit_ec_phone" type="text" placeholder="9876543210" />
+              </div>
+            </div>
+          </div>
+
+          {# Fingerprint status — populated dynamically by openEdit() #}
+          <div class="u-d-none u-m-0-0-12 u-p-12-16 u-br-10 u-bd-1-solid-e2e8f0 u-bg-f8fafc" id="editFpSection">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-fxw-wrap u-gap-8">
+              <div class="u-fs-13 u-fw-600 u-c-374151">
+                <span class="u-mr-6">&#128400;</span> Fingerprint
+                <span class="u-fw-400 u-c-64748b u-ml-4" id="editFpStatus"></span>
+              </div>
+              <div class="u-d-flex u-gap-8">
+                <button class="u-p-6-14 u-bd-none u-br-8 u-bg-6366f1 u-c-fff u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpEnrollBtn"
+                  style="display:none" data-on-click="enrollFingerprintForEdit()">
+                  <i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i> Enroll Fingerprint
+                </button>
+                <button class="u-p-6-14 u-bd-1-solid-fca5a5 u-br-8 u-bg-fff u-c-dc2626 u-fs-12 u-fw-600 u-cur-pointer" type="button" id="editFpResetBtn"
+                  data-on-click="resetEditedEmployeeFingerprint()">
+                  Reset Fingerprint
+                </button>
+              </div>
+            </div>
+            <div class="u-fs-12 u-mt-6" id="editFpMsg" style="display:none"></div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="submit" class="btn-save">Save Changes</button>
+            <button type="button" class="btn-cancel" data-on-click="closeModal('editModal')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>

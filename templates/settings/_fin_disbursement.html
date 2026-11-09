@@ -1,0 +1,239 @@
+          {# DISBURSEMENT #}
+          <div class="s3-section" id="ss-disbursement">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-eff6ff"><i class="ti ti-building-bank u-c-1e3a8a u-fs-20"></i></div>
+              <div><div class="sec-title">Salary Disbursement</div><div class="sec-sub">Automated bank transfer + payslip emailing</div></div>
+            </div>
+
+            {% if not payout_provider_ready %}
+            <div class="fin-notice">
+              <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+              <div><strong>Bank payouts aren't connected yet</strong>
+                <span>You can add bank details, schedule and approve runs, but no money will be transferred until a payout provider is connected.</span></div>
+            </div>
+            {% endif %}
+
+            <div class="section">
+              <div class="section-title"><i class="ti ti-building-bank"></i> Company Bank Account &amp; Schedule</div>
+              <div id="payout-locked">
+                {# Step 0: entry point, before we know whether this admin has TOTP enrolled at all #}
+                <div id="payout-2fa-start">
+                  <p class="u-fs-13 u-c-64748b u-mb-12">Viewing or editing the company's payout bank account requires a 2FA code.</p>
+                  <button type="button" class="btn-submit" data-on-click="payoutStart2fa()">Continue</button>
+                </div>
+
+                {# Step 1a: first time ever -- no TOTP enrolled yet, show the QR code to scan #}
+                <div id="payout-2fa-enroll" class="u-d-none">
+                  <p class="u-fs-13 u-c-64748b u-mb-10">No authenticator app is linked to your admin account yet. Scan this QR code with an authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code it shows to confirm.</p>
+                  <img id="payout-2fa-qr" class="u-mb-10 u-br-8 u-bd-1d5-solid-e2e8f0" width="180" height="180" alt="Scan with your authenticator app" />
+                  <div class="u-fs-11 u-c-94a3b8 u-mb-10">Can't scan? Enter this key manually: <span class="u-ff-monospace u-fw-700" id="payout-2fa-secret"></span></div>
+                  <div class="u-d-flex u-gap-8">
+                    <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="payout-2fa-enroll-code" placeholder="6-digit code" maxlength="6" />
+                    <button type="button" class="btn-submit" data-on-click="payoutConfirmEnroll()">Confirm &amp; Unlock</button>
+                  </div>
+                  <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="payout-2fa-enroll-error"></div>
+                </div>
+
+                {# Step 1b: already enrolled (via here or Email Settings -- one TOTP secret per admin) #}
+                <div id="payout-2fa-verify" class="u-d-none">
+                  <p class="u-fs-13 u-c-64748b u-mb-12">Enter the 6-digit code from your authenticator app.</p>
+                  <div class="u-d-flex u-gap-8">
+                    <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="payout-2fa-code" placeholder="6-digit code" maxlength="6" />
+                    <button type="button" class="btn-submit" data-on-click="payoutVerify2fa()">Unlock</button>
+                  </div>
+                  <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="payout-2fa-error"></div>
+                </div>
+              </div>
+              <form id="payout-bank-form" method="post" class="u-d-none" data-on-submit="return payoutSaveBankConfig(event)">
+                <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
+                  <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
+                  <button type="button" class="btn-test" data-on-click="payoutLock()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
+                </div>
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+                  <div class="field"><label>Account Holder Name</label><input type="text" id="payout-holder" required /></div>
+                  <div class="field"><label>Bank Name</label><input type="text" id="payout-bank-name" required /></div>
+                </div>
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+                  <div class="field"><label>Account Number <span class="u-fs-11 u-c-94a3b8" id="payout-acct-hint">(leave blank to keep unchanged)</span></label><input type="text" id="payout-account-number" autocomplete="off" /></div>
+                  <div class="field"><label>IFSC Code</label><input class="u-ff-monospace u-ttr-uppercase" type="text" id="payout-ifsc" maxlength="11" required /></div>
+                </div>
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+                  <div class="field"><label>Disbursement Day of Month</label><input type="number" id="payout-day" min="1" max="28" value="1" required /></div>
+                  <div class="field"><label>Prepare for Approval (days before)</label><input type="number" id="payout-lead" min="0" max="27" value="2" required /></div>
+                </div>
+                <label class="u-d-flex u-ai-center u-gap-8 u-mb-14 u-cur-pointer">
+                  <input type="checkbox" id="payout-enabled" />
+                  <span class="u-fs-13 u-fw-600">Enable automated monthly disbursement</span>
+                </label>
+                <button type="submit" class="btn-submit">Save Bank Details &amp; Schedule</button>
+              </form>
+            </div>
+
+            <div class="section">
+              <div class="section-title"><i class="ti ti-receipt"></i> Disbursement Runs</div>
+              {% if disbursement_runs %}
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Period</th><th>Status</th><th>Employees</th><th>Total</th><th>Prepared</th><th>Action</th></tr></thead>
+                  <tbody>
+                  {% for r in disbursement_runs %}
+                  {% set rid,ryear,rmonth,rstatus,rtotal,rcount,rprepared,rapprover,rapproved,rmissing = r %}
+                  <tr>
+                    <td><strong>{{ ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][rmonth] }} {{ ryear }}</strong></td>
+                    <td>
+                      {% if rstatus == 'pending_approval' %}<span class="badge b-yellow">Pending Approval</span>
+                      {% elif rstatus == 'completed' %}<span class="badge b-green">Completed</span>
+                      {% elif rstatus == 'failed' %}<span class="badge b-red">Failed</span>
+                      {% elif rstatus == 'cancelled' %}<span class="badge b-gray">Cancelled</span>
+                      {% else %}<span class="badge b-blue">{{ rstatus }}</span>{% endif %}
+                      {% if rmissing > 0 %}
+                      <div class="u-fs-11 u-c-dc2626 u-fw-700 u-mt-3"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> {{ rmissing }} of {{ rcount }} missing bank details</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ rcount }}</td>
+                    <td class="u-fw-800 u-c-16a34a">&#8377;{{ "%.2f"|format(rtotal) }}</td>
+                    <td class="u-fs-12 u-c-64748b">{{ rprepared.strftime('%d %b %Y') if rprepared else '' }}</td>
+                    <td>
+                      {% if rstatus == 'pending_approval' %}
+                      <form method="POST" action="{{ tpath('/disbursement/' ~ rid ~ '/approve') }}" class="u-d-inline">
+                        <button type="submit" class="btn-edit" data-missing="{{ rmissing }}" data-on-click="return confirmApproveDisbursement(event, this)">Approve &amp; Send</button>
+                      </form>
+                      <form method="POST" action="{{ tpath('/disbursement/' ~ rid ~ '/reject') }}" class="u-d-inline">
+                        <input type="hidden" name="reason" value="Cancelled by admin" />
+                        <button type="submit" class="btn-del" data-on-click="return hzConfirmSubmit(event, 'Cancel this disbursement run?')">Cancel</button>
+                      </form>
+                      {% else %}
+                      <span class="u-fs-11 u-c-94a3b8">{% if rapprover %}by {{ rapprover }}{% endif %}</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <div class="u-ta-center u-p-40 u-c-94a3b8">No disbursement runs yet. Enable automated disbursement above and one will be prepared automatically ahead of your scheduled pay date.</div>
+              {% endif %}
+            </div>
+
+            <script>
+              // Idle re-lock, same pattern as Email Settings' gate below --
+              // only starts once payoutLoadBankConfig() actually unlocks the
+              // form, and clears itself on payoutLock()/page reload.
+              var payoutIdleTimer = null;
+              var PAYOUT_IDLE_MS = 15 * 60 * 1000;
+              function resetPayoutIdleTimer() {
+                if (payoutIdleTimer) clearTimeout(payoutIdleTimer);
+                if (document.getElementById('payout-bank-form').classList.contains('u-d-none')) return;
+                payoutIdleTimer = setTimeout(payoutLock, PAYOUT_IDLE_MS);
+              }
+              ['mousemove', 'keydown', 'click', 'scroll'].forEach(function(evt) {
+                document.addEventListener(evt, function() {
+                  if (!document.getElementById('payout-bank-form').classList.contains('u-d-none')) resetPayoutIdleTimer();
+                }, { passive: true });
+              });
+              function payoutLock() {
+                if (payoutIdleTimer) { clearTimeout(payoutIdleTimer); payoutIdleTimer = null; }
+                document.getElementById('payout-bank-form').classList.add('u-d-none');
+                document.getElementById('payout-locked').classList.remove('u-d-none');
+                document.getElementById('payout-2fa-start').classList.remove('u-d-none');
+                document.getElementById('payout-2fa-enroll').classList.add('u-d-none');
+                document.getElementById('payout-2fa-verify').classList.add('u-d-none');
+                document.getElementById('payout-account-number').value = '';
+                fetch('{{ tpath("/api/payout/lock") }}', { method: 'POST' }).catch(function() {});
+              }
+
+              // Step 0 -- figure out whether this admin already has TOTP
+              // enrolled (shared account-wide with Email Settings, so an
+              // admin who enrolled there is already enrolled here too) and
+              // branch to the QR-enrollment view or the plain code-entry
+              // view accordingly. Reuses the existing setup endpoint as-is
+              // rather than duplicating it -- see blueprints/disbursement.py's
+              // api_payout_2fa_enable() docstring for why.
+              function payoutStart2fa() {
+                fetch('{{ tpath("/api/settings/2fa/setup") }}').then(function(r){ return r.json(); }).then(function(d){
+                  if (!d.ok) return;
+                  document.getElementById('payout-2fa-start').classList.add('u-d-none');
+                  if (d.already_enabled) {
+                    document.getElementById('payout-2fa-verify').classList.remove('u-d-none');
+                  } else {
+                    document.getElementById('payout-2fa-qr').src = d.qr_code;
+                    document.getElementById('payout-2fa-secret').textContent = d.secret;
+                    document.getElementById('payout-2fa-enroll').classList.remove('u-d-none');
+                  }
+                });
+              }
+              function payoutConfirmEnroll() {
+                var code = document.getElementById('payout-2fa-enroll-code').value.trim();
+                var errEl = document.getElementById('payout-2fa-enroll-error');
+                errEl.classList.add('u-d-none');
+                fetch('{{ tpath("/api/payout/2fa/enable") }}', {
+                  method: 'POST', headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({code: code})
+                }).then(function(r){ return r.json(); }).then(function(d){
+                  if (!d.ok) { errEl.textContent = d.msg || 'Invalid code'; errEl.classList.remove('u-d-none'); return; }
+                  payoutLoadBankConfig();
+                }).catch(function(){ errEl.textContent = 'Network error'; errEl.classList.remove('u-d-none'); });
+              }
+              function confirmApproveDisbursement(event, btn) {
+                var missing = parseInt(btn.getAttribute('data-missing'), 10) || 0;
+                var msg = missing > 0
+                  ? ('Approve and process this disbursement run? ' + missing + ' employee(s) are missing bank '
+                     + 'details and will NOT be paid -- everyone else will still be processed. Continue?')
+                  : 'Approve and process this disbursement run? This authorizes the actual bank transfer.';
+                return hzConfirmSubmit(event, msg);
+              }
+              function payoutVerify2fa() {
+                var code = document.getElementById('payout-2fa-code').value.trim();
+                var errEl = document.getElementById('payout-2fa-error');
+                errEl.classList.add('u-d-none');
+                fetch('{{ tpath("/api/payout/verify-2fa") }}', {
+                  method: 'POST', headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({code: code})
+                }).then(function(r){ return r.json(); }).then(function(d){
+                  if (!d.ok) { errEl.textContent = d.msg || 'Invalid code'; errEl.classList.remove('u-d-none'); return; }
+                  payoutLoadBankConfig();
+                }).catch(function(){ errEl.textContent = 'Network error'; errEl.classList.remove('u-d-none'); });
+              }
+              function payoutLoadBankConfig() {
+                fetch('{{ tpath("/api/payout/bank_config") }}').then(function(r){ return r.json(); }).then(function(d){
+                  if (!d.ok) return;
+                  document.getElementById('payout-locked').classList.add('u-d-none');
+                  document.getElementById('payout-bank-form').classList.remove('u-d-none');
+                  var c = d.config;
+                  if (c) {
+                    document.getElementById('payout-holder').value = c.account_holder_name || '';
+                    document.getElementById('payout-bank-name').value = c.bank_name || '';
+                    document.getElementById('payout-account-number').placeholder = c.account_number_masked || '';
+                    document.getElementById('payout-ifsc').value = c.ifsc_code || '';
+                    document.getElementById('payout-day').value = c.disbursement_day_of_month || 1;
+                    document.getElementById('payout-lead').value = c.approval_lead_days || 2;
+                    document.getElementById('payout-enabled').checked = !!c.enabled;
+                  } else {
+                    document.getElementById('payout-acct-hint').textContent = '(required -- no account on file yet)';
+                  }
+                  resetPayoutIdleTimer();
+                });
+              }
+              function payoutSaveBankConfig(ev) {
+                ev.preventDefault();
+                var payload = {
+                  account_holder_name: document.getElementById('payout-holder').value.trim(),
+                  bank_name: document.getElementById('payout-bank-name').value.trim(),
+                  account_number: document.getElementById('payout-account-number').value.trim(),
+                  ifsc_code: document.getElementById('payout-ifsc').value.trim().toUpperCase(),
+                  disbursement_day_of_month: parseInt(document.getElementById('payout-day').value, 10),
+                  approval_lead_days: parseInt(document.getElementById('payout-lead').value, 10),
+                  enabled: document.getElementById('payout-enabled').checked,
+                };
+                fetch('{{ tpath("/api/payout/bank_config") }}', {
+                  method: 'POST', headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify(payload)
+                }).then(function(r){ return r.json(); }).then(function(d){
+                  if (d.ok) { if (window.showToast) showToast('Bank details saved.', 'success'); location.reload(); }
+                  else { if (window.showToast) showToast(d.msg || 'Save failed', 'error'); else alert(d.msg || 'Save failed'); }
+                });
+                return false;
+              }
+            </script>
+          </div>
