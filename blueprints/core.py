@@ -733,10 +733,13 @@ def _hr_employee_signin(emp_id, employee_result):
         row = cursor.fetchone()
         if not row or (row[0] or "").strip().lower() != _HR_EMPLOYEE_ROLE:
             return None
+    # Without HR dashboard access they stay signed in as an employee.
+    if not _ensure_hr_admin_account(emp_id, body.get("email")):
+        return None
+    with _db() as (cursor, conn):
         # The employee token minted on the way here isn't handed out.
         cursor.execute("DELETE FROM api_tokens WHERE token=%s", (_hash_token(body["token"]),))
         conn.commit()
-    _ensure_hr_admin_account(emp_id, body.get("email"))
     return _admin_token_or_challenge(emp_id, HR_ROLE, body.get("email"))
 
 

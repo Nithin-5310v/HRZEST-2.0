@@ -84,17 +84,16 @@
                       <label>Monthly Salary (₹)</label>
                       <input type="number" name="monthly_salary" placeholder="e.g. 30000.00" step="0.01" min="0" />
                     </div>
-                    {% if not is_hr_scoped %}
                     <div class="field-group">
                       <label>Assigned HR</label>
-                      <select name="assigned_hr_username">
-                        <option value="">— No HR Assigned —</option>
-                        {% for hr_username in hr_accounts %}
-                          <option value="{{ hr_username }}">{{ hr_username }}</option>
+                      <select name="assigned_hr_username" aria-label="Assigned HR">
+                        {% if not is_hr_scoped %}<option value="">— No HR Assigned —</option>{% endif %}
+                        {% for hr_username, hr_label in hr_accounts %}
+                          {% set _me = is_hr_scoped and hr_username == session.get('admin_username') %}
+                          <option value="{{ hr_username }}" {{ 'selected' if _me }}>{{ hr_label }}{{ ' — you' if _me }}</option>
                         {% endfor %}
                       </select>
                     </div>
-                    {% endif %}
                   </div>
                 </div>
               </div>

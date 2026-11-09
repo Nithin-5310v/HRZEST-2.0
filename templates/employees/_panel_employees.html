@@ -213,7 +213,7 @@
                 </td>
                 <td class="col-mobile-hide">{% if department %}{{ department }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 {% if not is_hr_scoped %}
-                <td class="col-mobile-hide">{% if assigned_hr_username %}{{ assigned_hr_username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
+                <td class="col-mobile-hide">{% if assigned_hr_username %}{{ (hr_names|default({})).get(assigned_hr_username, assigned_hr_username) }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
                 {% endif %}
                 <td class="col-mobile-hide">{% if shift_name %}{{ shift_name }}{% else %}<span class="muted">—</span>{% endif %}</td>
                 <td class="col-mobile-hide">{% if phone %}{{ phone }}{% else %}<span class="muted">—</span>{% endif %}</td>
