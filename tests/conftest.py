@@ -104,6 +104,25 @@ os.environ["PAYMENTS_ENABLED"] = ""
 # explicitly to cover the rule itself.
 os.environ.setdefault("MOBILE_REQUIRE_LOCATION", "false")
 
+# Windows can refuse face_recognition's dlib DLL (Smart App Control blocks
+# unsigned DLLs -- it does on the Jenkins PC), leaving the app without face
+# features and the tests that only mock the library with nothing to mock.
+# There, stand in a placeholder before the app imports it: tests that mock
+# it run as usual, and a test that reaches the real library is skipped.
+# Windows only, so a broken install on GitHub's Linux CI still fails.
+import utils.face_utils as _face_utils  # noqa: E402
+if not _face_utils._face_recognition_available and os.name == "nt":
+    import types as _types
+
+    def _needs_real_face_library(*_args, **_kwargs):
+        pytest.skip("face_recognition can't load on this machine (its dlib DLL is blocked)")
+
+    _face_utils.face_recognition = _types.SimpleNamespace(PLACEHOLDER=True, **{
+        name: _needs_real_face_library
+        for name in ("load_image_file", "face_encodings", "face_locations", "compare_faces", "face_landmarks")
+    })
+    _face_utils._face_recognition_available = True
+
 # wsgi.py (the real production entrypoint) registers the migrated
 # blueprints on the shared `app` instance from extensions.py BEFORE
 # importing app.py — mirror that exact order here. app.py's
