@@ -40,7 +40,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# `apt-get upgrade` takes Debian's security fixes for what the base image
+# already ships: python:3.13-slim is rebuilt less often than Debian
+# publishes them (Trivy: zlib1g CVE-2026-85091/CVE-2026-76844, fixed in
+# 1.3.1-1+deb13u1, still at 1.3.1-1+b1 in the base image).
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     libopenblas0-pthread liblapack3 \
     libx11-6 \
     libgl1 libglib2.0-0 \
