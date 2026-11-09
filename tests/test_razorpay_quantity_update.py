@@ -59,3 +59,13 @@ def test_other_refusals_are_not_retried(monkeypatch):
     calls = _fake_razorpay(monkeypatch, [(None, upi)])
     assert razorpay_utils.update_subscription_quantity("sub_1", 4) == (False, upi)
     assert len(calls) == 1
+
+
+def test_indian_card_refusal_is_returned_without_cancelling_anything(monkeypatch):
+    """A card issued in India can't change at all: the caller sets
+    Auto-Debit up again, so nothing scheduled is cancelled."""
+    domestic = ("Razorpay request failed: Only offers can be updated for subscriptions "
+                "when payment mode is domestic card.")
+    calls = _fake_razorpay(monkeypatch, [(None, CARD_MANDATE_ERROR), (None, domestic)])
+    assert razorpay_utils.update_subscription_quantity("sub_1", 4) == (False, domestic)
+    assert len(calls) == 2

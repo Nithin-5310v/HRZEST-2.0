@@ -289,9 +289,11 @@ def update_subscription_quantity(subscription_id: str, quantity: int):
     if error and _immediate_change_refused(error):
         body = {"quantity": quantity, "schedule_change_at": "cycle_end"}
         data, error = _request(path, body, method="PATCH")
-        if error:
+        if error and "payment mode is" not in error.lower():
             # Most likely an earlier scheduled change in the way: drop it
-            # and schedule this one instead.
+            # and schedule this one instead. ("... when payment mode is
+            # domestic card" means a card issued in India can't change at
+            # all -- the caller sets Auto-Debit up again instead.)
             _, cancel_error = _request(f"{path}/cancel_scheduled_changes")
             if not cancel_error:
                 data, error = _request(path, body, method="PATCH")
