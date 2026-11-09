@@ -275,13 +275,36 @@ def update_subscription_quantity(subscription_id: str, quantity: int):
     schedule_change_at="now" applies immediately with proration, matching
     Razorpay's documented seat-based-billing guidance (an employee added
     mid-cycle should start being billed for right away, not silently free
-    until the next renewal). Returns (ok, error)."""
-    data, error = _request(f"/subscriptions/{subscription_id}", {
-        "quantity": max(1, quantity), "schedule_change_at": "now",
-    }, method="PATCH")
+    until the next renewal).
+
+    A subscription paid by card under RBI's card-mandate rules can't be
+    changed mid-cycle ("Can't update subscription immediately when card
+    mandate is applicable"), so for those the change is scheduled for the
+    end of the current cycle -- still before the next charge, which is what
+    the billing page promises. A change already scheduled is replaced.
+    Returns (ok, error)."""
+    path = f"/subscriptions/{subscription_id}"
+    quantity = max(1, quantity)
+    data, error = _request(path, {"quantity": quantity, "schedule_change_at": "now"}, method="PATCH")
+    if error and _immediate_change_refused(error):
+        body = {"quantity": quantity, "schedule_change_at": "cycle_end"}
+        data, error = _request(path, body, method="PATCH")
+        if error:
+            # Most likely an earlier scheduled change in the way: drop it
+            # and schedule this one instead.
+            _, cancel_error = _request(f"{path}/cancel_scheduled_changes")
+            if not cancel_error:
+                data, error = _request(path, body, method="PATCH")
     if error:
         return False, error
     return True, None
+
+
+_IMMEDIATE_REFUSED_MARKERS = ("update subscription immediately", "card mandate")
+
+
+def _immediate_change_refused(error):
+    return any(m in (error or "").lower() for m in _IMMEDIATE_REFUSED_MARKERS)
 
 
 def list_subscription_invoices(subscription_id: str, count: int = 5):
