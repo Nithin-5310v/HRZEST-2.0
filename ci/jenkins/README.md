@@ -28,6 +28,14 @@ GitHub Actions still runs its checks (tests, security scans) on every PR
 and on pushes to `develop` and `main`. Production won't switch to a commit
 whose Actions runs failed.
 
+**Only completed GitHub merges reach production.** Before asking for
+approval, a `main` build checks that its commit is the merge of a PR into
+`main` (merged on GitHub, not a direct push) and that every GitHub Actions
+run for it passed. If not, the build stops after the tests, marked
+**unstable**, with no approval button; merge a PR into `main` to get a
+releasable build. HOTFIX doesn't skip this. The deploy step checks it once
+more after approval.
+
 ## Everyday use
 
 1. Branch from `develop`, open your PR **into `develop`**.
