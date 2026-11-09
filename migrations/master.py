@@ -466,6 +466,20 @@ def _init_master_db_impl():
         # the new rate -- migration happens at the subscriber's own next
         # renewal, never mid-cycle.
         cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS needs_rate_migration BOOLEAN NOT NULL DEFAULT FALSE")
+        # A mandate authorized with UPI Autopay or e-mandate can never change
+        # its amount -- Razorpay refuses the quantity update for those payment
+        # methods -- so a new headcount needs a new authorization
+        # (blueprints/auto_debit.py). fixed_amount: Razorpay said so.
+        # pending_*: the replacement subscription being authorized; the
+        # current one keeps billing until it's confirmed, then is cancelled at
+        # its cycle end while the new one starts at pending_start_at (epoch
+        # seconds; NULL = now). reauth_notified_quantity: the headcount the
+        # admins were last emailed about, so the daily job tells them once.
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS fixed_amount BOOLEAN NOT NULL DEFAULT FALSE")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_subscription_id VARCHAR(100) DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_quantity INT DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_start_at BIGINT DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS reauth_notified_quantity INT DEFAULT NULL")
         # 'pending_cancellation' is a legal status value alongside the ones
         # documented above -- set by /api/auto_debit/cancel when called with
         # at_period_end=true (blueprints/auto_debit.py). The mandate keeps
@@ -514,6 +528,31 @@ def _init_master_db_impl():
         cur.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_monthly_invoices_payment_id ON monthly_invoices "
             "(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL")
+        # GST tax invoices (utils/tax_invoice.py): one per successful payment
+        # of any kind (signup, seat top-up, monthly charge). Everything shown
+        # on the PDF is frozen here at issue time -- seller and buyer details,
+        # amounts, tax split -- so a later address/rate/GSTIN change never
+        # rewrites an invoice already sent. invoice_no is sequential per
+        # Indian financial year (invoice_counters), as GST invoices must be.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tax_invoices (
+                id SERIAL PRIMARY KEY,
+                invoice_no VARCHAR(30) UNIQUE NOT NULL,
+                kind_key VARCHAR(20) NOT NULL,
+                source_id INT NOT NULL,
+                tenant_schema VARCHAR(100) DEFAULT NULL,
+                issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                data TEXT NOT NULL,
+                UNIQUE (kind_key, source_id)
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tax_invoices_tenant ON tax_invoices (tenant_schema, issued_at)")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS invoice_counters (
+                financial_year VARCHAR(9) PRIMARY KEY,
+                last_no INT NOT NULL DEFAULT 0
+            )
+        """)
         # Lightweight traffic counter for the public marketing pages
         # (landing page, get-started, create_org) -- one row per
         # (path, day), incremented via ON CONFLICT below rather than one

@@ -574,8 +574,9 @@
   {% if active_tab == 'payments' %}
     <div class="org-page-head">
       <h1>Payment history</h1>
-      <p>Every payment made for your HRZEST subscription.</p>
+      <p>Every payment made for your HRZEST subscription, each with its GST tax invoice.</p>
     </div>
+    {% include "_plan_card.html" %}
     <form class="p-filters" method="GET" action="{{ tpath('/profile/payments') }}">
       <div>
         <label for="pf-status">Status</label>
@@ -595,7 +596,7 @@
     <div class="p-table-wrap">
       {% if payments %}
       <table class="p-table">
-        <thead><tr><th>Type</th><th>Reference</th><th>Employees</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
+        <thead><tr><th>Type</th><th>Reference</th><th>Employees</th><th>Amount</th><th>Status</th><th>Date</th><th>Invoice</th></tr></thead>
         <tbody>
         {% for p in payments %}
           <tr>
@@ -605,7 +606,7 @@
             <td>{{ p.amount_display }}</td>
             <td><span class="badge-pill {{ 'badge-success' if p.status_group == 'success' else ('badge-failed' if p.status_group == 'failed' else 'badge-pending') }}">{{ p.status }}</span></td>
             <td>{{ (p.paid_at or p.created_at).strftime('%d %b %Y') if (p.paid_at or p.created_at) else '—' }}</td>
-            <td>{% if p.status_group == 'success' %}<a href="{{ tpath('/profile/payments/' + p.kind_key + '/' + p.id|string + '/receipt.pdf') }}">Receipt</a>{% endif %}</td>
+            <td>{% if p.status_group == 'success' %}<a href="{{ tpath('/profile/payments/' + p.kind_key + '/' + p.id|string + '/invoice.pdf') }}"><i class="ti ti-download"></i> {{ invoice_nos.get((p.kind_key, p.id)) or 'Invoice PDF' }}</a>{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>

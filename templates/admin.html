@@ -277,6 +277,9 @@
     </a>
   </div>
 
+  {# PLAN & PAYMENTS (company admins only, like the billing emails) #}
+  {% if plan %}{% include "_plan_card.html" %}{% endif %}
+
   {# ONBOARDING WIDGET #}
   <div class="section u-mb-20">
     <div class="section-title u-d-flex u-ai-center u-jc-space-between">

@@ -24,6 +24,7 @@ from flask import Blueprint, request, jsonify
 from extensions import app_log, limiter, log_security_event
 from database import get_master_db
 from utils.plan_limits import PLAN_LABEL, calculate_price, format_price_inr
+from utils.tax_invoice import on_payment_completed
 from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
     key_id as razorpay_key_id, create_id_or_demo, verify_or_demo,
@@ -281,6 +282,8 @@ def _finalize_signup_order(razorpay_order_id, razorpay_payment_id):
         admin_email, company_name, portal_url,
         employee_count, amount_paise, razorpay_payment_id, checkin_url=checkin_url,
     )
+    if order_row:
+        on_payment_completed("signup", order_row[0])
 
     log_security_event(
         "billing.tenant_provisioned", f"Paid tenant '{company_name}' provisioned via Razorpay",

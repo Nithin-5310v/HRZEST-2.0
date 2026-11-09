@@ -284,6 +284,21 @@ def _filter_tenants(tenants, q, status_filter):
     return out
 
 
+@platform_admin_bp.route("/super_admin/payments/<kind_key>/<int:row_id>/invoice.pdf")
+@_platform_admin_required
+def platform_admin_payment_invoice(kind_key, row_id):
+    """Any company's tax invoice for a successful payment (utils/
+    tax_invoice.py), issued on first download if it has none yet."""
+    from flask import Response
+    from utils.tax_invoice import build_tax_invoice_pdf, invoice_filename, issue_invoice
+    inv = issue_invoice(kind_key, row_id)
+    if not inv:
+        return "Invoice not found.", 404
+    resp = Response(build_tax_invoice_pdf(inv), mimetype="application/pdf")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{invoice_filename(inv)}"'
+    return resp
+
+
 @platform_admin_bp.route("/super_admin")
 @_platform_admin_required
 def platform_admin_dashboard():

@@ -194,7 +194,8 @@ def get_billing_snapshot(schema_name: str) -> dict:
         conn = get_master_db()
         cur = conn.cursor(buffered=True)
         cur.execute(
-            "SELECT status, quantity_synced, activated_at FROM auto_debit_mandates WHERE tenant_schema=%s",
+            "SELECT status, quantity_synced, activated_at, fixed_amount FROM auto_debit_mandates "
+            "WHERE tenant_schema=%s",
             (schema_name,)
         )
         row = cur.fetchone()
@@ -202,6 +203,9 @@ def get_billing_snapshot(schema_name: str) -> dict:
             auto_debit = {
                 "status": row[0], "quantity_synced": row[1],
                 "activated_at": coerce_datetime(row[2]),
+                # UPI/e-mandate: the amount can't change, so a new headcount
+                # needs Auto-Debit set up again (blueprints/auto_debit.py).
+                "fixed_amount": bool(row[3]),
             }
         cur.execute(
             "SELECT billing_period, employee_count, amount_paise, status, created_at, failure_reason, rate_paise "
