@@ -58,8 +58,28 @@ FIXED_AMOUNT_MSG = ("Your Auto-Debit was set up with UPI or net banking (e-manda
                     "working until the new one is authorized, and nothing is charged twice.")
 
 
+# Subscription payment methods whose mandate is for a fixed amount.
+_FIXED_AMOUNT_METHODS = ("upi", "emandate", "nach")
+
+
 def _is_fixed_amount_error(error):
     return any(m in (error or "").lower() for m in _FIXED_AMOUNT_MARKERS)
+
+
+def _is_fixed_amount_subscription(subscription_id, error):
+    """Whether a refused quantity update means the subscription's amount
+    can't change. Razorpay's message isn't always the "payment mode is UPI"
+    one (an authorized subscription that hasn't charged yet is refused with
+    other wording), so when the message doesn't say, ask Razorpay how the
+    subscription is paid."""
+    if _is_fixed_amount_error(error):
+        return True
+    sub, fetch_error = fetch_subscription(subscription_id)
+    if fetch_error or not sub:
+        app_log.warning("auto_debit: couldn't look up subscription %s after a refused update: %s",
+                        subscription_id, fetch_error)
+        return False
+    return (sub.get("payment_method") or "").strip().lower() in _FIXED_AMOUNT_METHODS
 
 
 def fixed_amount_msg(count):
@@ -346,13 +366,17 @@ def update_quantity():
         return jsonify({"ok": False, "msg": "Auto-debit isn't currently enabled."}), 400
     count = get_tenant_employee_count(g.tenant_db)
     subscription_id = mandate["subscription_id"] or ""
+    errors = []
     if not _sync_mandate_quantity(g.tenant_db, subscription_id, mandate["quantity_synced"], count,
-                                  is_demo_sub=subscription_id.startswith(_DEMO_SUBSCRIPTION_PREFIX)):
+                                  is_demo_sub=subscription_id.startswith(_DEMO_SUBSCRIPTION_PREFIX),
+                                  errors=errors):
         if (_get_mandate(g.tenant_db) or {}).get("fixed_amount"):
             return jsonify({"ok": False, "needs_reauth": True, "employees": count,
                             "amount_display": format_price_inr(calculate_price(count)),
                             "msg": fixed_amount_msg(count)}), 409
-        return jsonify({"ok": False, "msg": "Razorpay didn't accept the update. Please try again in a few minutes."}), 502
+        reason = (errors[0] if errors else "").replace("Razorpay request failed: ", "").strip()
+        return jsonify({"ok": False, "msg": "Razorpay didn't accept the update"
+                        + (f" ({reason})" if reason else "") + ". Please try again in a few minutes."}), 502
     log_security_event("auto_debit.quantity_updated", f"Auto-debit updated to {count} employees",
                        level="INFO", subscription_id=subscription_id)
     return jsonify({"ok": True, "employees": count, "amount_display": format_price_inr(calculate_price(count))})
@@ -752,7 +776,8 @@ def reconcile_billing_records():
             app_log.error("reconcile_billing_records: failed for tenant %s: %s", tenant_schema, exc)
 
 
-def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, current_count, is_demo_sub):
+def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, current_count, is_demo_sub,
+                           errors=None):
     """Keeps one mandate's Razorpay subscription `quantity` in sync with the
     tenant's actual current headcount, and records that in quantity_synced.
     Shared by sync_and_bill_auto_debit()'s daily pass above and
@@ -761,14 +786,17 @@ def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, curr
     than waiting for this job's own daily run). Real mode only calls
     Razorpay when the count actually changed; demo mode has no live
     subscription to PATCH, so it just records the new count. Returns
-    whether the mandate now matches current_count."""
+    whether the mandate now matches current_count; Razorpay's reason for a
+    refusal is appended to `errors` when given."""
     if current_count == quantity_synced:
         return True
     if not is_demo_sub:
         ok, error = update_subscription_quantity(subscription_id, current_count or 1)
         if not ok:
             app_log.warning("_sync_mandate_quantity: quantity sync failed for %s: %s", tenant_schema, error)
-            if _is_fixed_amount_error(error):
+            if errors is not None:
+                errors.append(error)
+            if _is_fixed_amount_subscription(subscription_id, error):
                 conn = get_master_db()
                 cur = conn.cursor()
                 cur.execute("UPDATE auto_debit_mandates SET fixed_amount=TRUE WHERE tenant_schema=%s",
