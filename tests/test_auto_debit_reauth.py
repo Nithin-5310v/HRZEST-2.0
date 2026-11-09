@@ -89,13 +89,30 @@ class TestUpdateQuantity:
         status, _, quantity, fixed, *_ = _row(db_engine)
         assert fixed is True and quantity == get_tenant_employee_count(TENANT_SCHEMA) + 5
 
+    def test_upi_mandate_recognised_whatever_razorpay_says(self, client, db_engine, seed_admin, mandate, monkeypatch):
+        """An authorized subscription that hasn't charged yet is refused
+        with other wording; how it's paid decides."""
+        sub = mandate()
+        monkeypatch.setattr(auto_debit, "update_subscription_quantity",
+                            lambda *a: (False, "Razorpay request failed: The requested operation is not allowed"))
+        looked_up = []
+        monkeypatch.setattr(auto_debit, "fetch_subscription",
+                            lambda sid: looked_up.append(sid) or ({"payment_method": "upi"}, None))
+        _admin(client, seed_admin)
+        resp = client.post("/api/auto_debit/update_quantity", json={})
+        assert resp.status_code == 409 and resp.get_json()["needs_reauth"] is True
+        assert looked_up == [sub] and _row(db_engine)[3] is True
+
     def test_other_failures_stay_a_retry(self, client, db_engine, seed_admin, mandate, monkeypatch):
         mandate()
         monkeypatch.setattr(auto_debit, "update_subscription_quantity",
                             lambda *a: (False, "Razorpay request failed: another subscription operation is in progress"))
+        monkeypatch.setattr(auto_debit, "fetch_subscription", lambda sid: ({"payment_method": "card"}, None))
         _admin(client, seed_admin)
         resp = client.post("/api/auto_debit/update_quantity", json={})
-        assert resp.status_code == 502 and "needs_reauth" not in resp.get_json()
+        body = resp.get_json()
+        assert resp.status_code == 502 and "needs_reauth" not in body
+        assert "(another subscription operation is in progress)" in body["msg"]   # Razorpay's reason shown
         assert _row(db_engine)[3] is False
 
 
