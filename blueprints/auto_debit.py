@@ -49,13 +49,14 @@ _DEMO_SUBSCRIPTION_PREFIX = "demo_sub_"
 _PLAN_ITEM_NAME = "HRzest per-employee monthly fee"
 
 # Razorpay refuses to change the amount of a subscription authorized with
-# UPI Autopay or e-mandate ("subscriptions cannot be updated when payment
-# mode is UPI" / "... is emandate"): a new headcount needs a new
-# authorization -- enroll with replace=True below.
-_FIXED_AMOUNT_MARKERS = ("payment mode is upi", "payment mode is emandate")
-FIXED_AMOUNT_MSG = ("Your Auto-Debit was set up with UPI or net banking (e-mandate), which can't change "
-                    "the amount. Set it up again for {count} employee{s} — your current Auto-Debit keeps "
-                    "working until the new one is authorized, and nothing is charged twice.")
+# UPI Autopay, e-mandate or a card issued in India ("subscriptions cannot be
+# updated when payment mode is UPI" / "... is emandate", "Only offers can be
+# updated for subscriptions when payment mode is domestic card."): a new
+# headcount needs a new authorization -- enroll with replace=True below.
+_FIXED_AMOUNT_MARKERS = ("payment mode is upi", "payment mode is emandate", "payment mode is domestic card")
+FIXED_AMOUNT_MSG = ("Razorpay can't change the amount of an Auto-Debit set up with UPI, an Indian card or "
+                    "net banking (e-mandate). Set it up again for {count} employee{s} — your current "
+                    "Auto-Debit keeps working until the new one is authorized, and nothing is charged twice.")
 
 
 # Subscription payment methods whose mandate is for a fixed amount.
