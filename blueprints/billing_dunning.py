@@ -27,6 +27,7 @@ from utils.auth import admin_required
 from utils.helpers import tpath, coerce_datetime, platform_today
 from utils.plan_limits import calculate_price, format_price_inr, get_tenant_employee_count
 from utils.email_utils import get_email_config, get_billing_emails, send_email_async
+from utils.tax_invoice import on_payment_completed
 from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
     key_id as razorpay_key_id, create_id_or_demo, verify_or_demo, razorpay_configured, payments_enabled,
@@ -381,6 +382,7 @@ def _mark_invoice_paid_and_unlock(razorpay_order_id, razorpay_payment_id, expect
         level="INFO",
     )
     _notify_tenant(tenant_schema, None, "reactivated")
+    on_payment_completed("invoice", invoice_id)
     return True
 
 

@@ -29,8 +29,8 @@ from utils.helpers import (
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
     _validate_image_file, save_uploaded_logo,
 )
-from utils.payment_history import get_payment_history, get_payment_row
-from utils.receipt_pdf import build_receipt_pdf
+from utils.payment_history import get_payment_history, get_payment_row, get_plan_details
+from utils.tax_invoice import build_tax_invoice_pdf, invoice_filename, issue_invoice, tenant_invoices
 from utils.ticket_constants import TICKET_STATUSES, TICKET_PRIORITIES
 from utils.csv_export import csv_response
 from blueprints.org import _MOBILE_RE, _clean_mobile, _load_own_tenant_application
@@ -517,6 +517,7 @@ def profile_payments():
         "profile.html", active_nav="profile", active_tab="payments",
         co=get_company_settings(), payments=result["payments"], total_payments=result["total"],
         page=page, total_pages=total_pages, filters=filters,
+        plan=get_plan_details(g.tenant_db), invoice_nos=tenant_invoices(g.tenant_db),
     )
 
 
@@ -539,20 +540,23 @@ def profile_payments_export_csv():
     )
 
 
+@company_profile_bp.route("/profile/payments/<kind_key>/<int:row_id>/invoice.pdf", methods=["GET"])
 @company_profile_bp.route("/profile/payments/<kind_key>/<int:row_id>/receipt.pdf", methods=["GET"])
 @role_required("admin")
 def profile_payment_receipt(kind_key, row_id):
+    """The GST tax invoice for one of this company's successful payments
+    (utils/tax_invoice.py), issued on first download for payments made
+    before invoices existed. get_payment_row() scopes the lookup to this
+    company first, so another company's row id is a plain 404."""
     tenant_id = _resolve_own_tenant_id()
     row = get_payment_row(kind_key, row_id, tenant_id=tenant_id, tenant_schema=g.tenant_db)
     if not row:
-        return "Receipt not found.", 404
-    kind_label = {"signup": "Signup Payment", "seat_topup": "Seat Top-up",
-                  "invoice": "Monthly Auto-Debit Charge"}.get(kind_key, "Payment")
-    pdf_bytes = build_receipt_pdf(
-        row["company_name"], row["amount_paise"], row["paid_at"], row["reference_id"], kind_label,
-    )
-    resp = Response(pdf_bytes, mimetype="application/pdf")
-    resp.headers["Content-Disposition"] = f'attachment; filename="receipt_{kind_key}_{row_id}.pdf"'
+        return "Invoice not found.", 404
+    inv = issue_invoice(kind_key, row_id)
+    if not inv:  # pending or failed: nothing was paid, so there's no invoice
+        return "Invoice not found.", 404
+    resp = Response(build_tax_invoice_pdf(inv), mimetype="application/pdf")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{invoice_filename(inv)}"'
     return resp
 
 

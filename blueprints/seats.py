@@ -22,6 +22,7 @@ from database import get_db_connection, get_master_db
 from utils.auth import admin_required
 from utils.helpers import get_company_settings, invalidate_settings_cache, tpath
 from utils.plan_limits import calculate_price, format_price_inr
+from utils.tax_invoice import on_payment_completed
 from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
     key_id as razorpay_key_id, create_id_or_demo, verify_or_demo,
@@ -151,7 +152,7 @@ def verify_payment():
     conn.commit()
 
     cur.execute(
-        "SELECT seats_purchased FROM seat_topup_orders WHERE razorpay_order_id=%s AND tenant_schema=%s",
+        "SELECT seats_purchased, id FROM seat_topup_orders WHERE razorpay_order_id=%s AND tenant_schema=%s",
         (razorpay_order_id, g.tenant_db)
     )
     row = cur.fetchone()
@@ -191,6 +192,7 @@ def verify_payment():
         level="INFO", order_id=razorpay_order_id, seats_purchased=seats_purchased,
         new_cap=co.get("paid_employee_slots"),
     )
+    on_payment_completed("seat_topup", row[1])
 
     return jsonify({
         "ok": True,

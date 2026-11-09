@@ -34,6 +34,7 @@ from database import get_db_connection, get_master_db
 from utils.auth import admin_required
 from utils.helpers import get_company_settings, coerce_datetime, platform_today
 from utils.plan_limits import get_per_employee_paise, calculate_price, format_price_inr, get_tenant_employee_count
+from utils.tax_invoice import on_payment_completed
 from utils.razorpay_utils import (
     create_plan, create_customer, create_subscription, update_subscription_quantity,
     cancel_subscription as razorpay_cancel_subscription, verify_subscription_signature,
@@ -467,11 +468,12 @@ def _record_charge(subscription_id, amount_paise, payment_id, status, failure_re
         "INSERT INTO monthly_invoices (tenant_schema, company_name, employee_count, amount_paise, "
         "razorpay_payment_id, razorpay_subscription_id, status, billing_period, failure_reason, rate_paise) "
         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        "ON CONFLICT (razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL DO NOTHING",
+        "ON CONFLICT (razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL DO NOTHING RETURNING id",
         (tenant_schema, company_name, employee_count, amount_paise or 0, payment_id, subscription_id,
          status, billing_period, failure_reason, rate_paise)
     )
-    if payment_id and cur.rowcount == 0:
+    inserted = cur.fetchone()
+    if payment_id and not inserted:
         conn.commit()
         cur.close()
         conn.close()
@@ -485,6 +487,8 @@ def _record_charge(subscription_id, amount_paise, payment_id, status, failure_re
         level="INFO" if status == "paid" else "WARNING",
         subscription_id=subscription_id, amount_paise=amount_paise,
     )
+    if status == "paid" and inserted:
+        on_payment_completed("invoice", inserted[0])
 
 
 def sync_and_bill_auto_debit():
@@ -660,12 +664,14 @@ def _maybe_simulate_demo_charge(tenant_schema, company_name, subscription_id, em
     cur.execute(
         "INSERT INTO monthly_invoices (tenant_schema, company_name, employee_count, amount_paise, "
         "razorpay_payment_id, razorpay_subscription_id, status, billing_period, rate_paise) "
-        "VALUES (%s, %s, %s, %s, %s, %s, 'paid', %s, %s)",
+        "VALUES (%s, %s, %s, %s, %s, %s, 'paid', %s, %s) RETURNING id",
         (tenant_schema, company_name, employee_count, amount_paise, demo_payment_id, subscription_id,
          billing_period, get_per_employee_paise())
     )
+    invoice_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
     conn.close()
     app_log.info("sync_and_bill_auto_debit: simulated demo monthly charge for %s (%s employees, %s paise)",
                  tenant_schema, employee_count, amount_paise)
+    on_payment_completed("invoice", invoice_id)
