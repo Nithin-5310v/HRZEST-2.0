@@ -121,5 +121,7 @@ class TestModuleAvailabilityFlag:
     def test_face_recognition_available_flag_matches_import_state(self):
         # In this environment face_recognition imports successfully, so the
         # module-level flag should reflect that.
+        if getattr(face_utils.face_recognition, "PLACEHOLDER", False):
+            pytest.skip("face_recognition can't load on this machine (tests/conftest.py)")
         assert face_utils._face_recognition_available is True
         assert face_utils.face_recognition is not None
