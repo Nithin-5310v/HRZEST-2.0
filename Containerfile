@@ -40,7 +40,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# `apt-get upgrade` pulls Debian security fixes the python:*-slim tag has not
+# been rebuilt with yet (e.g. zlib1g CVE-2026-85091/-76844, fixed in deb13u1),
+# which the Trivy image gate in CI would otherwise fail on.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
     libopenblas0-pthread liblapack3 \
     libx11-6 \
     libgl1 libglib2.0-0 \
