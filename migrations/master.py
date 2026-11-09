@@ -393,6 +393,25 @@ def _init_master_db_impl():
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_duplicate_alerts_ack ON tenant_duplicate_alerts (acknowledged, created_at)")
+        # What the platform admin did about an alert beyond acknowledging it
+        # ('blocked'); NULL for a plain acknowledgement or a new alert.
+        cur.execute("ALTER TABLE tenant_duplicate_alerts ADD COLUMN IF NOT EXISTS action_taken VARCHAR(20) DEFAULT NULL")
+        # Emails and source IPs a platform admin has blocked from starting a
+        # new company (the duplicate-alerts page). Every signup entry point
+        # checks this first: blueprints/org/duplicates.signup_block_for().
+        # Emails are stored lowercased.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS signup_blocks (
+                id SERIAL PRIMARY KEY,
+                kind VARCHAR(10) NOT NULL,
+                value VARCHAR(200) NOT NULL,
+                reason VARCHAR(300) DEFAULT NULL,
+                alert_id INT DEFAULT NULL,
+                blocked_by VARCHAR(100) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (kind, value)
+            )
+        """)
         # Razorpay orders for an EXISTING tenant buying more employee seats
         # after signup (blueprints/seats.py) -- separate from payment_orders
         # above (that table stages a brand-new tenant that doesn't exist yet;
