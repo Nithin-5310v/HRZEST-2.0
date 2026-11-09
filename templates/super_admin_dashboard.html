@@ -725,7 +725,7 @@
         {% if recent_payments %}
         <table>
           <thead>
-            <tr><th>Company</th><th>Kind</th><th>Employees</th><th>Amount</th><th>Status</th><th>Type</th><th>Date</th></tr>
+            <tr><th>Company</th><th>Kind</th><th>Employees</th><th>Amount</th><th>Status</th><th>Type</th><th>Date</th><th>Invoice</th></tr>
           </thead>
           <tbody>
             {% for p in recent_payments %}
@@ -737,6 +737,7 @@
                 data-admin-username="{{ p.admin_username or '—' }}" data-admin-email="{{ p.admin_email or '—' }}"
                 data-created="{{ p.created_at.strftime('%Y-%m-%d %H:%M:%S') if p.created_at else '—' }}"
                 data-paid="{{ p.paid_at.strftime('%Y-%m-%d %H:%M:%S') if p.paid_at else '—' }}"
+                data-invoice="{{ '/super_admin/payments/' ~ p.kind_key ~ '/' ~ p.id ~ '/invoice.pdf' if p.status_group == 'success' else '' }}"
                 data-on-click="openPaymentModal(this)" data-on-keydown="HZ.onEnter(event, 'openPaymentModal', this)">
               <td>
                 <div class="co-name">{{ p.company_name }}</div>
@@ -748,6 +749,7 @@
               <td><span class="badge badge-{{ 'active' if p.status in ('paid', 'provisioned') else 'suspended' }}">{{ p.status }}</span></td>
               <td>{% if p.is_demo %}<span class="badge badge-source-manual">Demo</span>{% else %}<span class="badge badge-source-self">Razorpay</span>{% endif %}</td>
               <td class="subdomain">{{ (p.paid_at or p.created_at).strftime('%Y-%m-%d %H:%M') if (p.paid_at or p.created_at) else '—' }}</td>
+              <td>{{ 'PDF' if p.status_group == 'success' else '—' }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -779,6 +781,7 @@
             <div class="pay-modal-row"><span>Admin Email</span><strong id="pmAdminEmail"></strong></div>
             <div class="pay-modal-row"><span>Created At</span><strong id="pmCreated"></strong></div>
             <div class="pay-modal-row"><span>Paid At</span><strong id="pmPaid"></strong></div>
+            <div class="pay-modal-row" id="pmInvoiceRow"><span>Tax Invoice</span><a id="pmInvoice" class="mini-btn mini-btn-link" href="#"><i class="ti ti-download"></i> Download PDF</a></div>
           </div>
         </div>
       </div>
@@ -851,6 +854,8 @@
         document.getElementById('pmAdminEmail').textContent = d.adminEmail;
         document.getElementById('pmCreated').textContent = d.created;
         document.getElementById('pmPaid').textContent = d.paid;
+        document.getElementById('pmInvoiceRow').hidden = !d.invoice;
+        document.getElementById('pmInvoice').href = d.invoice || '#';
         document.getElementById('payModalOverlay').classList.add('open');
       }
       function closePaymentModal() {

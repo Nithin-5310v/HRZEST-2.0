@@ -229,7 +229,7 @@ Plain JavaScript (no framework, no build step).
 | Infrastructure | `core.py` (home page, CSP reports, mobile token API, web-session bridge), `health.py` (`/healthz`), `seo.py`, `privacy.py`, `honeypot_routes.py` |
 
 **Main `utils/` groups**
-- **Money:** `salary_utils.py`, `plan_limits.py`, `razorpay_utils.py`, `payment_history.py`, `payout_utils.py`, `receipt_pdf.py`
+- **Money:** `salary_utils.py`, `plan_limits.py`, `razorpay_utils.py`, `payment_history.py`, `payout_utils.py`, `tax_invoice.py`
 - **Attendance:** `attendance_utils.py`, `leave_utils.py`, `geo.py`, `face_utils.py`, `liveness.py`, `punch_integrity.py`, `config.py`
 - **Email, chat & files:** `email_utils.py` (queued email), `chat_utils.py`, `push_utils.py`, `storage.py`, `csv_export.py`, `task_queue.py`
 - **AI:** `ai_client.py`, `ai_assistant.py`, `ai_helpdesk.py`, `ai_resume_parser.py`, `ai_interview_evaluator.py`, `ai_attrition_analytics.py`

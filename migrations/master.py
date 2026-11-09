@@ -514,6 +514,31 @@ def _init_master_db_impl():
         cur.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_monthly_invoices_payment_id ON monthly_invoices "
             "(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL")
+        # GST tax invoices (utils/tax_invoice.py): one per successful payment
+        # of any kind (signup, seat top-up, monthly charge). Everything shown
+        # on the PDF is frozen here at issue time -- seller and buyer details,
+        # amounts, tax split -- so a later address/rate/GSTIN change never
+        # rewrites an invoice already sent. invoice_no is sequential per
+        # Indian financial year (invoice_counters), as GST invoices must be.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tax_invoices (
+                id SERIAL PRIMARY KEY,
+                invoice_no VARCHAR(30) UNIQUE NOT NULL,
+                kind_key VARCHAR(20) NOT NULL,
+                source_id INT NOT NULL,
+                tenant_schema VARCHAR(100) DEFAULT NULL,
+                issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                data TEXT NOT NULL,
+                UNIQUE (kind_key, source_id)
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tax_invoices_tenant ON tax_invoices (tenant_schema, issued_at)")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS invoice_counters (
+                financial_year VARCHAR(9) PRIMARY KEY,
+                last_no INT NOT NULL DEFAULT 0
+            )
+        """)
         # Lightweight traffic counter for the public marketing pages
         # (landing page, get-started, create_org) -- one row per
         # (path, day), incremented via ON CONFLICT below rather than one
