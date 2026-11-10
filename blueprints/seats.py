@@ -74,6 +74,7 @@ def reset_paid_seats(tenant_schema):
     except Exception as exc:
         app_log.error("seats.reset_paid_seats(%s) failed: %s", tenant_schema, exc)
 
+
 # Same convention as blueprints/billing.py's _DEMO_ORDER_PREFIX -- lets the
 # full buy-seats flow be exercised locally without real Razorpay keys, and
 # is refused outright by verify_payment() once real keys ARE configured.
