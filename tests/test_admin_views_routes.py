@@ -781,3 +781,41 @@ class TestNotificationBellClear:
         assert cur.fetchone()[0] == 1
         cur.execute("DELETE FROM notifications WHERE title='clr-e'")
         conn.commit()
+
+
+class TestAnnouncementsForHr:
+    """The sidebar shows Announcements to HRs; the page used to answer 403."""
+
+    def test_hr_opens_the_page(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"], role="hr")
+        resp = client.get("/announcements", follow_redirects=False)
+        assert resp.status_code == 200
+        assert b"panel-announcements" in resp.data
+
+    def test_hr_posts_and_deletes(self, client, seed_admin, db_engine):
+        _admin_session(client, seed_admin["username"], role="hr")
+        resp = client.post("/announcements", data={
+            "action": "add", "visibility": "public", "title": "HR Route Ann", "content": "from HR"},
+            follow_redirects=True)
+        assert b"Announcement posted" in resp.data
+        cur = db_engine.cursor()
+        cur.execute("SELECT id FROM announcements WHERE title='HR Route Ann'")
+        ann_id = cur.fetchone()[0]
+        resp = client.post("/announcements", data={"action": "delete", "ann_id": str(ann_id)},
+                           follow_redirects=True)
+        assert b"Announcement deleted" in resp.data
+        cur.execute("DELETE FROM notifications WHERE title LIKE '%HR Route Ann%'")
+        cur.close()
+
+    def test_manager_neither_sees_nor_opens_it(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"], role="manager")
+        assert client.get("/announcements").status_code == 403
+        html = client.get("/leave_holidays").get_data(as_text=True)
+        assert 'href="/announcements"' not in html
+        html = client.get("/admin").get_data(as_text=True)
+        assert 'href="/announcements"' not in html
+
+    def test_hr_sidebar_still_links_it(self, client, seed_admin):
+        _admin_session(client, seed_admin["username"], role="hr")
+        html = client.get("/leave_holidays").get_data(as_text=True)
+        assert 'href="/announcements"' in html
