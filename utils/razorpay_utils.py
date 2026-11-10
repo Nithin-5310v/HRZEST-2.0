@@ -272,41 +272,27 @@ def fetch_subscription(subscription_id: str):
 def update_subscription_quantity(subscription_id: str, quantity: int):
     """PATCH /v1/subscriptions/{id} -- resyncs the billed quantity to a
     tenant's current headcount (blueprints/auto_debit.py's daily sync job).
-    schedule_change_at="now" applies immediately with proration, matching
-    Razorpay's documented seat-based-billing guidance (an employee added
-    mid-cycle should start being billed for right away, not silently free
-    until the next renewal).
 
-    A subscription paid by card under RBI's card-mandate rules can't be
-    changed mid-cycle ("Can't update subscription immediately when card
-    mandate is applicable"), so for those the change is scheduled for the
-    end of the current cycle -- still before the next charge, which is what
-    the billing page promises. A change already scheduled is replaced.
-    Returns (ok, error)."""
+    Always schedule_change_at="cycle_end": the new headcount is charged
+    from the next billing date, all employees in one payment. A new
+    employee's current month is paid when they're registered
+    (blueprints/seats.py), so "now" -- which Razorpay applies at once, with
+    a prorated charge -- would bill them twice. A change already scheduled
+    is replaced. Returns (ok, error)."""
     path = f"/subscriptions/{subscription_id}"
-    quantity = max(1, quantity)
-    data, error = _request(path, {"quantity": quantity, "schedule_change_at": "now"}, method="PATCH")
-    if error and _immediate_change_refused(error):
-        body = {"quantity": quantity, "schedule_change_at": "cycle_end"}
-        data, error = _request(path, body, method="PATCH")
-        if error and "payment mode is" not in error.lower():
-            # Most likely an earlier scheduled change in the way: drop it
-            # and schedule this one instead. ("... when payment mode is
-            # domestic card" means a card issued in India can't change at
-            # all -- the caller sets Auto-Debit up again instead.)
-            _, cancel_error = _request(f"{path}/cancel_scheduled_changes")
-            if not cancel_error:
-                data, error = _request(path, body, method="PATCH")
+    body = {"quantity": max(1, quantity), "schedule_change_at": "cycle_end"}
+    data, error = _request(path, body, method="PATCH")
+    if error and "payment mode is" not in error.lower():
+        # Most likely an earlier scheduled change in the way: drop it and
+        # schedule this one instead. ("... when payment mode is UPI /
+        # domestic card" means the amount can't change at all -- the caller
+        # sets Auto-Debit up again instead.)
+        _, cancel_error = _request(f"{path}/cancel_scheduled_changes")
+        if not cancel_error:
+            data, error = _request(path, body, method="PATCH")
     if error:
         return False, error
     return True, None
-
-
-_IMMEDIATE_REFUSED_MARKERS = ("update subscription immediately", "card mandate")
-
-
-def _immediate_change_refused(error):
-    return any(m in (error or "").lower() for m in _IMMEDIATE_REFUSED_MARKERS)
 
 
 def list_subscription_invoices(subscription_id: str, count: int = 5):

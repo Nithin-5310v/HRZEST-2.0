@@ -214,7 +214,9 @@ def view_employees():
     if request.args.get("view") == "dashboard":
         return redirect(tpath("/hr_dashboard"))
 
+    from blueprints.seats import seat_payment_info
     return render_template("employees.html",
+                           seat_pay=seat_payment_info(),
                            ob_active=ob_active,
                            ob_overdue=ob_overdue,
                            is_hr_scoped=is_hr_scoped,

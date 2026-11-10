@@ -169,6 +169,13 @@ def _month_end(d):
     return (d.replace(day=1) + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
 
 
+def _period_label(start, end):
+    """"November 2026" for a calendar month, else "10 Nov 2026 - 9 Dec 2026"."""
+    if start.day == 1 and end == _month_end(start):
+        return start.strftime("%B %Y")
+    return f"{start.strftime('%d %b %Y')} - {end.strftime('%d %b %Y')}"
+
+
 def _as_date(v):
     if v is None:
         return None
@@ -221,14 +228,21 @@ def _load_payment(kind_key, row_id):
     paid_on = _as_date(p["paid_at"]) or datetime.date.today()
     ref = p["payment_id"] or p["order_id"] or ""
     is_test = ref.startswith("demo_")
+    from utils.billing_cycle import tenant_anchor, period_end as cycle_period_end
+    try:  # the company's plan date sets the period end; month ends if it can't be read
+        anchor = tenant_anchor(p["tenant_schema"])[0] if p["tenant_schema"] else None
+    except Exception:
+        anchor = None
     if kind_key == "invoice":
         start = _as_date(r[8]) or paid_on.replace(day=1)
-        p.update(period_start=start, period_end=_month_end(start),
-                 description=f"HRZEST subscription for {start.strftime('%B %Y')} "
+        end = cycle_period_end(anchor, start) if anchor and start >= anchor else _month_end(start)
+        p.update(period_start=start, period_end=end,
+                 description=f"HRZEST subscription for {_period_label(start, end)} "
                              f"(per employee per month, {p['qty']} employees)",
                  mode="Auto-Debit (Razorpay)" if r[9] and not p["order_id"] else "Online (Razorpay)")
     elif kind_key == "signup":
-        p.update(period_start=paid_on, period_end=_month_end(paid_on),
+        end = cycle_period_end(anchor, paid_on) if anchor and paid_on >= anchor else _month_end(paid_on)
+        p.update(period_start=paid_on, period_end=end,
                  description=f"HRZEST subscription, first month (per employee, {p['qty']} employees)",
                  mode="Online (Razorpay)")
     else:

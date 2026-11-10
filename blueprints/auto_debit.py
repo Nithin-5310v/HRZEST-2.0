@@ -34,6 +34,10 @@ from database import get_db_connection, get_master_db
 from utils.auth import admin_required
 from utils.helpers import get_company_settings, coerce_datetime, platform_today
 from utils.plan_limits import get_per_employee_paise, calculate_price, format_price_inr, get_tenant_employee_count
+from utils.billing_cycle import (
+    anchor_from, tenant_anchor, period_start as cycle_period_start, next_billing_date, first_period_prepaid,
+    period_is_paid, charge_period, charge_epoch,
+)
 from utils.tax_invoice import on_payment_completed
 from utils.razorpay_utils import (
     create_plan, create_customer, create_subscription, update_subscription_quantity, fetch_subscription,
@@ -128,7 +132,7 @@ def _get_mandate(tenant_schema: str):
     cur = conn.cursor(buffered=True)
     cur.execute(
         "SELECT status, razorpay_customer_id, razorpay_subscription_id, quantity_synced, fixed_amount, "
-        "pending_subscription_id, pending_quantity, pending_start_at "
+        "pending_subscription_id, pending_quantity, pending_start_at, first_charge_on "
         "FROM auto_debit_mandates WHERE tenant_schema=%s",
         (tenant_schema,)
     )
@@ -139,7 +143,33 @@ def _get_mandate(tenant_schema: str):
         return None
     return {"status": row[0], "customer_id": row[1], "subscription_id": row[2], "quantity_synced": row[3],
             "fixed_amount": bool(row[4]), "pending_subscription_id": row[5], "pending_quantity": row[6],
-            "pending_start_at": row[7]}
+            "pending_start_at": row[7], "first_charge_on": coerce_datetime(row[8])}
+
+
+def _first_charge_date(tenant_schema):
+    """When a new Auto-Debit should first charge: the next billing date
+    (utils/billing_cycle.py) if the current period is already paid -- so
+    nothing is charged twice -- or None to charge as soon as it's authorized
+    (a trial or an unpaid period), which makes that day the plan date."""
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    try:
+        cur.execute("SELECT subscription_status, billing_anchor_date, created_at FROM tenants WHERE db_name=%s",
+                    (tenant_schema,))
+        row = cur.fetchone()
+        if not row or row[0] in ("trialing", "past_due"):
+            return None
+        today = platform_today()
+        anchor, explicit = anchor_from(row[1], row[2], today)
+        if today < anchor:
+            return anchor
+        start = cycle_period_start(anchor, today)
+        covered = (start == anchor and first_period_prepaid(anchor, explicit, row[2])) \
+            or period_is_paid(cur, tenant_schema, start)
+        return next_billing_date(anchor, today) if covered else None
+    finally:
+        cur.close()
+        conn.close()
 
 
 @auto_debit_bp.route("/api/auto_debit/enroll", methods=["POST"])
@@ -158,6 +188,7 @@ def enroll():
         return _enroll_replacement(mandate)
 
     employee_count = get_tenant_employee_count(g.tenant_db)
+    first_charge_on = _first_charge_date(g.tenant_db)
 
     customer_id = None
 
@@ -179,7 +210,8 @@ def enroll():
         if error:
             return None, error
 
-        return create_subscription(plan_id, customer_id, employee_count or 1)
+        return create_subscription(plan_id, customer_id, employee_count or 1,
+                                   start_at=charge_epoch(first_charge_on) if first_charge_on else None)
 
     subscription_id, is_demo, error = create_id_or_demo(_DEMO_SUBSCRIPTION_PREFIX, _create_real_subscription)
     if error:
@@ -190,14 +222,14 @@ def enroll():
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO auto_debit_mandates (tenant_schema, company_name, razorpay_customer_id, "
-        "razorpay_subscription_id, quantity_synced, status, requested_by, created_at) "
-        "VALUES (%s, %s, %s, %s, %s, 'pending', %s, NOW()) "
+        "razorpay_subscription_id, quantity_synced, status, requested_by, created_at, first_charge_on) "
+        "VALUES (%s, %s, %s, %s, %s, 'pending', %s, NOW(), %s) "
         "ON CONFLICT (tenant_schema) DO UPDATE SET company_name=%s, razorpay_customer_id=%s, "
         "razorpay_subscription_id=%s, quantity_synced=%s, status='pending', requested_by=%s, "
-        "created_at=NOW(), cancelled_at=NULL",
+        "created_at=NOW(), cancelled_at=NULL, first_charge_on=%s",
         (g.tenant_db, co.get("company_name") or "", customer_id, subscription_id, employee_count,
-         session.get("admin_username"), co.get("company_name") or "", customer_id, subscription_id,
-         employee_count, session.get("admin_username"))
+         session.get("admin_username"), first_charge_on, co.get("company_name") or "", customer_id,
+         subscription_id, employee_count, session.get("admin_username"), first_charge_on)
     )
     conn.commit()
     cur.close()
@@ -210,6 +242,8 @@ def enroll():
         "demo": is_demo,
         "employee_count": employee_count,
         "amount_display": format_price_inr(calculate_price(employee_count)),
+        "first_charge_on": first_charge_on.isoformat() if first_charge_on else None,
+        "first_charge_display": first_charge_on.strftime("%d %b %Y") if first_charge_on else None,
     })
 
 
@@ -342,6 +376,10 @@ def confirm():
         (g.tenant_db,)
     )
     reactivated = cur.rowcount == 1
+    if not mandate["first_charge_on"]:
+        # It charges now (a trial ending, or an unpaid period): today is the
+        # plan date, and Auto-Debit charges on this day every month.
+        cur.execute("UPDATE tenants SET billing_anchor_date=%s WHERE db_name=%s", (platform_today(), g.tenant_db))
     conn.commit()
     cur.close()
     conn.close()
@@ -443,7 +481,8 @@ def _handle_subscription_charged(payload):
     amount_paise = payment_entity.get("amount")
     payment_id = payment_entity.get("id")
     if subscription_id:
-        _record_charge(subscription_id, amount_paise, payment_id, status="paid")
+        _record_charge(subscription_id, amount_paise, payment_id, status="paid",
+                       charged_at=payment_entity.get("created_at"))
         _migrate_mandate_if_needed(subscription_id)
 
 
@@ -577,7 +616,18 @@ register_webhook_handler("razorpay", "payment.failed", _handle_payment_failed_or
 register_webhook_handler("razorpay", "subscription.pending", _handle_payment_failed_or_pending)
 
 
-def _record_charge(subscription_id, amount_paise, payment_id, status, failure_reason=None):
+def _charged_on(charged_at):
+    """Razorpay epoch seconds -> the platform date (today when missing)."""
+    try:
+        if charged_at:
+            from utils.helpers.settings import PLATFORM_TZ
+            return datetime.datetime.fromtimestamp(int(charged_at), PLATFORM_TZ).date()
+    except (TypeError, ValueError, OverflowError, OSError):
+        pass
+    return platform_today()
+
+
+def _record_charge(subscription_id, amount_paise, payment_id, status, failure_reason=None, charged_at=None):
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
@@ -592,7 +642,8 @@ def _record_charge(subscription_id, amount_paise, payment_id, status, failure_re
         return
     tenant_schema, company_name = row
     employee_count = get_tenant_employee_count(tenant_schema)
-    billing_period = platform_today().replace(day=1)
+    anchor, explicit = tenant_anchor(tenant_schema, cur)
+    billing_period = charge_period(anchor, explicit, _charged_on(charged_at))
     rate_paise = get_per_employee_paise()
     # Razorpay explicitly redelivers webhooks on timeout/non-2xx/network
     # retry -- idx_monthly_invoices_payment_id (app.py) is a real DB-level
@@ -625,6 +676,8 @@ def _record_charge(subscription_id, amount_paise, payment_id, status, failure_re
     )
     if status == "paid" and inserted:
         on_payment_completed("invoice", inserted[0])
+        from blueprints.seats import reset_paid_seats
+        reset_paid_seats(tenant_schema)
 
 
 def sync_and_bill_auto_debit():
@@ -772,7 +825,8 @@ def reconcile_billing_records():
                 if not payment_id:
                     continue
                 amount_paise = inv.get("amount_paid") or inv.get("amount") or 0
-                _record_charge(subscription_id, amount_paise, payment_id, status="paid")
+                _record_charge(subscription_id, amount_paise, payment_id, status="paid",
+                               charged_at=inv.get("paid_at") or inv.get("date"))
         except Exception as exc:
             app_log.error("reconcile_billing_records: failed for tenant %s: %s", tenant_schema, exc)
 
@@ -819,23 +873,28 @@ def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, curr
 
 
 def _maybe_simulate_demo_charge(tenant_schema, company_name, subscription_id, employee_count, activated_at):
+    """Demo mode's stand-in for Razorpay's schedule: charges on the
+    company's billing date (utils/billing_cycle.py) when the current period
+    isn't paid yet -- never during a trial, and not for a first period the
+    signup checkout already paid."""
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    cur.execute(
-        "SELECT created_at FROM monthly_invoices WHERE tenant_schema=%s AND status='paid' "
-        "ORDER BY created_at DESC LIMIT 1",
-        (tenant_schema,)
-    )
-    row = cur.fetchone()
-    last_charge = coerce_datetime(row[0] if row else activated_at)
-    due = (last_charge is None) or ((datetime.datetime.now() - last_charge) >= datetime.timedelta(days=30))
+    cur.execute("SELECT subscription_status, billing_anchor_date, created_at FROM tenants WHERE db_name=%s",
+                (tenant_schema,))
+    t = cur.fetchone()
+    today = platform_today()
+    anchor, explicit = anchor_from(t[1] if t else None, t[2] if t else None, today)
+    start = cycle_period_start(anchor, today)
+    due = (bool(t) and t[0] != "trialing" and today >= anchor
+           and not (start == anchor and first_period_prepaid(anchor, explicit, t[2]))
+           and not period_is_paid(cur, tenant_schema, start))
     if not due:
         cur.close()
         conn.close()
         return
 
     amount_paise = calculate_price(employee_count)
-    billing_period = platform_today().replace(day=1)
+    billing_period = start
     # Each simulated demo charge needs its own unique payment id -- a fixed
     # literal here would collide with idx_monthly_invoices_payment_id
     # (app.py) the very next time ANY tenant's demo subscription renews.
@@ -854,3 +913,5 @@ def _maybe_simulate_demo_charge(tenant_schema, company_name, subscription_id, em
     app_log.info("sync_and_bill_auto_debit: simulated demo monthly charge for %s (%s employees, %s paise)",
                  tenant_schema, employee_count, amount_paise)
     on_payment_completed("invoice", invoice_id)
+    from blueprints.seats import reset_paid_seats
+    reset_paid_seats(tenant_schema)
