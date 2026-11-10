@@ -335,6 +335,21 @@
         // from the employee's page -- so there is nothing to block here.
         var errDiv = document.getElementById('addPhotoErr');
         if (errDiv) errDiv.style.display = 'none';
+        // All paid seats in use: pay for this employee's month first
+        // (static/js/seat-pay.js), then send the form.
+        if (form.dataset.seatPay === '1' && form.dataset.seatPaid !== '1' && window.HZSeatPay) {
+          if (!form.reportValidity()) return false;
+          var btn = form.querySelector('button[type=submit]');
+          if (btn) btn.disabled = true;
+          HZSeatPay.buy(1, form.dataset.seatLabel).then(function (paid) {
+            if (btn) btn.disabled = false;
+            if (!paid) return;
+            form.dataset.seatPaid = '1';
+            if (btn) btn.disabled = true;
+            form.submit();
+          });
+          return false;
+        }
         return true;
       }
 

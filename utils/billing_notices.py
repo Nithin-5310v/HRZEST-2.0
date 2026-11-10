@@ -9,8 +9,9 @@ trial_billing.py):
                             month renews -- once per company per renewal
 
 "Paid" means billed every month: payment_option 'online' (auto-debit) or
-'manual', and not on a free trial. Bills follow calendar months
-(billing_dunning.py's billing_period), so a month renews on the 1st.
+'manual', and not on a free trial. Each company's bill renews on its own
+plan date every month (utils/billing_cycle.py); companies from before plan
+dates existed renew on the 1st.
 """
 import datetime
 import html
@@ -45,10 +46,17 @@ def company_link(slug, path):
     return f"{base}/{slug}{path}" if slug else f"{base}{path}"
 
 
-def next_renewal_date(today=None):
-    """The 1st of next month: when the current monthly bill renews."""
+def next_renewal_date(today=None, db_name=None, anchor=None):
+    """When a company's current monthly bill renews: the next date on its
+    plan date's day (utils/billing_cycle.py). `anchor` saves the lookup when
+    the caller already has it; with neither, the 1st of next month."""
+    from utils.billing_cycle import next_billing_date, tenant_anchor
     today = today or platform_today()
-    return (today.replace(day=1) + datetime.timedelta(days=32)).replace(day=1)
+    if anchor is None and db_name:
+        anchor = tenant_anchor(db_name)[0]
+    if anchor is None:
+        anchor = today.replace(day=1)
+    return next_billing_date(anchor, today)
 
 
 def billing_profile(db_name):
@@ -116,18 +124,19 @@ def notify_employee_added(added=1, db_name=None):
         profile = billing_profile(db_name) if db_name else None
         if not profile:
             return
-        renews_on = next_renewal_date()
+        renews_on = next_renewal_date(db_name=db_name)
         company = html.escape(profile["company_name"] or "")
         noun = "employee was" if added == 1 else "employees were"
         billing = company_link(profile["slug"], "/settings?tab=billing")
         if profile["auto_debit"]:
-            set_for = profile["auto_debit_employees"]
+            # The new total takes effect at the next charge, by itself
+            # (utils/razorpay_utils.update_subscription_quantity, cycle_end).
             choice = (
-                f"<p><strong>Update your Auto-Debit now</strong> so it charges for all "
-                f"{profile['employees']} employee(s)"
-                + (f" (it's set for {set_for})" if set_for is not None else "")
-                + f": <a href=\"{billing}\">Settings &rarr; Billing &rarr; Update</a>. "
-                f"If you don't, it updates itself before the next charge.</p>"
+                f"<p><strong>Auto-Debit</strong> charges the new total on "
+                f"<strong>{renews_on.strftime('%d %b %Y')}</strong>, for all {profile['employees']} "
+                f"employee(s) in one payment &mdash; it updates itself. If it was set up with UPI, an "
+                f"Indian card or net banking, you'll be asked once to approve the new amount: "
+                f"<a href=\"{billing}\">Settings &rarr; Billing</a>.</p>"
             )
         else:
             choice = (
@@ -140,8 +149,9 @@ def notify_employee_added(added=1, db_name=None):
             f"from <strong>{renews_on.strftime('%d %b %Y')}</strong> is "
             f"<strong>{format_price_inr(profile['amount_paise'])}</strong>.</p>"
             f"{choice}"
-            f"<p><strong>Adding several people?</strong> Pay for all of them in one go by buying seats "
-            f"from the same <a href=\"{billing}\">Billing</a> page.</p>"
+            f"<p><strong>Adding several people?</strong> Use <em>Import from Excel</em> on the Employees "
+            f"page: one sheet, one payment for all the extra seats -- or buy seats from the same "
+            f"<a href=\"{billing}\">Billing</a> page.</p>"
         )
         _send_to_admins(db_name, "Your HRzest bill changed: employees added", body, "Plan update")
     except Exception:
@@ -161,23 +171,27 @@ def send_renewal_reminders():
 
 
 def _run_renewal_reminders(today=None):
+    from utils.billing_cycle import anchor_from
     today = today or platform_today()
-    renews_on = next_renewal_date(today)
-    if (renews_on - today).days != RENEWAL_REMINDER_DAYS:
-        return
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
-        "SELECT id, db_name FROM tenants WHERE status='active' AND payment_option IN ('online','manual') "
-        "AND subscription_status != 'trialing' AND schema_missing_tables IS NULL "
-        "AND (renewal_reminder_for IS NULL OR renewal_reminder_for < %s)",
-        (renews_on,)
+        "SELECT id, db_name, billing_anchor_date, created_at, renewal_reminder_for FROM tenants "
+        "WHERE status='active' AND payment_option IN ('online','manual') "
+        "AND subscription_status != 'trialing' AND schema_missing_tables IS NULL"
     )
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    for tenant_id, db_name in rows:
+    for tenant_id, db_name, anchor_date, created_at, reminded_for in rows:
         try:
+            # Each company renews on its own plan date.
+            renews_on = next_renewal_date(today, anchor=anchor_from(anchor_date, created_at, today)[0])
+            if (renews_on - today).days != RENEWAL_REMINDER_DAYS:
+                continue
+            reminded_for = reminded_for.date() if isinstance(reminded_for, datetime.datetime) else reminded_for
+            if reminded_for is not None and str(reminded_for) >= str(renews_on):
+                continue
             _remind_one(tenant_id, db_name, renews_on)
         except Exception:
             app_log.exception(f"billing_notices: renewal reminder failed for '{db_name}'")

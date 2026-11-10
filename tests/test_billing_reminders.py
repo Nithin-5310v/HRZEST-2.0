@@ -104,15 +104,15 @@ def _admin_session(client, username):
 
 
 class TestEmployeeAddedEmail:
-    def test_paid_company_on_auto_debit_is_offered_the_update(self, db_engine, tenant, mails):
+    def test_paid_company_on_auto_debit_is_told_the_next_charge(self, db_engine, tenant, mails):
         _set(db_engine, payment_option="online", subscription_status="active")
         _mandate(db_engine, quantity_synced=1)
         notices.notify_employee_added(db_name=TENANT_SCHEMA)
         (to, subject, body), = mails
         assert to == "owner@example.test" and "employees added" in subject
-        assert "Update your Auto-Debit now" in body and "it's set for 1" in body
+        assert "charges the new total on" in body and "it updates itself" in body
         assert "/att-test-suite/settings?tab=billing" in body
-        assert "buying seats" in body  # pay for many at once
+        assert "Import from Excel" in body and "buy seats" in body  # pay for many at once
 
     def test_paid_company_without_auto_debit_is_offered_auto_debit(self, db_engine, tenant, mails):
         _set(db_engine, payment_option="manual", subscription_status="active")
