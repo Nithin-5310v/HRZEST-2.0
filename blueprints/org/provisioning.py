@@ -194,11 +194,15 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
                 (company_name, subdomain, db_name, admin_email, PLAN_LABEL, payment_option, gst_number)
             )
         else:
+            # The plan starts today: the bill renews on this day every
+            # month (utils/billing_cycle.py).
+            from utils.helpers import platform_today
             mcur.execute(
                 "INSERT INTO tenants (company_name, subdomain, db_name, admin_email, plan, payment_option, "
-                "status, gst_number) "
-                "VALUES (%s, %s, %s, %s, %s, %s, 'active', %s)",
-                (company_name, subdomain, db_name, admin_email, PLAN_LABEL, payment_option, gst_number)
+                "status, gst_number, billing_anchor_date) "
+                "VALUES (%s, %s, %s, %s, %s, %s, 'active', %s, %s)",
+                (company_name, subdomain, db_name, admin_email, PLAN_LABEL, payment_option, gst_number,
+                 platform_today())
             )
         mconn.commit()
         mcur.close()

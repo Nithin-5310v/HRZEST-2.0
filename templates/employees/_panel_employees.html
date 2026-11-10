@@ -68,7 +68,7 @@
         <div style="font-size:15px; font-weight:700; color:{{ '#991b1b' if _at_cap else ('#854d0e' if _near_cap else '#1e40af') }}; display:flex; align-items:center; gap:8px;">
           <i class="ti ti-{{ 'lock' if _at_cap else 'users' }}"></i>
           Employee Seats: {{ employee_count }} / {{ co.paid_employee_slots }} used
-          {% if _at_cap %} — limit reached, new employees need more seats{% endif %}
+          {% if _at_cap %} — all in use: each new employee is {{ seat_pay.rate_display if seat_pay and seat_pay.rate_display else 'paid for' }} for this month, paid when you add them{% endif %}
         </div>
         <a href="{{ tpath('/settings?tab=billing') }}" style="flex-shrink:0; padding:7px 14px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none; background:{{ '#dc2626' if _at_cap else '#2563eb' }}; color:#fff;">
           {{ 'Buy More Seats' if _at_cap else 'Manage Seats' }}
@@ -98,6 +98,9 @@
                    data-on-input="applyFilters()" />
           </div>
           <span class="emp-count" id="empCount">{{ employees | length }} employee{{ 's' if employees | length != 1 }}</span>
+          <button class="btn-add" data-on-click="openModal('importModal')" title="Register many employees from an Excel sheet">
+            <i class="ti ti-file-spreadsheet"></i> Import from Excel
+          </button>
           <button class="btn-add" data-on-click="openModal('addModal')">
             <i class="ti ti-plus"></i> Add Employee
           </button>

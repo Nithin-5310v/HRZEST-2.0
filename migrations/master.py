@@ -94,6 +94,9 @@ def _init_master_db_impl():
         # reminder while an ended trial's grace period runs (the day sent).
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS renewal_reminder_for DATE DEFAULT NULL")
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_reminder_sent_on DATE DEFAULT NULL")
+        # The day the company's plan started; its bill renews on that day
+        # every month (utils/billing_cycle.py). NULL = renews on the 1st.
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_anchor_date DATE DEFAULT NULL")
         # Business-registration identifier collected at signup (blueprints/
         # org.py's create_org()/api_create_org()) -- lets check_duplicate_gst()
         # block a second free trial/signup under a different company name
@@ -499,6 +502,9 @@ def _init_master_db_impl():
         cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_quantity INT DEFAULT NULL")
         cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_start_at BIGINT DEFAULT NULL")
         cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS reauth_notified_quantity INT DEFAULT NULL")
+        # The billing date a new Auto-Debit's first charge waits for; NULL =
+        # it charges when authorized, and that day becomes the plan date.
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS first_charge_on DATE DEFAULT NULL")
         # 'pending_cancellation' is a legal status value alongside the ones
         # documented above -- set by /api/auto_debit/cancel when called with
         # at_period_end=true (blueprints/auto_debit.py). The mandate keeps

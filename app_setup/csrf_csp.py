@@ -265,8 +265,9 @@ _SETTINGS_PATHS = {"/settings", "/admin_set_recovery_email",
 def _is_razorpay_checkout_page(path):
     """Pages that open Razorpay Checkout.js: org.py's /create_org/pay,
     /create_org/setup_trial; billing_dunning.py's /pay_overdue_bill;
-    seats.py's /settings/seats; admin_views.py's /settings."""
-    return (path in ("/pay_overdue_bill", "/settings/seats", "/settings")
+    seats.py's /settings/seats; admin_views.py's /settings; /employees
+    (paying for a new employee before adding them)."""
+    return (path in ("/pay_overdue_bill", "/settings/seats", "/settings", "/employees")
             or path.startswith(("/create_org/pay/", "/create_org/setup_trial/")))
 
 

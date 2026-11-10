@@ -49,6 +49,15 @@ def _clear_mandate(db_engine, tenant_schema=TENANT_SCHEMA):
     cur = db_engine.cursor()
     cur.execute("DELETE FROM att_master.auto_debit_mandates WHERE tenant_schema=%s", (tenant_schema,))
     cur.execute("DELETE FROM att_master.monthly_invoices WHERE tenant_schema=%s", (tenant_schema,))
+    cur.execute("UPDATE att_master.tenants SET billing_anchor_date=NULL WHERE db_name=%s", (tenant_schema,))
+    cur.close()
+
+
+def _set_plan_date(db_engine, days_ago, tenant_schema=TENANT_SCHEMA):
+    """The company's plan started `days_ago` days ago (utils/billing_cycle.py)."""
+    cur = db_engine.cursor()
+    cur.execute("UPDATE att_master.tenants SET billing_anchor_date=%s WHERE db_name=%s",
+                (datetime.date.today() - datetime.timedelta(days=days_ago), tenant_schema))
     cur.close()
 
 
@@ -460,6 +469,7 @@ class TestSyncAndBillAutoDebit:
         old_activation = datetime.datetime.now() - datetime.timedelta(days=45)
         _insert_mandate(db_engine, subscription_id=sub_id, quantity_synced=0, status="active",
                         activated_at=old_activation)
+        _set_plan_date(db_engine, 45)  # its second period started and isn't paid
 
         with flask_app.app_context():
             sync_and_bill_auto_debit()
@@ -485,6 +495,7 @@ class TestSyncAndBillAutoDebit:
         recent_activation = datetime.datetime.now() - datetime.timedelta(days=2)
         _insert_mandate(db_engine, subscription_id=sub_id, quantity_synced=get_tenant_employee_count(TENANT_SCHEMA),
                         status="active", activated_at=recent_activation)
+        _set_plan_date(db_engine, -5)  # the plan starts in 5 days: nothing is due yet
 
         with flask_app.app_context():
             sync_and_bill_auto_debit()

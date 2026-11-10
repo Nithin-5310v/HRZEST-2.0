@@ -94,7 +94,7 @@
 
             <div class="seats-card">
               <h2><i class="ti ti-repeat"></i> Auto-Debit Monthly Billing</h2>
-              <div class="sub">Automatically pay {{ per_employee_paise|plan_price }}/employee/month via Razorpay (card, UPI Autopay or e-mandate) instead of tracking it yourself. The billed amount adjusts to your headcount every cycle.</div>
+              <div class="sub">Automatically pay {{ per_employee_paise|plan_price }}/employee/month via Razorpay (card, UPI Autopay or e-mandate) instead of tracking it yourself. It charges on your plan's billing date every month, for all your employees in one payment.</div>
 
               <div class="usage-row" style="margin-bottom:20px;">
                 <div>
@@ -400,7 +400,10 @@
                     currentSubscription = json;
                     mockMode = 'auto_debit';
                     document.getElementById('mockAmount').textContent = json.amount_display + '/month';
-                    document.getElementById('mockSubLabel').textContent = 'Monthly Auto-Debit Authorization';
+                    // Already paid for this period: the first charge waits for the next billing date.
+                    document.getElementById('mockSubLabel').textContent = json.first_charge_display
+                      ? 'Monthly Auto-Debit Authorization -- first charge on ' + json.first_charge_display
+                      : 'Monthly Auto-Debit Authorization';
                     document.getElementById('mockPayBtn').textContent = 'Confirm & Enable Auto-Debit';
 
                     if (json.demo) {
@@ -429,7 +432,9 @@
                   key: sub.key_id,
                   subscription_id: sub.subscription_id,
                   name: 'HRzest Enterprise',
-                  description: 'Monthly per-employee auto-debit authorization',
+                  description: sub.first_charge_display
+                    ? 'Monthly auto-debit -- first charge on ' + sub.first_charge_display
+                    : 'Monthly per-employee auto-debit authorization',
                   handler: function (response) {
                     finalizeSubscription({
                       razorpay_subscription_id: response.razorpay_subscription_id,

@@ -5,7 +5,19 @@
       <div class="modal-box u-maxw-600">
         <button class="modal-close" data-on-click="closeModal('addModal')">&times;</button>
         <h3><i class="ti ti-user-plus u-c-1e3a8a"></i> Add New Employee</h3>
-        <form action="{{ tpath('/add_employee_page') }}" method="POST" enctype="multipart/form-data" data-on-submit="return validateAddForm(this)">
+        <form action="{{ tpath('/add_employee_page') }}" method="POST" enctype="multipart/form-data" data-on-submit="return validateAddForm(this)"
+              {% if seat_pay and seat_pay.needed %}data-seat-pay="1" data-seat-label="New employee seat ({{ seat_pay.rate_display }} for this month)"{% endif %}>
+          {% if seat_pay and seat_pay.needed %}
+          {# All paid seats are in use: this employee's month is paid before they're registered (blueprints/seats.py). #}
+          <div id="addSeatPayNote" style="display:flex; gap:10px; align-items:flex-start; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:14px; color:#1e3a8a;">
+            <i class="ti ti-credit-card" style="font-size:18px; margin-top:1px;"></i>
+            <div>
+              <strong>All {{ seat_pay.cap }} paid seat{{ 's' if seat_pay.cap != 1 }} are in use.</strong>
+              Adding this employee costs <strong>{{ seat_pay.rate_display }}</strong> for this month, paid now.
+              {% if seat_pay.renews_on %}From {{ seat_pay.renews_on }} they're included in your monthly bill{% else %}After that they're included in your monthly bill{% endif %}, with all your employees in one payment.
+            </div>
+          </div>
+          {% endif %}
           <div class="form-grid">
             <div class="sec-title">Basic Info</div>
             <div class="field-group">
@@ -309,7 +321,7 @@
           </div>
 
           <div class="modal-actions">
-            <button type="submit" class="btn-save"><i class="ti ti-user-check"></i> Register Employee</button>
+            <button type="submit" class="btn-save"><i class="ti ti-user-check"></i> {% if seat_pay and seat_pay.needed %}Pay {{ seat_pay.rate_display }} &amp; Register{% else %}Register Employee{% endif %}</button>
             <button type="button" class="btn-cancel" data-on-click="closeModal('addModal')">Cancel</button>
           </div>
         </form>
