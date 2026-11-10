@@ -127,6 +127,7 @@ _EXACT = {
     "billing.overdue_signature_invalid": ("billing", "Overdue-payment signature invalid", ["T1190"]),
     "billing.overdue_order_tenant_mismatch": ("billing", "Payment order / tenant mismatch", ["T1190"]),
     "seats.signature_invalid": ("billing", "Seat-purchase signature invalid", ["T1190"]),
+    "employees.imported": ("admin", "Employees registered from an Excel sheet", []),
     "auto_debit.signature_invalid": ("billing", "Auto-debit signature invalid", ["T1190"]),
     "org.trial_signature_invalid": ("billing", "Trial signature invalid", ["T1190"]),
     "org.trial_subscription_mismatch": ("billing", "Trial subscription mismatch", ["T1190"]),
