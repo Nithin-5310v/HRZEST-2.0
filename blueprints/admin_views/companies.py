@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """admin_views: company switching, company PIN, company CRUD and images"""
 import os
+import re
 import secrets
 import shutil
 from database import get_db_connection, transaction
@@ -9,7 +10,7 @@ from flask import flash, redirect, request, session
 from qr_generator import generate_qr
 from utils.auth import role_required
 from utils.helpers import _safe_redirect, _validate_image_file, invalidate_companies_cache, tpath
-from utils.tenant_files import face_photo_path, legacy_face_photo_path
+from utils.tenant_files import face_photo_path, legacy_face_photo_path, tenant_key
 from . import admin_views_bp
 
 
@@ -79,23 +80,38 @@ def view_companies():
     return redirect(tpath("/settings?tab=company"))
 
 
+def _image_prefix():
+    """File-name prefix for THIS organisation's company images. Company ids
+    start at 1 in every organisation's schema, so the old co_<id>_<kind>
+    names were shared: one organisation's upload overwrote another's logo /
+    ID-card template, and deleting a company deleted the other's file."""
+    return "co_" + re.sub(r"[^A-Za-z0-9_-]", "_", tenant_key()) + "_"
+
+
 def _save_company_image(file_storage, cid, kind):
-    """Save an uploaded company logo / ID-card-template image under static/,
-    deterministically named by company id so re-uploads just overwrite the
-    previous file. `kind` is 'logo', 'front' or 'back'. Returns the relative
-    path (under static/) to store in the DB."""
+    """Save an uploaded company logo / ID-card-template image under static/
+    as co_<organisation>_<company id>_<kind>_<random><ext>. `kind` is 'logo',
+    'front' or 'back'. Every upload gets a new name (browsers never show a
+    cached old image); callers delete the previous file. Returns the
+    relative path (under static/) to store in the DB."""
     ext = os.path.splitext(file_storage.filename)[1].lower()
     folder_name = "company_logos" if kind == "logo" else "id_card_templates"
     folder = os.path.join(app.root_path, "static", folder_name)
     os.makedirs(folder, exist_ok=True)
-    filename = f"co_{cid}_{kind}{ext}"
+    filename = f"{_image_prefix()}{cid}_{kind}_{secrets.token_hex(4)}{ext}"
     file_storage.save(os.path.join(folder, filename))
     return f"{folder_name}/{filename}"
 
 
 def _delete_company_image(rel_path):
-    """Best-effort cleanup of a previously-stored company logo/template file."""
+    """Best-effort cleanup of a previously-stored company logo/template file.
+    Only files named for this organisation are removed: a pre-fix co_<id>_*
+    file may be the one another organisation's company shows."""
     if not rel_path:
+        return
+    folder_name, _, filename = rel_path.replace("\\", "/").partition("/")
+    if (folder_name not in ("company_logos", "id_card_templates") or "/" in filename
+            or not filename.startswith(_image_prefix())):
         return
     try:
         os.remove(os.path.join(app.root_path, "static", rel_path))
