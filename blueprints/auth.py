@@ -503,8 +503,9 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
             notify_if_new_login_ip(employee_id, "admin", request.remote_addr, employee_id, email)
         return redirect(tpath("/admin"))
 
-    if (role or "").strip().lower() == _HR_EMPLOYEE_ROLE:
-        _ensure_hr_admin_account(employee_id, email)
+    # An HR whose dashboard access is off falls through to the employee
+    # portal below, like any other employee.
+    if (role or "").strip().lower() == _HR_EMPLOYEE_ROLE and _ensure_hr_admin_account(employee_id, email):
         # If MANDATORY_LOGIN_MFA is on, every call site that can reach this
         # function (the direct branch below, mfa_verify()'s employee
         # branch, and force_change_pin()'s completion) is only reachable

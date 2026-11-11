@@ -48,11 +48,10 @@
     <div class="main-area">
 
 
-    {% include "_employee_portal_views.html" %}
+{% include "_employee_portal_views.html" %}
     </div>{# /main-area #}
 
-    {% include "_employee_portal_scripts.html" %}
-    {# /BREAK TIME NOTIFICATION #}
+{% include "_employee_portal_scripts.html" %}
 
   <script src="{{ static_url('darkmode.min.js') }}"></script>
   <script src="{{ static_url('employee_sidebar.js') }}"></script>
@@ -456,5 +455,15 @@
   </script>
   {# /DEVICE POSTURE RELAY #}
   <script src="{{ static_url('js/i18n.js') }}"></script>
+  <script>
+    function enrollTouchID() {
+      if (!window.PublicKeyCredential) {
+        alert('❌ Touch ID / WebAuthn is not supported by your current browser.');
+        return;
+      }
+      startFpEnroll();
+    }
+
+  </script>
 </body>
 </html>

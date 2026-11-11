@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import AdminHeader from "../../components/admin/AdminHeader";
 import AdminSearchBar from "../../components/admin/AdminSearchBar";
 import SaasFilterSheet from "../../components/common/SaasFilterSheet";
 import { fetchEmployees, fetchDashboard, fetchMonthlyReport } from "../../api/client";
+import useLiveRefresh, { formatUpdated } from "../../utils/useLiveRefresh";
 import { useTheme } from "../../store/ThemeContext";
 
 const MONTHS = [
@@ -52,17 +53,12 @@ export default function AttendanceScreen({ navigation }) {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [selectedMonth, selectedYear]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  };
+  // Which month the report on screen belongs to: a failed background
+  // refresh keeps it instead of replacing it with the empty state.
+  const loadedMonth = useRef(null);
 
   const loadData = async () => {
+    const key = `${selectedYear}-${selectedMonth}`;
     try {
       const monthIdx = MONTHS.indexOf(selectedMonth) + 1;
       const [empRes, dashRes, reportRes] = await Promise.all([
@@ -97,6 +93,10 @@ export default function AttendanceScreen({ navigation }) {
           status: item.pct > 0 ? "Present" : "Absent",
         }));
         setEmployees(mapped);
+        loadedMonth.current = key;
+        return true;
+      } else if (loadedMonth.current === key) {
+        return false;
       } else {
         // The real monthly report call failed or returned an unexpected
         // shape -- this used to fabricate a full month of attendance
@@ -111,11 +111,26 @@ export default function AttendanceScreen({ navigation }) {
           holidays: dash.holidays || 0,
         });
         setEmployees([]);
+        loadedMonth.current = key;
       }
     } catch (e) {
-      setEmployees([]);
-      setSummary({ employees: 0, workingDays: 26, attendance: 0, holidays: 0 });
+      if (loadedMonth.current !== key) {
+        setEmployees([]);
+        setSummary({ employees: 0, workingDays: 26, attendance: 0, holidays: 0 });
+        loadedMonth.current = key;
+      }
     }
+    return false;
+  };
+
+  // Reloads on opening the screen, every 30 s while it's open, and when the
+  // month or year changes (useLiveRefresh.js), so today's check-ins count.
+  const { lastUpdated, refresh } = useLiveRefresh(loadData, [selectedMonth, selectedYear]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
   };
 
   const hasActiveFilter = statusFilter !== "All" || selectedSort !== "Default";
@@ -195,6 +210,11 @@ export default function AttendanceScreen({ navigation }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          {lastUpdated && (
+            <Text testID="attendanceUpdated" style={styles.updatedText}>
+              {formatUpdated(lastUpdated)}
+            </Text>
+          )}
           {/* Quick Mark Attendance Banner */}
           <TouchableOpacity
             style={styles.markBanner}
@@ -426,6 +446,7 @@ export default function AttendanceScreen({ navigation }) {
 }
 
 const makeStyles = (colors) => StyleSheet.create({
+  updatedText: { fontSize: 11, color: colors.textLight || "#667085", textAlign: "right", marginTop: 4, marginBottom: 2 },
   container: {
     flex: 1,
   },

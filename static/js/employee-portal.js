@@ -2,6 +2,14 @@
       // Server-provided values (templates/employee_portal.html, #portal-data):
       // a JSON block, never interpolated into this code.
       const _portalData = JSON.parse(document.getElementById('portal-data').textContent);
+      // This page's own address: /employee_portal, or /my_workspace when a
+      // role-holder views their own self-service inside the admin shell.
+      const _portalBase = _portalData.base || '/employee_portal';
+      // my_workspace.html sets these before loading this file so it keeps its
+      // own "last view" memory and landing tab instead of sharing the
+      // employee portal's (same origin, so the same localStorage).
+      const _viewKey = window.HZ_VIEW_STORAGE_KEY || 'portalView';
+      const _defaultView = window.HZ_DEFAULT_VIEW || 'dashboard';
 
       // Server-sourced strings (incentive titles/notes below, and
       // result.name further down this same block) reach innerHTML with no
@@ -194,7 +202,7 @@
         var ac = document.getElementById('appContent');
         if (ac) ac.scrollTo({ top: 0, behavior: 'smooth' });
         history.replaceState(null, '', '#' + viewId);
-        try { localStorage.setItem('portalView', viewId); } catch(e) {}
+        try { localStorage.setItem(_viewKey, viewId); } catch(e) {}
         // static/employee_sidebar.js (which defines closeSidebar) loads via
         // a <script src> further down this document than this block -- the
         // very first showView() call happens synchronously during this
@@ -251,7 +259,7 @@
       function applyFilter() {
         const m = document.getElementById("selMonth").value;
         const y = document.getElementById("selYear").value;
-        window.location.href = `/employee_portal?month=${m}&year=${y}#attendance`;
+        window.location.href = `${_portalBase}?month=${m}&year=${y}#attendance`;
       }
 
       // Keep PDF link in sync with dropdowns
@@ -526,15 +534,15 @@
         });
       }
 
-      // On page load: restore last active view from hash → localStorage → dashboard
+      // On page load: restore last active view from hash → localStorage → default
       (function() {
-        var validViews = ['dashboard','attendance','apply-leave','earnings','holidays','tickets','my-profile','resign','policies'];
+        var validViews = ['dashboard','workspace-overview','attendance','apply-leave','earnings','holidays','tickets','my-profile','resign','policies','compoff','performance','onboarding'];
         var hash    = window.location.hash.replace('#', '');
         var stored  = '';
-        try { stored = localStorage.getItem('portalView') || ''; } catch(e) {}
+        try { stored = localStorage.getItem(_viewKey) || ''; } catch(e) {}
         var view = (hash && validViews.indexOf(hash) !== -1)   ? hash
                  : (stored && validViews.indexOf(stored) !== -1) ? stored
-                 : 'dashboard';
+                 : _defaultView;
         showView(view);
       })();
 

@@ -3,7 +3,7 @@
 from database import get_db_connection
 from flask import redirect, request
 from utils.auth import any_user_required
-from utils.face_utils import _face_recognition_available, face_recognition
+from utils.face_utils import _face_recognition_available, detection_array, face_recognition
 from utils.helpers import (
     _validate_image_file, encrypt_contact, encrypt_pii, tpath,
     self_service_emp_id, self_service_return_path,
@@ -164,8 +164,7 @@ def delete_education_entry(entry_id):
 @employee_portal_bp.route("/update_my_photo", methods=["POST"])
 @any_user_required
 def update_my_photo():
-    import numpy as np
-    from PIL import Image
+    from PIL import Image, ImageOps
     emp_id = self_service_emp_id()
     if not emp_id:
         return redirect(tpath("/login"))

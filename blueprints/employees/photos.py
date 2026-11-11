@@ -6,7 +6,7 @@ from flask import abort, flash, redirect, request, send_file
 from io import BytesIO
 from qr_generator import generate_qr
 from utils.auth import admin_required, any_user_required
-from utils.face_utils import _face_recognition_available, face_recognition
+from utils.face_utils import _face_recognition_available, face_recognition, detection_array
 from utils.helpers import _validate_image_file, hr_scope_denied as _hr_scope_denied, tpath, self_service_emp_id
 from utils.storage import decrypted_stream, open_private, save_upload, send_image
 from utils.tenant_files import face_photo_path, resolve_face_photo
