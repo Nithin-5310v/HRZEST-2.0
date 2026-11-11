@@ -119,6 +119,38 @@ describe('AuthContext HR <-> employee view', () => {
     expect(secureStore.has('token')).toBe(false);
   });
 
+  it('remembers which panel to go back to: HR for HR', async () => {
+    const { result } = await signedInAsHr();
+    await act(async () => {
+      await result.current.switchToEmployeeView();
+    });
+    expect(result.current.user.returnPanel).toBe('hr');
+  });
+
+  it('takes the owner admin to their own profile and back to the admin panel', async () => {
+    const OWNER = { role: 'admin', adminRole: 'admin', name: 'owner@acme.in', companySlug: 'acme',
+      company: 'Acme', linkedEmployeeId: 'EMP9' };
+    api.fetchMyEmployeeSession.mockResolvedValue({
+      data: { ok: true, token: 'own-emp-token', employee_id: 'EMP9', name: 'Ravi', email: 'owner@acme.in' },
+    });
+    const { result } = await renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.signIn('owner-token', OWNER);
+    });
+    await act(async () => {
+      await result.current.switchToEmployeeView();
+    });
+    expect(result.current.user).toMatchObject({
+      role: 'employee', employeeId: 'EMP9', hrReturn: true, returnPanel: 'admin',
+    });
+    expect(secureStore.get('token')).toBe('own-emp-token');
+    await act(async () => {
+      await result.current.switchBackToHr();
+    });
+    expect(result.current.user).toEqual(OWNER);
+    expect(secureStore.get('token')).toBe('owner-token');
+  });
+
   it('stays in the HR panel when the switch is refused', async () => {
     api.fetchMyEmployeeSession.mockRejectedValue({ response: { data: { msg: 'No personal employee profile' } } });
     const { result } = await signedInAsHr();

@@ -767,29 +767,39 @@ def _hr_employee_signin(emp_id, employee_result):
 
 @core_bp.route("/api/hr/my_employee_session", methods=["POST"])
 @api_required
-@api_role_required(HR_ROLE)
+@api_role_required(HR_ROLE, "admin")
 def api_hr_my_employee_session():
     """The app's twin of the website's "My Profile" switch
     (auth.switch_to_my_employee_portal): an HR account backed by an
     employee record gets an employee token for that same person, to see
     their own leave, payslips and attendance. The app keeps the HR token
     to switch back. Never anyone else's record: the identity is the
-    token's own."""
-    emp_id = g.api_user
+    token's own -- an HR login's username is its employee_id, and the
+    owner admin's is the profile linked to it (utils/own_profile.py)."""
+    from utils.own_profile import OWNER_ROLE, linked_employee_id
     with _db() as (cursor, _conn):
-        cursor.execute("SELECT name, email, COALESCE(must_change_password,0) FROM employees "
-                       "WHERE employee_id=%s", (emp_id,))
-        row = cursor.fetchone()
+        cursor.execute("SELECT COALESCE(role,'admin') FROM admin_users WHERE username=%s", (g.api_user,))
+        is_owner = (cursor.fetchone() or ('',))[0] == OWNER_ROLE
+        emp_id = linked_employee_id(cursor, g.api_user) if is_owner else g.api_user
+        row = None
+        if emp_id:
+            cursor.execute("SELECT name, email, COALESCE(must_change_password,0) FROM employees "
+                           "WHERE employee_id=%s", (emp_id,))
+            row = cursor.fetchone()
     if not row:
-        return jsonify({"ok": False, "msg": "No personal employee profile is linked to this HR account."}), 404
+        msg = ("Create your employee profile on the website's Organization page first." if is_owner
+               else "No personal employee profile is linked to this HR account.")
+        return jsonify({"ok": False, "msg": msg}), 404
     ended_on = employment_ended_on(emp_id)
     if ended_on:
         return jsonify({"ok": False, "access_ended": True, "msg": access_ended_message(ended_on)}), 403
-    if row[2]:
+    # The owner's profile has no password of its own (they sign in as the
+    # admin), so there's nothing for them to change first.
+    if row[2] and not is_owner:
         return jsonify({"ok": False, "password_change_required": True,
                         "msg": "Set a new password on the web portal first, then switch here again."}), 403
     log_security_event("auth.hr_switched_to_own_portal",
-                       f"HR account '{emp_id}' switched to their own employee view in the app",
+                       f"Account '{g.api_user}' switched to its own employee view '{emp_id}' in the app",
                        level="INFO", identifier=emp_id, channel="mobile_api")
     return jsonify({"ok": True, "token": _issue_employee_api_token(emp_id), "employee_id": emp_id,
                     "name": row[0], "email": row[1]})

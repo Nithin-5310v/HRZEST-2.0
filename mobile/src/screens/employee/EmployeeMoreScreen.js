@@ -53,9 +53,15 @@ export default function EmployeeMoreScreen({ navigation }) {
     } catch (_) {}
     signOut();
   };
-  // An HR account viewing its own employee side (AdminMoreScreen's switch).
+  // An HR or owner-admin account viewing its own employee side
+  // (AdminMoreScreen's switch). Older saved switches have no returnPanel: HR.
+  const toAdmin = user?.returnPanel === "admin";
   const footer = user?.hrReturn
-    ? [{ label: "Back to HR panel", detail: "Return to the HR screens", onPress: switchBackToHr }, ...FOOTER]
+    ? [{
+      label: toAdmin ? "Back to admin panel" : "Back to HR panel",
+      detail: toAdmin ? "Return to the admin screens" : "Return to the HR screens",
+      onPress: switchBackToHr,
+    }, ...FOOTER]
     : FOOTER;
   return <MoreGrid navigation={navigation} groups={GROUPS} footer={footer} onSignOut={handleSignOut} />;
 }
