@@ -893,7 +893,7 @@
           if (error) {
             input.value = '';
             document.getElementById('photoFileName').textContent = 'No file chosen';
-            alert(error);
+            HZPhotoCheck.warn(error);
             return;
           }
           uploadPhoto(file);

@@ -195,7 +195,7 @@
             input.value = '';
             preview.removeAttribute('src');
             preview.style.display = 'none';
-            alert(error);
+            HZPhotoCheck.warn(error);
             return;
           }
           const reader = new FileReader();
@@ -328,7 +328,7 @@
             prev.removeAttribute('src'); prev.style.display = 'none';
             document.getElementById('addPhotoLabel').textContent = 'No photo selected';
             document.getElementById('addPhotoBox').style.borderColor = '';
-            alert(error);
+            HZPhotoCheck.warn(error);
             return;
           }
           var reader = new FileReader();

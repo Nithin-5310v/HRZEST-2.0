@@ -47,7 +47,15 @@
     img.src = url;
   }
 
+  /* Shows a rejected photo's message: the site's red error pop-up
+     (static/toast.js) where the page has it, else the browser's alert. */
+  function warn(message) {
+    if (typeof window.showToast === 'function') window.showToast(message, 'error');
+    else window.alert(message);
+  }
+
   window.HZPhotoCheck = {
+    warn: warn,
     MAX_MB: MAX_MB,
     MIN_PX: MIN_PX,
     check: check
