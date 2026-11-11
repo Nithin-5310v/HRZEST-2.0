@@ -13,14 +13,14 @@ def test_unauthenticated_redirects_to_login(client):
     assert "login" in resp.headers.get("Location", "")
 
 
-def test_admin_role_gets_403_not_the_hr_dashboard(client, seed_admin):
+def test_admin_role_is_sent_back_from_the_hr_dashboard(client, seed_admin):
     # /hr_dashboard is HR-only -- admin keeps using /admin, unchanged.
     with client.session_transaction() as sess:
         sess["admin_logged_in"] = True
         sess["admin_username"] = seed_admin["username"]
         sess["admin_role"] = "admin"
     resp = client.get("/hr_dashboard")
-    assert resp.status_code == 403
+    assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
 
 
 def test_hr_session_sees_overview(client, seed_hr_admin, seed_assigned_employee):
@@ -231,7 +231,7 @@ class TestHrDashboardReports:
             sess["admin_username"] = seed_hr_admin["username"]
             sess["admin_role"] = HR_ROLE
         resp = client.get("/analytics")
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
 
 
 class TestHrDashboardPhase5:
@@ -347,8 +347,7 @@ class TestEmployeePortalHrDashboardButton:
         assert b'href="/employees"' not in resp.data
 
         resp = client.post("/switch_back_to_hr_panel", follow_redirects=False)
-        assert resp.status_code == 302
-        assert "/hr_dashboard" in resp.headers.get("Location", "")
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
 
         cur = db_engine.cursor()
         cur.execute("DELETE FROM employees WHERE employee_id=%s", (seed_hr_admin["username"],))

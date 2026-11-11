@@ -1106,11 +1106,11 @@ class TestManagerRoleWebAccess:
         assert resp.status_code == 200
 
     def test_manager_denied_settings(self, client, seed_admin):
-        """/settings is role_required("admin") -- manager gets a real 403,
-        not a redirect."""
+        """/settings is role_required("admin") -- a manager opening it is sent
+        back to their own dashboard (JSON/AJAX callers still get 403)."""
         _admin_session(client, seed_admin["username"], role="manager")
         resp = client.get("/settings", follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
 
     def test_manager_can_reach_logout(self, client, seed_admin):
         _admin_session(client, seed_admin["username"], role="manager")

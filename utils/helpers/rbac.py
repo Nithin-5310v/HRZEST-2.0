@@ -91,7 +91,7 @@ VALID_BASE_TYPES = ("admin", "hr", "manager", "employee")
 # access is still editable EXCEPT 'admin', which stays full so a company can
 # never lock every admin out (superadmin, separate and never in this table, is
 # the ultimate backstop).
-SYSTEM_ROLE_KEYS = ("admin", "employee")
+SYSTEM_ROLE_KEYS = ("admin", "hr", "manager", "employee")
 LOCKED_ROLE_KEYS = ("admin",)
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")

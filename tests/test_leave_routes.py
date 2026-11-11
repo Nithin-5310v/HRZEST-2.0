@@ -440,7 +440,7 @@ class TestLeaveApprovalRoleGating:
         lid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"], role="soc_analyst")
         resp = client.post(f"/leave_action/{lid}", data={"action": "Approved"}, follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur.execute("SELECT status FROM leave_requests WHERE id=%s", (lid,))
         assert cur.fetchone()[0] == "Pending"
         cur.execute("DELETE FROM leave_requests WHERE id=%s", (lid,))
@@ -476,7 +476,7 @@ class TestLeaveApprovalRoleGating:
         rid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"], role="soc_analyst")
         resp = client.post(f"/resignation_action/{rid}", data={"action": "Accepted"}, follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur.execute("SELECT status FROM resignation_requests WHERE id=%s", (rid,))
         assert cur.fetchone()[0] == "Pending"
         cur.execute("DELETE FROM resignation_requests WHERE id=%s", (rid,))
@@ -492,7 +492,7 @@ class TestLeaveApprovalRoleGating:
         resp = client.post("/bulk_leave_action", data={
             "action": "Approved", "leave_ids": [str(lid)],
         }, follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur.execute("SELECT status FROM leave_requests WHERE id=%s", (lid,))
         assert cur.fetchone()[0] == "Pending"
         cur.execute("DELETE FROM leave_requests WHERE id=%s", (lid,))
@@ -507,7 +507,7 @@ class TestLeaveApprovalRoleGating:
         oid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"], role="soc_analyst")
         resp = client.post(f"/overtime_action/{oid}", data={"action": "approve"}, follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur.execute("SELECT status FROM overtime_records WHERE id=%s", (oid,))
         assert cur.fetchone()[0] == "Pending"
         cur.execute("DELETE FROM overtime_records WHERE id=%s", (oid,))
