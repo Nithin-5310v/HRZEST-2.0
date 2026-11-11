@@ -188,11 +188,20 @@
       // ========== PHOTO PREVIEW ==========
       function previewPhoto(input, previewId) {
         const preview = document.getElementById(previewId);
-        if (input.files && input.files[0]) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        HZPhotoCheck.check(file, function (error) {
+          if (error) {
+            input.value = '';
+            preview.removeAttribute('src');
+            preview.style.display = 'none';
+            HZPhotoCheck.warn(error);
+            return;
+          }
           const reader = new FileReader();
           reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
-          reader.readAsDataURL(input.files[0]);
-        }
+          reader.readAsDataURL(file);
+        });
       }
 
       // ========== GEOLOCATION ==========
@@ -311,15 +320,24 @@
       });
       function empPhotoSelected(input) {
         if (!input.files || !input.files[0]) return;
-        var reader = new FileReader();
-        reader.onload = function(e) {
+        var file = input.files[0];
+        HZPhotoCheck.check(file, function (error) {
           var prev = document.getElementById('addPhotoPreview');
-          prev.src = e.target.result; prev.style.display = 'block';
-        };
-        reader.readAsDataURL(input.files[0]);
-        document.getElementById('addPhotoLabel').textContent = '✓ ' + input.files[0].name;
-        document.getElementById('addPhotoBox').style.borderColor = '#22c55e';
-        document.getElementById('addPhotoErr').style.display = 'none';
+          if (error) {
+            input.value = '';
+            prev.removeAttribute('src'); prev.style.display = 'none';
+            document.getElementById('addPhotoLabel').textContent = 'No photo selected';
+            document.getElementById('addPhotoBox').style.borderColor = '';
+            HZPhotoCheck.warn(error);
+            return;
+          }
+          var reader = new FileReader();
+          reader.onload = function(e) { prev.src = e.target.result; prev.style.display = 'block'; };
+          reader.readAsDataURL(file);
+          document.getElementById('addPhotoLabel').textContent = '✓ ' + file.name;
+          document.getElementById('addPhotoBox').style.borderColor = '#22c55e';
+          document.getElementById('addPhotoErr').style.display = 'none';
+        });
       }
 
       function toggleSubSection(id) {

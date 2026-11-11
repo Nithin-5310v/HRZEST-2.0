@@ -13,6 +13,8 @@
         {% endif %}
         {% if request.args.get('photo_error') == 'no_face' %}
         <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> No face detected. Please upload a clear front-facing photo.</div>
+        {% elif request.args.get('photo_error') == 'bad_format' %}
+        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Photo not accepted. Please choose a JPG or PNG photo of up to 5 MB.</div>
         {% elif request.args.get('photo_error') %}
         <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Photo upload failed. Please try again.</div>
         {% endif %}
@@ -100,6 +102,7 @@
                 <input class="u-d-none" type="file" name="photo" id="photoUpload" accept=".jpg,.jpeg,.png" data-on-change="previewPhoto(this)" />
                 <span class="u-fs-12 u-c-94a3b8" id="photoFileName">No file chosen</span>
               </form>
+              <div class="u-fs-11 u-c-94a3b8 u-mt-2">JPG or PNG &middot; up to 5 MB &middot; at least 200 &times; 200 px</div>
             </div>
             {# Download buttons #}
             <div class="u-d-flex u-fxd-column u-gap-10">
