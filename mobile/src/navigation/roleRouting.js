@@ -19,3 +19,13 @@ export function getNavigatorKey(user) {
   if (user.role === "employee") return "employee";
   return null;
 }
+
+// The admin bar's "Me" tab: only an owner admin who made their own employee
+// profile on the website (GET /api/admin/me's linked_employee_id, kept on
+// the user as linkedEmployeeId). HR and manager logins already are
+// employees and use the "My Profile" switch instead.
+export function showsMeTab(user) {
+  if (!user || user.role !== "admin") return false;
+  if (user.adminRole && user.adminRole !== "admin") return false;
+  return Boolean(user.linkedEmployeeId);
+}

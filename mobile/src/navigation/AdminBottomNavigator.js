@@ -1,7 +1,11 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import { AppState } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { materialTabOptions, MaterialTabIcon, TabRoots } from "./materialTabs";
+import { showsMeTab } from "./roleRouting";
+import { useAuth } from "../store/AuthContext";
+import { fetchAdminMe } from "../api/client";
 
 import AdminDashboard from "../screens/admin/AdminDashboard";
 import EmployeesScreen from "../screens/admin/EmployeesScreen";
@@ -28,24 +32,60 @@ import NotificationsScreen from "../screens/NotificationsScreen";
 import DocumentsScreen from "../screens/admin/DocumentsScreen";
 import IdCardScreen from "../screens/IdCardScreen";
 import AdminMoreScreen from "../screens/admin/AdminMoreScreen";
+import MyAttendanceScreen from "../screens/employee/AttendanceScreen";
 
 const Tab = createBottomTabNavigator();
 
 // The bottom-bar tabs; every other screen here is an inner page with a back arrow.
-const ADMIN_TABS = new Set(["Dashboard", "Employees", "LeaveRequests", "Attendance", "More"]);
+const ADMIN_TABS = new Set(["Dashboard", "Employees", "LeaveRequests", "Attendance", "Me", "More"]);
 
-// Tabs + More: five daily tabs; everything else opens from More.
+// Tabs + More: five daily tabs (six with Me); everything else opens from More.
 const TAB_ICONS = {
   Dashboard: "home",
   Employees: "people",
   LeaveRequests: "checkmark-done-circle",
   Attendance: "calendar",
+  Me: "person-circle",
   More: "grid",
 };
+
+// Keeps user.linkedEmployeeId in step with the server: asked when the bar
+// opens and whenever the app returns to the foreground, so a profile made on
+// the website meanwhile brings up the Me tab without signing in again.
+function useOwnProfileLink() {
+  const { user, updateUser } = useAuth();
+  const current = useRef(user?.linkedEmployeeId || null);
+  current.current = user?.linkedEmployeeId || null;
+  const ownerAdmin = !user?.adminRole || user.adminRole === "admin";
+
+  useEffect(() => {
+    if (!ownerAdmin) return undefined;
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const { data } = await fetchAdminMe();
+        const linked = data?.linked_employee_id || null;
+        if (!cancelled && linked !== current.current) updateUser({ linkedEmployeeId: linked });
+      } catch (_) {
+        // Offline or an older server without /api/admin/me: keep what we have.
+      }
+    };
+    check();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") check();
+    });
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, [ownerAdmin]);
+}
 
 export default function AdminBottomNavigator() {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 16);
+  const { user } = useAuth();
+  useOwnProfileLink();
 
   return (
     <TabRoots.Provider value={ADMIN_TABS}>
@@ -63,6 +103,10 @@ export default function AdminBottomNavigator() {
         <Tab.Screen name="Employees" component={EmployeesScreen} options={{ tabBarLabel: "Staff" }} />
         <Tab.Screen name="LeaveRequests" component={LeaveRequestsScreen} options={{ tabBarLabel: "Approvals" }} />
         <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ tabBarLabel: "Attendance" }} />
+        {/* The owner admin's own check-in and attendance, on their linked employee profile */}
+        {showsMeTab(user) && (
+          <Tab.Screen name="Me" component={MyAttendanceScreen} options={{ tabBarLabel: "Me" }} />
+        )}
         <Tab.Screen name="More" component={AdminMoreScreen} options={{ tabBarLabel: "More" }} />
 
         {/* Hidden Screens (opened from More or the dashboard) */}

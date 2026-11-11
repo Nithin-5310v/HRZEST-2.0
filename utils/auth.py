@@ -1019,6 +1019,29 @@ def api_role_required(*allowed_roles):
     return decorator
 
 
+def _owner_token_as_own_employee(cursor, token_hash):
+    """The owner admin's Bearer token standing in for its own employee
+    profile (utils/own_profile.py), which is how the app's "Me" tab checks
+    in without a second login. Makes api_required's checks on the admin
+    token (unexpired, not stale, account active); only the owner role maps,
+    and only to an active linked employee. Returns (employee_id,
+    employment_ended) like employee_api_required's own query, or None."""
+    from utils.own_profile import OWNER_ROLE, linked_employee_id
+    cursor.execute(
+        "SELECT t.identity FROM api_tokens t JOIN admin_users u ON u.username = t.identity "
+        "WHERE t.token=%s AND t.token_type='admin' AND t.expires_at > NOW() "
+        "AND COALESCE(u.is_active, 1) = 1 AND COALESCE(u.role, 'admin') = %s "
+        f"AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
+        (token_hash, OWNER_ROLE)
+    )
+    row = cursor.fetchone()
+    emp_id = linked_employee_id(cursor, row[0]) if row else None
+    if not emp_id:
+        return None
+    cursor.execute(f"SELECT {_employment_ended_sql('%s')}", (emp_id, access_cutoff_date()))  # nosec B608
+    return emp_id, cursor.fetchone()[0]
+
+
 def employee_api_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -1037,6 +1060,8 @@ def employee_api_required(f):
                 (access_cutoff_date(), token_hash)
             )
             row = cursor.fetchone()
+            if not row:
+                row = _owner_token_as_own_employee(cursor, token_hash)
         if not row:
             log_security_event("access.denied", "API request with invalid or expired employee token",
                                level="WARNING", required="employee_api")
