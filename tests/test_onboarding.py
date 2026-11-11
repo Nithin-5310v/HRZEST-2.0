@@ -399,8 +399,13 @@ class TestOfferLetterForm:
         _admin_session(client, seed_admin)
         resp = client.get(f"/offer_letter/{ob_id}")
         assert resp.status_code == 200
-        # monthly_ctc falls back to salary_per_day * 26 = 52,000 when monthly_ctc is 0
-        assert b"52000" in resp.data or b"52,000" in resp.data
+        # monthly_ctc falls back to salary_per_day * standard_working_days_per_month()
+        # when monthly_ctc is 0 -- derived from Settings -> Working Days, not a
+        # hardcoded 26.
+        from utils.attendance_utils import standard_working_days_per_month
+        expected_ctc = round(2000 * standard_working_days_per_month())
+        expected_str = f"{expected_ctc:,}".encode()
+        assert str(expected_ctc).encode() in resp.data or expected_str in resp.data
 
     def test_save_then_view(self, client, seed_admin, db_engine, assigned_onboarding, seed_employee):
         ob_id, _ = assigned_onboarding

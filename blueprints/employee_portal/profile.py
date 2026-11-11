@@ -1,19 +1,24 @@
 # -*- coding: utf-8 -*-
 """employee_portal: self-service profile, bank details, experience, education, photo (web)"""
 from database import get_db_connection
-from flask import redirect, request, session
-from utils.auth import employee_required
+from flask import redirect, request
+from utils.auth import any_user_required
 from utils.face_utils import _face_recognition_available, detection_array, face_recognition
-from utils.helpers import _validate_image_file, encrypt_contact, encrypt_pii, tpath
+from utils.helpers import (
+    _validate_image_file, encrypt_contact, encrypt_pii, tpath,
+    self_service_emp_id, self_service_return_path,
+)
 from utils.storage import save_image
 from utils.tenant_files import face_photo_path
 from . import employee_portal_bp
 
 
 @employee_portal_bp.route("/update_my_profile", methods=["POST"])
-@employee_required
+@any_user_required
 def update_my_profile():
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     _phone, _phone_bidx = encrypt_contact("phone", request.form.get("phone", "").strip() or None)
     fields = {
         "phone": _phone,
@@ -43,13 +48,15 @@ def update_my_profile():
     db.commit()
     cursor.close()
     db.close()
-    return redirect(tpath("/employee_portal?profile_saved=1#my-profile"))
+    return redirect(self_service_return_path("?profile_saved=1#my-profile"))
 
 
 @employee_portal_bp.route("/update_my_bank_details", methods=["POST"])
-@employee_required
+@any_user_required
 def update_my_bank_details():
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     fields = {
         "aadhar_number": encrypt_pii(request.form.get("aadhar_number", "").strip() or None),
         "pan_number": encrypt_pii(request.form.get("pan_number", "").upper().strip() or None),
@@ -69,13 +76,15 @@ def update_my_bank_details():
     db.commit()
     cursor.close()
     db.close()
-    return redirect(tpath("/employee_portal?bank_saved=1#my-profile"))
+    return redirect(self_service_return_path("?bank_saved=1#my-profile"))
 
 
 @employee_portal_bp.route("/add_experience", methods=["POST"])
-@employee_required
+@any_user_required
 def add_experience():
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     company = request.form.get("company", "").strip()
     designation = request.form.get("designation", "").strip()
     from_year = request.form.get("from_year", "").strip()
@@ -83,7 +92,7 @@ def add_experience():
     is_current = 1 if request.form.get("is_current") else 0
     description = request.form.get("description", "").strip() or None
     if not company or not designation or not from_year:
-        return redirect(tpath("/employee_portal?exp_error=1#my-profile"))
+        return redirect(self_service_return_path("?exp_error=1#my-profile"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -94,32 +103,36 @@ def add_experience():
     db.commit()
     cursor.close()
     db.close()
-    return redirect(tpath("/employee_portal?exp_saved=1#my-profile"))
+    return redirect(self_service_return_path("?exp_saved=1#my-profile"))
 
 
 @employee_portal_bp.route("/delete_experience/<int:entry_id>", methods=["POST"])
-@employee_required
+@any_user_required
 def delete_experience(entry_id):
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM employee_experience WHERE id=%s AND employee_id=%s", (entry_id, emp_id))
     db.commit()
     cursor.close()
     db.close()
-    return redirect(tpath("/employee_portal#my-profile"))
+    return redirect(self_service_return_path("#my-profile"))
 
 
 @employee_portal_bp.route("/add_education_entry", methods=["POST"])
-@employee_required
+@any_user_required
 def add_education_entry():
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     degree = request.form.get("degree", "").strip()
     institution = request.form.get("institution", "").strip()
     year_of_passing = request.form.get("year_of_passing", "").strip() or None
     percentage = request.form.get("percentage", "").strip() or None
     if not degree or not institution:
-        return redirect(tpath("/employee_portal?edu_error=1#my-profile"))
+        return redirect(self_service_return_path("?edu_error=1#my-profile"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -130,31 +143,35 @@ def add_education_entry():
     db.commit()
     cursor.close()
     db.close()
-    return redirect(tpath("/employee_portal?edu_saved=1#my-profile"))
+    return redirect(self_service_return_path("?edu_saved=1#my-profile"))
 
 
 @employee_portal_bp.route("/delete_education_entry/<int:entry_id>", methods=["POST"])
-@employee_required
+@any_user_required
 def delete_education_entry(entry_id):
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM employee_education WHERE id=%s AND employee_id=%s", (entry_id, emp_id))
     db.commit()
     cursor.close()
     db.close()
-    return redirect(tpath("/employee_portal#my-profile"))
+    return redirect(self_service_return_path("#my-profile"))
 
 
 @employee_portal_bp.route("/update_my_photo", methods=["POST"])
-@employee_required
+@any_user_required
 def update_my_photo():
     from PIL import Image, ImageOps
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     file = request.files.get("photo")
     ok, err = _validate_image_file(file)
     if not ok:
-        return redirect(tpath("/employee_portal?photo_error=bad_format#my-profile"))
+        return redirect(self_service_return_path("?photo_error=bad_format#my-profile"))
     try:
         # Upright by its EXIF orientation: it is saved without EXIF, so a
         # phone photo would otherwise be stored sideways.
@@ -162,7 +179,7 @@ def update_my_photo():
         if _face_recognition_available:
             locs = face_recognition.face_locations(detection_array(img))
             if not locs:
-                return redirect(tpath("/employee_portal?photo_error=no_face#my-profile"))
+                return redirect(self_service_return_path("?photo_error=no_face#my-profile"))
         save_path = face_photo_path(emp_id)
         save_image(img, save_path, "JPEG", quality=90)
         db = get_db_connection()
@@ -171,6 +188,6 @@ def update_my_photo():
         db.commit()
         cursor.close()
         db.close()
-        return redirect(tpath("/employee_portal?photo_saved=1#my-profile"))
+        return redirect(self_service_return_path("?photo_saved=1#my-profile"))
     except Exception:
-        return redirect(tpath("/employee_portal?photo_error=failed#my-profile"))
+        return redirect(self_service_return_path("?photo_error=failed#my-profile"))

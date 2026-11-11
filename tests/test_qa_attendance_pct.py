@@ -25,9 +25,13 @@ def _last_month():
 
 @pytest.fixture
 def tenant_with_attendance(db_engine, client):
+    # Must match attendance_pct_series()'s own notion of a working day
+    # (Settings -> Working Days, default Mon-Fri) or this fixture seeds
+    # data for days the real calculation no longer counts.
+    from utils.attendance_utils import is_company_working_day
     slug, schema = _make_tenant(db_engine, "attpct" + secrets.token_hex(3))
     month_start, days = _last_month()
-    working = [d for d in days if d.weekday() != 6]
+    working = [d for d in days if is_company_working_day(d)]
     sunday = next(d for d in days if d.weekday() == 6)
     cur = db_engine.cursor()
     for emp in ("AP1", "AP2"):
@@ -62,11 +66,12 @@ def test_admin_analytics_attendance_pct_counts_employee_days(tenant_with_attenda
 
 def test_hr_dashboard_attendance_pct_counts_employee_days(client, db_engine, seed_hr_admin, seed_assigned_employee):
     from utils.auth import HR_ROLE
+    from utils.attendance_utils import is_company_working_day
     month_start, days = _last_month()
     cur = db_engine.cursor()
     cur.execute("SELECT date FROM holidays")
     holidays = {r[0] for r in cur.fetchall()}
-    working = [d for d in days if d.weekday() != 6 and d not in holidays]
+    working = [d for d in days if is_company_working_day(d) and d not in holidays]
     sunday = next(d for d in days if d.weekday() == 6)
     cur.execute("INSERT INTO employees (employee_id, name, force_pin_change, assigned_hr_username) "
                 "VALUES ('TST003','Assigned Two',0,%s)", (seed_hr_admin["username"],))

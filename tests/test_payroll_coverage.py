@@ -149,7 +149,7 @@ class TestSaveSalaryRules:
             "late_deduction_pct": "not_a_number",
         })
         assert rv.status_code == 302
-        assert "salary" in rv.headers["Location"]
+        assert "payroll" in rv.headers["Location"]
 
 
 # ── view_salary ────────────────────────────────────────────────────────────────

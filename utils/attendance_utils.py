@@ -4,7 +4,7 @@ import datetime
 import calendar
 from database import get_db_connection
 from extensions import app_log
-from utils.helpers import company_today, encrypt_amount, amount
+from utils.helpers import company_today, encrypt_amount, amount, get_company_settings
 from utils.geo import haversine_km
 import utils.config as cfg
 
@@ -195,19 +195,63 @@ def detect_overtime(employee_id, date, logout_time):
         app_log.warning("Overtime record failed for %s on %s: %s", employee_id, date, exc, exc_info=True)
 
 
+_WEEKDAY_ABBR_TO_IDX = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
+
+
+def company_working_weekdays():
+    """The set of Python weekday() indices (Mon=0 .. Sun=6) this company
+    treats as working days -- Settings -> Company Profile -> Working Days
+    (company_settings.working_days, a comma-separated day-abbreviation list,
+    default "Mon,Tue,Wed,Thu,Fri"). Every working-day/attendance/payroll
+    calculation in the app used to hardcode "every day except Sunday" here
+    instead of reading this setting at all, so a company configured for a
+    5-day week (the DB's own default) still had Saturdays silently counted
+    as a working day everywhere -- wrong "absent" marks, wrong attendance %,
+    and a wrong days-per-month denominator for salary-per-day math. Falls
+    back to Mon-Fri (matching the column's own default) if unset, blank, or
+    unparseable; never returns empty (a 0-working-day month is almost
+    certainly bad data, not a real company)."""
+    days = get_company_settings().get("working_days") or ["Mon", "Tue", "Wed", "Thu", "Fri"]
+    idxs = {_WEEKDAY_ABBR_TO_IDX[d] for d in days if d in _WEEKDAY_ABBR_TO_IDX}
+    return idxs or {0, 1, 2, 3, 4}
+
+
+def is_company_working_day(d):
+    """True if date `d` falls on one of this company's configured working
+    weekdays (see company_working_weekdays()) -- does NOT check holidays;
+    callers that need "a real billable day" already check a holidays set
+    separately alongside this, same as they used to check weekday() != 6."""
+    return d.weekday() in company_working_weekdays()
+
+
+def standard_working_days_per_month():
+    """A fixed "days in a standard month" figure for converting between a
+    flat Monthly CTC and a per-day salary rate (see utils/salary_utils.py's
+    apply_statutory_deductions and the Add Employee form), with no specific
+    calendar month to count real working days in. Derived from this
+    company's configured working-weekday count via the standard
+    52-weeks-per-year/12-months approximation -- a 6-day week (the old
+    hardcoded assumption everywhere this was used) rounds to exactly 26, so
+    a company that has explicitly configured a 6-day week sees no change;
+    a 5-day week (the working_days column's own DB default) rounds to 22."""
+    return round(len(company_working_weekdays()) * 52 / 12)
+
+
 def attendance_pct_series(month_bounds, present_by_day, holidays, today, headcount):
     """Monthly attendance % for the analytics charts: employee-days present
     divided by (working days so far x headcount). present_by_day maps a date
     to the number of distinct employees who logged in that day. Only working
-    days (not Sunday, not a holiday) up to `today` count, on both sides, so a
-    Sunday check-in can't push the figure past 100%. It used to divide the
-    number of distinct employees seen in the whole month, which put a fully
-    present team at ~4% (QA BUG-03/BUG-04)."""
+    days (this company's configured working weekdays, not a holiday) up to
+    `today` count, on both sides, so a non-working-day check-in can't push
+    the figure past 100%. It used to divide the number of distinct employees
+    seen in the whole month, which put a fully present team at ~4% (QA
+    BUG-03/BUG-04)."""
     series = []
+    wd = company_working_weekdays()
     for y, m, month_start, _month_end in month_bounds:
         _, last_day = calendar.monthrange(y, m)
         days = [datetime.date(y, m, d) for d in range(1, last_day + 1)]
-        working = [d for d in days if d.weekday() != 6 and d not in holidays and d <= today]
+        working = [d for d in days if d.weekday() in wd and d not in holidays and d <= today]
         expected = len(working) * (headcount or 1)
         present = min(sum(present_by_day.get(d, 0) for d in working), expected)
         series.append({
@@ -222,10 +266,11 @@ def attendance_pct_series(month_bounds, present_by_day, holidays, today, headcou
 
 def get_working_days(year, month):
     _, last_day = calendar.monthrange(year, month)
+    wd = company_working_weekdays()
     return [
         datetime.date(year, month, d)
         for d in range(1, last_day + 1)
-        if datetime.date(year, month, d).weekday() != 6
+        if datetime.date(year, month, d).weekday() in wd
     ]
 
 

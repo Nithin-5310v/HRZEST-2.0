@@ -46,7 +46,11 @@ def _function_body(source, name):
 
 
 def test_onboarding_task_title_is_not_interpolated_into_onclick_or_innerhtml():
-    html = (ROOT / "templates" / "my_onboarding.html").read_text(encoding="utf-8")
+    # The markup and script live in _my_onboarding_content.html now -- shared
+    # by my_onboarding.html (plain employee) and my_workspace.html (a
+    # role-holder's own tab, no session switch) via {% include %}, so this
+    # one file backs both renders.
+    html = (ROOT / "templates" / "_my_onboarding_content.html").read_text(encoding="utf-8")
     # Inline handlers are data-on-click (static/hz-actions.js), not onclick, since the CSP work.
     button = next(line for line in html.splitlines() if "openDoneModal(" in line and "data-on-click" in line)
     onclick = re.search(r'data-on-click="([^"]*)"', button).group(1)

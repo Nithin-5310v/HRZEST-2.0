@@ -34,7 +34,7 @@ def payroll_config_from_row(row):
             for key, value in zip(PAYROLL_CONFIG_DEFAULTS, row)}
 
 
-def apply_statutory_deductions(entry, payroll_cfg=None):
+def apply_statutory_deductions(entry, payroll_cfg=None, standard_days=26):
     """The one net-pay calculation (owner decision NV-19, 2026-10-14; QA BUG-05).
 
     Earnings are what the month's attendance earns under the company's late
@@ -47,6 +47,16 @@ def apply_statutory_deductions(entry, payroll_cfg=None):
     never negative. The disbursement, the payslip and every screen use the
     resulting `net`, so a payslip shows exactly what is paid.
 
+    standard_days: the "days in a standard month" used only to back out an
+    assumed monthly_ctc when an employee has just a salary_per_day on file
+    (no monthly_ctc). This module is pure (no DB access -- see its own
+    docstring), so it can't read the company's actual Settings -> Working
+    Days configuration itself; real callers (blueprints/payroll.py) pass
+    utils.attendance_utils.standard_working_days_per_month() explicitly.
+    Defaults to 26 (the old hardcoded assumption, a 6-day week) so callers
+    that don't pass it -- including this module's own unit tests -- are
+    unaffected.
+
     Adds to `entry` (and returns it): monthly_ctc, basic_pct, basic,
     attendance_earned, earned, pf, pf_employer, pt, tds, statutory,
     attendance_ded (pay lost to absences, late and half days),
@@ -56,7 +66,7 @@ def apply_statutory_deductions(entry, payroll_cfg=None):
     spd = float(entry.get("spd") or 0)
     monthly_ctc = float(entry.get("monthly_ctc") or 0)
     if monthly_ctc <= 0:
-        monthly_ctc = round(spd * 26, 2)
+        monthly_ctc = round(spd * standard_days, 2)
     basic_pct = float(entry["basic_pct"]) if entry.get("basic_pct") is not None else 50.0
     basic = round(monthly_ctc * basic_pct / 100, 2)
 
@@ -91,11 +101,12 @@ def apply_statutory_deductions(entry, payroll_cfg=None):
 def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data,
                            company_name="", emp_designation="", emp_dept="",
                            pan="", uan="", bank_account="", bank_name="",
-                           payroll_cfg=None):
+                           payroll_cfg=None, standard_days=26):
     # Every figure comes from the one net-pay calculation (QA BUG-05):
     # callers pass an entry from compute_salary_data_for_month(), which has
     # already applied it; a bare dict (unit tests) gets it applied here.
-    e = salary_data if "statutory" in salary_data else apply_statutory_deductions(dict(salary_data), payroll_cfg)
+    e = (salary_data if "statutory" in salary_data
+         else apply_statutory_deductions(dict(salary_data), payroll_cfg, standard_days))
     pc = dict(PAYROLL_CONFIG_DEFAULTS)
     pc.update(payroll_cfg or {})
     pf_pct = float(pc["pf_employee_pct"])

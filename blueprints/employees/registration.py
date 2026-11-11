@@ -12,6 +12,7 @@ from flask import flash, jsonify, redirect, request, session
 from html import escape as _html_escape
 from qr_generator import generate_qr
 from urllib.parse import urlencode
+from utils.attendance_utils import standard_working_days_per_month
 from utils.auth import HR_ROLE, admin_required, generate_password_hash, session_account_ok
 from utils.billing_notices import notify_employee_added
 from utils.email_utils import _mask_email, get_email_config, send_email_smtp
@@ -170,6 +171,13 @@ def add_employee_page():
     emp_id = request.form.get("emp_id", "").strip()
     email = request.form.get("email", "").strip() or None
     role = request.form.get("role", "").strip() or None
+    # A brand-new hire always starts with no access role (plain employee
+    # portal) -- Access Role is set ONLY from Settings -> Roles & Access now
+    # ("Assign Someone New"), which also keeps the admin_users shadow
+    # account that login routing actually reads in sync. This route no
+    # longer reads an access_role field at all, so a forged one from, say,
+    # an HR session's add-employee request can't grant admin-side privileges.
+    access_role = None
     phone = request.form.get("phone", "").strip() or None
     date_of_joining = request.form.get("date_of_joining", "").strip() or None
     work_mode = request.form.get("work_mode", "office").strip() or "office"
@@ -205,11 +213,17 @@ def add_employee_page():
     edu_pcts = request.form.getlist("percentage[]")
     # The Add Employee form collects a monthly figure (matches how payroll
     # is actually quoted/discussed) and converts it to salary_per_day using
-    # the same 26-working-day divisor the rest of payroll already assumes
-    # (see blueprints/payroll.py's monthly_ctc <-> salary_per_day conversions).
+    # the same standard-working-days-per-month divisor the rest of payroll
+    # already assumes (see utils/attendance_utils.py's
+    # standard_working_days_per_month(), derived from this company's
+    # Settings -> Working Days, and utils/salary_utils.py's
+    # apply_statutory_deductions doing the same conversion in reverse).
     monthly_salary_raw = request.form.get("monthly_salary", "").strip()
     monthly_salary = float(monthly_salary_raw) if monthly_salary_raw else None
-    salary_per_day = round(monthly_salary / 26, 2) if monthly_salary is not None else None
+    salary_per_day = (
+        round(monthly_salary / standard_working_days_per_month(), 2)
+        if monthly_salary is not None else None
+    )
 
     if not name or not emp_id:
         flash("Name and Employee ID are required.", "error")
@@ -326,16 +340,17 @@ def add_employee_page():
                         "shift_id, gender, dob, blood_group, address, city, state, pincode, "
                         "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
                         "aadhar_number, pan_number, bank_name, bank_account, bank_ifsc, uan_number, "
-                        "assigned_hr_username, force_pin_change) "
+                        "assigned_hr_username, access_role, force_pin_change) "
                         "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,"
-                        "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1)",
+                        "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1)",
                         (name, emp_id, _enc_email, _email_bidx, role, _enc_phone, _phone_bidx,
                          filepath, qr_path, hashed_pwd,
                          date_of_joining, work_mode, work_lat, work_lon, company_id,
                          _mgr_id, _mgr_name, _dept, shift_id,
                          gender, dob, blood_group, address, city, state, pincode,
                          ec_name, ec_phone, ec_relation,
-                         aadhar, pan, bank_name, bank_account, bank_ifsc, uan, assigned_hr_username)
+                         aadhar, pan, bank_name, bank_account, bank_ifsc, uan, assigned_hr_username,
+                         access_role)
                     )
             if _seat_error:
                 cursor.close()

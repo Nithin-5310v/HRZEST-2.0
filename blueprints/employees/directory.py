@@ -5,7 +5,7 @@ from database import get_db_connection
 from extensions import log_security_event
 from flask import flash, jsonify, redirect, render_template, request, session
 from utils.attendance_utils import _td_to_time
-from utils.auth import HR_ROLE, admin_required, api_required
+from utils.auth import HR_ROLE, admin_required, api_required, require_access
 from utils.dlp import has_pii_clearance, mask_tail
 from utils.helpers import (
     _db,
@@ -22,6 +22,7 @@ from . import employees_bp
 
 @employees_bp.route("/employees")
 @admin_required
+@require_access("employees")
 def view_employees():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

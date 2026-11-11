@@ -320,7 +320,12 @@ class TestAddEmployeePage:
             ("M.Tech", "XYZ Institute", "2018", "75"),
         ]
         assert salary_row is not None
-        assert float(_unpay(salary_row[0])) == 1800.0
+        # 46800.00 / standard_working_days_per_month() -- derived from
+        # Settings -> Working Days (default Mon-Fri -> 22 days), not a
+        # hardcoded 26.
+        from utils.attendance_utils import standard_working_days_per_month
+        expected_spd = round(46800.00 / standard_working_days_per_month(), 2)
+        assert float(_unpay(salary_row[0])) == expected_spd
 
 
 class TestUpdateEmployeePhoto:

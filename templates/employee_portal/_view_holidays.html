@@ -4,9 +4,9 @@
 
         {# Year navigation #}
         <div class="hol-year-nav">
-          <a href="/employee_portal?hol_year={{ hol_year - 1 }}#holidays">&#8592; {{ hol_year - 1 }}</a>
+          <a href="{{ portal_base_path }}?hol_year={{ hol_year - 1 }}#holidays">&#8592; {{ hol_year - 1 }}</a>
           <span class="hol-cur-yr">{{ hol_year }}</span>
-          <a href="/employee_portal?hol_year={{ hol_year + 1 }}#holidays">{{ hol_year + 1 }} &#8594;</a>
+          <a href="{{ portal_base_path }}?hol_year={{ hol_year + 1 }}#holidays">{{ hol_year + 1 }} &#8594;</a>
         </div>
 
         {# Holidays list #}

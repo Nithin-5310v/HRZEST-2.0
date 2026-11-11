@@ -8,6 +8,7 @@ import datetime
 
 from database import get_db_connection
 from utils.helpers import company_today
+from utils.attendance_utils import is_company_working_day
 
 # Look-back windows for the two risk signals.
 _ATTENDANCE_WINDOW_DAYS = 30
@@ -17,8 +18,9 @@ _LEAVE_WINDOW_DAYS = 60
 def _late_and_absent_counts(cursor, employees, today):
     """{employee_id: late logins + missed working days} over the last 30 days
     (today excluded -- it isn't over yet). A missed day is a working day
-    (not Sunday, not a holiday, on or after the joining date) with no
-    check-in and no approved leave. Absences have no attendance row at all,
+    (this company's configured working weekdays, not a holiday, on or after
+    the joining date) with no check-in and no approved leave. Absences have
+    no attendance row at all,
     and late check-ins are stored as 'Late Login', so the old
     status IN ('Late','Absent') count was always 0 (QA BUG-28). Three
     grouped queries for the whole company instead of two per employee
@@ -27,7 +29,7 @@ def _late_and_absent_counts(cursor, employees, today):
     cursor.execute("SELECT date FROM holidays WHERE date >= %s AND date < %s", (start, today))
     holidays = {r[0] for r in cursor.fetchall()}
     window = [start + datetime.timedelta(days=i) for i in range(_ATTENDANCE_WINDOW_DAYS)]
-    working = [d for d in window if d.weekday() != 6 and d not in holidays]
+    working = [d for d in window if is_company_working_day(d) and d not in holidays]
 
     cursor.execute(
         "SELECT employee_id, date, status FROM attendance "

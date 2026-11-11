@@ -127,7 +127,9 @@ class TestRequestLeave:
         _wait_for_async_writes()
 
     def test_multi_day_leave_creates_one_row_per_working_day(self, client, seed_employee, db_engine):
-        # Sat 5 - Mon 7 Sep 2026: the Sunday gets no row (QA BUG-07).
+        # Sat 5 - Mon 7 Sep 2026: under the default Mon-Fri working week
+        # (Settings -> Working Days), both Saturday and Sunday get no row --
+        # only Monday is a working day here (QA BUG-07).
         _employee_session(client, seed_employee)
         client.post("/request_leave", data={
             "leave_date_start": "2026-09-05", "leave_date_end": "2026-09-07", "reason": "Trip",
@@ -137,7 +139,7 @@ class TestRequestLeave:
             "SELECT leave_date FROM leave_requests WHERE employee_id=%s AND leave_date BETWEEN '2026-09-05' AND '2026-09-07' "
             "ORDER BY leave_date",
             (seed_employee["employee_id"],))
-        assert [str(r[0]) for r in cur.fetchall()] == ["2026-09-05", "2026-09-07"]
+        assert [str(r[0]) for r in cur.fetchall()] == ["2026-09-07"]
         cur.execute("DELETE FROM leave_requests WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.close()
         _wait_for_async_writes()

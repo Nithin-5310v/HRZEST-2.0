@@ -45,12 +45,16 @@ def _leave_dates(db_engine, emp_id):
 
 
 def _working_days(db_engine, start, end):
+    # Must match _leave_working_days()'s own notion of a working day
+    # (Settings -> Working Days, not a hardcoded "every day but Sunday") or
+    # this helper silently drifts from the real route's behaviour.
+    from utils.attendance_utils import is_company_working_day
     cur = db_engine.cursor()
     cur.execute("SELECT date FROM holidays WHERE date BETWEEN %s AND %s", (start, end))
     holidays = {r[0] for r in cur.fetchall()}
     cur.close()
     days = [start + datetime.timedelta(days=i) for i in range((end - start).days + 1)]
-    return [d for d in days if d.weekday() != 6 and d not in holidays]
+    return [d for d in days if is_company_working_day(d) and d not in holidays]
 
 
 # ── BUG-06: bounded, validated ───────────────────────────────────────────────

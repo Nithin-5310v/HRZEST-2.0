@@ -1,0 +1,385 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Roles & Access{% endblock %}
+
+{% block page_css %}
+    <style>
+      .rl-wrap { max-width: 1080px; }
+      .rl-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 24px; }
+      .rl-head .rl-icon { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#eef2ff,#e0e7ff); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+      .rl-head h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }
+      .rl-head p { font-size: 14px; color: #64748b; margin: 5px 0 0; max-width: 640px; line-height: 1.55; }
+
+      .rl-summary { display: flex; gap: 10px; flex-wrap: wrap; margin: -8px 0 22px 62px; }
+      .rl-summary-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px; border-radius: 20px; background: #f8fafc; border: 1px solid #e5e9f2; font-size: 12.5px; font-weight: 700; color: #475569; }
+      .rl-summary-chip i { color: #4f46e5; font-size: 13px; }
+      .rl-summary-chip b { color: #0f172a; font-weight: 800; }
+
+      .rl-card { background: #fff; border: 1px solid #e5e9f2; border-radius: 16px; padding: 22px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 16px rgba(16,24,40,.03); }
+      .rl-card-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #64748b; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+
+      /* ── Richer section header for the 3 structural cards (icon chip +
+         title + optional subtitle), vs. the plainer uppercase label the
+         per-role cards below still use. ── */
+      .rl-section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+      .rl-section-ic { width: 34px; height: 34px; border-radius: 10px; background: #eef2ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+      .rl-section-title { font-size: 15.5px; font-weight: 800; color: #0f172a; line-height: 1.3; }
+      .rl-section-sub { font-size: 12px; color: #94a3b8; font-weight: 600; margin-top: 1px; }
+
+      .rl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #64748b; display: block; margin-bottom: 6px; }
+      .rl-input, .rl-select { padding: 9px 12px; border: 1px solid #e5e9f2; border-radius: 9px; font-size: 14px; background: #fff; color: #1e293b; outline: none; font-family: inherit; }
+      .rl-input:focus, .rl-select:focus { border-color: #c7d2fe; box-shadow: 0 0 0 3px rgba(79,70,229,.10); }
+      .rl-btn { padding: 9px 16px; border: none; border-radius: 9px; background: #4f46e5; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; }
+      .rl-btn:hover { background: #4338ca; }
+      .rl-btn-ghost { background: #f8fafc; color: #475569; border: 1px solid #e5e9f2; }
+      .rl-btn-ghost:hover { background: #eef2f7; }
+      .rl-btn-danger { background: #fff5f5; color: #dc2626; border: 1px solid #fde0e0; }
+      .rl-btn-danger:hover { background: #fee2e2; }
+      .rl-inline { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+
+      .rl-role-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-bottom: 16px; margin-bottom: 18px; border-bottom: 1px solid #f1f5f9; }
+      .rl-role-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .rl-role-av { width: 42px; height: 42px; border-radius: 11px; background: #eef2ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+      .rl-role-av.bt-hr { background: #ecfdf5; color: #059669; }
+      .rl-role-av.bt-manager { background: #eff6ff; color: #2563eb; }
+      .rl-role-av.bt-employee { background: #f8fafc; color: #64748b; }
+      .rl-role-name { font-size: 16px; font-weight: 800; color: #1e293b; }
+      .rl-role-sub { font-size: 12px; color: #64748b; margin-top: 3px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+      .rl-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; background: #eef2ff; color: #4f46e5; }
+      .rl-badge-sys { background: #f1f5f9; color: #475569; }
+      .rl-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+      .perm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+      .perm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 2px; border-bottom: 1px solid #f4f6fa; }
+      .perm-mod { font-size: 13.5px; font-weight: 600; color: #334155; }
+
+      .seg { display: inline-flex; border: 1px solid #e5e9f2; border-radius: 8px; overflow: hidden; background: #f8fafc; flex-shrink: 0; }
+      .seg input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+      .seg label { padding: 6px 13px; font-size: 12.5px; font-weight: 700; color: #94a3b8; cursor: pointer; user-select: none; border-right: 1px solid #e5e9f2; transition: background .12s, color .12s; }
+      .seg label:last-of-type { border-right: none; }
+      .seg input[value="none"]:checked + label { background: #e2e8f0; color: #475569; }
+      .seg input[value="view"]:checked + label { background: #c7d2fe; color: #312e81; }
+      .seg input[value="edit"]:checked + label { background: #4f46e5; color: #fff; }
+      .seg input:focus-visible + label { box-shadow: inset 0 0 0 2px rgba(79,70,229,.45); }
+
+      .rl-people { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+      .rl-people-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #94a3b8; margin-right: 2px; }
+      .rl-person { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 20px; background: #f8fafc; border: 1px solid #e5e9f2; font-size: 13px; font-weight: 600; color: #334155; }
+      .rl-person i { color: #4f46e5; font-size: 13px; }
+      .rl-person .rl-person-id { color: #94a3b8; font-weight: 500; }
+      .rl-people-none { font-size: 13px; color: #94a3b8; font-style: italic; }
+      .rl-people-none a { color: #4f46e5; font-weight: 600; font-style: normal; }
+      .rl-full { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 12px; color: #4338ca; font-size: 14px; font-weight: 600; }
+      .rl-note { font-size: 13px; color: #64748b; margin-top: 10px; display: flex; align-items: center; gap: 6px; line-height: 1.5; }
+      .rl-save { margin-top: 18px; display: flex; justify-content: flex-end; }
+
+      /* ── Employee Access Assignments table ── */
+      .rl-search-row { margin-bottom: 14px; }
+      .rl-search-row .rl-input { width: 100%; max-width: 360px; }
+      .rl-emp-table { width: 100%; border-collapse: collapse; }
+      .rl-emp-table thead th { text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #94a3b8; padding: 0 10px 10px; border-bottom: 1px solid #f1f5f9; }
+      .rl-emp-row td { padding: 11px 10px; border-bottom: 1px solid #f4f6fa; vertical-align: middle; }
+      .rl-emp-row:hover td { background: #fafbff; }
+      .rl-emp-row:last-child td { border-bottom: none; }
+      .rl-emp-id-row { display: flex; align-items: center; gap: 12px; }
+      .rl-emp-av { width: 36px; height: 36px; border-radius: 10px; background: #eef2ff; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; flex-shrink: 0; }
+      .rl-emp-av-muted { background: #f1f5f9; color: #94a3b8; }
+      .rl-emp-name { font-size: 14px; font-weight: 700; color: #1e293b; }
+      .rl-emp-meta { font-size: 12.5px; color: #94a3b8; margin-top: 1px; }
+      .rl-emp-role-badge { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 9px; border-radius: 20px; margin-top: 4px; }
+      .rl-emp-role-badge.has-role { background: #eef2ff; color: #4f46e5; }
+      .rl-emp-role-badge.no-role { background: #f1f5f9; color: #94a3b8; }
+      .rl-emp-form { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+      .rl-emp-form .rl-select { min-width: 200px; font-size: 13.5px; }
+      .rl-emp-empty { font-size: 13.5px; color: #94a3b8; text-align: center; padding: 24px; }
+
+      /* ── "Assign Someone New" collapsible panel ── */
+      .rl-details { border-style: dashed; border-color: #c7d2fe; background: #fbfbff; transition: background .15s, border-color .15s; }
+      .rl-details:hover { border-color: #a5b4fc; background: #f5f6ff; }
+      .rl-details[open] { border-style: solid; border-color: #e5e9f2; background: #fff; }
+      .rl-details summary.rl-details-summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; user-select: none; }
+      .rl-details summary.rl-details-summary::-webkit-details-marker { display: none; }
+      .rl-details summary.rl-details-summary::after { content: '\25BE'; display: inline-block; color: #94a3b8; font-size: 14px; transition: transform .15s; flex-shrink: 0; }
+      .rl-details[open] summary.rl-details-summary::after { transform: rotate(180deg); }
+      .rl-details-count { text-transform: none; letter-spacing: 0; }
+      .rl-details[open] summary.rl-details-summary { margin-bottom: 16px; }
+      .rl-details > *:not(summary) { margin-top: 2px; }
+    </style>
+{% endblock %}
+
+{% block main %}
+      {% set _mod_labels = {
+        'employees': 'Employees', 'attendance': 'Attendance', 'payroll': 'Salary & Payslips',
+        'leaves': 'Leaves & Holidays', 'announcements': 'Announcements',
+        'tickets': 'Tickets', 'overtime': 'OT & Comp-off', 'performance': 'Performance Management',
+        'onboarding': 'Onboarding', 'resignations': 'Resignations',
+        'reports': 'Analytics & Reports', 'admin_tools': 'Admin Tools',
+        'organization': 'Organization'
+      } %}
+      {% set _base_labels = {'admin': 'Admin', 'hr': 'HR', 'manager': 'Manager', 'employee': 'Employee'} %}
+      {% set _base_icons = {'admin': 'ti-shield-star', 'hr': 'ti-users-group', 'manager': 'ti-briefcase', 'employee': 'ti-user'} %}
+      {% set _assignable_roles = rbac_roles | rejectattr('is_system') | list %}
+      {% set _assigned_employees = rbac_employees | selectattr('access_role') | list %}
+      {% set _unassigned_employees = rbac_employees | rejectattr('access_role') | list %}
+      <div class="rl-wrap">
+        <div class="rl-head">
+          <span class="rl-icon"><i class="ti ti-shield-lock"></i></span>
+          <div>
+            <h1>Roles &amp; Access</h1>
+            <p>Create roles for your company and set exactly what each one can do, module by module. A person assigned a role gets an admin dashboard that shows <strong>only the modules you grant</strong> — everything else is hidden and blocked.</p>
+          </div>
+        </div>
+
+        <div class="rl-summary">
+          <span class="rl-summary-chip"><i class="ti ti-user-shield"></i> <b>{{ _assignable_roles|length }}</b>&nbsp;custom {{ 'role' if _assignable_roles|length == 1 else 'roles' }}</span>
+          <span class="rl-summary-chip"><i class="ti ti-shield-check"></i> <b>{{ _assigned_employees|length }}</b>&nbsp;on a role dashboard</span>
+          <span class="rl-summary-chip"><i class="ti ti-user"></i> <b>{{ _unassigned_employees|length }}</b>&nbsp;on the plain employee dashboard</span>
+        </div>
+
+        {# Flash messages (role created, access saved, assignment changed, …)
+           are already rendered once by admin_base.html's own {% block main %}
+           wrapper -- this page doesn't render them a second time. #}
+
+        {# ── Create a new role ─────────────────────────────────────────── #}
+        <div class="rl-card">
+          <div class="rl-section-head">
+            <span class="rl-section-ic"><i class="ti ti-plus"></i></span>
+            <div>
+              <div class="rl-section-title">Create a Role</div>
+              <div class="rl-section-sub">Starts with no access — grant modules on the role card below</div>
+            </div>
+          </div>
+          <form method="POST" action="{{ tpath('/roles/create') }}" class="rl-inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <div>
+              <label class="rl-label">Role name</label>
+              <input class="rl-input" type="text" name="display_name" required
+                     placeholder="e.g. Senior HR" maxlength="80" style="min-width:240px;" />
+            </div>
+            <div>
+              <label class="rl-label">Based on (dashboard)</label>
+              <select class="rl-select" name="base_type">
+                {% for bt in rbac_base_types %}
+                <option value="{{ bt }}" {% if bt == 'hr' %}selected{% endif %}>{{ _base_labels.get(bt, bt) }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button class="rl-btn" type="submit"><i class="ti ti-plus"></i> Create role</button>
+          </form>
+          <div class="rl-note"><i class="ti ti-info-circle" aria-hidden="true"></i> “Based on” decides which dashboard the role uses (HR / Manager / Admin / Employee). A new role starts with <strong>no access</strong> — you grant modules below.</div>
+        </div>
+
+        {# ── Employee Access Assignments: the one place to promote/demote
+             someone already on a dashboard, or remove their access entirely.
+             Only people WITH a role show here by default -- everyone else
+             (the plain-employee majority) lives behind the collapsed
+             "Assign someone new" panel below, so this list stays short and
+             doesn't become a dump of the whole company. ─────────────────── #}
+        <div class="rl-card" id="assignments">
+          <div class="rl-section-head">
+            <span class="rl-section-ic"><i class="ti ti-user-cog"></i></span>
+            <div>
+              <div class="rl-section-title">Currently Assigned</div>
+              <div class="rl-section-sub">Promote, demote, or remove someone's dashboard access</div>
+            </div>
+          </div>
+          {% if not _assignable_roles %}
+          <div class="rl-note"><i class="ti ti-info-circle" aria-hidden="true"></i> Create a role above first, then come back here to assign it to someone.</div>
+          {% elif not _assigned_employees %}
+          <div class="rl-emp-empty">No one has a dashboard role yet — use “Assign someone new” below to give one to your first employee.</div>
+          {% else %}
+          <table class="rl-emp-table">
+            <thead>
+              <tr><th>Employee</th><th style="text-align:right;">Dashboard access</th></tr>
+            </thead>
+            <tbody>
+              {% for emp in _assigned_employees %}
+              <tr class="rl-emp-row">
+                <td>
+                  <div class="rl-emp-id-row">
+                    <span class="rl-emp-av">{{ emp.name[:1]|upper }}</span>
+                    <div>
+                      <div class="rl-emp-name">{{ emp.name }} <span class="rl-person-id">· {{ emp.employee_id }}</span></div>
+                      <div class="rl-emp-meta">{{ emp.department or 'No department' }}</div>
+                      {% set _cur_role = (_assignable_roles | selectattr('role_key', 'equalto', emp.access_role) | list | first) %}
+                      <span class="rl-emp-role-badge has-role"><i class="ti ti-shield-check"></i> {{ _cur_role.display_name if _cur_role else emp.access_role }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <form method="POST" action="{{ tpath('/roles/assign') }}" class="rl-emp-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                    <input type="hidden" name="employee_id" value="{{ emp.employee_id }}" />
+                    <select class="rl-select" name="role_key">
+                      <option value="">No access role (Employee dashboard)</option>
+                      {% for role in _assignable_roles %}
+                      <option value="{{ role.role_key }}" {% if emp.access_role == role.role_key %}selected{% endif %}>{{ role.display_name }} ({{ _base_labels.get(role.base_type, role.base_type) }} dashboard)</option>
+                      {% endfor %}
+                    </select>
+                    <button class="rl-btn rl-btn-ghost" type="submit"><i class="ti ti-device-floppy"></i> Save</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+
+        {% if _assignable_roles %}
+        <details class="rl-card rl-details">
+          <summary class="rl-details-summary">
+            <span class="rl-section-head" style="margin-bottom:0;">
+              <span class="rl-section-ic"><i class="ti ti-user-plus"></i></span>
+              <span>
+                <span class="rl-section-title">Assign Someone New</span>
+                <span class="rl-section-sub rl-details-count">{{ _unassigned_employees|length }} on the plain employee dashboard</span>
+              </span>
+            </span>
+          </summary>
+          <div class="rl-search-row">
+            <input class="rl-input" type="text" id="rlEmpSearch" placeholder="Search by name, ID or department…"
+                   autocomplete="off" aria-label="Search employees" />
+          </div>
+          {% if not _unassigned_employees %}
+          <div class="rl-emp-empty">Everyone already has a role — nice and tidy.</div>
+          {% else %}
+          <table class="rl-emp-table" id="rlEmpTable">
+            <thead>
+              <tr><th>Employee</th><th style="text-align:right;">Give access</th></tr>
+            </thead>
+            <tbody>
+              {% for emp in _unassigned_employees %}
+              <tr class="rl-emp-row" data-search="{{ (emp.name ~ ' ' ~ emp.employee_id ~ ' ' ~ emp.department)|lower }}">
+                <td>
+                  <div class="rl-emp-id-row">
+                    <span class="rl-emp-av rl-emp-av-muted">{{ emp.name[:1]|upper }}</span>
+                    <div>
+                      <div class="rl-emp-name">{{ emp.name }} <span class="rl-person-id">· {{ emp.employee_id }}</span></div>
+                      <div class="rl-emp-meta">{{ emp.department or 'No department' }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <form method="POST" action="{{ tpath('/roles/assign') }}" class="rl-emp-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                    <input type="hidden" name="employee_id" value="{{ emp.employee_id }}" />
+                    <select class="rl-select" name="role_key">
+                      <option value="" selected disabled>Choose a role…</option>
+                      {% for role in _assignable_roles %}
+                      <option value="{{ role.role_key }}">{{ role.display_name }} ({{ _base_labels.get(role.base_type, role.base_type) }} dashboard)</option>
+                      {% endfor %}
+                    </select>
+                    <button class="rl-btn" type="submit"><i class="ti ti-user-check"></i> Assign</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="rl-emp-empty" id="rlEmpNoMatch" style="display:none;">No employees match your search.</div>
+          {% endif %}
+        </details>
+        {% endif %}
+
+        {# ── Existing roles ────────────────────────────────────────────── #}
+        {% for role in rbac_roles %}
+        {% set perms = rbac_permissions.get(role.role_key, {}) %}
+        <div class="rl-card">
+          <div class="rl-role-head">
+            <div class="rl-role-id">
+              <span class="rl-role-av bt-{{ role.base_type }}"><i class="ti {{ _base_icons.get(role.base_type, 'ti-user-shield') }}"></i></span>
+              <div>
+                <div class="rl-role-name">{{ role.display_name }}</div>
+                <div class="rl-role-sub">
+                  <span class="rl-badge">{{ _base_labels.get(role.base_type, role.base_type) }} dashboard</span>
+                  {% if role.is_system %}<span class="rl-badge rl-badge-sys">System</span>{% else %}<span class="rl-badge rl-badge-sys">Custom</span>{% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="rl-actions">
+              {% if not role.locked %}
+              <form method="POST" action="{{ tpath('/roles/rename') }}" class="rl-inline" style="gap:8px;">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="role_key" value="{{ role.role_key }}" />
+                <input class="rl-input" type="text" name="display_name" value="{{ role.display_name }}" maxlength="80" style="width:170px;padding:7px 10px;" />
+                <button class="rl-btn rl-btn-ghost" type="submit">Rename</button>
+              </form>
+              {% endif %}
+              {% if not role.is_system %}
+              <form method="POST" action="{{ tpath('/roles/delete') }}" data-on-submit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete the role {{ role.display_name|e }}?">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="role_key" value="{{ role.role_key }}" />
+                <button class="rl-btn rl-btn-danger" type="submit"><i class="ti ti-trash"></i> Delete</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if not role.locked %}
+          {% set _assigned = rbac_assignments.get(role.role_key, []) %}
+          <div class="rl-people">
+            <span class="rl-people-label">Assigned to</span>
+            {% if _assigned %}
+            {% for p in _assigned %}
+            <span class="rl-person"><i class="ti ti-user"></i> {{ p.name }} <span class="rl-person-id">· {{ p.employee_id }}</span></span>
+            {% endfor %}
+            {% else %}
+            <span class="rl-people-none">No one yet — <a href="#assignments">assign it to someone below</a>.</span>
+            {% endif %}
+          </div>
+          {% endif %}
+
+          {% if role.locked %}
+          <div class="rl-full"><i class="ti ti-lock" aria-hidden="true"></i> Full access to every module. The Administrator can’t be restricted, so your company can never lock itself out.</div>
+          {% else %}
+          <form method="POST" action="{{ tpath('/roles/permissions') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <input type="hidden" name="role_key" value="{{ role.role_key }}" />
+            <div class="perm-grid">
+              {% for mod in rbac_modules %}
+              {% set current = perms.get(mod, 'none') %}
+              <div class="perm-row">
+                <span class="perm-mod">{{ _mod_labels.get(mod, mod) }}</span>
+                <span class="seg">
+                  <input type="radio" id="p_{{ role.role_key }}_{{ mod }}_none" name="perm_{{ mod }}" value="none" {% if current == 'none' %}checked{% endif %} />
+                  <label for="p_{{ role.role_key }}_{{ mod }}_none">None</label>
+                  <input type="radio" id="p_{{ role.role_key }}_{{ mod }}_view" name="perm_{{ mod }}" value="view" {% if current == 'view' %}checked{% endif %} />
+                  <label for="p_{{ role.role_key }}_{{ mod }}_view">View</label>
+                  <input type="radio" id="p_{{ role.role_key }}_{{ mod }}_edit" name="perm_{{ mod }}" value="edit" {% if current == 'edit' %}checked{% endif %} />
+                  <label for="p_{{ role.role_key }}_{{ mod }}_edit">Edit</label>
+                </span>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="rl-note"><i class="ti ti-eye" aria-hidden="true"></i> <strong>View</strong> = can open &amp; read only &nbsp;·&nbsp; <strong>Edit</strong> = can change &nbsp;·&nbsp; <strong>None</strong> = hidden from their menu and blocked.</div>
+            <div class="rl-save"><button class="rl-btn" type="submit"><i class="ti ti-device-floppy"></i> Save access</button></div>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+      (function() {
+        var input = document.getElementById('rlEmpSearch');
+        var table = document.getElementById('rlEmpTable');
+        if (!input || !table) return;
+        var rows = Array.prototype.slice.call(table.querySelectorAll('.rl-emp-row'));
+        var noMatch = document.getElementById('rlEmpNoMatch');
+        input.addEventListener('input', function() {
+          var q = input.value.trim().toLowerCase();
+          var shown = 0;
+          rows.forEach(function(row) {
+            var match = !q || (row.dataset.search || '').indexOf(q) !== -1;
+            row.style.display = match ? '' : 'none';
+            if (match) shown++;
+          });
+          if (noMatch) noMatch.style.display = shown ? 'none' : '';
+          table.style.display = shown || !q ? '' : 'none';
+        });
+      })();
+    </script>
+{% endblock %}

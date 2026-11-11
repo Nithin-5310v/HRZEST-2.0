@@ -7,11 +7,12 @@ from extensions import app, app_log
 from database import get_db_connection, transaction
 from werkzeug.utils import secure_filename
 from utils.auth import (
-    admin_required, employee_required, enforce_ownership, api_required, api_role_required, employee_api_required,
+    admin_required, enforce_ownership, api_required, api_role_required, employee_api_required,
     any_user_required,
 )
 from utils.helpers import (
     tpath, _audit, _validate_upload, _safe_referrer_redirect, hr_scope_denied, _create_notification, validate_emp_id,
+    self_service_emp_id, self_service_return_path,
 )
 from utils.storage import save_private, open_private, delete_private
 
@@ -128,24 +129,24 @@ def download_document(did):
 @documents_bp.route("/upload_my_document", methods=["POST"])
 @any_user_required
 def upload_my_document():
-    emp_id = session.get("employee_id")
+    emp_id = self_service_emp_id()
     if not emp_id:
         return redirect(tpath("/login"))
     doc_type = request.form.get('doc_type', '').strip()
     f = request.files.get('document')
     if not doc_type or not f or not f.filename:
         flash("All fields required.", "danger")
-        return redirect(tpath("/employee_portal"))
+        return redirect(self_service_return_path())
     ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
     if not ok:
         flash(err, "danger")
-        return redirect(tpath("/employee_portal"))
+        return redirect(self_service_return_path())
     orig_name = f.filename
     rel_path = f"employee_documents/{emp_id}/{uuid.uuid4()}_{secure_filename(orig_name)}"
     stored_ref, err = save_private(app.root_path, f, rel_path)
     if err:
         flash(f"Upload failed: {err}", "danger")
-        return redirect(tpath("/employee_portal"))
+        return redirect(self_service_return_path())
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -156,13 +157,15 @@ def upload_my_document():
     cursor.close()
     db.close()
     flash("Document uploaded successfully.", "success")
-    return redirect(tpath("/employee_portal#documents"))
+    return redirect(self_service_return_path("#documents"))
 
 
 @documents_bp.route("/delete_my_document/<int:did>", methods=["POST"])
-@employee_required
+@any_user_required
 def delete_my_document(did):
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, stored_name FROM employee_documents WHERE id=%s AND employee_id=%s", (did, emp_id))
@@ -178,7 +181,7 @@ def delete_my_document(did):
     cursor.close()
     db.close()
     flash("Document deleted.", "success")
-    return redirect(tpath("/employee_portal#documents"))
+    return redirect(self_service_return_path("#documents"))
 
 
 def _fmt_doc(row):

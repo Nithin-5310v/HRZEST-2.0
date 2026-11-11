@@ -17,7 +17,7 @@ importable as utils.helpers.<name>):
 
 
 # Submodules in dependency order. crypto runs the ENCRYPTION_KEY fail-secure check on import.
-from . import validation, urls, http, crypto, db, settings, uploads, scoping, notifications, gates  # noqa: E402,F401
+from . import validation, urls, http, crypto, db, settings, uploads, scoping, notifications, gates, rbac  # noqa: E402,F401,E501
 
 # Re-exported so `utils.helpers.<name>` keeps resolving for existing callers.
 from .validation import (  # noqa: E402,F401
@@ -38,6 +38,8 @@ from .urls import (  # noqa: E402,F401
     _safe_referrer_redirect,
     company_url,
     employee_login_url,
+    self_service_emp_id,
+    self_service_return_path,
     static_url,
     tpath,
 )
@@ -146,4 +148,22 @@ from .gates import (  # noqa: E402,F401
     clean_email_domain,
     validate_email_domain_format,
     validate_employee_email_domain,
+)
+from .rbac import (  # noqa: E402,F401
+    RBAC_MODULES,
+    VALID_ACCESS,
+    VALID_BASE_TYPES,
+    all_role_permissions,
+    assign_employee_role,
+    base_type_for_role,
+    can_access,
+    defined_role_base_type,
+    create_role,
+    delete_role,
+    employees_by_role,
+    get_role_permissions,
+    list_employees_with_roles,
+    list_roles,
+    rename_role,
+    set_permissions,
 )

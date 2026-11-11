@@ -17,7 +17,7 @@ from database import get_db_connection
 from utils.auth import (
     generate_password_hash, check_password_hash, password_needs_rehash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
-    admin_required, role_required, employee_required, employee_api_required,
+    admin_required, role_required, employee_required, any_user_required, employee_api_required,
     _get_failed_count, verify_turnstile, turnstile_enabled,
     CAPTCHA_AFTER_ATTEMPTS, _TURNSTILE_SITE_KEY, HR_ROLE, MANAGER_ROLE,
     api_required, validate_new_password, verify_and_update_password, _mask_identifier,
@@ -25,7 +25,10 @@ from utils.auth import (
     session_account_ok, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
-from utils.helpers import tpath, get_company_settings, _audit, _db, company_url, _safe_redirect
+from utils.helpers import (
+    tpath, get_company_settings, _audit, _db, company_url, _safe_redirect,
+    self_service_emp_id, self_service_return_path,
+)
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async, notify_if_new_login_ip
 from utils.session_risk import ensure_session_id
 from utils.totp import verify_totp_code, send_mfa_login_email, mark_totp_enabled
@@ -392,6 +395,40 @@ def _ensure_manager_admin_account(employee_id, email):
     )
 
 
+def _ensure_role_admin_account(employee_id, email, role_key):
+    """Upsert the admin_users row that backs an employee who holds a custom
+    admin-side role defined in Settings -> Roles & Access, keeping its role
+    column in sync with the employee's currently-assigned role (so changing an
+    employee's role in the Employees screen takes effect on their next login).
+    Same random, never-shown password rationale as _ensure_hr_admin_account."""
+    with _db() as (cursor, db):
+        cursor.execute("SELECT role FROM admin_users WHERE username=%s", (employee_id,))
+        row = cursor.fetchone()
+        if row is None:
+            cursor.execute(
+                "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1)",
+                (employee_id, generate_password_hash(secrets.token_urlsafe(32)), role_key, email),
+            )
+        elif row[0] != role_key:
+            cursor.execute("UPDATE admin_users SET role=%s WHERE username=%s", (role_key, employee_id))
+        db.commit()
+    log_security_event(
+        "auth.role_admin_provisioned",
+        f"admin_users account for employee '{employee_id}' set to custom role '{role_key}'",
+        level="INFO", identifier=employee_id,
+    )
+
+
+def _get_employee_access_role(employee_id):
+    """The RBAC access role assigned to this employee (a role_key from the roles
+    table), or '' -- read separately from their free-text job title
+    (employees.role). Login routing uses this, not the job title."""
+    with _db() as (cursor, db):
+        cursor.execute("SELECT COALESCE(access_role,'') FROM employees WHERE employee_id=%s", (employee_id,))
+        row = cursor.fetchone()
+        return row[0] if row else ""
+
+
 def _finish_employee_login(employee_id, name, role, force_pin_change, email):
     """Completes an employee login -- called from both the direct
     password-verified branch below and mfa_verify()'s employee branch, so
@@ -432,6 +469,39 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
         if email:
             notify_if_new_login_ip(employee_id, "employee", request.remote_addr, name, email)
         return redirect(tpath("/force_change_pin"))
+
+    # A role defined in Settings -> Roles & Access, assigned to this employee,
+    # on an admin-side base type (admin/hr/manager) routes them to the admin
+    # dashboard carrying their exact role -- the sidebar and route guards then
+    # expose only the modules that role was granted (utils.helpers.rbac). A
+    # plain job title ("Developer") or the 'employee' base type returns None
+    # here and falls through to the normal employee portal below. The literal
+    # "HR"/"Manager" branches that follow stay for backward compatibility.
+    from utils.helpers.rbac import defined_role_base_type
+    _access_role = _get_employee_access_role(employee_id)
+    _role_base = defined_role_base_type(_access_role)
+    if _role_base in ("admin", "hr", "manager"):
+        _ensure_role_admin_account(employee_id, email, _access_role)
+        if app.config["MANDATORY_LOGIN_MFA"]:
+            mark_totp_enabled(employee_id)
+        session.clear()
+        session["admin_logged_in"] = True
+        session["admin_username"] = employee_id
+        session["admin_role"] = _access_role
+        session["admin_base_type"] = _role_base
+        session["_session_created"] = time.time()
+        session.permanent = True
+        ensure_session_id(session)
+        stamp_password_version("employees", employee_id)
+        log_security_event(
+            "auth.admin_login_success",
+            f"Employee '{employee_id}' logged in and routed to the admin dashboard for "
+            f"role '{_access_role}' (base={_role_base})",
+            level="INFO", identifier=employee_id,
+        )
+        if email:
+            notify_if_new_login_ip(employee_id, "admin", request.remote_addr, employee_id, email)
+        return redirect(tpath("/admin"))
 
     # An HR whose dashboard access is off falls through to the employee
     # portal below, like any other employee.
@@ -514,7 +584,7 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
 
 
 @auth_bp.route("/switch_to_my_employee_portal", methods=["POST"])
-@role_required(HR_ROLE)
+@admin_required
 def switch_to_my_employee_portal():
     """Lets an HR-role admin session (templates/admin_base.html's "My
     Profile" button) hop over to the normal employee self-service portal
@@ -540,11 +610,16 @@ def switch_to_my_employee_portal():
         cursor.execute("SELECT name, role FROM employees WHERE employee_id=%s", (employee_id,))
         row = cursor.fetchone()
     if not row:
-        flash("No personal employee profile is linked to this HR account.", "error")
-        return redirect(tpath("/hr_dashboard"))
+        flash("No personal employee profile is linked to this account.", "error")
+        return redirect(tpath("/admin"))
+    # Remember the exact admin role + base type so switch_back restores THIS
+    # role (e.g. "senior_manager"), not a generic HR session.
     session["_hr_return_username"] = employee_id
+    session["_hr_return_role"] = session.get("admin_role")
+    session["_hr_return_base_type"] = session.get("admin_base_type")
     session.pop("admin_logged_in", None)
     session.pop("admin_role", None)
+    session.pop("admin_base_type", None)
     session.pop("admin_username", None)
     session["employee_id"] = employee_id
     session["employee_name"] = row[0]
@@ -568,6 +643,8 @@ def switch_back_to_hr_panel():
     login). Restores the HR admin session for the same identity without
     re-authenticating."""
     return_username = session.pop("_hr_return_username", None)
+    return_role = session.pop("_hr_return_role", None) or HR_ROLE
+    return_base_type = session.pop("_hr_return_base_type", None)
     if not return_username or return_username != session.get("employee_id"):
         return redirect(tpath("/employee_portal"))
     session.pop("employee_id", None)
@@ -575,14 +652,18 @@ def switch_back_to_hr_panel():
     session.pop("employee_role", None)
     session["admin_logged_in"] = True
     session["admin_username"] = return_username
-    session["admin_role"] = HR_ROLE
+    # Restore the exact role (and its base type) the admin held before the
+    # switch, so a custom role-holder returns to their own filtered dashboard.
+    session["admin_role"] = return_role
+    if return_base_type:
+        session["admin_base_type"] = return_base_type
     session.permanent = True
     log_security_event(
         "auth.hr_switched_back_to_panel",
-        f"HR account '{return_username}' switched back to the HR admin panel",
+        f"Account '{return_username}' switched back to the admin panel (role={return_role})",
         level="INFO", identifier=return_username,
     )
-    return redirect(tpath("/hr_dashboard"))
+    return redirect(tpath("/admin"))
 
 
 def begin_admin_session(username, role):
@@ -592,10 +673,19 @@ def begin_admin_session(username, role):
     its dashboard right after registering (org._log_in_new_company_admin).
     Clears the session first, so a pre-login session can't be fixed onto
     the logged-in one."""
+    from utils.helpers.rbac import defined_role_base_type
     session.clear()
     session["admin_logged_in"] = True
     session["admin_username"] = username
     session["admin_role"] = role
+    # Record the role's base type (admin/hr/manager/employee) so the sidebar,
+    # role_required() base-type matching and "My Profile" work the same whether
+    # a role-holder logs in through this admin_users path or the employee path
+    # (_finish_employee_login). A defined role maps to its base type; the owner
+    # 'admin' maps to 'admin'. Unknown/legacy roles leave it unset.
+    _bt = defined_role_base_type(role)
+    if _bt:
+        session["admin_base_type"] = _bt
     session["_session_created"] = time.time()
     session.permanent = True
     ensure_session_id(session)
@@ -1170,20 +1260,26 @@ def employee_logout():
 
 
 @auth_bp.route("/change_password", methods=["POST"])
-@employee_required
+@any_user_required
 def change_password():
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     current = request.form.get("current_password", "").strip()
     new_pwd = request.form.get("new_password", "").strip()
     confirm = request.form.get("confirm_password", "").strip()
     _pw_ok, _pw_err = validate_new_password(new_pwd)
     if not _pw_ok:
-        return redirect(tpath("/employee_portal?pwd_error=short#my-profile"))
+        return redirect(self_service_return_path("?pwd_error=short#my-profile"))
     if new_pwd != confirm:
-        return redirect(tpath("/employee_portal?pwd_error=mismatch#my-profile"))
+        return redirect(self_service_return_path("?pwd_error=mismatch#my-profile"))
+    # Note: a role-holder's REAL credential is always employees.password --
+    # admin_users.password is a random, never-shown value set by
+    # _ensure_role_admin_account(), never what they actually log in with --
+    # so updating the employees row here is correct for both session types.
     if not verify_and_update_password("employees", "employee_id", emp_id, current, new_pwd):
-        return redirect(tpath("/employee_portal?pwd_error=wrong#my-profile"))
-    return redirect(tpath("/employee_portal?pwd_ok=1#my-profile"))
+        return redirect(self_service_return_path("?pwd_error=wrong#my-profile"))
+    return redirect(self_service_return_path("?pwd_ok=1#my-profile"))
 
 
 @auth_bp.route("/force_change_pin", methods=["GET", "POST"])
@@ -1268,8 +1364,16 @@ def _wa_authorize_enrollment(emp_id):
     Without this, /webauthn/registration-options + webauthn-register(-kiosk)
     would let anyone enroll their own device's biometric against ANY
     employee_id and then check in as that employee indefinitely."""
-    if session.get("admin_logged_in") and session.get("admin_role") == "admin":
-        return None
+    if session.get("admin_logged_in"):
+        if session.get("admin_role") in ("admin", "superadmin"):
+            return None  # owner admin: may enroll on any employee's behalf
+        # A custom-role holder (HR/manager/etc, no session-swap involved --
+        # see my_workspace.html) may only enroll their OWN credential, same
+        # boundary as the plain-employee branch below.
+        admin_user = (session.get("admin_username") or "").strip().upper()
+        if admin_user and admin_user == emp_id:
+            return None
+        return "Not authorized to enroll a passkey for this employee."
     session_emp = session.get("employee_id")
     if session_emp:
         return None if session_emp.strip().upper() == emp_id else "Not authorized to enroll a passkey for this employee."
@@ -1549,8 +1653,10 @@ def webauthn_register():
 @auth_bp.route("/api/employee/webauthn-unenroll", methods=["POST"])
 @limiter.limit("10 per minute")
 def webauthn_unenroll():
-    """Remove the stored WebAuthn credential for the logged-in employee."""
-    emp_id = session.get("employee_id")
+    """Remove the stored WebAuthn credential for the logged-in employee (or a
+    role-holder's own credential, from my_workspace.html -- no session swap
+    involved, see self_service_emp_id())."""
+    emp_id = self_service_emp_id()
     if not emp_id:
         return jsonify({"ok": False, "msg": "Not logged in"}), 401
     try:

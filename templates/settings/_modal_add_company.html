@@ -43,11 +43,11 @@
               {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
               <label class="u-cur-pointer">
                 <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} data-on-change="styleCoWd(this)" />
-                <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:14px;font-weight:700;border:1.5px solid {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ _d }}</span>
+                <span class="py-day-chip {{ 'on' if _d in ['Mon','Tue','Wed','Thu','Fri'] }}">{{ _d }}</span>
               </label>
               {% endfor %}
             </div>
-            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Affects payroll calculation for this company.</div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">This new company's starting work week — each company can change its own later in its Settings -> Finance -> Payroll Rules.</div>
           </div>
 
           {# Shifts #}

@@ -24,16 +24,17 @@ from flask import (
 from database import get_db_connection
 from extensions import app_log, limiter, log_security_event
 from utils.auth import (
-    admin_required, employee_required, api_required, enforce_ownership, role_required, api_role_required,
+    admin_required, employee_required, api_required, enforce_ownership, role_required, api_role_required, require_access,
     email_settings_step_up_valid, any_user_required,
 )
 from utils.helpers import (
     tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime,
-    hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount,
+    hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount, self_service_emp_id,
 )
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
 from utils.attendance_utils import (
     get_working_days, fetch_holidays_set, get_billable_past_days, infer_type_legacy,
+    standard_working_days_per_month,
 )
 from utils.salary_utils import (
     build_salary_slip_html, compute_salary_entry, PAYROLL_CONFIG_SQL, payroll_config_from_row,
@@ -171,6 +172,7 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
 
     holidays_set = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
+    _standard_days = standard_working_days_per_month()
 
     # Fetch all incentives for this month in one query
     try:
@@ -199,7 +201,7 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
         entry["incentive"] = incentive_map.get(emp_id, 0.0)
         entry["monthly_ctc"] = float(monthly_ctc)
         entry["basic_pct"] = float(basic_pct)
-        apply_statutory_deductions(entry, payroll_cfg)
+        apply_statutory_deductions(entry, payroll_cfg, _standard_days)
         entry["email"] = email
         entry["role"] = role
         entry["phone"] = phone
@@ -209,7 +211,8 @@ def compute_salary_data_for_month(year, month, active_cid=None, employee_ids=Non
 
 
 @payroll_bp.route("/salary_report")
-@role_required("admin")
+@admin_required
+@require_access("payroll")
 @limiter.limit("10 per minute")
 def salary_report():
     year = int_param(request.args.get("year", company_today().year))
@@ -514,6 +517,7 @@ def send_all_salary_emails():
 
     holidays_set = fetch_holidays_set(year, month)
     billable_past = get_billable_past_days(year, month)
+    _standard_days = standard_working_days_per_month()
     month_name = datetime.date(year, month, 1).strftime("%B %Y")
 
     sent = skipped = failed = 0
@@ -526,7 +530,8 @@ def send_all_salary_emails():
         entry = compute_salary_entry(emp_id, name, spd, att_map, billable_past,
                                      holidays_set=holidays_set,
                                      leave_dates=leave_map_all.get(emp_id, set()))
-        html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry)
+        html_body = build_salary_slip_html(name, emp_id, email, month_name, year, month, entry,
+                                           standard_days=_standard_days)
         try:
             send_email_smtp(email, f"Salary Slip - {month_name}", html_body, config)
             sent += 1
@@ -675,10 +680,12 @@ def api_payroll_status():
 # ---------------- TEST EMAIL ----------------
 
 @payroll_bp.route("/my_payslip_summary/<int:year>/<int:month>")
-@employee_required
+@any_user_required
 def my_payslip_summary(year, month):
     import json as _json
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return jsonify({"ok": False, "msg": "Not logged in"}), 401
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
@@ -895,7 +902,7 @@ def apply_hike():
         if last_hike_q == q and last_hike_yr == yr:
             continue
         new_ctc = round(current_ctc * (1 + hike_pct / 100), 2)
-        new_spd = round(new_ctc / 26, 2)
+        new_spd = round(new_ctc / standard_working_days_per_month(), 2)
         # The idempotency guard is repeated in this UPDATE's WHERE clause
         # (not just the Python-level skip above) so it's checked-and-set
         # atomically in one statement -- closes the race where two concurrent
@@ -1380,7 +1387,7 @@ def payroll_settings():
             ctc = request.form.get(f"ctc_{eid}", "")
             bpct = request.form.get(f"bpct_{eid}", "50")
             if ctc:
-                spd = round(float(ctc) / 26, 2)
+                spd = round(float(ctc) / standard_working_days_per_month(), 2)
                 rows.append((eid, encrypt_amount(spd), encrypt_amount(ctc), encrypt_amount(bpct or "50")))
         if rows:
             placeholders = ",".join(["(%s,%s,%s,%s)"] * len(rows))

@@ -18,11 +18,9 @@
     </div>
 
 
-    {% with msgs = get_flashed_messages(with_categories=true) %}
-      {% for cat, msg in msgs %}
-        <div class="flash flash-{{ 'green' if cat == 'success' else 'red' }}">{{ '✅ ' if cat == 'success' else '❌ ' }}{{ msg }}</div>
-      {% endfor %}
-    {% endwith %}
+    {# Flash messages (settings saved, errors, ...) are already rendered
+       once by admin_base.html's own {% block main %} wrapper -- this page
+       doesn't render them a second time. #}
 
     {# ══ 3-TAB SETTINGS NAV ══ #}
     <div class="s3-nav">
