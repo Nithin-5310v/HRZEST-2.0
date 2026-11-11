@@ -605,16 +605,29 @@ def switch_to_my_employee_portal():
     account created via /hr_accounts, not an employee auto-routed here) --
     see the hr_has_own_employee context var that hides the button for
     that case in the first place."""
-    employee_id = session.get("admin_username")
+    from utils.own_profile import OWNER_ROLE, session_linked_employee_id
+    admin_username = session.get("admin_username")
+    employee_id = admin_username
+    if session.get("admin_role") == OWNER_ROLE:
+        # The company admin isn't an employee by login: their own record is
+        # the profile linked to it (utils/own_profile.py), made on the
+        # Organization page's "My employee profile" card.
+        employee_id = session_linked_employee_id()
+        if not employee_id:
+            flash("Create your employee profile first; then this button takes you to your employee dashboard.",
+                  "info")
+            return redirect(tpath("/profile") + "#my-employee-profile")
     with _db() as (cursor, _conn):
         cursor.execute("SELECT name, role FROM employees WHERE employee_id=%s", (employee_id,))
         row = cursor.fetchone()
     if not row:
         flash("No personal employee profile is linked to this account.", "error")
         return redirect(tpath("/admin"))
-    # Remember the exact admin role + base type so switch_back restores THIS
-    # role (e.g. "senior_manager"), not a generic HR session.
-    session["_hr_return_username"] = employee_id
+    # Remember the exact admin login, role + base type so switch_back restores
+    # THIS one (e.g. "senior_manager"), not a generic HR session -- and which
+    # employee record it opened, which switch_back checks it's still on.
+    session["_hr_return_username"] = admin_username
+    session["_hr_return_employee_id"] = employee_id
     session["_hr_return_role"] = session.get("admin_role")
     session["_hr_return_base_type"] = session.get("admin_base_type")
     session.pop("admin_logged_in", None)
@@ -627,8 +640,8 @@ def switch_to_my_employee_portal():
     session.permanent = True
     log_security_event(
         "auth.hr_switched_to_own_portal",
-        f"HR account '{employee_id}' switched to their own employee portal",
-        level="INFO", identifier=employee_id,
+        f"Account '{admin_username}' switched to its own employee portal ({employee_id})",
+        level="INFO", identifier=admin_username,
     )
     return redirect(tpath("/employee_portal"))
 
@@ -643,9 +656,12 @@ def switch_back_to_hr_panel():
     login). Restores the HR admin session for the same identity without
     re-authenticating."""
     return_username = session.pop("_hr_return_username", None)
+    # Sessions switched before _hr_return_employee_id existed opened the
+    # record whose ID is the login's own username.
+    return_employee_id = session.pop("_hr_return_employee_id", None) or return_username
     return_role = session.pop("_hr_return_role", None) or HR_ROLE
     return_base_type = session.pop("_hr_return_base_type", None)
-    if not return_username or return_username != session.get("employee_id"):
+    if not return_username or return_employee_id != session.get("employee_id"):
         return redirect(tpath("/employee_portal"))
     session.pop("employee_id", None)
     session.pop("employee_name", None)
