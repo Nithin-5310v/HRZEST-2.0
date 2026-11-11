@@ -495,7 +495,7 @@
        managers already are employees and have My Workspace. #}
     {% if is_owner_admin and not _setup %}
     <section class="org-panel zf-card own-emp{{ ' editing' if not own_profile }}" id="my-employee-profile">
-      <div class="zf-card-head"><span class="zf-card-icon"><i class="ti ti-calendar-user"></i></span><div><h2>My employee profile</h2><p>Mark your own attendance, like your HRs and managers do.</p></div>
+      <div class="zf-card-head"><span class="zf-card-icon"><i class="ti ti-user-check"></i></span><div><h2>My employee profile</h2><p>Mark your own attendance, like your HRs and managers do.</p></div>
         {% if own_profile %}<span class="badge-pill badge-success">Active</span>{% else %}<span class="badge-pill badge-neutral">Optional</span>{% endif %}</div>
       {% if own_profile %}
       <dl class="zf-view">
@@ -509,7 +509,7 @@
         <span class="zf-hint">Linked to this login: same password and 2-step check. Free, not a paid seat.</span>
         <form method="POST" action="{{ tpath('/switch_to_my_employee_portal') }}" class="u-m-0">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-          <button class="org-btn primary" type="submit"><i class="ti ti-arrows-exchange"></i> Open my employee dashboard</button>
+          <button class="org-btn primary" type="submit"><i class="ti ti-user-circle"></i> Open my employee dashboard</button>
         </form>
       </div>
       {% else %}
