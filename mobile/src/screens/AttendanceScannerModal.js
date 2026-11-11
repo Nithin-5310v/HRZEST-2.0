@@ -47,6 +47,9 @@ const COMBO_META = {
 
 export default function AttendanceScannerModal({ visible, onClose, onSuccess }) {
   const { user }                        = useAuth();
+  // The signed-in person's own employee ID: an employee's, or the owner
+  // admin's linked profile when the admin app's Me tab opens this.
+  const ownEmployeeId = user?.employeeId || user?.employee_id || user?.emp_id || user?.linkedEmployeeId;
   const [permission, requestPermission] = useCameraPermissions();
 
   const [step, setStep]           = useState('location');
@@ -87,7 +90,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   }, [visible]);
 
   const parseEmployeeIdFromQR = (data) => {
-    if (!data) return user?.employeeId || user?.employee_id || user?.emp_id || "EMP-1001";
+    if (!data) return ownEmployeeId || "EMP-1001";
     let raw = String(data).trim();
     // Signed QR payload from the backend ("<employee_id>.<16-hex-char-hmac>",
     // see qr_generator.py's generate_qr/verify_qr_value) -- forward it
@@ -119,7 +122,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
         }
       } catch (_) {}
     }
-    return raw.toUpperCase() || user?.employeeId || user?.employee_id || user?.emp_id || "EMP-1001";
+    return raw.toUpperCase() || ownEmployeeId || "EMP-1001";
   };
 
   const initModal = async () => {
@@ -172,7 +175,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
   // ── Submit ───────────────────────────────────────────────────────────────────
   const submitAttendance = async ({ face, combo, empId, liveness }) => {
     setProcessing(true);
-    const targetId = empId || scannedEmpIdRef.current || employeeId || user?.employeeId || user?.employee_id || user?.emp_id || "EMP-1001";
+    const targetId = empId || scannedEmpIdRef.current || employeeId || ownEmployeeId || "EMP-1001";
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     try {
       const formData = new FormData();
@@ -324,7 +327,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
       await submitAttendance({ face: photo, empId: qrEmpId, liveness });
     } else {
       // Face + Fingerprint: fingerprint already attested, submit now
-      const fpEmpId = user?.employeeId || user?.employee_id || user?.emp_id;
+      const fpEmpId = ownEmployeeId;
       const liveness = await captureLivenessBurst(fpEmpId);
       await submitAttendance({
         face: photo,
@@ -350,7 +353,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
     if (authMethod === COMBO_QR_FACE) {
       await submitAttendance({ face: photo, empId: scannedEmpIdRef.current || employeeId });
     } else {
-      const fpEmpId = user?.employeeId || user?.employee_id || user?.emp_id;
+      const fpEmpId = ownEmployeeId;
       await submitAttendance({ face: photo, empId: fpEmpId, combo: COMBO_FACE_FP });
     }
     setProcessing(false);
@@ -622,7 +625,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
                 marginBottom: 6,
                 elevation: 4,
               }}
-              onPress={() => handleQRScan({ data: user?.employeeId || user?.employee_id || "EMP-1001" })}
+              onPress={() => handleQRScan({ data: ownEmployeeId || "EMP-1001" })}
             >
               <Ionicons name="qr-code" size={18} color="#FFFFFF" />
               <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
