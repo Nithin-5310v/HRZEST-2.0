@@ -779,7 +779,7 @@ def api_hr_my_employee_session():
     from utils.own_profile import OWNER_ROLE, linked_employee_id
     with _db() as (cursor, _conn):
         cursor.execute("SELECT COALESCE(role,'admin') FROM admin_users WHERE username=%s", (g.api_user,))
-        is_owner = cursor.fetchone()[0] == OWNER_ROLE
+        is_owner = (cursor.fetchone() or ('',))[0] == OWNER_ROLE
         emp_id = linked_employee_id(cursor, g.api_user) if is_owner else g.api_user
         row = None
         if emp_id:
