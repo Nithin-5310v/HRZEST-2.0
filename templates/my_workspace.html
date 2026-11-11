@@ -1,0 +1,345 @@
+{% extends "admin_base.html" %}
+
+{# A role-holder's (HR / manager / custom-role) OWN self-service, rendered
+   INSIDE the admin shell -- same header, same sidebar, same theme -- so
+   switching from "my granted modules" to "my own leave/attendance/payslips"
+   is a tab click, not a different app. The tab content below is the exact
+   same employee-portal content a plain employee sees (templates/
+   _employee_portal_views.html + _employee_portal_scripts.html, shared with
+   templates/employee_portal.html), fed by the exact same context-builder
+   (blueprints.employee_portal.portal._build_portal_context) -- one source
+   of truth, two shells. See blueprints/core.py's my_workspace() route. #}
+
+{% block title %}My Workspace{% endblock %}
+
+{% block page_css %}
+    <link rel="stylesheet" href="{{ static_url('employee-portal-content.css') }}" />
+    <link rel="stylesheet" href="{{ static_url('animate-core.min.css') }}" />
+    <style>
+      /* employee-portal-content.css hard-codes #view-dashboard to display:block
+         unconditionally ("visible by default so the page never shows blank"),
+         which is right for employee_portal.html (whose default view really is
+         'dashboard') but would flash that view behind this page's own default,
+         'workspace-overview', for the instant before showView()'s inline style
+         takes over. Same specificity, later in the cascade -> wins here only. */
+      #view-dashboard { display: none; }
+      #view-dashboard.active { display: block; }
+
+      .wks-head { margin-bottom: 16px; }
+      .wks-head h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; }
+      .wks-head p { font-size: 14px; color: #64748b; margin: 4px 0 0; }
+
+      .wks-tabs {
+        display: flex; flex-wrap: wrap; gap: 6px;
+        background: #fff; border: 1px solid #e5e9f2; border-radius: 14px;
+        padding: 6px; margin-bottom: 18px;
+      }
+      .wtab {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 9px 15px; border: none; border-radius: 10px;
+        background: transparent; color: #475569;
+        font-size: 13.5px; font-weight: 700; font-family: inherit;
+        cursor: pointer; transition: background .15s, color .15s;
+        white-space: nowrap;
+      }
+      .wtab:hover { background: #f1f5f9; color: #1e293b; }
+      .wtab.active { background: #4f46e5; color: #fff; }
+      .wtab-danger { color: #dc2626; margin-left: auto; }
+      .wtab-danger:hover { background: #fef2f2; color: #b91c1c; }
+      .wtab.active.wtab-danger { background: #dc2626; color: #fff; }
+
+      body.dark-mode .wks-tabs { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .wtab { color: #94a3b8 !important; }
+      body.dark-mode .wtab:hover { background: #1c2128 !important; color: #cdd9e5 !important; }
+      body.dark-mode .wks-head h1 { color: #cdd9e5 !important; }
+      body.dark-mode .wks-head p { color: #768390 !important; }
+
+      @media (max-width: 640px) {
+        .wks-tabs { gap: 4px; }
+        .wtab { padding: 8px 11px; font-size: 13px; }
+        .wtab span.wtab-label { display: none; }
+      }
+
+      /* ── OT & Comp-off tab: scoped under #view-compoff so its component
+         classnames (.card, .stat-card, table/th/td, .badge...) never bleed
+         into the other tabs, which define those same names differently. ── */
+      #view-compoff .page-hdr { margin-bottom: 20px; }
+      #view-compoff .page-hdr h1 { font-size: 24px; font-weight: 800; color: #1e293b; }
+      #view-compoff .page-hdr p { font-size: 15px; color: #64748b; margin-top: 4px; }
+      #view-compoff .hero { background: linear-gradient(135deg,#0f2460,#1a3a8f); color: #fff; border-radius: 16px; padding: 24px 28px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
+      #view-compoff .hero h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+      #view-compoff .hero p { font-size: 15px; opacity: .75; }
+      #view-compoff .stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+      #view-compoff .stat-card { background: #fff; border: 1px solid #dbeafe; border-radius: 14px; padding: 16px; text-align: center; }
+      #view-compoff .stat-card .num { font-size: 32px; font-weight: 900; margin-bottom: 4px; }
+      #view-compoff .stat-card .lbl { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }
+      #view-compoff .card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 18px; }
+      #view-compoff .sec-title { font-size: 14px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+      #view-compoff table { width: 100%; border-collapse: collapse; font-size: 15px; }
+      #view-compoff th { background: #dbeafe; color: #1e3a8a; padding: 10px 14px; text-align: left; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; }
+      #view-compoff td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-align: middle; }
+      #view-compoff tr:last-child td { border-bottom: none; }
+      #view-compoff .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+      #view-compoff .b-pending { background: #fef9c3; color: #854d0e; }
+      #view-compoff .b-approved { background: #dcfce7; color: #15803d; }
+      #view-compoff .b-rejected { background: #fee2e2; color: #dc2626; }
+      #view-compoff .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px 18px; font-size: 15px; color: #1e3a8a; display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; }
+      #view-compoff .btn { padding: 8px 18px; border: none; border-radius: 9px; font-size: 15px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+      #view-compoff .btn-primary { background: #1e3a8a; color: #fff; }
+      #view-compoff .apply-form .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+      #view-compoff .form-group label { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .4px; display: block; margin-bottom: 5px; }
+      #view-compoff .form-group input, #view-compoff .form-group select, #view-compoff .form-group textarea { width: 100%; padding: 9px 13px; border: 1.5px solid #dbeafe; border-radius: 9px; font-size: 15px; color: #1e293b; outline: none; background: #f8fafc; }
+      #view-compoff .form-group input:focus, #view-compoff .form-group select:focus, #view-compoff .form-group textarea:focus { border-color: #3b82f6; }
+      #view-compoff .flash-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 10px 16px; border-radius: 10px; font-size: 15px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+      #view-compoff .empty-row td { text-align: center; padding: 30px; color: #94a3b8; font-style: italic; }
+      #view-compoff .avail-badge { display: inline-flex; align-items: center; gap: 4px; padding: 5px 14px; border-radius: 20px; font-size: 16px; font-weight: 800; background: #dcfce7; color: #15803d; }
+      body.dark-mode #view-compoff .page-hdr h1 { color: #cdd9e5 !important; }
+      body.dark-mode #view-compoff .page-hdr p { color: #768390 !important; }
+      body.dark-mode #view-compoff .stat-card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode #view-compoff .stat-card .lbl { color: #768390 !important; }
+      body.dark-mode #view-compoff .card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode #view-compoff .sec-title { color: #93c5fd !important; }
+      body.dark-mode #view-compoff th { background: #1e3a8a !important; color: #93c5fd !important; }
+      body.dark-mode #view-compoff td { border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode #view-compoff .info-box { background: #1c2750 !important; border-color: #3b82f6 !important; color: #93c5fd !important; }
+      body.dark-mode #view-compoff .form-group label { color: #768390 !important; }
+      body.dark-mode #view-compoff .form-group input, body.dark-mode #view-compoff .form-group select, body.dark-mode #view-compoff .form-group textarea { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode #view-compoff .flash-success { background: #14532d !important; border-color: #166534 !important; color: #4ade80 !important; }
+      body.dark-mode #view-compoff .avail-badge { background: #14532d !important; color: #4ade80 !important; }
+
+      /* ── Performance tab: scoped under #view-performance ── */
+      #view-performance .hero { background: linear-gradient(135deg,#0f2460,#1e3a8a); color: #fff; border-radius: 16px; padding: 24px 28px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
+      #view-performance .hero h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+      #view-performance .hero p { font-size: 15px; opacity: .75; }
+      #view-performance .card { background: #fff; border: 1px solid #dbeafe; border-radius: 16px; padding: 22px; margin-bottom: 18px; }
+      #view-performance .sec-title { font-size: 14px; font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+      #view-performance .review-block { border: 1.5px solid #dbeafe; border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
+      #view-performance .review-hdr { background: #dbeafe; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+      #view-performance .review-hdr .q-label { font-size: 16px; font-weight: 800; color: #1e3a8a; }
+      #view-performance .review-body { padding: 16px 18px; }
+      #view-performance .kpi-row { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; }
+      #view-performance .kpi-name { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
+      #view-performance .kpi-meta { display: flex; gap: 14px; font-size: 14px; color: #64748b; margin-bottom: 8px; flex-wrap: wrap; }
+      #view-performance .progress-wrap { background: #e2e8f0; border-radius: 20px; height: 6px; overflow: hidden; }
+      #view-performance .progress-fill { height: 100%; border-radius: 20px; }
+      #view-performance .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+      #view-performance .b-submitted { background: #dbeafe; color: #1e3a8a; }
+      #view-performance .b-draft { background: #f1f5f9; color: #64748b; }
+      #view-performance .b-acknowledged { background: #dcfce7; color: #15803d; }
+      #view-performance .comment-form textarea { width: 100%; padding: 10px 13px; border: 1.5px solid #dbeafe; border-radius: 9px; font-size: 15px; color: #1e293b; background: #f8fafc; outline: none; resize: vertical; }
+      #view-performance .comment-form textarea:focus { border-color: #3b82f6; }
+      #view-performance .btn { padding: 8px 16px; border: none; border-radius: 9px; font-size: 15px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+      #view-performance .btn-primary { background: #1e3a8a; color: #fff; }
+      #view-performance .flash-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 10px 16px; border-radius: 10px; font-size: 15px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+      #view-performance .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 64px 32px; }
+      #view-performance .empty-state-icon { width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 16px; background: #dbeafe; display: flex; align-items: center; justify-content: center; }
+      #view-performance .empty-state-icon i { font-size: 28px; color: #1d4ed8; }
+      #view-performance .empty-state h3 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+      #view-performance .empty-state p { font-size: 15.5px; color: #64748b; max-width: 340px; margin: 0 auto; line-height: 1.6; }
+      body.dark-mode #view-performance .card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode #view-performance .sec-title { color: #93c5fd !important; }
+      body.dark-mode #view-performance .review-block { border-color: #30363d !important; }
+      body.dark-mode #view-performance .review-hdr { background: #1e3a8a !important; }
+      body.dark-mode #view-performance .review-hdr .q-label { color: #93c5fd !important; }
+      body.dark-mode #view-performance .kpi-row { background: #1c2128 !important; border-color: #30363d !important; }
+      body.dark-mode #view-performance .kpi-name { color: #cdd9e5 !important; }
+      body.dark-mode #view-performance .kpi-meta { color: #768390 !important; }
+      body.dark-mode #view-performance .progress-wrap { background: #30363d !important; }
+      body.dark-mode #view-performance .comment-form textarea { background: #0d1117 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+      body.dark-mode #view-performance .flash-success { background: #14532d !important; border-color: #166534 !important; color: #4ade80 !important; }
+      body.dark-mode #view-performance .empty-state-icon { background: #1e3a8a !important; }
+      body.dark-mode #view-performance .empty-state-icon i { color: #60a5fa !important; }
+      body.dark-mode #view-performance .empty-state h3 { color: #cdd9e5 !important; }
+      body.dark-mode #view-performance .empty-state p { color: #768390 !important; }
+
+      /* ── Onboarding tab: scoped under #view-onboarding ── */
+      #view-onboarding .ob-selector { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+      #view-onboarding .ob-chip { padding: 8px 18px; border-radius: 99px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; border: 2px solid #e2e8f0; background: #fff; color: #475569; transition: .2s; }
+      #view-onboarding .ob-chip.active { border-color: #1e3a8a; background: #1e3a8a; color: #fff; }
+      #view-onboarding .ob-chip:hover:not(.active) { border-color: #93c5fd; color: #1e3a8a; }
+      #view-onboarding .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 22px 24px; margin-bottom: 20px; }
+      #view-onboarding .card-title { font-size: 17px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+      #view-onboarding .progress-wrap { margin: 16px 0; }
+      #view-onboarding .progress-label { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; color: #64748b; margin-bottom: 6px; }
+      #view-onboarding .progress-bar { background: #e2e8f0; border-radius: 99px; height: 12px; overflow: hidden; }
+      #view-onboarding .progress-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg,#3b82f6,#6366f1); transition: width .4s; }
+      #view-onboarding .progress-fill.done { background: linear-gradient(90deg,#16a34a,#22c55e); }
+      #view-onboarding .task-list { list-style: none; }
+      #view-onboarding .task-item { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid #f1f5f9; align-items: flex-start; }
+      #view-onboarding .task-item:last-child { border-bottom: none; }
+      #view-onboarding .task-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+      #view-onboarding .icon-done { background: #dcfce7; color: #16a34a; }
+      #view-onboarding .icon-pending { background: #f1f5f9; color: #94a3b8; }
+      #view-onboarding .task-name { font-size: 16px; font-weight: 600; color: #0f172a; }
+      #view-onboarding .task-desc { font-size: 14px; color: #64748b; margin-top: 3px; }
+      #view-onboarding .task-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+      #view-onboarding .tag { font-size: 13px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+      #view-onboarding .tag-done { background: #dcfce7; color: #15803d; }
+      #view-onboarding .tag-pending { background: #fef9c3; color: #854d0e; }
+      #view-onboarding .tag-doc { background: #dbeafe; color: #1d4ed8; }
+      #view-onboarding .btn-done { padding: 7px 16px; border: none; border-radius: 8px; background: #1e3a8a; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: .2s; flex-shrink: 0; }
+      #view-onboarding .btn-done:hover { background: #1d4ed8; transform: translateY(-1px); }
+      #view-onboarding .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1000; align-items: center; justify-content: center; }
+      #view-onboarding .modal.open { display: flex; }
+      #view-onboarding .modal-box { background: #fff; border-radius: 18px; padding: 28px; width: 100%; max-width: 440px; box-shadow: 0 24px 60px rgba(0,0,0,.2); }
+      #view-onboarding .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+      #view-onboarding .modal-header h3 { font-size: 18px; font-weight: 800; color: #0f172a; }
+      #view-onboarding .modal-close { border: none; background: #f1f5f9; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-size: 18px; }
+      #view-onboarding .field { margin-bottom: 14px; }
+      #view-onboarding .field label { display: block; font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+      #view-onboarding .field input[type=file] { width: 100%; padding: 10px; border: 2px dashed #e2e8f0; border-radius: 9px; background: #f8fafc; font-size: 15px; color: #475569; cursor: pointer; }
+      #view-onboarding .btn-submit { width: 100%; padding: 11px; border: none; border-radius: 9px; background: #16a34a; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
+      #view-onboarding .btn-cancel { width: 100%; padding: 11px; border: 1px solid #e2e8f0; border-radius: 9px; background: #f8fafc; color: #475569; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+      #view-onboarding .flash-list { list-style: none; margin-bottom: 16px; }
+      #view-onboarding .flash-msg { padding: 12px 16px; border-radius: 10px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+      #view-onboarding .flash-success { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+      #view-onboarding .flash-error { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+      #view-onboarding .empty-state { text-align: center; padding: 64px 32px; }
+      #view-onboarding .empty-state-icon { width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 16px; background: #dbeafe; display: flex; align-items: center; justify-content: center; }
+      #view-onboarding .empty-state-icon i { font-size: 28px; color: #1d4ed8; }
+      #view-onboarding .empty-state h3 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+      #view-onboarding .empty-state p { font-size: 15.5px; color: #64748b; max-width: 340px; margin: 0 auto; line-height: 1.6; }
+      #view-onboarding .badge-status { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+      #view-onboarding .badge-green { background: #dcfce7; color: #15803d; }
+      #view-onboarding .badge-blue { background: #dbeafe; color: #1d4ed8; }
+      body.dark-mode #view-onboarding .ob-chip { background: #161b22 !important; border-color: #30363d !important; color: #94a3b8 !important; }
+      body.dark-mode #view-onboarding .ob-chip.active { background: #1e3a8a !important; border-color: #3b82f6 !important; color: #fff !important; }
+      body.dark-mode #view-onboarding .card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode #view-onboarding .card-title { color: #cdd9e5 !important; }
+      body.dark-mode #view-onboarding .empty-state-icon { background: #1e3a8a !important; }
+      body.dark-mode #view-onboarding .empty-state-icon i { color: #60a5fa !important; }
+      body.dark-mode #view-onboarding .empty-state h3 { color: #cdd9e5 !important; }
+      body.dark-mode #view-onboarding .empty-state p { color: #768390 !important; }
+      body.dark-mode #view-onboarding .progress-label { color: #768390 !important; }
+      body.dark-mode #view-onboarding .progress-bar { background: #30363d !important; }
+      body.dark-mode #view-onboarding .task-item { border-color: #30363d !important; }
+      body.dark-mode #view-onboarding .task-name { color: #cdd9e5 !important; }
+      body.dark-mode #view-onboarding .task-desc { color: #768390 !important; }
+      body.dark-mode #view-onboarding .icon-pending { background: #1c2128 !important; color: #768390 !important; }
+      body.dark-mode #view-onboarding .tag-pending { background: #713f12 !important; color: #fbbf24 !important; }
+      body.dark-mode #view-onboarding .tag-doc { background: #1e3a8a !important; color: #60a5fa !important; }
+      body.dark-mode #view-onboarding .modal-box { background: #161b22 !important; }
+      body.dark-mode #view-onboarding .modal-header h3 { color: #cdd9e5 !important; }
+      body.dark-mode #view-onboarding .modal-close { background: #1c2128 !important; color: #cdd9e5 !important; }
+      body.dark-mode #view-onboarding .field label { color: #768390 !important; }
+      body.dark-mode #view-onboarding .field input[type=file] { background: #0d1117 !important; border-color: #30363d !important; color: #94a3b8 !important; }
+      body.dark-mode #view-onboarding .btn-cancel { background: #1c2128 !important; border-color: #30363d !important; color: #94a3b8 !important; }
+      body.dark-mode #view-onboarding .flash-success { background: #14532d !important; border-color: #166534 !important; color: #4ade80 !important; }
+      body.dark-mode #view-onboarding .flash-error { background: #7f1d1d !important; border-color: #991b1b !important; color: #f87171 !important; }
+      body.dark-mode #view-onboarding .badge-blue { background: #1e3a8a !important; color: #60a5fa !important; }
+
+      /* ── Overview tab (purpose-built, not the shared portal dashboard) ── */
+      .wov-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; background: #fff; border: 1px solid #e5e9f2; border-radius: 16px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 16px rgba(16,24,40,.03); }
+      .wov-hero-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
+      .wov-avatar { width: 56px; height: 56px; border-radius: 14px; object-fit: cover; flex-shrink: 0; }
+      .wov-avatar-ph { background: #4f46e5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; }
+      .wov-name { font-size: 19px; font-weight: 800; color: #0f172a; }
+      .wov-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 5px; font-size: 13px; color: #64748b; }
+      .wov-role-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; background: #eef2ff; color: #4f46e5; font-weight: 700; font-size: 12.5px; }
+      .wov-id { color: #94a3b8; }
+      .wov-dot { color: #cbd5e1; }
+      .wov-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .wov-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border: none; border-radius: 10px; background: #4f46e5; color: #fff; font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+      .wov-btn:hover { background: #4338ca; }
+      .wov-btn-ghost { background: #f8fafc; color: #475569; border: 1px solid #e5e9f2; }
+      .wov-btn-ghost:hover { background: #eef2f7; }
+
+      .wov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+      .wov-stat { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #e5e9f2; border-radius: 14px; padding: 14px 16px; }
+      .wov-stat-icon { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+      .wov-si-blue { background: #eef2ff; color: #4f46e5; }
+      .wov-si-green { background: #ecfdf5; color: #16a34a; }
+      .wov-si-amber { background: #fffbeb; color: #d97706; }
+      .wov-si-purple { background: #f5f3ff; color: #7c3aed; }
+      .wov-stat-num { display: block; font-size: 21px; font-weight: 800; color: #0f172a; line-height: 1.2; }
+      .wov-stat-lbl { display: block; font-size: 12px; color: #64748b; font-weight: 600; margin-top: 1px; }
+
+      .wov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+      .wov-card { background: #fff; border: 1px solid #e5e9f2; border-radius: 14px; padding: 18px; }
+      .wov-card-title { font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: #64748b; display: flex; align-items: center; gap: 7px; margin-bottom: 14px; }
+      .wov-empty { font-size: 13.5px; color: #94a3b8; padding: 6px 0; }
+      .wov-link-btn { background: none; border: none; color: #4f46e5; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; padding: 6px 0 0; }
+      .wov-link-btn:hover { color: #4338ca; }
+
+      .wov-att-row { display: flex; gap: 18px; flex-wrap: wrap; }
+      .wov-att-item { display: flex; flex-direction: column; gap: 3px; }
+      .wov-att-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .3px; }
+      .wov-att-val { font-size: 15px; font-weight: 700; color: #1e293b; }
+      .wov-att-badge { display: inline-block; width: fit-content; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 20px; background: #ecfdf5; color: #16a34a; }
+
+      .wov-leave-list, .wov-hol-list { display: flex; flex-direction: column; gap: 9px; }
+      .wov-leave-row, .wov-hol-row { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; color: #334155; }
+      .wov-leave-num { font-weight: 800; color: #0f172a; }
+      .wov-leave-of { font-weight: 500; color: #94a3b8; font-size: 12px; margin-left: 2px; }
+      .wov-hol-date { font-weight: 700; color: #4f46e5; min-width: 52px; display: inline-block; }
+
+      .wov-detail-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13.5px; color: #64748b; padding: 7px 0; border-bottom: 1px solid #f4f6fa; }
+      .wov-detail-row:last-of-type { border-bottom: none; }
+      .wov-detail-row strong { color: #1e293b; font-weight: 700; text-align: right; }
+
+      body.dark-mode .wov-hero, body.dark-mode .wov-stat, body.dark-mode .wov-card { background: #161b22 !important; border-color: #30363d !important; }
+      body.dark-mode .wov-name { color: #e6edf3 !important; }
+      body.dark-mode .wov-sub { color: #8b949e !important; }
+      body.dark-mode .wov-stat-num { color: #e6edf3 !important; }
+      body.dark-mode .wov-card-title { color: #8b949e !important; }
+      body.dark-mode .wov-att-val { color: #e6edf3 !important; }
+      body.dark-mode .wov-leave-row, body.dark-mode .wov-hol-row { color: #c9d1d9 !important; }
+      body.dark-mode .wov-leave-num { color: #e6edf3 !important; }
+      body.dark-mode .wov-detail-row { color: #8b949e !important; border-color: #30363d !important; }
+      body.dark-mode .wov-detail-row strong { color: #e6edf3 !important; }
+      body.dark-mode .wov-btn-ghost { background: #21262d !important; border-color: #30363d !important; color: #c9d1d9 !important; }
+    </style>
+{% endblock %}
+
+{% block main %}
+      <div class="wks-head">
+        <h1>My Workspace</h1>
+        <p>Your granted modules stay in the sidebar — this is everything about your own job: attendance, leave, payslips, tickets and profile.</p>
+      </div>
+
+      <div class="wks-tabs" role="tablist" aria-label="My workspace sections">
+        <button type="button" class="sb-item wtab" id="sbn-workspace-overview" data-on-click="showView('workspace-overview')" role="tab"><i class="ti ti-home"></i><span class="wtab-label">Overview</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-attendance" data-on-click="showView('attendance')" role="tab"><i class="ti ti-calendar-check"></i><span class="wtab-label">Attendance</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-apply-leave" data-on-click="showView('apply-leave')" role="tab"><i class="ti ti-calendar-event"></i><span class="wtab-label">Apply Leave</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-earnings" data-on-click="showView('earnings')" role="tab"><i class="ti ti-coin"></i><span class="wtab-label">Earnings</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-holidays" data-on-click="showView('holidays')" role="tab"><i class="ti ti-beach"></i><span class="wtab-label">Holidays</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-compoff" data-on-click="showView('compoff')" role="tab"><i class="ti ti-clock-bolt"></i><span class="wtab-label">OT &amp; Comp-off</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-performance" data-on-click="showView('performance')" role="tab"><i class="ti ti-chart-line"></i><span class="wtab-label">Performance</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-onboarding" data-on-click="showView('onboarding')" role="tab"><i class="ti ti-checklist"></i><span class="wtab-label">Onboarding</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-tickets" data-on-click="showView('tickets')" role="tab"><i class="ti ti-ticket"></i><span class="wtab-label">Tickets</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-my-profile" data-on-click="showView('my-profile')" role="tab"><i class="ti ti-user-circle"></i><span class="wtab-label">My Profile</span></button>
+        <button type="button" class="sb-item wtab" id="sbn-policies" data-on-click="showView('policies')" role="tab"><i class="ti ti-file-text"></i><span class="wtab-label">Policies</span></button>
+        <button type="button" class="sb-item wtab wtab-danger" id="sbn-resign" data-on-click="openResignGate()" role="tab"><i class="ti ti-door-exit"></i><span class="wtab-label">Resign</span></button>
+      </div>
+
+      <div id="view-workspace-overview" class="view active">
+        {% include "_my_workspace_overview.html" %}
+      </div>
+
+      {% include "_employee_portal_views.html" %}
+
+      <div id="view-compoff" class="view">
+        {% include "_my_compoff_content.html" %}
+      </div>
+
+      <div id="view-performance" class="view">
+        {% include "_my_performance_content.html" %}
+      </div>
+
+      <div id="view-onboarding" class="view">
+        {% include "_my_onboarding_content.html" %}
+      </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ static_url('jsQR.min.js') }}" defer></script>
+    <script src="{{ static_url('animate-core.min.js') }}"></script>
+    <script>
+      // This shell's own "last active tab" memory and landing tab -- kept
+      // separate from employee_portal.html's (which shares the same origin,
+      // so a plain localStorage key would otherwise leak between the two).
+      window.HZ_VIEW_STORAGE_KEY = 'workspaceView';
+      window.HZ_DEFAULT_VIEW = 'workspace-overview';
+    </script>
+    {% include "_employee_portal_scripts.html" %}
+{% endblock %}

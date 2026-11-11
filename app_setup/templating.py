@@ -12,7 +12,7 @@ import utils.config as cfg
 from database import get_db_connection, get_master_db
 from extensions import app, app_log
 from flask import g as _g, session
-from utils.auth import HR_ROLE
+from utils.auth import HR_ROLE, MANAGER_ROLE
 from utils.helpers import coerce_datetime, get_companies_list, get_company_settings, get_overdue_onboarding_count, static_url as _static_url, tpath as _tpath
 
 
@@ -32,7 +32,13 @@ def inject_common_vars():
         # employees.role is exactly "HR" -- see blueprints/auth.py's
         # _finish_employee_login) land on /employees instead, which is
         # also where their login already redirects them to.
-        _is_hr=(session.get("admin_role") == HR_ROLE),
+        # Base-type-aware so a custom role (Settings -> Roles & Access) built on
+        # the HR/Manager base behaves like HR/Manager in the sidebar and
+        # dashboard routing, not just the literal built-in 'hr'/'manager' roles.
+        _is_hr=(session.get("admin_role") == HR_ROLE
+                or session.get("admin_base_type") == "hr"),
+        _is_manager=(session.get("admin_role") == MANAGER_ROLE
+                     or session.get("admin_base_type") == "manager"),
         hr_has_own_employee=_hr_has_own_employee(),
     )
 
@@ -52,7 +58,15 @@ def _hr_has_own_employee():
     per template render but this can be called from more than one context
     processor in the future; cheap either way (one indexed lookup on
     employees.employee_id's UNIQUE constraint)."""
-    if session.get("admin_role") != HR_ROLE or not session.get("admin_username"):
+    # Show the "My Profile" switch for ANY admin session whose username is backed
+    # by its own employees row -- i.e. a role-holder who is also an employee.
+    # Doesn't depend on the role string or admin_base_type (which some login
+    # paths may not set): the employee-row lookup below is the real test. The
+    # owner Administrator's username is an email, not an employee_id, so this
+    # stays false for them (nothing to switch to). superadmin: likewise.
+    if not session.get("admin_logged_in") or not session.get("admin_username"):
+        return False
+    if session.get("admin_role") in ("admin", "superadmin"):
         return False
     if not hasattr(_g, "_hr_has_own_employee"):
         try:

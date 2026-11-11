@@ -811,3 +811,80 @@ def _init_core_tables(cursor, db):
             db.commit()
         except Exception as exc:
             app_log.warning("Migration: ALTER company_settings ADD COLUMN %s failed: %s", col, exc, exc_info=True)
+
+    # employees.access_role holds the RBAC role a person is assigned (a role_key
+    # from the roles table below), kept SEPARATE from employees.role, which
+    # stays the free-text job title/designation. Login routing (blueprints/
+    # auth.py) reads access_role to decide the admin-side dashboard; role is
+    # only a label. Nullable: a regular employee has no access_role.
+    cursor.execute("ALTER TABLE employees ADD COLUMN IF NOT EXISTS access_role VARCHAR(50)")
+    db.commit()
+
+    # ── Roles & Access (per-company RBAC) ──────────────────────────────────
+    # A company defines its own roles (e.g. "Senior HR", "Junior HR") on top
+    # of the four base types. role_key is what lands in admin_users.role /
+    # employees.role and what session['admin_role'] carries; base_type decides
+    # which admin panel the role lands on (utils/auth.py role_required and
+    # blueprints/auth.py's login routing). role_permissions holds the per-module
+    # access the Settings "Roles & Access" screen edits, read by
+    # utils.helpers' can_access(). Seeded with the four system roles so existing
+    # admin/hr/manager/employee accounts keep working unchanged; system roles
+    # cannot be deleted (is_system), and 'admin' is the full-access base type.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS roles (
+            id SERIAL PRIMARY KEY,
+            role_key VARCHAR(50) UNIQUE NOT NULL,
+            display_name VARCHAR(80) NOT NULL,
+            base_type VARCHAR(20) NOT NULL
+                CHECK (base_type IN ('admin','hr','manager','employee')),
+            is_system BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS role_permissions (
+            id SERIAL PRIMARY KEY,
+            role_key VARCHAR(50) NOT NULL REFERENCES roles(role_key) ON DELETE CASCADE,
+            module VARCHAR(40) NOT NULL,
+            access VARCHAR(10) NOT NULL DEFAULT 'none'
+                CHECK (access IN ('none','view','edit')),
+            UNIQUE (role_key, module)
+        )
+    """)
+    db.commit()
+    # Seed the four system roles (idempotent -- never overwrites an edited row).
+    # Only Administrator and Employee are pre-made. HR/Manager are NOT seeded
+    # as ready-made roles -- a company defines its own (e.g. "Senior HR",
+    # "Payroll HR") on the HR/Manager base type with exactly the modules it
+    # wants, since different companies grant HR/Manager very different access.
+    cursor.executemany(
+        "INSERT INTO roles (role_key, display_name, base_type, is_system) "
+        "VALUES (%s,%s,%s,TRUE) ON CONFLICT (role_key) DO NOTHING",
+        [
+            ("admin", "Administrator", "admin"),
+            ("employee", "Employee", "employee"),
+        ],
+    )
+    db.commit()
+    # Seed sensible default per-module access for the system roles. Modules are
+    # the admin-side feature areas the Roles & Access grid exposes; 'admin'
+    # gets full edit everywhere, the rest start scoped. Idempotent per cell.
+    _rbac_modules = ("employees", "attendance", "payroll", "leaves",
+                     "announcements", "tickets", "overtime", "performance",
+                     "onboarding", "resignations", "reports", "admin_tools",
+                     "organization")
+    # Only the Administrator starts with full access. Every other role starts
+    # with NO access (deny-by-default) so each company grants exactly what it
+    # wants in Settings -> Roles & Access, rather than inheriting a guessed
+    # default set.
+    _rbac_defaults = {
+        "admin": {_m: "edit" for _m in _rbac_modules},
+        "employee": {_m: "none" for _m in _rbac_modules},
+    }
+    for _role_key, _perms in _rbac_defaults.items():
+        cursor.executemany(
+            "INSERT INTO role_permissions (role_key, module, access) VALUES (%s,%s,%s) "
+            "ON CONFLICT (role_key, module) DO NOTHING",
+            [(_role_key, _m, _perms.get(_m, "none")) for _m in _rbac_modules],
+        )
+    db.commit()

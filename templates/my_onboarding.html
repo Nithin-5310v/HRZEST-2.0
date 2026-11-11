@@ -109,10 +109,10 @@
 
     {% set sb_mode = 'link' %}
     {% set sb_active = 'onboarding' %}
-    {% set sb_name = emp[1] %}
-    {% set sb_role = emp[2] %}
-    {% set sb_id = emp[0] %}
-    {% set sb_has_photo = emp[4] %}
+    {% set sb_name = ob_emp[1] %}
+    {% set sb_role = ob_emp[2] %}
+    {% set sb_id = ob_emp[0] %}
+    {% set sb_has_photo = ob_emp[4] %}
     {% set sb_photo_url = '/my_photo' %}
     {% include "_employee_sidebar.html" %}
 
@@ -123,163 +123,7 @@
       <li class="flash-msg flash-{{ cat }}"><i class="ti ti-{% if cat=='success' %}circle-check{% else %}alert-circle{% endif %}"></i>{{ msg }}</li>
     {% endfor %}</ul>{% endif %}
   {% endwith %}
-
-  {% if not onboardings %}
-  <div class="card empty-state">
-    <div class="empty-state-icon"><i class="ti ti-checklist"></i></div>
-    <h3>No Onboarding Assigned Yet</h3>
-    <p>Your HR team will assign your onboarding checklist once it's ready — you'll see your tasks and progress here.</p>
-  </div>
-  {% else %}
-
-  {# Onboarding selector (if multiple) #}
-  {% if onboardings|length > 1 %}
-  <div class="ob-selector">
-    {% for ob in onboardings %}
-    <a href="/my_onboarding?ob_id={{ ob[0] }}"
-       class="ob-chip {% if selected_ob_id == ob[0] %}active{% endif %}">
-      {{ ob[1] }}
-      {% if ob[4]=='Completed' %} ✓{% endif %}
-    </a>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {% if selected_ob %}
-  {% set total = selected_ob[5] or 0 %}
-  {% set done_count = selected_ob[6] or 0 %}
-  {% set pct = ((done_count / total * 100)|int) if total > 0 else 0 %}
-
-  {# Header card #}
-  <div class="card">
-    <div class="card-title">
-      <i class="ti ti-template u-c-1e3a8a"></i>
-      {{ selected_ob[1] }}
-      {% if selected_ob[4]=='Completed' %}
-        <span class="badge-status badge-green u-ml-8">Completed</span>
-      {% else %}
-        <span class="badge-status badge-blue u-ml-8">In Progress</span>
-      {% endif %}
-    </div>
-    <div class="u-fs-12 u-c-64748b">Assigned: {{ selected_ob[2] }}{% if selected_ob[3] %} &bull; Due: {{ selected_ob[3] }}{% endif %}</div>
-    <div class="progress-wrap">
-      <div class="progress-label">
-        <span>{{ done_count }} of {{ total }} tasks completed</span>
-        <span style="color:{% if pct==100 %}#16a34a{% else %}#1e3a8a{% endif %};">{{ pct }}%</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill {% if pct==100 %}done{% endif %}" style="width:{{ pct }}%;"></div>
-      </div>
-    </div>
-  </div>
-
-  {# Task stats mini-row #}
-  {% set overdue_tasks = tasks | selectattr(5, 'ne', 'Done') | list | selectattr(4, 'ne', None) | list %}
-  {% set pending_tasks = tasks | selectattr(5, 'ne', 'Done') | list %}
-  {% set done_tasks    = tasks | selectattr(5, 'equalto', 'Done') | list %}
-  <div class="u-d-flex u-gap-10 u-mb-16">
-    <div class="u-fx-1 u-bg-fef9c3 u-br-12 u-p-12-14 u-ta-center">
-      <div class="u-fs-20 u-fw-800 u-c-854d0e">{{ pending_tasks|length }}</div>
-      <div class="u-fs-11 u-c-854d0e u-fw-600">Pending</div>
-    </div>
-    <div class="u-fx-1 u-bg-dcfce7 u-br-12 u-p-12-14 u-ta-center">
-      <div class="u-fs-20 u-fw-800 u-c-15803d">{{ done_tasks|length }}</div>
-      <div class="u-fs-11 u-c-15803d u-fw-600">Done</div>
-    </div>
-    <div class="u-fx-1 u-bg-dbeafe u-br-12 u-p-12-14 u-ta-center">
-      <div class="u-fs-20 u-fw-800 u-c-1e3a8a">{{ pct }}%</div>
-      <div class="u-fs-11 u-c-1e3a8a u-fw-600">Complete</div>
-    </div>
-  </div>
-
-  {# Task list #}
-  <div class="card">
-    <div class="card-title u-mb-16"><i class="ti ti-list-check u-c-1e3a8a"></i> Tasks</div>
-    <ul class="task-list">
-      {% for t in tasks | sort(attribute=5) %}
-      {% set task_due = selected_ob[2] + timedelta(days=t[4]) if selected_ob[2] and t[4] else None %}
-      {% set is_overdue = task_due and task_due < today and t[5] != 'Done' %}
-      <li class="task-item" style="{% if is_overdue %}background:#fff5f5;border-radius:10px;padding:14px;margin:0 -6px 6px;border:1px solid #fecaca;{% endif %}">
-        <div class="task-icon {% if t[5]=='Done' %}icon-done{% else %}icon-pending{% endif %} {% if is_overdue %}row--overdue{% endif %}">
-          <i class="ti ti-{% if t[5]=='Done' %}circle-check{% elif is_overdue %}alert-circle{% else %}circle-dashed{% endif %}"></i>
-        </div>
-        <div class="task-body u-fx-1">
-          <div class="task-name" style="{% if t[5]=='Done' %}text-decoration:line-through;color:#94a3b8;{% elif is_overdue %}color:#dc2626;{% endif %}">
-            {{ t[1] }}
-            {% if is_overdue %}<span class="u-fs-10 u-bg-fee2e2 u-c-dc2626 u-p-2-6 u-br-5 u-fw-700 u-ml-6">OVERDUE</span>{% endif %}
-          </div>
-          {% if t[2] %}<div class="task-desc">{{ t[2] }}</div>{% endif %}
-          <div class="task-meta">
-            {% if t[5]=='Done' %}
-              <span class="tag tag-done"><i class="ti ti-check u-fs-10"></i> Completed</span>
-              {% if t[6] %}<span class="tag tag-done">{{ t[6].strftime('%d %b %Y') }}</span>{% endif %}
-            {% else %}
-              <span class="tag tag-pending"><i class="ti ti-clock u-fs-10"></i> Pending</span>
-            {% endif %}
-            {% if task_due and t[5] != 'Done' %}
-              <span class="tag" style="{% if is_overdue %}background:#fee2e2;color:#dc2626;{% else %}background:#f1f5f9;color:#475569;{% endif %}">
-                <i class="ti ti-calendar u-fs-10"></i> Due {{ task_due.strftime('%d %b') }}
-              </span>
-            {% endif %}
-            {% if t[3] %}<span class="tag tag-doc"><i class="ti ti-paperclip u-fs-10"></i> Doc required</span>{% endif %}
-            {% if t[7] %}<a href="{{ tpath('/onboarding_document/' ~ t[0]) }}" target="_blank" class="tag tag-doc u-tdec-none"><i class="ti ti-download u-fs-10"></i> View doc</a>{% endif %}
-          </div>
-        </div>
-        {% if t[5] != 'Done' %}
-        <button class="btn-done" data-title="{{ t[1] }}" data-on-click="openDoneModal({{ t[0] }}, {{ selected_ob_id }}, {{ 1 if t[3] else 0 }}, this.dataset.title)">
-          <i class="ti ti-check"></i> Mark Done
-        </button>
-        {% endif %}
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
-  {% endif %}
-
-{# MODAL: Mark as Done #}
-<div class="modal" id="doneModal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <h3 id="done_modal_title"><i class="ti ti-check"></i> Mark Task as Done</h3>
-      <button class="modal-close" data-on-click="closeModal('doneModal')">✕</button>
-    </div>
-    <form action="{{ tpath('/my_onboarding_task_done') }}" method="POST" enctype="multipart/form-data">
-      <input type="hidden" name="task_id" id="done_task_id" />
-      <input type="hidden" name="ob_id" id="done_ob_id" />
-      <div id="doc_field" class="field u-d-none">
-        <label>Upload Document *</label>
-        <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-        <p class="u-fs-11 u-c-64748b u-mt-6">Accepted: PDF, JPG, PNG, DOC</p>
-      </div>
-      <div class="field u-mb-12">
-        <label class="u-fs-13 u-fw-600 u-c-374151">Your Note <span class="u-c-94a3b8 u-fw-400">(optional)</span></label>
-        <textarea class="u-w-100pct u-p-8-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-13 u-rsz-vertical u-ff-inherit u-mt-4 u-bxs-border-box" name="employee_note" rows="2" maxlength="500" placeholder="Add a comment about how you completed this task…"></textarea>
-      </div>
-      <p class="u-fs-13 u-c-475569 u-mb-16">Confirm that you have completed this task.</p>
-      <button type="submit" class="btn-submit"><i class="ti ti-circle-check"></i> Confirm — Mark as Done</button>
-      <button type="button" class="btn-cancel" data-on-click="closeModal('doneModal')">Cancel</button>
-    </form>
-  </div>
-</div>
-
-<script>
-function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
-document.querySelectorAll('.modal').forEach(m=>{
-  m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); });
-});
-function openDoneModal(taskId, obId, reqDoc, title){
-  document.getElementById('done_task_id').value  = taskId;
-  document.getElementById('done_ob_id').value    = obId;
-  // The title is admin-authored text: add it as text, never as HTML (QA SEC-02).
-  var heading = document.getElementById('done_modal_title');
-  heading.innerHTML = '<i class="ti ti-check"></i> ';
-  heading.appendChild(document.createTextNode(title));
-  document.getElementById('doc_field').style.display = reqDoc ? 'block' : 'none';
-  openModal('doneModal');
-}
-</script>
+      {% include "_my_onboarding_content.html" %}
     </div>{# /app-content #}
   </div>{# /main-area #}
 <script src="{{ static_url('darkmode.min.js') }}"></script>

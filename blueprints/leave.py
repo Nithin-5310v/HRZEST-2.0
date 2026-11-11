@@ -17,15 +17,16 @@ from flask import (
 
 from extensions import app_log
 from database import get_db_connection
+from utils.attendance_utils import is_company_working_day
 from utils.auth import (
-    admin_required, employee_required, api_required, employee_api_required, api_role_required,
-    role_required, MANAGER_ROLE, HR_ROLE,
+    admin_required, employee_required, any_user_required, api_required, employee_api_required, api_role_required,
+    require_access, role_required, MANAGER_ROLE, HR_ROLE,
 )
 from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
     hr_scope_subquery, hr_scope_column, hr_scope_denied, get_pending_counts, company_today,
     get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache, int_param,
-    notify_new_holiday, encrypt_amount,
+    notify_new_holiday, encrypt_amount, self_service_emp_id, self_service_return_path,
     manager_scope_subquery, manager_scope_column, manager_scope_denied,
 )
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
@@ -123,15 +124,16 @@ def api_delete_holiday(hid):
 
 
 def _leave_working_days(cursor, emp_id, days):
-    """(working_days, error, http_status) for a leave request over `days`. Only working
-    days (not Sunday, not a holiday -- the same rule payroll uses) get a
-    row, and a day the employee already has Pending or Approved is refused
-    rather than requested twice (QA BUG-07)."""
+    """(working_days, error, http_status) for a leave request over `days`. Only
+    working days (this company's configured working weekdays, not a holiday
+    -- the same rule payroll uses) get a row, and a day the employee already
+    has Pending or Approved is refused rather than requested twice (QA
+    BUG-07)."""
     cursor.execute("SELECT date FROM holidays WHERE date BETWEEN %s AND %s", (days[0], days[-1]))
     holidays = {r[0] for r in cursor.fetchall()}
-    working = [d for d in days if d.weekday() != 6 and d not in holidays]
+    working = [d for d in days if is_company_working_day(d) and d not in holidays]
     if not working:
-        return [], "The selected dates are Sundays or holidays -- no leave is needed.", 400
+        return [], "The selected dates are not working days or are holidays -- no leave is needed.", 400
     cursor.execute(
         "SELECT leave_date FROM leave_requests WHERE employee_id=%s AND leave_date = ANY(%s) "
         "AND status IN ('Pending', 'Approved') ORDER BY leave_date",
@@ -149,10 +151,11 @@ _MAX_LEAVE_REQUEST_DAYS = 60
 
 
 @leave_bp.route("/request_leave", methods=["POST"])
-@employee_required
+@any_user_required
 def request_leave():
-    emp_id = session["employee_id"]
-    emp_name = session["employee_name"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     leave_start = request.form.get("leave_date_start", "").strip()
     leave_end = request.form.get("leave_date_end", "").strip() or leave_start
     reason = request.form.get("reason", "").strip()
@@ -161,14 +164,14 @@ def request_leave():
     is_half_day = 1 if request.form.get("is_half_day") else 0
     half_day_session = request.form.get("half_day_session", "Morning") if is_half_day else None
     if not reason or not leave_start:
-        return redirect(tpath("/employee_portal"))
+        return redirect(self_service_return_path())
 
     try:
         start_dt = datetime.date.fromisoformat(leave_start)
         end_dt = datetime.date.fromisoformat(leave_end) if leave_end else start_dt
     except ValueError:
         flash("Please choose valid leave dates.", "error")
-        return redirect(tpath("/employee_portal#apply-leave"))
+        return redirect(self_service_return_path("#apply-leave"))
     # Half-day is always a single date; ignore end date
     if is_half_day or end_dt < start_dt:
         end_dt = start_dt
@@ -178,15 +181,22 @@ def request_leave():
     # of thousands of rows (QA BUG-06).
     if num_days > _MAX_LEAVE_REQUEST_DAYS:
         flash(f"A leave request can cover at most {_MAX_LEAVE_REQUEST_DAYS} days.", "error")
-        return redirect(tpath("/employee_portal#apply-leave"))
+        return redirect(self_service_return_path("#apply-leave"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    # employee_name: cached in session for a plain employee login; a
+    # role-holder's admin session doesn't carry it, so look it up once here.
+    emp_name = session.get("employee_name")
+    if not emp_name:
+        cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+        _name_row = cursor.fetchone()
+        emp_name = _name_row[0] if _name_row else emp_id
     days, error, _status = _leave_working_days(cursor, emp_id, [start_dt + datetime.timedelta(days=i) for i in range(num_days)])
     if error:
         cursor.close()
         db.close()
         flash(error, "error")
-        return redirect(tpath("/employee_portal#apply-leave"))
+        return redirect(self_service_return_path("#apply-leave"))
     if is_half_day:
         date_label = f"{leave_start} (Half Day – {half_day_session})"
     else:
@@ -243,7 +253,7 @@ def request_leave():
         except Exception as e:
             app_log.error("Leave request notification email failed: %s", e)
 
-    return redirect(tpath("/employee_portal?leave_sent=1#apply-leave"))
+    return redirect(self_service_return_path("?leave_sent=1#apply-leave"))
 
 
 @leave_bp.route("/leave_balance")
@@ -362,6 +372,7 @@ def resignation_requests_redirect():
 
 @leave_bp.route("/leave_holidays")
 @admin_required
+@require_access("leaves")
 def leave_holidays():
     # Announcements / Tickets / Resignations are their own sidebar modules
     # now; old ?tab= links and bookmarks forward to the new routes.
@@ -377,6 +388,7 @@ def leave_holidays():
 
 @leave_bp.route("/resignations")
 @admin_required
+@require_access("resignations")
 def resignations_page():
     return render_hr_hub("resignations", "resignations")
 
@@ -719,26 +731,32 @@ def leave_calendar():
 
 
 @leave_bp.route("/request_resignation", methods=["POST"])
-@employee_required
+@any_user_required
 def request_resignation():
-    emp_id = session["employee_id"]
-    emp_name = session["employee_name"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     last_working_day = request.form.get("last_working_day", "").strip()
     reason = request.form.get("resign_reason", "").strip()
     if not reason or not last_working_day:
-        return redirect(tpath("/employee_portal#resign"))
+        return redirect(self_service_return_path("#resign"))
 
     try:
         lwd = datetime.datetime.strptime(last_working_day, "%Y-%m-%d").date()
     except ValueError:
-        return redirect(tpath("/employee_portal#resign"))
+        return redirect(self_service_return_path("#resign"))
 
     min_lwd = company_today() + datetime.timedelta(days=30)
     if lwd < min_lwd:
-        return redirect(tpath("/employee_portal#resign"))
+        return redirect(self_service_return_path("#resign"))
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
+    emp_name = session.get("employee_name")
+    if not emp_name:
+        cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+        _name_row = cursor.fetchone()
+        emp_name = _name_row[0] if _name_row else emp_id
     cursor.execute(
         "INSERT INTO resignation_requests (employee_id, last_working_day, reason) VALUES (%s,%s,%s)",
         (emp_id, last_working_day, reason)
@@ -782,7 +800,7 @@ def request_resignation():
                 html_body, config
             )
 
-    return redirect(tpath("/employee_portal?resigned=1#resign"))
+    return redirect(self_service_return_path("?resigned=1#resign"))
 
 
 @leave_bp.route("/resignation_action/<int:rid>", methods=["POST"])
@@ -1615,6 +1633,7 @@ def api_compoff():
 
 @leave_bp.route("/overtime")
 @admin_required
+@require_access("overtime")
 def overtime():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1782,10 +1801,11 @@ def compoff_settings():
     return redirect(tpath("/overtime?tab=settings"))
 
 
-@leave_bp.route("/my_compoff")
-@employee_required
-def my_compoff():
-    emp_id = session["employee_id"]
+def _build_compoff_context(emp_id):
+    """Builds the my_compoff.html template context for emp_id. Shared by the
+    plain-employee /my_compoff route below AND my_workspace.html's
+    "OT & Comp-off" tab (a role-holder viewing their own balance inside the
+    admin shell) -- same query path, two shells."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -1828,11 +1848,24 @@ def my_compoff():
     cursor.close()
     db.close()
 
-    return render_template("my_compoff.html",
-                           emp_id=emp_id, emp_info=emp_info,
-                           earned_days=earned_days, used_days=used_days, avail_days=avail_days,
-                           earned_min=earned_min, used_min=used_min, avail_min=avail_min,
-                           minutes_per_day=minutes_per_day, min_ot_minutes=min_ot_minutes,
-                           ot_records=ot_records, compoff_leaves=compoff_leaves,
-                           compoff_lt_id=compoff_lt_id
-                           )
+    return {
+        "emp_id": emp_id, "emp_info": emp_info,
+        "earned_days": earned_days, "used_days": used_days, "avail_days": avail_days,
+        "earned_min": earned_min, "used_min": used_min, "avail_min": avail_min,
+        "minutes_per_day": minutes_per_day, "min_ot_minutes": min_ot_minutes,
+        "ot_records": ot_records, "compoff_leaves": compoff_leaves,
+        "compoff_lt_id": compoff_lt_id,
+        # NOT "today" -- the shared employee-portal context my_workspace.html
+        # also passes already uses that key for a formatted display string
+        # ("10 Nov 2026"); this one is an ISO date for a <input type=date min>.
+        "today_iso": company_today().isoformat(),
+    }
+
+
+@leave_bp.route("/my_compoff")
+@employee_required
+def my_compoff():
+    """Plain-employee entry point: builds the shared context and renders the
+    standalone comp-off page (own header/sidebar)."""
+    ctx = _build_compoff_context(session["employee_id"])
+    return render_template("my_compoff.html", **ctx)

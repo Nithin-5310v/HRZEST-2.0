@@ -5,7 +5,7 @@ from database import get_db_connection
 from extensions import app, app_log, log_security_event
 from flask import abort, flash, jsonify, redirect, request, send_file, session
 from io import BytesIO
-from utils.auth import admin_required, any_user_required, role_required
+from utils.auth import admin_required, any_user_required, role_required, require_access
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.helpers import _validate_upload, int_param, post_announcement, tpath
 from utils.storage import delete_private, open_private, save_private
@@ -14,7 +14,8 @@ from . import _ANN_ALLOWED_EXT, admin_views_bp
 
 
 @admin_views_bp.route("/announcements", methods=["GET", "POST"])
-@role_required("admin", "hr")
+@admin_required
+@require_access("announcements")
 def announcements_admin():
     """Admins and HRs post and delete announcements; the sidebar shows the
     page to both (templates/admin_base.html)."""

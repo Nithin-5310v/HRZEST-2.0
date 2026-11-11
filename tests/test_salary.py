@@ -42,7 +42,13 @@ class TestClassifyByWorkedMinutes:
 
 # ── get_working_days ──────────────────────────────────────────────────────────
 # Signature: get_working_days(year, month) → list[datetime.date]
-# Excludes Sundays (weekday() == 6); does NOT exclude Saturdays by default
+# Excludes whichever weekdays this company's Settings -> Working Days isn't
+# configured for (company_settings.working_days, default "Mon,Tue,Wed,Thu,Fri"
+# -- a 5-day week). It used to hardcode "every day except Sunday" (a 6-day
+# week) regardless of what was actually configured; these tests assume the
+# column's own stated default (Mon-Fri) is in effect, which is the ambient
+# state unless some other test has left company_settings.working_days set
+# to something else and not cleaned up after itself.
 
 class TestGetWorkingDays:
     def test_returns_list_of_dates(self):
@@ -58,15 +64,17 @@ class TestGetWorkingDays:
 
     def test_january_2025_day_count(self):
         from utils.attendance_utils import get_working_days
-        # Jan 2025: 31 days, 4 Sundays (5,12,19,26) → 27 working days
+        # Jan 2025: 31 days, 4 Sundays (5,12,19,26) + 4 Saturdays (4,11,18,25)
+        # -> 23 working days under the default Mon-Fri week.
         days = get_working_days(2025, 1)
-        assert len(days) == 27
+        assert len(days) == 23
 
     def test_february_2025_day_count(self):
         from utils.attendance_utils import get_working_days
-        # Feb 2025: 28 days, 4 Sundays → 24 working days
+        # Feb 2025: 28 days, 4 Sundays + 4 Saturdays (1,8,15,22) -> 20 working
+        # days under the default Mon-Fri week.
         days = get_working_days(2025, 2)
-        assert len(days) == 24
+        assert len(days) == 20
 
     def test_all_days_within_month(self):
         from utils.attendance_utils import get_working_days

@@ -3,7 +3,7 @@
 import os
 from database import get_db_connection
 from flask import jsonify, render_template, request, session
-from utils.auth import admin_required, role_required
+from utils.auth import admin_required, require_access, role_required
 from utils.helpers import get_company_settings, get_pending_action_counts
 from . import admin_views_bp
 from .dashboard import _load_activity_log
@@ -35,7 +35,8 @@ def org_chart_page():
 
 
 @admin_views_bp.route("/admin_tools")
-@role_required("admin")
+@admin_required
+@require_access("admin_tools")
 def admin_tools():
     tab = request.args.get("tab", "org_chart")
     db = get_db_connection()

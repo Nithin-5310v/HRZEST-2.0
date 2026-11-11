@@ -9,10 +9,12 @@ from io import BytesIO
 from flask import Blueprint, request, session, redirect, render_template, render_template_string, flash, jsonify, send_file
 from database import get_db_connection
 from werkzeug.utils import secure_filename
-from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required
+from utils.attendance_utils import standard_working_days_per_month
+from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required, require_access
 from utils.helpers import (
     tpath, get_company_settings, company_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
     company_today, company_now, _create_notification, int_param, encrypt_amount, amount,
+    self_service_emp_id, self_service_return_path,
 )
 from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
@@ -212,6 +214,7 @@ def api_onboarding_task_update(task_id):
 
 @onboarding_bp.route("/onboarding")
 @admin_required
+@require_access("onboarding")
 def onboarding():
     db = get_db_connection()
     cursor = db.cursor()
@@ -714,7 +717,7 @@ def offer_letter(ob_id):
     cursor.execute(
         "SELECT monthly_ctc, salary_per_day FROM salary_config WHERE employee_id=%s", (ob[1],))
     sal = cursor.fetchone() or (None, None)
-    monthly_ctc = float(amount(sal[0])) or round(float(amount(sal[1])) * 26, 2)
+    monthly_ctc = float(amount(sal[0])) or round(float(amount(sal[1])) * standard_working_days_per_month(), 2)
     cursor.execute("SELECT * FROM offer_letters WHERE onboarding_id=%s ORDER BY id DESC LIMIT 1", (ob_id,))
     existing = cursor.fetchone()
     co = get_company_settings()
@@ -1472,10 +1475,12 @@ def offer_letter_respond(token, action):
           <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>"""
 
 
-@onboarding_bp.route("/my_onboarding")
-@employee_required
-def my_onboarding():
-    emp_id = session.get("employee_id")
+def _build_onboarding_context(emp_id):
+    """Builds the my_onboarding.html template context for emp_id, or None if
+    that employee_id has no employees row. Shared by the plain-employee
+    /my_onboarding route below AND my_workspace.html's "Onboarding" tab (a
+    role-holder viewing their own checklist inside the admin shell) -- same
+    query path, two shells."""
     db = get_db_connection()
     cursor = db.cursor()
     cursor.execute("""
@@ -1511,22 +1516,43 @@ def my_onboarding():
     cursor.close()
     db.close()
     if not emp:
+        return None
+    return {
+        # NOT "emp" -- the shared employee-portal context my_workspace.html
+        # also uses already owns that key, as a much longer list (33
+        # elements, indexed well past 4) -- merging would truncate it and
+        # break every emp[10+] reference in that other content.
+        "ob_emp": emp, "emp_id": emp_id, "onboardings": onboardings, "tasks": tasks,
+        "selected_ob": selected_ob, "selected_ob_id": int(selected_ob_id) if selected_ob_id else None,
+        # NOT "today" -- the shared employee-portal context my_workspace.html
+        # also uses already owns that key, as a formatted display string
+        # ("10 Nov 2026"); this one is a plain date object compared against
+        # task due-dates.
+        "ob_today": company_today(),
+    }
+
+
+@onboarding_bp.route("/my_onboarding")
+@employee_required
+def my_onboarding():
+    """Plain-employee entry point: builds the shared context and renders the
+    standalone onboarding page (own header/sidebar)."""
+    emp_id = session.get("employee_id")
+    ctx = _build_onboarding_context(emp_id)
+    if ctx is None:
         # Session outlived the employee row (e.g. deleted by an admin while
-        # still logged in elsewhere) -- the template assumes emp is never
-        # None, so send them back to login instead of a 500.
+        # still logged in elsewhere) -- send them back to login instead of a 500.
         session.clear()
         return redirect(tpath("/login"))
-    return render_template("my_onboarding.html",
-                           emp=emp, emp_id=emp_id, onboardings=onboardings, tasks=tasks,
-                           selected_ob=selected_ob, selected_ob_id=int(selected_ob_id) if selected_ob_id else None,
-                           today=company_today(),
-                           )
+    return render_template("my_onboarding.html", portal_base_path=tpath("/my_onboarding"), **ctx)
 
 
 @onboarding_bp.route("/my_onboarding_task_done", methods=["POST"])
-@employee_required
+@any_user_required
 def my_onboarding_task_done():
-    emp_id = session.get("employee_id")
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     db = get_db_connection()
     cursor = db.cursor()
     task_id = request.form.get("task_id")
@@ -1539,6 +1565,8 @@ def my_onboarding_task_done():
         flash("Not authorised.", "error")
         cursor.close()
         db.close()
+        if session.get("admin_logged_in"):
+            return redirect(self_service_return_path("#onboarding"))
         return redirect(tpath("/my_onboarding"))
 
     doc_path = None
@@ -1550,6 +1578,8 @@ def my_onboarding_task_done():
                 cursor.close()
                 db.close()
                 flash(upload_err, "error")
+                if session.get("admin_logged_in"):
+                    return redirect(self_service_return_path(f"?ob_id={ob_id}#onboarding"))
                 return redirect(tpath(f"/my_onboarding?ob_id={ob_id}"))
 
     if doc_path:
@@ -1590,6 +1620,8 @@ def my_onboarding_task_done():
     cursor.close()
     db.close()
     flash("Task marked as done!", "success")
+    if session.get("admin_logged_in"):
+        return redirect(self_service_return_path(f"?ob_id={ob_id}#onboarding"))
     return redirect(tpath(f"/my_onboarding?ob_id={ob_id}"))
 
 

@@ -627,13 +627,16 @@ class TestGetWorkingDays:
 
     def test_january_2025_count(self):
         from utils.attendance_utils import get_working_days
-        # Jan 2025: 31 days, 4 Sundays (5,12,19,26) → 27 working days
-        assert len(get_working_days(2025, 1)) == 27
+        # Jan 2025: 31 days, 4 Sundays (5,12,19,26) + 4 Saturdays (4,11,18,25)
+        # -> 23 working days under the default Mon-Fri week (Settings ->
+        # Working Days).
+        assert len(get_working_days(2025, 1)) == 23
 
     def test_february_2025_count(self):
         from utils.attendance_utils import get_working_days
-        # Feb 2025: 28 days, 4 Sundays (2,9,16,23) → 24 working days
-        assert len(get_working_days(2025, 2)) == 24
+        # Feb 2025: 28 days, 4 Sundays (2,9,16,23) + 4 Saturdays (1,8,15,22)
+        # -> 20 working days under the default Mon-Fri week.
+        assert len(get_working_days(2025, 2)) == 20
 
     def test_all_days_in_correct_month(self):
         from utils.attendance_utils import get_working_days
@@ -642,9 +645,10 @@ class TestGetWorkingDays:
 
     def test_leap_year_feb(self):
         from utils.attendance_utils import get_working_days
-        # Feb 2024: 29 days, 4 Sundays → 25 working days
+        # Feb 2024: 29 days, 4 Sundays (4,11,18,25) + 4 Saturdays (3,10,17,24)
+        # -> 21 working days under the default Mon-Fri week.
         days = get_working_days(2024, 2)
-        assert len(days) == 25
+        assert len(days) == 21
 
 
 # ===========================================================================

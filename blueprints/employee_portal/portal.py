@@ -5,7 +5,7 @@ import datetime
 import os
 from database import get_db_connection
 from flask import jsonify, redirect, render_template, request, session
-from utils.attendance_utils import fetch_holidays_set, get_billable_past_days, infer_type_legacy
+from utils.attendance_utils import fetch_holidays_set, get_billable_past_days, infer_type_legacy, is_company_working_day
 from utils.auth import employee_api_required, employee_required, session_account_ok, validate_new_password
 from utils.helpers import (
     _db,
@@ -55,11 +55,13 @@ def my_profile():
     return redirect(tpath("/employee_portal#tab-profile"))
 
 
-@employee_portal_bp.route("/employee_portal")
-@employee_required
-def employee_portal():
-    emp_id = session["employee_id"]
-
+def _build_portal_context(emp_id):
+    """Builds the full employee-portal template context for emp_id, or
+    returns None if that employee_id has no employees row. Shared by the
+    plain-employee /employee_portal route below AND core.py's /my_workspace
+    route (a role-holder viewing their own self-service inside the admin
+    shell) -- one query path, one source of truth, so the two experiences
+    can never drift apart."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -83,8 +85,7 @@ def employee_portal():
     if not _emp_raw:
         cursor.close()
         db.close()
-        session.clear()
-        return redirect(tpath("/login"))
+        return None
     emp = list(_emp_raw)
     emp[6] = amount(emp[6])              # salary_per_day (encrypted; NULL -> 0)
     # emp indices:
@@ -172,7 +173,7 @@ def employee_portal():
         d = datetime.date(year, month, day)
         if d in holidays_set:
             cal_data[day] = "holiday"
-        elif d.weekday() == 6:
+        elif not is_company_working_day(d):
             cal_data[day] = "weekend"
         elif d > today:
             cal_data[day] = "future"
@@ -436,70 +437,84 @@ def employee_portal():
     except OSError:
         photo_v = 0
 
-    return render_template("employee_portal.html",
-                           emp=emp,
-                           photo_v=photo_v,
-                           today_date=today,
-                           today=today.strftime("%d %b %Y"),
-                           today_long=today.strftime("%A, %d %B %Y"),
-                           today_att=today_att,
-                           monthly_att=monthly_att,
-                           full_days=full_days, late_days=late_days,
-                           half_days=half_days, absent_days=absent_days,
-                           billable=billable_count,
-                           my_leaves=my_leaves,
-                           my_resignation=my_resignation,
-                           my_tickets=my_tickets,
-                           leave_sent=request.args.get("leave_sent") == "1",
-                           resigned=request.args.get("resigned") == "1",
-                           ticket_sent=request.args.get("ticket_sent") == "1",
-                           month_name=datetime.date(year, month, 1).strftime("%B %Y"),
-                           selected_month=f"{year}-{month:02d}",
-                           att_pct=att_pct,
-                           total_hours=total_hours_str,
-                           cal_data=cal_data,
-                           cal_hol_names=cal_hol_names,
-                           cal_year=cal_year,
-                           cal_month=cal_month,
-                           cal_first_dow=cal_first_dow,
-                           sel_year=year,
-                           sel_month=month,
-                           years=list(range(today.year - 2, today.year + 1)),
-                           months=[(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)],
-                           payslip_months=payslip_months,
-                           leave_balance=leave_balance,
-                           leaves_used=leaves_used,
-                           annual_leave_quota=annual_leave_quota,
-                           leave_type_balances=leave_type_balances,
-                           leave_types_for_form=[{"id": lt[0], "name": lt[1]}
-                                                 for lt in (leave_types_list if leave_types_list else [])],
-                           announcements=announcements,
-                           pending_leaves_count=pending_leaves_count,
-                           open_tickets_count=open_tickets_count,
-                           unread_notifications_web=unread_notifications_web,
-                           upcoming_holidays=upcoming_holidays,
-                           leave_holidays=leave_holidays,
-                           hol_year=hol_year,
-                           all_holidays_list=hol_rows,
-                           my_incentives=my_incentives,
-                           total_incentive_year=total_incentive_year,
-                           my_experience=my_experience,
-                           my_education=my_education,
-                           my_docs=my_docs,
-                           my_overtime=my_overtime,
-                           compoff_avail_days=compoff_avail_days,
-                           compoff_earned_days=compoff_earned_days,
-                           salary_per_day=salary_per_day,
-                           gross_this_month=gross_this_month,
-                           deduction_this_month=deduction_this_month,
-                           incentives_this_month=incentives_this_month,
-                           statutory_this_month=statutory_this_month,
-                           ot_pay_this_month=ot_pay_this_month,
-                           net_this_month=net_this_month,
-                           fp_enrolled=fp_enrolled,
-                           fp_enabled=get_auth_config().get("fingerprint_enabled", False),
-                           attendance_auth_cfg=get_auth_config(),
-                           )
+    return {
+        "emp": emp,
+        "photo_v": photo_v,
+        "today_date": today,
+        "today": today.strftime("%d %b %Y"),
+        "today_long": today.strftime("%A, %d %B %Y"),
+        "today_att": today_att,
+        "monthly_att": monthly_att,
+        "full_days": full_days, "late_days": late_days,
+        "half_days": half_days, "absent_days": absent_days,
+        "billable": billable_count,
+        "my_leaves": my_leaves,
+        "my_resignation": my_resignation,
+        "my_tickets": my_tickets,
+        "leave_sent": request.args.get("leave_sent") == "1",
+        "resigned": request.args.get("resigned") == "1",
+        "ticket_sent": request.args.get("ticket_sent") == "1",
+        "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
+        "selected_month": f"{year}-{month:02d}",
+        "att_pct": att_pct,
+        "total_hours": total_hours_str,
+        "cal_data": cal_data,
+        "cal_hol_names": cal_hol_names,
+        "cal_year": cal_year,
+        "cal_month": cal_month,
+        "cal_first_dow": cal_first_dow,
+        "sel_year": year,
+        "sel_month": month,
+        "years": list(range(today.year - 2, today.year + 1)),
+        "months": [(i, datetime.date(year, i, 1).strftime("%B")) for i in range(1, 13)],
+        "payslip_months": payslip_months,
+        "leave_balance": leave_balance,
+        "leaves_used": leaves_used,
+        "annual_leave_quota": annual_leave_quota,
+        "leave_type_balances": leave_type_balances,
+        "leave_types_for_form": [
+            {"id": lt[0], "name": lt[1]}
+            for lt in (leave_types_list if leave_types_list else [])
+        ],
+        "announcements": announcements,
+        "pending_leaves_count": pending_leaves_count,
+        "open_tickets_count": open_tickets_count,
+        "unread_notifications_web": unread_notifications_web,
+        "upcoming_holidays": upcoming_holidays,
+        "leave_holidays": leave_holidays,
+        "hol_year": hol_year,
+        "all_holidays_list": hol_rows,
+        "my_incentives": my_incentives,
+        "total_incentive_year": total_incentive_year,
+        "my_experience": my_experience,
+        "my_education": my_education,
+        "my_docs": my_docs,
+        "my_overtime": my_overtime,
+        "compoff_avail_days": compoff_avail_days,
+        "compoff_earned_days": compoff_earned_days,
+        "salary_per_day": salary_per_day,
+        "gross_this_month": gross_this_month,
+        "deduction_this_month": deduction_this_month,
+        "incentives_this_month": incentives_this_month,
+        "statutory_this_month": statutory_this_month,
+        "ot_pay_this_month": ot_pay_this_month,
+        "net_this_month": net_this_month,
+        "fp_enrolled": fp_enrolled,
+        "fp_enabled": get_auth_config().get("fingerprint_enabled", False),
+        "attendance_auth_cfg": get_auth_config(),
+    }
+
+
+@employee_portal_bp.route("/employee_portal")
+@employee_required
+def employee_portal():
+    """Plain-employee entry point: builds the shared context for the logged-in
+    employee and renders the standalone portal shell (own header/sidebar)."""
+    ctx = _build_portal_context(session["employee_id"])
+    if ctx is None:
+        session.clear()
+        return redirect(tpath("/login"))
+    return render_template("employee_portal.html", portal_base_path=tpath("/employee_portal"), **ctx)
 
 
 @employee_portal_bp.route("/api/employee/change-password", methods=["POST"])

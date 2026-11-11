@@ -18,11 +18,9 @@
     </div>
 
 
-    {% with msgs = get_flashed_messages(with_categories=true) %}
-      {% for cat, msg in msgs %}
-        <div class="flash flash-{{ 'green' if cat == 'success' else 'red' }}">{{ '✅ ' if cat == 'success' else '❌ ' }}{{ msg }}</div>
-      {% endfor %}
-    {% endwith %}
+    {# Flash messages (settings saved, errors, ...) are already rendered
+       once by admin_base.html's own {% block main %} wrapper -- this page
+       doesn't render them a second time. #}
 
     {# ══ 3-TAB SETTINGS NAV ══ #}
     <div class="s3-nav">
@@ -73,7 +71,1277 @@
       </div>
     </div>
 
-{% include "settings/_fin_payroll.html" %}
+          {# PAYROLL #}
+          <div class="s3-section active" id="ss-payroll">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-fefce8"><i class="ti ti-coin u-c-ca8a04 u-fs-20"></i></div>
+              <div><div class="sec-title">Payroll Rules</div><div class="sec-sub">Salary deduction rules and payroll policies</div></div>
+            </div>
+            <form method="POST" action="{{ tpath('/save_salary_rules') }}">
+              <input type="hidden" name="shift_start"            id="hid_shift_start" value="{{ default_start }}">
+              <input type="hidden" name="shift_half"             id="hid_shift_half"  value="{{ default_half }}">
+              <input type="hidden" name="shift_end"              id="hid_shift_end"   value="{{ default_end }}">
+              <input type="hidden" name="grace_minutes"          id="hid_grace"       value="{{ grace_minutes }}">
+              <input type="hidden" name="late_deduction_pct"     id="hid_late"        value="{{ late_deduction_pct|int }}">
+              <input type="hidden" name="half_day_deduction_pct" id="hid_half_ded"    value="{{ half_day_deduction_pct|int }}">
+              <input type="hidden" name="holiday_pay"            id="hid_holiday"     value="{{ holiday_pay }}">
+              <input type="hidden" name="leave_pay"              id="hid_leave"       value="{{ leave_pay }}">
+
+              <style>
+                /* ── Payroll Rules  Professional ── */
+                .py-wrap { display:flex; flex-direction:column; gap:18px; }
+
+                .py-card { background:#fff; border:1px solid #e4e7ec; border-radius:14px; overflow:hidden; box-shadow:0 1px 2px rgba(15,23,42,.04); transition:box-shadow .18s, border-color .18s, transform .18s; }
+                .py-card:hover { box-shadow:0 10px 24px rgba(15,23,42,.08); border-color:#d8dce3; transform:translateY(-1px); }
+                .py-card--accent { border-left:4px solid #2563eb; background:linear-gradient(135deg,#f7faff,#eff6ff); }
+                .py-card--accent .py-hdr { border-bottom-color:#e0ecff; }
+
+                .py-hdr { padding:15px 20px 13px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; gap:13px; background:linear-gradient(180deg,#fbfcfe,#ffffff); }
+                .py-hdr-icon { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(15,23,42,.04); }
+                .py-hdr-icon i { font-size:13px; }
+                .py-hdr-title { font-size:15px; font-weight:800; color:#0f172a; letter-spacing:-.01em; }
+                .py-hdr-sub   { font-size:13.5px; color:#94a3b8; margin-top:2px; }
+                .py-badge-lock { font-size:12px; color:#c3c9d3; }
+
+                .py-row { display:flex; align-items:center; gap:16px; padding:13px 20px; border-bottom:1px solid #f9fafb; transition:background .15s; }
+                .py-row:last-child { border-bottom:none; }
+                .py-row:hover { background:#fafbfd; }
+
+                .py-info { flex:1; min-width:0; }
+                .py-label { font-size:14.5px; font-weight:700; color:#1f2937; }
+                .py-hint  { font-size:13.5px; color:#9ca3af; margin-top:2px; }
+
+                /* Segmented sliding control */
+                .py-seg { display:inline-flex; background:#f1f3f6; border-radius:11px; padding:4px; position:relative; flex-shrink:0; box-shadow:inset 0 1px 2px rgba(15,23,42,.05); }
+                .py-seg-track {
+                  position:absolute; top:4px; left:4px; height:calc(100% - 8px);
+                  background:linear-gradient(135deg,#2563eb,#1d4ed8); border-radius:8px;
+                  box-shadow:0 3px 8px rgba(37,99,235,.35), 0 1px 2px rgba(37,99,235,.2);
+                  transition:transform .22s cubic-bezier(.4,0,.2,1), width .22s cubic-bezier(.4,0,.2,1);
+                  pointer-events:none;
+                }
+                .py-seg-btn {
+                  position:relative; z-index:1; padding:7px 13px; border:none; background:transparent; border-radius:8px;
+                  font-size:14px; font-weight:700; color:#8b95a5; cursor:pointer; white-space:nowrap;
+                  transition:color .2s;
+                }
+                .py-seg-btn.on  { color:#fff; font-weight:800; }
+                .py-seg-btn:hover:not(.on) { color:#475569; }
+
+                /* Locked value badge */
+                .py-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:repeating-linear-gradient(135deg,#f9fafb,#f9fafb 6px,#f3f4f6 6px,#f3f4f6 12px); border:1px solid #e4e7ec; border-radius:8px; flex-shrink:0; }
+                .py-badge-val { font-size:15px; font-weight:800; color:#6b7280; letter-spacing:-.02em; }
+                .py-badge-sep { font-size:11px; color:#d1d5db; }
+                .py-badge-tag { font-size:12px; font-weight:700; color:#9ca3af; letter-spacing:.03em; text-transform:uppercase; }
+
+                /* Toggle */
+                .py-tog-row { display:flex; align-items:center; gap:9px; flex-shrink:0; }
+                .py-tog-lbl { font-size:13.5px; font-weight:600; color:#d1d5db; transition:color .2s; white-space:nowrap; }
+                .py-tog-lbl.on { color:#374151; }
+                .py-tog { position:relative; width:44px; height:24px; cursor:pointer; flex-shrink:0; }
+                .py-tog input { opacity:0; position:absolute; }
+                .py-tog-track { position:absolute; inset:0; border-radius:12px; background:#e5e7eb; transition:background .2s; }
+                .py-tog input:checked ~ .py-tog-track { background:#2563eb; }
+                .py-tog-knob { position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.18); transition:left .2s cubic-bezier(.4,0,.2,1); }
+                .py-tog input:checked ~ .py-tog-track .py-tog-knob { left:23px; }
+
+                /* Save button */
+                .py-save {
+                  display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px;
+                  background:#2563eb; color:#fff; border:none; border-radius:12px;
+                  font-size:15.5px; font-weight:800; letter-spacing:.01em; cursor:pointer;
+                  box-shadow:0 6px 16px rgba(37,99,235,.28); transition:filter .15s, transform .12s, box-shadow .15s;
+                  margin-top:4px;
+                }
+                .py-save:hover  { filter:brightness(1.06); box-shadow:0 8px 20px rgba(37,99,235,.34); transform:translateY(-1px); }
+                .py-save:active { transform:scale(.99); }
+
+                /* Working Days toggle chips */
+                .py-day-chip-wrap { cursor:pointer; }
+                .py-day-chip {
+                  display:inline-block; padding:7px 16px; border-radius:20px;
+                  font-size:14px; font-weight:700; border:1.5px solid #e4e7ec;
+                  background:#f9fafb; color:#9ca3af; transition:.15s;
+                }
+                .py-day-chip.on { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
+                .py-day-chip-wrap:hover .py-day-chip:not(.on) { border-color:#c7d2fe; color:#475569; }
+
+                /* Dark mode */
+                body.dark-mode .py-card  { background:#161b22; border-color:#30363d; box-shadow:none; }
+                body.dark-mode .py-hdr   { border-color:#21262d; background:linear-gradient(180deg,#171d26,#161b22); }
+                body.dark-mode .py-hdr-title { color:#cdd9e5; }
+                body.dark-mode .py-row   { border-color:#1c2128; }
+                body.dark-mode .py-row:hover { background:#1a2029; }
+                body.dark-mode .py-label { color:#cdd9e5; }
+                body.dark-mode .py-seg   { background:#0d1117; box-shadow:inset 0 1px 2px rgba(0,0,0,.4); }
+                body.dark-mode .py-seg-track { background:linear-gradient(135deg,#2563eb,#2563eb); box-shadow:0 3px 8px rgba(37,99,235,.4); }
+                body.dark-mode .py-seg-btn   { color:#6e7681; }
+                body.dark-mode .py-seg-btn.on { color:#fff; }
+                body.dark-mode .py-seg-btn:hover:not(.on) { color:#9ca3af; }
+                body.dark-mode .py-badge { background:repeating-linear-gradient(135deg,#1c2128,#1c2128 6px,#20262e 6px,#20262e 12px); border-color:#30363d; }
+                body.dark-mode .py-badge-val { color:#8b949e; }
+                body.dark-mode .py-badge-lock { color:#4b5563; }
+                body.dark-mode .py-tog-lbl.on { color:#cdd9e5; }
+                body.dark-mode .py-tog-track  { background:#30363d; }
+                body.dark-mode .py-tog input:checked ~ .py-tog-track { background:#2563eb; }
+                body.dark-mode .py-day-chip { background:#0d1117; border-color:#30363d; color:#6e7681; }
+                body.dark-mode .py-day-chip.on { border-color:#2563eb; background:#132030; color:#60a5fa; }
+                body.dark-mode .py-day-chip-wrap:hover .py-day-chip:not(.on) { border-color:#3d4551; color:#9ca3af; }
+                body.dark-mode .py-card:hover { box-shadow:0 10px 24px rgba(0,0,0,.35); border-color:#3d4551; }
+                body.dark-mode .py-card--accent { background:linear-gradient(135deg,#132030,#0f1a28); border-left-color:#2563eb; }
+                body.dark-mode .py-card--accent .py-hdr { border-bottom-color:#1e2b3d; background:transparent; }
+              </style>
+
+              <div class="py-wrap">
+
+              {# Billing Card #}
+              <div class="py-card py-card--accent u-mb-20">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-dbeafe"><i class="ti ti-credit-card u-c-2563eb"></i></div>
+                  <div>
+                    <div class="py-hdr-title" style="font-size:17px;">Monthly Bill: <span style="font-size:14px; padding:3px 10px; background:#dbeafe; color:#1d4ed8; border-radius:20px; font-weight:800; display:inline-block;">{{ monthly_bill_display|default('₹0') }}</span></div>
+                    <div class="py-hdr-sub">{{ per_employee_paise|default(9900)|plan_price }}/employee/month, flat — {{ employee_count|default(0) }} employee{{ '' if employee_count == 1 else 's' }} currently. Every feature is included, no tiers to manage.</div>
+                  </div>
+                </div>
+              </div>
+
+              {# Card 1: Shift Timings #}
+              <div class="py-card">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-fef3c7"><i class="ti ti-clock u-c-d97706"></i></div>
+                  <div>
+                    <div class="py-hdr-title">Shift Timings</div>
+                    <div class="py-hdr-sub">Define the daily attendance cutoffs</div>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Login Cutoff</div>
+                    <div class="py-hint">On time if punched in before this</div>
+                  </div>
+                  <div class="py-seg" id="seg_ss">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="08:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">08:00</button>
+                    <button type="button" class="py-seg-btn" data-val="08:30" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">08:30</button>
+                    <button type="button" class="py-seg-btn" data-val="09:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">09:00</button>
+                    <button type="button" class="py-seg-btn" data-val="09:30" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">09:30</button>
+                    <button type="button" class="py-seg-btn" data-val="10:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">10:00</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Late Boundary</div>
+                    <div class="py-hint">After this time counts as Half Day</div>
+                  </div>
+                  <div class="py-seg" id="seg_sh">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="10:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">10:00</button>
+                    <button type="button" class="py-seg-btn" data-val="10:30" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">10:30</button>
+                    <button type="button" class="py-seg-btn" data-val="11:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">11:00</button>
+                    <button type="button" class="py-seg-btn" data-val="11:30" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">11:30</button>
+                    <button type="button" class="py-seg-btn" data-val="12:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">12:00</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Logout Cutoff</div>
+                    <div class="py-hint">Must exit before this time</div>
+                  </div>
+                  <div class="py-seg" id="seg_se">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="17:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">17:00</button>
+                    <button type="button" class="py-seg-btn" data-val="17:30" data-on-click="pSeg(this,'seg_se','hid_shift_end')">17:30</button>
+                    <button type="button" class="py-seg-btn" data-val="18:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">18:00</button>
+                    <button type="button" class="py-seg-btn" data-val="18:30" data-on-click="pSeg(this,'seg_se','hid_shift_end')">18:30</button>
+                    <button type="button" class="py-seg-btn" data-val="19:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">19:00</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Grace Period</div>
+                    <div class="py-hint">Buffer before late is recorded</div>
+                  </div>
+                  <div class="py-seg" id="seg_gr">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="0"  data-on-click="pSeg(this,'seg_gr','hid_grace')">None</button>
+                    <button type="button" class="py-seg-btn" data-val="5"  data-on-click="pSeg(this,'seg_gr','hid_grace')">5 m</button>
+                    <button type="button" class="py-seg-btn" data-val="10" data-on-click="pSeg(this,'seg_gr','hid_grace')">10 m</button>
+                    <button type="button" class="py-seg-btn" data-val="15" data-on-click="pSeg(this,'seg_gr','hid_grace')">15 m</button>
+                    <button type="button" class="py-seg-btn" data-val="20" data-on-click="pSeg(this,'seg_gr','hid_grace')">20 m</button>
+                    <button type="button" class="py-seg-btn" data-val="30" data-on-click="pSeg(this,'seg_gr','hid_grace')">30 m</button>
+                  </div>
+                </div>
+              </div>
+
+              {# Card: Working Days -- which weekdays this company treats as
+                 working days. Drives attendance "absent" tracking and the
+                 Monthly CTC <-> per-day conversion everywhere (see
+                 utils/attendance_utils.py's company_working_weekdays()). A
+                 multi-select, so it uses toggle chips rather than the
+                 single-choice .py-seg control the other cards use. #}
+              <div class="py-card">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-eef2ff"><i class="ti ti-calendar u-c-4f46e5"></i></div>
+                  <div>
+                    <div class="py-hdr-title">Working Days</div>
+                    <div class="py-hdr-sub">Which days count toward attendance and payroll</div>
+                  </div>
+                </div>
+                <div class="py-row" style="flex-direction:column; align-items:stretch; gap:12px;">
+                  <div class="u-d-flex u-fxw-wrap u-gap-8">
+                    {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+                    <label class="py-day-chip-wrap">
+                      <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in features.working_days %}checked{% endif %} data-on-change="styleCoWd(this)" />
+                      <span class="py-day-chip {{ 'on' if _d in features.working_days }}">{{ _d }}</span>
+                    </label>
+                    {% endfor %}
+                  </div>
+                  <div class="py-hint">
+                    Drives "absent" tracking and payroll for this company — only these days count as working days.
+                    A standard month is currently treated as <strong class="u-c-1e3a8a">{{ features.standard_working_days }} days</strong>
+                    for converting a Monthly CTC to a per-day rate.
+                  </div>
+                </div>
+              </div>
+
+              {# Card 2: Salary Deductions #}
+              <div class="py-card">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-dcfce7"><i class="ti ti-percentage u-c-16a34a"></i></div>
+                  <div>
+                    <div class="py-hdr-title">Salary Deductions</div>
+                    <div class="py-hdr-sub">Daily percentage deducted per attendance status</div>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Full Day</div>
+                    <div class="py-hint">On time — full shift completed</div>
+                  </div>
+                  <div class="py-badge">
+                    <i class="ti ti-lock py-badge-lock"></i>
+                    <span class="py-badge-val">0%</span>
+                    <span class="py-badge-sep">·</span>
+                    <span class="py-badge-tag">Fixed</span>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Late Arrival</div>
+                    <div class="py-hint">Arrived late but worked full hours</div>
+                  </div>
+                  <div class="py-seg" id="seg_lt">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="0"  data-on-click="pSeg(this,'seg_lt','hid_late')">0%</button>
+                    <button type="button" class="py-seg-btn" data-val="5"  data-on-click="pSeg(this,'seg_lt','hid_late')">5%</button>
+                    <button type="button" class="py-seg-btn" data-val="10" data-on-click="pSeg(this,'seg_lt','hid_late')">10%</button>
+                    <button type="button" class="py-seg-btn" data-val="15" data-on-click="pSeg(this,'seg_lt','hid_late')">15%</button>
+                    <button type="button" class="py-seg-btn" data-val="20" data-on-click="pSeg(this,'seg_lt','hid_late')">20%</button>
+                    <button type="button" class="py-seg-btn" data-val="25" data-on-click="pSeg(this,'seg_lt','hid_late')">25%</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Half Day</div>
+                    <div class="py-hint">Very late arrival or early departure</div>
+                  </div>
+                  <div class="py-seg" id="seg_hd">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="25" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">25%</button>
+                    <button type="button" class="py-seg-btn" data-val="33" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">33%</button>
+                    <button type="button" class="py-seg-btn" data-val="50" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">50%</button>
+                    <button type="button" class="py-seg-btn" data-val="75" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">75%</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Absent</div>
+                    <div class="py-hint">No attendance record for the day</div>
+                  </div>
+                  <div class="py-badge">
+                    <i class="ti ti-lock py-badge-lock"></i>
+                    <span class="py-badge-val">100%</span>
+                    <span class="py-badge-sep">·</span>
+                    <span class="py-badge-tag">Fixed</span>
+                  </div>
+                </div>
+              </div>
+
+              {# Card 3: Policies #}
+              <div class="py-card">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-ede9fe"><i class="ti ti-calendar-event u-c-7c3aed"></i></div>
+                  <div>
+                    <div class="py-hdr-title">Special Day Policies</div>
+                    <div class="py-hdr-sub">How holidays and approved leaves affect payroll</div>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Holiday Pay</div>
+                    <div class="py-hint">Salary treatment on public holidays</div>
+                  </div>
+                  <div class="py-tog-row">
+                    <span class="py-tog-lbl" id="lbl_hol_off">Unpaid</span>
+                    <label class="py-tog">
+                      <input type="checkbox" id="chk_holiday" {% if holiday_pay=='paid' %}checked{% endif %} data-on-change="pTog(this,'hid_holiday','paid','unpaid','lbl_hol_on','lbl_hol_off')">
+                      <div class="py-tog-track"><div class="py-tog-knob"></div></div>
+                    </label>
+                    <span class="py-tog-lbl" id="lbl_hol_on">Paid</span>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Approved Leave</div>
+                    <div class="py-hint">How approved leaves count in payroll</div>
+                  </div>
+                  <div class="py-tog-row">
+                    <span class="py-tog-lbl" id="lbl_lv_off">Absent</span>
+                    <label class="py-tog">
+                      <input type="checkbox" id="chk_leave" {% if leave_pay=='exclude' %}checked{% endif %} data-on-change="pTog(this,'hid_leave','exclude','absent','lbl_lv_on','lbl_lv_off')">
+                      <div class="py-tog-track"><div class="py-tog-knob"></div></div>
+                    </label>
+                    <span class="py-tog-lbl" id="lbl_lv_on">Exclude</span>
+                  </div>
+                </div>
+              </div>
+
+              </div>{# .py-wrap #}
+
+              <button type="submit" class="py-save">
+                <i class="ti ti-device-floppy" style="font-size:15px;"></i> Save Payroll Rules
+              </button>
+            </form>
+            <script>
+              function pSeg(btn, grpId, hidId) {
+                var grp   = document.getElementById(grpId);
+                var track = grp.querySelector('.py-seg-track');
+                grp.querySelectorAll('.py-seg-btn').forEach(function(b){ b.classList.remove('on'); });
+                btn.classList.add('on');
+                track.style.width     = btn.offsetWidth + 'px';
+                track.style.transform = 'translateX(' + (btn.offsetLeft - 3) + 'px)';
+                document.getElementById(hidId).value = btn.dataset.val;
+              }
+              function pTog(el, hidId, onVal, offVal, onId, offId) {
+                document.getElementById(hidId).value = el.checked ? onVal : offVal;
+                document.getElementById(onId).classList.toggle('on',  el.checked);
+                document.getElementById(offId).classList.toggle('on', !el.checked);
+              }
+              function initSeg(grpId, hidId) {
+                var grp = document.getElementById(grpId); if (!grp) return;
+                var track = grp.querySelector('.py-seg-track');
+                var val   = (document.getElementById(hidId).value || '').trim();
+                var hit   = null;
+                grp.querySelectorAll('.py-seg-btn').forEach(function(b){ if (b.dataset.val === val) hit = b; });
+                if (!hit) hit = grp.querySelector('.py-seg-btn');
+                if (hit) {
+                  hit.classList.add('on');
+                  track.style.width     = hit.offsetWidth + 'px';
+                  track.style.transform = 'translateX(' + (hit.offsetLeft - 3) + 'px)';
+                  document.getElementById(hidId).value = hit.dataset.val;
+                }
+              }
+              document.addEventListener('DOMContentLoaded', function() {
+                initSeg('seg_ss','hid_shift_start');
+                initSeg('seg_sh','hid_shift_half');
+                initSeg('seg_se','hid_shift_end');
+                initSeg('seg_gr','hid_grace');
+                initSeg('seg_lt','hid_late');
+                initSeg('seg_hd','hid_half_ded');
+                pTog(document.getElementById('chk_holiday'),'hid_holiday','paid','unpaid','lbl_hol_on','lbl_hol_off');
+                pTog(document.getElementById('chk_leave'),  'hid_leave',  'exclude','absent','lbl_lv_on','lbl_lv_off');
+              });
+
+            </script>
+          </div>
+
+          {# SALARY #}
+          <div class="s3-section" id="ss-salary">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-f0fdf4"><i class="ti ti-cash u-c-16a34a u-fs-20"></i></div>
+              <div><div class="sec-title">Salary</div><div class="sec-sub">Per-employee daily rate configuration</div></div>
+            </div>
+            <div class="section">
+              <div class="section-title"><i class="ti ti-coin"></i> Employee Salary Configuration</div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Employee</th><th>Role</th><th>Daily Rate</th><th>Monthly (26 days)</th><th>Last Revised</th><th>Action</th></tr></thead>
+                  <tbody>
+                  {% for s in salaries %}{% set eid,ename,spd,role,rev,phone,email = s %}
+                  <tr>
+                    <td><strong>{{ ename }}</strong><br><span class="u-fs-11 u-c-94a3b8">{{ eid }}</span></td>
+                    <td>{% if role %}<span class="badge b-blue">{{ role }}</span>{% else %}<span class="badge b-gray">—</span>{% endif %}</td>
+                    <td class="u-fw-800 u-c-16a34a">&#8377;{{ "%.2f"|format(spd) }}</td>
+                    <td class="u-fw-700 u-c-2563eb">&#8377;{{ "%.0f"|format(spd*26) }}</td>
+                    <td>{% if rev %}<span class="rev-badge">{{ rev.strftime('%d %b %Y') }}</span>{% else %}<span class="rev-badge muted">Not set</span>{% endif %}</td>
+                    <td>
+                      <button class="btn-edit" data-on-click="openSalaryEdit('{{ eid }}')">Edit</button>
+                      <div class="edit-form" id="ef_{{ eid }}">
+                        <form method="POST" action="{{ tpath('/update_salary') }}">
+                          <input type="hidden" name="emp_id" value="{{ eid }}" />
+                          <div class="ef-row"><span class="ef-lbl">Daily Rate</span><input class="ef-inp" type="number" name="salary" step="0.01" value="{{ spd }}" /></div>
+                          <div class="ef-btns u-mt-6"><button type="submit" class="btn-save">Save</button><button type="button" class="btn-cancel-sm" data-on-click="HZ.removeClass('ef_{{ eid }}', 'open')">Cancel</button></div>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="6">
+                    <div class="fin-empty">
+                      <span class="fin-empty-icon"><i class="ti ti-coin" aria-hidden="true"></i></span>
+                      <strong>No employees yet</strong>
+                      <span>Add employees to set their daily rate here.</span>
+                      <a class="fin-empty-btn" href="{{ tpath('/employees') }}"><i class="ti ti-user-plus" aria-hidden="true"></i> Add employee</a>
+                    </div>
+                  </td></tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {# DISBURSEMENT #}
+          <div class="s3-section" id="ss-disbursement">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-eff6ff"><i class="ti ti-building-bank u-c-1e3a8a u-fs-20"></i></div>
+              <div><div class="sec-title">Salary Disbursement</div><div class="sec-sub">Automated bank transfer + payslip emailing</div></div>
+            </div>
+
+            {% if not payout_provider_ready %}
+            <div class="fin-notice">
+              <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+              <div><strong>Bank payouts aren't connected yet</strong>
+                <span>You can add bank details, schedule and approve runs, but no money will be transferred until a payout provider is connected.</span></div>
+            </div>
+            {% endif %}
+
+            <div class="section">
+              <div class="section-title"><i class="ti ti-building-bank"></i> Company Bank Account &amp; Schedule</div>
+              <div id="payout-locked">
+                {# Step 0: entry point, before we know whether this admin has TOTP enrolled at all #}
+                <div id="payout-2fa-start">
+                  <p class="u-fs-13 u-c-64748b u-mb-12">Viewing or editing the company's payout bank account requires a 2FA code.</p>
+                  <button type="button" class="btn-submit" data-on-click="payoutStart2fa()">Continue</button>
+                </div>
+
+                {# Step 1a: first time ever -- no TOTP enrolled yet, show the QR code to scan #}
+                <div id="payout-2fa-enroll" class="u-d-none">
+                  <p class="u-fs-13 u-c-64748b u-mb-10">No authenticator app is linked to your admin account yet. Scan this QR code with an authenticator app (Google Authenticator, Authy, etc.), then enter the 6-digit code it shows to confirm.</p>
+                  <img id="payout-2fa-qr" class="u-mb-10 u-br-8 u-bd-1d5-solid-e2e8f0" width="180" height="180" alt="Scan with your authenticator app" />
+                  <div class="u-fs-11 u-c-94a3b8 u-mb-10">Can't scan? Enter this key manually: <span class="u-ff-monospace u-fw-700" id="payout-2fa-secret"></span></div>
+                  <div class="u-d-flex u-gap-8">
+                    <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="payout-2fa-enroll-code" placeholder="6-digit code" maxlength="6" />
+                    <button type="button" class="btn-submit" data-on-click="payoutConfirmEnroll()">Confirm &amp; Unlock</button>
+                  </div>
+                  <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="payout-2fa-enroll-error"></div>
+                </div>
+
+                {# Step 1b: already enrolled (via here or Email Settings -- one TOTP secret per admin) #}
+                <div id="payout-2fa-verify" class="u-d-none">
+                  <p class="u-fs-13 u-c-64748b u-mb-12">Enter the 6-digit code from your authenticator app.</p>
+                  <div class="u-d-flex u-gap-8">
+                    <input class="u-p-9-12 u-bd-1d5-solid-e2e8f0 u-br-9 u-fs-14 u-ff-monospace" type="text" id="payout-2fa-code" placeholder="6-digit code" maxlength="6" />
+                    <button type="button" class="btn-submit" data-on-click="payoutVerify2fa()">Unlock</button>
+                  </div>
+                  <div class="u-fs-12 u-c-dc2626 u-mt-6 u-d-none" id="payout-2fa-error"></div>
+                </div>
+              </div>
+              <form id="payout-bank-form" method="post" class="u-d-none" data-on-submit="return payoutSaveBankConfig(event)">
+                <div class="u-d-flex u-jc-space-between u-ai-center u-mb-10">
+                  <span class="u-fs-11 u-c-16a34a"><i class="ti ti-lock-open"></i> Unlocked — re-locks after 15 min idle</span>
+                  <button type="button" class="btn-test" data-on-click="payoutLock()"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Lock now</button>
+                </div>
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+                  <div class="field"><label>Account Holder Name</label><input type="text" id="payout-holder" required /></div>
+                  <div class="field"><label>Bank Name</label><input type="text" id="payout-bank-name" required /></div>
+                </div>
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+                  <div class="field"><label>Account Number <span class="u-fs-11 u-c-94a3b8" id="payout-acct-hint">(leave blank to keep unchanged)</span></label><input type="text" id="payout-account-number" autocomplete="off" /></div>
+                  <div class="field"><label>IFSC Code</label><input class="u-ff-monospace u-ttr-uppercase" type="text" id="payout-ifsc" maxlength="11" required /></div>
+                </div>
+                <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+                  <div class="field"><label>Disbursement Day of Month</label><input type="number" id="payout-day" min="1" max="28" value="1" required /></div>
+                  <div class="field"><label>Prepare for Approval (days before)</label><input type="number" id="payout-lead" min="0" max="27" value="2" required /></div>
+                </div>
+                <label class="u-d-flex u-ai-center u-gap-8 u-mb-14 u-cur-pointer">
+                  <input type="checkbox" id="payout-enabled" />
+                  <span class="u-fs-13 u-fw-600">Enable automated monthly disbursement</span>
+                </label>
+                <button type="submit" class="btn-submit">Save Bank Details &amp; Schedule</button>
+              </form>
+            </div>
+
+            <div class="section">
+              <div class="section-title"><i class="ti ti-receipt"></i> Disbursement Runs</div>
+              {% if disbursement_runs %}
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Period</th><th>Status</th><th>Employees</th><th>Total</th><th>Prepared</th><th>Action</th></tr></thead>
+                  <tbody>
+                  {% for r in disbursement_runs %}
+                  {% set rid,ryear,rmonth,rstatus,rtotal,rcount,rprepared,rapprover,rapproved,rmissing = r %}
+                  <tr>
+                    <td><strong>{{ ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][rmonth] }} {{ ryear }}</strong></td>
+                    <td>
+                      {% if rstatus == 'pending_approval' %}<span class="badge b-yellow">Pending Approval</span>
+                      {% elif rstatus == 'completed' %}<span class="badge b-green">Completed</span>
+                      {% elif rstatus == 'failed' %}<span class="badge b-red">Failed</span>
+                      {% elif rstatus == 'cancelled' %}<span class="badge b-gray">Cancelled</span>
+                      {% else %}<span class="badge b-blue">{{ rstatus }}</span>{% endif %}
+                      {% if rmissing > 0 %}
+                      <div class="u-fs-11 u-c-dc2626 u-fw-700 u-mt-3"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> {{ rmissing }} of {{ rcount }} missing bank details</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ rcount }}</td>
+                    <td class="u-fw-800 u-c-16a34a">&#8377;{{ "%.2f"|format(rtotal) }}</td>
+                    <td class="u-fs-12 u-c-64748b">{{ rprepared.strftime('%d %b %Y') if rprepared else '' }}</td>
+                    <td>
+                      {% if rstatus == 'pending_approval' %}
+                      <form method="POST" action="{{ tpath('/disbursement/' ~ rid ~ '/approve') }}" class="u-d-inline">
+                        <button type="submit" class="btn-edit" data-missing="{{ rmissing }}" data-on-click="return confirmApproveDisbursement(event, this)">Approve &amp; Send</button>
+                      </form>
+                      <form method="POST" action="{{ tpath('/disbursement/' ~ rid ~ '/reject') }}" class="u-d-inline">
+                        <input type="hidden" name="reason" value="Cancelled by admin" />
+                        <button type="submit" class="btn-del" data-on-click="return hzConfirmSubmit(event, 'Cancel this disbursement run?')">Cancel</button>
+                      </form>
+                      {% else %}
+                      <span class="u-fs-11 u-c-94a3b8">{% if rapprover %}by {{ rapprover }}{% endif %}</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <div class="u-ta-center u-p-40 u-c-94a3b8">No disbursement runs yet. Enable automated disbursement above and one will be prepared automatically ahead of your scheduled pay date.</div>
+              {% endif %}
+            </div>
+
+            <script>
+              // Idle re-lock, same pattern as Email Settings' gate below --
+              // only starts once payoutLoadBankConfig() actually unlocks the
+              // form, and clears itself on payoutLock()/page reload.
+              var payoutIdleTimer = null;
+              var PAYOUT_IDLE_MS = 15 * 60 * 1000;
+              function resetPayoutIdleTimer() {
+                if (payoutIdleTimer) clearTimeout(payoutIdleTimer);
+                if (document.getElementById('payout-bank-form').classList.contains('u-d-none')) return;
+                payoutIdleTimer = setTimeout(payoutLock, PAYOUT_IDLE_MS);
+              }
+              ['mousemove', 'keydown', 'click', 'scroll'].forEach(function(evt) {
+                document.addEventListener(evt, function() {
+                  if (!document.getElementById('payout-bank-form').classList.contains('u-d-none')) resetPayoutIdleTimer();
+                }, { passive: true });
+              });
+              function payoutLock() {
+                if (payoutIdleTimer) { clearTimeout(payoutIdleTimer); payoutIdleTimer = null; }
+                document.getElementById('payout-bank-form').classList.add('u-d-none');
+                document.getElementById('payout-locked').classList.remove('u-d-none');
+                document.getElementById('payout-2fa-start').classList.remove('u-d-none');
+                document.getElementById('payout-2fa-enroll').classList.add('u-d-none');
+                document.getElementById('payout-2fa-verify').classList.add('u-d-none');
+                document.getElementById('payout-account-number').value = '';
+                fetch('{{ tpath("/api/payout/lock") }}', { method: 'POST' }).catch(function() {});
+              }
+
+              // Step 0 -- figure out whether this admin already has TOTP
+              // enrolled (shared account-wide with Email Settings, so an
+              // admin who enrolled there is already enrolled here too) and
+              // branch to the QR-enrollment view or the plain code-entry
+              // view accordingly. Reuses the existing setup endpoint as-is
+              // rather than duplicating it -- see blueprints/disbursement.py's
+              // api_payout_2fa_enable() docstring for why.
+              function payoutStart2fa() {
+                fetch('{{ tpath("/api/settings/2fa/setup") }}').then(function(r){ return r.json(); }).then(function(d){
+                  if (!d.ok) return;
+                  document.getElementById('payout-2fa-start').classList.add('u-d-none');
+                  if (d.already_enabled) {
+                    document.getElementById('payout-2fa-verify').classList.remove('u-d-none');
+                  } else {
+                    document.getElementById('payout-2fa-qr').src = d.qr_code;
+                    document.getElementById('payout-2fa-secret').textContent = d.secret;
+                    document.getElementById('payout-2fa-enroll').classList.remove('u-d-none');
+                  }
+                });
+              }
+              function payoutConfirmEnroll() {
+                var code = document.getElementById('payout-2fa-enroll-code').value.trim();
+                var errEl = document.getElementById('payout-2fa-enroll-error');
+                errEl.classList.add('u-d-none');
+                fetch('{{ tpath("/api/payout/2fa/enable") }}', {
+                  method: 'POST', headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({code: code})
+                }).then(function(r){ return r.json(); }).then(function(d){
+                  if (!d.ok) { errEl.textContent = d.msg || 'Invalid code'; errEl.classList.remove('u-d-none'); return; }
+                  payoutLoadBankConfig();
+                }).catch(function(){ errEl.textContent = 'Network error'; errEl.classList.remove('u-d-none'); });
+              }
+              function confirmApproveDisbursement(event, btn) {
+                var missing = parseInt(btn.getAttribute('data-missing'), 10) || 0;
+                var msg = missing > 0
+                  ? ('Approve and process this disbursement run? ' + missing + ' employee(s) are missing bank '
+                     + 'details and will NOT be paid -- everyone else will still be processed. Continue?')
+                  : 'Approve and process this disbursement run? This authorizes the actual bank transfer.';
+                return hzConfirmSubmit(event, msg);
+              }
+              function payoutVerify2fa() {
+                var code = document.getElementById('payout-2fa-code').value.trim();
+                var errEl = document.getElementById('payout-2fa-error');
+                errEl.classList.add('u-d-none');
+                fetch('{{ tpath("/api/payout/verify-2fa") }}', {
+                  method: 'POST', headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({code: code})
+                }).then(function(r){ return r.json(); }).then(function(d){
+                  if (!d.ok) { errEl.textContent = d.msg || 'Invalid code'; errEl.classList.remove('u-d-none'); return; }
+                  payoutLoadBankConfig();
+                }).catch(function(){ errEl.textContent = 'Network error'; errEl.classList.remove('u-d-none'); });
+              }
+              function payoutLoadBankConfig() {
+                fetch('{{ tpath("/api/payout/bank_config") }}').then(function(r){ return r.json(); }).then(function(d){
+                  if (!d.ok) return;
+                  document.getElementById('payout-locked').classList.add('u-d-none');
+                  document.getElementById('payout-bank-form').classList.remove('u-d-none');
+                  var c = d.config;
+                  if (c) {
+                    document.getElementById('payout-holder').value = c.account_holder_name || '';
+                    document.getElementById('payout-bank-name').value = c.bank_name || '';
+                    document.getElementById('payout-account-number').placeholder = c.account_number_masked || '';
+                    document.getElementById('payout-ifsc').value = c.ifsc_code || '';
+                    document.getElementById('payout-day').value = c.disbursement_day_of_month || 1;
+                    document.getElementById('payout-lead').value = c.approval_lead_days || 2;
+                    document.getElementById('payout-enabled').checked = !!c.enabled;
+                  } else {
+                    document.getElementById('payout-acct-hint').textContent = '(required -- no account on file yet)';
+                  }
+                  resetPayoutIdleTimer();
+                });
+              }
+              function payoutSaveBankConfig(ev) {
+                ev.preventDefault();
+                var payload = {
+                  account_holder_name: document.getElementById('payout-holder').value.trim(),
+                  bank_name: document.getElementById('payout-bank-name').value.trim(),
+                  account_number: document.getElementById('payout-account-number').value.trim(),
+                  ifsc_code: document.getElementById('payout-ifsc').value.trim().toUpperCase(),
+                  disbursement_day_of_month: parseInt(document.getElementById('payout-day').value, 10),
+                  approval_lead_days: parseInt(document.getElementById('payout-lead').value, 10),
+                  enabled: document.getElementById('payout-enabled').checked,
+                };
+                fetch('{{ tpath("/api/payout/bank_config") }}', {
+                  method: 'POST', headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify(payload)
+                }).then(function(r){ return r.json(); }).then(function(d){
+                  if (d.ok) { if (window.showToast) showToast('Bank details saved.', 'success'); location.reload(); }
+                  else { if (window.showToast) showToast(d.msg || 'Save failed', 'error'); else alert(d.msg || 'Save failed'); }
+                });
+                return false;
+              }
+            </script>
+          </div>
+
+          {# BILLING (was templates/seat_checkout.html, embedded here so it
+               behaves like every other Finances sub-section instead of
+               navigating to a separate page -- blueprints/seats.py's
+               seats_page() now just redirects to ?tab=billing) #}
+          <div class="s3-section" id="ss-billing">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-eff6ff"><i class="ti ti-ticket u-c-1e3a8a u-fs-20"></i></div>
+              <div><div class="sec-title">Seats &amp; Billing</div><div class="sec-sub">Employee seat limit and Razorpay auto-debit</div></div>
+            </div>
+
+            {% if subscription_status == 'trialing' and trial_end_date %}
+            <div class="seats-card seats-status">
+              <h2><i class="ti ti-gift"></i> Free Trial Active</h2>
+              <div class="sub">
+                Full access to every feature, no charge yet. Your trial ends <strong>{{ trial_end_date.strftime('%d %b %Y') }}</strong> --
+                billing starts automatically at {{ per_employee_paise|plan_price }}/employee/month unless you cancel before then.
+              </div>
+            </div>
+            {% elif subscription_status == 'past_due' %}
+            <div class="seats-card" style="background:#fffbeb; border-color:#fde68a;">
+              <h2 style="color:#b45309;"><i class="ti ti-alert-triangle"></i> Payment Needed</h2>
+              <div class="sub" style="color:#92400e;">
+                Your trial has ended and we couldn't confirm a payment method on file, or your last charge failed.
+                Add or update auto-debit below to keep your account active -- see the banner at the top of this
+                page for the exact grace-period deadline.
+              </div>
+            </div>
+            {% endif %}
+
+            {% if not payments_enabled %}
+            <div class="seats-card" style="background:#eff6ff; border-color:#bfdbfe;" id="paymentsOffNotice">
+              <h2 style="color:#1e3a8a;"><i class="ti ti-info-circle"></i> Online payments aren't available yet</h2>
+              <div class="sub" style="color:#1e40af;">
+                There's nothing to set up here for now -- you can keep using HRZest as normal.
+                For billing questions, contact support.
+              </div>
+            </div>
+            {% elif razorpay_test_mode %}
+            <div class="seats-card" style="background:#fffbeb; border-color:#fde68a;" id="paymentsTestModeNotice">
+              <h2 style="color:#b45309;"><i class="ti ti-flask"></i> Test mode</h2>
+              <div class="sub" style="color:#92400e;">
+                Payments run in Razorpay's test mode -- no real money is charged. Use Razorpay's test cards or test UPI IDs.
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="seats-card">
+              <h2><i class="ti ti-users"></i> Employee Seats</h2>
+              <div class="sub">Your plan includes a fixed number of paid employee seats. Buy more any time -- new hires can't be registered past your current limit.</div>
+
+              <div class="usage-row" style="flex-direction: column; align-items: stretch;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div class="num">{{ employee_count }}{% if co.paid_employee_slots is not none %} / {{ co.paid_employee_slots }}{% endif %}</div>
+                    <div class="lbl">Employees registered{% if co.paid_employee_slots is not none %} of your paid seat limit{% else %} (unlimited plan){% endif %}</div>
+                  </div>
+                </div>
+                {% if co.paid_employee_slots is not none %}
+                  {% set pct = (employee_count / co.paid_employee_slots * 100) if co.paid_employee_slots > 0 else 100 %}
+                  <div class="usage-bar-track">
+                    <div class="usage-bar-fill {{ 'danger' if employee_count >= co.paid_employee_slots else ('warning' if pct >= 80 else '') }}" style="width: {{ [pct, 100] | min }}%;"></div>
+                  </div>
+                {% endif %}
+              </div>
+
+              {% if co.paid_employee_slots is none %}
+                <div class="unlimited-note"><i class="ti ti-infinity"></i> Your plan already allows unlimited employees -- there's no seat limit to buy past.</div>
+              {% elif payments_enabled %}
+                <div class="form-error" id="formError"></div>
+                <div class="form-success" id="formSuccess"></div>
+
+                <form id="buySeatsForm" method="post">
+                  <label class="field-label" for="additionalSeats">How many additional seats do you need?</label>
+                  <div class="qty-row">
+                    <button type="button" class="qty-btn" id="qtyMinus" aria-label="Decrease seats">−</button>
+                    <input class="qty-input" type="number" id="additionalSeats" min="1" value="5" title="Additional seats" aria-label="Additional seats" />
+                    <button type="button" class="qty-btn" id="qtyPlus" aria-label="Increase seats">+</button>
+                  </div>
+
+                  <div class="price-box">
+                    <div>
+                      <div class="amt" id="priceTotal">{{ per_employee_paise|plan_price }}</div>
+                      <div class="note">one-time, added to your seat limit immediately</div>
+                    </div>
+                    <div class="note">{{ per_employee_paise|plan_price }} &times; <span id="priceCount">1</span> seat(s)</div>
+                  </div>
+
+                  <button type="submit" class="pay-btn" id="payBtn">
+                    <i class="ti ti-credit-card"></i> <span>Pay &amp; Add Seats</span>
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+
+            <div class="seats-card">
+              <h2><i class="ti ti-repeat"></i> Auto-Debit Monthly Billing</h2>
+              <div class="sub">Automatically pay {{ per_employee_paise|plan_price }}/employee/month via Razorpay (card, UPI Autopay or e-mandate) instead of tracking it yourself. The billed amount adjusts to your headcount every cycle.</div>
+
+              <div class="usage-row" style="margin-bottom:20px;">
+                <div>
+                  <div class="num" style="font-size:18px;">
+                    {% if auto_debit_status and auto_debit_status.status == 'active' %}
+                      <span style="color:#15803d;"><i class="ti ti-circle-check"></i> Active</span>
+                    {% elif auto_debit_status and auto_debit_status.status == 'pending_cancellation' %}
+                      <span style="color:#d97706;"><i class="ti ti-clock-pause"></i> Cancelling at period end</span>
+                    {% elif auto_debit_status and auto_debit_status.status == 'pending' %}
+                      <span style="color:#d97706;"><i class="ti ti-clock"></i> Pending authorization</span>
+                    {% elif auto_debit_status and auto_debit_status.status == 'rate_changed' %}
+                      <span style="color:#d97706;"><i class="ti ti-refresh-alert"></i> Rate changed — re-authorization needed</span>
+                    {% elif auto_debit_status and auto_debit_status.status == 'cancelled' %}
+                      <span style="color:#64748b;"><i class="ti ti-circle-x"></i> Cancelled</span>
+                    {% else %}
+                      <span style="color:#64748b;"><i class="ti ti-circle-dashed"></i> Not enabled</span>
+                    {% endif %}
+                  </div>
+                  <div class="lbl">Estimated next charge: {{ monthly_bill_display }} for {{ employee_count }} employee{{ 's' if employee_count != 1 }}</div>
+                  {% if auto_debit_status and auto_debit_status.status == 'active' and auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
+                  <div class="lbl" style="color:#1d4ed8;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. Update it now, or it updates itself before the next charge.</div>
+                  {% endif %}
+                  {% if auto_debit_status and auto_debit_status.status == 'rate_changed' %}
+                  <div class="lbl" style="color:#d97706;margin-top:2px;">Your previous auto-debit ended after its last payment at the old rate — re-enable below to continue automatic billing at the new rate.</div>
+                  {% elif auto_debit_status and auto_debit_status.status == 'pending_cancellation' %}
+                  <div class="lbl" style="color:#d97706;margin-top:2px;">Billing continues normally through your current period -- access won't be interrupted early.</div>
+                  {% endif %}
+                </div>
+                {% if auto_debit_status and auto_debit_status.status == 'active' %}
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    {% if auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
+                    <button type="button" class="qty-btn" id="updateAutoDebitBtn" style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Update to {{ employee_count }} employee{{ 's' if employee_count != 1 }}</button>
+                    {% endif %}
+                    <button type="button" class="qty-btn" id="cancelAtPeriodEndBtn" style="width:auto; padding:0 16px; background:#fff7ed; border-color:#fdba74; color:#c2410c;">Cancel at Period End</button>
+                    <button type="button" class="qty-btn" id="disableAutoDebitBtn" style="width:auto; padding:0 16px; background:#fee2e2; border-color:#fca5a5; color:#dc2626;">Disable Now</button>
+                  </div>
+                {% elif not payments_enabled %}
+                {% elif auto_debit_status and auto_debit_status.status == 'rate_changed' %}
+                  <button type="button" class="qty-btn" id="enableAutoDebitBtn" data-label="Re-Enable Auto-Debit" style="width:auto; padding:0 16px; background:#d97706; border-color:#d97706; color:#fff;">Re-Enable Auto-Debit</button>
+                {% elif not (auto_debit_status and auto_debit_status.status == 'pending_cancellation') %}
+                  <button type="button" class="qty-btn" id="enableAutoDebitBtn" data-label="Enable Auto-Debit" style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Enable Auto-Debit</button>
+                {% endif %}
+              </div>
+
+              <div class="form-error" id="adFormError"></div>
+              <div class="form-success" id="adFormSuccess"></div>
+
+              {% if invoices %}
+              <div class="field-label">Billing History</div>
+              <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <thead>
+                  <tr style="text-align:left; color:#64748b;">
+                    <th style="padding:6px 4px;">Period</th><th style="padding:6px 4px;">Employees</th>
+                    <th style="padding:6px 4px;">Rate</th>
+                    <th style="padding:6px 4px;">Amount</th><th style="padding:6px 4px;">Status</th><th style="padding:6px 4px;">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for inv in invoices %}
+                  <tr style="border-top:1px solid #e2e8f0;">
+                    <td style="padding:6px 4px;">{{ inv.billing_period.strftime('%b %Y') if inv.billing_period else '—' }}</td>
+                    <td style="padding:6px 4px;">{{ inv.employee_count }}</td>
+                    <td style="padding:6px 4px; color:#64748b;">{{ inv.rate_display or '—' }}</td>
+                    <td style="padding:6px 4px;">{{ inv.amount_display }}</td>
+                    <td style="padding:6px 4px;"><span style="color:{{ '#15803d' if inv.status == 'paid' else '#dc2626' }}; font-weight:700;">{{ inv.status }}</span></td>
+                    <td style="padding:6px 4px; color:#64748b;">{{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '—' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+            </div>
+
+            {# Sandbox checkout modal (used only when Razorpay isn't configured on this server) #}
+            <div class="mock-overlay" id="mockOverlay" role="dialog" aria-modal="true" aria-label="Test mode payment">
+              <div class="mock-sheet">
+                <div class="mock-testbar"><i class="ti ti-flask"></i> Sandbox Test Mode — No Card Charged</div>
+                <div class="mock-head">
+                  <div class="mock-head-brand">
+                    <div class="m-icon"><i class="ti ti-users"></i></div>
+                    <div>
+                      <div class="m-name">HRzest Enterprise</div>
+                      <div class="m-sub" id="mockSubLabel">Additional Employee Seats</div>
+                    </div>
+                  </div>
+                  <button type="button" class="mock-close" id="mockCloseBtn" aria-label="Cancel">✕</button>
+                </div>
+                <div class="mock-amount-row">
+                  <div class="m-label">Amount Payable</div>
+                  <div class="m-amount" id="mockAmount">₹0</div>
+                </div>
+                <div class="mock-body">
+                  <label class="mock-field-label">Test Card Number</label>
+                  <input class="mock-input" type="text" value="4111 1111 1111 1111" readonly />
+                  <div class="mock-row2">
+                    <div>
+                      <label class="mock-field-label">Expiry</label>
+                      <input class="mock-input" type="text" value="12/29" readonly />
+                    </div>
+                    <div>
+                      <label class="mock-field-label">CVV</label>
+                      <input class="mock-input" type="text" value="123" readonly />
+                    </div>
+                  </div>
+                  <button type="button" class="mock-pay-btn" id="mockPayBtn">Confirm &amp; Add Seats</button>
+                  <p class="mock-note">This is a <strong>sandbox test checkout</strong> for local evaluation.</p>
+                </div>
+              </div>
+            </div>
+
+            <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+            <script>
+            (function() {
+              const PER_EMPLOYEE_PAISE = {{ per_employee_paise }};
+              let currentOrder = null;
+              let currentSubscription = null;
+              let mockMode = 'seats'; // 'seats' | 'auto_debit' -- which flow the sandbox modal's Confirm button finalizes
+
+              function formatInr(paise) {
+                return '₹' + Math.round(paise / 100).toLocaleString('en-IN');
+              }
+
+              function updatePrice() {
+                const el = document.getElementById('additionalSeats');
+                if (!el) return;
+                let count = parseInt(el.value, 10);
+                if (!count || count < 1) count = 1;
+                el.value = count;
+                document.getElementById('priceCount').textContent = count;
+                document.getElementById('priceTotal').textContent = formatInr(count * PER_EMPLOYEE_PAISE);
+              }
+
+              const qtyMinus = document.getElementById('qtyMinus');
+              const qtyPlus = document.getElementById('qtyPlus');
+              if (qtyMinus) {
+                qtyMinus.addEventListener('click', () => {
+                  const el = document.getElementById('additionalSeats');
+                  el.value = Math.max(1, (parseInt(el.value, 10) || 1) - 1);
+                  updatePrice();
+                });
+                qtyPlus.addEventListener('click', () => {
+                  const el = document.getElementById('additionalSeats');
+                  el.value = (parseInt(el.value, 10) || 1) + 1;
+                  updatePrice();
+                });
+                document.getElementById('additionalSeats').addEventListener('input', updatePrice);
+                updatePrice();
+              }
+
+              function resetSubmitButton() {
+                const btn = document.getElementById('payBtn');
+                if (!btn) return;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-credit-card"></i> <span>Pay & Add Seats</span>';
+              }
+
+              function showError(msg) {
+                const err = document.getElementById('formError');
+                err.textContent = msg;
+                err.style.display = 'flex';
+              }
+
+              const buySeatsForm = document.getElementById('buySeatsForm');
+              if (buySeatsForm) {
+                buySeatsForm.addEventListener('submit', async function (e) {
+                  e.preventDefault();
+                  const btn = document.getElementById('payBtn');
+                  const err = document.getElementById('formError');
+                  err.style.display = 'none';
+                  document.getElementById('formSuccess').style.display = 'none';
+                  btn.disabled = true;
+                  btn.innerHTML = '<i class="ti ti-loader"></i> Processing...';
+
+                  const additionalSeats = parseInt(document.getElementById('additionalSeats').value, 10) || 1;
+
+                  try {
+                    const res = await fetch('{{ tpath("/api/seats/create_order") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ additional_seats: additionalSeats }),
+                    });
+                    const json = await res.json();
+                    if (!json.ok) {
+                      showError(json.msg || 'Could not start checkout.');
+                      resetSubmitButton();
+                      return;
+                    }
+
+                    currentOrder = json;
+                    mockMode = 'seats';
+                    document.getElementById('mockAmount').textContent = json.amount_display;
+                    document.getElementById('mockSubLabel').textContent = 'Additional Employee Seats';
+                    document.getElementById('mockPayBtn').textContent = 'Confirm & Add Seats';
+
+                    if (json.demo) {
+                      document.getElementById('mockOverlay').classList.add('open');
+                      resetSubmitButton();
+                    } else {
+                      openRazorpayCheckout(json);
+                    }
+                  } catch (ex) {
+                    showError('Network error. Please check your connection and try again.');
+                    resetSubmitButton();
+                  }
+                });
+              }
+
+              function openRazorpayCheckout(order) {
+                const rzp = new Razorpay({
+                  key: order.key_id,
+                  amount: order.amount_paise,
+                  currency: order.currency,
+                  order_id: order.order_id,
+                  name: 'HRzest Enterprise',
+                  description: order.additional_seats + ' additional employee seat(s)',
+                  handler: function (response) {
+                    finalizeOrder({
+                      razorpay_order_id: response.razorpay_order_id,
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_signature: response.razorpay_signature,
+                    });
+                  },
+                  modal: { ondismiss: function () { resetSubmitButton(); } },
+                  theme: { color: '#2563eb' },
+                });
+                rzp.on('payment.failed', function () {
+                  showError('Payment failed. Please try again.');
+                  resetSubmitButton();
+                });
+                rzp.open();
+              }
+
+              async function finalizeOrder(paymentPayload) {
+                try {
+                  const res = await fetch('{{ tpath("/api/seats/verify_payment") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(paymentPayload),
+                  });
+                  const json = await res.json();
+                  if (json.ok) {
+                    const success = document.getElementById('formSuccess');
+                    success.textContent = 'Seats added! Your new limit is ' + json.paid_employee_slots + ' employees.';
+                    success.style.display = 'flex';
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                  } else {
+                    showError(json.msg || 'Payment received, but activation failed. Contact support.');
+                    resetSubmitButton();
+                  }
+                } catch (ex) {
+                  showError('Network error while confirming payment. Contact support if you were charged.');
+                  resetSubmitButton();
+                }
+              }
+
+              // ── Auto-debit monthly billing ────────────────────────────────────────────
+              function adShowError(msg) {
+                const err = document.getElementById('adFormError');
+                if (!err) return;
+                err.textContent = msg;
+                err.style.display = 'flex';
+              }
+
+              function resetEnrollButton() {
+                const btn = document.getElementById('enableAutoDebitBtn');
+                if (!btn) return;
+                btn.disabled = false;
+                btn.textContent = btn.dataset.label || 'Enable Auto-Debit';
+              }
+
+              const enableAutoDebitBtn = document.getElementById('enableAutoDebitBtn');
+              if (enableAutoDebitBtn) {
+                enableAutoDebitBtn.addEventListener('click', async () => {
+                  const err = document.getElementById('adFormError');
+                  err.style.display = 'none';
+                  enableAutoDebitBtn.disabled = true;
+                  enableAutoDebitBtn.textContent = 'Setting up...';
+
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/enroll") }}', { method: 'POST' });
+                    const json = await res.json();
+                    if (!json.ok) {
+                      adShowError(json.msg || 'Could not start auto-debit setup.');
+                      resetEnrollButton();
+                      return;
+                    }
+
+                    currentSubscription = json;
+                    mockMode = 'auto_debit';
+                    document.getElementById('mockAmount').textContent = json.amount_display + '/month';
+                    document.getElementById('mockSubLabel').textContent = 'Monthly Auto-Debit Authorization';
+                    document.getElementById('mockPayBtn').textContent = 'Confirm & Enable Auto-Debit';
+
+                    if (json.demo) {
+                      document.getElementById('mockOverlay').classList.add('open');
+                      resetEnrollButton();
+                    } else {
+                      openRazorpaySubscriptionCheckout(json);
+                    }
+                  } catch (ex) {
+                    adShowError('Network error. Please check your connection and try again.');
+                    resetEnrollButton();
+                  }
+                });
+              }
+
+              function openRazorpaySubscriptionCheckout(sub) {
+                const rzp = new Razorpay({
+                  key: sub.key_id,
+                  subscription_id: sub.subscription_id,
+                  name: 'HRzest Enterprise',
+                  description: 'Monthly per-employee auto-debit authorization',
+                  handler: function (response) {
+                    finalizeSubscription({
+                      razorpay_subscription_id: response.razorpay_subscription_id,
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_signature: response.razorpay_signature,
+                    });
+                  },
+                  modal: { ondismiss: function () { resetEnrollButton(); } },
+                  theme: { color: '#2563eb' },
+                });
+                rzp.on('payment.failed', function () {
+                  adShowError('Authorization failed. Please try again.');
+                  resetEnrollButton();
+                });
+                rzp.open();
+              }
+
+              async function finalizeSubscription(payload) {
+                try {
+                  const res = await fetch('{{ tpath("/api/auto_debit/confirm") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  const json = await res.json();
+                  if (json.ok) {
+                    const success = document.getElementById('adFormSuccess');
+                    success.textContent = 'Auto-debit enabled! You will be billed automatically each month.';
+                    success.style.display = 'flex';
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                  } else {
+                    adShowError(json.msg || 'Authorization received, but activation failed. Contact support.');
+                    resetEnrollButton();
+                  }
+                } catch (ex) {
+                  adShowError('Network error while confirming authorization.');
+                  resetEnrollButton();
+                }
+              }
+
+              const disableAutoDebitBtn = document.getElementById('disableAutoDebitBtn');
+              if (disableAutoDebitBtn) {
+                disableAutoDebitBtn.addEventListener('click', async () => {
+                  if (!(await hzConfirm('Disable monthly auto-debit immediately? You can re-enable it any time.'))) return;
+                  disableAutoDebitBtn.disabled = true;
+                  disableAutoDebitBtn.textContent = 'Disabling...';
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/cancel") }}', { method: 'POST' });
+                    const json = await res.json();
+                    if (json.ok) {
+                      window.location.reload();
+                    } else {
+                      adShowError(json.msg || 'Could not disable auto-debit.');
+                      disableAutoDebitBtn.disabled = false;
+                      disableAutoDebitBtn.textContent = 'Disable Now';
+                    }
+                  } catch (ex) {
+                    adShowError('Network error. Please try again.');
+                    disableAutoDebitBtn.disabled = false;
+                    disableAutoDebitBtn.textContent = 'Disable Now';
+                  }
+                });
+              }
+
+              const updateAutoDebitBtn = document.getElementById('updateAutoDebitBtn');
+              if (updateAutoDebitBtn) {
+                updateAutoDebitBtn.addEventListener('click', async () => {
+                  const label = updateAutoDebitBtn.textContent;
+                  updateAutoDebitBtn.disabled = true;
+                  updateAutoDebitBtn.textContent = 'Updating...';
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/update_quantity") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: '{}',
+                    });
+                    const json = await res.json();
+                    if (json.ok) {
+                      window.location.reload();
+                    } else {
+                      adShowError(json.msg || 'Could not update auto-debit.');
+                      updateAutoDebitBtn.disabled = false;
+                      updateAutoDebitBtn.textContent = label;
+                    }
+                  } catch (e) {
+                    adShowError('Network error. Please try again.');
+                    updateAutoDebitBtn.disabled = false;
+                    updateAutoDebitBtn.textContent = label;
+                  }
+                });
+              }
+
+              const cancelAtPeriodEndBtn = document.getElementById('cancelAtPeriodEndBtn');
+              if (cancelAtPeriodEndBtn) {
+                cancelAtPeriodEndBtn.addEventListener('click', async () => {
+                  if (!(await hzConfirm('Cancel auto-debit at the end of your current billing period? Billing continues normally until then -- no early cutoff.'))) return;
+                  cancelAtPeriodEndBtn.disabled = true;
+                  cancelAtPeriodEndBtn.textContent = 'Scheduling...';
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/cancel") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ at_period_end: true }),
+                    });
+                    const json = await res.json();
+                    if (json.ok) {
+                      window.location.reload();
+                    } else {
+                      adShowError(json.msg || 'Could not schedule cancellation.');
+                      cancelAtPeriodEndBtn.disabled = false;
+                      cancelAtPeriodEndBtn.textContent = 'Cancel at Period End';
+                    }
+                  } catch (ex) {
+                    adShowError('Network error. Please try again.');
+                    cancelAtPeriodEndBtn.disabled = false;
+                    cancelAtPeriodEndBtn.textContent = 'Cancel at Period End';
+                  }
+                });
+              }
+
+              // ── Shared sandbox/demo modal (branches on mockMode) ──────────────────────
+              const mockCloseBtn = document.getElementById('mockCloseBtn');
+              if (mockCloseBtn) {
+                mockCloseBtn.addEventListener('click', () => {
+                  document.getElementById('mockOverlay').classList.remove('open');
+                });
+              }
+
+              const mockPayBtn = document.getElementById('mockPayBtn');
+              if (mockPayBtn) {
+                mockPayBtn.addEventListener('click', async () => {
+                  if (mockMode === 'auto_debit') {
+                    if (!currentSubscription) return;
+                    mockPayBtn.disabled = true;
+                    mockPayBtn.textContent = 'Authorizing...';
+                    try {
+                      await finalizeSubscription({
+                        razorpay_subscription_id: currentSubscription.subscription_id,
+                        razorpay_payment_id: 'demo_payment',
+                        razorpay_signature: '',
+                      });
+                    } finally {
+                      mockPayBtn.disabled = false;
+                      mockPayBtn.textContent = 'Confirm & Enable Auto-Debit';
+                      document.getElementById('mockOverlay').classList.remove('open');
+                    }
+                    return;
+                  }
+                  if (!currentOrder) return;
+                  mockPayBtn.disabled = true;
+                  mockPayBtn.textContent = 'Adding Seats...';
+                  try {
+                    await finalizeOrder({
+                      razorpay_order_id: currentOrder.order_id,
+                      razorpay_payment_id: 'demo_payment',
+                      razorpay_signature: '',
+                    });
+                  } finally {
+                    mockPayBtn.disabled = false;
+                    mockPayBtn.textContent = 'Confirm & Add Seats';
+                  }
+                });
+              }
+            })();
+            </script>
+          </div>
+
+    </div>
+
+    {# SYSTEM PANEL #}
+    <div class="s3-panel" id="s3panel-sys">
+    <div class="subnav-bar">
+      <div class="subnav-dd-wrap">
+        <button class="subnav-dd-btn" data-on-click="toggleDd('dd-sys')">
+          <div class="lines"><span></span><span></span><span></span></div>
+          Sections
+        </button>
+        <div class="subnav-dd-menu" id="dd-sys">
+          <button class="subnav-dd-item active" id="ddi-email"      data-on-click="switchSub('sys','email')">      <i class="ti ti-mail"></i>       Email</button>
+        </div>
+      </div>
+    </div>
+
+          {# EMAIL #}
+          <div class="s3-section active" id="ss-email">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-f0f9ff"><i class="ti ti-mail u-c-0284c7 u-fs-20"></i></div>
+              <div><div class="sec-title">Email</div><div class="sec-sub">SMTP configuration and notification preferences</div></div>
+            </div>
+            <div class="two-col">
+              <div class="section">
+                <div class="section-title"><i class="ti ti-broadcast hz-ico" aria-hidden="true"></i> SMTP Configuration</div>
 
 {% include "settings/_fin_salary.html" %}
 
@@ -95,7 +1363,813 @@
 
   <script src="{{ static_url('a11y-tabs.js') }}"></script>
 
-{% include "settings/_modal_company_pin.html" %}
+  {# ══ SET COMPANY PIN MODAL ══ #}
+  <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba15_23_42_0d55 u-zi-10002 u-ai-center u-jc-center" id="setPinModal">
+    <div class="u-bg-fff u-br-20 u-p-28 u-w-360 u-shad-0-24-64-rgba0_0_0_0d25">
+      <div class="u-fs-15 u-fw-800 u-c-0f172a u-mb-3"><i class="ti ti-lock hz-ico" aria-hidden="true"></i> PIN Protection</div>
+      <div class="u-fs-12 u-c-64748b u-mb-20" id="spn_label">Control access to this company</div>
+      <form method="POST" action="{{ tpath('/set_company_pin') }}" id="spnForm">
+        <input type="hidden" name="company_id" id="spn_cid" />
+        {# Toggle row #}
+        <div class="u-d-flex u-ai-center u-jc-space-between u-p-13-15 u-bg-f8fafc u-bd-1d5-solid-e2e8f0 u-br-12 u-mb-14">
+          <div>
+            <div class="u-fs-13 u-fw-700 u-c-0f172a">Enable PIN Protection</div>
+            <div class="u-fs-11 u-c-64748b u-mt-2">Require PIN when switching to this company</div>
+          </div>
+          <label class="u-pos-relative u-d-inline-block u-w-46 u-h-25 u-cur-pointer u-fxs-0">
+            <input class="u-op-0 u-w-0 u-h-0 u-pos-absolute" type="checkbox" id="spn_toggle" data-on-change="spnToggleChange(this)" />
+            <span class="u-pos-absolute u-ins-0 u-br-25 u-bg-e2e8f0 u-trs-background-d2s" id="spn_track"></span>
+            <span class="u-pos-absolute u-top-3 u-lft-3 u-w-19 u-h-19 u-br-50pct u-bg-fff u-shad-0-1-4-rgba0_0_0_0d25 u-trs-left-d2s" id="spn_thumb"></span>
+          </label>
+        </div>
+        {# PIN input area — shown when toggle ON #}
+        <div class="u-d-none u-mb-14" id="spn_pin_section">
+          <label class="u-fs-12 u-fw-700 u-c-475569 u-d-block u-mb-8">PIN Code</label>
+          <input class="u-w-100pct u-p-13 u-bd-2-solid-e2e8f0 u-br-11 u-fs-22 u-ls-7 u-ta-center u-ff-monospace u-out-none u-trs-border-d15s u-bxs-border-box" type="password" name="pin" id="spn_pin" maxlength="10" placeholder="• • • •" autocomplete="off"
+            data-on-input="markFilledInput(this)" />
+          <div class="u-fs-11 u-c-94a3b8 u-mt-5 u-ta-center">4–10 characters (numbers or letters)</div>
+        </div>
+        <div class="u-fs-11 u-c-64748b u-bg-fffbeb u-bd-1-solid-fde68a u-br-8 u-p-9-12 u-mb-16 u-lh-1d5">
+          <i class="ti ti-bulb hz-ico" aria-hidden="true"></i> When enabled, clicking this company in the top-right switcher will ask for the PIN before showing its data.
+        </div>
+        <div class="u-d-flex u-gap-8">
+          <button class="u-fx-1 u-p-11 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-f8fafc u-c-64748b u-fs-14 u-fw-600 u-cur-pointer u-ff-inherit" type="button" data-on-click="closeSetPin()">Cancel</button>
+          <button class="u-fx-2 u-p-11 u-bd-none u-br-10 u-bg-1e3a8a u-c-fff u-fs-14 u-fw-700 u-cur-pointer u-ff-inherit" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ══ ADD COMPANY MODAL ══ #}
+  <div class="modal-bg" id="addCompanyModal">
+    <div class="modal u-maxw-580 u-maxh-90vh u-d-flex u-fxd-column">
+      <div class="modal-title u-fxs-0"><i class="ti ti-building hz-ico" aria-hidden="true"></i> Add Company</div>
+      <form class="u-d-flex u-fxd-column u-fx-1 u-minh-0" method="POST" action="{{ tpath('/companies/add') }}" enctype="multipart/form-data">
+        <input type="hidden" name="redirect_to" value="settings" />
+        <div class="u-ovy-auto u-fx-1 u-pr-2">
+          <div class="u-d-grid u-gtc-1fr-160 u-gap-10">
+            <div class="field">
+              <label>Company Name</label>
+              <input type="text" name="name" placeholder="e.g. Magzest Solutions" required />
+            </div>
+            <div class="field">
+              <label>Code <span class="u-fs-11 u-c-94a3b8">(ID prefix)</span></label>
+              <input class="u-ff-monospace u-ls-1" type="text" name="code" placeholder="e.g. MGZ" maxlength="20" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-photo hz-ico" aria-hidden="true"></i> Company Logo <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+            <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/bmp" />
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-map-pin hz-ico" aria-hidden="true"></i> Office Address <span class="u-fs-11 u-c-94a3b8">(optional — shown on ID cards)</span></label>
+            <input type="text" name="address" placeholder="e.g. 4th Floor, Tech Park, Bengaluru, India" />
+          </div>
+          <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
+            <div class="field">
+              <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-world hz-ico" aria-hidden="true"></i> Website <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+              <input type="text" name="website" placeholder="e.g. company.com" />
+            </div>
+            <div class="field">
+              <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-mail hz-ico" aria-hidden="true"></i> Contact Email <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+              <input type="email" name="email" placeholder="info@company.com" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-phone hz-ico" aria-hidden="true"></i> Contact Phone <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
+            <input type="text" name="phone" placeholder="e.g. +91 98765 43210" />
+          </div>
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Working Days</label>
+            <div class="u-d-flex u-fxw-wrap u-gap-6 u-mt-4">
+              {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+              <label class="u-cur-pointer">
+                <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} data-on-change="styleCoWd(this)" />
+                <span class="py-day-chip {{ 'on' if _d in ['Mon','Tue','Wed','Thu','Fri'] }}">{{ _d }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">This new company's starting work week — each company can change its own later in its Settings -> Finance -> Payroll Rules.</div>
+          </div>
+
+          {# Shifts #}
+          <div class="field u-mb-6">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
+              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-clock hz-ico" aria-hidden="true"></i> Shifts</label>
+              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-c7d2fe u-br-8 u-bg-eef2ff u-c-4338ca u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" data-on-click="acAddShiftRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
+            </div>
+            {# header row #}
+            <div class="u-d-grid u-gtc-1fr-82-82-82-28 u-gap-6 u-mb-4 u-p-0-2">
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Name</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Start</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Half-day</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">End</span>
+              <span></span>
+            </div>
+            <div class="u-d-flex u-fxd-column u-gap-6" id="acShiftsList"></div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Optional — define shifts for this company.</div>
+          </div>
+
+          {# Breaks #}
+          <div class="field u-mb-6">
+            <div class="u-d-flex u-ai-center u-jc-space-between u-mb-8">
+              <label class="u-fs-12 u-fw-700 u-c-475569 u-m-0"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i> Breaks</label>
+              <button class="u-d-flex u-ai-center u-gap-4 u-p-4-10 u-bd-1d5-solid-bbf7d0 u-br-8 u-bg-f0fdf4 u-c-16a34a u-fs-11 u-fw-700 u-cur-pointer u-ff-inherit" type="button" data-on-click="acAddBreakRow()"><i class="ti ti-plus u-fs-11"></i> Add</button>
+            </div>
+            {# header row #}
+            <div class="u-d-grid u-gtc-1fr-90-70-28 u-gap-6 u-mb-4 u-p-0-2">
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Name</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Time</span>
+              <span class="u-fs-10 u-fw-600 u-c-94a3b8">Mins</span>
+              <span></span>
+            </div>
+            <div class="u-d-flex u-fxd-column u-gap-6" id="acBreaksList"></div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Optional — define company-wide daily breaks.</div>
+          </div>
+        </div>
+
+        <div class="modal-actions u-fxs-0 u-bdt-1-solid-f1f5f9 u-pt-14 u-mt-4">
+          <button class="u-p-9-18 u-bd-1-solid-e2e8f0 u-br-9 u-bg-f1f5f9 u-c-64748b u-fs-14 u-fw-600 u-cur-pointer" type="button" data-on-click="acCloseModal()">Cancel</button>
+          <button type="submit" class="btn-submit">Add Company</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* ── handlers bound through data-on-* (static/hz-actions.js) ── */
+    function useCurrentOfficeLocation() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(function (p) {
+        document.querySelector('[name=office_lat]').value = p.coords.latitude;
+        document.querySelector('[name=office_lon]').value = p.coords.longitude;
+      });
+    }
+
+    function showEmail2faLost(ev, link) {
+      ev.preventDefault();
+      document.getElementById('email-2fa-lost').classList.remove('u-d-none');
+      link.classList.add('u-d-none');
+    }
+
+    function editRecoveryEmail() {
+      document.getElementById('recoveryEmailView').classList.add('u-d-none');
+      document.getElementById('recoveryEmailForm').classList.remove('u-d-none');
+      document.getElementById('recoveryEmailInput').focus();
+    }
+
+    function markFilledInput(input) {
+      input.style.borderColor = input.value ? '#1e3a8a' : '#e2e8f0';
+    }
+
+    /* ── 3-TAB + DROPDOWN SUB-NAV ── */
+    var groupMap  = { company:'sys', attendance:'org',payroll:'fin',salary:'fin',disbursement:'fin',billing:'fin',email:'sys' };
+    var firstSub  = { org:'attendance', fin:'payroll', sys:'company' };
+    var crumbData = {
+      attendance: { icon:'<i class="ti ti-fingerprint u-c-16a34a"></i>', bg:'#f0fdf4', title:'Attendance',     sub:'Punch-in methods' },
+      company:    { icon:'<i class="ti ti-building u-c-1e3a8a"></i>',    bg:'#eff6ff', title:'Company',        sub:'Company management' },
+      payroll:    { icon:'<i class="ti ti-coin u-c-ca8a04"></i>',        bg:'#fefce8', title:'Payroll',        sub:'Salary rules' },
+      salary:     { icon:'<i class="ti ti-cash u-c-16a34a"></i>',        bg:'#f0fdf4', title:'Salary',         sub:'Per-employee rates' },
+      disbursement: { icon:'<i class="ti ti-building-bank u-c-1e3a8a"></i>', bg:'#eff6ff', title:'Disbursement', sub:'Automated salary payout' },
+      billing:    { icon:'<i class="ti ti-ticket u-c-1e3a8a"></i>',        bg:'#eff6ff', title:'Billing',        sub:'Seats and auto-debit' },
+      email:      { icon:'<i class="ti ti-mail u-c-0284c7"></i>',        bg:'#f0f9ff', title:'Email',          sub:'SMTP and notifications' }
+    };
+
+    /* ── SET PIN MODAL ── */
+    function openSetPin(cid, cname, hasPin) {
+      document.getElementById('spn_cid').value = cid;
+      document.getElementById('spn_label').textContent = cname;
+      document.getElementById('spn_pin').value = '';
+      // Set toggle state based on whether PIN exists
+      var tog = document.getElementById('spn_toggle');
+      tog.checked = !!hasPin;
+      spnToggleChange(tog, true);
+      document.getElementById('setPinModal').style.display = 'flex';
+      if (hasPin) setTimeout(function(){ document.getElementById('spn_pin').focus(); }, 100);
+    }
+    function closeSetPin() { document.getElementById('setPinModal').style.display = 'none'; }
+    function spnToggleChange(cb, skipAnim) {
+      var on = cb.checked;
+      document.getElementById('spn_track').style.background = on ? '#1e3a8a' : '#e2e8f0';
+      document.getElementById('spn_thumb').style.left = on ? '24px' : '3px';
+      document.getElementById('spn_pin_section').style.display = on ? 'block' : 'none';
+      // When OFF, clear the pin field so empty string is submitted (removes PIN)
+      if (!on) document.getElementById('spn_pin').value = '';
+    }
+
+    /* ── COMPANY INLINE EDIT ── */
+    function openEditCompany(id) {
+      document.getElementById('co-view-' + id).style.display = 'none';
+      document.getElementById('co-edit-' + id).style.display = 'block';
+    }
+    function closeEditCompany(id) {
+      document.getElementById('co-edit-' + id).style.display = 'none';
+      document.getElementById('co-view-' + id).style.display = 'block';
+    }
+
+    /* ── Add Company modal: dynamic shift & break rows ── */
+    var _acDefaultShifts = [
+      {name:'General Shift', start:'09:00', half:'13:00', end:'18:00'},
+    ];
+    var _acDefaultBreaks = [
+      {name:'Coffee Break 1', time:'11:00', dur:10},
+      {name:'Lunch Break',    time:'13:00', dur:60},
+      {name:'Coffee Break 2', time:'16:00', dur:10},
+    ];
+
+    function acMakeShiftRow(name, start, half, end) {
+      var row = document.createElement('div');
+      Object.assign(row.style, {display:'grid', gridTemplateColumns:'1fr 82px 82px 82px 28px', gap:'6px', alignItems:'center'});
+      var inp = 'padding:7px 6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;width:100%;';
+      row.innerHTML =
+        '<input type="text" name="shift_name[]"  value="'+name+'" placeholder="Shift name" />' +
+        '<input type="time" name="shift_start[]" value="'+start+'" />' +
+        '<input type="time" name="shift_half[]"  value="'+half+'" />' +
+        '<input type="time" name="shift_end[]"   value="'+end+'" />' +
+        '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" data-on-click="HZ.removeParent(this)">×</button>';
+      return row;
+    }
+    function acAddShiftRow() {
+      document.getElementById('acShiftsList').appendChild(acMakeShiftRow('','','',''));
+    }
+
+    function acMakeBreakRow(name, time, dur) {
+      var row = document.createElement('div');
+      Object.assign(row.style, {display:'grid', gridTemplateColumns:'1fr 90px 70px 28px', gap:'6px', alignItems:'center'});
+      row.innerHTML =
+        '<input class="u-p-7-10 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="text"   name="break_name[]"     value="'+name+'" placeholder="Break name" />' +
+        '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="time"   name="break_time[]"     value="'+time+'" />' +
+        '<input class="u-p-7-8 u-bd-1-solid-e2e8f0 u-br-8 u-fs-12 u-ff-inherit u-w-100pct" type="number" name="break_duration[]" value="'+dur+'"  min="1" max="240" placeholder="mins" />' +
+        '<button class="u-w-26 u-h-26 u-bd-1-solid-fecaca u-br-7 u-bg-fff5f5 u-c-dc2626 u-fs-14 u-cur-pointer u-d-flex u-ai-center u-jc-center u-ff-inherit" type="button" data-on-click="HZ.removeParent(this)">×</button>';
+      return row;
+    }
+    function acAddBreakRow() {
+      document.getElementById('acBreaksList').appendChild(acMakeBreakRow('','','15'));
+    }
+
+    function acOpenModal() {
+      var sList = document.getElementById('acShiftsList');
+      sList.innerHTML = '';
+      _acDefaultShifts.forEach(function(s) { sList.appendChild(acMakeShiftRow(s.name, s.start, s.half, s.end)); });
+      var bList = document.getElementById('acBreaksList');
+      bList.innerHTML = '';
+      _acDefaultBreaks.forEach(function(b) { bList.appendChild(acMakeBreakRow(b.name, b.time, b.dur)); });
+      document.getElementById('addCompanyModal').classList.add('open');
+    }
+    function acCloseModal() {
+      document.getElementById('addCompanyModal').classList.remove('open');
+    }
+    function toggleCoAddShift(cid) {
+      var el = document.getElementById('co-as-' + cid);
+      if (!el) return;
+      var shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      if (!shown) el.querySelector('input[name="shift_name"]').focus();
+    }
+    function toggleCoEditShift(sid) {
+      var el = document.getElementById('co-es-' + sid);
+      if (!el) return;
+      var shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      if (!shown) el.querySelector('input[name="name"]').focus();
+    }
+    function toggleCoAddBreak(cid, sid) {
+      var el = document.getElementById('co-ab-' + cid + '-' + sid);
+      if (!el) return;
+      var shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      if (!shown) el.querySelector('input[name="break_name"]').focus();
+    }
+    function toggleCoEditBreak(bid) {
+      var el = document.getElementById('co-eb-' + bid);
+      if (!el) return;
+      var shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      if (!shown) el.querySelector('input[name="break_name"]').focus();
+    }
+    function styleCoWd(cb) {
+      // Toggles the .on class (not inline styles) so dark mode's own
+      // body.dark-mode .py-day-chip.on CSS applies correctly -- an inline
+      // style here would override it regardless of theme.
+      var span = cb.nextElementSibling;
+      span.classList.toggle('on', cb.checked);
+    }
+    document.getElementById('addCompanyModal').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('open');
+    });
+
+    function toggleEdit(key) {
+      var view = document.getElementById(key + '-view');
+      var edit = document.getElementById(key + '-edit');
+      var btn  = document.getElementById(key + '-editbtn');
+      if (!view || !edit) return;
+      var isEditing = edit.style.display !== 'none';
+      if (isEditing) {
+        edit.style.display = 'none';
+        view.style.display = '';
+        btn.innerHTML = '<i class="ti ti-pencil u-fs-13"></i> Edit';
+      } else {
+        view.style.display = 'none';
+        edit.style.display = '';
+        btn.innerHTML = '<i class="ti ti-x u-fs-13"></i> Cancel';
+        var inp = edit.querySelector('input[type=text]');
+        if (inp) inp.focus();
+      }
+    }
+
+    function toggleDd(id) {
+      var menu = document.getElementById(id);
+      if (!menu) return;
+      var isOpen = menu.classList.contains('open');
+      document.querySelectorAll('.subnav-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+      if (!isOpen) menu.classList.add('open');
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.subnav-dd-wrap')) {
+        document.querySelectorAll('.subnav-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+      }
+    });
+
+    function switchGroup(grp) {
+      document.querySelectorAll('.s3-tab').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.s3-panel').forEach(function(p){ p.classList.remove('active'); });
+      var btn = document.getElementById('s3tab-' + grp);
+      if (btn) btn.classList.add('active');
+      var panel = document.getElementById('s3panel-' + grp);
+      if (panel) panel.classList.add('active');
+      history.replaceState(null, '', '?tab=' + (firstSub[grp] || grp));
+    }
+
+    function switchSub(grp, sec) {
+      var panel = document.getElementById('s3panel-' + grp);
+      if (!panel) return;
+      panel.querySelectorAll('.s3-section').forEach(function(s){ s.classList.remove('active'); });
+      panel.querySelectorAll('.subnav-dd-item').forEach(function(b){ b.classList.remove('active'); });
+      var s = document.getElementById('ss-' + sec);
+      if (s) s.classList.add('active');
+      var ddi = document.getElementById('ddi-' + sec);
+      if (ddi) ddi.classList.add('active');
+      var d = crumbData[sec];
+      if (d) {
+        var ci = document.getElementById('crumb-icon-' + grp);
+        if (ci) { ci.innerHTML = d.icon; ci.style.background = d.bg; }
+        var ct = document.getElementById('crumb-text-' + grp);
+        if (ct) ct.textContent = d.title;
+        var cs = document.getElementById('crumb-sub-' + grp);
+        if (cs) cs.textContent = d.sub;
+      }
+      document.querySelectorAll('.subnav-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+      history.replaceState(null, '', '?tab=' + sec);
+    }
+
+    /* Init from URL — use requestAnimationFrame to ensure DOM is painted first */
+    (function() {
+      var tab = (new URLSearchParams(window.location.search).get('tab'))
+             || (sessionStorage.getItem('settings_tab'))
+             || 'company';
+      sessionStorage.removeItem('settings_tab');
+      var grp = groupMap[tab] || 'org';
+      function applyTab() {
+        switchGroup(grp);
+        if (document.getElementById('ss-' + tab)) switchSub(grp, tab);
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyTab);
+      } else {
+        requestAnimationFrame(function(){ requestAnimationFrame(applyTab); });
+      }
+    })();
+
+    /* ── Accessibility: ARIA roles + keyboard nav for the tab/dropdown system
+       (see static/a11y-tabs.js — wraps the switchGroup/switchSub logic above
+       without changing it) ── */
+    if (window.ezWireTabList) {
+      window.ezWireTabList('.s3-tab', function (tab) { return 's3panel-' + tab.id.replace('s3tab-', ''); }, { observe: true });
+      document.querySelectorAll('.subnav-dd-menu').forEach(function (menu) {
+        window.ezWireTabList('#' + menu.id + ' .subnav-dd-item', function (item) { return 'ss-' + item.id.replace('ddi-', ''); }, { observe: true });
+      });
+    }
+    if (window.ezWireDropdown) {
+      window.ezWireDropdown('.subnav-dd-btn', '.subnav-dd-menu');
+    }
+
+    /* ── FEATURE TOGGLE (AJAX) ── */
+    function saveToggle(feature, value, extraId) {
+      fetch('/toggle_feature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feature: feature, value: value })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.ok) { alert('Could not save: ' + (d.error || 'unknown error')); }
+        if (extraId) {
+          var el = document.getElementById(extraId);
+          if (el) el.style.display = value ? 'flex' : 'none';
+        }
+      })
+      .catch(function() { alert('Network error saving setting.'); });
+    }
+
+    /* ── WORKING DAYS PILL STYLING ── */
+    function styleWd(cb, day) {
+      var span = document.getElementById('wdspan_' + day);
+      if (!span) return;
+      if (cb.checked) {
+        span.style.borderColor = '#1e3a8a'; span.style.background = '#eff6ff'; span.style.color = '#1e3a8a';
+      } else {
+        span.style.borderColor = '#e2e8f0'; span.style.background = '#f8fafc'; span.style.color = '#64748b';
+      }
+    }
+
+    /* ── SALARY EDIT INLINE OPEN ── */
+    function openSalaryEdit(eid) {
+      var form = document.getElementById('ef_' + eid);
+      if (form) form.classList.toggle('open');
+    }
+
+    /* ── SALARY RULES LIVE PREVIEW ── */
+    function fmt(t) { // "HH:MM" → "HH:MM AM/PM"
+      if (!t) return t;
+      var p = t.split(':'); var h = parseInt(p[0]); var m = p[1];
+      var s = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+      return h + ':' + m + ' ' + s;
+    }
+    function updatePreviews() {
+      var s = document.getElementById('inp_start') ? document.getElementById('inp_start').value : '';
+      var h = document.getElementById('inp_half')  ? document.getElementById('inp_half').value  : '';
+      var e = document.getElementById('inp_end')   ? document.getElementById('inp_end').value   : '';
+      var fs = fmt(s), fh = fmt(h), fe = fmt(e);
+      ['preview_start','preview_start2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=fs;});
+      ['preview_half','preview_half2'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=fh;});
+      ['preview_end','preview_end2','preview_half3','preview_half4','preview_end3'].forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=fe;});
+      var tl=document.getElementById('tl_start'); if(tl)tl.textContent=fs;
+      var th=document.getElementById('tl_half');  if(th)th.textContent=fh;
+      var te=document.getElementById('tl_end');   if(te)te.textContent=fe;
+    }
+    function updateHolidayPreview(v) {
+      var b = document.getElementById('preview_holiday_badge');
+      if (b) {
+        b.textContent = v === 'paid' ? '0% deducted' : '100% deducted';
+        b.style.background = v === 'paid' ? '#e0f2fe' : '#fee2e2';
+        b.style.color = v === 'paid' ? '#075985' : '#991b1b';
+      }
+      var pl = document.getElementById('hp_paid_lbl'), ul = document.getElementById('hp_unpaid_lbl');
+      if (pl) { pl.style.borderColor = v==='paid'?'#bae6fd':'#e2e8f0'; pl.style.background = v==='paid'?'#f0f9ff':'#fafafa'; }
+      if (ul) { ul.style.borderColor = v==='unpaid'?'#fca5a5':'#e2e8f0'; ul.style.background = v==='unpaid'?'#fff8f8':'#fafafa'; }
+    }
+    function updateLeavePreview(v) {
+      var b = document.getElementById('preview_leave_badge');
+      if (b) {
+        b.textContent = v === 'exclude' ? 'No deduction' : '100% deducted';
+        b.style.background = v === 'exclude' ? '#ede9fe' : '#fee2e2';
+        b.style.color = v === 'exclude' ? '#5b21b6' : '#991b1b';
+      }
+      var el = document.getElementById('lp_excl_lbl'), al = document.getElementById('lp_abs_lbl');
+      if (el) { el.style.borderColor = v==='exclude'?'#ddd6fe':'#e2e8f0'; el.style.background = v==='exclude'?'#f5f3ff':'#fafafa'; }
+      if (al) { al.style.borderColor = v==='absent'?'#fca5a5':'#e2e8f0'; al.style.background = v==='absent'?'#fff8f8':'#fafafa'; }
+    }
+    document.addEventListener('DOMContentLoaded', updatePreviews);
+
+
+    /* ── TEST EMAIL ── */
+    function sendTestEmail() {
+      var email = document.getElementById('testEmail').value.trim();
+      var res   = document.getElementById('testResult');
+      if (!email) { res.textContent = 'Please enter a recipient email.'; res.className = 'err'; res.style.display = 'block'; return; }
+      res.textContent = '⏳ Sending SMTP diagnostic test…'; res.className = ''; res.style.display = 'block';
+      fetch('/api/admin/test_email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to_email: email })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          res.textContent = d.ok ? ('✅ ' + d.msg) : ('❌ ' + (d.msg || d.error || 'Failed'));
+          res.className   = d.ok ? 'ok' : 'err';
+        })
+        .catch(function() { res.textContent = '❌ Network error during SMTP test.'; res.className = 'err'; });
+    }
+
+    /* ── EMAIL SETTINGS 2FA GATE ──────────────────────────────────────────
+       Unlock state lives ONLY in this closure variable — never localStorage,
+       never sessionStorage. A page reload always starts locked again, which
+       is the point: nothing survives if the machine is left unattended. The
+       server session flag (utils/auth.py:email_settings_step_up_valid) is
+       the real authority; this JS timer is a UX/defense-in-depth mirror of
+       it, not a substitute — every fetch below still gets a 403 from the
+       server if the session-side window already expired. */
+    (function() {
+      var unlocked = false;
+      var idleTimer = null;
+      var IDLE_MS = 15 * 60 * 1000;
+
+      function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        if (!unlocked) return;
+        idleTimer = setTimeout(lockEmailSettings, IDLE_MS);
+      }
+      ['mousemove', 'keydown', 'click', 'scroll'].forEach(function(evt) {
+        document.addEventListener(evt, function() { if (unlocked) resetIdleTimer(); }, { passive: true });
+      });
+
+      window.lockEmailSettings = function() {
+        unlocked = false;
+        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+        document.getElementById('email-settings-panel').classList.add('u-d-none');
+        document.getElementById('email-2fa-gate').classList.remove('u-d-none');
+        document.getElementById('es-pass').value = '';
+        fetch('/api/settings/2fa/lock', { method: 'POST' }).catch(function() {});
+      };
+
+      window.initEmail2faGate = function() {
+        fetch('/api/settings/2fa/setup')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) return;
+            if (d.already_enabled) {
+              document.getElementById('email-2fa-verify').classList.remove('u-d-none');
+              document.getElementById('email-2fa-enroll').classList.add('u-d-none');
+            } else {
+              document.getElementById('email-2fa-qr').src = d.qr_code;
+              document.getElementById('email-2fa-secret').textContent = d.secret;
+              document.getElementById('email-2fa-enroll').classList.remove('u-d-none');
+              document.getElementById('email-2fa-verify').classList.add('u-d-none');
+            }
+          })
+          .catch(function() {});
+      };
+
+      window.confirmEmail2faEnroll = function() {
+        var code = document.getElementById('email-2fa-enroll-code').value.trim();
+        var err  = document.getElementById('email-2fa-enroll-err');
+        err.classList.add('u-d-none');
+        fetch('/api/settings/2fa/enable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Invalid code'; err.classList.remove('u-d-none'); return; }
+            unlockEmailSettingsUI();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.classList.remove('u-d-none'); });
+      };
+
+      window.verifyEmail2fa = function() {
+        var code = document.getElementById('email-2fa-code').value.trim();
+        var err  = document.getElementById('email-2fa-err');
+        err.classList.add('u-d-none');
+        fetch('/api/settings/verify-2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Invalid code'; err.classList.remove('u-d-none'); return; }
+            unlockEmailSettingsUI();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.classList.remove('u-d-none'); });
+      };
+
+      window.resetEmail2fa = function() {
+        var password = document.getElementById('email-2fa-reset-password').value;
+        var err = document.getElementById('email-2fa-reset-err');
+        err.classList.add('u-d-none');
+        fetch('/api/settings/2fa/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Reset failed'; err.classList.remove('u-d-none'); return; }
+            document.getElementById('email-2fa-reset-password').value = '';
+            document.getElementById('email-2fa-lost').classList.add('u-d-none');
+            window.initEmail2faGate();
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.classList.remove('u-d-none'); });
+      };
+
+      function unlockEmailSettingsUI() {
+        unlocked = true;
+        fetch('/api/settings/email')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { unlocked = false; window.initEmail2faGate(); return; }
+            var c = d.config || {};
+            document.getElementById('es-host').value       = c.host || '';
+            document.getElementById('es-port').value       = c.port || 587;
+            document.getElementById('es-user').value       = c.user || '';
+            document.getElementById('es-pass').value       = c.password || '';
+            document.getElementById('es-from-name').value  = c.from_name || '';
+            document.getElementById('es-from-email').value = c.from_email || '';
+            document.getElementById('email-2fa-gate').classList.add('u-d-none');
+            document.getElementById('email-settings-panel').classList.remove('u-d-none');
+            resetIdleTimer();
+          })
+          .catch(function() { window.lockEmailSettings(); });
+      }
+
+      window.loadEmailTemplatePreview = function() {
+        var val = document.getElementById('email-tmpl-select').value;
+        var subj = document.getElementById('email-tmpl-subject');
+        var prev = document.getElementById('email-tmpl-preview');
+        if (!subj || !prev) return;
+        if (val === 'welcome') {
+          subj.value = "Welcome to {company_name}! Get started with your portal";
+          prev.innerHTML = "<strong style='color:#1e293b;'>Hello {employee_name},</strong><br>Welcome aboard! Your employee profile has been created at <strong>{company_name}</strong>.<br>Log in to your portal using your ID: <code>{employee_id}</code>.";
+        } else if (val === 'payslip') {
+          subj.value = "Your Payslip for {month} {year} is ready";
+          prev.innerHTML = "<strong style='color:#1e293b;'>Dear {employee_name},</strong><br>Your payslip for <strong>{month} {year}</strong> has been generated.<br>Net Payable Amount: <strong>{net_salary}</strong>.<br>Attached is your password-protected PDF payslip.";
+        } else if (val === 'leave_approved') {
+          subj.value = "Leave Request Approved - {leave_type}";
+          prev.innerHTML = "<strong style='color:#1e293b;'>Hi {employee_name},</strong><br>Your <strong>{leave_type}</strong> request from <strong>{start_date}</strong> to <strong>{end_date}</strong> has been <strong>APPROVED</strong> by your manager.";
+        } else if (val === 'attendance_alert') {
+          subj.value = "Attendance Alert: Late Check-in Notice";
+          prev.innerHTML = "<strong style='color:#1e293b;'>Attention {employee_name},</strong><br>A late check-in was recorded for your shift on <strong>{date}</strong> at <strong>{time}</strong>.<br>Please update your attendance log or contact HR if this was an error.";
+        }
+      };
+
+      window.revealEmailPassword = function() {
+        fetch('/api/settings/email/reveal-password', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { alert(d.msg || 'Could not reveal password.'); return; }
+            var field = document.getElementById('es-pass');
+            field.value = d.password;
+            field.type  = 'text';
+            setTimeout(function() { field.type = 'password'; }, 8000);
+          })
+          .catch(function() { alert('Network error.'); });
+      };
+
+      window.saveEmailSettings = function() {
+        var err = document.getElementById('email-settings-err');
+        err.style.display = 'none';
+        fetch('/api/settings/email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            host:       document.getElementById('es-host').value.trim(),
+            port:       document.getElementById('es-port').value.trim(),
+            user:       document.getElementById('es-user').value.trim(),
+            password:   document.getElementById('es-pass').value,
+            from_name:  document.getElementById('es-from-name').value.trim(),
+            from_email: document.getElementById('es-from-email').value.trim(),
+          }),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (!d.ok) { err.textContent = d.msg || 'Save failed.'; err.style.display = 'block'; return; }
+            resetIdleTimer();
+            alert('SMTP settings saved.');
+          })
+          .catch(function() { err.textContent = 'Network error.'; err.style.display = 'block'; });
+      };
+
+      document.addEventListener('DOMContentLoaded', window.initEmail2faGate);
+      if (document.readyState !== 'loading') window.initEmail2faGate();
+    })();
+
+    /* ── SHIFT ASSIGN ── */
+    async function assignShift(empId, sel) {
+      var shiftId   = sel.value;
+      var shiftName = sel.options[sel.selectedIndex].text;
+      try {
+        var res  = await fetch('/assign_shift', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'emp_id=' + encodeURIComponent(empId) + '&shift_id=' + encodeURIComponent(shiftId)
+        });
+        var data = await res.json();
+        if (data.ok) {
+          var tick = document.getElementById('tick-' + empId);
+          tick.style.display = 'inline';
+          setTimeout(function() { tick.style.display = 'none'; }, 2000);
+          var cur = document.getElementById('cur-' + empId);
+          cur.innerHTML = '<span class="badge ' + (shiftId ? 'b-green' : 'b-gray') + '">' + shiftName + '</span>';
+        }
+      } catch(e) {}
+    }
+
+    /* ── BULK SELECT ── */
+    function toggleSelectAll() {
+      var master = document.getElementById('masterCheck');
+      var checks = document.querySelectorAll('.emp-check');
+      checks.forEach(function(c) { c.checked = master.checked; });
+      updateSelCount();
+    }
+    function updateSelCount() {
+      var n = document.querySelectorAll('.emp-check:checked').length;
+      var el = document.getElementById('selCount');
+      el.textContent = n + ' selected';
+      el.style.display = n > 0 ? 'inline' : 'none';
+    }
+    function confirmBulk() {
+      var n = document.querySelectorAll('.emp-check:checked').length;
+      if (!n) { alert('Select at least one employee.'); return false; }
+      return confirm('Assign shift to ' + n + ' employee(s)?');
+    }
+    function filterShiftRows(q) {
+      q = q.toLowerCase();
+      document.querySelectorAll('#shiftEmpTbody tr').forEach(function(r) {
+        r.style.display = (r.dataset.search || r.textContent).toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+
+    /* ── SALARY CALC ── */
+    var WD = 26;
+    function r2(v) { return Math.round(v * 100) / 100; }
+    function setEl(id, val) { var el = document.getElementById(id); if (el) el.value = val > 0 ? val.toFixed(2) : ''; }
+    function updLPA(i) {
+      var y = parseFloat(document.getElementById('sal-yr-' + i).value) || 0;
+      var el = document.getElementById('sal-lpa-' + i);
+      if (el) el.textContent = y > 0 ? (parseFloat((y/100000).toFixed(2))) + ' LPA' : '';
+    }
+    function salFromDay(i) {
+      var d = parseFloat(document.getElementById('sal-day-' + i).value) || 0;
+      setEl('sal-mon-' + i, r2(d * WD)); setEl('sal-yr-' + i, r2(d * WD * 12)); updLPA(i);
+    }
+    function salFromMon(i) {
+      var m = parseFloat(document.getElementById('sal-mon-' + i).value) || 0;
+      setEl('sal-day-' + i, r2(m / WD)); setEl('sal-yr-' + i, r2(m * 12)); updLPA(i);
+    }
+    function salFromYr(i) {
+      var y = parseFloat(document.getElementById('sal-yr-' + i).value) || 0;
+      setEl('sal-mon-' + i, r2(y / 12)); setEl('sal-day-' + i, r2(y / (WD * 12))); updLPA(i);
+    }
+    function prepSalSubmit(i) {
+      var d = parseFloat(document.getElementById('sal-day-' + i).value) || 0;
+      document.getElementById('sal-hidden-' + i).value = d.toFixed(2);
+    }
+    function startSalEdit(i) {
+      document.getElementById('sal-disp-' + i).style.display = 'none';
+      document.getElementById('sal-form-' + i).classList.add('open');
+      document.getElementById('sal-editbtn-' + i).style.display = 'none';
+      document.getElementById('sal-day-' + i).focus();
+    }
+    function cancelSalEdit(i) {
+      document.getElementById('sal-disp-' + i).style.display = '';
+      document.getElementById('sal-form-' + i).classList.remove('open');
+      document.getElementById('sal-editbtn-' + i).style.display = '';
+    }
+    document.querySelectorAll('[id^="sal-editbtn-"]').forEach(function(btn) {
+      btn.addEventListener('click', function() { startSalEdit(btn.dataset.idx); });
+    });
+    document.querySelectorAll('#salTbody .btn-cancel-sm').forEach(function(btn) {
+      btn.addEventListener('click', function() { cancelSalEdit(btn.dataset.idx); });
+    });
+    function filterSalTable(q) {
+      q = q.toLowerCase();
+      document.querySelectorAll('#salTbody tr').forEach(function(r) {
+        r.style.display = (r.dataset.search || r.textContent).toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+
+    function showCodeChangeWarning(input) {
+      var original = (input.getAttribute('data-original') || '').toUpperCase();
+      var current  = input.value.toUpperCase();
+      var warning  = document.getElementById('codeChangeWarning');
+      var preview  = document.getElementById('newCodePreview');
+      if (!warning) return;
+      if (original && current && current !== original) {
+        if (preview) preview.textContent = current;
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+
+    function confirmCodeChange(form) {
+      var input    = document.getElementById('companyCodeInput');
+      var original = (input.getAttribute('data-original') || '').toUpperCase();
+      var current  = input.value.toUpperCase();
+      if (original && current && current !== original) {
+        return confirm(
+          'Warning: Changing the company code from "' + original + '" to "' + current + '" will restart employee ID numbering from 001.\n\nExisting employees keep their old IDs.\n\nAre you sure you want to change it?'
+        );
+      }
+      return true;
+    }
+
+    // ── Settings page company modals ──
+
+    function toggleAuthMethod(method, on) {
+      var csrf = document.querySelector('meta[name="csrf-token"]');
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/toggle_auth_method';
+      [['_csrf_token', csrf ? csrf.content : ''], ['method', method], ['enabled', on ? '1' : '0']].forEach(function(pair) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = pair[0]; inp.value = pair[1];
+        form.appendChild(inp);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    }
 
 {% include "settings/_modal_add_company.html" %}
 

@@ -37,6 +37,31 @@ def tpath(path: str) -> str:
     return prefix + path
 
 
+def self_service_emp_id():
+    """The employee_id a self-service write action (apply leave, raise a
+    ticket, update my profile, ...) should act on -- for a plain employee
+    session that's session['employee_id'] as always; for a role-holder's
+    admin session (e.g. an HR/manager viewing their OWN leave/attendance
+    inside my_workspace.html, no session switch involved) it's
+    session['admin_username'], which IS their employee_id. Returns None if
+    neither session is present (caller should redirect to login)."""
+    if session.get("employee_id"):
+        return session.get("employee_id")
+    if session.get("admin_logged_in"):
+        return session.get("admin_username")
+    return None
+
+
+def self_service_return_path(suffix: str = "") -> str:
+    """Where a self-service write action should redirect back to once it's
+    done: /my_workspace for a role-holder's admin session (so they land back
+    in their own dashboard, not a page their session can't open), /
+    employee_portal for a plain employee session. suffix is appended as-is
+    (e.g. "#tickets") -- pass it already formatted."""
+    base = "/my_workspace" if session.get("admin_logged_in") else "/employee_portal"
+    return tpath(base + suffix)
+
+
 # ── Static asset cache-busting ────────────────────────────────────────────────
 # filename -> (mtime, hash) -- lets static_url() below skip re-hashing a file
 # on every request and only pay that cost the first time a filename is seen
