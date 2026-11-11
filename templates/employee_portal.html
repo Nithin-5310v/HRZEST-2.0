@@ -103,6 +103,7 @@
     </div>{# /main-area #}
 
     <script type="application/json" id="portal-data">{{ {'emp': {'id': emp[0], 'name': emp[1] or '', 'role': ((emp[2] if emp|length > 2 else '') or '')}, 'cal': {'data': cal_data, 'holNames': cal_hol_names, 'firstDow': cal_first_dow, 'year': cal_year, 'month': cal_month}, 'attCfg': attendance_auth_cfg} | tojson }}</script>
+    <script src="{{ static_url('js/photo-check.js') }}"></script>
     <script src="{{ static_url('js/employee-portal.js') }}"></script>
 
     <script>

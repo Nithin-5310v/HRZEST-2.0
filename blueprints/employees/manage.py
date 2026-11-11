@@ -7,7 +7,7 @@ from extensions import app_log, limiter, log_security_event
 from flask import flash, jsonify, redirect, render_template, request, session
 from utils.auth import HR_ROLE, admin_required, generate_password_hash, record_password_change, role_required
 from utils.dlp import has_pii_clearance, mask_tail
-from utils.face_utils import _face_recognition_available, face_recognition
+from utils.face_utils import _face_recognition_available, face_recognition, detection_array
 from utils.helpers import (
     _audit,
     _db,
@@ -55,7 +55,7 @@ def admin_action():
         filepath = face_photo_path(emp_id)
         save_upload(file, filepath)
         if _face_recognition_available:
-            test_img = face_recognition.load_image_file(decrypted_stream(filepath))
+            test_img = detection_array(decrypted_stream(filepath))
             if not face_recognition.face_encodings(test_img):
                 os.remove(filepath)
                 flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")

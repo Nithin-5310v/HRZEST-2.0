@@ -51,6 +51,25 @@ except Exception as _fr_err:
     _face_recognition_available = False
     print(f"⚠  face_recognition unavailable ({_fr_err}). Face features disabled.")
 
+# Face detection on an uploaded photo works on a copy no bigger than this:
+# a full-size phone photo (12+ megapixels) took long enough on the server for
+# the upload request to time out.
+DETECTION_MAX_SIDE = 1280
+
+
+def detection_array(image):
+    """RGB numpy array of `image` (a PIL image or an image file object) for
+    checking that a face is detectable: turned upright by its EXIF
+    orientation (a sideways phone photo otherwise shows no face) and scaled
+    down to DETECTION_MAX_SIDE. The saved photo itself is left as it is."""
+    import numpy as np
+    from PIL import Image, ImageOps
+    img = image if isinstance(image, Image.Image) else Image.open(image)
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    img.thumbnail((DETECTION_MAX_SIDE, DETECTION_MAX_SIDE))
+    return np.array(img)
+
+
 # Cache known face encodings by (employee_id, file_mtime) to avoid recomputing on every punch
 _face_enc_cache: dict = {}
 

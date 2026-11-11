@@ -14,9 +14,9 @@ import traceback as _traceback
 import utils.waf as waf
 from database import DatabaseUnavailable
 from extensions import app, app_log, log_security_event
-from flask import jsonify, make_response, request
+from flask import flash, jsonify, make_response, redirect, request
 from utils.email_utils import get_admin_emails, get_email_config, send_email_async
-from utils.helpers import _error_page, wants_json_response
+from utils.helpers import _error_page, _safe_referrer_redirect, wants_json_response
 from werkzeug.exceptions import HTTPException
 
 
@@ -119,6 +119,19 @@ def forbidden(e):
     return _error_page(403, "🔒", "Access Denied",
                        "You don't have permission to access this page.",
                        "Please log in with the right account or contact your administrator.")
+
+
+@app.errorhandler(413)
+def payload_too_large(e):
+    """An upload over MAX_CONTENT_LENGTH: back to the page it came from with
+    a message, instead of a bare "Request Entity Too Large" page."""
+    max_mb = (app.config.get("MAX_CONTENT_LENGTH") or 0) // (1024 * 1024)
+    msg = (f"That file is too large to upload (the limit is {max_mb} MB). Please choose a smaller file."
+           if max_mb else "That file is too large to upload. Please choose a smaller file.")
+    if wants_json_response():
+        return jsonify({"ok": False, "msg": msg}), 413
+    flash(msg, "error")
+    return redirect(_safe_referrer_redirect(request.referrer or "", "/"))
 
 
 @app.errorhandler(500)
