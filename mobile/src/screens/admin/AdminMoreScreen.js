@@ -2,6 +2,7 @@ import React from "react";
 import { Alert } from "react-native";
 
 import MoreGrid from "../../components/MoreGrid";
+import { showsMeTab } from "../../navigation/roleRouting";
 import { useAuth } from "../../store/AuthContext";
 
 // The admin's More tab: the screens that used to sit in the side menu.
@@ -50,8 +51,9 @@ const FOOTER = [
 
 export default function AdminMoreScreen({ navigation }) {
   const { user, signOut, switchToEmployeeView } = useAuth();
-  // HR staff are employees too: their own leave, payslips and attendance,
-  // like the website's "My Profile" button.
+  // HR staff are employees too, and so is an owner admin who made their own
+  // employee profile: their own leave, payslips and attendance, like the
+  // website's "My Profile" button.
   const switchRow = {
     label: "My employee view",
     detail: "Your own leave, payslips, attendance",
@@ -63,6 +65,6 @@ export default function AdminMoreScreen({ navigation }) {
       }
     },
   };
-  const footer = user?.adminRole === "hr" ? [switchRow, ...FOOTER] : FOOTER;
+  const footer = user?.adminRole === "hr" || showsMeTab(user) ? [switchRow, ...FOOTER] : FOOTER;
   return <MoreGrid navigation={navigation} groups={GROUPS} footer={footer} onSignOut={signOut} />;
 }
