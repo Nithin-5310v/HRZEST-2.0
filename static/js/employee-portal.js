@@ -889,6 +889,18 @@
       function previewPhoto(input) {
         if (!input.files || !input.files[0]) return;
         var file = input.files[0];
+        HZPhotoCheck.check(file, function (error) {
+          if (error) {
+            input.value = '';
+            document.getElementById('photoFileName').textContent = 'No file chosen';
+            alert(error);
+            return;
+          }
+          uploadPhoto(file);
+        });
+      }
+
+      function uploadPhoto(file) {
         document.getElementById('photoFileName').textContent = 'Uploading ' + file.name + '…';
         var reader = new FileReader();
         reader.onload = function(e) {

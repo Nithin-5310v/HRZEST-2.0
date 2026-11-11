@@ -3,7 +3,7 @@
 from database import get_db_connection
 from flask import redirect, request, session
 from utils.auth import employee_required
-from utils.face_utils import _face_recognition_available, face_recognition
+from utils.face_utils import _face_recognition_available, detection_array, face_recognition
 from utils.helpers import _validate_image_file, encrypt_contact, encrypt_pii, tpath
 from utils.storage import save_image
 from utils.tenant_files import face_photo_path
@@ -149,18 +149,18 @@ def delete_education_entry(entry_id):
 @employee_portal_bp.route("/update_my_photo", methods=["POST"])
 @employee_required
 def update_my_photo():
-    import numpy as np
-    from PIL import Image
+    from PIL import Image, ImageOps
     emp_id = session["employee_id"]
     file = request.files.get("photo")
     ok, err = _validate_image_file(file)
     if not ok:
         return redirect(tpath("/employee_portal?photo_error=bad_format#my-profile"))
     try:
-        img = Image.open(file.stream).convert("RGB")
-        img_array = np.array(img)
+        # Upright by its EXIF orientation: it is saved without EXIF, so a
+        # phone photo would otherwise be stored sideways.
+        img = ImageOps.exif_transpose(Image.open(file.stream)).convert("RGB")
         if _face_recognition_available:
-            locs = face_recognition.face_locations(img_array)
+            locs = face_recognition.face_locations(detection_array(img))
             if not locs:
                 return redirect(tpath("/employee_portal?photo_error=no_face#my-profile"))
         save_path = face_photo_path(emp_id)
