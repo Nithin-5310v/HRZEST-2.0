@@ -389,7 +389,7 @@ def save_salary_rules():
         grace_min = max(0, min(120, int(request.form.get("grace_minutes", 15))))
     except (ValueError, TypeError):
         flash("Invalid values.", "error")
-        return redirect(tpath("/settings?tab=salary"))
+        return redirect(tpath("/settings?tab=payroll"))
     holiday_pay = request.form.get("holiday_pay", "paid")
     leave_pay = request.form.get("leave_pay", "exclude")
     if holiday_pay not in ("paid", "unpaid"):
@@ -410,7 +410,7 @@ def save_salary_rules():
     w_days_set = set(w_days_raw)
     if w_days_set and not w_days_set.issubset(_VALID_DAYS):
         flash("Invalid working days selected.", "error")
-        return redirect(tpath("/settings?tab=salary"))
+        return redirect(tpath("/settings?tab=payroll"))
     w_days = ",".join(d for d in w_days_raw if d in _VALID_DAYS) or "Mon,Tue,Wed,Thu,Fri"
     active_cid = session.get("active_company_id")
     if active_cid:
@@ -446,7 +446,7 @@ def save_salary_rules():
         db.close()
     invalidate_settings_cache()
     flash("Salary rules saved.", "success")
-    return redirect(tpath("/settings?tab=salary"))
+    return redirect(tpath("/settings?tab=payroll"))
 
 
 @admin_views_bp.route("/toggle_auth_method", methods=["POST"])

@@ -489,11 +489,9 @@
     </div>
 
 
-    {% with msgs = get_flashed_messages(with_categories=true) %}
-      {% for cat, msg in msgs %}
-        <div class="flash flash-{{ 'green' if cat == 'success' else 'red' }}">{{ '✅ ' if cat == 'success' else '❌ ' }}{{ msg }}</div>
-      {% endfor %}
-    {% endwith %}
+    {# Flash messages (settings saved, errors, ...) are already rendered
+       once by admin_base.html's own {% block main %} wrapper -- this page
+       doesn't render them a second time. #}
 
     {# ══ 3-TAB SETTINGS NAV ══ #}
     <div class="s3-nav">
@@ -2249,8 +2247,18 @@
             <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-phone hz-ico" aria-hidden="true"></i> Contact Phone <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
             <input type="text" name="phone" placeholder="e.g. +91 98765 43210" />
           </div>
-          {# Working Days lives in Settings -> Finance -> Payroll Rules now
-             (it drives payroll, not company profile) -- see that tab. #}
+          <div class="field">
+            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Working Days</label>
+            <div class="u-d-flex u-fxw-wrap u-gap-6 u-mt-4">
+              {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+              <label class="u-cur-pointer">
+                <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} data-on-change="styleCoWd(this)" />
+                <span class="py-day-chip {{ 'on' if _d in ['Mon','Tue','Wed','Thu','Fri'] }}">{{ _d }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-5">This new company's starting work week — each company can change its own later in its Settings -> Finance -> Payroll Rules.</div>
+          </div>
 
           {# Shifts #}
           <div class="field u-mb-6">
