@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  RefreshControl,
 } from "react-native";
 import SafeAreaView from "../../components/SafeAreaView";
 
@@ -29,6 +30,7 @@ import { fetchDashboard } from "../../api/client";
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "../../store/ThemeContext";
 import { mergeEmployeesWithLocal } from "../../utils/employeeStore";
+import useLiveRefresh, { formatUpdated } from "../../utils/useLiveRefresh";
 
 export default function AdminDashboard({ navigation }) {
   const { user, updateUser } = useAuth();
@@ -42,24 +44,36 @@ export default function AdminDashboard({ navigation }) {
   const [showAiModal, setShowAiModal] = useState(false);
   const [verification, setVerification] = useState(null);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadDashboard = async () => {
+    let ok = false;
     try {
       const [res, allEmps] = await Promise.all([
         fetchDashboard().catch(() => null),
         mergeEmployeesWithLocal([]).catch(() => []),
       ]);
       if (res?.data) {
+        ok = true;
         setDashboardData(res.data);
-        if (res.data.company_name && updateUser) {
+        // Only on a change: updateUser writes secure storage, and this
+        // runs every 30 seconds.
+        if (res.data.company_name && updateUser && res.data.company_name !== user?.company) {
           updateUser({ company: res.data.company_name });
         }
+        setTotalEmpsCount(Math.max(res.data.total_employees || 0, allEmps.length));
       }
-      setTotalEmpsCount(Math.max(res?.data?.total_employees || 0, allEmps.length));
     } catch (_) {}
+    return ok;
+  };
+
+  // Today's check-ins (present / late / absent) stay current: reloads on
+  // opening the screen, every 30 s while it's open, and on pull-down.
+  const { lastUpdated, refresh } = useLiveRefresh(loadDashboard);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
   };
 
   const totalEmps = (totalEmpsCount || dashboardData?.total_employees) ?? dashboardData?.total ?? dashboardData?.employees_count ?? 0;
@@ -82,7 +96,13 @@ export default function AdminDashboard({ navigation }) {
           style={styles.container}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
+          {lastUpdated && (
+            <Text testID="dashboardUpdated" style={styles.updatedText}>
+              {formatUpdated(lastUpdated)}
+            </Text>
+          )}
           <DashboardHeroCard
             adminName={user?.name || dashboardData?.admin_name || "Administrator"}
             company={user?.company || dashboardData?.company_name || "Workforce Portal"}
@@ -296,6 +316,7 @@ export default function AdminDashboard({ navigation }) {
 
 
 const makeStyles = (colors) => StyleSheet.create({
+  updatedText: { fontSize: 11, color: colors.textLight || "#667085", textAlign: "right", marginTop: 4, marginBottom: 2 },
   container: {
     flex: 1,
   },

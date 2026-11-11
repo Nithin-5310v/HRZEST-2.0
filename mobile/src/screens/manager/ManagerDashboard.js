@@ -8,13 +8,13 @@ import {
   ActivityIndicator,
 } from "react-native";
 import SafeAreaView from "../../components/SafeAreaView";
-import { useFocusEffect } from "@react-navigation/native";
 
 import AdminHeader from "../../components/admin/AdminHeader";
 import PendingApprovalCard from "../../components/admin/PendingApprovalCard";
 import { fetchLeaveRequests, fetchResignations, fetchOvertime } from "../../api/client";
 import { summarizePendingCounts } from "../../utils/managerStats";
 import { useTheme } from "../../store/ThemeContext";
+import useLiveRefresh, { formatUpdated } from "../../utils/useLiveRefresh";
 
 // Manager's home screen -- a summary of the three things a manager account
 // can actually act on server-side (blueprints/leave.py's
@@ -33,10 +33,11 @@ export default function ManagerDashboard({ navigation }) {
   const loadCounts = useCallback(async () => {
     try {
       const [leavesRes, resignationsRes, overtimeRes] = await Promise.all([
-        fetchLeaveRequests().catch(() => ({ data: {} })),
-        fetchResignations().catch(() => ({ data: {} })),
-        fetchOvertime().catch(() => ({ data: {} })),
+        fetchLeaveRequests().catch(() => null),
+        fetchResignations().catch(() => null),
+        fetchOvertime().catch(() => null),
       ]);
+      if (!leavesRes && !resignationsRes && !overtimeRes) return false;
       setCounts(
         summarizePendingCounts({
           leaves: leavesRes?.data?.leaves,
@@ -44,21 +45,19 @@ export default function ManagerDashboard({ navigation }) {
           overtime: overtimeRes?.data?.overtime,
         })
       );
+      return true;
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadCounts();
-    }, [loadCounts])
-  );
+  // Reloads on opening the screen and every 30 s while it's open.
+  const { lastUpdated, refresh } = useLiveRefresh(loadCounts);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadCounts();
+    refresh();
   };
 
   return (
@@ -72,6 +71,11 @@ export default function ManagerDashboard({ navigation }) {
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
           <>
+            {lastUpdated && (
+              <Text testID="managerUpdated" style={styles.updatedText}>
+                {formatUpdated(lastUpdated)}
+              </Text>
+            )}
             <Text style={styles.sectionTitle}>Pending Your Approval</Text>
             <PendingApprovalCard
               title="Leave Requests"
@@ -114,6 +118,7 @@ export default function ManagerDashboard({ navigation }) {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
+    updatedText: { fontSize: 11, color: colors.textLight || "#667085", textAlign: "right", marginTop: 4, marginBottom: 2 },
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 16, paddingBottom: 32 },
     sectionTitle: {

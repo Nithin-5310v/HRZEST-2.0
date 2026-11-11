@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   ScrollView,
@@ -16,6 +16,7 @@ import * as Location from "expo-location";
 import { fetchEmployeeAttendance, employeeCheckin } from "../../api/client";
 import { queuePunch } from "../../utils/offlineQueue";
 import { getDeviceId } from "../../utils/deviceId";
+import useLiveRefresh, { formatUpdated } from "../../utils/useLiveRefresh";
 
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "../../store/ThemeContext";
@@ -51,22 +52,34 @@ export default function AttendanceScreen() {
 
   const [attendance, setAttendance] = useState([]);
 
+  // Which month the list on screen belongs to: a failed background refresh
+  // keeps showing that month's records instead of blanking the screen.
+  const loadedMonth = useRef(null);
+
   const loadAttendance = async () => {
+    const key = `${year}-${month}`;
+    let ok = false;
     try {
       const res = await fetchEmployeeAttendance(year, month);
-
       if (res.data?.ok) {
         setAttendance(res.data.records || []);
-      } else {
-        setAttendance([]);
+        loadedMonth.current = key;
+        ok = true;
       }
-    } catch {
+    } catch {}
+    if (!ok && loadedMonth.current !== key) {
       setAttendance([]);
+      loadedMonth.current = key;
     }
 
     setLoading(false);
     setRefreshing(false);
+    return ok;
   };
+
+  // Reloads on opening the screen and every 30 s while it's open, so a
+  // check-in made on Home shows here straight away (useLiveRefresh.js).
+  const { lastUpdated } = useLiveRefresh(loadAttendance, [month, year]);
 
   const handleCheckIn = async () => {
     setChecking(true);
@@ -142,10 +155,6 @@ export default function AttendanceScreen() {
     }
     setChecking(false);
   };
-
-  useEffect(() => {
-    loadAttendance();
-  }, [month, year]);
 
   const previousMonth = () => {
     if (month === 1) {
@@ -246,6 +255,11 @@ export default function AttendanceScreen() {
           onPrevious={previousMonth}
           onNext={nextMonth}
         />
+        {lastUpdated && (
+          <Text testID="attendanceUpdated" style={styles.updatedText}>
+            {formatUpdated(lastUpdated)}
+          </Text>
+        )}
 
         <AttendanceSummaryCard
           percentage={percentage}
@@ -286,6 +300,7 @@ export default function AttendanceScreen() {
 }
 
 const makeStyles = (colors) => StyleSheet.create({
+  updatedText: { fontSize: 11, color: colors.textLight || "#667085", textAlign: "right", marginTop: 4, marginBottom: 2 },
   container: {
     flex: 1,
   },
