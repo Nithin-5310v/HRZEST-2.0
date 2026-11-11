@@ -523,19 +523,24 @@ def save_company_code():
 @role_required("admin")
 def save_company_info():
     import pytz as _pytz
+    _VALID_DAYS = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
     name = request.form.get("company_name", "").strip()[:200]
     code = request.form.get("company_code", "").strip().upper()[:10]
     timezone = request.form.get("timezone", "Asia/Kolkata").strip()
-    # Working Days moved to Settings -> Finance -> Payroll Rules (it drives
-    # payroll, not company profile) -- see save_salary_rules().
+    w_days_raw = request.form.getlist("working_days")
     if timezone not in _pytz.all_timezones_set:
         flash("Invalid timezone selected.", "danger")
         return redirect(tpath("/settings?tab=company"))
+    w_days_set = set(w_days_raw)
+    if w_days_set and not w_days_set.issubset(_VALID_DAYS):
+        flash("Invalid working days selected.", "danger")
+        return redirect(tpath("/settings?tab=company"))
+    w_days = ",".join(d for d in w_days_raw if d in _VALID_DAYS)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s",
-        (name, code, timezone)
+        "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s, working_days=%s",
+        (name, code, timezone, w_days or "Mon,Tue,Wed,Thu,Fri")
     )
     db.commit()
     cursor.close()
