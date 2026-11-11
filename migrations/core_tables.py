@@ -853,15 +853,18 @@ def _init_core_tables(cursor, db):
     """)
     db.commit()
     # Seed the four system roles (idempotent -- never overwrites an edited row).
-    # Only Administrator and Employee are pre-made. HR/Manager are NOT seeded
-    # as ready-made roles -- a company defines its own (e.g. "Senior HR",
-    # "Payroll HR") on the HR/Manager base type with exactly the modules it
-    # wants, since different companies grant HR/Manager very different access.
+    # 'hr' and 'manager' are the role_keys every existing HR/Manager account
+    # already carries (admin_users.role, set by the "HR"/"Manager" job-title
+    # login in blueprints/auth.py), so they must exist with access rows or
+    # can_access() would lock those accounts out of every module. A company
+    # can still tighten them, or define its own (e.g. "Senior HR") alongside.
     cursor.executemany(
         "INSERT INTO roles (role_key, display_name, base_type, is_system) "
         "VALUES (%s,%s,%s,TRUE) ON CONFLICT (role_key) DO NOTHING",
         [
             ("admin", "Administrator", "admin"),
+            ("hr", "HR", "hr"),
+            ("manager", "Manager", "manager"),
             ("employee", "Employee", "employee"),
         ],
     )
@@ -873,12 +876,17 @@ def _init_core_tables(cursor, db):
                      "announcements", "tickets", "overtime", "performance",
                      "onboarding", "resignations", "reports", "admin_tools",
                      "organization")
-    # Only the Administrator starts with full access. Every other role starts
-    # with NO access (deny-by-default) so each company grants exactly what it
-    # wants in Settings -> Roles & Access, rather than inheriting a guessed
-    # default set.
+    # The Administrator gets full access. HR and Manager get exactly what their
+    # routes allowed before Roles & Access existed: every module that was open
+    # to any admin-side role, plus announcements for HR; payroll, reports,
+    # admin tools and the company profile stayed Administrator-only. Custom
+    # roles start with no access (utils.helpers.rbac.create_role).
+    _admin_only = ("payroll", "reports", "admin_tools", "organization")
     _rbac_defaults = {
         "admin": {_m: "edit" for _m in _rbac_modules},
+        "hr": {_m: "edit" for _m in _rbac_modules if _m not in _admin_only},
+        "manager": {_m: "edit" for _m in _rbac_modules
+                    if _m not in _admin_only and _m != "announcements"},
         "employee": {_m: "none" for _m in _rbac_modules},
     }
     for _role_key, _perms in _rbac_defaults.items():

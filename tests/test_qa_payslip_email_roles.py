@@ -40,7 +40,7 @@ def test_hr_cannot_send_payslip_emails_on_the_web(client, seed_hr_admin, seed_em
     from utils.auth import HR_ROLE
     _session(client, seed_hr_admin["username"], HR_ROLE)
     resp = client.post("/send_salary_email", data={"emp_id": seed_employee["employee_id"], "year": 2026, "month": 9})
-    assert resp.status_code == 403 and mail == []
+    assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin") and mail == []
 
 
 def test_hr_token_cannot_send_payslip_emails(client, seed_hr_admin, seed_employee, mail):
