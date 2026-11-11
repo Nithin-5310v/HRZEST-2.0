@@ -43,11 +43,16 @@ def self_service_emp_id():
     session that's session['employee_id'] as always; for a role-holder's
     admin session (e.g. an HR/manager viewing their OWN leave/attendance
     inside my_workspace.html, no session switch involved) it's
-    session['admin_username'], which IS their employee_id. Returns None if
-    neither session is present (caller should redirect to login)."""
+    session['admin_username'], which IS their employee_id. The owner admin's
+    username isn't an employee: theirs is the profile linked to the login
+    (utils/own_profile.py), or None until they create one. Returns None if
+    there's no such employee (caller should redirect to login)."""
     if session.get("employee_id"):
         return session.get("employee_id")
     if session.get("admin_logged_in"):
+        from utils.own_profile import OWNER_ROLE, session_linked_employee_id
+        if session.get("admin_role") == OWNER_ROLE:
+            return session_linked_employee_id()
         return session.get("admin_username")
     return None
 

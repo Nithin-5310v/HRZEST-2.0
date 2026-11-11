@@ -5,10 +5,11 @@
           <h1>Welcome, <span data-scramble>{{ emp[1] }}</span>! <i class="ti ti-hand-stop hz-ico" aria-hidden="true"></i></h1>
         </div>
         {% if session.get('_hr_return_username') %}
+        {% set _back_to = 'Admin' if session.get('_hr_return_role') in ('admin', 'superadmin') else ('Manager' if 'manager' in (session.get('_hr_return_role'), session.get('_hr_return_base_type')) else 'HR') %}
         <form action="{{ tpath('/switch_back_to_hr_panel') }}" method="POST" style="margin:0;">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-          <button type="submit" class="u-d-flex u-ai-center u-gap-7 u-p-9-16 u-br-10 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-fxs-0" style="border:none;cursor:pointer;font-family:inherit;" aria-label="Back to HR Dashboard">
-            <i class="ti ti-arrow-back-up"></i> HR Dashboard
+          <button type="submit" class="u-d-flex u-ai-center u-gap-7 u-p-9-16 u-br-10 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-fxs-0" style="border:none;cursor:pointer;font-family:inherit;" aria-label="Back to {{ _back_to }} Dashboard">
+            <i class="ti ti-arrow-back-up"></i> {{ _back_to }} Dashboard
           </button>
         </form>
         {% endif %}

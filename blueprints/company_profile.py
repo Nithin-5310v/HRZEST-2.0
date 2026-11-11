@@ -22,7 +22,19 @@ from flask import (
 )
 from PIL import Image, UnidentifiedImageError
 
-from database import get_db_connection, get_master_db
+import secrets
+
+import psycopg2
+
+from database import get_db_connection, get_master_db, transaction
+from qr_generator import generate_qr
+from utils.auth import generate_password_hash
+from utils.helpers.crypto import encrypt_contact
+from utils.helpers.db import _audit
+from utils.leave_utils import assign_leave_balances_for_employee
+from utils.own_profile import OWNER_ROLE, linked_employee_id
+from utils.storage import save_upload
+from utils.tenant_files import face_photo_path
 from utils.auth import role_required, api_required, api_role_required, admin_required, require_access
 from utils.helpers import (
     tpath, get_company_settings,
@@ -359,6 +371,21 @@ def profile_company_info():
     cursor.execute("SELECT job_title, email, mobile FROM admin_users WHERE username=%s",
                    (session.get("admin_username"),))
     job_title, admin_email, admin_mobile = cursor.fetchone() or (None, None, None)
+    own_profile = None
+    departments = []
+    if session.get("admin_role") == OWNER_ROLE:
+        own_id = linked_employee_id(cursor, session.get("admin_username"))
+        if own_id:
+            cursor.execute("SELECT employee_id, department, role, date_of_joining, face_image "
+                           "FROM employees WHERE employee_id=%s", (own_id,))
+            row = cursor.fetchone()
+            if row:
+                own_profile = {"employee_id": row[0], "department": row[1] or "", "designation": row[2] or "",
+                               "date_of_joining": row[3], "has_photo": bool(row[4])}
+        else:
+            cursor.execute("SELECT DISTINCT department FROM employees "
+                           "WHERE department IS NOT NULL AND department <> '' ORDER BY department")
+            departments = [r[0] for r in cursor.fetchall()]
     cursor.close()
     db.close()
 
@@ -376,7 +403,120 @@ def profile_company_info():
         # starts with them filled in.
         admin_job_title=job_title or "", admin_email=admin_email or "",
         admin_mobile=admin_mobile or co.get("contact_phone") or "",
+        is_owner_admin=session.get("admin_role") == OWNER_ROLE, own_profile=own_profile,
+        own_departments=departments, today_iso=datetime.date.today().isoformat(),
     )
+
+
+def _next_own_employee_id(cursor):
+    """The next ID in the company's series (Organization code, else EMP) --
+    the same one Add Employee would suggest."""
+    from blueprints.employees.registration import _max_emp_seq
+    cursor.execute("SELECT COALESCE(company_code, '') FROM company_settings LIMIT 1")
+    row = cursor.fetchone()
+    prefix = ((row[0] if row else "") or "").strip().upper() or "EMP"
+    return f"{prefix}{_max_emp_seq(cursor, prefix) + 1:03d}"
+
+
+@company_profile_bp.route("/profile/my_employee", methods=["POST"])
+@role_required("admin")
+def my_employee_profile_create():
+    """Organization -> Your details -> "Create my employee profile": an
+    ordinary employees row for the owner admin, linked to their admin login
+    (utils/own_profile.py), so My Workspace and the app's Me tab let them
+    mark their own attendance with the same login and 2-step check. It is
+    not a paid seat and doesn't count toward the trial's employee limit
+    (BILLABLE_EMPLOYEES_SQL), so there's no seat check here. Its employee
+    password is random and never shown: the admin login is the only way in."""
+    back = tpath("/profile") + "#my-employee-profile"
+    username = session.get("admin_username")
+    if session.get("admin_role") != OWNER_ROLE:
+        flash("Only the company's admin can create a profile here. HR and managers already have My Workspace.",
+              "error")
+        return redirect(back)
+
+    department = " ".join((request.form.get("department") or "").split())[:100] or None
+    designation = " ".join((request.form.get("designation") or "").split())[:100] or None
+    work_mode = request.form.get("work_mode") if request.form.get("work_mode") in ("office", "wfh") else "office"
+    doj_raw = (request.form.get("date_of_joining") or "").strip()
+    try:
+        date_of_joining = datetime.date.fromisoformat(doj_raw).isoformat() if doj_raw else None
+    except ValueError:
+        flash("Please enter a valid date of joining.", "error")
+        return redirect(back)
+    photo = request.files.get("face")
+    if photo and photo.filename:
+        ok, err = _validate_image_file(photo)
+        if not ok:
+            flash(err, "error")
+            return redirect(back)
+    else:
+        photo = None
+
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        if linked_employee_id(cursor, username):
+            flash("Your employee profile already exists.", "info")
+            return redirect(back)
+        cursor.execute("SELECT display_name, email, mobile, job_title FROM admin_users WHERE username=%s",
+                       (username,))
+        row = cursor.fetchone()
+        if not row:
+            flash("Your admin account wasn't found. Please sign in again.", "error")
+            return redirect(back)
+        name, email, mobile, job_title = row
+        if not (name or "").strip():
+            flash("Add your full name under Your details first; your employee profile uses it.", "error")
+            return redirect(back)
+
+        emp_id = None
+        photo_path = None
+        for _attempt in range(5):
+            candidate = _next_own_employee_id(cursor)
+            if photo is not None and photo_path is None:
+                photo_path = face_photo_path(candidate)
+                save_upload(photo, photo_path)
+            elif photo_path is not None and photo_path != face_photo_path(candidate):
+                new_path = face_photo_path(candidate)
+                try:
+                    os.replace(photo_path, new_path)
+                    photo_path = new_path
+                except OSError:
+                    pass
+            enc_email, email_bidx = encrypt_contact("email", email or None)
+            enc_phone, phone_bidx = encrypt_contact("phone", mobile or None)
+            try:
+                with transaction(db):
+                    cursor.execute(
+                        "INSERT INTO employees (name, employee_id, email, email_bidx, phone, phone_bidx, role, "
+                        "department, date_of_joining, work_mode, face_image, qr_code, password, force_pin_change) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,0)",
+                        (name.strip(), candidate, enc_email, email_bidx, enc_phone, phone_bidx,
+                         designation or job_title, department, date_of_joining, work_mode, photo_path,
+                         generate_qr(candidate), generate_password_hash(secrets.token_urlsafe(32))))
+                    cursor.execute("UPDATE admin_users SET linked_employee_id=%s WHERE username=%s",
+                                   (candidate, username))
+                emp_id = candidate
+                break
+            except psycopg2.IntegrityError:
+                db.rollback()   # someone took that ID meanwhile: try the next one
+        if not emp_id:
+            if photo_path and os.path.exists(photo_path):
+                os.remove(photo_path)
+            flash("Your profile couldn't be created. Please try again.", "error")
+            return redirect(back)
+        assign_leave_balances_for_employee(cursor, emp_id)
+        db.commit()
+    finally:
+        cursor.close()
+        db.close()
+
+    _audit("create_own_employee_profile", "employees", emp_id,
+           f"Admin {username} created their own employee profile {emp_id}")
+    flash(f"Your employee profile is ready (Employee ID {emp_id}). Click My Employee Dashboard to mark "
+          "your attendance.", "success")
+    return redirect(back)
 
 
 @company_profile_bp.route("/profile/company_info", methods=["POST"])

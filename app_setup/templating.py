@@ -62,11 +62,15 @@ def _hr_has_own_employee():
     # by its own employees row -- i.e. a role-holder who is also an employee.
     # Doesn't depend on the role string or admin_base_type (which some login
     # paths may not set): the employee-row lookup below is the real test. The
-    # owner Administrator's username is an email, not an employee_id, so this
-    # stays false for them (nothing to switch to). superadmin: likewise.
+    # owner Administrator's username is an email, not an employee_id: they
+    # get the switch once they've created their own profile from the
+    # Organization page (utils/own_profile.py). superadmin: never.
     if not session.get("admin_logged_in") or not session.get("admin_username"):
         return False
-    if session.get("admin_role") in ("admin", "superadmin"):
+    if session.get("admin_role") == "admin":
+        from utils.own_profile import session_linked_employee_id
+        return session_linked_employee_id() is not None
+    if session.get("admin_role") == "superadmin":
         return False
     if not hasattr(_g, "_hr_has_own_employee"):
         try:

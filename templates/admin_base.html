@@ -396,14 +396,19 @@
     <span class="nav-icon"><i class="ti ti-shield-lock"></i></span>Roles &amp; Access
   </a>
   {% endif %}
-  {# My Profile -- any role-holder is also an employee, so give them a way to
-     their own personal profile/attendance. hr_has_own_employee is true only
-     when the admin account is backed by an employees row (the owner admin
-     usually isn't, so this doesn't show for them). #}
-  {% if hr_has_own_employee %}
-  <a class="nav-item {{ 'active' if active_nav == 'my_workspace' }}" href="{{ tpath('/my_workspace') }}" {{ 'aria-current=page' if active_nav == 'my_workspace' }}>
-    <span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Workspace
-  </a>
+  {# One click to this person's own employee dashboard (their attendance,
+     leave, payslips), and "Back to ... Dashboard" there to return --
+     blueprints/auth.py switch_to_my_employee_portal(). Shown only when
+     the account has an employee record of its own (hr_has_own_employee), and
+     always to the company admin: without a profile yet, it leads them to the
+     Organization page's card to create one. #}
+  {% if hr_has_own_employee or session.get('admin_role') == 'admin' %}
+  <form action="{{ tpath('/switch_to_my_employee_portal') }}" method="POST" class="nav-item-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+    <button type="submit" class="nav-item nav-item-btn" aria-label="Switch to my employee dashboard">
+      <span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Employee Dashboard
+    </button>
+  </form>
   {% endif %}
   <form action="{{ tpath('/logout') }}" method="POST" class="nav-item-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />

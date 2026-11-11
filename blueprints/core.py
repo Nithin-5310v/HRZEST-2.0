@@ -353,6 +353,27 @@ def api_login_verify():
     return jsonify({"ok": True, "token": token, "username": username, "role": row[0]})
 
 
+@core_bp.route("/api/admin/me", methods=["GET"])
+@api_required
+def api_admin_me():
+    """The signed-in admin's own employee profile, if any: what the app's
+    "Me" tab needs (utils/own_profile.py). Asked on each app focus rather
+    than carried in the login answer, so a profile made on the website
+    shows up without signing in again. Only the owner admin has one; HR
+    and manager logins already are employees and get null here."""
+    from utils.own_profile import OWNER_ROLE, linked_employee_id
+    with _db() as (cursor, _conn):
+        cursor.execute("SELECT COALESCE(role,'admin') FROM admin_users WHERE username=%s", (g.api_user,))
+        row = cursor.fetchone()
+        emp_id = linked_employee_id(cursor, g.api_user) if row and row[0] == OWNER_ROLE else None
+        name = None
+        if emp_id:
+            cursor.execute("SELECT name FROM employees WHERE employee_id=%s", (emp_id,))
+            name_row = cursor.fetchone()
+            name = name_row[0] if name_row else None
+    return jsonify({"ok": True, "linked_employee_id": emp_id, "name": name})
+
+
 @core_bp.route("/api/logout", methods=["POST"])
 def api_logout():
     auth = request.headers.get("Authorization", "")
@@ -988,8 +1009,15 @@ def my_workspace():
     from blueprints.performance import _build_performance_context
     from blueprints.onboarding import _build_onboarding_context
     from utils.helpers.rbac import list_roles
-    emp_id = session.get("admin_username")
-    ctx = _build_portal_context(emp_id)
+    from utils.helpers.urls import self_service_emp_id
+    # A role-holder's username is their employee_id; the owner admin's is
+    # the profile they created from the Organization page, if any.
+    emp_id = self_service_emp_id()
+    ctx = _build_portal_context(emp_id) if emp_id else None
+    if ctx is None and session.get("admin_role") == "admin":
+        flash("Create your employee profile first (Your details, below), then My Workspace "
+              "lets you mark your own attendance.", "info")
+        return redirect(tpath("/profile") + "#my-employee-profile")
     if ctx is None:
         flash("No personal profile is linked to this account.", "error")
         return redirect(tpath("/admin"))

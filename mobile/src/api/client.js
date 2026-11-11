@@ -256,6 +256,11 @@ export const fetchCompanyPolicies = () => client.get('/api/employee/company_poli
 // switch back).
 export const fetchMyEmployeeSession = () => client.post('/api/hr/my_employee_session');
 
+// The owner admin's own employee profile, if made: { linked_employee_id, name }
+// (both null otherwise). Its admin token then works on the employee check-in
+// and attendance endpoints, which is all the Me tab needs.
+export const fetchAdminMe = () => client.get('/api/admin/me');
+
 export const uploadEmployeePhoto = (formData) =>
   client.post('/api/employee/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 

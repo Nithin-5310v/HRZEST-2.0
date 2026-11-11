@@ -175,6 +175,16 @@
   .zf.is-editing .zf-edit { visibility: hidden; }
   .zf:not(.is-editing) .zf-foot { display: none; }
   .zf-foot .org-btn { margin-left: 0; }
+  .own-emp { scroll-margin-top: 90px; }
+  .own-emp .zf-card-head .badge-pill { flex-shrink: 0; }
+  .own-emp-intro { margin: 0; padding: 18px 24px 0; font-size: 15px; line-height: 1.55; color: #475467; }
+  .own-emp-photo { grid-column: 1 / -1; }
+  .own-emp-note { margin: 0 24px 6px; padding: 10px 14px; border-radius: 8px; background: #fffaeb; color: #93370d; font-size: 14.5px; }
+  .own-emp-foot { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 14px 24px; border-top: 1px solid #f0f1f3; background: #f9fafb; }
+  .own-emp-foot .zf-hint { margin-right: auto; }
+  .own-emp-foot .org-btn { text-decoration: none; }
+  body.dark-mode .own-emp-foot { background: #0d1117; border-color: #30363d; }
+  body.dark-mode .own-emp-intro { color: #c9d1d9; }
   @media (max-width: 1100px) { .org-cols { grid-template-columns: minmax(0, 1fr); } .zf-view { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .org-reg { padding: 14px 16px 16px; border-top: 1px solid #f0f1f3; }
   .org-reg-head h2 { font-size: 15.5px; font-weight: 700; color: #101828; margin: 0; }
@@ -480,6 +490,66 @@
     </form>
     <form id="zf-logo-remove" method="POST" action="{{ tpath('/profile/logo/remove') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" /></form>
     <form id="zf-photo-remove" method="POST" action="{{ tpath('/profile/photo/remove') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" /></form>
+
+    {# The owner admin's own employee profile (utils/own_profile.py): HR and
+       managers already are employees and have My Workspace. #}
+    {% if is_owner_admin and not _setup %}
+    <section class="org-panel zf-card own-emp{{ ' editing' if not own_profile }}" id="my-employee-profile">
+      <div class="zf-card-head"><span class="zf-card-icon"><i class="ti ti-user-check"></i></span><div><h2>My employee profile</h2><p>Mark your own attendance, like your HRs and managers do.</p></div>
+        {% if own_profile %}<span class="badge-pill badge-success">Active</span>{% else %}<span class="badge-pill badge-neutral">Optional</span>{% endif %}</div>
+      {% if own_profile %}
+      <dl class="zf-view">
+        <div><dt>Employee ID</dt><dd>{{ own_profile.employee_id }}</dd></div>
+        <div><dt>Designation</dt><dd>{{ own_profile.designation or na }}</dd></div>
+        <div><dt>Department</dt><dd>{{ own_profile.department or na }}</dd></div>
+        <div><dt>Date of joining</dt><dd>{{ own_profile.date_of_joining or na }}</dd></div>
+      </dl>
+      {% if not own_profile.has_photo %}<p class="own-emp-note"><i class="ti ti-camera"></i> Add a face photo from Employees &rarr; {{ own_profile.employee_id }} &rarr; Update Photo so face check-in can recognise you.</p>{% endif %}
+      <div class="own-emp-foot">
+        <span class="zf-hint">Linked to this login: same password and 2-step check. Free, not a paid seat.</span>
+        <form method="POST" action="{{ tpath('/switch_to_my_employee_portal') }}" class="u-m-0">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <button class="org-btn primary" type="submit"><i class="ti ti-user-circle"></i> Open my employee dashboard</button>
+        </form>
+      </div>
+      {% else %}
+      <form method="POST" action="{{ tpath('/profile/my_employee') }}" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <p class="own-emp-intro">Creates an employee record for you with the next Employee ID, linked to this admin login. <b>My Employee Dashboard</b> in the menu then opens your own dashboard, with Mark Attendance, leave and payslips, like your employees'. It's free: it doesn't use a paid seat. Your name, email and mobile come from Your details above.</p>
+        <div class="zf-grid">
+          <div class="zf-f">
+            <label class="zf-label" for="own-designation">Designation</label>
+            <input class="p-input zf-input" type="text" id="own-designation" name="designation" value="{{ admin_job_title }}" maxlength="100" placeholder="e.g. Managing Director">
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="own-department">Department</label>
+            <input class="p-input zf-input" type="text" id="own-department" name="department" maxlength="100" list="own-department-list" placeholder="e.g. Management">
+            <datalist id="own-department-list">{% for d in own_departments %}<option value="{{ d }}">{% endfor %}</datalist>
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="own-doj">Date of joining</label>
+            <input class="p-input zf-input" type="date" id="own-doj" name="date_of_joining" value="{{ today_iso }}">
+          </div>
+          <div class="zf-f">
+            <label class="zf-label" for="own-work-mode">Work mode</label>
+            <select class="p-input zf-input" id="own-work-mode" name="work_mode">
+              <option value="office" selected>Office</option>
+              <option value="wfh">Work from Home</option>
+            </select>
+          </div>
+          <div class="zf-f own-emp-photo">
+            <label class="zf-label" for="own-face">Face photo</label>
+            <input class="p-input zf-input" type="file" id="own-face" name="face" accept=".jpg,.jpeg,.png,.webp,.bmp">
+            <span class="zf-hint">Optional, needed for face check-in. JPG, PNG, WEBP or BMP &middot; up to 5 MB &middot; at least 200 &times; 200 px.</span>
+          </div>
+        </div>
+        <div class="own-emp-foot">
+          <button class="org-btn primary" type="submit"><i class="ti ti-user-plus"></i> Create my employee profile</button>
+        </div>
+      </form>
+      {% endif %}
+    </section>
+    {% endif %}
 
     {% if not _setup %}
     </div>
