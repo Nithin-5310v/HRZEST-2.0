@@ -65,7 +65,8 @@ def reset_paid_seats(tenant_schema):
     try:
         conn = get_tenant_db(tenant_schema)
         cur = conn.cursor()
-        cur.execute("UPDATE company_settings SET paid_employee_slots=(SELECT COUNT(*) FROM employees) "
+        from utils.plan_limits import BILLABLE_EMPLOYEES_SQL
+        cur.execute(f"UPDATE company_settings SET paid_employee_slots=({BILLABLE_EMPLOYEES_SQL}) "  # nosec B608 -- fixed constant
                     "WHERE paid_employee_slots IS NOT NULL")
         conn.commit()
         cur.close()

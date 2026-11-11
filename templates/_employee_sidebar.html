@@ -68,7 +68,9 @@
     {% if session.get('_hr_return_username') %}
     <form action="{{ tpath('/switch_back_to_hr_panel') }}" method="POST" style="margin:0;">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-      <button type="submit" class="sb-item" aria-label="Back to HR Dashboard"><span class="nav-icon"><i class="ti ti-arrow-back-up"></i></span>Back to HR Dashboard</button>
+      {% set _back_to = 'Admin' if session.get('_hr_return_role') in ('admin', 'superadmin')
+                        else ('Manager' if 'manager' in (session.get('_hr_return_role'), session.get('_hr_return_base_type')) else 'HR') %}
+      <button type="submit" class="sb-item" aria-label="Back to {{ _back_to }} Dashboard"><span class="nav-icon"><i class="ti ti-arrow-back-up"></i></span>Back to {{ _back_to }} Dashboard</button>
     </form>
     {% endif %}
     <form action="{{ tpath('/employee_logout') }}" method="POST" class="u-m-0">

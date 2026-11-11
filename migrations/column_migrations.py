@@ -435,6 +435,13 @@ def _run_column_migrations(cursor, db):
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS display_name VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS job_title VARCHAR(100) DEFAULT NULL",
         "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS mobile VARCHAR(20) DEFAULT NULL",
+        # The owner admin's own employee profile (Organization -> Your
+        # details -> "Create my employee profile"; utils/own_profile.py):
+        # the employees row their admin login checks in as from My
+        # Workspace and the app. NULL for everyone else -- an HR/manager
+        # login's username already is their employee_id. That employee is
+        # not a paid seat (utils/plan_limits.BILLABLE_EMPLOYEES_SQL).
+        "ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS linked_employee_id VARCHAR(50) DEFAULT NULL",
         # Employee document verification (Company Onboarding -> Trial ->
         # Document Verification -> Subscription Activation): doc_kind
         # ('id_proof'|'address_proof', see blueprints/documents.py's
