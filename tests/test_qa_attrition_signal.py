@@ -27,11 +27,15 @@ def _employee(result, emp_id):
 
 
 def _recent_working_days(cur, n):
+    # Must match _late_and_absent_counts()'s own notion of a working day
+    # (Settings -> Working Days, default Mon-Fri) or this helper seeds
+    # attendance on days the real calculation no longer counts.
+    from utils.attendance_utils import is_company_working_day
     cur.execute("SELECT date FROM holidays")
     holidays = {r[0] for r in cur.fetchall()}
     day, days = company_today() - datetime.timedelta(days=1), []
     while len(days) < n:
-        if day.weekday() != 6 and day not in holidays:
+        if is_company_working_day(day) and day not in holidays:
             days.append(day)
         day -= datetime.timedelta(days=1)
     return days

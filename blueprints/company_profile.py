@@ -23,7 +23,7 @@ from flask import (
 from PIL import Image, UnidentifiedImageError
 
 from database import get_db_connection, get_master_db
-from utils.auth import role_required, api_required, api_role_required
+from utils.auth import role_required, api_required, api_role_required, admin_required, require_access
 from utils.helpers import (
     tpath, get_company_settings,
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
@@ -342,7 +342,8 @@ def profile_details_save():
 
 # ── Company Info tab ─────────────────────────────────────────────────────────
 @company_profile_bp.route("/profile", methods=["GET"])
-@role_required("admin")
+@admin_required
+@require_access("organization")
 def profile_company_info():
     co = get_company_settings()
     db = get_db_connection()

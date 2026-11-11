@@ -4,14 +4,15 @@ import datetime
 from database import get_db_connection
 from extensions import app_log
 from flask import render_template
-from utils.attendance_utils import attendance_pct_series
-from utils.auth import role_required
+from utils.attendance_utils import attendance_pct_series, is_company_working_day
+from utils.auth import admin_required, require_access
 from utils.helpers import company_today, decrypt_pii, get_company_settings
 from . import admin_views_bp
 
 
 @admin_views_bp.route("/analytics")
-@role_required("admin")
+@admin_required
+@require_access("reports")
 def analytics():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -201,7 +202,7 @@ def analytics():
     working_days_back = []
     for i in range(1, 15):
         d = today - datetime.timedelta(days=i)
-        if d.weekday() != 6 and d not in all_holidays:
+        if is_company_working_day(d) and d not in all_holidays:
             working_days_back.append(d)
         if len(working_days_back) == 5:
             break

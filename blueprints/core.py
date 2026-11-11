@@ -7,10 +7,11 @@ last routes drained out of app.py, which now holds only shared setup
 import time
 import secrets
 from datetime import date
-from flask import Blueprint, request, session, jsonify, render_template, redirect, Response, g, current_app
+from flask import Blueprint, request, session, jsonify, render_template, redirect, Response, g, current_app, flash
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection, transaction
 from utils.auth import (
+    admin_required,
     api_required, api_role_required, HR_ROLE, check_password_hash, generate_password_hash, password_needs_rehash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
@@ -953,3 +954,54 @@ def api_employee_signup():
             except Exception as _close_exc:
                 app_log.debug("api_employee_signup error-path db.close() failed: %s", _close_exc)
         return jsonify({"ok": False, "msg": "Could not register employee. Please try again."}), 500
+
+
+@core_bp.route("/my_workspace")
+@admin_required
+def my_workspace():
+    """A role-holder's OWN self-service -- apply leave, attendance, payslips,
+    tickets, holidays, profile -- rendered INSIDE the admin shell
+    (templates/my_workspace.html extends admin_base), so a role-holder like
+    an HR or manager never has to switch to a separate employee-portal app.
+
+    Reuses blueprints.employee_portal.portal._build_portal_context(), the
+    exact same context-builder the standalone employee portal uses, so this
+    view and employee_portal() can never drift apart -- one query path, two
+    shells. Scoped to session['admin_username'], which for a role-holder is
+    their own employee_id. The owner Administrator has no employee row, so
+    this just bounces them back to /admin.
+
+    Distinct path from employee_portal.my_profile (an @employee_required
+    deep-link redirect) so the two never collide on the same URL rule.
+
+    Also pulls in _build_compoff_context() (leave.py), _build_performance_
+    context() (performance.py) and _build_onboarding_context() (onboarding.py)
+    -- same shared-context pattern, each feeding one more tab -- so every
+    self-service page a plain employee has is also on this one dashboard.
+    None of the four context dicts share a key (checked by hand; the one
+    near-collision, "today", is why leave.py's is named "today_iso")."""
+    from blueprints.employee_portal.portal import _build_portal_context
+    from blueprints.leave import _build_compoff_context
+    from blueprints.performance import _build_performance_context
+    from blueprints.onboarding import _build_onboarding_context
+    from utils.helpers.rbac import list_roles
+    emp_id = session.get("admin_username")
+    ctx = _build_portal_context(emp_id)
+    if ctx is None:
+        flash("No personal profile is linked to this account.", "error")
+        return redirect(tpath("/admin"))
+    ctx.update(_build_compoff_context(emp_id))
+    ctx.update(_build_performance_context(emp_id))
+    ctx.update(_build_onboarding_context(emp_id))
+    # A human label for the Overview header ("Senior Manager", not the raw
+    # role_key "senior_manager" stored in session/employees.role).
+    _role_key = session.get("admin_role") or ""
+    access_role_label = next(
+        (r["display_name"] for r in list_roles() if r["role_key"] == _role_key),
+        _role_key.replace("_", " ").title() or "Team Member"
+    )
+    return render_template(
+        "my_workspace.html", active_nav="my_workspace",
+        portal_base_path=tpath("/my_workspace"),
+        access_role_label=access_role_label, **ctx
+    )

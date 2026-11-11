@@ -13,7 +13,8 @@ Dashboard's Policies tab just posts to these routes and reloads."""
 from flask import Blueprint, request, session, redirect, jsonify, flash, g
 from database import get_db_connection
 from utils.auth import (
-    role_required, employee_required, employee_api_required, api_required, api_role_required, HR_ROLE,
+    role_required, any_user_required, employee_api_required, api_required, api_role_required,
+    HR_ROLE,
 )
 from utils.helpers import tpath
 
@@ -144,7 +145,7 @@ def _published_policies():
 
 
 @policies_bp.route("/api/employee/policies")
-@employee_required
+@any_user_required
 def api_employee_policies():
     """Read-only, published-only list for the employee portal's Policies view."""
     return jsonify({"ok": True, "policies": _published_policies()})

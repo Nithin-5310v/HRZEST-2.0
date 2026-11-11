@@ -290,8 +290,13 @@
 {# ── SIDEBAR ── #}
 {% set _org_locked = co.org_profile_pending and session.admin_role not in ('hr', 'manager') %}
 <div class="sidebar{{ ' sidebar--locked' if _org_locked }}" role="navigation" aria-label="Primary">
-  {% set _is_hr = session.admin_role == 'hr' %}
-  {% set _is_manager = session.admin_role == 'manager' %}
+  {# Base-type-aware: a custom role (Settings -> Roles & Access) built on the HR
+     or Manager base counts as HR/Manager here, not just the literal built-in
+     'hr'/'manager' roles. session.admin_base_type is set at login for any
+     role-holder (blueprints/auth.py). #}
+  {% set _is_hr = session.admin_role == 'hr' or session.admin_base_type == 'hr' %}
+  {% set _is_manager = session.admin_role == 'manager' or session.admin_base_type == 'manager' %}
+  {% set _is_owner_admin = session.admin_role in ['admin', 'superadmin'] %}
   {# Company logo / name / plan now live in the blue top banner (below). #}
 
   {% set _tp = (pending_leaves|default(0)) + (pending_resignations|default(0)) + (pending_tickets|default(0)) %}
@@ -299,66 +304,106 @@
   <a class="nav-item {{ 'active' if active_nav == 'dashboard' }}" href="{{ tpath('/hr_dashboard') if _is_hr else tpath('/admin') }}" {{ 'aria-current=page' if active_nav == 'dashboard' }}>
     <span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard
   </a>
+  {# Each module is shown only if the logged-in role has access to it (Settings
+     -> Roles & Access). The owner Administrator and superadmin always pass
+     (can_access returns True for them); a custom role sees only its granted
+     modules, so a role with "No access" never even sees the module's name. #}
+  {% if can_access('employees') %}
   <a class="nav-item {{ 'active' if active_nav == 'employees' }}" href="{{ tpath('/employees') }}" {{ 'aria-current=page' if active_nav == 'employees' }}>
     <span class="nav-icon"><i class="ti ti-users"></i></span>Employees
   </a>
+  {% endif %}
+  {% if can_access('attendance') %}
   <a class="nav-item {{ 'active' if active_nav == 'attendance' }}" href="{{ tpath('/monthly_report') }}" {{ 'aria-current=page' if active_nav == 'attendance' }}>
     <span class="nav-icon"><i class="ti ti-calendar-check"></i></span>Attendance
   </a>
-  {% if not _is_hr and not _is_manager %}
+  {% endif %}
+  {% if can_access('payroll') %}
   <a class="nav-item {{ 'active' if active_nav == 'salary' }}" href="{{ tpath('/salary_report') }}" {{ 'aria-current=page' if active_nav == 'salary' }}>
     <span class="nav-icon"><i class="ti ti-coin"></i></span>Salary &amp; Payslips
   </a>
   {% endif %}
+  {% if can_access('leaves') %}
   <a class="nav-item {{ 'active' if active_nav == 'leaves' }}" href="{{ tpath('/leave_holidays') }}" {{ 'aria-current=page' if active_nav == 'leaves' }}>
     <span class="nav-icon"><i class="ti ti-calendar-event"></i></span>Leaves &amp; Holidays{% if pending_leaves|default(0) > 0 %}<span class="badge-count">{{ pending_leaves }}</span>{% endif %}
   </a>
+  {% endif %}
+  {% if can_access('announcements') %}
   <a class="nav-item {{ 'active' if active_nav == 'announcements' }}" href="{{ tpath('/announcements') }}" {{ 'aria-current=page' if active_nav == 'announcements' }}>
     <span class="nav-icon"><i class="ti ti-speakerphone"></i></span>Announcements
   </a>
-  {% if session.get('admin_role') != 'manager' %}
+  {% endif %}
+  {% if can_access('tickets') %}
   <a class="nav-item {{ 'active' if active_nav == 'tickets' }}" href="{{ tpath('/tickets') }}" {{ 'aria-current=page' if active_nav == 'tickets' }}>
     <span class="nav-icon"><i class="ti ti-ticket"></i></span>Tickets{% if pending_tickets|default(0) > 0 %}<span class="badge-count">{{ pending_tickets }}</span>{% endif %}
   </a>
   {% endif %}
+  {# The modules below are not yet in the Roles & Access grid, so only the owner
+     Administrator / superadmin see them (can_access short-circuits True for
+     them); custom role-holders don't, keeping their menu to just what they were
+     granted. #}
+  {% if can_access('overtime') %}
   <a class="nav-item {{ 'active' if active_nav == 'overtime' }}" href="{{ tpath('/overtime') }}" {{ 'aria-current=page' if active_nav == 'overtime' }}>
     <span class="nav-icon"><i class="ti ti-clock-bolt"></i></span>OT &amp; Comp-off
   </a>
+  {% endif %}
+  {% if can_access('performance') %}
   <a class="nav-item {{ 'active' if active_nav == 'performance' }}" href="{{ tpath('/performance') }}" {{ 'aria-current=page' if active_nav == 'performance' }}>
-    <span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance &amp; Comms
+    <span class="nav-icon"><i class="ti ti-chart-line"></i></span>Performance Management
   </a>
+  {% endif %}
+  {% if can_access('onboarding') %}
   <a class="nav-item {{ 'active' if active_nav == 'onboarding' }}" href="{{ tpath('/onboarding') }}" {{ 'aria-current=page' if active_nav == 'onboarding' }}>
     <span class="nav-icon"><i class="ti ti-checklist"></i></span>Onboarding{% if overdue_onboardings > 0 %}<span class="badge-count u-bg-ef4444">{{ overdue_onboardings }}</span>{% endif %}
   </a>
+  {% endif %}
+  {% if can_access('resignations') %}
   <a class="nav-item {{ 'active' if active_nav == 'resignations' }}" href="{{ tpath('/resignations') }}" {{ 'aria-current=page' if active_nav == 'resignations' }}>
     <span class="nav-icon"><i class="ti ti-user-minus"></i></span>Resignations{% if pending_resignations|default(0) > 0 %}<span class="badge-count">{{ pending_resignations }}</span>{% endif %}
   </a>
-  {% if not _is_hr and not _is_manager %}
+  {% endif %}
+  {# Analytics -- a module, gated by reports access (owner admin always passes) #}
+  {% if can_access('reports') %}
   <a class="nav-item {{ 'active' if active_nav == 'analytics' }}" href="{{ tpath('/analytics') }}" {{ 'aria-current=page' if active_nav == 'analytics' }}>
     <span class="nav-icon"><i class="ti ti-chart-bar"></i></span>Analytics
   </a>
+  {% endif %}
+  {# Admin Tools -- module, gated by admin_tools access (owner admin always passes) #}
+  {% if can_access('admin_tools') %}
+  <a class="nav-item {{ 'active' if active_nav == 'admin_tools' }}" href="{{ tpath('/admin_tools') }}" {{ 'aria-current=page' if active_nav == 'admin_tools' }}>
+    <span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools
+  </a>
+  {% endif %}
+  {# Organization -- module, gated by organization access #}
+  {% if can_access('organization') %}
+  <a class="nav-item {{ 'active' if active_nav == 'profile' }}" href="{{ tpath('/profile') }}" {{ 'aria-current=page' if active_nav == 'profile' }}>
+    <span class="nav-icon"><i class="ti ti-building"></i></span>Organization
+  </a>
+  {% endif %}
+  {# Settings + role management + the Super Admin portal stay owner-only: these
+     configure the company and the roles themselves, so they're never delegated
+     to a role-holder (that would let a role grant itself more access). #}
+  {% if _is_owner_admin %}
   {% if session.get('admin_role') == 'superadmin' %}
   <a class="nav-item" href="/super_admin/login" style="background: linear-gradient(90deg, #7c3aed, #4f46e5); color: #fff; font-weight:700;">
     <span class="nav-icon"><i class="ti ti-crown"></i></span>Super Admin Portal
   </a>
   {% endif %}
-  <a class="nav-item {{ 'active' if active_nav == 'admin_tools' }}" href="{{ tpath('/admin_tools') }}" {{ 'aria-current=page' if active_nav == 'admin_tools' }}>
-    <span class="nav-icon"><i class="ti ti-tool"></i></span>Admin Tools
-  </a>
   <a class="nav-item {{ 'active' if active_nav == 'settings' }}" href="{{ tpath('/settings') }}" {{ 'aria-current=page' if active_nav == 'settings' }}>
     <span class="nav-icon"><i class="ti ti-settings"></i></span>Settings
   </a>
-  <a class="nav-item {{ 'active' if active_nav == 'profile' }}" href="{{ tpath('/profile') }}" {{ 'aria-current=page' if active_nav == 'profile' }}>
-    <span class="nav-icon"><i class="ti ti-building"></i></span>Organization
+  <a class="nav-item {{ 'active' if active_nav == 'roles' }}" href="{{ tpath('/settings/roles') }}" {{ 'aria-current=page' if active_nav == 'roles' }}>
+    <span class="nav-icon"><i class="ti ti-shield-lock"></i></span>Roles &amp; Access
   </a>
   {% endif %}
-  {% if _is_hr and hr_has_own_employee %}
-  <form action="{{ tpath('/switch_to_my_employee_portal') }}" method="POST" class="nav-item-form">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-    <button type="submit" class="nav-item nav-item-btn" aria-label="Go to my personal profile">
-      <span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Profile
-    </button>
-  </form>
+  {# My Profile -- any role-holder is also an employee, so give them a way to
+     their own personal profile/attendance. hr_has_own_employee is true only
+     when the admin account is backed by an employees row (the owner admin
+     usually isn't, so this doesn't show for them). #}
+  {% if hr_has_own_employee %}
+  <a class="nav-item {{ 'active' if active_nav == 'my_workspace' }}" href="{{ tpath('/my_workspace') }}" {{ 'aria-current=page' if active_nav == 'my_workspace' }}>
+    <span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Workspace
+  </a>
   {% endif %}
   <form action="{{ tpath('/logout') }}" method="POST" class="nav-item-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />

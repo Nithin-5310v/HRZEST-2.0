@@ -17,7 +17,7 @@ from flask import (
 )
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection
-from utils.auth import admin_required, api_required, resolve_bearer_identity_any, HR_ROLE
+from utils.auth import admin_required, api_required, resolve_bearer_identity_any, HR_ROLE, require_access
 from utils.helpers import (
     tpath, get_auth_config, allowed_checkin_combos, get_company_settings, _safe_redirect, _safe_referrer_redirect,
     co_scope_column, hr_scope_column, hr_scope_denied, decrypt_pii, get_pending_action_counts,
@@ -27,7 +27,7 @@ from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import (
     classify_by_worked_minutes, classify_login, classify_logout, detect_overtime, get_working_days,
     fetch_holidays_set, get_employee_shift, _td_to_time, infer_type_legacy,
-    is_within_range, is_within_office_range,
+    is_within_range, is_within_office_range, is_company_working_day,
     check_attendance_lockout, record_attendance_failure, clear_attendance_lockout,
     geofence_check_error, compute_session_worked_minutes, fetch_employee_work_location,
 )
@@ -393,6 +393,7 @@ def delete_break(bid):
 
 @attendance_bp.route("/monthly_report")
 @admin_required
+@require_access("attendance")
 def monthly_report():
     year = int_param(request.args.get("year", company_today().year))
     month = int_param(request.args.get("month", company_today().month))
@@ -532,7 +533,12 @@ def employee_attendance_detail(emp_id, year, month):
     full_days = half_days = late_days = absent = 0
     for d in range(1, last_day + 1):
         date = datetime.date(year, month, d)
-        is_sunday = date.weekday() == 6
+        # Key kept as "is_sunday" for the template's own checks, but the
+        # value now means "not one of this company's configured working
+        # weekdays" (Settings -> Company Profile -> Working Days) -- it used
+        # to hardcode literal Sunday, silently wrong for any company that
+        # configured a 5-day (or other non-Mon-Sat) week.
+        is_sunday = not is_company_working_day(date)
         is_holiday = date in holidays_set
         is_future = date > today
         row = att_map.get(date)

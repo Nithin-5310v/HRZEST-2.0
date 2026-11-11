@@ -170,6 +170,12 @@ def get_company_settings():
                 "address": row_dict.get("address") or "",
                 "contact_email": row_dict.get("contact_email") or "",
                 "website": row_dict.get("website") or "",
+                # Which weekdays this company treats as working days (Settings
+                # -> Company Profile -> Working Days). Read by utils/
+                # attendance_utils.py's company_working_weekdays(), which
+                # drives attendance/payroll day-counting -- see that function's
+                # own docstring for why this used to be silently ignored.
+                "working_days": (row_dict.get("working_days") or "Mon,Tue,Wed,Thu,Fri").split(","),
                 # Per-company shift and payroll rules, read via utils/config.py's
                 # shift_rules()/salary_rules(). Stored as plain JSON-safe values
                 # (times as "HH:MM:SS") so the Redis cache path can hold them.
@@ -189,7 +195,8 @@ def get_company_settings():
             "company_logo": None, "currency_symbol": "₹", "timezone": "Asia/Kolkata",
             "setup_done": False, "company_code": "", "session_timeout": 30, "logo_url": "", "plan": "basic",
             "email_domain": "", "paid_employee_slots": None, "contact_phone": "", "address": "",
-            "contact_email": "", "website": "", **_rule_settings({})}
+            "contact_email": "", "website": "", "working_days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            **_rule_settings({})}
 
 
 def _rule_settings(row_dict):

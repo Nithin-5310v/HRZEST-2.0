@@ -715,6 +715,16 @@
                 .py-save:hover  { filter:brightness(1.06); box-shadow:0 8px 20px rgba(37,99,235,.34); transform:translateY(-1px); }
                 .py-save:active { transform:scale(.99); }
 
+                /* Working Days toggle chips */
+                .py-day-chip-wrap { cursor:pointer; }
+                .py-day-chip {
+                  display:inline-block; padding:7px 16px; border-radius:20px;
+                  font-size:14px; font-weight:700; border:1.5px solid #e4e7ec;
+                  background:#f9fafb; color:#9ca3af; transition:.15s;
+                }
+                .py-day-chip.on { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
+                .py-day-chip-wrap:hover .py-day-chip:not(.on) { border-color:#c7d2fe; color:#475569; }
+
                 /* Dark mode */
                 body.dark-mode .py-card  { background:#161b22; border-color:#30363d; box-shadow:none; }
                 body.dark-mode .py-hdr   { border-color:#21262d; background:linear-gradient(180deg,#171d26,#161b22); }
@@ -733,6 +743,9 @@
                 body.dark-mode .py-tog-lbl.on { color:#cdd9e5; }
                 body.dark-mode .py-tog-track  { background:#30363d; }
                 body.dark-mode .py-tog input:checked ~ .py-tog-track { background:#2563eb; }
+                body.dark-mode .py-day-chip { background:#0d1117; border-color:#30363d; color:#6e7681; }
+                body.dark-mode .py-day-chip.on { border-color:#2563eb; background:#132030; color:#60a5fa; }
+                body.dark-mode .py-day-chip-wrap:hover .py-day-chip:not(.on) { border-color:#3d4551; color:#9ca3af; }
                 body.dark-mode .py-card:hover { box-shadow:0 10px 24px rgba(0,0,0,.35); border-color:#3d4551; }
                 body.dark-mode .py-card--accent { background:linear-gradient(135deg,#132030,#0f1a28); border-left-color:#2563eb; }
                 body.dark-mode .py-card--accent .py-hdr { border-bottom-color:#1e2b3d; background:transparent; }
@@ -815,6 +828,37 @@
                     <button type="button" class="py-seg-btn" data-val="15" data-on-click="pSeg(this,'seg_gr','hid_grace')">15 m</button>
                     <button type="button" class="py-seg-btn" data-val="20" data-on-click="pSeg(this,'seg_gr','hid_grace')">20 m</button>
                     <button type="button" class="py-seg-btn" data-val="30" data-on-click="pSeg(this,'seg_gr','hid_grace')">30 m</button>
+                  </div>
+                </div>
+              </div>
+
+              {# Card: Working Days -- which weekdays this company treats as
+                 working days. Drives attendance "absent" tracking and the
+                 Monthly CTC <-> per-day conversion everywhere (see
+                 utils/attendance_utils.py's company_working_weekdays()). A
+                 multi-select, so it uses toggle chips rather than the
+                 single-choice .py-seg control the other cards use. #}
+              <div class="py-card">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-eef2ff"><i class="ti ti-calendar u-c-4f46e5"></i></div>
+                  <div>
+                    <div class="py-hdr-title">Working Days</div>
+                    <div class="py-hdr-sub">Which days count toward attendance and payroll</div>
+                  </div>
+                </div>
+                <div class="py-row" style="flex-direction:column; align-items:stretch; gap:12px;">
+                  <div class="u-d-flex u-fxw-wrap u-gap-8">
+                    {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
+                    <label class="py-day-chip-wrap">
+                      <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in features.working_days %}checked{% endif %} data-on-change="styleCoWd(this)" />
+                      <span class="py-day-chip {{ 'on' if _d in features.working_days }}">{{ _d }}</span>
+                    </label>
+                    {% endfor %}
+                  </div>
+                  <div class="py-hint">
+                    Drives "absent" tracking and payroll for this company — only these days count as working days.
+                    A standard month is currently treated as <strong class="u-c-1e3a8a">{{ features.standard_working_days }} days</strong>
+                    for converting a Monthly CTC to a per-day rate.
                   </div>
                 </div>
               </div>
@@ -2205,18 +2249,8 @@
             <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-phone hz-ico" aria-hidden="true"></i> Contact Phone <span class="u-fs-11 u-c-94a3b8">(optional)</span></label>
             <input type="text" name="phone" placeholder="e.g. +91 98765 43210" />
           </div>
-          <div class="field">
-            <label class="u-fs-12 u-fw-700 u-c-475569"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Working Days</label>
-            <div class="u-d-flex u-fxw-wrap u-gap-6 u-mt-4">
-              {% for _d in ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] %}
-              <label class="u-cur-pointer">
-                <input class="u-d-none" type="checkbox" name="working_days" value="{{ _d }}" {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}checked{% endif %} data-on-change="styleCoWd(this)" />
-                <span style="display:inline-block;padding:6px 14px;border-radius:16px;font-size:14px;font-weight:700;border:1.5px solid {% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#e2e8f0{% endif %};background:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#eff6ff{% else %}#f8fafc{% endif %};color:{% if _d in ['Mon','Tue','Wed','Thu','Fri'] %}#1e3a8a{% else %}#94a3b8{% endif %};">{{ _d }}</span>
-              </label>
-              {% endfor %}
-            </div>
-            <div class="u-fs-11 u-c-94a3b8 u-mt-5">Affects payroll calculation for this company.</div>
-          </div>
+          {# Working Days lives in Settings -> Finance -> Payroll Rules now
+             (it drives payroll, not company profile) -- see that tab. #}
 
           {# Shifts #}
           <div class="field u-mb-6">
@@ -2414,12 +2448,11 @@
       if (!shown) el.querySelector('input[name="break_name"]').focus();
     }
     function styleCoWd(cb) {
+      // Toggles the .on class (not inline styles) so dark mode's own
+      // body.dark-mode .py-day-chip.on CSS applies correctly -- an inline
+      // style here would override it regardless of theme.
       var span = cb.nextElementSibling;
-      if (cb.checked) {
-        span.style.borderColor = '#1e3a8a'; span.style.background = '#eff6ff'; span.style.color = '#1e3a8a';
-      } else {
-        span.style.borderColor = '#e2e8f0'; span.style.background = '#f8fafc'; span.style.color = '#94a3b8';
-      }
+      span.classList.toggle('on', cb.checked);
     }
     document.getElementById('addCompanyModal').addEventListener('click', function(e) {
       if (e.target === this) this.classList.remove('open');

@@ -102,6 +102,9 @@
     }
     .field-input::placeholder { color: var(--text-subtle); }
     .field-input:focus { background: var(--bg-card); border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12); }
+    /* Hide Edge/IE's built-in password reveal so it doesn't render a second
+       eye on top of (and swallow clicks meant for) our own .pw-toggle button. */
+    .field-input::-ms-reveal, .field-input::-ms-clear { display: none; }
     .subdomain-container {
       display: flex; align-items: center; background: var(--bg-secondary); border: 1px solid var(--border-color);
       border-radius: var(--radius-sm); overflow: hidden; transition: var(--transition-fast);

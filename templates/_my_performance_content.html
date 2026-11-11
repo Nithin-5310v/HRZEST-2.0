@@ -1,0 +1,132 @@
+{# My Performance self-service content, extracted from my_performance.html
+   (which keeps its own copy via {% include %} below) so my_workspace.html
+   can show the exact same data as a "Performance" tab, inside the admin
+   shell. Needs: reviews_data, emp_info, emp_id, rating_labels -- see
+   performance.py's _build_performance_context(). #}
+{# Flash messages are rendered by whichever shell includes this partial --
+   my_performance.html (its own flash-success block) or my_workspace.html
+   (via admin_base.html's) -- not here, or they'd show twice in the latter. #}
+
+{% set emp_name, emp_role, emp_dept, _ = emp_info %}
+<div class="hero">
+  <div>
+    <h2>{{ emp_name }}</h2>
+    <p>{{ emp_role }} &nbsp;&middot;&nbsp; {{ emp_dept or 'No Department' }}</p>
+  </div>
+  <div class="u-ta-center">
+    {% if reviews_data %}
+    {% set latest = reviews_data[0].review %}
+    {% if latest[3] and latest[3] > 0 %}
+    <div class="u-fs-38 u-fw-900 u-c-f59e0b">{{ "%.1f"|format(latest[3]) }}</div>
+    <div class="u-fs-12 u-op-d75">Latest Rating</div>
+    {% else %}
+    <div class="u-fs-28 u-op-d4">&mdash;</div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if reviews_data %}
+  {% for item in reviews_data %}
+  {% set rev = item.review %}
+  {% set kpis = item.kpis %}
+  {% set rev_id, q, yr, rating, feedback, emp_comment, status, updated = rev %}
+
+  <div class="review-block">
+    <div class="review-hdr">
+      <div class="q-label">
+        <i class="ti ti-calendar-stats"></i>
+        Q{{ q }} {{ yr }}
+        &nbsp;&middot;&nbsp;
+        {% if rating and rating > 0 %}
+          <span class="u-c-f59e0b">{{ "%.1f"|format(rating) }} / 5</span>
+        {% else %}
+          <span class="u-c-94a3b8">Not rated yet</span>
+        {% endif %}
+      </div>
+      <div class="u-d-flex u-ai-center u-gap-10">
+        {% if rating and rating > 0 %}
+        <span>
+          {% for i in range(1,6) %}
+          <span style="font-size:18px;color:{% if i <= rating %}#f59e0b{% else %}#e2e8f0{% endif %};">&#9733;</span>
+          {% endfor %}
+        </span>
+        {% endif %}
+        <span class="badge {% if status=='Submitted' %}b-submitted{% elif status=='Acknowledged' %}b-acknowledged{% else %}b-draft{% endif %}">
+          {{ status }}
+        </span>
+      </div>
+    </div>
+
+    <div class="review-body">
+      {# KPIs #}
+      {% if kpis %}
+      <div class="sec-title"><i class="ti ti-target"></i> My KPIs</div>
+      {% for kpi_title, target, achievement, weight, kpi_rating, comments in kpis %}
+      <div class="kpi-row">
+        <div class="kpi-name">{{ kpi_title }} <span class="u-fs-11 u-fw-500 u-c-64748b">(Weight: {{ weight }}%)</span></div>
+        <div class="kpi-meta">
+          {% if target %}<span><i class="ti ti-target"></i> Target: {{ target }}</span>{% endif %}
+          {% if achievement %}<span><i class="ti ti-check"></i> Achieved: {{ achievement }}</span>{% endif %}
+        </div>
+        {% if kpi_rating and kpi_rating > 0 %}
+        <div class="u-d-flex u-ai-center u-gap-10">
+          <span>
+            {% for i in range(1,6) %}
+            <span style="font-size:17px;color:{% if i <= kpi_rating %}#f59e0b{% else %}#e2e8f0{% endif %};">&#9733;</span>
+            {% endfor %}
+          </span>
+          <span class="u-fw-700 u-c-f59e0b">{{ kpi_rating }}/5</span>
+          <span class="u-fs-12 u-c-64748b">{{ rating_labels.get(kpi_rating,'') }}</span>
+          <div class="progress-wrap u-fx-1">
+            <div class="progress-fill" style="width:{{ (kpi_rating / 5 * 100)|int }}%;background:{% if kpi_rating >= 4 %}#22c55e{% elif kpi_rating >= 3 %}#3b82f6{% elif kpi_rating >= 2 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+          </div>
+        </div>
+        {% if comments %}<div class="u-fs-12 u-c-64748b u-fst-italic u-mt-5">"{{ comments }}"</div>{% endif %}
+        {% else %}
+        <div class="u-fs-12 u-c-94a3b8">Rating pending</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {# Reviewer feedback #}
+      {% if feedback %}
+      <div class="u-mt-16 u-pt-14 u-bdt-1-solid-e2e8f0">
+        <div class="sec-title"><i class="ti ti-message-circle"></i> Manager Feedback</div>
+        <div class="u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-10 u-p-14-16 u-fs-13 u-c-1e293b">
+          {{ feedback }}
+        </div>
+      </div>
+      {% endif %}
+
+      {# Employee comment #}
+      {% if status == 'Submitted' %}
+      <div class="u-mt-16 u-pt-14 u-bdt-1-solid-e2e8f0">
+        <div class="sec-title"><i class="ti ti-user"></i> Your Comment</div>
+        {% if emp_comment %}
+        <div class="u-bg-f0fdf4 u-bd-1-solid-bbf7d0 u-br-10 u-p-12-16 u-fs-13 u-c-1e293b u-fst-italic">
+          "{{ emp_comment }}"
+        </div>
+        {% else %}
+        <form method="POST" action="{{ tpath('/performance_employee_comment') }}" class="comment-form">
+          <input type="hidden" name="review_id" value="{{ rev_id }}"/>
+          <textarea name="comment" rows="3" placeholder="Add your comment on this review…"></textarea>
+          <div class="u-ta-right u-mt-8">
+            <button type="submit" class="btn btn-primary"><i class="ti ti-send"></i> Submit Comment</button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+
+{% else %}
+<div class="card empty-state">
+  <div class="empty-state-icon"><i class="ti ti-chart-line"></i></div>
+  <h3>No Performance Reviews Yet</h3>
+  <p>Your manager will assign KPIs and conduct quarterly reviews — check back later to see your progress here.</p>
+</div>
+{% endif %}

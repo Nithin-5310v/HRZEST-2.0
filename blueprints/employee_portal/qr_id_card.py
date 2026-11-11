@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """employee_portal: my QR code and ID card"""
 from database import get_db_connection
-from flask import jsonify, session
+from flask import jsonify
 from io import BytesIO
 from qr_generator import generate_qr
-from utils.auth import employee_api_required, employee_required
+from utils.auth import employee_api_required, any_user_required
+from utils.helpers import self_service_emp_id
 from utils.storage import open_private
 from . import employee_portal_bp
 
@@ -25,7 +26,7 @@ def _generate_and_persist_qr(emp_id):
 
 
 @employee_portal_bp.route("/my_qr")
-@employee_required
+@any_user_required
 def my_qr():
     """The only sanctioned way for an employee to view/download their own
     attendance QR now that generate_qr() saves it to private storage --
@@ -33,7 +34,9 @@ def my_qr():
     credential; a world-readable copy under static/ would defeat the
     HMAC signature's whole purpose)."""
     from flask import send_file
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return "Not logged in", 401
     stored_ref = _generate_and_persist_qr(emp_id)
     return send_file(BytesIO(open_private(stored_ref)), mimetype="image/png",
                      as_attachment=True, download_name=f"QR_{emp_id}.png")
@@ -56,12 +59,14 @@ def api_my_qr():
 
 
 @employee_portal_bp.route("/my_id_card")
-@employee_required
+@any_user_required
 def my_id_card():
     from flask import send_file
     from blueprints.employees import _build_id_card_buf
 
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return "Not logged in", 401
     buf = _build_id_card_buf(emp_id)
     if buf is None:
         return "Employee not found", 404

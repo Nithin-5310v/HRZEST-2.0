@@ -9,10 +9,14 @@ values are always %s-bound params.
 from functools import wraps
 from flask import Blueprint, request, session, redirect, render_template, flash, jsonify, g
 from database import get_db_connection
-from utils.auth import admin_required, employee_required, employee_api_required, HR_ROLE, session_account_ok
+from utils.auth import (
+    admin_required, employee_required, any_user_required, employee_api_required, HR_ROLE, session_account_ok,
+    require_access,
+)
 from utils.helpers import (
     tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings,
     get_employee_sidebar_info, company_today, int_param, emp_id_param,
+    self_service_emp_id, self_service_return_path,
 )
 from extensions import limiter, log_security_event
 
@@ -218,6 +222,7 @@ def api_submit_performance_review():
 
 @performance_bp.route("/performance")
 @admin_required
+@require_access("performance")
 def performance():
     today = company_today()
     q = int_param(request.args.get("quarter", (today.month - 1) // 3 + 1))
@@ -538,10 +543,11 @@ def performance_delete_kpi():
     return redirect(tpath(f"/performance_review/{emp_id}?quarter={q}&year={yr}"))
 
 
-@performance_bp.route("/my_performance")
-@employee_required
-def my_performance():
-    emp_id = session["employee_id"]
+def _build_performance_context(emp_id):
+    """Builds the my_performance.html template context for emp_id. Shared by
+    the plain-employee /my_performance route below AND my_workspace.html's
+    "Performance" tab (a role-holder viewing their own reviews inside the
+    admin shell) -- same query path, two shells."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -569,18 +575,29 @@ def my_performance():
     cursor.close()
     db.close()
 
-    return render_template("my_performance.html",
-                           reviews_data=reviews_data, emp_info=emp_info,
-                           emp_id=emp_id, rating_labels=RATING_LABELS
-                           )
+    return {
+        "reviews_data": reviews_data, "emp_info": emp_info,
+        "emp_id": emp_id, "rating_labels": RATING_LABELS,
+    }
+
+
+@performance_bp.route("/my_performance")
+@employee_required
+def my_performance():
+    """Plain-employee entry point: builds the shared context and renders the
+    standalone performance page (own header/sidebar)."""
+    ctx = _build_performance_context(session["employee_id"])
+    return render_template("my_performance.html", **ctx)
 
 
 @performance_bp.route("/performance_employee_comment", methods=["POST"])
-@employee_required
+@any_user_required
 def performance_employee_comment():
     rev_id = int_param(request.form["review_id"])
     comment = request.form.get("comment", "").strip()
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     # Only allow comment on own review
@@ -590,6 +607,8 @@ def performance_employee_comment():
     cursor.close()
     db.close()
     flash("Comment submitted.", "success")
+    if session.get("admin_logged_in"):
+        return redirect(self_service_return_path("#performance"))
     return redirect(tpath("/my_performance"))
 
 

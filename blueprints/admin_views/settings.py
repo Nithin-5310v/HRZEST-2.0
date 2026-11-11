@@ -4,7 +4,7 @@ import datetime
 import utils.config as cfg
 from database import get_db_connection
 from flask import flash, g, jsonify, redirect, render_template, request, session
-from utils.attendance_utils import _td_to_time
+from utils.attendance_utils import _td_to_time, standard_working_days_per_month
 from utils.auth import api_required, api_role_required, role_required
 from utils.helpers import (
     _upsert_co_feature,
@@ -18,6 +18,19 @@ from utils.helpers import (
     invalidate_settings_cache,
     parse_finite_float,
     tpath,
+)
+from utils.helpers.rbac import (
+    RBAC_MODULES,
+    VALID_BASE_TYPES,
+    all_role_permissions,
+    assign_employee_role,
+    create_role,
+    delete_role,
+    employees_by_role,
+    list_employees_with_roles,
+    list_roles,
+    rename_role,
+    set_permissions,
 )
 from . import _TOGGLE_COLUMN_MAP, _TOGGLE_LABEL_MAP, _update_company_setting_flag, admin_views_bp
 
@@ -207,6 +220,7 @@ def settings_page():
         "notify_doc_expiry": fr["notify_doc_expiry"],
         "session_timeout": fr["session_timeout"],
         "working_days": (_gset[0] if _gset else "Mon,Tue,Wed,Thu,Fri").split(","),
+        "standard_working_days": standard_working_days_per_month(),
         "company_name": _gset[1] if _gset else "",
         "timezone": _gset[2] if _gset else "Asia/Kolkata",
         # salary rules from company features
@@ -385,6 +399,19 @@ def save_salary_rules():
     shift_start_raw = request.form.get("shift_start", "").strip()
     shift_half_raw = request.form.get("shift_half", "").strip()
     shift_end_raw = request.form.get("shift_end", "").strip()
+    # Working Days lives here (Payroll Rules), not Company Profile, since it's
+    # what actually drives payroll/attendance day-counting -- see
+    # utils/attendance_utils.py's company_working_weekdays(). It's a plain
+    # company_settings column, not one of the active_cid multi-company
+    # features _upsert_co_features manages, so it's updated directly in both
+    # branches below.
+    _VALID_DAYS = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+    w_days_raw = request.form.getlist("working_days")
+    w_days_set = set(w_days_raw)
+    if w_days_set and not w_days_set.issubset(_VALID_DAYS):
+        flash("Invalid working days selected.", "error")
+        return redirect(tpath("/settings?tab=salary"))
+    w_days = ",".join(d for d in w_days_raw if d in _VALID_DAYS) or "Mon,Tue,Wed,Thu,Fri"
     active_cid = session.get("active_company_id")
     if active_cid:
         _fields = {
@@ -395,13 +422,19 @@ def save_salary_rules():
             _fields.update({"shift_start": shift_start_raw, "shift_half": shift_half_raw,
                             "shift_end": shift_end_raw})
         _upsert_co_features(active_cid, _fields)
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("UPDATE company_settings SET working_days=%s", (w_days,))
+        db.commit()
+        cursor.close()
+        db.close()
     else:
         db = get_db_connection()
         cursor = db.cursor(buffered=True)
         cursor.execute(
             "UPDATE company_settings SET late_deduction_pct=%s, half_day_deduction_pct=%s, "
-            "grace_minutes=%s, holiday_pay=%s, leave_pay=%s",
-            (late_pct, half_pct, grace_min, holiday_pay, leave_pay)
+            "grace_minutes=%s, holiday_pay=%s, leave_pay=%s, working_days=%s",
+            (late_pct, half_pct, grace_min, holiday_pay, leave_pay, w_days)
         )
         if shift_start_raw and shift_half_raw and shift_end_raw:
             cursor.execute(
@@ -411,7 +444,7 @@ def save_salary_rules():
         db.commit()
         cursor.close()
         db.close()
-        invalidate_settings_cache()
+    invalidate_settings_cache()
     flash("Salary rules saved.", "success")
     return redirect(tpath("/settings?tab=salary"))
 
@@ -490,30 +523,24 @@ def save_company_code():
 @role_required("admin")
 def save_company_info():
     import pytz as _pytz
-    _VALID_DAYS = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
     name = request.form.get("company_name", "").strip()[:200]
     code = request.form.get("company_code", "").strip().upper()[:10]
     timezone = request.form.get("timezone", "Asia/Kolkata").strip()
-    w_days_raw = request.form.getlist("working_days")
-    # Validate timezone against pytz database
+    # Working Days moved to Settings -> Finance -> Payroll Rules (it drives
+    # payroll, not company profile) -- see save_salary_rules().
     if timezone not in _pytz.all_timezones_set:
         flash("Invalid timezone selected.", "danger")
         return redirect(tpath("/settings?tab=company"))
-    # Validate day names
-    w_days_set = set(w_days_raw)
-    if w_days_set and not w_days_set.issubset(_VALID_DAYS):
-        flash("Invalid working days selected.", "danger")
-        return redirect(tpath("/settings?tab=company"))
-    w_days = ",".join(d for d in w_days_raw if d in _VALID_DAYS)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s, working_days=%s",
-        (name, code, timezone, w_days or "Mon,Tue,Wed,Thu,Fri")
+        "UPDATE company_settings SET company_name=%s, company_code=%s, timezone=%s",
+        (name, code, timezone)
     )
     db.commit()
     cursor.close()
     db.close()
+    invalidate_settings_cache()
     flash("Company info saved.", "success")
     return redirect(tpath("/settings?tab=company"))
 
@@ -764,3 +791,102 @@ def api_settings_save_salary_rules():
 # save_security_settings retired: the Security tab is now the MFA-gated
 # hub above (api_security_settings_session_timeout does the same DB write,
 # JSON-based, reachable only after the step-up gate reveals the row).
+
+
+# ── Roles & Access (per-company RBAC) ─────────────────────────────────────────
+# All four routes are admin-only (same gate as the rest of /settings). They
+# edit the roles / role_permissions tables that utils.helpers.rbac.can_access()
+# reads. superadmin is never represented here and can't be changed; the 'admin'
+# role is kept at full access by set_permissions() so no company locks itself out.
+def _roles_redirect():
+    return redirect(tpath("/settings/roles"))
+
+
+@admin_views_bp.route("/settings/roles")
+@role_required("admin")
+def settings_roles():
+    """Dedicated admin-only "Roles & Access" page: create custom roles and set
+    each role's per-module access (none/view/edit). superadmin is never shown
+    or editable here (it always has full access)."""
+    return render_template("roles_settings.html",
+                           active_nav="settings",
+                           rbac_roles=list_roles(),
+                           rbac_permissions=all_role_permissions(),
+                           rbac_assignments=employees_by_role(),
+                           rbac_employees=list_employees_with_roles(),
+                           rbac_modules=RBAC_MODULES,
+                           rbac_base_types=VALID_BASE_TYPES)
+
+
+@admin_views_bp.route("/roles/create", methods=["POST"])
+@role_required("admin")
+def rbac_create_role():
+    try:
+        create_role(request.form.get("display_name", ""),
+                    request.form.get("base_type", ""))
+        flash("Role created.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect()
+
+
+@admin_views_bp.route("/roles/rename", methods=["POST"])
+@role_required("admin")
+def rbac_rename_role():
+    try:
+        rename_role(request.form.get("role_key", ""),
+                    request.form.get("display_name", ""))
+        flash("Role renamed.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect()
+
+
+@admin_views_bp.route("/roles/delete", methods=["POST"])
+@role_required("admin")
+def rbac_delete_role():
+    try:
+        delete_role(request.form.get("role_key", ""))
+        flash("Role deleted.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect()
+
+
+@admin_views_bp.route("/roles/assign", methods=["POST"])
+@role_required("admin")
+def rbac_assign_role():
+    """Give a new hire a dashboard, promote/demote (change role), or remove
+    an employee's admin access entirely -- the one control the Roles &
+    Access page was missing (it could only show who already had a role, not
+    set it). role_key='' removes access."""
+    employee_id = request.form.get("employee_id", "")
+    role_key = request.form.get("role_key", "")
+    try:
+        saved_role, emp_name = assign_employee_role(employee_id, role_key)
+        if saved_role:
+            role_label = next(
+                (r["display_name"] for r in list_roles() if r["role_key"] == saved_role),
+                saved_role
+            )
+            flash(f"{emp_name} is now assigned the “{role_label}” role.", "success")
+        else:
+            flash(f"{emp_name}'s access role was removed — they'll see the regular employee dashboard.",
+                  "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect()
+
+
+@admin_views_bp.route("/roles/permissions", methods=["POST"])
+@role_required("admin")
+def rbac_save_permissions():
+    role_key = request.form.get("role_key", "")
+    # One <select name="perm_<module>"> per module in the grid row.
+    perms = {m: request.form.get("perm_" + m, "none") for m in RBAC_MODULES}
+    try:
+        set_permissions(role_key, perms)
+        flash("Access updated.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect()
