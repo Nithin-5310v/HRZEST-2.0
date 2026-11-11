@@ -2,9 +2,15 @@
 """Tickets blueprint -- support ticket lifecycle."""
 from flask import Blueprint, request, session, redirect, jsonify, flash
 from database import get_db_connection
-from utils.auth import admin_required, employee_required, api_required, employee_api_required, api_role_required
+from utils.auth import (
+    admin_required, any_user_required, api_required, employee_api_required,
+    api_role_required, require_access,
+)
 from utils.email_utils import get_email_config, send_email_async
-from utils.helpers import tpath, _create_notification, hr_scope_denied, invalidate_pending_counts_cache
+from utils.helpers import (
+    tpath, _create_notification, hr_scope_denied, invalidate_pending_counts_cache,
+    self_service_emp_id, self_service_return_path,
+)
 
 # Roles allowed to read or act on company-wide support tickets via the
 # Bearer-token API below (/api/tickets, /api/tickets/<id>/action) -- the
@@ -20,15 +26,17 @@ tickets_bp = Blueprint("tickets", __name__)
 
 
 @tickets_bp.route("/raise_ticket", methods=["POST"])
-@employee_required
+@any_user_required
 def raise_ticket():
-    emp_id = session["employee_id"]
+    emp_id = self_service_emp_id()
+    if not emp_id:
+        return redirect(tpath("/login"))
     category = request.form.get("category", "").strip()
     subject = request.form.get("subject", "").strip()
     description = request.form.get("description", "").strip()
     priority = request.form.get("priority", "Medium").strip()
     if not category or not subject or not description:
-        return redirect(tpath("/employee_portal#tickets"))
+        return redirect(self_service_return_path("#tickets"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -42,11 +50,12 @@ def raise_ticket():
     db.close()
     _create_notification('admin', "🎫 New Support Ticket",
                          f"{emp_id} raised a {priority.lower()}-priority {category} ticket: {subject}")
-    return redirect(tpath("/employee_portal?ticket_sent=1#tickets"))
+    return redirect(self_service_return_path("?ticket_sent=1#tickets"))
 
 
 @tickets_bp.route("/tickets")
 @admin_required
+@require_access("tickets")
 def tickets_view():
     """Standalone Tickets module (own sidebar item); shares the page
     renderer with Leaves & Holidays."""

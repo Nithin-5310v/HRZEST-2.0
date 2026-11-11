@@ -150,12 +150,11 @@
       if (!shown) el.querySelector('input[name="break_name"]').focus();
     }
     function styleCoWd(cb) {
+      // Toggles the .on class (not inline styles) so dark mode's own
+      // body.dark-mode .py-day-chip.on CSS applies correctly -- an inline
+      // style here would override it regardless of theme.
       var span = cb.nextElementSibling;
-      if (cb.checked) {
-        span.style.borderColor = '#1e3a8a'; span.style.background = '#eff6ff'; span.style.color = '#1e3a8a';
-      } else {
-        span.style.borderColor = '#e2e8f0'; span.style.background = '#f8fafc'; span.style.color = '#94a3b8';
-      }
+      span.classList.toggle('on', cb.checked);
     }
     document.getElementById('addCompanyModal').addEventListener('click', function(e) {
       if (e.target === this) this.classList.remove('open');

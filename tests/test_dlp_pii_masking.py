@@ -147,7 +147,7 @@ class TestPayrollBulkRoutesAdminOnly:
         cur.close()
         _admin_session(client, seed_admin["username"], role="manager")
         resp = client.get("/view_salary")
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='admin' WHERE username=%s", (seed_admin["username"],))
         db_engine.commit()

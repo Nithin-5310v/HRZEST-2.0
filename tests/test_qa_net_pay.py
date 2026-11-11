@@ -35,10 +35,14 @@ PF_CFG = {"pf_employee_pct": 12.0, "pf_employer_pct": 12.0, "professional_tax": 
 
 
 def _last_month_working_days():
+    # Must match compute_salary_entry()'s own notion of a working day
+    # (Settings -> Working Days, default Mon-Fri) or this helper seeds
+    # attendance on days the real calculation no longer bills.
+    from utils.attendance_utils import is_company_working_day
     first_this = datetime.date.today().replace(day=1)
     last = first_this - datetime.timedelta(days=1)
     days = [datetime.date(last.year, last.month, d) for d in range(1, calendar.monthrange(last.year, last.month)[1] + 1)]
-    return last.year, last.month, [d for d in days if d.weekday() != 6]
+    return last.year, last.month, [d for d in days if is_company_working_day(d)]
 
 
 def _attend(cur, emp, day, att_type):

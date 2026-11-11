@@ -127,7 +127,9 @@ class TestRequestLeave:
         _wait_for_async_writes()
 
     def test_multi_day_leave_creates_one_row_per_working_day(self, client, seed_employee, db_engine):
-        # Sat 5 - Mon 7 Sep 2026: the Sunday gets no row (QA BUG-07).
+        # Sat 5 - Mon 7 Sep 2026: under the default Mon-Fri working week
+        # (Settings -> Working Days), both Saturday and Sunday get no row --
+        # only Monday is a working day here (QA BUG-07).
         _employee_session(client, seed_employee)
         client.post("/request_leave", data={
             "leave_date_start": "2026-09-05", "leave_date_end": "2026-09-07", "reason": "Trip",
@@ -137,7 +139,7 @@ class TestRequestLeave:
             "SELECT leave_date FROM leave_requests WHERE employee_id=%s AND leave_date BETWEEN '2026-09-05' AND '2026-09-07' "
             "ORDER BY leave_date",
             (seed_employee["employee_id"],))
-        assert [str(r[0]) for r in cur.fetchall()] == ["2026-09-05", "2026-09-07"]
+        assert [str(r[0]) for r in cur.fetchall()] == ["2026-09-07"]
         cur.execute("DELETE FROM leave_requests WHERE employee_id=%s", (seed_employee["employee_id"],))
         cur.close()
         _wait_for_async_writes()
@@ -438,7 +440,7 @@ class TestLeaveApprovalRoleGating:
         lid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"], role="soc_analyst")
         resp = client.post(f"/leave_action/{lid}", data={"action": "Approved"}, follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur.execute("SELECT status FROM leave_requests WHERE id=%s", (lid,))
         assert cur.fetchone()[0] == "Pending"
         cur.execute("DELETE FROM leave_requests WHERE id=%s", (lid,))
@@ -474,7 +476,7 @@ class TestLeaveApprovalRoleGating:
         rid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"], role="soc_analyst")
         resp = client.post(f"/resignation_action/{rid}", data={"action": "Accepted"}, follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur.execute("SELECT status FROM resignation_requests WHERE id=%s", (rid,))
         assert cur.fetchone()[0] == "Pending"
         cur.execute("DELETE FROM resignation_requests WHERE id=%s", (rid,))
@@ -490,7 +492,7 @@ class TestLeaveApprovalRoleGating:
         resp = client.post("/bulk_leave_action", data={
             "action": "Approved", "leave_ids": [str(lid)],
         }, follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur.execute("SELECT status FROM leave_requests WHERE id=%s", (lid,))
         assert cur.fetchone()[0] == "Pending"
         cur.execute("DELETE FROM leave_requests WHERE id=%s", (lid,))
@@ -505,7 +507,7 @@ class TestLeaveApprovalRoleGating:
         oid = cur.fetchone()[0]
         _admin_session(client, seed_admin["username"], role="soc_analyst")
         resp = client.post(f"/overtime_action/{oid}", data={"action": "approve"}, follow_redirects=False)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         cur.execute("SELECT status FROM overtime_records WHERE id=%s", (oid,))
         assert cur.fetchone()[0] == "Pending"
         cur.execute("DELETE FROM overtime_records WHERE id=%s", (oid,))

@@ -65,7 +65,7 @@ class TestActivityLogPage:
     def test_non_admin_role_denied(self, client, seed_admin):
         _admin_session(client, seed_admin["username"], role="hr")
         resp = client.get("/activity_log")
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
 
     def test_admin_sees_page(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
@@ -809,7 +809,8 @@ class TestAnnouncementsForHr:
 
     def test_manager_neither_sees_nor_opens_it(self, client, seed_admin):
         _admin_session(client, seed_admin["username"], role="manager")
-        assert client.get("/announcements").status_code == 403
+        resp = client.get("/announcements")
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
         html = client.get("/leave_holidays").get_data(as_text=True)
         assert 'href="/announcements"' not in html
         html = client.get("/admin").get_data(as_text=True)

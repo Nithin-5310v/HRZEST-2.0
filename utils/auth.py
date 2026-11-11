@@ -842,7 +842,14 @@ def role_required(*allowed_roles):
             if _killed:
                 return _killed
             user_role = session.get("admin_role", "admin")
-            if user_role not in allowed_roles and user_role != "superadmin":
+            # A custom role (Settings -> Roles & Access) carries its base type
+            # in admin_base_type; a gate for "hr"/"manager"/"admin" accepts a
+            # custom role on that base type (e.g. "Senior HR" passes an "hr"
+            # gate), while still honouring the exact role_key match and the
+            # superadmin bypass.
+            user_base = session.get("admin_base_type")
+            if (user_role not in allowed_roles and user_base not in allowed_roles
+                    and user_role != "superadmin"):
                 log_security_event("access.denied", "Insufficient role for restricted route",
                                    level="ERROR", required="|".join(allowed_roles),
                                    actual_role=session.get("admin_role"),
@@ -854,12 +861,61 @@ def role_required(*allowed_roles):
                         weight=25, event_type="access.denied",
                         reason="Repeated insufficient-role access attempts",
                     )
-                return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+                is_ajax = (
+                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                    or request.headers.get("Accept", "").startswith("application/json")
+                    or request.is_json
+                )
+                if is_ajax:
+                    return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+                # A normal page navigation: send them to their own dashboard with a
+                # friendly notice rather than dumping raw JSON in the browser.
+                from flask import flash as _flash
+                from utils.helpers import tpath as _tpath
+                _flash("You don't have access to that section.", "error")
+                return redirect(_tpath("/admin"))
             _killed = _reject_if_billing_locked()
             if _killed:
                 return _killed
             return f(*args, **kwargs)
         wrapper._hrz_auth_guard = "role"  # read by tests/test_route_auth_guards.py
+        return wrapper
+    return decorator
+
+
+def require_access(module, action="view"):
+    """Gate an admin-side route by the logged-in role's configured access to a
+    feature `module` (Settings -> Roles & Access), at `action` level 'view' or
+    'edit'. Layer it UNDER admin_required/role_required (which establish the
+    admin session); this only adds the per-module check. The base admin role
+    and superadmin always pass -- see utils.helpers.rbac.can_access()."""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if not session.get("admin_logged_in"):
+                return redirect(url_for("auth.admin_login"))
+            from utils.helpers.rbac import can_access  # lazy: avoids import cycle
+            if not can_access(module, action):
+                log_security_event("access.denied", "Insufficient module access for route",
+                                   level="ERROR", required="%s:%s" % (module, action),
+                                   actual_role=session.get("admin_role"),
+                                   identifier=session.get("admin_username"))
+                is_ajax = (
+                    request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                    or request.headers.get("Accept", "").startswith("application/json")
+                    or request.is_json
+                )
+                if is_ajax:
+                    return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+                # A normal page request: send them back to their dashboard with a
+                # friendly notice instead of raw JSON (the menu already hides what
+                # they can't use; this only triggers on a typed/stale URL).
+                from flask import flash as _flash
+                from utils.helpers import tpath as _tpath
+                _flash("You don't have access to that section.", "error")
+                return redirect(_tpath("/admin"))
+            return f(*args, **kwargs)
+        wrapper._hrz_auth_guard = "module"
         return wrapper
     return decorator
 

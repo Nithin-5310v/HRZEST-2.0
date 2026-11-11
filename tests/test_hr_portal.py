@@ -54,7 +54,7 @@ class TestHrScopeRestrictions:
     def test_hr_role_blocked_from_admin_only_pages(self, client, hr_admin, path):
         _admin_session(client, hr_admin["username"], role="hr")
         resp = client.get(path)
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
 
     @pytest.mark.parametrize("path", [
         "/employees", "/monthly_report", "/leave_holidays", "/overtime",
@@ -76,4 +76,4 @@ class TestHrScopeRestrictions:
     def test_hr_role_blocked_from_payroll(self, client, hr_admin):
         _admin_session(client, hr_admin["username"], role="hr")
         resp = client.get("/salary_report")
-        assert resp.status_code == 403
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")

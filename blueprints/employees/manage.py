@@ -350,6 +350,17 @@ def edit_employee():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip() or None
     role = request.form.get("role", "").strip() or None
+    # Access Role is set ONLY from Settings -> Roles & Access now
+    # (assign_employee_role(), which also keeps the admin_users shadow
+    # account that login routing actually reads in sync -- see
+    # utils/helpers/rbac.py). This route never touches it -- not even for
+    # the owner Administrator -- so editing someone's name/phone/department
+    # here can never silently clear or change their access role, and the two
+    # screens can't drift apart on who the real assignment mechanism is.
+    with _db() as (_arc, _ard):
+        _arc.execute("SELECT access_role FROM employees WHERE employee_id=%s", (emp_id,))
+        _arr = _arc.fetchone()
+    access_role = _arr[0] if _arr else None
     date_of_joining = request.form.get("date_of_joining", "").strip() or None
     department = request.form.get("department", "").strip() or None
     manager_name = request.form.get("manager_name", "").strip() or None
@@ -410,13 +421,13 @@ def edit_employee():
     _enc_email, _email_bidx = encrypt_contact("email", email)
     _enc_phone, _phone_bidx = encrypt_contact("phone", phone)
     cursor.execute(
-        "UPDATE employees SET name=%s, email=%s, email_bidx=%s, role=%s, date_of_joining=%s, "
+        "UPDATE employees SET name=%s, email=%s, email_bidx=%s, role=%s, access_role=%s, date_of_joining=%s, "
         "department=%s, manager_name=%s, manager_id=%s, phone=%s, phone_bidx=%s, gender=%s, dob=%s, blood_group=%s, "
         "shift_id=%s, address=%s, city=%s, state=%s, pincode=%s, "
         "emergency_contact_name=%s, emergency_contact_phone=%s, emergency_contact_relation=%s, "
         f"work_mode=%s, work_lat=%s, work_lon=%s{_reassign_sql} "  # nosec B608 -- _reassign_sql is a hardcoded literal, never user input
         "WHERE employee_id=%s",
-        (name, _enc_email, _email_bidx, role, date_of_joining, department, manager_name, manager_id,
+        (name, _enc_email, _email_bidx, role, access_role, date_of_joining, department, manager_name, manager_id,
          _enc_phone, _phone_bidx, gender, dob, blood_group, shift_id,
          address, city, state, pincode,
          ec_name, ec_phone, ec_rel,
@@ -447,7 +458,7 @@ def api_employee_info(emp_id):
         "phone, gender, dob, blood_group, shift_id, "
         "address, city, state, pincode, "
         "emergency_contact_name, emergency_contact_phone, emergency_contact_relation, "
-        "COALESCE(manager_id,''), assigned_hr_username "
+        "COALESCE(manager_id,''), assigned_hr_username, COALESCE(access_role,'') "
         "FROM employees WHERE employee_id=%s", (emp_id,)
     )
     row = cursor.fetchone()
@@ -458,12 +469,13 @@ def api_employee_info(emp_id):
     (eid, name, role, email, doj, wm, wlat, wlon, dept, mgr, face_image, qr_code,
      phone, gender, dob, blood_group, shift_id,
      address, city, state, pincode,
-     ec_name, ec_phone, ec_rel, mgr_id, assigned_hr_username) = row
+     ec_name, ec_phone, ec_rel, mgr_id, assigned_hr_username, access_role) = row
     dob_date = decrypt_pii_date(dob)
     return jsonify({
         "emp_id": eid,
         "name": name or "",
         "role": role or "",
+        "access_role": access_role or "",
         "email": email or "",
         "doj": doj.strftime("%Y-%m-%d") if doj else "",
         "work_mode": wm or "office",

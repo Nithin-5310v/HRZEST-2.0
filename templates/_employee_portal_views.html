@@ -1,0 +1,56 @@
+{# The employee portal's content area -- every view a plain employee has.
+   Shared by employee_portal.html and my_workspace.html (a role-holder's
+   own self-service inside the admin shell); each view is its own
+   employee_portal/_view_*.html partial. #}
+    <div class="app-content" id="appContent">
+
+      {# Portal search (top of the content, below the blue banner -- same
+           layout as the admin dashboard): employee features and settings,
+           engine static/portal-search.js with the employee feature list. #}
+      <link rel="stylesheet" href="{{ static_url('portal-search.css') }}" />
+      <div class="emp-search-row">
+        <div class="admin-search-wrap emp-search" id="adminSearchWrap" role="search">
+          <i class="ti ti-search admin-search-icon" aria-hidden="true"></i>
+          <input type="text" id="adminSearchInput" class="admin-search-input"
+                 placeholder="Search attendance, leave, payslips, profile…" aria-label="Search the employee portal"
+                 autocomplete="off" spellcheck="false"
+                 role="combobox" aria-expanded="false" aria-controls="adminSearchResults"
+                 data-index="employee" data-base="{{ tpath('/') }}" />
+          <div class="admin-search-results" id="adminSearchResults" role="listbox"></div>
+        </div>
+      </div>
+      <script src="{{ static_url('portal-search.js') }}" defer></script>
+
+      {% if leave_sent %}
+      <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Leave request submitted! Admin has been notified by email.</div>
+      {% endif %}
+      {% if resigned %}
+      <div class="flash-banner flash-banner-red"><i class="ti ti-upload hz-ico" aria-hidden="true"></i> Resignation submitted. Admin has been notified by email.</div>
+      {% endif %}
+      {% if ticket_sent %}
+      <div class="flash-banner flash-banner-blue"><i class="ti ti-ticket hz-ico" aria-hidden="true"></i> Ticket raised successfully! Admin will respond shortly.</div>
+      {% endif %}
+
+{% include "employee_portal/_view_dashboard.html" %}
+
+{% include "employee_portal/_view_attendance.html" %}
+
+{% include "employee_portal/_view_apply_leave.html" %}
+
+{% include "employee_portal/_view_tickets.html" %}
+
+{% include "employee_portal/_view_resign.html" %}
+{% include "employee_portal/_view_earnings.html" %}
+
+{% include "employee_portal/_view_holidays.html" %}
+
+{% include "employee_portal/_payslip_modal.html" %}
+
+{% include "employee_portal/_view_my_profile.html" %}
+
+{% include "employee_portal/_view_policies.html" %}
+
+
+      {# ═══ VIEW: OVERTIME ═══ #}
+
+    </div>{# /app-content #}

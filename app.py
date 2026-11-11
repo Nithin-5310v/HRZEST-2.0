@@ -125,6 +125,15 @@ def inject_billing_context():
         return dict(employee_count=0, per_employee_paise=9900, monthly_bill_display="₹0")
 
 
+@app.context_processor
+def inject_rbac():
+    """Expose can_access() to every template so menus/sections can be shown or
+    hidden by the logged-in role's configured per-module access (Settings ->
+    Roles & Access). admin/superadmin always pass; see utils.helpers.rbac."""
+    from utils.helpers.rbac import can_access
+    return dict(can_access=can_access)
+
+
 _register_api_v1_aliases()
 
 # ---------------- RUN ----------------
