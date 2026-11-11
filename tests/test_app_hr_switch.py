@@ -72,9 +72,36 @@ class TestSwitchToMyEmployeeView:
         # The HR token stays valid, so the app can switch back.
         assert client.get("/api/admin/profile", headers=_bearer(hr_token)).status_code == 200
 
-    def test_admins_and_employees_cannot(self, client, seed_admin, seed_employee):
+    def test_owner_admin_without_a_profile_is_told_to_make_one(self, client, seed_admin):
         admin_token = _signin(client, seed_admin["username"], seed_admin["password"]).get_json()["token"]
-        assert client.post("/api/hr/my_employee_session", headers=_bearer(admin_token)).status_code == 403
+        resp = client.post("/api/hr/my_employee_session", headers=_bearer(admin_token))
+        assert resp.status_code == 404 and "Create your employee profile" in resp.get_json()["msg"]
+
+    def test_owner_admin_switches_to_their_linked_profile(self, client, db_engine, seed_admin, seed_employee):
+        cur = db_engine.cursor()
+        cur.execute("UPDATE admin_users SET linked_employee_id=%s WHERE username=%s",
+                    (seed_employee["employee_id"], seed_admin["username"]))
+        # The linked profile's own password is never used, so a pending
+        # change on it doesn't block the switch.
+        cur.execute("UPDATE employees SET must_change_password=1 WHERE employee_id=%s",
+                    (seed_employee["employee_id"],))
+        db_engine.commit()
+        cur.close()
+        admin_token = _signin(client, seed_admin["username"], seed_admin["password"]).get_json()["token"]
+        resp = client.post("/api/hr/my_employee_session", headers=_bearer(admin_token))
+        body = resp.get_json()
+        assert resp.status_code == 200 and body["employee_id"] == seed_employee["employee_id"]
+        assert client.get("/api/employee/profile", headers=_bearer(body["token"])).status_code == 200
+        assert client.get("/api/admin/profile", headers=_bearer(admin_token)).status_code == 200
+
+    def test_managers_and_employees_cannot(self, client, db_engine, seed_admin, seed_employee):
+        cur = db_engine.cursor()
+        cur.execute("UPDATE admin_users SET role='manager', linked_employee_id=%s WHERE username=%s",
+                    (seed_employee["employee_id"], seed_admin["username"]))
+        db_engine.commit()
+        cur.close()
+        manager_token = _signin(client, seed_admin["username"], seed_admin["password"]).get_json()["token"]
+        assert client.post("/api/hr/my_employee_session", headers=_bearer(manager_token)).status_code == 403
         emp_token = _signin(client, seed_employee["employee_id"], seed_employee["password"]).get_json()["token"]
         assert client.post("/api/hr/my_employee_session", headers=_bearer(emp_token)).status_code == 401
         assert client.post("/api/hr/my_employee_session").status_code == 401

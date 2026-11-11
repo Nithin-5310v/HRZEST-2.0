@@ -154,9 +154,10 @@ export function AuthProvider({ children }) {
     setLocked(false);
   };
 
-  // HR -> their own employee view (the website's "My Profile" switch). Not
-  // signIn(): it's the same person, so the account-change cache wipe
-  // (offline punches, cached employees) must not run.
+  // HR, or the owner admin with their own profile -> their own employee view
+  // (the website's "My Profile" switch). Not signIn(): it's the same person,
+  // so the account-change cache wipe (offline punches, cached employees)
+  // must not run.
   const switchToEmployeeView = async () => {
     const { data } = await fetchMyEmployeeSession();
     const employeeUser = {
@@ -167,6 +168,8 @@ export function AuthProvider({ children }) {
       companySlug: user?.companySlug,
       company: user?.company,
       hrReturn: true,
+      // Which panel "Back to ..." returns to: 'hr' or 'admin'.
+      returnPanel: user?.adminRole === 'hr' ? 'hr' : 'admin',
     };
     const hrToken = await secureGetItem('token');
     await secureSetItem('hr_return', JSON.stringify({ token: hrToken, user }));
