@@ -1,0 +1,53 @@
+    {# ================================================================
+         IMPORT FROM EXCEL MODAL -- blueprints/employees/bulk_import.py,
+         static/js/employee-import.js. Check the sheet, pay for any
+         employees beyond the free paid seats, then register them.
+    ================================================================ #}
+    <div class="modal-backdrop" id="importModal">
+      <div class="modal-box u-maxw-600">
+        <button class="modal-close" data-on-click="closeModal('importModal')">&times;</button>
+        <h3><i class="ti ti-file-spreadsheet u-c-1e3a8a"></i> Import Employees from Excel</h3>
+
+        <ol style="margin:0 0 14px 18px; padding:0; font-size:14px; color:#334155; line-height:1.7;">
+          <li><a href="{{ tpath('/employees/import/template') }}" style="font-weight:700; color:#1d4ed8;">Download the template</a> and fill in one employee per row. Only Full Name is required.</li>
+          <li>Upload it and check it. Nothing is saved until you confirm.</li>
+          {% if seat_pay and seat_pay.limited %}
+          <li>Employees beyond your free paid seats ({{ seat_pay.free }} free now) cost {{ seat_pay.rate_display }} each for this month, paid before they're added. From your next billing date they're in your monthly bill.</li>
+          {% endif %}
+        </ol>
+
+        <input type="file" id="importFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+               style="display:block; width:100%; padding:10px; border:1.5px dashed #93c5fd; border-radius:10px; background:#f8fafc; font-size:14px;" />
+
+        <div id="importMsg" role="alert" hidden
+             style="margin-top:12px; padding:10px 12px; border-radius:8px; background:#fee2e2; color:#991b1b; font-size:14px;"></div>
+
+        <div id="importPreview" hidden style="margin-top:14px;">
+          <div id="importSummary" style="font-size:15px; font-weight:700; color:#1e293b;"></div>
+          <div id="importPayLine" hidden
+               style="margin-top:8px; padding:10px 12px; border-radius:8px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; font-size:14px;"></div>
+          <div id="importProblems" hidden style="margin-top:12px;">
+            <div style="font-size:14px; font-weight:700; color:#b45309;"><i class="ti ti-alert-triangle"></i> Rows that will be skipped</div>
+            <ul id="importProblemList" style="margin:6px 0 0 18px; padding:0; font-size:13px; color:#475569; max-height:160px; overflow:auto;"></ul>
+          </div>
+          <div id="importReady" hidden style="margin-top:12px;">
+            <div style="font-size:14px; font-weight:700; color:#15803d;"><i class="ti ti-circle-check"></i> Ready to register</div>
+            <ul id="importReadyList" style="margin:6px 0 0 18px; padding:0; font-size:13px; color:#475569; max-height:160px; overflow:auto;"></ul>
+          </div>
+        </div>
+
+        <div id="importResult" hidden style="margin-top:14px; font-size:14px; color:#1e293b;">
+          <div id="importResultText" style="font-weight:700; color:#15803d;"></div>
+          <div id="importResultNote" style="margin-top:6px; color:#475569;"></div>
+          <button type="button" class="btn-add" id="importCredsBtn" hidden style="margin-top:10px;">
+            <i class="ti ti-download"></i> Download sign-in details (CSV)
+          </button>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-save" id="importCheckBtn"><i class="ti ti-search"></i> Check File</button>
+          <button type="button" class="btn-save" id="importGoBtn" hidden></button>
+          <button type="button" class="btn-cancel" id="importCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>

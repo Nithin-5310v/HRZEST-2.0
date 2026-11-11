@@ -1,0 +1,159 @@
+      {# ═══ SCHEDULE PANEL ═══ #}
+      <div class="u-d-none" id="panelSchedule">
+
+        {# Action bar #}
+        <div class="u-d-flex u-ai-center u-jc-space-between u-gap-12 u-mb-20 u-fxw-wrap">
+          <div>
+            <div class="u-fs-18 u-fw-800 u-c-0f172a u-d-flex u-ai-center u-gap-8"><i class="ti ti-calendar-time u-c-6366f1"></i> Shifts &amp; Breaks</div>
+            <div class="u-fs-12 u-c-64748b u-mt-2">Configure work shifts and break schedules</div>
+          </div>
+          <div class="u-d-flex u-gap-8">
+            <button class="u-d-flex u-ai-center u-gap-7 u-p-9-18 u-bd-none u-br-10 u-bg-6366f1 u-c-fff u-fs-13 u-fw-700 u-cur-pointer" data-on-click="openAddShiftModal()">
+              <i class="ti ti-plus"></i> Add Shift
+            </button>
+            <button class="u-d-flex u-ai-center u-gap-7 u-p-9-18 u-bd-1d5-solid-e2e8f0 u-br-10 u-bg-fff u-c-475569 u-fs-13 u-fw-700 u-cur-pointer" data-on-click="openAddBreakModal()">
+              <i class="ti ti-coffee"></i> Add Break
+            </button>
+          </div>
+        </div>
+
+        {# Shifts grid #}
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;display:inline-flex;align-items:center;gap:7px;">
+            <i class="ti ti-clock-hour-9" style="font-size:15px;color:#6366f1;"></i> Work Shifts
+          </span>
+          <span style="background:#eef2ff;color:#4f46e5;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;">{{ shift_full|length }}</span>
+          <span style="flex:1;height:1px;background:#eef1f6;"></span>
+        </div>
+
+        {% if shift_full %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;margin-bottom:30px;">
+          {% for s in shift_full %}
+          <div style="background:#fff;border:1px solid #e9ecf5;border-radius:16px;padding:18px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 16px rgba(16,24,40,.04);">
+            {# Card head #}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:11px;min-width:0;">
+                <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i class="ti ti-clock-hour-9" style="font-size:21px;color:#4f46e5;"></i>
+                </div>
+                <div style="min-width:0;">
+                  <div style="font-size:15px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ s.name }}</div>
+                  <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:1px;">Shift ID&nbsp;#{{ s.id }}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0;">
+                <button style="display:inline-flex;align-items:center;gap:4px;padding:6px 11px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;" data-on-click="openEditShiftModal(this.dataset.id,this.dataset.name,this.dataset.start,this.dataset.half,this.dataset.end)" data-id="{{ s.id }}" data-name="{{ s.name|e }}" data-start="{{ s.start|e }}" data-half="{{ s.half|e }}" data-end="{{ s.end|e }}">
+                  <i class="ti ti-pencil"></i> Edit
+                </button>
+                <form class="u-d-inline" method="POST" action="/delete_shift/{{ s.id }}" data-on-submit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete shift {{ s.name|e }}?">
+                  <button style="display:inline-flex;align-items:center;justify-content:center;width:33px;height:33px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;color:#64748b;font-size:14px;cursor:pointer;" type="submit" title="Delete shift">
+                    <i class="ti ti-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+            {# Time track #}
+            <div style="display:flex;align-items:stretch;background:#f8fafc;border:1px solid #eef1f6;border-radius:12px;overflow:hidden;">
+              <div style="flex:1;padding:11px 8px;text-align:center;">
+                <div style="font-size:9.5px;font-weight:700;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px;">START</div>
+                <div style="font-size:17px;font-weight:800;color:#1e293b;line-height:1;">{{ s.start }}</div>
+              </div>
+              <div style="width:1px;background:#e5e9f2;"></div>
+              <div style="flex:1;padding:11px 8px;text-align:center;">
+                <div style="font-size:9.5px;font-weight:700;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px;">HALF&nbsp;DAY</div>
+                <div style="font-size:17px;font-weight:800;color:#1e293b;line-height:1;">{{ s.half }}</div>
+              </div>
+              <div style="width:1px;background:#e5e9f2;"></div>
+              <div style="flex:1;padding:11px 8px;text-align:center;">
+                <div style="font-size:9.5px;font-weight:700;letter-spacing:.6px;color:#94a3b8;margin-bottom:4px;">END</div>
+                <div style="font-size:17px;font-weight:800;color:#1e293b;line-height:1;">{{ s.end }}</div>
+              </div>
+            </div>
+            {# Assign row #}
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9;">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#94a3b8;margin-bottom:7px;">Assign to department</div>
+              <form style="display:flex;align-items:center;gap:8px;" method="POST" action="{{ tpath('/bulk_assign_shift') }}">
+                <input type="hidden" name="shift_id" value="{{ s.id }}" />
+                <select style="flex:1;min-width:0;padding:7px 9px;border:1px solid #e2e8f0;border-radius:9px;font-size:12px;background:#fff;color:#334155;outline:none;" name="dept_filter">
+                  <option value="">All departments</option>
+                  {% for dept in departments %}
+                  <option value="{{ dept }}">{{ dept }}</option>
+                  {% endfor %}
+                </select>
+                <button style="padding:7px 14px;border:none;border-radius:9px;background:#6366f1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;" type="submit">Assign All</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="background:#fff;border:1.5px dashed #d6ddf5;border-radius:16px;padding:40px 24px;text-align:center;margin-bottom:30px;color:#94a3b8;">
+          <i class="ti ti-clock-off" style="font-size:34px;display:block;margin-bottom:12px;color:#c7d2fe;"></i>
+          <div style="font-size:14px;color:#64748b;font-weight:600;">No shifts defined yet</div>
+          <div style="font-size:12.5px;margin-top:4px;">Click <strong>Add Shift</strong> to create your first work shift.</div>
+        </div>
+        {% endif %}
+
+        {# Breaks section #}
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:14px;">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;display:inline-flex;align-items:center;gap:7px;">
+            <i class="ti ti-coffee" style="font-size:15px;color:#64748b;"></i> Break Schedules
+          </span>
+          <span style="background:#eef2ff;color:#4f46e5;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;">{{ breaks_list|length }}</span>
+          <span style="flex:1;height:1px;background:#eef1f6;"></span>
+        </div>
+
+        {% if breaks_list %}
+        <div style="background:#fff;border:1px solid #e9ecf5;border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 16px rgba(16,24,40,.04);">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Break Name</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Time</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Duration</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Status</th>
+                <th style="background:#f8fafc;color:#64748b;padding:12px 16px;text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid #eef1f6;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in breaks_list %}
+              <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="padding:13px 16px;font-weight:700;color:#1e293b;">
+                  <span style="display:inline-flex;align-items:center;gap:9px;">
+                    <span style="width:30px;height:30px;border-radius:8px;background:#f1f5f9;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-coffee" style="color:#64748b;font-size:15px;"></i></span>
+                    {{ b.name }}
+                  </span>
+                </td>
+                <td style="padding:13px 16px;color:#334155;font-weight:600;font-variant-numeric:tabular-nums;">{{ b.time }}</td>
+                <td style="padding:13px 16px;color:#64748b;">{{ b.duration }} min</td>
+                <td style="padding:13px 16px;">
+                  <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:700;{% if b.active %}background:#eef2ff;color:#4f46e5;{% else %}background:#f1f5f9;color:#94a3b8;{% endif %}">
+                    <span style="width:6px;height:6px;border-radius:50%;background:currentColor;"></span>{{ 'Active' if b.active else 'Inactive' }}
+                  </span>
+                </td>
+                <td style="padding:13px 16px;">
+                  <div style="display:flex;gap:6px;justify-content:flex-end;">
+                    <button style="display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:11.5px;font-weight:700;cursor:pointer;" data-on-click="openEditBreakModal(this.dataset.id,this.dataset.name,this.dataset.time,+this.dataset.dur,this.dataset.active)" data-id="{{ b.id }}" data-name="{{ b.name|e }}" data-time="{{ b.time|e }}" data-dur="{{ b.duration }}" data-active="{{ b.active }}">
+                      <i class="ti ti-pencil"></i> Edit
+                    </button>
+                    <form method="POST" action="{{ tpath('/delete_break/' + b.id|string) }}" data-on-submit="return hzConfirmSubmit(event, 'Delete this break?')">
+                      <button style="display:inline-flex;align-items:center;justify-content:center;width:31px;height:31px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#64748b;font-size:13px;cursor:pointer;" type="submit" title="Delete break">
+                        <i class="ti ti-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div style="background:#fff;border:1.5px dashed #fce4ae;border-radius:16px;padding:36px 24px;text-align:center;color:#94a3b8;">
+          <i class="ti ti-coffee-off" style="font-size:30px;display:block;margin-bottom:10px;color:#fcd98a;"></i>
+          <div style="font-size:14px;color:#64748b;font-weight:600;">No breaks configured</div>
+          <div style="font-size:12.5px;margin-top:4px;">Click <strong>Add Break</strong> to add a break schedule.</div>
+        </div>
+        {% endif %}
+
+      </div>{# /panelSchedule #}

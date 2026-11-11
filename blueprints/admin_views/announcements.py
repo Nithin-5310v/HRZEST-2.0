@@ -17,6 +17,8 @@ from . import _ANN_ALLOWED_EXT, admin_views_bp
 @admin_required
 @require_access("announcements")
 def announcements_admin():
+    """Admins and HRs post and delete announcements; the sidebar shows the
+    page to both (templates/admin_base.html)."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     if request.method == "POST":

@@ -45,6 +45,8 @@ from .provisioning import (  # noqa: E402,F401
     send_portal_ready_email,
 )
 from .duplicates import (  # noqa: E402,F401
+    SIGNUP_BLOCKED_MSG,
+    signup_block_for,
     _COMPANY_SUFFIX_RE,
     _FUZZY_MATCH_THRESHOLD,
     _normalize_company_name,

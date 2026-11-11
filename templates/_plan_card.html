@@ -1,0 +1,56 @@
+{# Plan details (utils/payment_history.py's get_plan_details) and, when
+   `recent_payments` is given, the latest payments with their tax invoices.
+   Used by the admin dashboard and the Profile page's Payment history tab. #}
+{% if plan %}
+<style>
+  .plan-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px 22px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+  .plan-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .plan-card-eyebrow { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }
+  .plan-card h2 { margin: 2px 0 0; font-size: 20px; color: #0f172a; }
+  .plan-card-state { padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: #dcfce7; color: #166534; }
+  .plan-card-state.warn { background: #fef3c7; color: #92400e; }
+  .plan-card-state.bad { background: #fee2e2; color: #991b1b; }
+  .plan-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 14px 16px; margin: 16px 0 0; }
+  .plan-card-grid dt { font-size: 12px; color: #64748b; font-weight: 600; }
+  .plan-card-grid dd { margin: 2px 0 0; font-size: 15px; font-weight: 700; color: #0f172a; }
+  .plan-card-recent { margin-top: 18px; border-top: 1px solid #f1f5f9; padding-top: 14px; }
+  .plan-card-recent h3 { font-size: 14px; margin: 0 0 8px; color: #334155; display: flex; justify-content: space-between; }
+  .plan-card-recent h3 a, .plan-card-row a { color: #2563eb; font-weight: 600; text-decoration: none; }
+  .plan-card-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; font-size: 14px; border-bottom: 1px solid #f8fafc; flex-wrap: wrap; }
+  .plan-card-row span { color: #64748b; }
+</style>
+<section class="plan-card" aria-labelledby="planCardTitle">
+  <div class="plan-card-head">
+    <div>
+      <div class="plan-card-eyebrow">Your HRZEST plan</div>
+      <h2 id="planCardTitle">{{ plan.plan }}</h2>
+    </div>
+    <span class="plan-card-state {{ 'bad' if 'Locked' in plan.state or plan.state == 'Suspended' else ('warn' if 'overdue' in plan.state or plan.trialing else '') }}">{{ plan.state }}</span>
+  </div>
+  <dl class="plan-card-grid">
+    <div><dt>Start date</dt><dd>{{ plan.start_date.strftime('%d %b %Y') if plan.start_date else '—' }}</dd></div>
+    <div><dt>{{ 'Trial period' if plan.trialing else 'Current period' }}</dt>
+      <dd>{{ plan.period_start.strftime('%d %b') if plan.period_start else '—' }} – {{ plan.period_end.strftime('%d %b %Y') if plan.period_end else '—' }}</dd></div>
+    <div><dt>{{ 'Trial ends' if plan.trialing else 'End date' }}</dt>
+      <dd>{{ plan.period_end.strftime('%d %b %Y') if plan.period_end else '—' }}{% if plan.period_end %} <span style="font-weight:500;color:#64748b;">({{ plan.days_left }} day{{ '' if plan.days_left == 1 else 's' }} left)</span>{% endif %}</dd></div>
+    {% if plan.renews_on %}<div><dt>Renews on</dt><dd>{{ plan.renews_on.strftime('%d %b %Y') }}</dd></div>{% endif %}
+    <div><dt>Employees</dt><dd>{{ plan.employees }} × {{ plan.rate_display }}</dd></div>
+    <div><dt>{{ 'First bill' if plan.trialing else 'Next bill' }}</dt><dd>{{ plan.next_amount_display }} <span style="font-weight:500;color:#64748b;">incl. GST</span></dd></div>
+    <div><dt>Auto-Debit</dt><dd>{{ 'On' if plan.auto_debit else 'Off' }}</dd></div>
+    {% if plan.last_payment %}<div><dt>Last payment</dt><dd>{{ plan.last_payment.amount_display }} · {{ (plan.last_payment.paid_at or plan.last_payment.created_at).strftime('%d %b %Y') }}</dd></div>{% endif %}
+  </dl>
+  {% if recent_payments is defined %}
+  <div class="plan-card-recent">
+    <h3>Recent payments <a href="{{ tpath('/profile/payments') }}">View all &rarr;</a></h3>
+    {% for p in recent_payments %}
+    <div class="plan-card-row">
+      <div>{{ p.kind }} · {{ p.amount_display }} <span>{{ (p.paid_at or p.created_at).strftime('%d %b %Y') if (p.paid_at or p.created_at) else '' }}</span></div>
+      {% if p.status_group == 'success' %}<a href="{{ tpath('/profile/payments/' ~ p.kind_key ~ '/' ~ p.id ~ '/invoice.pdf') }}"><i class="ti ti-download"></i> Invoice PDF</a>{% else %}<span>{{ p.status }}</span>{% endif %}
+    </div>
+    {% else %}
+    <div class="plan-card-row"><span>No payments yet.</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}

@@ -98,6 +98,15 @@
   .ticket-row .t-subject { font-weight: 700; color: #0f172a; font-size: 15.5px; }
   .ticket-row .t-meta { font-size: 13.5px; color: #94a3b8; }
 
+  .hr-add { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; }
+  .hr-add .p-input { margin: 0; }
+  .hr-check { display: inline-flex; gap: 8px; align-items: center; font-size: 14.5px; color: #334155; white-space: nowrap; }
+  .muted-sm { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+  .hr-note { display: flex; gap: 10px; align-items: flex-start; background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+    border-radius: 12px; padding: 12px 14px; font-size: 14.5px; margin-bottom: 16px; }
+  .hr-table-scroll { overflow-x: auto; }
+  @media (max-width: 720px) { .hr-add { grid-template-columns: 1fr; } }
+
   .p-btn.danger { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; }
   textarea.p-input { font-family: inherit; resize: vertical; }
   .policy-item { border-bottom: 1px solid #f1f5f9; }
@@ -261,6 +270,7 @@
       ('company',  tpath('/profile'),                  'ti-layout-dashboard', 'Overview'),
       ('legal',    tpath('/profile?section=legal'),    'ti-certificate',      'Legal & compliance'),
       ('contact',  tpath('/profile?section=contact'),  'ti-address-book',     'Contact'),
+      ('hr',       tpath('/profile/hr'),               'ti-users-group',      'HR team'),
       ('policies', tpath('/profile/policies'),         'ti-file-text',        'Policies'),
       ('payments', tpath('/profile/payments'),         'ti-receipt',          'Payment history'),
       ('tickets',  tpath('/profile/tickets'),          'ti-headset',          'Support tickets'),
@@ -574,8 +584,9 @@
   {% if active_tab == 'payments' %}
     <div class="org-page-head">
       <h1>Payment history</h1>
-      <p>Every payment made for your HRZEST subscription.</p>
+      <p>Every payment made for your HRZEST subscription, each with its GST tax invoice.</p>
     </div>
+    {% include "_plan_card.html" %}
     <form class="p-filters" method="GET" action="{{ tpath('/profile/payments') }}">
       <div>
         <label for="pf-status">Status</label>
@@ -595,7 +606,7 @@
     <div class="p-table-wrap">
       {% if payments %}
       <table class="p-table">
-        <thead><tr><th>Type</th><th>Reference</th><th>Employees</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead>
+        <thead><tr><th>Type</th><th>Reference</th><th>Employees</th><th>Amount</th><th>Status</th><th>Date</th><th>Invoice</th></tr></thead>
         <tbody>
         {% for p in payments %}
           <tr>
@@ -605,7 +616,7 @@
             <td>{{ p.amount_display }}</td>
             <td><span class="badge-pill {{ 'badge-success' if p.status_group == 'success' else ('badge-failed' if p.status_group == 'failed' else 'badge-pending') }}">{{ p.status }}</span></td>
             <td>{{ (p.paid_at or p.created_at).strftime('%d %b %Y') if (p.paid_at or p.created_at) else '—' }}</td>
-            <td>{% if p.status_group == 'success' %}<a href="{{ tpath('/profile/payments/' + p.kind_key + '/' + p.id|string + '/receipt.pdf') }}">Receipt</a>{% endif %}</td>
+            <td>{% if p.status_group == 'success' %}<a href="{{ tpath('/profile/payments/' + p.kind_key + '/' + p.id|string + '/invoice.pdf') }}"><i class="ti ti-download"></i> {{ invoice_nos.get((p.kind_key, p.id)) or 'Invoice PDF' }}</a>{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>
@@ -705,6 +716,73 @@
     </div>
   {% endif %}
 
+  {# ══════════════════════ HR TEAM ══════════════════════ #}
+  {% if active_tab == 'hr' %}
+    <div class="org-page-head">
+      <h1>HR team</h1>
+      <p>An HR with dashboard access signs in with their usual employee login and lands on the HR dashboard,
+         where they add employees and manage the ones assigned to them. Turn access off and they sign in to
+         their own employee portal instead.</p>
+    </div>
+
+    <div class="p-card">
+      <h2>Add an HR</h2>
+      <p class="sub">Choose an employee -- their role becomes "HR".</p>
+      {% if hr_candidates %}
+      <form method="POST" action="{{ tpath('/profile/hr/add') }}" class="hr-add">
+        <select class="p-input" id="hr-emp" name="employee_id" required aria-label="Employee to make an HR">
+          <option value="">Choose an employee…</option>
+          {% for c in hr_candidates %}<option value="{{ c.id }}">{{ c.name }} ({{ c.id }}){% if c.role %} -- {{ c.role }}{% endif %}{% if c.department %}, {{ c.department }}{% endif %}</option>{% endfor %}
+        </select>
+        <label class="hr-check"><input type="checkbox" name="access" value="1" checked> Give HR dashboard access now</label>
+        <button class="p-btn sm" type="submit"><i class="ti ti-user-plus"></i> Add HR</button>
+      </form>
+      {% else %}
+      <div class="empty-state" style="padding:16px;">Add employees first, then make one of them an HR here.</div>
+      {% endif %}
+    </div>
+
+    {% if unassigned_count %}
+    <div class="hr-note"><i class="ti ti-info-circle"></i>
+      <span>{{ unassigned_count }} employee{{ 's have' if unassigned_count != 1 else ' has' }} no HR assigned -- only admins see
+      them. Assign an HR from the employee's profile or the Edit employee form.</span></div>
+    {% endif %}
+
+    <div class="p-table-wrap hr-table-scroll">
+      {% if hr_team %}
+      <table class="p-table">
+        <thead><tr><th>HR</th><th>Email</th><th>Employees assigned</th><th>HR dashboard</th><th></th></tr></thead>
+        <tbody>
+          {% for hr in hr_team %}
+          <tr>
+            <td><strong>{{ hr.name }}</strong>
+              <div class="muted-sm">{{ hr.username }}{% if hr.department %} &middot; {{ hr.department }}{% endif %}{% if not hr.employee %} &middot; not an employee{% endif %}</div></td>
+            <td>{{ hr.email or '—' }}</td>
+            <td>{{ hr.assigned }}</td>
+            <td>{% if hr.access %}<span class="badge-pill badge-success">Access on</span>{% else %}<span class="badge-pill badge-failed">Access off</span>{% endif %}
+              {% if hr.access and not hr.signed_in %}<div class="muted-sm">Hasn't signed in yet</div>{% endif %}</td>
+            <td style="text-align:right;white-space:nowrap;">
+              <form method="POST" action="{{ tpath('/profile/hr/' ~ hr.username|urlencode ~ '/access') }}" style="margin:0;">
+                {% if hr.access %}
+                <input type="hidden" name="access" value="0">
+                <button class="p-btn sm danger" type="submit"
+                        data-on-click="return hzConfirmSubmit(event, 'Turn off HR dashboard access? They will sign in to their own employee portal instead, and any HR session they have open ends.')"><i class="ti ti-lock"></i> Stop access</button>
+                {% else %}
+                <input type="hidden" name="access" value="1">
+                <button class="p-btn sm" type="submit"><i class="ti ti-lock-open"></i> Give access</button>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state">No HRs yet. Add one above.</div>
+      {% endif %}
+    </div>
+  {% endif %}
+
   {# ══════════════════════ SUPPORT TICKETS ══════════════════════ #}
   {% if active_tab == 'tickets' %}
     <div class="org-page-head">
@@ -713,7 +791,8 @@
     </div>
     <div class="p-card">
       <h2>Raise a New Ticket</h2>
-      <form method="POST" action="{{ tpath('/profile/tickets') }}">
+      {% from "_ticket_files.html" import ticket_files_style, attach_input %}{{ ticket_files_style() }}
+      <form method="POST" action="{{ tpath('/profile/tickets') }}" enctype="multipart/form-data">
         <label class="field-label" for="tk-subject">Subject</label>
         <input class="p-input" id="tk-subject" name="subject" required maxlength="200">
         <label class="field-label" for="tk-priority">Priority</label>
@@ -722,6 +801,7 @@
         </select>
         <label class="field-label" for="tk-description">Description</label>
         <textarea class="p-input" id="tk-description" name="description" rows="4" required maxlength="4000"></textarea>
+        {{ attach_input(ticket_file_accept, ticket_max_files) }}
         <button class="p-btn" type="submit">Raise Ticket</button>
       </form>
     </div>

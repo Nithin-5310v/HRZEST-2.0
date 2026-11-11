@@ -94,6 +94,9 @@ def _init_master_db_impl():
         # reminder while an ended trial's grace period runs (the day sent).
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS renewal_reminder_for DATE DEFAULT NULL")
         cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS grace_reminder_sent_on DATE DEFAULT NULL")
+        # The day the company's plan started; its bill renews on that day
+        # every month (utils/billing_cycle.py). NULL = renews on the 1st.
+        cur.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_anchor_date DATE DEFAULT NULL")
         # Business-registration identifier collected at signup (blueprints/
         # org.py's create_org()/api_create_org()) -- lets check_duplicate_gst()
         # block a second free trial/signup under a different company name
@@ -393,6 +396,25 @@ def _init_master_db_impl():
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_duplicate_alerts_ack ON tenant_duplicate_alerts (acknowledged, created_at)")
+        # What the platform admin did about an alert beyond acknowledging it
+        # ('blocked'); NULL for a plain acknowledgement or a new alert.
+        cur.execute("ALTER TABLE tenant_duplicate_alerts ADD COLUMN IF NOT EXISTS action_taken VARCHAR(20) DEFAULT NULL")
+        # Emails and source IPs a platform admin has blocked from starting a
+        # new company (the duplicate-alerts page). Every signup entry point
+        # checks this first: blueprints/org/duplicates.signup_block_for().
+        # Emails are stored lowercased.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS signup_blocks (
+                id SERIAL PRIMARY KEY,
+                kind VARCHAR(10) NOT NULL,
+                value VARCHAR(200) NOT NULL,
+                reason VARCHAR(300) DEFAULT NULL,
+                alert_id INT DEFAULT NULL,
+                blocked_by VARCHAR(100) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (kind, value)
+            )
+        """)
         # Razorpay orders for an EXISTING tenant buying more employee seats
         # after signup (blueprints/seats.py) -- separate from payment_orders
         # above (that table stages a brand-new tenant that doesn't exist yet;
@@ -466,6 +488,23 @@ def _init_master_db_impl():
         # the new rate -- migration happens at the subscriber's own next
         # renewal, never mid-cycle.
         cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS needs_rate_migration BOOLEAN NOT NULL DEFAULT FALSE")
+        # A mandate authorized with UPI Autopay or e-mandate can never change
+        # its amount -- Razorpay refuses the quantity update for those payment
+        # methods -- so a new headcount needs a new authorization
+        # (blueprints/auto_debit.py). fixed_amount: Razorpay said so.
+        # pending_*: the replacement subscription being authorized; the
+        # current one keeps billing until it's confirmed, then is cancelled at
+        # its cycle end while the new one starts at pending_start_at (epoch
+        # seconds; NULL = now). reauth_notified_quantity: the headcount the
+        # admins were last emailed about, so the daily job tells them once.
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS fixed_amount BOOLEAN NOT NULL DEFAULT FALSE")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_subscription_id VARCHAR(100) DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_quantity INT DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS pending_start_at BIGINT DEFAULT NULL")
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS reauth_notified_quantity INT DEFAULT NULL")
+        # The billing date a new Auto-Debit's first charge waits for; NULL =
+        # it charges when authorized, and that day becomes the plan date.
+        cur.execute("ALTER TABLE auto_debit_mandates ADD COLUMN IF NOT EXISTS first_charge_on DATE DEFAULT NULL")
         # 'pending_cancellation' is a legal status value alongside the ones
         # documented above -- set by /api/auto_debit/cancel when called with
         # at_period_end=true (blueprints/auto_debit.py). The mandate keeps
@@ -514,6 +553,31 @@ def _init_master_db_impl():
         cur.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_monthly_invoices_payment_id ON monthly_invoices "
             "(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL")
+        # GST tax invoices (utils/tax_invoice.py): one per successful payment
+        # of any kind (signup, seat top-up, monthly charge). Everything shown
+        # on the PDF is frozen here at issue time -- seller and buyer details,
+        # amounts, tax split -- so a later address/rate/GSTIN change never
+        # rewrites an invoice already sent. invoice_no is sequential per
+        # Indian financial year (invoice_counters), as GST invoices must be.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tax_invoices (
+                id SERIAL PRIMARY KEY,
+                invoice_no VARCHAR(30) UNIQUE NOT NULL,
+                kind_key VARCHAR(20) NOT NULL,
+                source_id INT NOT NULL,
+                tenant_schema VARCHAR(100) DEFAULT NULL,
+                issued_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                data TEXT NOT NULL,
+                UNIQUE (kind_key, source_id)
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_tax_invoices_tenant ON tax_invoices (tenant_schema, issued_at)")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS invoice_counters (
+                financial_year VARCHAR(9) PRIMARY KEY,
+                last_no INT NOT NULL DEFAULT 0
+            )
+        """)
         # Lightweight traffic counter for the public marketing pages
         # (landing page, get-started, create_org) -- one row per
         # (path, day), incremented via ON CONFLICT below rather than one
@@ -658,6 +722,24 @@ def _init_master_db_impl():
         cur.execute("ALTER TABLE tenant_support_tickets ADD COLUMN IF NOT EXISTS linked_ticket_id INT DEFAULT NULL")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_tenant_tickets_linked ON tenant_support_tickets (linked_ticket_id)")
         cur.execute("ALTER TABLE tenant_ticket_comments ADD COLUMN IF NOT EXISTS author_kind VARCHAR(20) NOT NULL DEFAULT 'platform_admin'")
+        # Screenshots and documents attached to a ticket (comment_id NULL)
+        # or to one reply on it, by either side (utils/support_tickets.py).
+        # The file itself is encrypted under private_uploads/support_tickets/.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tenant_ticket_attachments (
+                id SERIAL PRIMARY KEY,
+                ticket_id INT NOT NULL,
+                comment_id INT DEFAULT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                stored_ref VARCHAR(500) NOT NULL,
+                content_type VARCHAR(100) DEFAULT NULL,
+                size_bytes INT DEFAULT NULL,
+                uploaded_by VARCHAR(100) DEFAULT NULL,
+                uploader_kind VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_ticket_attachments_ticket ON tenant_ticket_attachments (ticket_id)")
         # One row per scheduled-job run, claimed by whichever process gets
         # there first -- every gunicorn worker runs the scheduler, and the
         # primary key is what makes each nightly job run once (utils/

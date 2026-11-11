@@ -3,7 +3,11 @@
 import difflib
 import re
 from extensions import app_log, log_security_event
-from flask import request
+from flask import has_request_context, request
+
+# Shown to anyone a platform admin has blocked. Says nothing about why, or
+# whether it was the email or the network that matched.
+SIGNUP_BLOCKED_MSG = "We can't accept a new company registration from these details. Please contact support."
 
 
 _COMPANY_SUFFIX_RE = re.compile(
@@ -150,6 +154,39 @@ def check_duplicate_admin_email(admin_email):
     mcur.close()
     mconn.close()
     return row
+
+
+def signup_block_for(admin_email, ip=None):
+    """The platform admin's block that stops this signup, as (kind, value),
+    or None. Blocks are set on the duplicate-alerts page (signup_blocks): an
+    email matches case-insensitively, an IP exactly -- the request's own
+    unless one is given. Fails open: a failed lookup must not stop every
+    signup on the platform."""
+    email = (admin_email or "").strip().lower() or None
+    if ip is None and has_request_context():
+        ip = request.remote_addr
+    if not email and not ip:
+        return None
+    try:
+        from database import get_master_db
+        mconn = get_master_db()
+        mcur = mconn.cursor()
+        mcur.execute(
+            "SELECT kind, value FROM signup_blocks "
+            "WHERE (kind='email' AND value=%s) OR (kind='ip' AND value=%s) ORDER BY kind LIMIT 1",
+            (email, ip or None),
+        )
+        row = mcur.fetchone()
+        mcur.close()
+        mconn.close()
+    except Exception as exc:
+        app_log.error("signup_block_for failed: %s", exc)
+        return None
+    if row:
+        log_security_event("org.blocked_signup_refused", f"Signup refused: its {row[0]} is blocked",
+                           level="WARNING", block_kind=row[0])
+        return row[0], row[1]
+    return None
 
 
 def _record_duplicate_alert(application_id, attempted_company_name, attempted_admin_email, conflicting,

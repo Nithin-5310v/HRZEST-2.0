@@ -174,10 +174,11 @@ def update_my_photo():
     if not ok:
         return redirect(self_service_return_path("?photo_error=bad_format#my-profile"))
     try:
-        img = Image.open(file.stream).convert("RGB")
-        img_array = np.array(img)
+        # Upright by its EXIF orientation: it is saved without EXIF, so a
+        # phone photo would otherwise be stored sideways.
+        img = ImageOps.exif_transpose(Image.open(file.stream)).convert("RGB")
         if _face_recognition_available:
-            locs = face_recognition.face_locations(img_array)
+            locs = face_recognition.face_locations(detection_array(img))
             if not locs:
                 return redirect(self_service_return_path("?photo_error=no_face#my-profile"))
         save_path = face_photo_path(emp_id)

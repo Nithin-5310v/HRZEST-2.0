@@ -217,9 +217,12 @@ def _convert_one_trial(tenant_id, company_name, db_name):
     # a signup-time label, not a permanent billing category.
     conn = get_master_db()
     cur = conn.cursor()
+    # The paid plan starts now: its bill renews on the day Auto-Debit
+    # charges (utils/billing_cycle.py), so the two never disagree.
     cur.execute(
-        "UPDATE tenants SET subscription_status='active', payment_option='online' WHERE id=%s",
-        (tenant_id,)
+        "UPDATE tenants SET subscription_status='active', payment_option='online', "
+        "billing_anchor_date=COALESCE(billing_anchor_date, %s) WHERE id=%s",
+        (_auto_debit_charge_date(subscription_id), tenant_id)
     )
     conn.commit()
     cur.close()
@@ -230,6 +233,27 @@ def _convert_one_trial(tenant_id, company_name, db_name):
         level="INFO", tenant_id=tenant_id,
     )
     _notify_trial_tenant(db_name, company_name, "converted", employee_count=employee_count)
+
+
+def _auto_debit_charge_date(subscription_id):
+    """The day this subscription next charges (Razorpay's charge_at), or
+    today -- demo subscriptions, a lookup that fails, or a date that's
+    already passed."""
+    from utils.helpers import platform_today
+    today = platform_today()
+    if not subscription_id or subscription_id.startswith("demo_sub_"):
+        return today
+    from utils.razorpay_utils import fetch_subscription
+    from utils.helpers.settings import PLATFORM_TZ
+    sub, error = fetch_subscription(subscription_id)
+    charge_at = (sub or {}).get("charge_at") if not error else None
+    if not charge_at:
+        return today
+    try:
+        day = datetime.datetime.fromtimestamp(int(charge_at), PLATFORM_TZ).date()
+    except (TypeError, ValueError, OverflowError, OSError):
+        return today
+    return day if day >= today else today
 
 
 def _set_subscription_status(tenant_id, status):

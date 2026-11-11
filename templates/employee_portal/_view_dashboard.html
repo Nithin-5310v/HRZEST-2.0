@@ -1,0 +1,340 @@
+      {# ═══ VIEW: DASHBOARD ═══ #}
+      <div id="view-dashboard" class="view">
+      <div class="page-header u-d-flex u-ai-flex-start u-jc-space-between u-gap-12 u-fxw-wrap">
+        <div>
+          <h1>Welcome, <span data-scramble>{{ emp[1] }}</span>! <i class="ti ti-hand-stop hz-ico" aria-hidden="true"></i></h1>
+        </div>
+        {% if session.get('_hr_return_username') %}
+        <form action="{{ tpath('/switch_back_to_hr_panel') }}" method="POST" style="margin:0;">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="u-d-flex u-ai-center u-gap-7 u-p-9-16 u-br-10 u-bg-1e3a8a u-c-fff u-fs-13 u-fw-700 u-fxs-0" style="border:none;cursor:pointer;font-family:inherit;" aria-label="Back to HR Dashboard">
+            <i class="ti ti-arrow-back-up"></i> HR Dashboard
+          </button>
+        </form>
+        {% endif %}
+      </div>
+
+      {# PROFILE + TODAY ROW #}
+      <div class="cards-row">
+
+        {# PROFILE CARD #}
+        <div class="card" data-tilt>
+          <div class="card-title">My Profile</div>
+          <div class="u-d-flex u-ai-center u-gap-12 u-mb-10">
+            <div class="profile-avatar u-mb-0 u-fxs-0">
+              {% if emp[4] %}
+                <img src="/my_photo?v={{ photo_v }}" alt="{{ emp[1] }}"
+                     data-on-error="HZ.avatarText(this, '{{ emp[1][0] | upper }}')" />
+              {% else %}
+                {{ emp[1][0] | upper }}
+              {% endif %}
+            </div>
+            <div>
+              <div class="profile-name">{{ emp[1] }}</div>
+              <div class="profile-sub u-mt-3">ID: {{ emp[0] }}</div>
+              {% if emp[2] %}
+                <span class="badge-role u-mt-6 u-d-inline-block">{{ emp[2] }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="profile-rows">
+            <div class="profile-row">
+              <span class="lbl">Email</span>
+              <span class="val">{{ emp[3] or '—' }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="lbl">Employee ID</span>
+              <span class="val">{{ emp[0] }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="lbl">Role / Dept</span>
+              <span class="val">{{ emp[2] or '—' }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="lbl">Date of Joining</span>
+              <span class="val">
+                {% if emp[5] %}
+                  {{ emp[5].strftime('%d %b %Y') }}
+                {% else %}—{% endif %}
+              </span>
+            </div>
+            <div class="profile-row">
+              <span class="lbl">Shift</span>
+              <span class="val">
+                {% if emp[7] %}
+                  {{ emp[7] }}
+                  <span class="u-fs-11 u-c-94a3b8">
+                    ({{ emp[8] or '' }} – {{ emp[9] or '' }})
+                  </span>
+                {% else %}—{% endif %}
+              </span>
+            </div>
+            <div class="profile-row">
+              <span class="lbl">Salary / Day</span>
+              <span class="val">
+                {% if emp[6] and emp[6] > 0 %}
+                  ₹{{ "%.2f"|format(emp[6]) }}
+                {% else %}—{% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {# TODAY'S ATTENDANCE #}
+        <div class="card u-d-flex u-fxd-column u-ov-hidden" data-tilt>
+          {% if today_att %}
+            {% set login_t, logout_t, login_s, logout_s, att_type = today_att %}
+          {% endif %}
+
+          {# title + status badge #}
+          <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-8 u-mb-4">
+            <div class="u-fs-13 u-fw-700 u-c-1e293b">Today's Attendance</div>
+            {% if today_att %}
+              {% if att_type == 'Full Day' %}
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap u-fxs-0"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Full Day</span>
+              {% elif att_type == 'Late - Full Day' %}
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap u-fxs-0"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Late</span>
+              {% elif att_type == 'Half Day' %}
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap u-fxs-0"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> Half Day</span>
+              {% elif login_t and not logout_t %}
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-dbeafe u-c-2563eb u-ws-nowrap u-fxs-0"><i class="ti ti-circle-filled hz-ico" aria-hidden="true"></i> Currently In</span>
+              {% else %}
+                <span class="u-p-4-10 u-br-999 u-fs-11 u-fw-700 u-bg-f1f5f9 u-c-64748b u-ws-nowrap u-fxs-0">— Absent</span>
+              {% endif %}
+            {% endif %}
+          </div>
+          <div class="u-fs-11 u-c-94a3b8 u-mb-12">{{ today_long }}</div>
+          <div class="u-h-1 u-bg-f1f5f9"></div>
+
+          {# body grows to fill card height #}
+          <div class="u-fx-1 u-d-flex u-ai-stretch u-gap-14 u-pt-14">
+
+            {# left column: items space-between to fill height #}
+            <div class="u-fx-1 u-minw-0 u-d-flex u-fxd-column u-jc-space-between">
+              {% if today_att %}
+
+                {# login row #}
+                <div class="u-d-flex u-ai-center u-gap-8">
+                  <span class="u-fs-10 u-fw-700 u-c-94a3b8 u-w-46 u-ttr-uppercase u-ls-0d4 u-fxs-0">Login</span>
+                  <span class="u-fs-15 u-fw-800 u-c-1e293b u-fx-1 u-minw-0">{{ (login_t | fmt_time)[:5] if login_t else '—' }}</span>
+                  {% if login_s == 'Full Day Login' %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> On Time</span>
+                  {% elif login_s == 'Late Login' %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap"><i class="ti ti-circle-filled hz-ico hz-warn" aria-hidden="true"></i> Late</span>
+                  {% elif login_s == 'Half Day Login' %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> Half</span>
+                  {% else %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-f1f5f9 u-c-94a3b8">—</span>
+                  {% endif %}
+                </div>
+
+                {# logout row #}
+                <div class="u-d-flex u-ai-center u-gap-8">
+                  <span class="u-fs-10 u-fw-700 u-c-94a3b8 u-w-46 u-ttr-uppercase u-ls-0d4 u-fxs-0">Logout</span>
+                  <span class="u-fs-15 u-fw-800 u-c-1e293b u-fx-1 u-minw-0">{{ (logout_t | fmt_time)[:5] if logout_t else '—' }}</span>
+                  {% if logout_s == 'Completed' %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dcfce7 u-c-16a34a u-ws-nowrap"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Done</span>
+                  {% elif logout_s == 'Early Logout' %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-fef9c3 u-c-b45309 u-ws-nowrap"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i> Early</span>
+                  {% elif logout_s == 'Half Day Logout' %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-ffedd5 u-c-ea580c u-ws-nowrap"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i> Half</span>
+                  {% elif login_t %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-dbeafe u-c-2563eb u-ws-nowrap"><i class="ti ti-circle-filled hz-ico" aria-hidden="true"></i> Still In</span>
+                  {% else %}
+                    <span class="u-p-3-8 u-br-5 u-fs-10 u-fw-700 u-bg-f1f5f9 u-c-94a3b8">—</span>
+                  {% endif %}
+                </div>
+
+                {# duration / elapsed #}
+                <div class="u-d-flex u-ai-center u-gap-6 u-p-7-10 u-bg-f8fafc u-br-8">
+                  <span class="u-fs-12"><i class="ti ti-clock-hour-4 hz-ico" aria-hidden="true"></i></span>
+                  {% if login_t and logout_t %}
+                    {% set _s = (logout_t | time_seconds) - (login_t | time_seconds) %}
+                    {% set _h = _s // 3600 %}{% set _m = (_s % 3600) // 60 %}
+                    <span class="u-fs-12 u-fw-700 u-c-1e293b">{{ _h }}h {{ _m }}m worked</span>
+                  {% elif login_t %}
+                    <span class="u-fs-12 u-fw-700 u-c-2563eb" id="att-elapsed"
+                      data-lh="{{ (login_t | time_seconds) // 3600 }}"
+                      data-lm="{{ ((login_t | time_seconds) % 3600) // 60 }}"
+                      data-ls="{{ (login_t | time_seconds) % 60 }}">—</span>
+                  {% else %}
+                    <span class="u-fs-12 u-c-94a3b8">Not clocked in today</span>
+                  {% endif %}
+                </div>
+
+                {# shift info row #}
+                <div class="u-d-flex u-ai-center u-gap-6 u-pt-2">
+                  <span class="u-fs-11"><i class="ti ti-clock hz-ico" aria-hidden="true"></i></span>
+                  {% if emp[7] %}
+                    <span class="u-fs-11 u-fw-600 u-c-475569">{{ emp[7] }}</span>
+                    {% if emp[8] and emp[9] %}
+                      <span class="u-fs-11 u-c-cbd5e1">·</span>
+                      <span class="u-fs-11 u-c-64748b">{{ (emp[8] | fmt_time)[:5] }} – {{ (emp[9] | fmt_time)[:5] }}</span>
+                    {% endif %}
+                  {% else %}
+                    <span class="u-fs-11 u-c-94a3b8">No shift assigned</span>
+                  {% endif %}
+                </div>
+
+              {% else %}
+                <div class="no-att u-m-0">No attendance recorded today.</div>
+              {% endif %}
+            </div>
+
+            {# QR code #}
+            {% if emp[27] %}
+            <div class="u-fxs-0 u-d-flex u-fxd-column u-ai-center u-jc-flex-start u-pt-4 u-bdl-1-solid-f1f5f9 u-pl-14 u-gap-4">
+              <img class="u-w-100 u-h-100 u-br-8 u-bd-1-solid-e2e8f0 u-d-block" src="{{ tpath('/my_qr') }}" alt="My QR" />
+              <div class="u-fs-9 u-fw-600 u-c-94a3b8 u-ttr-uppercase u-ls-0d5">Your QR</div>
+            </div>
+            {% endif %}
+
+          </div>
+
+          {% if attendance_auth_cfg.qr_enabled or attendance_auth_cfg.face_enabled or attendance_auth_cfg.fingerprint_enabled %}
+          <button class="u-mt-8 u-w-100pct u-p-9 u-bd-none u-br-10 u-bg-linear-gradienb4a52d u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-jc-center u-gap-8" data-on-click="openWfhScanner()">
+            Mark Attendance
+          </button>
+          {% endif %}
+        </div>
+        <script>
+          (function(){
+            var el = document.getElementById('att-elapsed');
+            if (!el) return;
+            var lh = +el.dataset.lh, lm = +el.dataset.lm, ls = +el.dataset.ls;
+            var loginSec = lh * 3600 + lm * 60 + ls;
+            function tick() {
+              var now = new Date();
+              var diff = now.getHours()*3600 + now.getMinutes()*60 + now.getSeconds() - loginSec;
+              if (diff < 0) diff = 0;
+              var h = Math.floor(diff/3600), m = Math.floor((diff%3600)/60), s = diff%60;
+              el.textContent = (h>0 ? h+'h ' : '') + m+'m ' + s+'s elapsed';
+            }
+            tick(); setInterval(tick, 1000);
+          })();
+        </script>
+
+      </div>
+
+      {# DONUT + HOLIDAYS ROW #}
+      <div class="u-d-grid u-gtc-1fr-1fr u-gap-12 u-mb-14">
+
+        {# SVG Donut Chart #}
+        <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-16" data-tilt>
+          {% set total_shown = full_days + late_days + half_days + absent_days %}
+          {% if total_shown > 0 %}
+            {% set full_pct  = (full_days  / total_shown * 100) | int %}
+            {% set late_pct  = (late_days  / total_shown * 100) | int %}
+            {% set half_pct  = (half_days  / total_shown * 100) | int %}
+            {% set abs_pct   = (absent_days / total_shown * 100) | int %}
+            {% set circ = 213.6 %}
+            {% set f_d  = (full_pct  / 100 * circ) | round(1) %}
+            {% set l_d  = (late_pct  / 100 * circ) | round(1) %}
+            {% set h_d  = (half_pct  / 100 * circ) | round(1) %}
+            {% set a_d  = (abs_pct   / 100 * circ) | round(1) %}
+            {% set f_o  = 0 %}
+            {% set l_o  = circ - f_d %}
+            {% set h_o  = l_o - l_d %}
+            {% set a_o  = h_o - h_d %}
+            <svg class="u-fxs-0" width="90" height="90" viewBox="0 0 90 90">
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#e2e8f0" stroke-width="12"/>
+              {% if f_d > 0 %}
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#16a34a" stroke-width="12"
+                stroke-dasharray="{{ f_d }} {{ circ - f_d }}" stroke-dashoffset="{{ circ * 0.25 }}"
+                transform="rotate(-90 45 45)"/>
+              {% endif %}
+              {% if l_d > 0 %}
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#d97706" stroke-width="12"
+                stroke-dasharray="{{ l_d }} {{ circ - l_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d }}"
+                transform="rotate(-90 45 45)"/>
+              {% endif %}
+              {% if h_d > 0 %}
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#f97316" stroke-width="12"
+                stroke-dasharray="{{ h_d }} {{ circ - h_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d - l_d }}"
+                transform="rotate(-90 45 45)"/>
+              {% endif %}
+              {% if a_d > 0 %}
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#ef4444" stroke-width="12"
+                stroke-dasharray="{{ a_d }} {{ circ - a_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d - l_d - h_d }}"
+                transform="rotate(-90 45 45)"/>
+              {% endif %}
+              <text x="45" y="41" text-anchor="middle" font-size="13" font-weight="700" fill="#1e293b">{{ att_pct }}%</text>
+              <text x="45" y="53" text-anchor="middle" font-size="8" fill="#94a3b8">attendance</text>
+            </svg>
+          {% else %}
+            <svg class="u-fxs-0" width="90" height="90" viewBox="0 0 90 90">
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#e2e8f0" stroke-width="12"/>
+              <text x="45" y="48" text-anchor="middle" font-size="10" fill="#94a3b8">No data</text>
+            </svg>
+          {% endif %}
+          <div class="u-d-flex u-fxd-column u-gap-5 u-fs-12">
+            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-bg-16a34a u-fxs-0"></span><span>Full Days <strong>{{ full_days }}</strong></span></div>
+            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-bg-d97706 u-fxs-0"></span><span>Late Days <strong>{{ late_days }}</strong></span></div>
+            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-bg-f97316 u-fxs-0"></span><span>Half Days <strong>{{ half_days }}</strong></span></div>
+            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-bg-ef4444 u-fxs-0"></span><span>Absent <strong>{{ absent_days }}</strong></span></div>
+          </div>
+        </div>
+
+        {# Upcoming Holidays #}
+        <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-16-18" data-tilt>
+          <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-8">Upcoming Holidays</div>
+          {% if upcoming_holidays %}
+            {% for hdate, hname in upcoming_holidays %}
+            <div class="u-d-flex u-ai-center u-gap-12 u-p-9-0 u-bdb-1-solid-f1f5f9">
+              <div class="u-bg-ede9fe u-br-8 u-p-6-10 u-ta-center u-fxs-0 u-minw-42">
+                <div class="u-fs-14 u-fw-700 u-c-6d28d9">{{ hdate.strftime('%d') if hdate else '' }}</div>
+                <div class="u-fs-10 u-c-8b5cf6 u-ttr-uppercase">{{ hdate.strftime('%b') if hdate else '' }}</div>
+              </div>
+              <div class="u-fs-13 u-fw-600 u-c-1e293b">{{ hname }}</div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="u-fs-13 u-c-94a3b8 u-p-10-0">No upcoming holidays.</div>
+          {% endif %}
+        </div>
+
+      </div>
+
+      {# MONTHLY STATS #}
+      <div class="stats">
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i></div><div><div class="stat-num sn-green" data-animate-counter>{{ full_days }}</div><div class="stat-lbl">Full Days</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-yellow"><i class="ti ti-alert-triangle hz-ico hz-warn" aria-hidden="true"></i></div><div><div class="stat-num sn-yellow" data-animate-counter>{{ late_days }}</div><div class="stat-lbl">Late Days</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-yellow"><i class="ti ti-circle-half-2 hz-ico" aria-hidden="true"></i></div><div><div class="stat-num sn-yellow" data-animate-counter>{{ half_days }}</div><div class="stat-lbl">Half Days</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i></div><div><div class="stat-num sn-red" data-animate-counter>{{ absent_days }}</div><div class="stat-lbl">Absent</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-blue"><i class="ti ti-trending-up hz-ico" aria-hidden="true"></i></div><div><div class="stat-num sn-blue" data-animate-counter>{{ att_pct }}%</div><div class="stat-lbl">Attendance</div></div></div>
+        <div class="stat-card" data-tilt data-tilt-max="4"><div class="stat-icon si-blue"><i class="ti ti-clock-hour-4 hz-ico" aria-hidden="true"></i></div><div><div class="stat-num stat-num-sm sn-blue" data-animate-counter>{{ total_hours }}</div><div class="stat-lbl">Hours Worked</div></div></div>
+      </div>
+
+      {# BREAK SCHEDULE WIDGET #}
+      <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mb-20 u-d-none" id="breakScheduleWidget">
+        <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8"><i class="ti ti-coffee hz-ico" aria-hidden="true"></i> Today's Break Schedule</div>
+        <div class="u-d-flex u-fxw-wrap u-gap-10" id="breakScheduleList"></div>
+      </div>
+
+      {# Announcements widget #}
+      {% if announcements %}
+      <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-20 u-mb-20">
+        <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8"><i class="ti ti-speakerphone hz-ico" aria-hidden="true"></i> Announcements</div>
+        {% for ann_id, ann_title, ann_content, ann_pri, ann_date, ann_att in announcements %}
+        <div style="border-radius:10px;padding:14px 16px;margin-bottom:10px;border-left:4px solid
+          {% if ann_pri=='Urgent' %}#ef4444{% elif ann_pri=='Important' %}#f59e0b{% else %}#3b82f6{% endif %};
+          background:{% if ann_pri=='Urgent' %}#fff5f5{% elif ann_pri=='Important' %}#fffbeb{% else %}#f0f7ff{% endif %};">
+          <div class="u-fs-13 u-fw-700 u-c-1e293b u-mb-4">
+            {% if ann_pri=='Urgent' %}<i class="ti ti-circle-filled hz-ico hz-bad" aria-hidden="true"></i>{% elif ann_pri=='Important' %}<i class="ti ti-circle-filled hz-ico hz-warn" aria-hidden="true"></i>{% else %}<i class="ti ti-speakerphone hz-ico" aria-hidden="true"></i>{% endif %}
+            {{ ann_title }}
+            <span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;
+              background:{% if ann_pri=='Urgent' %}#fee2e2;color:#dc2626{% elif ann_pri=='Important' %}#fef9c3;color:#92400e{% else %}#dbeafe;color:#1e40af{% endif %};">{{ ann_pri }}</span>
+          </div>
+          <div class="u-fs-12 u-c-475569 u-lh-1d6">{{ ann_content }}</div>
+          {% if ann_att %}
+          <a class="u-fs-12 u-c-2563eb u-d-inline-flex u-ai-center u-gap-4 u-mt-6" href="{{ tpath('/download_announcement/' ~ ann_id) }}">
+            <i class="ti ti-paperclip"></i> {{ ann_att }}
+          </a>
+          {% endif %}
+          <div class="u-fs-11 u-c-94a3b8 u-mt-6">{{ ann_date.strftime('%d %b %Y') if ann_date else '' }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      </div>{# /view-dashboard #}

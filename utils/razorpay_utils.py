@@ -240,7 +240,7 @@ def create_customer(name: str, email: str, fail_if_exists: bool = False):
     return customer_id, None
 
 
-def create_subscription(plan_id: str, customer_id: str, quantity: int, total_count: int = 1200):
+def create_subscription(plan_id: str, customer_id: str, quantity: int, total_count: int = 1200, start_at=None):
     """POST /v1/subscriptions. `quantity` is the seat-based-billing lever
     Razorpay documents for exactly this case (variable per-unit recurring
     charge): total billed each cycle = plan.item.amount * quantity.
@@ -251,6 +251,9 @@ def create_subscription(plan_id: str, customer_id: str, quantity: int, total_cou
     data, error = _request("/subscriptions", {
         "plan_id": plan_id, "customer_id": customer_id, "quantity": max(1, quantity),
         "total_count": total_count, "customer_notify": 1,
+        # start_at (epoch seconds): first charge on that date instead of at
+        # authorization -- used when one subscription replaces another.
+        **({"start_at": int(start_at)} if start_at else {}),
     })
     if error:
         return None, error
@@ -260,16 +263,33 @@ def create_subscription(plan_id: str, customer_id: str, quantity: int, total_cou
     return subscription_id, None
 
 
+def fetch_subscription(subscription_id: str):
+    """GET /v1/subscriptions/{id}. Returns (data, error); data carries
+    status, charge_at (next charge, epoch seconds) and current_end."""
+    return _request(f"/subscriptions/{subscription_id}", method="GET")
+
+
 def update_subscription_quantity(subscription_id: str, quantity: int):
     """PATCH /v1/subscriptions/{id} -- resyncs the billed quantity to a
     tenant's current headcount (blueprints/auto_debit.py's daily sync job).
-    schedule_change_at="now" applies immediately with proration, matching
-    Razorpay's documented seat-based-billing guidance (an employee added
-    mid-cycle should start being billed for right away, not silently free
-    until the next renewal). Returns (ok, error)."""
-    data, error = _request(f"/subscriptions/{subscription_id}", {
-        "quantity": max(1, quantity), "schedule_change_at": "now",
-    }, method="PATCH")
+
+    Always schedule_change_at="cycle_end": the new headcount is charged
+    from the next billing date, all employees in one payment. A new
+    employee's current month is paid when they're registered
+    (blueprints/seats.py), so "now" -- which Razorpay applies at once, with
+    a prorated charge -- would bill them twice. A change already scheduled
+    is replaced. Returns (ok, error)."""
+    path = f"/subscriptions/{subscription_id}"
+    body = {"quantity": max(1, quantity), "schedule_change_at": "cycle_end"}
+    data, error = _request(path, body, method="PATCH")
+    if error and "payment mode is" not in error.lower():
+        # Most likely an earlier scheduled change in the way: drop it and
+        # schedule this one instead. ("... when payment mode is UPI /
+        # domestic card" means the amount can't change at all -- the caller
+        # sets Auto-Debit up again instead.)
+        _, cancel_error = _request(f"{path}/cancel_scheduled_changes")
+        if not cancel_error:
+            data, error = _request(path, body, method="PATCH")
     if error:
         return False, error
     return True, None

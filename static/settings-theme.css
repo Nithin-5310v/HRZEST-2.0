@@ -71,6 +71,8 @@ body .py-save:hover { background: #1d4ed8; box-shadow: none; filter: none; trans
 #ss-billing .seats-card h2 { display: flex; align-items: center; gap: 8px; font-size: 16.5px; font-weight: 700; }
 #ss-billing .seats-card h2 i { color: #2563eb; font-size: 19px; }
 #ss-billing #enableAutoDebitBtn { height: 40px; padding: 0 16px; border-radius: 8px; font-size: 15px; font-weight: 600; white-space: nowrap; }
+/* The Auto-Debit action buttons grow when a narrow card wraps their label, instead of spilling out of a fixed height. */
+#ss-billing #updateAutoDebitBtn, #ss-billing #reauthAutoDebitBtn, #ss-billing #cancelAtPeriodEndBtn, #ss-billing #disableAutoDebitBtn { height: auto; min-height: 38px; line-height: 1.25; }
 #ss-billing .seats-status { background: #eef4ff; border-color: #c7d7fe; }
 #ss-billing .seats-status .sub { margin-bottom: 0; color: #344054; }
 @media (max-width: 1000px) { #ss-billing.active { grid-template-columns: minmax(0, 1fr); } }

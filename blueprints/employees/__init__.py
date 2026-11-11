@@ -8,6 +8,7 @@ Package layout (split from one module; routes register in this order):
   photos         reference photo upload, QR codes, photo serving
   id_cards       ID card rendering (default and custom templates) and routes
   api            JSON API for the mobile app: list/register/detail/edit/delete, org chart
+  bulk_import    register many employees from an Excel sheet (paying for extra seats first)
 """
 from extensions import app
 from flask import Blueprint
@@ -18,7 +19,7 @@ UPLOAD_FOLDER = app.config["UPLOAD_FOLDER"]
 
 
 # Route modules -- importing them registers their routes on the blueprint above.
-from . import manage, directory, registration, photos, id_cards, api  # noqa: E402,F401
+from . import manage, directory, registration, photos, id_cards, api, bulk_import  # noqa: E402,F401
 
 # Re-exported so `blueprints.employees.<name>` keeps resolving for existing callers.
 from .manage import (  # noqa: E402,F401

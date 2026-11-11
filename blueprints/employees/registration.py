@@ -124,6 +124,46 @@ def _next_emp_id(prefix, max_seq, requested_id):
     return f"{prefix}{max_seq + 1:0{width}d}"
 
 
+def assign_default_onboarding(cursor, db, emp_id):
+    """Give a new employee the company's default onboarding checklist, if
+    one is set and they don't have it yet. Shared by Add Employee and the
+    Excel import (bulk_import.py). Returns whether one was assigned."""
+    cursor.execute("SELECT default_onboarding_template_id FROM company_settings LIMIT 1")
+    _cs = cursor.fetchone()
+    _default_tpl = _cs[0] if _cs and _cs[0] else None
+    if not _default_tpl:
+        return False
+    cursor.execute("SELECT id FROM onboarding_templates WHERE id=%s AND is_active=1", (_default_tpl,))
+    if not cursor.fetchone():
+        return False
+    cursor.execute("""
+        SELECT id FROM employee_onboarding
+        WHERE employee_id=%s AND template_id=%s
+    """, (emp_id, _default_tpl))
+    if cursor.fetchone():
+        return False
+    _due = (company_today() + datetime.timedelta(days=30)).isoformat()
+    cursor.execute("""
+        INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status)
+        VALUES (%s, %s, %s, %s, 'In Progress') RETURNING id
+    """, (emp_id, _default_tpl, company_today().isoformat(), _due))
+    _ob_id = cursor.fetchone()[0]
+    db.commit()
+    cursor.execute("""
+        SELECT id, task_title, task_description, requires_document, due_days, sort_order
+        FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id
+    """, (_default_tpl,))
+    for _tt in cursor.fetchall():
+        cursor.execute("""
+            INSERT INTO employee_onboarding_tasks
+            (onboarding_id, template_task_id, employee_id, task_title,
+             task_description, requires_document, due_days, status)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,'Pending')
+        """, (_ob_id, _tt[0], emp_id, _tt[1], _tt[2], _tt[3], _tt[4]))
+    db.commit()
+    return True
+
+
 @employees_bp.route("/add_employee_page", methods=["POST"])
 @admin_required
 def add_employee_page():
@@ -212,23 +252,18 @@ def add_employee_page():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
-    # Which HR this new employee is managed by. An HR-role creator can only
-    # ever assign their own account -- never trusts a form value for this,
-    # so an HR session can't hand its own employees off to a DIFFERENT HR
-    # account it doesn't control. An admin (or other non-HR admin-side
-    # role) may pick any real, active HR account from the form, validated
-    # against admin_users itself rather than trusted as free text; leaving
-    # it unset is also valid (the employee stays unassigned/admin-only
-    # until an admin assigns one later).
-    if session.get("admin_role") == HR_ROLE:
+    # Which HR this new employee is managed by: any HR with dashboard access
+    # (blueprints/hr_team.hr_choices), checked here rather than trusted as
+    # free text. An HR adding someone may hand them to another HR, and is
+    # the default (an unknown choice falls back to themselves); an admin may
+    # also leave it unset (unassigned: only admins see the employee until an
+    # HR is assigned). Changing it later is an admin-only action.
+    from blueprints.hr_team import is_assignable_hr
+    assigned_hr_username = request.form.get("assigned_hr_username", "").strip() or None
+    if assigned_hr_username and not is_assignable_hr(cursor, assigned_hr_username):
+        assigned_hr_username = None
+    if session.get("admin_role") == HR_ROLE and not assigned_hr_username:
         assigned_hr_username = session.get("admin_username")
-    else:
-        assigned_hr_username = request.form.get("assigned_hr_username", "").strip() or None
-        if assigned_hr_username:
-            cursor.execute("SELECT 1 FROM admin_users WHERE username=%s AND role=%s AND COALESCE(is_active,1)=1",
-                           (assigned_hr_username, HR_ROLE))
-            if not cursor.fetchone():
-                assigned_hr_username = None
 
     # Auto-increment emp_id if already taken
     cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))
@@ -351,38 +386,13 @@ def add_employee_page():
 
     if registered:
         flash(f"Employee '{name}' registered! ID: {emp_id} | Password: {auto_pass}", "success")
+        if session.get("admin_role") == HR_ROLE and assigned_hr_username != session.get("admin_username"):
+            from blueprints.hr_team import hr_label
+            flash(f"{name} is assigned to {hr_label(cursor, assigned_hr_username)}, who manages them from now on.",
+                  "success")
         # Auto-assign default onboarding template if configured
-        cursor.execute("SELECT default_onboarding_template_id FROM company_settings LIMIT 1")
-        _cs = cursor.fetchone()
-        _default_tpl = _cs[0] if _cs and _cs[0] else None
-        if _default_tpl:
-            cursor.execute("SELECT id FROM onboarding_templates WHERE id=%s AND is_active=1", (_default_tpl,))
-            if cursor.fetchone():
-                cursor.execute("""
-                    SELECT id FROM employee_onboarding
-                    WHERE employee_id=%s AND template_id=%s
-                """, (emp_id, _default_tpl))
-                if not cursor.fetchone():
-                    _due = (company_today() + datetime.timedelta(days=30)).isoformat()
-                    cursor.execute("""
-                        INSERT INTO employee_onboarding (employee_id, template_id, assigned_date, due_date, status)
-                        VALUES (%s, %s, %s, %s, 'In Progress') RETURNING id
-                    """, (emp_id, _default_tpl, company_today().isoformat(), _due))
-                    _ob_id = cursor.fetchone()[0]
-                    db.commit()
-                    cursor.execute("""
-                        SELECT id, task_title, task_description, requires_document, due_days, sort_order
-                        FROM onboarding_template_tasks WHERE template_id=%s ORDER BY sort_order, id
-                    """, (_default_tpl,))
-                    for _tt in cursor.fetchall():
-                        cursor.execute("""
-                            INSERT INTO employee_onboarding_tasks
-                            (onboarding_id, template_task_id, employee_id, task_title,
-                             task_description, requires_document, due_days, status)
-                            VALUES (%s,%s,%s,%s,%s,%s,%s,'Pending')
-                        """, (_ob_id, _tt[0], emp_id, _tt[1], _tt[2], _tt[3], _tt[4]))
-                    db.commit()
-                    flash("Onboarding checklist auto-assigned.", "success")
+        if assign_default_onboarding(cursor, db, emp_id):
+            flash("Onboarding checklist auto-assigned.", "success")
         if email:
             try:
                 if _send_welcome_credentials_email(emp_id, name, email, auto_pass):

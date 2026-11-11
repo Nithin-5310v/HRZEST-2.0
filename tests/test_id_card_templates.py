@@ -8,7 +8,6 @@
 """
 import io
 import os
-import glob
 import json
 
 import pytest
@@ -31,12 +30,18 @@ def _png_bytes(size=(120, 120), color=(200, 30, 30)):
     return buf.getvalue()
 
 
-def _cleanup_company_static_files(cid):
-    root = flask_app.root_path
-    for pattern in (f"static/company_logos/co_{cid}_*", f"static/id_card_templates/co_{cid}_*"):
-        for path in glob.glob(os.path.join(root, pattern)):
+def _cleanup_company_static_files(cur, cid):
+    """Removes the image files this company's rows point at -- never a glob
+    on the company id: parallel test workers each have a company #1."""
+    cur.execute("SELECT logo_path FROM companies WHERE id=%s", (cid,))
+    paths = [r[0] for r in cur.fetchall()]
+    cur.execute("SELECT front_image, back_image FROM id_card_templates WHERE company_id=%s", (cid,))
+    for row in cur.fetchall():
+        paths.extend(row)
+    for rel in paths:
+        if rel and os.path.basename(rel).startswith("co_"):
             try:
-                os.remove(path)
+                os.remove(os.path.join(flask_app.root_path, "static", rel))
             except OSError:
                 pass
 
@@ -49,12 +54,12 @@ def temp_company(db_engine):
     try:
         yield cid
     finally:
+        _cleanup_company_static_files(cur, cid)
         cur.execute("DELETE FROM id_card_templates WHERE company_id=%s", (cid,))
         cur.execute("DELETE FROM company_feature_settings WHERE company_id=%s", (cid,))
         cur.execute("DELETE FROM employees WHERE company_id=%s", (cid,))
         cur.execute("DELETE FROM companies WHERE id=%s", (cid,))
         cur.close()
-        _cleanup_company_static_files(cid)
 
 
 @pytest.fixture
@@ -101,8 +106,9 @@ class TestCompanyLogoUpload:
             assert logo_path and logo_path.startswith("company_logos/")
             assert os.path.exists(os.path.join(flask_app.root_path, "static", logo_path))
         finally:
-            db_engine.cursor().execute("DELETE FROM companies WHERE id=%s", (cid,))
-            _cleanup_company_static_files(cid)
+            cur = db_engine.cursor()
+            _cleanup_company_static_files(cur, cid)
+            cur.execute("DELETE FROM companies WHERE id=%s", (cid,))
 
     def test_add_company_rejects_invalid_logo(self, client, seed_admin, db_engine):
         _admin_session(client, seed_admin["username"])
@@ -129,6 +135,67 @@ class TestCompanyLogoUpload:
         logo_path = cur.fetchone()[0]
         cur.close()
         assert logo_path and os.path.exists(os.path.join(flask_app.root_path, "static", logo_path))
+
+
+class TestCompanyImagesPerOrganisation:
+    """Company ids start at 1 in every organisation, so image files must be
+    named per organisation: one org's upload or delete must never touch
+    another's file."""
+
+    @staticmethod
+    def _upload(tenant, cid=1, kind="logo", color=(200, 30, 30)):
+        from flask import g
+        from werkzeug.datastructures import FileStorage
+        from blueprints.admin_views.companies import _save_company_image
+        with flask_app.test_request_context():
+            g.tenant_db = tenant
+            return _save_company_image(FileStorage(io.BytesIO(_png_bytes(color=color)), "logo.png"), cid, kind)
+
+    @staticmethod
+    def _delete(tenant, rel):
+        from flask import g
+        from blueprints.admin_views.companies import _delete_company_image
+        with flask_app.test_request_context():
+            g.tenant_db = tenant
+            _delete_company_image(rel)
+
+    @staticmethod
+    def _abs(rel):
+        return os.path.join(flask_app.root_path, "static", rel)
+
+    def test_same_company_id_in_two_organisations_gets_two_files(self):
+        a = self._upload("att_org_a_test", color=(255, 0, 0))
+        b = self._upload("att_org_b_test", color=(0, 0, 255))
+        try:
+            assert a != b
+            assert os.path.basename(a).startswith("co_att_org_a_test_1_logo_")
+            assert Image.open(self._abs(a)).getpixel((0, 0)) == (255, 0, 0)
+            assert Image.open(self._abs(b)).getpixel((0, 0)) == (0, 0, 255)
+            self._delete("att_org_b_test", b)
+            assert not os.path.exists(self._abs(b))
+            assert os.path.exists(self._abs(a))
+        finally:
+            for rel in (a, b):
+                if os.path.exists(self._abs(rel)):
+                    os.remove(self._abs(rel))
+
+    def test_never_deletes_another_organisations_or_old_shared_file(self):
+        mine = self._upload("att_org_a_test", kind="front")
+        legacy = "id_card_templates/co_1_front.png"
+        legacy_existed = os.path.exists(self._abs(legacy))
+        if not legacy_existed:
+            with open(self._abs(legacy), "wb") as fh:
+                fh.write(_png_bytes())
+        try:
+            self._delete("att_org_b_test", mine)
+            self._delete("att_org_b_test", legacy)
+            self._delete("att_org_b_test", "id_card_templates/../company_logos/co_att_org_b_test_x.png")
+            assert os.path.exists(self._abs(mine))
+            assert os.path.exists(self._abs(legacy))
+        finally:
+            os.remove(self._abs(mine))
+            if not legacy_existed:
+                os.remove(self._abs(legacy))
 
 
 class TestCompanyAddress:

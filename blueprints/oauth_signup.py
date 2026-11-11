@@ -189,7 +189,10 @@ def _signup_blocked(email):
     an account, or its company domain already has a trial), else None.
     Checked when the provider sends the user back and again once the code
     is verified, since another signup can land in between."""
-    from blueprints.org import check_duplicate_admin_email
+    from blueprints.org import SIGNUP_BLOCKED_MSG, check_duplicate_admin_email, signup_block_for
+    if signup_block_for(email):
+        flash(SIGNUP_BLOCKED_MSG, "error")
+        return redirect(tpath("/login"))
     if check_duplicate_admin_email(email):
         flash("An account already exists for this email. Try signing in instead.", "error")
         return redirect(tpath("/login"))

@@ -1,0 +1,339 @@
+          {# PAYROLL #}
+          <div class="s3-section active" id="ss-payroll">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-fefce8"><i class="ti ti-coin u-c-ca8a04 u-fs-20"></i></div>
+              <div><div class="sec-title">Payroll Rules</div><div class="sec-sub">Salary deduction rules and payroll policies</div></div>
+            </div>
+            <form method="POST" action="{{ tpath('/save_salary_rules') }}">
+              <input type="hidden" name="shift_start"            id="hid_shift_start" value="{{ default_start }}">
+              <input type="hidden" name="shift_half"             id="hid_shift_half"  value="{{ default_half }}">
+              <input type="hidden" name="shift_end"              id="hid_shift_end"   value="{{ default_end }}">
+              <input type="hidden" name="grace_minutes"          id="hid_grace"       value="{{ grace_minutes }}">
+              <input type="hidden" name="late_deduction_pct"     id="hid_late"        value="{{ late_deduction_pct|int }}">
+              <input type="hidden" name="half_day_deduction_pct" id="hid_half_ded"    value="{{ half_day_deduction_pct|int }}">
+              <input type="hidden" name="holiday_pay"            id="hid_holiday"     value="{{ holiday_pay }}">
+              <input type="hidden" name="leave_pay"              id="hid_leave"       value="{{ leave_pay }}">
+
+              <style>
+                /* ── Payroll Rules  Professional ── */
+                .py-wrap { display:flex; flex-direction:column; gap:18px; }
+
+                .py-card { background:#fff; border:1px solid #e4e7ec; border-radius:14px; overflow:hidden; box-shadow:0 1px 2px rgba(15,23,42,.04); transition:box-shadow .18s, border-color .18s, transform .18s; }
+                .py-card:hover { box-shadow:0 10px 24px rgba(15,23,42,.08); border-color:#d8dce3; transform:translateY(-1px); }
+                .py-card--accent { border-left:4px solid #2563eb; background:linear-gradient(135deg,#f7faff,#eff6ff); }
+                .py-card--accent .py-hdr { border-bottom-color:#e0ecff; }
+
+                .py-hdr { padding:15px 20px 13px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; gap:13px; background:linear-gradient(180deg,#fbfcfe,#ffffff); }
+                .py-hdr-icon { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(15,23,42,.04); }
+                .py-hdr-icon i { font-size:13px; }
+                .py-hdr-title { font-size:15px; font-weight:800; color:#0f172a; letter-spacing:-.01em; }
+                .py-hdr-sub   { font-size:13.5px; color:#94a3b8; margin-top:2px; }
+                .py-badge-lock { font-size:12px; color:#c3c9d3; }
+
+                .py-row { display:flex; align-items:center; gap:16px; padding:13px 20px; border-bottom:1px solid #f9fafb; transition:background .15s; }
+                .py-row:last-child { border-bottom:none; }
+                .py-row:hover { background:#fafbfd; }
+
+                .py-info { flex:1; min-width:0; }
+                .py-label { font-size:14.5px; font-weight:700; color:#1f2937; }
+                .py-hint  { font-size:13.5px; color:#9ca3af; margin-top:2px; }
+
+                /* Segmented sliding control */
+                .py-seg { display:inline-flex; background:#f1f3f6; border-radius:11px; padding:4px; position:relative; flex-shrink:0; box-shadow:inset 0 1px 2px rgba(15,23,42,.05); }
+                .py-seg-track {
+                  position:absolute; top:4px; left:4px; height:calc(100% - 8px);
+                  background:linear-gradient(135deg,#2563eb,#1d4ed8); border-radius:8px;
+                  box-shadow:0 3px 8px rgba(37,99,235,.35), 0 1px 2px rgba(37,99,235,.2);
+                  transition:transform .22s cubic-bezier(.4,0,.2,1), width .22s cubic-bezier(.4,0,.2,1);
+                  pointer-events:none;
+                }
+                .py-seg-btn {
+                  position:relative; z-index:1; padding:7px 13px; border:none; background:transparent; border-radius:8px;
+                  font-size:14px; font-weight:700; color:#8b95a5; cursor:pointer; white-space:nowrap;
+                  transition:color .2s;
+                }
+                .py-seg-btn.on  { color:#fff; font-weight:800; }
+                .py-seg-btn:hover:not(.on) { color:#475569; }
+
+                /* Locked value badge */
+                .py-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:repeating-linear-gradient(135deg,#f9fafb,#f9fafb 6px,#f3f4f6 6px,#f3f4f6 12px); border:1px solid #e4e7ec; border-radius:8px; flex-shrink:0; }
+                .py-badge-val { font-size:15px; font-weight:800; color:#6b7280; letter-spacing:-.02em; }
+                .py-badge-sep { font-size:11px; color:#d1d5db; }
+                .py-badge-tag { font-size:12px; font-weight:700; color:#9ca3af; letter-spacing:.03em; text-transform:uppercase; }
+
+                /* Toggle */
+                .py-tog-row { display:flex; align-items:center; gap:9px; flex-shrink:0; }
+                .py-tog-lbl { font-size:13.5px; font-weight:600; color:#d1d5db; transition:color .2s; white-space:nowrap; }
+                .py-tog-lbl.on { color:#374151; }
+                .py-tog { position:relative; width:44px; height:24px; cursor:pointer; flex-shrink:0; }
+                .py-tog input { opacity:0; position:absolute; }
+                .py-tog-track { position:absolute; inset:0; border-radius:12px; background:#e5e7eb; transition:background .2s; }
+                .py-tog input:checked ~ .py-tog-track { background:#2563eb; }
+                .py-tog-knob { position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.18); transition:left .2s cubic-bezier(.4,0,.2,1); }
+                .py-tog input:checked ~ .py-tog-track .py-tog-knob { left:23px; }
+
+                /* Save button */
+                .py-save {
+                  display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:14px;
+                  background:#2563eb; color:#fff; border:none; border-radius:12px;
+                  font-size:15.5px; font-weight:800; letter-spacing:.01em; cursor:pointer;
+                  box-shadow:0 6px 16px rgba(37,99,235,.28); transition:filter .15s, transform .12s, box-shadow .15s;
+                  margin-top:4px;
+                }
+                .py-save:hover  { filter:brightness(1.06); box-shadow:0 8px 20px rgba(37,99,235,.34); transform:translateY(-1px); }
+                .py-save:active { transform:scale(.99); }
+
+                /* Dark mode */
+                body.dark-mode .py-card  { background:#161b22; border-color:#30363d; box-shadow:none; }
+                body.dark-mode .py-hdr   { border-color:#21262d; background:linear-gradient(180deg,#171d26,#161b22); }
+                body.dark-mode .py-hdr-title { color:#cdd9e5; }
+                body.dark-mode .py-row   { border-color:#1c2128; }
+                body.dark-mode .py-row:hover { background:#1a2029; }
+                body.dark-mode .py-label { color:#cdd9e5; }
+                body.dark-mode .py-seg   { background:#0d1117; box-shadow:inset 0 1px 2px rgba(0,0,0,.4); }
+                body.dark-mode .py-seg-track { background:linear-gradient(135deg,#2563eb,#2563eb); box-shadow:0 3px 8px rgba(37,99,235,.4); }
+                body.dark-mode .py-seg-btn   { color:#6e7681; }
+                body.dark-mode .py-seg-btn.on { color:#fff; }
+                body.dark-mode .py-seg-btn:hover:not(.on) { color:#9ca3af; }
+                body.dark-mode .py-badge { background:repeating-linear-gradient(135deg,#1c2128,#1c2128 6px,#20262e 6px,#20262e 12px); border-color:#30363d; }
+                body.dark-mode .py-badge-val { color:#8b949e; }
+                body.dark-mode .py-badge-lock { color:#4b5563; }
+                body.dark-mode .py-tog-lbl.on { color:#cdd9e5; }
+                body.dark-mode .py-tog-track  { background:#30363d; }
+                body.dark-mode .py-tog input:checked ~ .py-tog-track { background:#2563eb; }
+                body.dark-mode .py-card:hover { box-shadow:0 10px 24px rgba(0,0,0,.35); border-color:#3d4551; }
+                body.dark-mode .py-card--accent { background:linear-gradient(135deg,#132030,#0f1a28); border-left-color:#2563eb; }
+                body.dark-mode .py-card--accent .py-hdr { border-bottom-color:#1e2b3d; background:transparent; }
+              </style>
+
+              <div class="py-wrap">
+
+              {# Billing Card #}
+              <div class="py-card py-card--accent u-mb-20">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-dbeafe"><i class="ti ti-credit-card u-c-2563eb"></i></div>
+                  <div>
+                    <div class="py-hdr-title" style="font-size:17px;">Monthly Bill: <span style="font-size:14px; padding:3px 10px; background:#dbeafe; color:#1d4ed8; border-radius:20px; font-weight:800; display:inline-block;">{{ monthly_bill_display|default('₹0') }}</span></div>
+                    <div class="py-hdr-sub">{{ per_employee_paise|default(9900)|plan_price }}/employee/month, flat — {{ employee_count|default(0) }} employee{{ '' if employee_count == 1 else 's' }} currently. Every feature is included, no tiers to manage.</div>
+                  </div>
+                </div>
+              </div>
+
+              {# Card 1: Shift Timings #}
+              <div class="py-card">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-fef3c7"><i class="ti ti-clock u-c-d97706"></i></div>
+                  <div>
+                    <div class="py-hdr-title">Shift Timings</div>
+                    <div class="py-hdr-sub">Define the daily attendance cutoffs</div>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Login Cutoff</div>
+                    <div class="py-hint">On time if punched in before this</div>
+                  </div>
+                  <div class="py-seg" id="seg_ss">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="08:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">08:00</button>
+                    <button type="button" class="py-seg-btn" data-val="08:30" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">08:30</button>
+                    <button type="button" class="py-seg-btn" data-val="09:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">09:00</button>
+                    <button type="button" class="py-seg-btn" data-val="09:30" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">09:30</button>
+                    <button type="button" class="py-seg-btn" data-val="10:00" data-on-click="pSeg(this,'seg_ss','hid_shift_start')">10:00</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Late Boundary</div>
+                    <div class="py-hint">After this time counts as Half Day</div>
+                  </div>
+                  <div class="py-seg" id="seg_sh">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="10:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">10:00</button>
+                    <button type="button" class="py-seg-btn" data-val="10:30" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">10:30</button>
+                    <button type="button" class="py-seg-btn" data-val="11:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">11:00</button>
+                    <button type="button" class="py-seg-btn" data-val="11:30" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">11:30</button>
+                    <button type="button" class="py-seg-btn" data-val="12:00" data-on-click="pSeg(this,'seg_sh','hid_shift_half')">12:00</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Logout Cutoff</div>
+                    <div class="py-hint">Must exit before this time</div>
+                  </div>
+                  <div class="py-seg" id="seg_se">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="17:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">17:00</button>
+                    <button type="button" class="py-seg-btn" data-val="17:30" data-on-click="pSeg(this,'seg_se','hid_shift_end')">17:30</button>
+                    <button type="button" class="py-seg-btn" data-val="18:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">18:00</button>
+                    <button type="button" class="py-seg-btn" data-val="18:30" data-on-click="pSeg(this,'seg_se','hid_shift_end')">18:30</button>
+                    <button type="button" class="py-seg-btn" data-val="19:00" data-on-click="pSeg(this,'seg_se','hid_shift_end')">19:00</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Grace Period</div>
+                    <div class="py-hint">Buffer before late is recorded</div>
+                  </div>
+                  <div class="py-seg" id="seg_gr">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="0"  data-on-click="pSeg(this,'seg_gr','hid_grace')">None</button>
+                    <button type="button" class="py-seg-btn" data-val="5"  data-on-click="pSeg(this,'seg_gr','hid_grace')">5 m</button>
+                    <button type="button" class="py-seg-btn" data-val="10" data-on-click="pSeg(this,'seg_gr','hid_grace')">10 m</button>
+                    <button type="button" class="py-seg-btn" data-val="15" data-on-click="pSeg(this,'seg_gr','hid_grace')">15 m</button>
+                    <button type="button" class="py-seg-btn" data-val="20" data-on-click="pSeg(this,'seg_gr','hid_grace')">20 m</button>
+                    <button type="button" class="py-seg-btn" data-val="30" data-on-click="pSeg(this,'seg_gr','hid_grace')">30 m</button>
+                  </div>
+                </div>
+              </div>
+
+              {# Card 2: Salary Deductions #}
+              <div class="py-card">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-dcfce7"><i class="ti ti-percentage u-c-16a34a"></i></div>
+                  <div>
+                    <div class="py-hdr-title">Salary Deductions</div>
+                    <div class="py-hdr-sub">Daily percentage deducted per attendance status</div>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Full Day</div>
+                    <div class="py-hint">On time — full shift completed</div>
+                  </div>
+                  <div class="py-badge">
+                    <i class="ti ti-lock py-badge-lock"></i>
+                    <span class="py-badge-val">0%</span>
+                    <span class="py-badge-sep">·</span>
+                    <span class="py-badge-tag">Fixed</span>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Late Arrival</div>
+                    <div class="py-hint">Arrived late but worked full hours</div>
+                  </div>
+                  <div class="py-seg" id="seg_lt">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="0"  data-on-click="pSeg(this,'seg_lt','hid_late')">0%</button>
+                    <button type="button" class="py-seg-btn" data-val="5"  data-on-click="pSeg(this,'seg_lt','hid_late')">5%</button>
+                    <button type="button" class="py-seg-btn" data-val="10" data-on-click="pSeg(this,'seg_lt','hid_late')">10%</button>
+                    <button type="button" class="py-seg-btn" data-val="15" data-on-click="pSeg(this,'seg_lt','hid_late')">15%</button>
+                    <button type="button" class="py-seg-btn" data-val="20" data-on-click="pSeg(this,'seg_lt','hid_late')">20%</button>
+                    <button type="button" class="py-seg-btn" data-val="25" data-on-click="pSeg(this,'seg_lt','hid_late')">25%</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Half Day</div>
+                    <div class="py-hint">Very late arrival or early departure</div>
+                  </div>
+                  <div class="py-seg" id="seg_hd">
+                    <div class="py-seg-track"></div>
+                    <button type="button" class="py-seg-btn" data-val="25" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">25%</button>
+                    <button type="button" class="py-seg-btn" data-val="33" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">33%</button>
+                    <button type="button" class="py-seg-btn" data-val="50" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">50%</button>
+                    <button type="button" class="py-seg-btn" data-val="75" data-on-click="pSeg(this,'seg_hd','hid_half_ded')">75%</button>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Absent</div>
+                    <div class="py-hint">No attendance record for the day</div>
+                  </div>
+                  <div class="py-badge">
+                    <i class="ti ti-lock py-badge-lock"></i>
+                    <span class="py-badge-val">100%</span>
+                    <span class="py-badge-sep">·</span>
+                    <span class="py-badge-tag">Fixed</span>
+                  </div>
+                </div>
+              </div>
+
+              {# Card 3: Policies #}
+              <div class="py-card">
+                <div class="py-hdr">
+                  <div class="py-hdr-icon u-bg-ede9fe"><i class="ti ti-calendar-event u-c-7c3aed"></i></div>
+                  <div>
+                    <div class="py-hdr-title">Special Day Policies</div>
+                    <div class="py-hdr-sub">How holidays and approved leaves affect payroll</div>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Holiday Pay</div>
+                    <div class="py-hint">Salary treatment on public holidays</div>
+                  </div>
+                  <div class="py-tog-row">
+                    <span class="py-tog-lbl" id="lbl_hol_off">Unpaid</span>
+                    <label class="py-tog">
+                      <input type="checkbox" id="chk_holiday" {% if holiday_pay=='paid' %}checked{% endif %} data-on-change="pTog(this,'hid_holiday','paid','unpaid','lbl_hol_on','lbl_hol_off')">
+                      <div class="py-tog-track"><div class="py-tog-knob"></div></div>
+                    </label>
+                    <span class="py-tog-lbl" id="lbl_hol_on">Paid</span>
+                  </div>
+                </div>
+                <div class="py-row">
+                  <div class="py-info">
+                    <div class="py-label">Approved Leave</div>
+                    <div class="py-hint">How approved leaves count in payroll</div>
+                  </div>
+                  <div class="py-tog-row">
+                    <span class="py-tog-lbl" id="lbl_lv_off">Absent</span>
+                    <label class="py-tog">
+                      <input type="checkbox" id="chk_leave" {% if leave_pay=='exclude' %}checked{% endif %} data-on-change="pTog(this,'hid_leave','exclude','absent','lbl_lv_on','lbl_lv_off')">
+                      <div class="py-tog-track"><div class="py-tog-knob"></div></div>
+                    </label>
+                    <span class="py-tog-lbl" id="lbl_lv_on">Exclude</span>
+                  </div>
+                </div>
+              </div>
+
+              </div>{# .py-wrap #}
+
+              <button type="submit" class="py-save">
+                <i class="ti ti-device-floppy" style="font-size:15px;"></i> Save Payroll Rules
+              </button>
+            </form>
+            <script>
+              function pSeg(btn, grpId, hidId) {
+                var grp   = document.getElementById(grpId);
+                var track = grp.querySelector('.py-seg-track');
+                grp.querySelectorAll('.py-seg-btn').forEach(function(b){ b.classList.remove('on'); });
+                btn.classList.add('on');
+                track.style.width     = btn.offsetWidth + 'px';
+                track.style.transform = 'translateX(' + (btn.offsetLeft - 3) + 'px)';
+                document.getElementById(hidId).value = btn.dataset.val;
+              }
+              function pTog(el, hidId, onVal, offVal, onId, offId) {
+                document.getElementById(hidId).value = el.checked ? onVal : offVal;
+                document.getElementById(onId).classList.toggle('on',  el.checked);
+                document.getElementById(offId).classList.toggle('on', !el.checked);
+              }
+              function initSeg(grpId, hidId) {
+                var grp = document.getElementById(grpId); if (!grp) return;
+                var track = grp.querySelector('.py-seg-track');
+                var val   = (document.getElementById(hidId).value || '').trim();
+                var hit   = null;
+                grp.querySelectorAll('.py-seg-btn').forEach(function(b){ if (b.dataset.val === val) hit = b; });
+                if (!hit) hit = grp.querySelector('.py-seg-btn');
+                if (hit) {
+                  hit.classList.add('on');
+                  track.style.width     = hit.offsetWidth + 'px';
+                  track.style.transform = 'translateX(' + (hit.offsetLeft - 3) + 'px)';
+                  document.getElementById(hidId).value = hit.dataset.val;
+                }
+              }
+              document.addEventListener('DOMContentLoaded', function() {
+                initSeg('seg_ss','hid_shift_start');
+                initSeg('seg_sh','hid_shift_half');
+                initSeg('seg_se','hid_shift_end');
+                initSeg('seg_gr','hid_grace');
+                initSeg('seg_lt','hid_late');
+                initSeg('seg_hd','hid_half_ded');
+                pTog(document.getElementById('chk_holiday'),'hid_holiday','paid','unpaid','lbl_hol_on','lbl_hol_off');
+                pTog(document.getElementById('chk_leave'),  'hid_leave',  'exclude','absent','lbl_lv_on','lbl_lv_off');
+              });
+
+            </script>
+          </div>

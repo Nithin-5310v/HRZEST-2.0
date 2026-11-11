@@ -6,6 +6,7 @@ generate_emp_id, api_employees, delete_employee.
 import hashlib
 import datetime
 import secrets
+from tests.conftest import with_local_scripts  # noqa: E402
 
 
 def _admin_session(client, seed_admin):
@@ -77,7 +78,7 @@ class TestViewEmployees:
         _admin_session(client, seed_admin)
         rv = client.get("/employees?tab=schedule")
         assert rv.status_code == 200
-        body = rv.get_data(as_text=True)
+        body = with_local_scripts(rv.get_data(as_text=True))   # the JS lives in static/js now
 
         assert "shiftForm.action.replace(/\\/edit_shift\\/[^/?]*$/, '/edit_shift/' + id)" in body
         assert "breakForm.action.replace(/\\/update_break\\/[^/?]*$/, '/update_break/' + id)" in body

@@ -1,0 +1,186 @@
+      {# ═══ VIEW: APPLY LEAVE ═══ #}
+      <div id="view-apply-leave" class="view">
+      <div class="mod-title"><i class="ti ti-notes hz-ico" aria-hidden="true"></i> Apply for Leave <span>Submit a leave request and view your history</span></div>
+      {# Leave balance per type #}
+      <div class="u-bg-fff u-bd-1-solid-dbeafe u-br-14 u-p-18-20 u-mb-16">
+        <div class="u-d-flex u-ai-center u-jc-space-between u-mb-14">
+          <div class="u-fs-14 u-fw-800 u-c-1e293b u-d-flex u-ai-center u-gap-7">
+            <i class="ti ti-calendar-stats u-c-3b82f6 u-fs-16"></i> Leave Balance
+          </div>
+          <span class="u-fs-11 u-fw-700 u-bg-eff6ff u-c-3b82f6 u-bd-1-solid-bfdbfe u-p-3-10 u-br-20">{{ today.split(' ')[2] if today else '' }}</span>
+        </div>
+        {% if leave_type_balances %}
+        <div class="u-d-grid u-gtc-repeatauto-fil7f56f0 u-gap-10">
+          {% for ltb in leave_type_balances %}
+          {% set pct_used = (ltb.used / ltb.quota * 100)|int if ltb.quota > 0 else 0 %}
+          {% set col = '#ef4444' if ltb.balance == 0 else ('#f59e0b' if ltb.balance <= 3 else '#16a34a') %}
+          <div style="background:#fff;border:1.5px solid {% if ltb.balance == 0 %}#fecdd3{% elif ltb.balance <= 3 %}#fde68a{% else %}#bbf7d0{% endif %};border-radius:12px;padding:14px;">
+            <div class="u-fs-10 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-mb-8">{{ ltb.name }}</div>
+            <div class="u-d-flex u-ai-baseline u-gap-4 u-mb-6">
+              <span style="font-size:28px;font-weight:800;color:{{ col }};line-height:1;">{{ ltb.balance }}</span>
+              <span class="u-fs-12 u-c-94a3b8">/ {{ ltb.quota }} days</span>
+            </div>
+            <div class="u-bg-f1f5f9 u-br-20 u-h-6 u-ov-hidden u-mb-6">
+              <div style="height:100%;border-radius:20px;width:{{ [pct_used,100]|min }}%;background:{% if pct_used >= 80 %}#ef4444{% elif pct_used >= 50 %}#f59e0b{% else %}#22c55e{% endif %};transition:.4s;"></div>
+            </div>
+            <div class="u-fs-10 u-c-94a3b8">{{ ltb.used }} used · {{ ltb.balance }} remaining</div>
+          </div>
+          {% endfor %}
+          {# Comp-off balance card #}
+          <a class="u-tdec-none" href="{{ tpath('/my_compoff') }}">
+          <div style="background:#fff;border:1.5px solid {% if compoff_avail_days > 0 %}#bbf7d0{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;cursor:pointer;transition:.2s;" data-hover-style="border-color:#3b82f6">
+            <div class="u-fs-10 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-mb-8">Comp-off <span class="u-bg-eff6ff u-c-3b82f6 u-br-4 u-p-1-5 u-fs-9">OT</span></div>
+            <div class="u-d-flex u-ai-baseline u-gap-4 u-mb-6">
+              <span style="font-size:28px;font-weight:800;color:{% if compoff_avail_days > 0 %}#16a34a{% else %}#94a3b8{% endif %};line-height:1;">{{ compoff_avail_days }}</span>
+              <span class="u-fs-12 u-c-94a3b8">/ {{ compoff_earned_days }} days</span>
+            </div>
+            <div class="u-bg-f1f5f9 u-br-20 u-h-6 u-ov-hidden u-mb-6">
+              <div style="height:100%;border-radius:20px;width:{% if compoff_earned_days > 0 %}{{ [(compoff_avail_days / compoff_earned_days * 100)|int, 100]|min }}{% else %}0{% endif %}%;background:#22c55e;"></div>
+            </div>
+            <div class="u-fs-10 u-c-94a3b8">{{ compoff_avail_days }} available · view details →</div>
+          </div>
+          </a>
+        </div>
+        {% else %}
+        <div class="u-d-flex u-gap-18 u-fs-12">
+          <span class="u-c-16a34a u-fw-700"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Available: {{ leave_balance }}</span>
+          <span class="u-c-f59e0b u-fw-700"><i class="ti ti-hourglass hz-ico" aria-hidden="true"></i> Used: {{ leaves_used }}</span>
+          <span class="u-c-64748b u-fw-600"><i class="ti ti-calendar hz-ico" aria-hidden="true"></i> Quota: {{ annual_leave_quota }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="section" id="apply-leave">
+        <form action="{{ tpath('/request_leave') }}" method="POST" id="leave-form">
+
+          {% if leave_types_for_form %}
+          <div class="u-mb-14">
+            <label class="u-fs-12 u-c-475569 u-fw-600 u-ttr-uppercase u-ls-0d4 u-d-block u-mb-6">Leave Type</label>
+            <select aria-label="Leave Type" class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none u-app-auto" name="leave_type_id" required>
+              <option value="">— Select leave type —</option>
+              {% for lt in leave_types_for_form %}
+              <option value="{{ lt.id }}">{{ lt.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          {# Half day toggle #}
+          <div class="u-mb-14">
+            <label class="u-d-flex u-ai-center u-gap-10 u-cur-pointer u-p-10-14 u-bg-f8fafc u-bd-1-solid-dbeafe u-br-9">
+              <input class="u-w-16 u-h-16 u-accent-1e3a8a u-cur-pointer" type="checkbox" name="is_half_day" id="half-day-chk" value="1"
+                     data-on-change="toggleHalfDay(this.checked)">
+              <span class="u-fs-14 u-fw-600 u-c-1e293b">Half Day Leave</span>
+              <span class="u-fs-12 u-c-64748b">(counts as 0.5 days)</span>
+            </label>
+            {# Morning / Afternoon selector — shown only when half-day is checked #}
+            <div class="u-d-none u-mt-10 u-p-12-14 u-bg-fffbeb u-bd-1-solid-fde68a u-br-9" id="session-picker">
+              <div class="u-fs-12 u-fw-700 u-c-92400e u-mb-8 u-ttr-uppercase u-ls-d4">Which session?</div>
+              <div class="u-d-flex u-gap-10">
+                <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-p-8-16 u-bd-2-solid-dbeafe u-br-8 u-bg-fff u-fx-1 u-trs-d18s" id="lbl-morning">
+                  <input class="u-accent-1e3a8a u-w-15 u-h-15" type="radio" name="half_day_session" value="Morning" checked
+                         data-on-change="highlightSession()">
+                  <span class="u-fs-13 u-fw-600 u-c-1e293b"><i class="ti ti-sunrise hz-ico" aria-hidden="true"></i> Morning</span>
+                  <span class="u-fs-11 u-c-64748b u-ml-auto">1st half</span>
+                </label>
+                <label class="u-d-flex u-ai-center u-gap-8 u-cur-pointer u-p-8-16 u-bd-2-solid-dbeafe u-br-8 u-bg-fff u-fx-1 u-trs-d18s" id="lbl-afternoon">
+                  <input class="u-accent-1e3a8a u-w-15 u-h-15" type="radio" name="half_day_session" value="Afternoon"
+                         data-on-change="highlightSession()">
+                  <span class="u-fs-13 u-fw-600 u-c-1e293b"><i class="ti ti-sunset hz-ico" aria-hidden="true"></i> Afternoon</span>
+                  <span class="u-fs-11 u-c-64748b u-ml-auto">2nd half</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="u-d-flex u-gap-10 u-mb-14">
+            <div class="u-fx-1 u-d-flex u-fxd-column u-gap-6">
+              <label class="u-fs-12 u-c-475569 u-fw-600 u-ttr-uppercase u-ls-0d4">From Date</label>
+              <input aria-label="From Date" class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none" type="date" name="leave_date_start" id="leave-date-start" required />
+            </div>
+            <div class="u-fx-1 u-d-flex u-fxd-column u-gap-6" id="to-date-wrap">
+              <label class="u-fs-12 u-c-475569 u-fw-600 u-ttr-uppercase u-ls-0d4">To Date</label>
+              <input aria-label="To Date" class="u-w-100pct u-p-10-13 u-bd-1-solid-dbeafe u-br-9 u-bg-f8fafc u-c-1e293b u-fs-14 u-out-none" type="date" name="leave_date_end" id="leave-date-end" />
+            </div>
+          </div>
+          <div class="u-d-none u-m--6-0-14 u-p-6-12 u-bg-eff6ff u-br-8 u-fs-12 u-fw-700 u-c-2563eb u-w-fit-content" id="leave-days-badge">1 day selected</div>
+
+          <div class="reasons-label">Select Reason</div>
+          <div class="reason-chips">
+            <div class="reason-chip" data-reason="Sick Leave"><i class="ti ti-thermometer hz-ico" aria-hidden="true"></i> Sick Leave</div>
+            <div class="reason-chip" data-reason="Personal Work"><i class="ti ti-home hz-ico" aria-hidden="true"></i> Personal Work</div>
+            <div class="reason-chip" data-reason="Family Emergency"><i class="ti ti-man hz-ico" aria-hidden="true"></i>‍<i class="ti ti-woman hz-ico" aria-hidden="true"></i>‍<i class="ti ti-mood-kid hz-ico" aria-hidden="true"></i> Family Emergency</div>
+            <div class="reason-chip" data-reason="Medical Appointment"><i class="ti ti-pill hz-ico" aria-hidden="true"></i> Medical Appointment</div>
+            <div class="reason-chip" data-reason="Vacation"><i class="ti ti-plane hz-ico" aria-hidden="true"></i> Vacation</div>
+            <div class="reason-chip" data-reason="__other__"><i class="ti ti-pencil hz-ico" aria-hidden="true"></i> Other...</div>
+          </div>
+
+          <div class="other-group" id="other-group">
+            <textarea id="other-text"
+                      placeholder="Describe your reason for leave…"
+                      title="Enter leave reason"></textarea>
+          </div>
+
+          <input type="hidden" name="reason" id="reason-input" />
+
+          <button type="submit" class="btn-leave">Submit Leave Request</button>
+        </form>
+      </div>
+
+      <div class="section u-mt-24">
+        <h3 class="u-mb-14"><i class="ti ti-mailbox hz-ico" aria-hidden="true"></i> Leave History</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Leave Date</th>
+                <th>Type</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Submitted On</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lv in my_leaves %}
+              {% set lv_date, lv_reason, lv_status, lv_created = lv[:4] %}
+              {% set lv_type_name = lv[4] if lv|length > 4 else '' %}
+              {% set lv_id = lv[5] if lv|length > 5 else None %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ lv_date }}</td>
+                <td>{% if lv_type_name %}<span class="badge badge-blue u-fs-11">{{ lv_type_name }}</span>{% else %}<span class="u-c-94a3b8">—</span>{% endif %}</td>
+                <td>{{ lv_reason }}</td>
+                <td>
+                  {% if lv_status == 'Approved' %}
+                    <span class="badge ls-approved"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Approved</span>
+                  {% elif lv_status == 'Rejected' %}
+                    <span class="badge ls-rejected"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Rejected</span>
+                  {% elif lv_status == 'Cancelled' %}
+                    <span class="badge u-bg-f1f5f9 u-c-64748b"><i class="ti ti-ban hz-ico" aria-hidden="true"></i> Cancelled</span>
+                  {% else %}
+                    <span class="badge ls-pending"><i class="ti ti-hourglass hz-ico" aria-hidden="true"></i> Pending</span>
+                  {% endif %}
+                </td>
+                <td class="td-date">
+                  {{ lv_created.strftime('%d %b %Y') if lv_created else '—' }}
+                </td>
+                <td>
+                  {% if lv_status == 'Pending' and lv_id and lv_date > today_date %}
+                  <form class="u-d-inline" action="/cancel_leave/{{ lv_id }}" method="POST" data-on-submit="return hzConfirmSubmit(event, 'Cancel your leave request for {{ lv_date }}?');">
+                    <button class="u-p-4-10 u-bd-1-solid-fca5a5 u-bg-fee2e2 u-c-dc2626 u-br-6 u-fs-12 u-fw-700 u-cur-pointer" type="submit">Cancel</button>
+                  </form>
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="7" class="empty-cell">No leave requests submitted yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </div>{# /view-apply-leave #}

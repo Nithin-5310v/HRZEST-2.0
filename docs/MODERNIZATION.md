@@ -14,7 +14,7 @@ stale or end-of-life.
 
 | Component | Was | Status |
 |---|---|---|
-| Python | 3.13 (working tree) | current — keep |
+| Python | 3.14 (working tree) | current — keep |
 | Flask / Werkzeug / gunicorn / psycopg2 / redis-py / cryptography / numpy / pillow | all at the newest release (floors only, no lockfile) | **already latest**; added a hash-pinned lock so it *stays* reproducible |
 | PostgreSQL | 16 | supported to Nov 2028 — keep (major upgrade needs dump/restore; see §5) |
 | Redis | 7-alpine | **→ 8-alpine** (cache only: no data to migrate) |

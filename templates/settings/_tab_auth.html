@@ -1,0 +1,65 @@
+    {# ══════════════════════════════════════
+         TAB: AUTH
+    ══════════════════════════════════════ #}
+    <div id="tab-auth" class="tab-panel {% if tab=='auth' %}active{% endif %}">
+      <div class="section u-maxw-600">
+        <div class="section-title"><i class="ti ti-shield-lock hz-ico" aria-hidden="true"></i> Attendance Authentication</div>
+        <p class="u-fs-13 u-c-64748b u-mb-24 u-lh-1d7">
+          Enable or disable each authentication factor independently. Attendance marking requires any
+          <strong>two active factors</strong>. Password controls employee login to the mobile app.
+        </p>
+
+        {% set methods = [
+          ("qr",          "📷", "QR Code Scan",              "qr_enabled",            "Employees scan their personal QR code to identify themselves."),
+          ("face",        "🤳", "Face Recognition",          "face_enabled",           "Camera captures employee face for liveness and identity verification."),
+          ("fingerprint", "👆", "Fingerprint / Biometric",   "fingerprint_enabled",    "Device fingerprint or face-ID used as a second factor (optional)."),
+          ("location",    "📍", "Location Verification",     "location_enabled",       "GPS must place the employee within the allowed office radius."),
+          ("password",    "🔑", "Password Login",            "employee_password_auth", "Employees can log in to the mobile app with their password."),
+          ("app_gps",     "🛰️", "Location-only App Check-in", "app_gps_checkin",      "Employees can check in from the mobile app with GPS alone, without QR or face. Off unless you turn it on while QR, face or fingerprint is enabled.")
+        ] %}
+
+        {% for key, icon, label, cfg_key, desc in methods %}
+        {% set is_on = auth_config[cfg_key] %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;background:#f8fafc;border:1px solid {% if is_on %}#bbf7d0{% else %}#fecaca{% endif %};border-radius:12px;margin-bottom:12px;transition:border-color .2s;">
+          <div class="u-d-flex u-ai-flex-start u-gap-14">
+            <span class="u-fs-26 u-lh-1 u-mt-2">{{ icon }}</span>
+            <div>
+              <div class="u-fs-14 u-fw-700 u-c-1e293b">{{ label }}</div>
+              <div class="u-fs-12 u-c-64748b u-mt-3 u-lh-1d5">{{ desc }}</div>
+              <div class="u-mt-8">
+                {% if is_on %}
+                <span class="u-d-inline-flex u-ai-center u-gap-4 u-bg-dcfce7 u-c-16a34a u-fs-11 u-fw-700 u-p-3-10 u-br-20"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Enabled</span>
+                {% else %}
+                <span class="u-d-inline-flex u-ai-center u-gap-4 u-bg-fee2e2 u-c-dc2626 u-fs-11 u-fw-700 u-p-3-10 u-br-20"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Disabled</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <label class="dm-switch u-fxs-0 u-ml-20" title="Toggle {{ label }}">
+            <input type="checkbox" {% if is_on %}checked{% endif %}
+                   data-on-change="toggleAuthMethod('{{ key }}', this.checked)">
+            <span class="dm-slider"></span>
+          </label>
+        </div>
+        {% endfor %}
+
+        {# Combo info card #}
+        <div class="u-bg-eff6ff u-bd-1-solid-bfdbfe u-br-10 u-p-16 u-mt-8">
+          <div class="u-fs-13 u-fw-700 u-c-1e3a8a u-mb-10">Available attendance combinations:</div>
+          <div class="u-d-flex u-fxd-column u-gap-7 u-fs-13 u-c-1e293b">
+            <div class="u-d-flex u-ai-center u-gap-8">
+              <span class="u-fs-15"><i class="ti ti-camera hz-ico" aria-hidden="true"></i><i class="ti ti-camera-selfie hz-ico" aria-hidden="true"></i></span>
+              <div><strong>QR + Face</strong> — requires QR and Face both enabled</div>
+            </div>
+            <div class="u-d-flex u-ai-center u-gap-8">
+              <span class="u-fs-15"><i class="ti ti-camera hz-ico" aria-hidden="true"></i><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></span>
+              <div><strong>QR + Fingerprint</strong> — requires QR and Fingerprint both enabled</div>
+            </div>
+            <div class="u-d-flex u-ai-center u-gap-8">
+              <span class="u-fs-15"><i class="ti ti-camera-selfie hz-ico" aria-hidden="true"></i><i class="ti ti-fingerprint hz-ico" aria-hidden="true"></i></span>
+              <div><strong>Face + Fingerprint</strong> — requires Face and Fingerprint both enabled (no QR)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>{# /tab-auth #}

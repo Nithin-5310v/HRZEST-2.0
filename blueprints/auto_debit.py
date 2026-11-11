@@ -34,8 +34,13 @@ from database import get_db_connection, get_master_db
 from utils.auth import admin_required
 from utils.helpers import get_company_settings, coerce_datetime, platform_today
 from utils.plan_limits import get_per_employee_paise, calculate_price, format_price_inr, get_tenant_employee_count
+from utils.billing_cycle import (
+    anchor_from, tenant_anchor, period_start as cycle_period_start, next_billing_date, first_period_prepaid,
+    period_is_paid, charge_period, charge_epoch,
+)
+from utils.tax_invoice import on_payment_completed
 from utils.razorpay_utils import (
-    create_plan, create_customer, create_subscription, update_subscription_quantity,
+    create_plan, create_customer, create_subscription, update_subscription_quantity, fetch_subscription,
     cancel_subscription as razorpay_cancel_subscription, verify_subscription_signature,
     key_id as razorpay_key_id, razorpay_configured,
     create_id_or_demo, verify_or_demo, list_subscription_invoices,
@@ -46,6 +51,44 @@ auto_debit_bp = Blueprint("auto_debit", __name__)
 
 _DEMO_SUBSCRIPTION_PREFIX = "demo_sub_"
 _PLAN_ITEM_NAME = "HRzest per-employee monthly fee"
+
+# Razorpay refuses to change the amount of a subscription authorized with
+# UPI Autopay, e-mandate or a card issued in India ("subscriptions cannot be
+# updated when payment mode is UPI" / "... is emandate", "Only offers can be
+# updated for subscriptions when payment mode is domestic card."): a new
+# headcount needs a new authorization -- enroll with replace=True below.
+_FIXED_AMOUNT_MARKERS = ("payment mode is upi", "payment mode is emandate", "payment mode is domestic card")
+FIXED_AMOUNT_MSG = ("Razorpay can't change the amount of an Auto-Debit set up with UPI, an Indian card or "
+                    "net banking (e-mandate). Set it up again for {count} employee{s} — your current "
+                    "Auto-Debit keeps working until the new one is authorized, and nothing is charged twice.")
+
+
+# Subscription payment methods whose mandate is for a fixed amount.
+_FIXED_AMOUNT_METHODS = ("upi", "emandate", "nach")
+
+
+def _is_fixed_amount_error(error):
+    return any(m in (error or "").lower() for m in _FIXED_AMOUNT_MARKERS)
+
+
+def _is_fixed_amount_subscription(subscription_id, error):
+    """Whether a refused quantity update means the subscription's amount
+    can't change. Razorpay's message isn't always the "payment mode is UPI"
+    one (an authorized subscription that hasn't charged yet is refused with
+    other wording), so when the message doesn't say, ask Razorpay how the
+    subscription is paid."""
+    if _is_fixed_amount_error(error):
+        return True
+    sub, fetch_error = fetch_subscription(subscription_id)
+    if fetch_error or not sub:
+        app_log.warning("auto_debit: couldn't look up subscription %s after a refused update: %s",
+                        subscription_id, fetch_error)
+        return False
+    return (sub.get("payment_method") or "").strip().lower() in _FIXED_AMOUNT_METHODS
+
+
+def fixed_amount_msg(count):
+    return FIXED_AMOUNT_MSG.format(count=count, s="" if count == 1 else "s")
 
 
 def _get_or_create_plan_id():
@@ -88,7 +131,8 @@ def _get_mandate(tenant_schema: str):
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
-        "SELECT status, razorpay_customer_id, razorpay_subscription_id, quantity_synced "
+        "SELECT status, razorpay_customer_id, razorpay_subscription_id, quantity_synced, fixed_amount, "
+        "pending_subscription_id, pending_quantity, pending_start_at, first_charge_on "
         "FROM auto_debit_mandates WHERE tenant_schema=%s",
         (tenant_schema,)
     )
@@ -97,7 +141,35 @@ def _get_mandate(tenant_schema: str):
     conn.close()
     if not row:
         return None
-    return {"status": row[0], "customer_id": row[1], "subscription_id": row[2], "quantity_synced": row[3]}
+    return {"status": row[0], "customer_id": row[1], "subscription_id": row[2], "quantity_synced": row[3],
+            "fixed_amount": bool(row[4]), "pending_subscription_id": row[5], "pending_quantity": row[6],
+            "pending_start_at": row[7], "first_charge_on": coerce_datetime(row[8])}
+
+
+def _first_charge_date(tenant_schema):
+    """When a new Auto-Debit should first charge: the next billing date
+    (utils/billing_cycle.py) if the current period is already paid -- so
+    nothing is charged twice -- or None to charge as soon as it's authorized
+    (a trial or an unpaid period), which makes that day the plan date."""
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    try:
+        cur.execute("SELECT subscription_status, billing_anchor_date, created_at FROM tenants WHERE db_name=%s",
+                    (tenant_schema,))
+        row = cur.fetchone()
+        if not row or row[0] in ("trialing", "past_due"):
+            return None
+        today = platform_today()
+        anchor, explicit = anchor_from(row[1], row[2], today)
+        if today < anchor:
+            return anchor
+        start = cycle_period_start(anchor, today)
+        covered = (start == anchor and first_period_prepaid(anchor, explicit, row[2])) \
+            or period_is_paid(cur, tenant_schema, start)
+        return next_billing_date(anchor, today) if covered else None
+    finally:
+        cur.close()
+        conn.close()
 
 
 @auto_debit_bp.route("/api/auto_debit/enroll", methods=["POST"])
@@ -106,10 +178,17 @@ def _get_mandate(tenant_schema: str):
 def enroll():
     co = get_company_settings()
     mandate = _get_mandate(g.tenant_db)
-    if mandate and mandate["status"] == "active":
+    data = request.get_json(silent=True) or {}
+    replace = str(data.get("replace", "")).lower() in ("1", "true", "yes", "on")
+    if mandate and mandate["status"] == "active" and not replace:
         return jsonify({"ok": False, "msg": "Auto-debit is already enabled for your company."}), 400
+    if replace and not (mandate and mandate["status"] == "active"):
+        return jsonify({"ok": False, "msg": "Auto-debit isn't currently enabled."}), 400
+    if replace:
+        return _enroll_replacement(mandate)
 
     employee_count = get_tenant_employee_count(g.tenant_db)
+    first_charge_on = _first_charge_date(g.tenant_db)
 
     customer_id = None
 
@@ -131,7 +210,8 @@ def enroll():
         if error:
             return None, error
 
-        return create_subscription(plan_id, customer_id, employee_count or 1)
+        return create_subscription(plan_id, customer_id, employee_count or 1,
+                                   start_at=charge_epoch(first_charge_on) if first_charge_on else None)
 
     subscription_id, is_demo, error = create_id_or_demo(_DEMO_SUBSCRIPTION_PREFIX, _create_real_subscription)
     if error:
@@ -142,14 +222,14 @@ def enroll():
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO auto_debit_mandates (tenant_schema, company_name, razorpay_customer_id, "
-        "razorpay_subscription_id, quantity_synced, status, requested_by, created_at) "
-        "VALUES (%s, %s, %s, %s, %s, 'pending', %s, NOW()) "
+        "razorpay_subscription_id, quantity_synced, status, requested_by, created_at, first_charge_on) "
+        "VALUES (%s, %s, %s, %s, %s, 'pending', %s, NOW(), %s) "
         "ON CONFLICT (tenant_schema) DO UPDATE SET company_name=%s, razorpay_customer_id=%s, "
         "razorpay_subscription_id=%s, quantity_synced=%s, status='pending', requested_by=%s, "
-        "created_at=NOW(), cancelled_at=NULL",
+        "created_at=NOW(), cancelled_at=NULL, first_charge_on=%s",
         (g.tenant_db, co.get("company_name") or "", customer_id, subscription_id, employee_count,
-         session.get("admin_username"), co.get("company_name") or "", customer_id, subscription_id,
-         employee_count, session.get("admin_username"))
+         session.get("admin_username"), first_charge_on, co.get("company_name") or "", customer_id,
+         subscription_id, employee_count, session.get("admin_username"), first_charge_on)
     )
     conn.commit()
     cur.close()
@@ -162,7 +242,86 @@ def enroll():
         "demo": is_demo,
         "employee_count": employee_count,
         "amount_display": format_price_inr(calculate_price(employee_count)),
+        "first_charge_on": first_charge_on.isoformat() if first_charge_on else None,
+        "first_charge_display": first_charge_on.strftime("%d %b %Y") if first_charge_on else None,
     })
+
+
+def _enroll_replacement(mandate):
+    """A new subscription for today's headcount to take over from the active
+    one, which keeps billing until this one is authorized. It starts on the
+    current subscription's next charge date, and confirm() cancels the
+    current one at its cycle end -- no gap and no month charged twice."""
+    employee_count = get_tenant_employee_count(g.tenant_db)
+    start_at = None
+
+    def _create_real_subscription():
+        nonlocal start_at
+        current, error = fetch_subscription(mandate["subscription_id"])
+        if error:
+            return None, error
+        start_at = current.get("charge_at") or current.get("current_end")
+        if start_at and start_at <= datetime.datetime.now().timestamp():
+            start_at = None
+        plan_id, error = _get_or_create_plan_id()
+        if error:
+            return None, error
+        return create_subscription(plan_id, mandate["customer_id"], employee_count or 1, start_at=start_at)
+
+    subscription_id, is_demo, error = create_id_or_demo(_DEMO_SUBSCRIPTION_PREFIX, _create_real_subscription)
+    if error:
+        app_log.error("auto_debit.enroll(replace): subscription setup failed for %s: %s", g.tenant_db, error)
+        return jsonify({"ok": False, "msg": error}), 502
+
+    conn = get_master_db()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE auto_debit_mandates SET pending_subscription_id=%s, pending_quantity=%s, pending_start_at=%s "
+        "WHERE tenant_schema=%s",
+        (subscription_id, employee_count, start_at, g.tenant_db)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        "ok": True,
+        "subscription_id": subscription_id,
+        "key_id": razorpay_key_id(),
+        "demo": is_demo,
+        "replace": True,
+        "employee_count": employee_count,
+        "amount_display": format_price_inr(calculate_price(employee_count)),
+    })
+
+
+def _confirm_replacement(mandate, subscription_id):
+    """The replacement subscription was authorized: it becomes the company's
+    Auto-Debit, and the one it replaces is cancelled at its cycle end (or
+    now, when the new one starts now). A failed cancel is logged loudly --
+    the new subscription is already authorized, so it must not be lost."""
+    old_id = mandate["subscription_id"] or ""
+    if old_id and not old_id.startswith(_DEMO_SUBSCRIPTION_PREFIX):
+        ok, error = razorpay_cancel_subscription(old_id, cancel_at_cycle_end=bool(mandate["pending_start_at"]))
+        if not ok:
+            app_log.error("auto_debit: replaced subscription %s for %s could not be cancelled (%s) -- cancel it "
+                          "in the Razorpay dashboard", old_id, g.tenant_db, error)
+            log_security_event("auto_debit.replaced_cancel_failed", "Old auto-debit subscription not cancelled",
+                               level="ERROR", subscription_id=old_id)
+    conn = get_master_db()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE auto_debit_mandates SET razorpay_subscription_id=%s, quantity_synced=COALESCE(pending_quantity, "
+        "quantity_synced), status='active', activated_at=NOW(), fixed_amount=FALSE, pending_subscription_id=NULL, "
+        "pending_quantity=NULL, pending_start_at=NULL, reauth_notified_quantity=NULL WHERE tenant_schema=%s",
+        (subscription_id, g.tenant_db)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+    log_security_event("auto_debit.replaced", f"Auto-debit set up again (replaces {old_id})",
+                       level="INFO", subscription_id=subscription_id)
+    return jsonify({"ok": True, "replaced": True})
 
 
 @auto_debit_bp.route("/api/auto_debit/confirm", methods=["POST"])
@@ -175,7 +334,8 @@ def confirm():
     signature = (data.get("razorpay_signature") or "").strip()
 
     mandate = _get_mandate(g.tenant_db)
-    if not mandate or mandate["subscription_id"] != subscription_id:
+    replacing = bool(mandate and subscription_id and mandate["pending_subscription_id"] == subscription_id)
+    if not mandate or (mandate["subscription_id"] != subscription_id and not replacing):
         return jsonify({"ok": False, "msg": "Unknown or mismatched subscription."}), 404
 
     ok, is_demo, error = verify_or_demo(
@@ -193,6 +353,9 @@ def confirm():
                 level="ERROR", subscription_id=subscription_id,
             )
         return jsonify({"ok": False, "msg": error}), 400
+
+    if replacing:
+        return _confirm_replacement(mandate, subscription_id)
 
     conn = get_master_db()
     cur = conn.cursor()
@@ -213,6 +376,10 @@ def confirm():
         (g.tenant_db,)
     )
     reactivated = cur.rowcount == 1
+    if not mandate["first_charge_on"]:
+        # It charges now (a trial ending, or an unpaid period): today is the
+        # plan date, and Auto-Debit charges on this day every month.
+        cur.execute("UPDATE tenants SET billing_anchor_date=%s WHERE db_name=%s", (platform_today(), g.tenant_db))
     conn.commit()
     cur.close()
     conn.close()
@@ -238,9 +405,17 @@ def update_quantity():
         return jsonify({"ok": False, "msg": "Auto-debit isn't currently enabled."}), 400
     count = get_tenant_employee_count(g.tenant_db)
     subscription_id = mandate["subscription_id"] or ""
+    errors = []
     if not _sync_mandate_quantity(g.tenant_db, subscription_id, mandate["quantity_synced"], count,
-                                  is_demo_sub=subscription_id.startswith(_DEMO_SUBSCRIPTION_PREFIX)):
-        return jsonify({"ok": False, "msg": "Razorpay didn't accept the update. Please try again in a few minutes."}), 502
+                                  is_demo_sub=subscription_id.startswith(_DEMO_SUBSCRIPTION_PREFIX),
+                                  errors=errors):
+        if (_get_mandate(g.tenant_db) or {}).get("fixed_amount"):
+            return jsonify({"ok": False, "needs_reauth": True, "employees": count,
+                            "amount_display": format_price_inr(calculate_price(count)),
+                            "msg": fixed_amount_msg(count)}), 409
+        reason = (errors[0] if errors else "").replace("Razorpay request failed: ", "").strip()
+        return jsonify({"ok": False, "msg": "Razorpay didn't accept the update"
+                        + (f" ({reason})" if reason else "") + ". Please try again in a few minutes."}), 502
     log_security_event("auto_debit.quantity_updated", f"Auto-debit updated to {count} employees",
                        level="INFO", subscription_id=subscription_id)
     return jsonify({"ok": True, "employees": count, "amount_display": format_price_inr(calculate_price(count))})
@@ -306,7 +481,8 @@ def _handle_subscription_charged(payload):
     amount_paise = payment_entity.get("amount")
     payment_id = payment_entity.get("id")
     if subscription_id:
-        _record_charge(subscription_id, amount_paise, payment_id, status="paid")
+        _record_charge(subscription_id, amount_paise, payment_id, status="paid",
+                       charged_at=payment_entity.get("created_at"))
         _migrate_mandate_if_needed(subscription_id)
 
 
@@ -440,7 +616,18 @@ register_webhook_handler("razorpay", "payment.failed", _handle_payment_failed_or
 register_webhook_handler("razorpay", "subscription.pending", _handle_payment_failed_or_pending)
 
 
-def _record_charge(subscription_id, amount_paise, payment_id, status, failure_reason=None):
+def _charged_on(charged_at):
+    """Razorpay epoch seconds -> the platform date (today when missing)."""
+    try:
+        if charged_at:
+            from utils.helpers.settings import PLATFORM_TZ
+            return datetime.datetime.fromtimestamp(int(charged_at), PLATFORM_TZ).date()
+    except (TypeError, ValueError, OverflowError, OSError):
+        pass
+    return platform_today()
+
+
+def _record_charge(subscription_id, amount_paise, payment_id, status, failure_reason=None, charged_at=None):
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
@@ -455,7 +642,8 @@ def _record_charge(subscription_id, amount_paise, payment_id, status, failure_re
         return
     tenant_schema, company_name = row
     employee_count = get_tenant_employee_count(tenant_schema)
-    billing_period = platform_today().replace(day=1)
+    anchor, explicit = tenant_anchor(tenant_schema, cur)
+    billing_period = charge_period(anchor, explicit, _charged_on(charged_at))
     rate_paise = get_per_employee_paise()
     # Razorpay explicitly redelivers webhooks on timeout/non-2xx/network
     # retry -- idx_monthly_invoices_payment_id (app.py) is a real DB-level
@@ -467,11 +655,12 @@ def _record_charge(subscription_id, amount_paise, payment_id, status, failure_re
         "INSERT INTO monthly_invoices (tenant_schema, company_name, employee_count, amount_paise, "
         "razorpay_payment_id, razorpay_subscription_id, status, billing_period, failure_reason, rate_paise) "
         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
-        "ON CONFLICT (razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL DO NOTHING",
+        "ON CONFLICT (razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL DO NOTHING RETURNING id",
         (tenant_schema, company_name, employee_count, amount_paise or 0, payment_id, subscription_id,
          status, billing_period, failure_reason, rate_paise)
     )
-    if payment_id and cur.rowcount == 0:
+    inserted = cur.fetchone()
+    if payment_id and not inserted:
         conn.commit()
         cur.close()
         conn.close()
@@ -485,6 +674,10 @@ def _record_charge(subscription_id, amount_paise, payment_id, status, failure_re
         level="INFO" if status == "paid" else "WARNING",
         subscription_id=subscription_id, amount_paise=amount_paise,
     )
+    if status == "paid" and inserted:
+        on_payment_completed("invoice", inserted[0])
+        from blueprints.seats import reset_paid_seats
+        reset_paid_seats(tenant_schema)
 
 
 def sync_and_bill_auto_debit():
@@ -539,10 +732,41 @@ def sync_and_bill_auto_debit():
                     "sync_and_bill_auto_debit: tenant %s has a stale demo subscription (%s) now that Razorpay "
                     "is configured -- ask them to re-enroll in auto-debit.", tenant_schema, subscription_id
                 )
-            else:
-                _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, current_count, is_demo_sub=False)
+            elif not _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, current_count,
+                                            is_demo_sub=False):
+                _notify_fixed_amount(tenant_schema, current_count)
         except Exception as exc:
             app_log.error("sync_and_bill_auto_debit: failed for tenant %s: %s", tenant_schema, exc)
+
+
+def _notify_fixed_amount(tenant_schema, count):
+    """Tell the company's admins -- once per headcount -- that their
+    Auto-Debit can't follow the new headcount and needs setting up again,
+    so a UPI/e-mandate subscription doesn't quietly keep billing too few
+    employees."""
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
+    cur.execute(
+        "SELECT m.fixed_amount, m.reauth_notified_quantity, t.subdomain FROM auto_debit_mandates m "
+        "LEFT JOIN tenants t ON t.db_name = m.tenant_schema WHERE m.tenant_schema=%s", (tenant_schema,))
+    row = cur.fetchone()
+    if not row or not row[0] or row[1] == count:
+        cur.close()
+        conn.close()
+        return
+    cur.execute("UPDATE auto_debit_mandates SET reauth_notified_quantity=%s WHERE tenant_schema=%s",
+                (count, tenant_schema))
+    conn.commit()
+    cur.close()
+    conn.close()
+    from utils.billing_notices import _send_to_admins, company_link
+    link = company_link(row[2], "/settings?tab=billing")
+    body = (f"<p>{fixed_amount_msg(count)}</p>"
+            "<p>Until then, Auto-Debit keeps charging for the number of employees it was set up with.</p>"
+            f'<p style="margin-top:18px;"><a href="{link}" style="background:#1d4ed8;color:#fff;padding:10px 18px;'
+            f'border-radius:8px;text-decoration:none;">Set up Auto-Debit for {count} employees</a></p>')
+    _send_to_admins(tenant_schema, "Action needed: set up Auto-Debit again for your new headcount", body,
+                    heading="Auto-Debit")
 
 
 def reconcile_billing_records():
@@ -601,12 +825,14 @@ def reconcile_billing_records():
                 if not payment_id:
                     continue
                 amount_paise = inv.get("amount_paid") or inv.get("amount") or 0
-                _record_charge(subscription_id, amount_paise, payment_id, status="paid")
+                _record_charge(subscription_id, amount_paise, payment_id, status="paid",
+                               charged_at=inv.get("paid_at") or inv.get("date"))
         except Exception as exc:
             app_log.error("reconcile_billing_records: failed for tenant %s: %s", tenant_schema, exc)
 
 
-def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, current_count, is_demo_sub):
+def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, current_count, is_demo_sub,
+                           errors=None):
     """Keeps one mandate's Razorpay subscription `quantity` in sync with the
     tenant's actual current headcount, and records that in quantity_synced.
     Shared by sync_and_bill_auto_debit()'s daily pass above and
@@ -615,13 +841,24 @@ def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, curr
     than waiting for this job's own daily run). Real mode only calls
     Razorpay when the count actually changed; demo mode has no live
     subscription to PATCH, so it just records the new count. Returns
-    whether the mandate now matches current_count."""
+    whether the mandate now matches current_count; Razorpay's reason for a
+    refusal is appended to `errors` when given."""
     if current_count == quantity_synced:
         return True
     if not is_demo_sub:
         ok, error = update_subscription_quantity(subscription_id, current_count or 1)
         if not ok:
             app_log.warning("_sync_mandate_quantity: quantity sync failed for %s: %s", tenant_schema, error)
+            if errors is not None:
+                errors.append(error)
+            if _is_fixed_amount_subscription(subscription_id, error):
+                conn = get_master_db()
+                cur = conn.cursor()
+                cur.execute("UPDATE auto_debit_mandates SET fixed_amount=TRUE WHERE tenant_schema=%s",
+                            (tenant_schema,))
+                conn.commit()
+                cur.close()
+                conn.close()
             return False
     conn = get_master_db()
     cur = conn.cursor()
@@ -636,23 +873,28 @@ def _sync_mandate_quantity(tenant_schema, subscription_id, quantity_synced, curr
 
 
 def _maybe_simulate_demo_charge(tenant_schema, company_name, subscription_id, employee_count, activated_at):
+    """Demo mode's stand-in for Razorpay's schedule: charges on the
+    company's billing date (utils/billing_cycle.py) when the current period
+    isn't paid yet -- never during a trial, and not for a first period the
+    signup checkout already paid."""
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    cur.execute(
-        "SELECT created_at FROM monthly_invoices WHERE tenant_schema=%s AND status='paid' "
-        "ORDER BY created_at DESC LIMIT 1",
-        (tenant_schema,)
-    )
-    row = cur.fetchone()
-    last_charge = coerce_datetime(row[0] if row else activated_at)
-    due = (last_charge is None) or ((datetime.datetime.now() - last_charge) >= datetime.timedelta(days=30))
+    cur.execute("SELECT subscription_status, billing_anchor_date, created_at FROM tenants WHERE db_name=%s",
+                (tenant_schema,))
+    t = cur.fetchone()
+    today = platform_today()
+    anchor, explicit = anchor_from(t[1] if t else None, t[2] if t else None, today)
+    start = cycle_period_start(anchor, today)
+    due = (bool(t) and t[0] != "trialing" and today >= anchor
+           and not (start == anchor and first_period_prepaid(anchor, explicit, t[2]))
+           and not period_is_paid(cur, tenant_schema, start))
     if not due:
         cur.close()
         conn.close()
         return
 
     amount_paise = calculate_price(employee_count)
-    billing_period = platform_today().replace(day=1)
+    billing_period = start
     # Each simulated demo charge needs its own unique payment id -- a fixed
     # literal here would collide with idx_monthly_invoices_payment_id
     # (app.py) the very next time ANY tenant's demo subscription renews.
@@ -660,12 +902,16 @@ def _maybe_simulate_demo_charge(tenant_schema, company_name, subscription_id, em
     cur.execute(
         "INSERT INTO monthly_invoices (tenant_schema, company_name, employee_count, amount_paise, "
         "razorpay_payment_id, razorpay_subscription_id, status, billing_period, rate_paise) "
-        "VALUES (%s, %s, %s, %s, %s, %s, 'paid', %s, %s)",
+        "VALUES (%s, %s, %s, %s, %s, %s, 'paid', %s, %s) RETURNING id",
         (tenant_schema, company_name, employee_count, amount_paise, demo_payment_id, subscription_id,
          billing_period, get_per_employee_paise())
     )
+    invoice_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
     conn.close()
     app_log.info("sync_and_bill_auto_debit: simulated demo monthly charge for %s (%s employees, %s paise)",
                  tenant_schema, employee_count, amount_paise)
+    on_payment_completed("invoice", invoice_id)
+    from blueprints.seats import reset_paid_seats
+    reset_paid_seats(tenant_schema)

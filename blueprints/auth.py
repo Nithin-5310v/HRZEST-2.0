@@ -342,11 +342,16 @@ def _ensure_hr_admin_account(employee_id, email):
     their own employee password exactly as before, and only reaches this
     account via _finish_employee_login()'s session setup, never a direct
     admin_users password check.
+
+    Returns whether the HR has dashboard access: the row's is_active, which
+    the company admin turns on and off on the Organization page's HR team
+    tab (blueprints/hr_team.py). A new row starts with access.
     """
     with _db() as (cursor, db):
-        cursor.execute("SELECT 1 FROM admin_users WHERE username=%s", (employee_id,))
-        if cursor.fetchone():
-            return
+        cursor.execute("SELECT COALESCE(is_active, 1) FROM admin_users WHERE username=%s", (employee_id,))
+        row = cursor.fetchone()
+        if row:
+            return bool(row[0])
         cursor.execute(
             "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1)",
             (employee_id, generate_password_hash(secrets.token_urlsafe(32)), HR_ROLE, email)
@@ -357,6 +362,7 @@ def _ensure_hr_admin_account(employee_id, email):
         f"Auto-created admin_users HR-role account for employee '{employee_id}' (employees.role is exactly 'HR')",
         level="INFO", identifier=employee_id,
     )
+    return True
 
 
 # Same exact-match, case-insensitive caveat as _HR_EMPLOYEE_ROLE above --

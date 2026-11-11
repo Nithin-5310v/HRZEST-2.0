@@ -250,3 +250,76 @@ def get_payment_row(kind_key, row_id, tenant_id=None, tenant_schema=None):
     except Exception as exc:
         app_log.warning("get_payment_row(%s, %s): lookup failed: %s", kind_key, row_id, exc)
         return None
+
+
+def get_plan_details(tenant_schema):
+    """The company's plan as its admin sees it: what it's on, when it
+    started, the current period's start and end, and what the next bill
+    comes to. Trials run trial_start_date..trial_end_date; paid plans
+    renew on their plan date every month (utils/billing_cycle.py) -- the
+    1st for companies from before plan dates. None if unknown."""
+    from utils.helpers import platform_today
+    from utils.plan_limits import calculate_price, get_per_employee_paise, get_tenant_employee_count
+    try:
+        conn = get_master_db()
+        cur = conn.cursor(buffered=True)
+        cur.execute(
+            "SELECT id, payment_option, subscription_status, billing_state, status, trial_start_date, "
+            "trial_end_date, created_at, billing_anchor_date FROM tenants WHERE db_name=%s", (tenant_schema,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return None
+        (tenant_id, payment_option, sub_status, billing_state, status, trial_start, trial_end, created_at,
+         anchor_date) = row
+        cur.execute("SELECT status FROM auto_debit_mandates WHERE tenant_schema=%s", (tenant_schema,))
+        mandate = cur.fetchone()
+        cur.close()
+        conn.close()
+    except Exception as exc:
+        app_log.warning("get_plan_details: lookup failed for %s: %s", tenant_schema, exc)
+        return None
+
+    today = platform_today()
+    paid = [p for p in get_payment_history(tenant_id=tenant_id, tenant_schema=tenant_schema)["payments"]
+            if p["status_group"] == "success"]
+    last = paid[0] if paid else None
+    first_paid = coerce_datetime(paid[-1]["paid_at"] or paid[-1]["created_at"]) if paid else None
+    employees = get_tenant_employee_count(tenant_schema)
+    trialing = sub_status == "trialing" or (payment_option == "trial" and not paid)
+
+    def _d(v):
+        v = coerce_datetime(v)
+        return v.date() if v else None
+
+    if trialing:
+        plan, start = "Free trial", _d(trial_start) or _d(created_at)
+        period_start, period_end, renews_on = start, _d(trial_end), None
+    else:
+        plan = "Monthly, per employee"
+        start = first_paid.date() if first_paid else _d(created_at)
+        from utils.billing_cycle import anchor_from, period_start as cycle_period_start, next_billing_date
+        anchor = anchor_from(anchor_date, created_at, today)[0]
+        period_start = cycle_period_start(anchor, today)
+        renews_on = next_billing_date(anchor, today)
+        period_end = renews_on - datetime.timedelta(days=1)
+
+    if status != "active":
+        state = "Suspended"
+    elif billing_state == "locked":
+        state = "Locked (payment overdue)"
+    elif billing_state == "grace" or sub_status == "past_due":
+        state = "Payment overdue"
+    else:
+        state = "Trial" if trialing else "Active"
+
+    return {
+        "tenant_id": tenant_id, "plan": plan, "state": state, "trialing": trialing,
+        "start_date": start, "period_start": period_start, "period_end": period_end, "renews_on": renews_on,
+        "days_left": (period_end - today).days if period_end and period_end >= today else 0,
+        "employees": employees, "rate_display": format_price_inr(get_per_employee_paise()),
+        "next_amount_display": format_price_inr(calculate_price(employees)),
+        "auto_debit": bool(mandate) and mandate[0] in ("active", "pending_cancellation"),
+        "last_payment": last,
+    }

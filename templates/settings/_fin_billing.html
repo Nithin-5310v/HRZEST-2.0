@@ -1,0 +1,610 @@
+          {# BILLING (was templates/seat_checkout.html, embedded here so it
+               behaves like every other Finances sub-section instead of
+               navigating to a separate page -- blueprints/seats.py's
+               seats_page() now just redirects to ?tab=billing) #}
+          <div class="s3-section" id="ss-billing">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-eff6ff"><i class="ti ti-ticket u-c-1e3a8a u-fs-20"></i></div>
+              <div><div class="sec-title">Seats &amp; Billing</div><div class="sec-sub">Employee seat limit and Razorpay auto-debit</div></div>
+            </div>
+
+            {% if subscription_status == 'trialing' and trial_end_date %}
+            <div class="seats-card seats-status">
+              <h2><i class="ti ti-gift"></i> Free Trial Active</h2>
+              <div class="sub">
+                Full access to every feature, no charge yet. Your trial ends <strong>{{ trial_end_date.strftime('%d %b %Y') }}</strong> --
+                billing starts automatically at {{ per_employee_paise|plan_price }}/employee/month unless you cancel before then.
+              </div>
+            </div>
+            {% elif subscription_status == 'past_due' %}
+            <div class="seats-card" style="background:#fffbeb; border-color:#fde68a;">
+              <h2 style="color:#b45309;"><i class="ti ti-alert-triangle"></i> Payment Needed</h2>
+              <div class="sub" style="color:#92400e;">
+                Your trial has ended and we couldn't confirm a payment method on file, or your last charge failed.
+                Add or update auto-debit below to keep your account active -- see the banner at the top of this
+                page for the exact grace-period deadline.
+              </div>
+            </div>
+            {% endif %}
+
+            {% if not payments_enabled %}
+            <div class="seats-card" style="background:#eff6ff; border-color:#bfdbfe;" id="paymentsOffNotice">
+              <h2 style="color:#1e3a8a;"><i class="ti ti-info-circle"></i> Online payments aren't available yet</h2>
+              <div class="sub" style="color:#1e40af;">
+                There's nothing to set up here for now -- you can keep using HRZest as normal.
+                For billing questions, contact support.
+              </div>
+            </div>
+            {% elif razorpay_test_mode %}
+            <div class="seats-card" style="background:#fffbeb; border-color:#fde68a;" id="paymentsTestModeNotice">
+              <h2 style="color:#b45309;"><i class="ti ti-flask"></i> Test mode</h2>
+              <div class="sub" style="color:#92400e;">
+                Payments run in Razorpay's test mode -- no real money is charged. Use Razorpay's test cards or test UPI IDs.
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="seats-card">
+              <h2><i class="ti ti-users"></i> Employee Seats</h2>
+              <div class="sub">Your plan includes a fixed number of paid employee seats. Buy more any time -- new hires can't be registered past your current limit.</div>
+
+              <div class="usage-row" style="flex-direction: column; align-items: stretch;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div class="num">{{ employee_count }}{% if co.paid_employee_slots is not none %} / {{ co.paid_employee_slots }}{% endif %}</div>
+                    <div class="lbl">Employees registered{% if co.paid_employee_slots is not none %} of your paid seat limit{% else %} (unlimited plan){% endif %}</div>
+                  </div>
+                </div>
+                {% if co.paid_employee_slots is not none %}
+                  {% set pct = (employee_count / co.paid_employee_slots * 100) if co.paid_employee_slots > 0 else 100 %}
+                  <div class="usage-bar-track">
+                    <div class="usage-bar-fill {{ 'danger' if employee_count >= co.paid_employee_slots else ('warning' if pct >= 80 else '') }}" style="width: {{ [pct, 100] | min }}%;"></div>
+                  </div>
+                {% endif %}
+              </div>
+
+              {% if co.paid_employee_slots is none %}
+                <div class="unlimited-note"><i class="ti ti-infinity"></i> Your plan already allows unlimited employees -- there's no seat limit to buy past.</div>
+              {% elif payments_enabled %}
+                <div class="form-error" id="formError"></div>
+                <div class="form-success" id="formSuccess"></div>
+
+                <form id="buySeatsForm" method="post">
+                  <label class="field-label" for="additionalSeats">How many additional seats do you need?</label>
+                  <div class="qty-row">
+                    <button type="button" class="qty-btn" id="qtyMinus" aria-label="Decrease seats">−</button>
+                    <input class="qty-input" type="number" id="additionalSeats" min="1" value="5" title="Additional seats" aria-label="Additional seats" />
+                    <button type="button" class="qty-btn" id="qtyPlus" aria-label="Increase seats">+</button>
+                  </div>
+
+                  <div class="price-box">
+                    <div>
+                      <div class="amt" id="priceTotal">{{ per_employee_paise|plan_price }}</div>
+                      <div class="note">one-time, added to your seat limit immediately</div>
+                    </div>
+                    <div class="note">{{ per_employee_paise|plan_price }} &times; <span id="priceCount">1</span> seat(s)</div>
+                  </div>
+
+                  <button type="submit" class="pay-btn" id="payBtn">
+                    <i class="ti ti-credit-card"></i> <span>Pay &amp; Add Seats</span>
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+
+            <div class="seats-card">
+              <h2><i class="ti ti-repeat"></i> Auto-Debit Monthly Billing</h2>
+              <div class="sub">Automatically pay {{ per_employee_paise|plan_price }}/employee/month via Razorpay (card, UPI Autopay or e-mandate) instead of tracking it yourself. It charges on your plan's billing date every month, for all your employees in one payment.</div>
+
+              <div class="usage-row" style="margin-bottom:20px;">
+                <div>
+                  <div class="num" style="font-size:18px;">
+                    {% if auto_debit_status and auto_debit_status.status == 'active' %}
+                      <span style="color:#15803d;"><i class="ti ti-circle-check"></i> Active</span>
+                    {% elif auto_debit_status and auto_debit_status.status == 'pending_cancellation' %}
+                      <span style="color:#d97706;"><i class="ti ti-clock-pause"></i> Cancelling at period end</span>
+                    {% elif auto_debit_status and auto_debit_status.status == 'pending' %}
+                      <span style="color:#d97706;"><i class="ti ti-clock"></i> Pending authorization</span>
+                    {% elif auto_debit_status and auto_debit_status.status == 'rate_changed' %}
+                      <span style="color:#d97706;"><i class="ti ti-refresh-alert"></i> Rate changed — re-authorization needed</span>
+                    {% elif auto_debit_status and auto_debit_status.status == 'cancelled' %}
+                      <span style="color:#64748b;"><i class="ti ti-circle-x"></i> Cancelled</span>
+                    {% else %}
+                      <span style="color:#64748b;"><i class="ti ti-circle-dashed"></i> Not enabled</span>
+                    {% endif %}
+                  </div>
+                  <div class="lbl">Estimated next charge: {{ monthly_bill_display }} for {{ employee_count }} employee{{ 's' if employee_count != 1 }}</div>
+                  {% if auto_debit_status and auto_debit_status.status == 'active' and auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
+                  {% if auto_debit_status.fixed_amount %}
+                  <div class="lbl" style="color:#b45309;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. Razorpay can't change the amount of an Auto-Debit set up with UPI, an Indian card or net banking — set it up again below. Your current Auto-Debit keeps working until then, and nothing is charged twice.</div>
+                  {% else %}
+                  <div class="lbl" style="color:#1d4ed8;margin-top:2px;">Auto-Debit is set for {{ auto_debit_status.quantity_synced }} employee{{ 's' if auto_debit_status.quantity_synced != 1 }}; you now have {{ employee_count }}. Update it now, or it updates itself before the next charge.</div>
+                  {% endif %}
+                  {% endif %}
+                  {% if auto_debit_status and auto_debit_status.status == 'rate_changed' %}
+                  <div class="lbl" style="color:#d97706;margin-top:2px;">Your previous auto-debit ended after its last payment at the old rate — re-enable below to continue automatic billing at the new rate.</div>
+                  {% elif auto_debit_status and auto_debit_status.status == 'pending_cancellation' %}
+                  <div class="lbl" style="color:#d97706;margin-top:2px;">Billing continues normally through your current period -- access won't be interrupted early.</div>
+                  {% endif %}
+                </div>
+                {% if auto_debit_status and auto_debit_status.status == 'active' %}
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    {% set _ad_label = employee_count ~ ' employee' ~ ('s' if employee_count != 1 else '') %}
+                    {% if auto_debit_status.quantity_synced is not none and auto_debit_status.quantity_synced != employee_count %}
+                    <button type="button" class="qty-btn" id="updateAutoDebitBtn" {% if auto_debit_status.fixed_amount %}hidden{% endif %} style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Update to {{ _ad_label }}</button>
+                    {% endif %}
+                    {# UPI / Indian card / e-mandate Auto-Debit can't change its amount: a new authorization replaces it. #}
+                    <button type="button" class="qty-btn" id="reauthAutoDebitBtn" data-label="Set up for {{ _ad_label }}" {% if not (auto_debit_status.fixed_amount and auto_debit_status.quantity_synced != employee_count) %}hidden{% endif %} style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Set up for {{ _ad_label }}</button>
+                    <button type="button" class="qty-btn" id="cancelAtPeriodEndBtn" style="width:auto; padding:0 16px; background:#fff7ed; border-color:#fdba74; color:#c2410c;">Cancel at Period End</button>
+                    <button type="button" class="qty-btn" id="disableAutoDebitBtn" style="width:auto; padding:0 16px; background:#fee2e2; border-color:#fca5a5; color:#dc2626;">Disable Now</button>
+                  </div>
+                {% elif not payments_enabled %}
+                {% elif auto_debit_status and auto_debit_status.status == 'rate_changed' %}
+                  <button type="button" class="qty-btn" id="enableAutoDebitBtn" data-label="Re-Enable Auto-Debit" style="width:auto; padding:0 16px; background:#d97706; border-color:#d97706; color:#fff;">Re-Enable Auto-Debit</button>
+                {% elif not (auto_debit_status and auto_debit_status.status == 'pending_cancellation') %}
+                  <button type="button" class="qty-btn" id="enableAutoDebitBtn" data-label="Enable Auto-Debit" style="width:auto; padding:0 16px; background:#2563eb; border-color:#2563eb; color:#fff;">Enable Auto-Debit</button>
+                {% endif %}
+              </div>
+
+              <div class="form-error" id="adFormError"></div>
+              <div class="form-success" id="adFormSuccess"></div>
+
+              {% if invoices %}
+              <div class="field-label">Billing History</div>
+              <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <thead>
+                  <tr style="text-align:left; color:#64748b;">
+                    <th style="padding:6px 4px;">Period</th><th style="padding:6px 4px;">Employees</th>
+                    <th style="padding:6px 4px;">Rate</th>
+                    <th style="padding:6px 4px;">Amount</th><th style="padding:6px 4px;">Status</th><th style="padding:6px 4px;">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for inv in invoices %}
+                  <tr style="border-top:1px solid #e2e8f0;">
+                    <td style="padding:6px 4px;">{{ inv.billing_period.strftime('%b %Y') if inv.billing_period else '—' }}</td>
+                    <td style="padding:6px 4px;">{{ inv.employee_count }}</td>
+                    <td style="padding:6px 4px; color:#64748b;">{{ inv.rate_display or '—' }}</td>
+                    <td style="padding:6px 4px;">{{ inv.amount_display }}</td>
+                    <td style="padding:6px 4px;"><span style="color:{{ '#15803d' if inv.status == 'paid' else '#dc2626' }}; font-weight:700;">{{ inv.status }}</span></td>
+                    <td style="padding:6px 4px; color:#64748b;">{{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else '—' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+            </div>
+
+            {# Sandbox checkout modal (used only when Razorpay isn't configured on this server) #}
+            <div class="mock-overlay" id="mockOverlay" role="dialog" aria-modal="true" aria-label="Test mode payment">
+              <div class="mock-sheet">
+                <div class="mock-testbar"><i class="ti ti-flask"></i> Sandbox Test Mode — No Card Charged</div>
+                <div class="mock-head">
+                  <div class="mock-head-brand">
+                    <div class="m-icon"><i class="ti ti-users"></i></div>
+                    <div>
+                      <div class="m-name">HRzest Enterprise</div>
+                      <div class="m-sub" id="mockSubLabel">Additional Employee Seats</div>
+                    </div>
+                  </div>
+                  <button type="button" class="mock-close" id="mockCloseBtn" aria-label="Cancel">✕</button>
+                </div>
+                <div class="mock-amount-row">
+                  <div class="m-label">Amount Payable</div>
+                  <div class="m-amount" id="mockAmount">₹0</div>
+                </div>
+                <div class="mock-body">
+                  <label class="mock-field-label">Test Card Number</label>
+                  <input class="mock-input" type="text" value="4111 1111 1111 1111" readonly />
+                  <div class="mock-row2">
+                    <div>
+                      <label class="mock-field-label">Expiry</label>
+                      <input class="mock-input" type="text" value="12/29" readonly />
+                    </div>
+                    <div>
+                      <label class="mock-field-label">CVV</label>
+                      <input class="mock-input" type="text" value="123" readonly />
+                    </div>
+                  </div>
+                  <button type="button" class="mock-pay-btn" id="mockPayBtn">Confirm &amp; Add Seats</button>
+                  <p class="mock-note">This is a <strong>sandbox test checkout</strong> for local evaluation.</p>
+                </div>
+              </div>
+            </div>
+
+            <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+            <script>
+            (function() {
+              const PER_EMPLOYEE_PAISE = {{ per_employee_paise }};
+              let currentOrder = null;
+              let currentSubscription = null;
+              let mockMode = 'seats'; // 'seats' | 'auto_debit' -- which flow the sandbox modal's Confirm button finalizes
+
+              function formatInr(paise) {
+                return '₹' + Math.round(paise / 100).toLocaleString('en-IN');
+              }
+
+              function updatePrice() {
+                const el = document.getElementById('additionalSeats');
+                if (!el) return;
+                let count = parseInt(el.value, 10);
+                if (!count || count < 1) count = 1;
+                el.value = count;
+                document.getElementById('priceCount').textContent = count;
+                document.getElementById('priceTotal').textContent = formatInr(count * PER_EMPLOYEE_PAISE);
+              }
+
+              const qtyMinus = document.getElementById('qtyMinus');
+              const qtyPlus = document.getElementById('qtyPlus');
+              if (qtyMinus) {
+                qtyMinus.addEventListener('click', () => {
+                  const el = document.getElementById('additionalSeats');
+                  el.value = Math.max(1, (parseInt(el.value, 10) || 1) - 1);
+                  updatePrice();
+                });
+                qtyPlus.addEventListener('click', () => {
+                  const el = document.getElementById('additionalSeats');
+                  el.value = (parseInt(el.value, 10) || 1) + 1;
+                  updatePrice();
+                });
+                document.getElementById('additionalSeats').addEventListener('input', updatePrice);
+                updatePrice();
+              }
+
+              function resetSubmitButton() {
+                const btn = document.getElementById('payBtn');
+                if (!btn) return;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ti ti-credit-card"></i> <span>Pay & Add Seats</span>';
+              }
+
+              function showError(msg) {
+                const err = document.getElementById('formError');
+                err.textContent = msg;
+                err.style.display = 'flex';
+              }
+
+              const buySeatsForm = document.getElementById('buySeatsForm');
+              if (buySeatsForm) {
+                buySeatsForm.addEventListener('submit', async function (e) {
+                  e.preventDefault();
+                  const btn = document.getElementById('payBtn');
+                  const err = document.getElementById('formError');
+                  err.style.display = 'none';
+                  document.getElementById('formSuccess').style.display = 'none';
+                  btn.disabled = true;
+                  btn.innerHTML = '<i class="ti ti-loader"></i> Processing...';
+
+                  const additionalSeats = parseInt(document.getElementById('additionalSeats').value, 10) || 1;
+
+                  try {
+                    const res = await fetch('{{ tpath("/api/seats/create_order") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ additional_seats: additionalSeats }),
+                    });
+                    const json = await res.json();
+                    if (!json.ok) {
+                      showError(json.msg || 'Could not start checkout.');
+                      resetSubmitButton();
+                      return;
+                    }
+
+                    currentOrder = json;
+                    mockMode = 'seats';
+                    document.getElementById('mockAmount').textContent = json.amount_display;
+                    document.getElementById('mockSubLabel').textContent = 'Additional Employee Seats';
+                    document.getElementById('mockPayBtn').textContent = 'Confirm & Add Seats';
+
+                    if (json.demo) {
+                      document.getElementById('mockOverlay').classList.add('open');
+                      resetSubmitButton();
+                    } else {
+                      openRazorpayCheckout(json);
+                    }
+                  } catch (ex) {
+                    showError('Network error. Please check your connection and try again.');
+                    resetSubmitButton();
+                  }
+                });
+              }
+
+              function openRazorpayCheckout(order) {
+                const rzp = new Razorpay({
+                  key: order.key_id,
+                  amount: order.amount_paise,
+                  currency: order.currency,
+                  order_id: order.order_id,
+                  name: 'HRzest Enterprise',
+                  description: order.additional_seats + ' additional employee seat(s)',
+                  handler: function (response) {
+                    finalizeOrder({
+                      razorpay_order_id: response.razorpay_order_id,
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_signature: response.razorpay_signature,
+                    });
+                  },
+                  modal: { ondismiss: function () { resetSubmitButton(); } },
+                  theme: { color: '#2563eb' },
+                });
+                rzp.on('payment.failed', function () {
+                  showError('Payment failed. Please try again.');
+                  resetSubmitButton();
+                });
+                rzp.open();
+              }
+
+              async function finalizeOrder(paymentPayload) {
+                try {
+                  const res = await fetch('{{ tpath("/api/seats/verify_payment") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(paymentPayload),
+                  });
+                  const json = await res.json();
+                  if (json.ok) {
+                    const success = document.getElementById('formSuccess');
+                    success.textContent = 'Seats added! Your new limit is ' + json.paid_employee_slots + ' employees.';
+                    success.style.display = 'flex';
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                  } else {
+                    showError(json.msg || 'Payment received, but activation failed. Contact support.');
+                    resetSubmitButton();
+                  }
+                } catch (ex) {
+                  showError('Network error while confirming payment. Contact support if you were charged.');
+                  resetSubmitButton();
+                }
+              }
+
+              // ── Auto-debit monthly billing ────────────────────────────────────────────
+              function adShowError(msg) {
+                const err = document.getElementById('adFormError');
+                if (!err) return;
+                err.textContent = msg;
+                err.style.display = 'flex';
+              }
+
+              // The button that started the current authorization: "Enable
+              // Auto-Debit", or "Set up for N employees" (replace: a UPI / card /
+              // e-mandate Auto-Debit can't change its amount, so a new one
+              // takes over from it).
+              let enrollBtn = null;
+              function resetEnrollButton() {
+                const btn = enrollBtn || document.getElementById('enableAutoDebitBtn');
+                if (!btn) return;
+                btn.disabled = false;
+                btn.textContent = btn.dataset.label || 'Enable Auto-Debit';
+              }
+
+              async function startAutoDebitSetup(btn, replace) {
+                  enrollBtn = btn;
+                  const err = document.getElementById('adFormError');
+                  err.style.display = 'none';
+                  btn.disabled = true;
+                  btn.textContent = 'Setting up...';
+
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/enroll") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(replace ? { replace: true } : {}),
+                    });
+                    const json = await res.json();
+                    if (!json.ok) {
+                      adShowError(json.msg || 'Could not start auto-debit setup.');
+                      resetEnrollButton();
+                      return;
+                    }
+
+                    currentSubscription = json;
+                    mockMode = 'auto_debit';
+                    document.getElementById('mockAmount').textContent = json.amount_display + '/month';
+                    // Already paid for this period: the first charge waits for the next billing date.
+                    document.getElementById('mockSubLabel').textContent = json.first_charge_display
+                      ? 'Monthly Auto-Debit Authorization -- first charge on ' + json.first_charge_display
+                      : 'Monthly Auto-Debit Authorization';
+                    document.getElementById('mockPayBtn').textContent = 'Confirm & Enable Auto-Debit';
+
+                    if (json.demo) {
+                      document.getElementById('mockOverlay').classList.add('open');
+                      resetEnrollButton();
+                    } else {
+                      openRazorpaySubscriptionCheckout(json);
+                    }
+                  } catch (ex) {
+                    adShowError('Network error. Please check your connection and try again.');
+                    resetEnrollButton();
+                  }
+              }
+
+              const enableAutoDebitBtn = document.getElementById('enableAutoDebitBtn');
+              if (enableAutoDebitBtn) {
+                enableAutoDebitBtn.addEventListener('click', () => startAutoDebitSetup(enableAutoDebitBtn, false));
+              }
+              const reauthAutoDebitBtn = document.getElementById('reauthAutoDebitBtn');
+              if (reauthAutoDebitBtn) {
+                reauthAutoDebitBtn.addEventListener('click', () => startAutoDebitSetup(reauthAutoDebitBtn, true));
+              }
+
+              function openRazorpaySubscriptionCheckout(sub) {
+                const rzp = new Razorpay({
+                  key: sub.key_id,
+                  subscription_id: sub.subscription_id,
+                  name: 'HRzest Enterprise',
+                  description: sub.first_charge_display
+                    ? 'Monthly auto-debit -- first charge on ' + sub.first_charge_display
+                    : 'Monthly per-employee auto-debit authorization',
+                  handler: function (response) {
+                    finalizeSubscription({
+                      razorpay_subscription_id: response.razorpay_subscription_id,
+                      razorpay_payment_id: response.razorpay_payment_id,
+                      razorpay_signature: response.razorpay_signature,
+                    });
+                  },
+                  modal: { ondismiss: function () { resetEnrollButton(); } },
+                  theme: { color: '#2563eb' },
+                });
+                rzp.on('payment.failed', function () {
+                  adShowError('Authorization failed. Please try again.');
+                  resetEnrollButton();
+                });
+                rzp.open();
+              }
+
+              async function finalizeSubscription(payload) {
+                try {
+                  const res = await fetch('{{ tpath("/api/auto_debit/confirm") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                  });
+                  const json = await res.json();
+                  if (json.ok) {
+                    const success = document.getElementById('adFormSuccess');
+                    success.textContent = json.replaced
+                      ? 'Auto-Debit set up again for your current headcount. The old one stops at the end of its cycle.'
+                      : 'Auto-debit enabled! You will be billed automatically each month.';
+                    success.style.display = 'flex';
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                  } else {
+                    adShowError(json.msg || 'Authorization received, but activation failed. Contact support.');
+                    resetEnrollButton();
+                  }
+                } catch (ex) {
+                  adShowError('Network error while confirming authorization.');
+                  resetEnrollButton();
+                }
+              }
+
+              const disableAutoDebitBtn = document.getElementById('disableAutoDebitBtn');
+              if (disableAutoDebitBtn) {
+                disableAutoDebitBtn.addEventListener('click', async () => {
+                  if (!(await hzConfirm('Disable monthly auto-debit immediately? You can re-enable it any time.'))) return;
+                  disableAutoDebitBtn.disabled = true;
+                  disableAutoDebitBtn.textContent = 'Disabling...';
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/cancel") }}', { method: 'POST' });
+                    const json = await res.json();
+                    if (json.ok) {
+                      window.location.reload();
+                    } else {
+                      adShowError(json.msg || 'Could not disable auto-debit.');
+                      disableAutoDebitBtn.disabled = false;
+                      disableAutoDebitBtn.textContent = 'Disable Now';
+                    }
+                  } catch (ex) {
+                    adShowError('Network error. Please try again.');
+                    disableAutoDebitBtn.disabled = false;
+                    disableAutoDebitBtn.textContent = 'Disable Now';
+                  }
+                });
+              }
+
+              const updateAutoDebitBtn = document.getElementById('updateAutoDebitBtn');
+              if (updateAutoDebitBtn) {
+                updateAutoDebitBtn.addEventListener('click', async () => {
+                  const label = updateAutoDebitBtn.textContent;
+                  updateAutoDebitBtn.disabled = true;
+                  updateAutoDebitBtn.textContent = 'Updating...';
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/update_quantity") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: '{}',
+                    });
+                    const json = await res.json();
+                    if (json.ok) {
+                      window.location.reload();
+                    } else if (json.needs_reauth && reauthAutoDebitBtn) {
+                      // UPI / Indian card / e-mandate: swap "Update" for "Set up for N employees".
+                      adShowError(json.msg);
+                      updateAutoDebitBtn.hidden = true;
+                      reauthAutoDebitBtn.hidden = false;
+                    } else {
+                      adShowError(json.msg || 'Could not update auto-debit.');
+                      updateAutoDebitBtn.disabled = false;
+                      updateAutoDebitBtn.textContent = label;
+                    }
+                  } catch (e) {
+                    adShowError('Network error. Please try again.');
+                    updateAutoDebitBtn.disabled = false;
+                    updateAutoDebitBtn.textContent = label;
+                  }
+                });
+              }
+
+              const cancelAtPeriodEndBtn = document.getElementById('cancelAtPeriodEndBtn');
+              if (cancelAtPeriodEndBtn) {
+                cancelAtPeriodEndBtn.addEventListener('click', async () => {
+                  if (!(await hzConfirm('Cancel auto-debit at the end of your current billing period? Billing continues normally until then -- no early cutoff.'))) return;
+                  cancelAtPeriodEndBtn.disabled = true;
+                  cancelAtPeriodEndBtn.textContent = 'Scheduling...';
+                  try {
+                    const res = await fetch('{{ tpath("/api/auto_debit/cancel") }}', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ at_period_end: true }),
+                    });
+                    const json = await res.json();
+                    if (json.ok) {
+                      window.location.reload();
+                    } else {
+                      adShowError(json.msg || 'Could not schedule cancellation.');
+                      cancelAtPeriodEndBtn.disabled = false;
+                      cancelAtPeriodEndBtn.textContent = 'Cancel at Period End';
+                    }
+                  } catch (ex) {
+                    adShowError('Network error. Please try again.');
+                    cancelAtPeriodEndBtn.disabled = false;
+                    cancelAtPeriodEndBtn.textContent = 'Cancel at Period End';
+                  }
+                });
+              }
+
+              // ── Shared sandbox/demo modal (branches on mockMode) ──────────────────────
+              const mockCloseBtn = document.getElementById('mockCloseBtn');
+              if (mockCloseBtn) {
+                mockCloseBtn.addEventListener('click', () => {
+                  document.getElementById('mockOverlay').classList.remove('open');
+                });
+              }
+
+              const mockPayBtn = document.getElementById('mockPayBtn');
+              if (mockPayBtn) {
+                mockPayBtn.addEventListener('click', async () => {
+                  if (mockMode === 'auto_debit') {
+                    if (!currentSubscription) return;
+                    mockPayBtn.disabled = true;
+                    mockPayBtn.textContent = 'Authorizing...';
+                    try {
+                      await finalizeSubscription({
+                        razorpay_subscription_id: currentSubscription.subscription_id,
+                        razorpay_payment_id: 'demo_payment',
+                        razorpay_signature: '',
+                      });
+                    } finally {
+                      mockPayBtn.disabled = false;
+                      mockPayBtn.textContent = 'Confirm & Enable Auto-Debit';
+                      document.getElementById('mockOverlay').classList.remove('open');
+                    }
+                    return;
+                  }
+                  if (!currentOrder) return;
+                  mockPayBtn.disabled = true;
+                  mockPayBtn.textContent = 'Adding Seats...';
+                  try {
+                    await finalizeOrder({
+                      razorpay_order_id: currentOrder.order_id,
+                      razorpay_payment_id: 'demo_payment',
+                      razorpay_signature: '',
+                    });
+                  } finally {
+                    mockPayBtn.disabled = false;
+                    mockPayBtn.textContent = 'Confirm & Add Seats';
+                  }
+                });
+              }
+            })();
+            </script>
+          </div>

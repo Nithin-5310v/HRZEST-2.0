@@ -54,6 +54,7 @@ updates:
       - dependency-name: "react-native-webview"
       - dependency-name: "@react-native-async-storage/async-storage"
       - dependency-name: "@react-native-picker/picker"
+      - dependency-name: "@react-native-community/datetimepicker"
       - dependency-name: "react-native-web"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "react-native-gesture-handler"

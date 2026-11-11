@@ -7,7 +7,7 @@ from flask import jsonify, request
 from qr_generator import generate_qr
 from utils.auth import api_required, api_role_required, generate_password_hash
 from utils.billing_notices import notify_employee_added
-from utils.face_utils import _face_recognition_available, face_recognition
+from utils.face_utils import _face_recognition_available, face_recognition, detection_array
 from utils.helpers import (
     _audit,
     _validate_image_file,
@@ -97,7 +97,7 @@ def api_register_employee():
     filepath = face_photo_path(emp_id)
     save_upload(file, filepath)
     if _face_recognition_available:
-        test_img = face_recognition.load_image_file(decrypted_stream(filepath))
+        test_img = detection_array(decrypted_stream(filepath))
         if not face_recognition.face_encodings(test_img):
             os.remove(filepath)
             return jsonify({"ok": False, "msg": "No face detected in uploaded photo."}), 400

@@ -43,7 +43,7 @@ def update_employee_photo(emp_id):
     save_upload(file, filepath)
 
     if _face_recognition_available:
-        test_img = face_recognition.load_image_file(decrypted_stream(filepath))
+        test_img = detection_array(decrypted_stream(filepath))
         if not face_recognition.face_encodings(test_img):
             os.remove(filepath)
             flash("No face detected in the uploaded photo. Please upload a clear front-facing photo.", "error")

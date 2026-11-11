@@ -21,13 +21,59 @@ from extensions import app_log, limiter, log_security_event
 from database import get_db_connection, get_master_db
 from utils.auth import admin_required
 from utils.helpers import get_company_settings, invalidate_settings_cache, tpath
-from utils.plan_limits import calculate_price, format_price_inr
+from utils.plan_limits import get_per_employee_paise, format_price_inr, get_tenant_employee_count
+from utils.tax_invoice import on_payment_completed
 from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
     key_id as razorpay_key_id, create_id_or_demo, verify_or_demo,
 )
 
 seats_bp = Blueprint("seats", __name__)
+
+
+def seat_payment_info(tenant_schema=None):
+    """What adding employees costs right now, for the Employees page's Add
+    Employee form and Excel import: a company with a seat limit pays one
+    month (the per-employee rate) for each employee beyond the seats it has
+    already paid for this period, before they're registered; from the next
+    billing date its monthly bill / Auto-Debit includes them. No limit
+    (paid_employee_slots NULL) or a trial (its own cap): nothing to pay."""
+    from utils.helpers.gates import _tenant_is_trialing
+    from utils.billing_notices import next_renewal_date
+    tenant_schema = tenant_schema or g.tenant_db
+    cap = get_company_settings().get("paid_employee_slots")
+    if cap is None or _tenant_is_trialing():
+        return {"limited": False, "needed": False}
+    count = get_tenant_employee_count(tenant_schema)
+    rate = get_per_employee_paise()
+    try:
+        renews_on = next_renewal_date(db_name=tenant_schema).strftime("%d %b %Y")
+    except Exception:
+        renews_on = None
+    return {"limited": True, "needed": count >= cap, "free": max(0, cap - count), "cap": cap,
+            "employees": count, "rate_paise": rate, "rate_display": format_price_inr(rate),
+            "renews_on": renews_on}
+
+
+def reset_paid_seats(tenant_schema):
+    """A new billing period was just paid, for the employees the company has
+    now: those are its paid seats for this period. Seats freed by people who
+    left don't carry over -- they aren't in this period's bill. Companies
+    without a seat limit are left alone. Never raises: the payment is
+    already recorded."""
+    from database import get_tenant_db
+    try:
+        conn = get_tenant_db(tenant_schema)
+        cur = conn.cursor()
+        cur.execute("UPDATE company_settings SET paid_employee_slots=(SELECT COUNT(*) FROM employees) "
+                    "WHERE paid_employee_slots IS NOT NULL")
+        conn.commit()
+        cur.close()
+        conn.close()
+        invalidate_settings_cache()
+    except Exception as exc:
+        app_log.error("seats.reset_paid_seats(%s) failed: %s", tenant_schema, exc)
+
 
 # Same convention as blueprints/billing.py's _DEMO_ORDER_PREFIX -- lets the
 # full buy-seats flow be exercised locally without real Razorpay keys, and
@@ -66,7 +112,10 @@ def create_order():
     if additional_seats > 10000:
         return jsonify({"ok": False, "msg": "That's too many seats for a single order. Contact support for a bulk upgrade."}), 400
 
-    amount_paise = calculate_price(additional_seats)
+    # One month per seat at the per-employee rate -- the company's base fee
+    # or minimum (utils/plan_limits.calculate_price) is part of its monthly
+    # bill, not of each extra employee.
+    amount_paise = additional_seats * get_per_employee_paise()
 
     receipt_id = f"seats_{g.tenant_db}_{int(datetime.datetime.now().timestamp())}"
     order_id, is_demo, error = create_id_or_demo(
@@ -151,7 +200,7 @@ def verify_payment():
     conn.commit()
 
     cur.execute(
-        "SELECT seats_purchased FROM seat_topup_orders WHERE razorpay_order_id=%s AND tenant_schema=%s",
+        "SELECT seats_purchased, id FROM seat_topup_orders WHERE razorpay_order_id=%s AND tenant_schema=%s",
         (razorpay_order_id, g.tenant_db)
     )
     row = cur.fetchone()
@@ -191,6 +240,7 @@ def verify_payment():
         level="INFO", order_id=razorpay_order_id, seats_purchased=seats_purchased,
         new_cap=co.get("paid_employee_slots"),
     )
+    on_payment_completed("seat_topup", row[1])
 
     return jsonify({
         "ok": True,

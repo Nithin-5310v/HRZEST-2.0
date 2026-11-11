@@ -13,10 +13,11 @@ regardless of which of those two collected the payment, and is the only
 one of the three that ever changes tenants.billing_state.
 
 Scope: only tenants with payment_option in ('online', 'manual') are ever
-dunned -- 'trial' tenants have no bill to miss. A tenant is also skipped
-for its first billing_period (the calendar month it signed up in), since
-online signups already paid for that month at checkout (blueprints/
-billing.py) and nothing here should immediately dun a brand-new company.
+dunned -- 'trial' tenants have no bill to miss. Each company is billed per
+its own cycle (utils/billing_cycle.py): a period runs from its plan date to
+the same date next month. A tenant is skipped for its first period when it
+paid for it at signup checkout (blueprints/billing.py), so nothing here
+immediately duns a brand-new company.
 """
 import datetime
 from flask import Blueprint, request, jsonify, redirect, render_template, session, g as _g
@@ -25,8 +26,10 @@ from extensions import app, app_log, log_security_event
 from database import get_master_db
 from utils.auth import admin_required
 from utils.helpers import tpath, coerce_datetime, platform_today
+from utils.billing_cycle import anchor_from, period_start as cycle_period_start, first_period_prepaid, period_is_paid
 from utils.plan_limits import calculate_price, format_price_inr, get_tenant_employee_count
 from utils.email_utils import get_email_config, get_billing_emails, send_email_async
+from utils.tax_invoice import on_payment_completed
 from utils.razorpay_utils import (
     create_order as razorpay_create_order, verify_payment_signature,
     key_id as razorpay_key_id, create_id_or_demo, verify_or_demo, razorpay_configured, payments_enabled,
@@ -58,12 +61,12 @@ def _run_billing_check():
     if not payments_enabled():
         app_log.info("billing_dunning: online payments are switched off -- no bills chased, no accounts locked")
         return
-    period_start = platform_today().replace(day=1)
+    today = platform_today()
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
         "SELECT id, company_name, subdomain, db_name, payment_option, billing_state, "
-        "grace_period_ends_at, created_at FROM tenants "
+        "grace_period_ends_at, created_at, billing_anchor_date FROM tenants "
         "WHERE status='active' AND payment_option IN ('online', 'manual') "
         "AND schema_missing_tables IS NULL"  # its admins would be read from public (QA SEC-07)
     )
@@ -73,27 +76,29 @@ def _run_billing_check():
 
     for row in rows:
         (tenant_id, company_name, subdomain, db_name, payment_option,
-         billing_state, grace_ends_at, created_at) = row
+         billing_state, grace_ends_at, created_at, anchor_date) = row
         try:
             _check_one_tenant(tenant_id, company_name, db_name, billing_state,
-                              coerce_datetime(grace_ends_at), coerce_datetime(created_at), period_start)
+                              coerce_datetime(grace_ends_at), coerce_datetime(created_at), today,
+                              anchor_date=anchor_date)
         except Exception:
             app_log.exception(f"billing_dunning: check failed for tenant '{subdomain}'")
 
 
-def _check_one_tenant(tenant_id, company_name, db_name, billing_state, grace_ends_at, created_at, period_start):
-    # Signup month is covered by the checkout payment itself (blueprints/
-    # billing.py) -- dunning only applies from the tenant's second cycle on.
-    if created_at and created_at.date().replace(day=1) >= period_start:
+def _check_one_tenant(tenant_id, company_name, db_name, billing_state, grace_ends_at, created_at, today,
+                      anchor_date=None):
+    anchor, explicit = anchor_from(anchor_date, created_at, today)
+    if today < anchor:
+        return  # the plan hasn't started yet -- nothing is due
+    period_start = cycle_period_start(anchor, today)
+    # The first period is covered by the signup checkout payment itself
+    # (blueprints/billing.py) -- dunning only applies from the next one on.
+    if period_start == anchor and first_period_prepaid(anchor, explicit, created_at):
         return
 
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    cur.execute(
-        "SELECT 1 FROM monthly_invoices WHERE tenant_schema=%s AND billing_period=%s AND status='paid'",
-        (db_name, period_start)
-    )
-    paid = cur.fetchone() is not None
+    paid = period_is_paid(cur, db_name, period_start)
     cur.close()
     conn.close()
 
@@ -237,17 +242,25 @@ def create_overdue_order():
     tenant_db = _g.tenant_db
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
-    cur.execute("SELECT id, company_name FROM tenants WHERE db_name=%s", (tenant_db,))
+    cur.execute("SELECT id, company_name, billing_anchor_date, created_at, subscription_status "
+                "FROM tenants WHERE db_name=%s", (tenant_db,))
     row = cur.fetchone()
     if not row:
         cur.close()
         conn.close()
         return jsonify({"ok": False, "msg": "Tenant not found."}), 404
-    tenant_id, company_name = row
+    tenant_id, company_name, anchor_date, created_at, subscription_status = row
 
     employee_count = get_tenant_employee_count(tenant_db)
     amount_paise = calculate_price(employee_count)
-    period_start = platform_today().replace(day=1)
+    today = platform_today()
+    anchor, explicit = anchor_from(anchor_date, created_at, today)
+    if not explicit and subscription_status == "past_due":
+        # A trial that ended unpaid has no plan date yet: its plan starts
+        # the day it pays (set on the tenant once this order is paid).
+        period_start = today
+    else:
+        period_start = cycle_period_start(anchor, today)
 
     receipt_id = f"dunning_{tenant_db}_{int(datetime.datetime.now().timestamp())}"
     order_id, is_demo, error = create_id_or_demo(
@@ -322,7 +335,7 @@ def _mark_invoice_paid_and_unlock(razorpay_order_id, razorpay_payment_id, expect
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
-        "SELECT id, tenant_schema, status FROM monthly_invoices WHERE razorpay_order_id=%s",
+        "SELECT id, tenant_schema, status, billing_period FROM monthly_invoices WHERE razorpay_order_id=%s",
         (razorpay_order_id,)
     )
     row = cur.fetchone()
@@ -331,7 +344,7 @@ def _mark_invoice_paid_and_unlock(razorpay_order_id, razorpay_payment_id, expect
         conn.close()
         app_log.warning(f"billing_dunning: payment for unrecognized order {razorpay_order_id}")
         return False
-    invoice_id, tenant_schema, status = row
+    invoice_id, tenant_schema, status, billing_period = row
     if expected_tenant_db and tenant_schema != expected_tenant_db:
         cur.close()
         conn.close()
@@ -368,9 +381,12 @@ def _mark_invoice_paid_and_unlock(razorpay_order_id, razorpay_payment_id, expect
         # payer once it pays -- otherwise the next daily check re-locks it.
         "UPDATE tenants SET billing_state='current', grace_period_ends_at=NULL, locked_at=NULL, "
         "subscription_status=CASE WHEN subscription_status='past_due' THEN 'active' ELSE subscription_status END, "
-        "payment_option=CASE WHEN payment_option='trial' THEN 'manual' ELSE payment_option END "
+        "payment_option=CASE WHEN payment_option='trial' THEN 'manual' ELSE payment_option END, "
+        # ...and its plan date is the day it paid (create_overdue_order()).
+        "billing_anchor_date=CASE WHEN subscription_status='past_due' "
+        "THEN COALESCE(billing_anchor_date, %s) ELSE billing_anchor_date END "
         "WHERE db_name=%s",
-        (tenant_schema,)
+        (billing_period, tenant_schema)
     )
     conn.commit()
     cur.close()
@@ -381,6 +397,9 @@ def _mark_invoice_paid_and_unlock(razorpay_order_id, razorpay_payment_id, expect
         level="INFO",
     )
     _notify_tenant(tenant_schema, None, "reactivated")
+    on_payment_completed("invoice", invoice_id)
+    from blueprints.seats import reset_paid_seats
+    reset_paid_seats(tenant_schema)
     return True
 
 

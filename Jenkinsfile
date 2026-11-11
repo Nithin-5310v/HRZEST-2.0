@@ -2,7 +2,8 @@
 // (setup and day-to-day use: ci/jenkins/README.md).
 //
 //   develop: lint + tests -> deploy to the development copy (http://localhost:5050)
-//   main:    lint + tests -> wait for approval -> release that commit to production (EC2)
+//   main:    lint + tests -> merged GitHub PR with green Actions? -> wait for approval
+//            -> release that commit to production (EC2)
 //
 // Production only takes code that already ran in the development copy:
 // deploy_prod.ps1 refuses a commit whose files were never deployed there,
@@ -58,6 +59,21 @@ pipeline {
             }
           }
         }
+        stage('Merged on GitHub?') {
+          // Production is never offered for a direct push to main or a commit
+          // whose GitHub Actions failed: the build ends here, marked unstable.
+          when { branch 'main' }
+          steps {
+            script {
+              def status = powershell(returnStatus: true,
+                script: '.\\ci\\jenkins\\deploy_prod.ps1 -Commit $env:DEPLOY_SHA -CheckMerged')
+              env.RELEASABLE = (status == 0).toString()
+              if (status != 0) {
+                unstable("${env.DEPLOY_SHA.take(7)} is not a merged GitHub PR with passing checks: not offered for production.")
+              }
+            }
+          }
+        }
       }
     }
 
@@ -74,7 +90,10 @@ pipeline {
     }
 
     stage('Approve production') {
-      when { branch 'main' }
+      when {
+        branch 'main'
+        expression { env.RELEASABLE == 'true' }
+      }
       steps {
         script {
           def verified = env.DEV_VERIFIED == 'true'
@@ -97,6 +116,7 @@ pipeline {
       when {
         beforeAgent true
         branch 'main'
+        expression { env.RELEASABLE == 'true' }
       }
       agent any
       steps {

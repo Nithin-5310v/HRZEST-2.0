@@ -7,7 +7,7 @@ from extensions import app_log, limiter, log_security_event
 from flask import flash, jsonify, redirect, render_template, request, session
 from utils.auth import HR_ROLE, admin_required, generate_password_hash, record_password_change, role_required
 from utils.dlp import has_pii_clearance, mask_tail
-from utils.face_utils import _face_recognition_available, face_recognition
+from utils.face_utils import _face_recognition_available, face_recognition, detection_array
 from utils.helpers import (
     _audit,
     _db,
@@ -55,7 +55,7 @@ def admin_action():
         filepath = face_photo_path(emp_id)
         save_upload(file, filepath)
         if _face_recognition_available:
-            test_img = face_recognition.load_image_file(decrypted_stream(filepath))
+            test_img = detection_array(decrypted_stream(filepath))
             if not face_recognition.face_encodings(test_img):
                 os.remove(filepath)
                 flash("No face detected in the uploaded photo. Please upload a clear, well-lit front-facing photo.", "error")
@@ -288,6 +288,14 @@ def employee_profile(emp_id):
             if sh:
                 shift_name = f"{sh[0]} ({sh[1]} – {sh[2]})"
 
+        # Which HR manages this employee; the company admin can change it here.
+        from blueprints.hr_team import hr_choices, hr_label
+        cursor.execute("SELECT assigned_hr_username FROM employees WHERE employee_id=%s", (emp_id,))
+        assigned_hr = cursor.fetchone()[0]
+        assigned_hr_label = hr_label(cursor, assigned_hr)
+        can_reassign_hr = session.get("admin_role") == "admin"
+        hr_options = hr_choices(cursor) if can_reassign_hr else []
+
     return render_template("employee_profile.html",
                            emp=emp,
                            att=att,
@@ -300,7 +308,36 @@ def employee_profile(emp_id):
                            shift_name=shift_name,
                            today=today,
                            active_nav="employees",
+                           assigned_hr=assigned_hr, assigned_hr_label=assigned_hr_label,
+                           can_reassign_hr=can_reassign_hr, hr_options=hr_options,
                            )
+
+
+@employees_bp.route("/employee_profile/<emp_id>/assigned_hr", methods=["POST"])
+@role_required("admin")
+def employee_profile_assign_hr(emp_id):
+    """The company admin changes which HR manages this employee (or leaves
+    them unassigned). Only an HR with dashboard access can be chosen."""
+    from blueprints.hr_team import hr_label, is_assignable_hr
+    new_hr = request.form.get("assigned_hr_username", "").strip() or None
+    with _db() as (cursor, db):
+        cursor.execute("SELECT assigned_hr_username, name FROM employees WHERE employee_id=%s", (emp_id,))
+        row = cursor.fetchone()
+        if not row:
+            flash("Employee not found.", "error")
+            return redirect(tpath("/employees"))
+        prev_hr, name = row
+        if new_hr and not is_assignable_hr(cursor, new_hr):
+            flash("Choose an HR who has HR dashboard access.", "error")
+            return redirect(tpath(f"/employee_profile/{emp_id}"))
+        cursor.execute("UPDATE employees SET assigned_hr_username=%s WHERE employee_id=%s", (new_hr, emp_id))
+        db.commit()
+        label = hr_label(cursor, new_hr)
+    if new_hr != prev_hr:
+        _audit("reassign_employee_hr", "employees", emp_id,
+               f"assigned HR changed from {prev_hr or 'Unassigned'!r} to {new_hr or 'Unassigned'!r}")
+    flash(f"{name} is now managed by {label}." if new_hr else f"{name} no longer has an assigned HR.", "success")
+    return redirect(tpath(f"/employee_profile/{emp_id}"))
 
 
 @employees_bp.route("/edit_employee", methods=["POST"])
@@ -372,9 +409,8 @@ def edit_employee():
     if session.get("admin_role") != HR_ROLE:
         _new_hr_raw = request.form.get("assigned_hr_username", "").strip()
         if _new_hr_raw:
-            cursor.execute("SELECT 1 FROM admin_users WHERE username=%s AND role=%s AND COALESCE(is_active,1)=1",
-                           (_new_hr_raw, HR_ROLE))
-            if cursor.fetchone():
+            from blueprints.hr_team import is_assignable_hr
+            if is_assignable_hr(cursor, _new_hr_raw):
                 _reassign_sql = ", assigned_hr_username=%s"
                 _reassign_params = (_new_hr_raw,)
                 _new_hr = _new_hr_raw

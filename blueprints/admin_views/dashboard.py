@@ -3,7 +3,7 @@
 import datetime
 import utils.config as cfg
 from database import get_db_connection
-from flask import jsonify, render_template, request, session
+from flask import g, jsonify, render_template, request, session
 from utils.auth import admin_required, role_required
 from utils.helpers import (
     co_scope_column,
@@ -12,6 +12,7 @@ from utils.helpers import (
     contact_lookup_keys,
     get_pending_action_counts,
 )
+from utils.payment_history import get_payment_history, get_plan_details
 from . import admin_views_bp
 
 
@@ -123,7 +124,18 @@ def admin():
     db.close()
     shift = cfg.shift_rules()
 
+    # Plan dates and the latest payments with their invoices -- company
+    # admins only, the same people the billing emails go to.
+    plan, recent_payments = None, []
+    if session.get("admin_role", "admin") == "admin" and getattr(g, "tenant_db", None):
+        plan = get_plan_details(g.tenant_db)
+        if plan:
+            recent_payments = get_payment_history(tenant_id=plan["tenant_id"], tenant_schema=g.tenant_db,
+                                                  limit=5)["payments"]
+
     return render_template("admin.html",
+                           plan=plan,
+                           recent_payments=recent_payments,
                            total=total,
                            present=present,
                            absent=total - present,

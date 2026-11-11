@@ -1,0 +1,87 @@
+    {# ── ATTENDANCE PANEL ── #}
+    <div class="s3-panel active" id="s3panel-org">
+    <div class="subnav-bar">
+      <div class="subnav-dd-wrap">
+        <button class="subnav-dd-btn" data-on-click="toggleDd('dd-org')">
+          <div class="lines"><span></span><span></span><span></span></div>
+          Sections
+        </button>
+        <div class="subnav-dd-menu" id="dd-org">
+          <button class="subnav-dd-item active" id="ddi-attendance" data-on-click="switchSub('org','attendance')"><i class="ti ti-fingerprint"></i> Attendance</button>
+        </div>
+      </div>
+    </div>
+
+          {# ATTENDANCE #}
+          <div class="s3-section active" id="ss-attendance">
+            <div class="sec-header">
+              <div class="sec-icon u-bg-f0fdf4"><i class="ti ti-fingerprint u-c-16a34a u-fs-20"></i></div>
+              <div><div class="sec-title">Attendance Methods</div><div class="sec-sub">Enable or disable each punch-in method</div></div>
+            </div>
+            <div class="u-d-grid u-gtc-1fr-1fr u-gap-14">
+
+              {# Face Auth #}
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-26 u-h-26 u-br-8 u-bg-fef3c7 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-face-id u-fs-13 u-c-d97706"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Face Authentication</div><div class="u-fs-12 u-c-64748b u-mt-2">Selfie punch-in via mobile app</div></div>
+                  </div>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.face_auth %}checked{% endif %} data-on-change="saveToggle('face_auth_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              {# Geo-fencing #}
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-26 u-h-26 u-br-8 u-bg-dcfce7 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-map-pin u-fs-13 u-c-16a34a"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Geo-fencing</div><div class="u-fs-12 u-c-64748b u-mt-2">Restrict punch-in by GPS radius</div></div>
+                  </div>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.geo %}checked{% endif %} data-on-change="saveToggle('geo_enabled',this.checked,'extra_geo')" /><span class="toggle-slider"></span></label>
+                </div>
+                <div id="extra_geo" style="display:{% if features.geo %}flex{% else %}none{% endif %};align-items:center;gap:8px;padding:10px 12px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;flex-wrap:wrap;">
+                  <form class="u-d-flex u-ai-center u-gap-8 u-fxw-wrap u-w-100pct" method="POST" action="{{ tpath('/save_geo_radius') }}">
+                    <i class="ti ti-current-location u-c-16a34a u-fs-15"></i>
+                    <label class="u-fs-12 u-fw-700 u-c-15803d">Radius</label>
+                    <input class="u-w-72 u-p-5-9 u-bd-1-solid-86efac u-br-7 u-fs-13 u-fw-600" type="number" name="geo_radius" value="{{ features.geo_radius }}" min="50" max="5000" />
+                    <span class="u-fs-12 u-c-64748b">metres</span>
+                    <label class="u-fs-12 u-fw-700 u-c-15803d">Office lat/lon</label>
+                    <input class="u-w-90 u-p-5-9 u-bd-1-solid-86efac u-br-7 u-fs-13 u-fw-600" type="number" step="any" name="office_lat" value="{{ features.office_lat if features.office_lat is not none else '' }}" placeholder="Latitude" />
+                    <input class="u-w-90 u-p-5-9 u-bd-1-solid-86efac u-br-7 u-fs-13 u-fw-600" type="number" step="any" name="office_lon" value="{{ features.office_lon if features.office_lon is not none else '' }}" placeholder="Longitude" />
+                    <button type="button" class="u-p-5-9 u-bd-1-solid-86efac u-br-7 u-bg-fff u-c-15803d u-fs-12 u-fw-700 u-cur-pointer"
+                            data-on-click="useCurrentOfficeLocation()">
+                      <i class="ti ti-map-pin-filled"></i> Use current location
+                    </button>
+                    <span class="u-fs-11 u-c-64748b u-w-100pct">Leave blank to disable distance checking even while Geo-fencing is on.</span>
+                    <button class="u-ml-auto u-p-5-14 u-bd-none u-br-7 u-bg-16a34a u-c-fff u-fs-12 u-fw-700 u-cur-pointer" type="submit">Save</button>
+                  </form>
+                </div>
+              </div>
+
+              {# QR Code #}
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-26 u-h-26 u-br-8 u-bg-ede9fe u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-qrcode u-fs-13 u-c-7c3aed"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">QR Code</div><div class="u-fs-12 u-c-64748b u-mt-2">Scan unique QR code to punch in</div></div>
+                  </div>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.qr %}checked{% endif %} data-on-change="saveToggle('qr_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+              {# Fingerprint #}
+              <div class="u-bg-fff u-bd-1d5-solid-e2e8f0 u-br-14 u-p-18 u-d-flex u-fxd-column u-gap-14 u-trs-border-color-d15s">
+                <div class="u-d-flex u-ai-flex-start u-jc-space-between u-gap-12">
+                  <div class="u-d-flex u-ai-center u-gap-12">
+                    <div class="u-w-26 u-h-26 u-br-8 u-bg-fee2e2 u-d-flex u-ai-center u-jc-center u-fxs-0"><i class="ti ti-fingerprint u-fs-13 u-c-dc2626"></i></div>
+                    <div><div class="u-fs-14 u-fw-700 u-c-0f172a">Fingerprint</div><div class="u-fs-12 u-c-64748b u-mt-2">Physical fingerprint reader device</div></div>
+                  </div>
+                  <label class="toggle u-fxs-0 u-mt-2"><input type="checkbox" {% if features.fingerprint %}checked{% endif %} data-on-change="saveToggle('fingerprint_enabled',this.checked)" /><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+    </div>

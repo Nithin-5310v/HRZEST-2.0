@@ -87,6 +87,9 @@
     .info-row:last-child { margin-bottom: 0; }
     .info-label { font-size: 14px; color: #94a3b8; font-weight: 600; width: 130px; flex-shrink: 0; padding-top: 1px; }
     .info-value { font-size: 16px; color: #1e293b; font-weight: 500; word-break: break-word; }
+    .hr-assign { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .hr-assign select { max-width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14.5px; background: #fff; }
+    .hr-assign button { padding: 6px 12px; border: none; border-radius: 8px; background: #1e3a8a; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; }
 
     /* Leave pills */
     .leave-pills { display: flex; flex-direction: column; gap: 8px; }
@@ -279,6 +282,25 @@
         <span class="info-value">{{ emp[10] }}</span>
       </div>
       {% endif %}
+      <div class="info-row">
+        <span class="info-label">Assigned HR</span>
+        <span class="info-value">
+          {% if can_reassign_hr %}
+          <form class="hr-assign" method="POST" action="{{ tpath('/employee_profile/' ~ emp[0] ~ '/assigned_hr') }}">
+            <select name="assigned_hr_username" aria-label="Assigned HR">
+              <option value="">— No HR assigned —</option>
+              {% for hr_username, hr_option_label in hr_options %}
+                <option value="{{ hr_username }}" {{ 'selected' if hr_username == assigned_hr }}>{{ hr_option_label }}</option>
+              {% endfor %}
+              {% if assigned_hr and assigned_hr not in hr_options|map('first')|list %}
+                <option value="{{ assigned_hr }}" selected disabled>{{ assigned_hr_label }} (no dashboard access)</option>
+              {% endif %}
+            </select>
+            <button type="submit">Save</button>
+          </form>
+          {% elif assigned_hr %}{{ assigned_hr_label }}{% else %}<span style="color:#94a3b8;">Unassigned</span>{% endif %}
+        </span>
+      </div>
       <div class="info-row">
         <span class="info-label">Work Mode</span>
         <span class="info-value">

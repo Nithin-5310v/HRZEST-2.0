@@ -1,0 +1,27 @@
+    {# ================================================================
+         UPDATE PHOTO MODAL
+    ================================================================ #}
+    <div class="modal-backdrop" id="photoModal">
+      <div class="modal-box u-maxw-380">
+        <button class="modal-close" data-on-click="closeModal('photoModal')">&times;</button>
+        <h3><i class="ti ti-camera u-c-92400e"></i> Update Photo</h3>
+        <p class="u-fs-13 u-c-64748b u-mb-16" id="photoModalSubtitle"></p>
+        <form id="photoForm" action="" method="POST" enctype="multipart/form-data">
+          <div class="photo-upload-box" data-on-click="HZ.click('photoFileInput')">
+            <i class="ti ti-camera-plus u-fs-28 u-c-f59e0b"></i>
+            <div class="u-fs-13 u-c-64748b u-mt-6">Click to choose new photo</div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-2">Face must be clearly visible</div>
+            <div class="u-fs-11 u-c-94a3b8 u-mt-2">JPG, PNG, WEBP or BMP &middot; up to 5 MB &middot; at least 200 &times; 200 px</div>
+            <input type="file" id="photoFileInput" name="face" accept="image/*" required
+                   data-on-change="previewPhoto(this,'photoPreviewImg')" />
+            <img id="photoPreviewImg" class="photo-preview u-d-none" alt="Preview" />
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="btn-save u-bg-92400e">
+              <i class="ti ti-upload"></i> Upload Photo
+            </button>
+            <button type="button" class="btn-cancel" data-on-click="closeModal('photoModal')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>

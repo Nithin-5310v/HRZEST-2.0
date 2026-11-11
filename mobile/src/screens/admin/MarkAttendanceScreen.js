@@ -14,7 +14,11 @@ import SafeAreaView from "../../components/SafeAreaView";
 import { DrawerActions } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import DateTimePicker from "react-native-date-picker";
+// Expo SDK's own picker: rendering it opens the system date/time dialog on
+// Android; onChange reports "set" (OK) or "dismissed" (Cancel). Replaced
+// react-native-date-picker, whose build.gradle the SDK 58 Android tools
+// (AGP 9) refuse, and which never worked in Expo Go.
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
 
 import AdminHeader from "../../components/admin/AdminHeader";
@@ -490,29 +494,37 @@ export default function MarkAttendanceScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Date Picker Modal */}
-        <DateTimePicker
-          modal
-          open={datePickerOpen}
-          date={selectedDate}
-          mode="date"
-          maximumDate={new Date()}
-          onConfirm={(d) => {
-            setSelectedDate(d);
-            setDatePickerOpen(false);
-          }}
-          onCancel={() => setDatePickerOpen(false)}
-        />
+        {/* Date picker dialog */}
+        {datePickerOpen && (
+          <DateTimePicker
+            testID="attendanceDatePicker"
+            value={selectedDate}
+            mode="date"
+            maximumDate={new Date()}
+            onChange={(event, d) => {
+              setDatePickerOpen(false);
+              if (event?.type === "set" && d) setSelectedDate(d);
+            }}
+          />
+        )}
 
-        {/* Time Picker Modal */}
-        <DateTimePicker
-          modal
-          open={timePickerOpen}
-          date={tempTime}
-          mode="time"
-          onConfirm={handleTimeConfirm}
-          onCancel={() => setTimePickerOpen(false)}
-        />
+        {/* Time picker dialog */}
+        {timePickerOpen && (
+          <DateTimePicker
+            testID="attendanceTimePicker"
+            value={tempTime}
+            mode="time"
+            is24Hour
+            onChange={(event, t) => {
+              if (event?.type === "set" && t) {
+                handleTimeConfirm(t);
+              } else {
+                setTimePickerOpen(false);
+                setTimePickerField(null);
+              }
+            }}
+          />
+        )}
       </SafeAreaView>
     </LinearGradient>
   );
