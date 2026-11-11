@@ -166,7 +166,8 @@ def add_employee_seat_cap_check(cursor=None) -> str:
             # process-wide lock, so no additional locking is needed.
             cursor.execute("SELECT id FROM company_settings ORDER BY id LIMIT 1 FOR UPDATE")
 
-        cursor.execute("SELECT COUNT(*) FROM employees")
+        from utils.plan_limits import BILLABLE_EMPLOYEES_SQL
+        cursor.execute(BILLABLE_EMPLOYEES_SQL)  # the owner admin's own profile is free
         current = cursor.fetchone()[0]
     except Exception:
         return None  # fail open -- a transient DB hiccup shouldn't block registration

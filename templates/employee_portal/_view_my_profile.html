@@ -509,7 +509,15 @@
           </div>
         </form>
 
-        {# CHANGE PASSWORD #}
+        {# CHANGE PASSWORD -- not for the owner admin's own profile
+           (utils/own_profile.py): they sign in with their admin login, whose
+           password is changed from Settings. #}
+        {% if (session.get('admin_logged_in') and session.get('admin_role') == 'admin') or session.get('_hr_return_role') == 'admin' %}
+        <div class="section u-mt-22">
+          <h3><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Password</h3>
+          <p class="u-fs-14 u-c-64748b u-m-0">You sign in with your admin account, so there's no separate employee password. Change your password from Settings.</p>
+        </div>
+        {% else %}
         <div class="section u-mt-22">
           <h3><i class="ti ti-lock hz-ico" aria-hidden="true"></i> Change Password</h3>
           {% if request.args.get('pwd_ok') %}
@@ -542,6 +550,7 @@
             </div>
           </form>
         </div>
+        {% endif %}
 
         {% if fp_enabled %}
         {# FINGERPRINT ENROLLMENT #}

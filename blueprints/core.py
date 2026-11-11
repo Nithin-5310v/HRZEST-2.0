@@ -988,8 +988,15 @@ def my_workspace():
     from blueprints.performance import _build_performance_context
     from blueprints.onboarding import _build_onboarding_context
     from utils.helpers.rbac import list_roles
-    emp_id = session.get("admin_username")
-    ctx = _build_portal_context(emp_id)
+    from utils.helpers.urls import self_service_emp_id
+    # A role-holder's username is their employee_id; the owner admin's is
+    # the profile they created from the Organization page, if any.
+    emp_id = self_service_emp_id()
+    ctx = _build_portal_context(emp_id) if emp_id else None
+    if ctx is None and session.get("admin_role") == "admin":
+        flash("Create your employee profile first (Your details, below), then My Workspace "
+              "lets you mark your own attendance.", "info")
+        return redirect(tpath("/profile") + "#my-employee-profile")
     if ctx is None:
         flash("No personal profile is linked to this account.", "error")
         return redirect(tpath("/admin"))

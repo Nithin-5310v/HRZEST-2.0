@@ -127,15 +127,25 @@ def invalidate_extra_cost_cache():
         entry["checked_at"] = 0.0
 
 
+# Employees a company pays for: everyone except the owner admin's own
+# profile (utils/own_profile.py), which is free and never takes a seat or a
+# trial slot. Shared by the seat count, the seat cap and the paid-seat reset
+# so they can't disagree.
+BILLABLE_EMPLOYEES_SQL = (
+    "SELECT COUNT(*) FROM employees WHERE employee_id NOT IN "
+    "(SELECT linked_employee_id FROM admin_users WHERE linked_employee_id IS NOT NULL)"
+)
+
+
 def get_tenant_employee_count(schema_name: str) -> int:
-    """Live employee count for a tenant schema -- the sole input to billing
-    now. Fails to 0 on any DB error rather than raising, since this is used
-    in dashboard/pricing display contexts that shouldn't 500 on a transient
-    connection hiccup."""
+    """Live count of a tenant's billable employees (BILLABLE_EMPLOYEES_SQL)
+    -- the sole input to billing now. Fails to 0 on any DB error rather than
+    raising, since this is used in dashboard/pricing display contexts that
+    shouldn't 500 on a transient connection hiccup."""
     try:
         conn = get_tenant_db(schema_name)
         cur = conn.cursor(buffered=True)
-        cur.execute("SELECT COUNT(*) FROM employees")
+        cur.execute(BILLABLE_EMPLOYEES_SQL)
         count = cur.fetchone()[0]
         cur.close()
         conn.close()
