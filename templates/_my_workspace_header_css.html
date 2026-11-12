@@ -1,0 +1,72 @@
+{# Header + tab-bar styles shared by my_workspace.html and the admin's
+   first-time my_workspace_setup.html, inside each page's <style>. #}
+      /* ── Page header + tab bar ── one palette, matched to the admin shell's
+         blue banner, shared by the header and the Overview tab. */
+      .wks { --wk-brand: #1d4ed8; --wk-brand-2: #2563eb; --wk-ink: #0f172a; --wk-body: #334155;
+             --wk-muted: #64748b; --wk-faint: #94a3b8; --wk-line: #e4e8f0; --wk-soft: #f6f8fc; --wk-card: #fff; }
+      body.dark-mode .wks { --wk-ink: #e6edf3; --wk-body: #c9d1d9; --wk-muted: #8b949e; --wk-faint: #6e7681;
+                            --wk-line: #30363d; --wk-soft: #0d1117; --wk-card: #161b22; }
+      /* The employee portal's own search box -- the admin shell already has navigation. */
+      .wks .emp-search-row { display: none; }
+
+      .wks-profile { position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 18px;
+                     background: linear-gradient(120deg, #1e3a8a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff;
+                     box-shadow: 0 10px 30px -12px rgba(29,78,216,.45); }
+      .wks-profile::after { content: ""; position: absolute; right: -80px; top: -120px; width: 340px; height: 340px;
+                            border-radius: 50%; background: radial-gradient(closest-side, rgba(255,255,255,.14), transparent); pointer-events: none; }
+      .wks-profile-main { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+                          gap: 20px; flex-wrap: wrap; padding: 24px 26px 20px; }
+      .wks-id { display: flex; align-items: center; gap: 16px; min-width: 0; }
+      .wks-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+                    border: 3px solid rgba(255,255,255,.35); }
+      .wks-avatar-ph { display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.16);
+                       color: #fff; font-size: 24px; font-weight: 800; letter-spacing: .5px; }
+      .wks-eyebrow { font-size: 12.5px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; opacity: .75; }
+      /* !important: admin-theme.css styles every .main h1 with the page ink colour. */
+      .wks .wks-name { font-size: 24px; font-weight: 800; line-height: 1.2; margin: 2px 0 4px; color: #fff !important; }
+      .wks-title { font-size: 14px; opacity: .88; }
+      .wks-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .wks-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 10px;
+                 font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; border: 1px solid transparent;
+                 transition: background .15s, border-color .15s, color .15s; white-space: nowrap; }
+      .wks-btn-light { background: #fff; color: #1d4ed8; }
+      .wks-btn-light:hover { background: #eff6ff; }
+      .wks-btn-ghost { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.28); }
+      .wks-btn-ghost:hover { background: rgba(255,255,255,.18); }
+      .wks-btn-primary { background: var(--wk-brand); color: #fff; }
+      .wks-btn-primary:hover { background: #1e40af; }
+      .wks-facts { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px 26px; padding: 13px 26px;
+                   background: rgba(15,23,42,.18); border-top: 1px solid rgba(255,255,255,.12); font-size: 13.5px; }
+      .wks-fact { display: inline-flex; align-items: center; gap: 7px; color: rgba(255,255,255,.92); }
+      .wks-fact i { font-size: 16px; opacity: .7; }
+      .wks-fact b { font-weight: 700; }
+      .wks-role { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px;
+                  background: rgba(255,255,255,.16); font-weight: 700; font-size: 12.5px; }
+
+      .wks-tabs-wrap { position: relative; margin-bottom: 20px; border-bottom: 1px solid var(--wk-line); }
+      .wks-tabs { display: flex; align-items: stretch; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+      .wks-tabs::-webkit-scrollbar { display: none; }
+      .wtab { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 12px 11px;
+              border: none; background: none; color: var(--wk-muted); font-size: 13.5px; font-weight: 600;
+              font-family: inherit; cursor: pointer; white-space: nowrap; transition: color .15s; }
+      .wtab i { font-size: 16px; }
+      .wtab::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px;
+                     border-radius: 2px 2px 0 0; background: transparent; transition: background .15s; }
+      .wtab:hover { color: var(--wk-ink); }
+      .wtab.active { color: var(--wk-brand); }
+      .wtab.active::after { background: var(--wk-brand); }
+      .wtab:focus-visible { outline: 2px solid var(--wk-brand-2); outline-offset: -2px; border-radius: 8px; }
+      .wtab-sep { flex: 1 0 12px; }
+      .wtab-danger:hover, .wtab-danger.active { color: #dc2626; }
+      .wtab-danger.active::after { background: #dc2626; }
+      body.dark-mode .wtab.active { color: #79b8ff !important; }
+      body.dark-mode .wtab.active::after { background: #79b8ff !important; }
+
+      @media (max-width: 760px) {
+        .wks-profile-main { padding: 20px; }
+        .wks-facts { padding: 12px 20px; }
+        .wks .wks-name { font-size: 20px; }
+        .wks-actions { width: 100%; }
+        .wks-actions .wks-btn { flex: 1; justify-content: center; }
+      }
+

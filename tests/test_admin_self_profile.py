@@ -54,11 +54,25 @@ def _jpeg(size=(400, 400)):
 
 
 class TestBeforeTheProfileExists:
-    def test_my_workspace_sends_the_owner_to_the_setup_card(self, client, owner):
+    def test_my_workspace_shows_the_owner_a_setup_card(self, client, owner):
+        """No bounce to the Organization page: My Workspace itself asks for the
+        work details, showing what it takes from Your details."""
         _owner(client, owner)
         resp = client.get("/my_workspace")
-        assert resp.status_code == 302
-        assert resp.headers["Location"].endswith("/profile#my-employee-profile")
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert "Set up your workspace" in html and "Asha Owner" in html
+        assert 'name="next" value="workspace"' in html
+
+    def test_creating_it_from_my_workspace_opens_the_workspace(self, client, db_engine, owner):
+        _owner(client, owner)
+        resp = client.post("/profile/my_employee", data={"work_mode": "office", "next": "workspace"})
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/my_workspace")
+        emp_id = _linked(db_engine, owner["username"])
+        assert emp_id
+        page = client.get("/my_workspace")
+        html = page.get_data(as_text=True)
+        assert page.status_code == 200 and emp_id in html and "Set up your workspace" not in html
 
     def test_organization_page_offers_to_create_it(self, client, owner):
         _owner(client, owner)

@@ -99,11 +99,11 @@ class TestMyWorkspace:
         resp = client.get("/my_workspace")
         assert resp.status_code == 200 and b"Owner Admin" in resp.data
 
-    def test_company_admin_without_a_profile_is_led_to_create_one(self, client, seed_admin):
+    def test_company_admin_without_a_profile_sets_it_up_there(self, client, seed_admin):
         _login(client, seed_admin["username"], "admin")
         assert WORKSPACE in client.get("/admin").data
         resp = client.get("/my_workspace")
-        assert resp.status_code == 302 and resp.headers["Location"].endswith("/profile#my-employee-profile")
+        assert resp.status_code == 200 and b"Set up your workspace" in resp.data
 
 
 class TestCompanyAdmin:

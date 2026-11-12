@@ -994,6 +994,26 @@ def api_employee_signup():
         return jsonify({"ok": False, "msg": "Could not register employee. Please try again."}), 500
 
 
+def _render_workspace_setup():
+    """The company admin's My Workspace before they have an employee profile:
+    the same header, and a card that creates it from Organization -> Your
+    details (templates/my_workspace_setup.html) instead of sending them off
+    to the Organization page."""
+    with _db() as (cursor, _conn):
+        cursor.execute("SELECT display_name, email, mobile, job_title FROM admin_users WHERE username=%s",
+                       (session.get("admin_username"),))
+        name, email, mobile, job_title = cursor.fetchone() or (None, None, None, None)
+        cursor.execute("SELECT DISTINCT department FROM employees "
+                       "WHERE department IS NOT NULL AND department <> '' ORDER BY department")
+        departments = [r[0] for r in cursor.fetchall()]
+    return render_template(
+        "my_workspace_setup.html", active_nav="my_workspace", co=get_company_settings(),
+        admin_name=(name or "").strip(), admin_email=email or "", admin_mobile=mobile or "",
+        admin_job_title=job_title or "", own_departments=departments,
+        today_iso=company_today().isoformat(),
+    )
+
+
 @core_bp.route("/my_workspace")
 @admin_required
 def my_workspace():
@@ -1029,9 +1049,7 @@ def my_workspace():
     emp_id = self_service_emp_id()
     ctx = _build_portal_context(emp_id) if emp_id else None
     if ctx is None and session.get("admin_role") == "admin":
-        flash("Create your employee profile first (Your details, below), then My Workspace "
-              "lets you mark your own attendance.", "info")
-        return redirect(tpath("/profile") + "#my-employee-profile")
+        return _render_workspace_setup()
     if ctx is None:
         flash("No personal profile is linked to this account.", "error")
         return redirect(tpath("/admin"))

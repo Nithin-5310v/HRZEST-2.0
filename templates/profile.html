@@ -442,7 +442,7 @@
         </div>
       </section>
 
-      <section class="org-panel zf-card{{ ' editing' if _setup }}">
+      <section class="org-panel zf-card{{ ' editing' if _setup }}" id="your-details">
         <div class="zf-card-head"><span class="zf-card-icon"><i class="ti ti-user"></i></span><div><h2>Your details</h2><p>The admin for this organization.</p></div>{% if not _setup %}<button type="button" class="zf-edit" data-card-edit><i class="ti ti-pencil"></i> Edit</button>{% endif %}</div>
         <dl class="zf-view">
           <div><dt>Full name</dt><dd>{{ admin_display_name or na }}</dd></div>

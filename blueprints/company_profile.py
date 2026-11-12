@@ -428,7 +428,10 @@ def my_employee_profile_create():
     not a paid seat and doesn't count toward the trial's employee limit
     (BILLABLE_EMPLOYEES_SQL), so there's no seat check here. Its employee
     password is random and never shown: the admin login is the only way in."""
-    back = tpath("/profile") + "#my-employee-profile"
+    # Posted from My Workspace's setup card (templates/my_workspace_setup.html)
+    # or the Organization page's own card: answer back on the same page.
+    from_workspace = request.form.get("next") == "workspace"
+    back = tpath("/my_workspace") if from_workspace else tpath("/profile") + "#my-employee-profile"
     username = session.get("admin_username")
     if session.get("admin_role") != OWNER_ROLE:
         flash("Only the company's admin can create a profile here. HR and managers already have My Workspace.",
@@ -514,8 +517,11 @@ def my_employee_profile_create():
 
     _audit("create_own_employee_profile", "employees", emp_id,
            f"Admin {username} created their own employee profile {emp_id}")
-    flash(f"Your employee profile is ready (Employee ID {emp_id}). Use 'Open my employee "
-          "dashboard' below to mark your attendance.", "success")
+    if from_workspace:
+        flash(f"Your workspace is ready (Employee ID {emp_id}). You can mark your attendance now.", "success")
+    else:
+        flash(f"Your employee profile is ready (Employee ID {emp_id}). Use 'Open my employee "
+              "dashboard' below to mark your attendance.", "success")
     return redirect(back)
 
 

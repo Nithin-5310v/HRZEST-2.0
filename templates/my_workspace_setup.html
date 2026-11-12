@@ -1,0 +1,133 @@
+{% extends "admin_base.html" %}
+
+{# The company admin's My Workspace before they have an employee profile of
+   their own (blueprints/core.py's my_workspace()). Same header as the real
+   workspace; the card below creates the profile through the Organization
+   page's own route (company_profile.my_employee_profile_create, next=
+   workspace), using the name, email and mobile from Organization -> Your
+   details, and comes straight back here as the full workspace. #}
+
+{% block title %}My Workspace{% endblock %}
+
+{% block page_css %}
+    <style>
+      {% include "_my_workspace_header_css.html" %}
+
+      .wsu-card { background: var(--wk-card); border: 1px solid var(--wk-line); border-radius: 16px; padding: 24px 26px;
+                  box-shadow: 0 1px 2px rgba(16,24,40,.04); max-width: 920px; }
+      .wsu-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+      .wsu-ico { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; display: inline-flex; align-items: center;
+                 justify-content: center; background: #eff6ff; color: #1d4ed8; font-size: 22px; }
+      .wks .wsu-head h2 { margin: 0; font-size: 18px; font-weight: 800; color: var(--wk-ink); }
+      .wks .wsu-head p { margin: 4px 0 0; font-size: 14px; color: var(--wk-muted); line-height: 1.55; }
+      .wsu-from { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+      .wsu-from div { padding: 12px 14px; border-radius: 10px; background: var(--wk-soft); min-width: 0; }
+      .wsu-from span { display: block; font-size: 12px; font-weight: 600; color: var(--wk-muted); }
+      .wsu-from b { display: block; margin-top: 3px; font-size: 14.5px; color: var(--wk-ink); overflow-wrap: anywhere; }
+      .wsu-section { font-size: 13px; font-weight: 700; color: var(--wk-ink); margin: 0 0 10px; }
+      .wsu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+      .wsu-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+      .wsu-field-wide { grid-column: 1 / -1; }
+      .wks .wsu-field label { font-size: 13px; font-weight: 600; color: var(--wk-body); }
+      .wsu-field input, .wsu-field select { width: 100%; padding: 10px 12px; border: 1px solid var(--wk-line); border-radius: 10px;
+                                            background: var(--wk-card); color: var(--wk-ink); font: inherit; font-size: 14px; }
+      .wsu-field input:focus, .wsu-field select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+      .wks .wsu-hint { font-size: 12.5px; color: var(--wk-faint); }
+      .wsu-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+                  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--wk-line); }
+      .wks .wsu-note { font-size: 13px; color: var(--wk-muted); display: inline-flex; align-items: center; gap: 6px; }
+      .wsu-link { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+      .wsu-link:hover { text-decoration: underline; }
+      .wsu-alert { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; flex-wrap: wrap;
+                   background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: 14px; }
+      body.dark-mode .wsu-ico, body.dark-mode .wsu-alert { background: #1c2330; border-color: #30363d; color: #79b8ff; }
+      @media (max-width: 760px) {
+        .wsu-card { padding: 20px; }
+        .wsu-from, .wsu-grid { grid-template-columns: minmax(0, 1fr); }
+      }
+    </style>
+{% endblock %}
+
+{% block main %}
+      <div class="wks">
+      <section class="wks-profile" aria-label="My Workspace">
+        <div class="wks-profile-main">
+          <div class="wks-id">
+            <span class="wks-avatar wks-avatar-ph" aria-hidden="true">{{ (admin_name or 'A')[:1]|upper }}</span>
+            <div>
+              <div class="wks-eyebrow">My Workspace</div>
+              <h1 class="wks-name">{{ admin_name or 'Administrator' }}</h1>
+              <div class="wks-title">{{ admin_job_title or 'Administrator' }} &middot; {{ co.company_name }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="wks-facts">
+          <span class="wks-fact"><span class="wks-role"><i class="ti ti-shield-check"></i> Administrator</span></span>
+          {% if admin_email %}<span class="wks-fact"><i class="ti ti-mail"></i> {{ admin_email }}</span>{% endif %}
+          {% if admin_mobile %}<span class="wks-fact"><i class="ti ti-phone"></i> {{ admin_mobile }}</span>{% endif %}
+        </div>
+      </section>
+
+      <section class="wsu-card" aria-labelledby="wsu-title">
+        <div class="wsu-head">
+          <span class="wsu-ico" aria-hidden="true"><i class="ti ti-user-plus"></i></span>
+          <div>
+            <h2 id="wsu-title">Set up your workspace</h2>
+            <p>As the admin you're an employee too. Your workspace lets you mark your own attendance, apply for leave and see your payslips. It's free and doesn't use a paid seat.</p>
+          </div>
+        </div>
+
+        {% if not admin_name %}
+        <div class="wsu-alert">
+          <i class="ti ti-info-circle" aria-hidden="true"></i>
+          <span>Add your full name under <b>Organization &rarr; Your details</b> first. Your workspace uses it.</span>
+          <a class="wks-btn wks-btn-primary" href="{{ tpath('/profile') }}#your-details">Go to Your details</a>
+        </div>
+        {% else %}
+        <div class="wsu-section">From Organization &rarr; Your details</div>
+        <div class="wsu-from">
+          <div><span>Full name</span><b>{{ admin_name }}</b></div>
+          <div><span>Email</span><b>{{ admin_email or '—' }}</b></div>
+          <div><span>Mobile</span><b>{{ admin_mobile or '—' }}</b></div>
+        </div>
+
+        <form method="POST" action="{{ tpath('/profile/my_employee') }}" enctype="multipart/form-data">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <input type="hidden" name="next" value="workspace" />
+          <div class="wsu-section">Your work details</div>
+          <div class="wsu-grid">
+            <div class="wsu-field">
+              <label for="wsu-designation">Designation</label>
+              <input type="text" id="wsu-designation" name="designation" value="{{ admin_job_title }}" maxlength="100" placeholder="e.g. Managing Director">
+            </div>
+            <div class="wsu-field">
+              <label for="wsu-department">Department</label>
+              <input type="text" id="wsu-department" name="department" maxlength="100" list="wsu-department-list" placeholder="e.g. Management">
+              <datalist id="wsu-department-list">{% for d in own_departments %}<option value="{{ d }}">{% endfor %}</datalist>
+            </div>
+            <div class="wsu-field">
+              <label for="wsu-doj">Date of joining</label>
+              <input type="date" id="wsu-doj" name="date_of_joining" value="{{ today_iso }}">
+            </div>
+            <div class="wsu-field">
+              <label for="wsu-work-mode">Work mode</label>
+              <select id="wsu-work-mode" name="work_mode">
+                <option value="office" selected>Office</option>
+                <option value="wfh">Work from Home</option>
+              </select>
+            </div>
+            <div class="wsu-field wsu-field-wide">
+              <label for="wsu-face">Face photo <span class="wsu-hint">(optional)</span></label>
+              <input type="file" id="wsu-face" name="face" accept=".jpg,.jpeg,.png,.webp,.bmp">
+              <span class="wsu-hint">Needed only for face check-in. JPG, PNG, WEBP or BMP &middot; up to 5 MB &middot; at least 200 &times; 200 px.</span>
+            </div>
+          </div>
+          <div class="wsu-foot">
+            <span class="wsu-note"><i class="ti ti-pencil" aria-hidden="true"></i> Wrong name or contact? <a class="wsu-link" href="{{ tpath('/profile') }}#your-details">Edit Your details</a></span>
+            <button class="wks-btn wks-btn-primary" type="submit"><i class="ti ti-check"></i> Create my workspace</button>
+          </div>
+        </form>
+        {% endif %}
+      </section>
+      </div>
+{% endblock %}
