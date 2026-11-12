@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """helpers: role-based access (RBAC) for admin-side feature modules.
 
-A company defines its own roles -- custom names on top of one of the four
-base types (admin/hr/manager/employee) -- in Settings -> Roles & Access, and
-sets each role's access per module to one of 'none' / 'view' / 'edit'. The
-four system roles are seeded in migrations/core_tables.py; this module reads
-the role_permissions table those seeds (and the Settings screen) populate.
+Only two dashboards are fixed: Administrator and Employee (the two system
+roles seeded in migrations/core_tables.py). Every other role -- HR, Manager,
+Senior HR Manager, ... -- a company defines itself in Settings -> Roles &
+Access, on one of the base types (admin/hr/manager/employee), with each
+module's access set to 'none' / 'view' / 'edit', and assigns to employees.
+An employee with no assigned role gets only the employee dashboard.
 
 superadmin is never configurable and is never stored in the roles table: it
 always has full access, matching utils/auth.py's role_required(), where
@@ -87,11 +88,10 @@ def can_access(module, action="view", role=None):
 # ── Management (read + write) used by the Settings "Roles & Access" screen ────
 VALID_ACCESS = ("none", "view", "edit")
 VALID_BASE_TYPES = ("admin", "hr", "manager", "employee")
-# System roles whose identity/base can't be changed or deleted. Their per-module
-# access is still editable EXCEPT 'admin', which stays full so a company can
-# never lock every admin out (superadmin, separate and never in this table, is
-# the ultimate backstop).
-SYSTEM_ROLE_KEYS = ("admin", "hr", "manager", "employee")
+# The two fixed dashboards, whose identity/base can't be changed or deleted.
+# 'admin' stays full access so a company can never lock every admin out
+# (superadmin, separate and never in this table, is the ultimate backstop).
+SYSTEM_ROLE_KEYS = ("admin", "employee")
 LOCKED_ROLE_KEYS = ("admin",)
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")

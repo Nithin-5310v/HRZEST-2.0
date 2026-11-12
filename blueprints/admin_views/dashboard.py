@@ -4,7 +4,7 @@ import datetime
 import utils.config as cfg
 from database import get_db_connection
 from flask import g, jsonify, render_template, request, session
-from utils.auth import admin_required, role_required
+from utils.auth import admin_required, require_access, role_required
 from utils.helpers import (
     co_scope_column,
     co_scope_subquery,
@@ -230,6 +230,7 @@ def api_admin_search():
 
 @admin_views_bp.route("/api/dashboard_live")
 @admin_required
+@require_access("attendance")
 def dashboard_live():
     def fmt(t):
         if t is None:
@@ -306,6 +307,7 @@ def dashboard_live():
 
 @admin_views_bp.route("/api/attendance_chart_data")
 @admin_required
+@require_access("attendance")
 def attendance_chart_data():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

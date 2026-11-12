@@ -315,92 +315,17 @@ def _start_login_mfa(co, login_template, kind, identifier, email, role_label):
     return redirect(tpath("/mfa_verify"))
 
 
-# employees.role is free-text (whatever an admin typed as a job title) --
-# an EXACT, case-insensitive match only, never a substring check, so a
-# title like "HR Executive" or "Senior HR" does NOT grant this. Getting
-# this wrong turns a job-title text field into an accidental privilege
-# escalation path.
-_HR_EMPLOYEE_ROLE = "hr"
-
-
-def _ensure_hr_admin_account(employee_id, email):
-    """Auto-provisions (idempotently) the admin_users row that backs HR-tier
-    admin-panel access for an employee whose role is exactly "HR" -- see
-    _finish_employee_login() below. Without a REAL admin_users row here,
-    granting admin-panel access by just faking session["admin_logged_in"]
-    breaks the first time MANDATORY_ADMIN_MFA is turned on:
-    _enforce_admin_mfa_enrollment() (app.py) looks up session["admin_username"]
-    in admin_users to check TOTP enrollment, finds no row for an employee_id,
-    and permanently redirect-loops that account to the enrollment page with
-    no way to ever complete it.
-
-    The generated password is random and never shown to or typed by the
-    employee -- admin_login() always checks admin_users by username FIRST,
-    so an unguessable, never-typed password here is what prevents a
-    coincidental identifier collision from letting the wrong credential
-    authenticate the wrong account; the employee keeps logging in with
-    their own employee password exactly as before, and only reaches this
-    account via _finish_employee_login()'s session setup, never a direct
-    admin_users password check.
-
-    Returns whether the HR has dashboard access: the row's is_active, which
-    the company admin turns on and off on the Organization page's HR team
-    tab (blueprints/hr_team.py). A new row starts with access.
-    """
-    with _db() as (cursor, db):
-        cursor.execute("SELECT COALESCE(is_active, 1) FROM admin_users WHERE username=%s", (employee_id,))
-        row = cursor.fetchone()
-        if row:
-            return bool(row[0])
-        cursor.execute(
-            "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1)",
-            (employee_id, generate_password_hash(secrets.token_urlsafe(32)), HR_ROLE, email)
-        )
-        db.commit()
-    log_security_event(
-        "auth.hr_admin_autoprovisioned",
-        f"Auto-created admin_users HR-role account for employee '{employee_id}' (employees.role is exactly 'HR')",
-        level="INFO", identifier=employee_id,
-    )
-    return True
-
-
-# Same exact-match, case-insensitive caveat as _HR_EMPLOYEE_ROLE above --
-# a job title like "Project Manager" or "Store Manager" does NOT grant this.
-_MANAGER_EMPLOYEE_ROLE = "manager"
-
-
-def _ensure_manager_admin_account(employee_id, email):
-    """Auto-provisions (idempotently) the admin_users row that backs
-    manager-tier admin-panel access for an employee whose role is exactly
-    "Manager" -- see _finish_employee_login() below. Identical rationale
-    and mechanics to _ensure_hr_admin_account() above (random, never-shown
-    password; only ever reached via the employee-login auto-route, never a
-    direct admin_users credential check) -- kept as a separate function
-    rather than a shared helper so each role's log message/role constant
-    stays a plain, greppable literal rather than a parameterized one."""
-    with _db() as (cursor, db):
-        cursor.execute("SELECT 1 FROM admin_users WHERE username=%s", (employee_id,))
-        if cursor.fetchone():
-            return
-        cursor.execute(
-            "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,1)",
-            (employee_id, generate_password_hash(secrets.token_urlsafe(32)), MANAGER_ROLE, email)
-        )
-        db.commit()
-    log_security_event(
-        "auth.manager_admin_autoprovisioned",
-        f"Auto-created admin_users manager-role account for employee '{employee_id}' (employees.role is exactly 'Manager')",
-        level="INFO", identifier=employee_id,
-    )
-
-
 def _ensure_role_admin_account(employee_id, email, role_key):
     """Upsert the admin_users row that backs an employee who holds a custom
     admin-side role defined in Settings -> Roles & Access, keeping its role
     column in sync with the employee's currently-assigned role (so changing an
     employee's role in the Employees screen takes effect on their next login).
-    Same random, never-shown password rationale as _ensure_hr_admin_account."""
+    The password is random and never shown to or typed by the employee:
+    admin_login() checks admin_users by username first, so an unguessable,
+    never-typed password keeps a coincidental identifier collision from
+    authenticating the wrong account; the employee keeps signing in with
+    their own employee password and only reaches this account through
+    _finish_employee_login()."""
     with _db() as (cursor, db):
         cursor.execute("SELECT role FROM admin_users WHERE username=%s", (employee_id,))
         row = cursor.fetchone()
@@ -436,20 +361,17 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
 
     A pending forced PIN change always wins, regardless of role -- an
     employee who hasn't changed their initial PIN yet must not be able to
-    skip straight into the HR admin panel; they get the normal employee
+    skip straight into a role dashboard; they get the normal employee
     session and /force_change_pin exactly as before this existed, and the
-    HR check only applies on a later login once that's done.
+    role check only applies on a later login once that's done.
 
     An employee past the last working day of an accepted resignation gets
     no session at all -- checked here too, not just at the password step,
     because a code emailed before that day can be entered after it.
 
-    Otherwise: if this employee's role is exactly "HR" (see
-    _HR_EMPLOYEE_ROLE), auto-provisions and logs into the backing
-    admin_users HR account instead of a normal employee session, landing
-    on the HR admin panel (/employees) -- the same destination an
-    admin_users role='hr' login already reaches. Every other employee gets
-    the unchanged normal employee session and /employee_portal.
+    Otherwise: an employee assigned an admin-side role in Settings -> Roles
+    & Access lands on that role's dashboard; everyone else gets the normal
+    employee session and /employee_portal.
     """
     ended_on = employment_ended_on(employee_id)
     if ended_on:
@@ -473,10 +395,10 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
     # A role defined in Settings -> Roles & Access, assigned to this employee,
     # on an admin-side base type (admin/hr/manager) routes them to the admin
     # dashboard carrying their exact role -- the sidebar and route guards then
-    # expose only the modules that role was granted (utils.helpers.rbac). A
-    # plain job title ("Developer") or the 'employee' base type returns None
-    # here and falls through to the normal employee portal below. The literal
-    # "HR"/"Manager" branches that follow stay for backward compatibility.
+    # expose only the modules that role was granted (utils.helpers.rbac). This
+    # is the ONLY way an employee gets a role dashboard: a job title, even
+    # "HR" or "Manager", is just a label, and no assigned role (or the
+    # 'employee' base type) falls through to the normal employee portal below.
     from utils.helpers.rbac import defined_role_base_type
     _access_role = _get_employee_access_role(employee_id)
     _role_base = defined_role_base_type(_access_role)
@@ -502,69 +424,6 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
         if email:
             notify_if_new_login_ip(employee_id, "admin", request.remote_addr, employee_id, email)
         return redirect(tpath("/admin"))
-
-    # An HR whose dashboard access is off falls through to the employee
-    # portal below, like any other employee.
-    if (role or "").strip().lower() == _HR_EMPLOYEE_ROLE and _ensure_hr_admin_account(employee_id, email):
-        # If MANDATORY_LOGIN_MFA is on, every call site that can reach this
-        # function (the direct branch below, mfa_verify()'s employee
-        # branch, and force_change_pin()'s completion) is only reachable
-        # AFTER this employee already verified the emailed OTP -- that
-        # already-completed step is this login's MFA, exactly like the
-        # real admin_users MFA branch above treats it (see its own
-        # mark_totp_enabled() call). Without this, app.py's
-        # _enforce_admin_mfa_enrollment would immediately bounce this
-        # freshly auto-provisioned admin_users row (no TOTP enrolled yet)
-        # to a *separate* authenticator-app enrollment page on its very
-        # next request, demanding a second, redundant proof of identity
-        # right after the first. When MANDATORY_LOGIN_MFA is off, no OTP
-        # step happened, so this must NOT be marked -- that's what still
-        # correctly forces real TOTP enrollment before HR admin access in
-        # that configuration.
-        if app.config["MANDATORY_LOGIN_MFA"]:
-            mark_totp_enabled(employee_id)
-        session.clear()
-        session["admin_logged_in"] = True
-        session["admin_username"] = employee_id
-        session["admin_role"] = HR_ROLE
-        session["_session_created"] = time.time()
-        session.permanent = True
-        ensure_session_id(session)
-        stamp_password_version("employees", employee_id)
-        log_security_event(
-            "auth.admin_login_success",
-            f"Employee '{employee_id}' logged in via employee credentials, routed to HR admin panel (role='HR')",
-            level="INFO", identifier=employee_id,
-        )
-        if email:
-            notify_if_new_login_ip(employee_id, "admin", request.remote_addr, employee_id, email)
-        return redirect(tpath("/hr_dashboard"))
-
-    if (role or "").strip().lower() == _MANAGER_EMPLOYEE_ROLE:
-        _ensure_manager_admin_account(employee_id, email)
-        # Same MFA bookkeeping rationale as the HR branch above.
-        if app.config["MANDATORY_LOGIN_MFA"]:
-            mark_totp_enabled(employee_id)
-        session.clear()
-        session["admin_logged_in"] = True
-        session["admin_username"] = employee_id
-        session["admin_role"] = MANAGER_ROLE
-        session["_session_created"] = time.time()
-        session.permanent = True
-        ensure_session_id(session)
-        stamp_password_version("employees", employee_id)
-        log_security_event(
-            "auth.admin_login_success",
-            f"Employee '{employee_id}' logged in via employee credentials, routed to manager approvals panel (role='Manager')",
-            level="INFO", identifier=employee_id,
-        )
-        if email:
-            notify_if_new_login_ip(employee_id, "admin", request.remote_addr, employee_id, email)
-        # No manager-specific dashboard exists -- /leave_holidays is the
-        # actual real capability (see MANAGER_ROLE's docstring in
-        # utils/auth.py), and is already reachable by any admin_logged_in
-        # session today.
-        return redirect(tpath("/leave_holidays"))
 
     session.clear()
     session["employee_id"] = employee_id

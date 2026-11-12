@@ -9,6 +9,9 @@ monkeypatched — those are exercised directly in tests/test_webauthn_utils.py.
 """
 import base64
 import datetime
+
+import pytest
+
 import blueprints.auth as auth_bp_module
 from utils.auth import _clear_login_failures, _record_login_failure, _LOGIN_MAX_ATTEMPTS
 from utils.async_writer import _write_queue
@@ -126,60 +129,62 @@ class TestAdminLoginEdgeBranches:
                         (seed_employee["employee_id"],))
             cur.close()
 
-    def test_hr_role_employee_login_redirects_to_employees_admin_panel(self, client, seed_employee, db_engine):
+    @pytest.mark.parametrize("job_title", ["HR", "hr", "Manager", "manager"])
+    def test_hr_or_manager_job_title_alone_gets_the_employee_portal(
+            self, client, seed_employee, db_engine, job_title):
+        """Only Administrator and Employee are fixed dashboards: a job title
+        -- even exactly "HR" or "Manager" -- is a label, and grants no role
+        dashboard until the admin assigns a role in Settings -> Roles &
+        Access."""
         cur = db_engine.cursor()
-        cur.execute("UPDATE employees SET role='HR' WHERE employee_id=%s", (seed_employee["employee_id"],))
+        cur.execute("UPDATE employees SET role=%s WHERE employee_id=%s", (job_title, seed_employee["employee_id"]))
         try:
             resp = client.post("/login", data={
                 "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
             }, follow_redirects=False)
             assert resp.status_code == 302
-            assert resp.headers["Location"].endswith("/hr_dashboard")
+            assert "/employee_portal" in resp.headers["Location"]
             with client.session_transaction() as sess:
-                assert sess.get("admin_logged_in") is True
-                assert sess.get("admin_username") == seed_employee["employee_id"]
-                assert sess.get("admin_role") == "hr"
-                assert "employee_id" not in sess
-            cur.execute("SELECT role, is_active FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
-            row = cur.fetchone()
-            assert row is not None
-            assert row[0] == "hr" and row[1] == 1
+                assert sess.get("employee_id") == seed_employee["employee_id"]
+                assert not sess.get("admin_logged_in")
+            cur.execute("SELECT 1 FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
+            assert cur.fetchone() is None
         finally:
             cur.execute("UPDATE employees SET role=NULL WHERE employee_id=%s", (seed_employee["employee_id"],))
-            cur.execute("DELETE FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
             cur.close()
 
-    def test_hr_role_employee_login_is_idempotent(self, client, seed_employee, db_engine):
-        """Logging in twice must not try to INSERT a second admin_users row
-        for the same employee_id (which would 500 on the UNIQUE username
-        constraint) -- the second login should just reuse the first."""
+    def test_assigned_role_employee_login_is_idempotent(self, client, seed_employee, db_engine):
+        """An employee assigned a role in Roles & Access lands on that role's
+        dashboard, and logging in twice must not try to INSERT a second
+        admin_users row for the same employee_id (which would 500 on the
+        UNIQUE username constraint) -- the second login reuses the first."""
         cur = db_engine.cursor()
-        cur.execute("UPDATE employees SET role='hr' WHERE employee_id=%s", (seed_employee["employee_id"],))
+        cur.execute("INSERT INTO roles (role_key, display_name, base_type, is_system) "
+                    "VALUES ('hr','HR','hr',FALSE) ON CONFLICT (role_key) DO NOTHING")
+        cur.execute("UPDATE employees SET access_role='hr' WHERE employee_id=%s", (seed_employee["employee_id"],))
         try:
             for _ in range(2):
                 # Log out first -- admin_login() redirects an already
                 # admin_logged_in session straight to /admin without ever
-                # reaching credential checking (pre-existing behavior,
-                # unrelated to this change), so a fresh session is needed
+                # reaching credential checking, so a fresh session is needed
                 # to actually re-exercise _finish_employee_login() each time.
                 client.post("/logout")
                 resp = client.post("/login", data={
                     "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
                 }, follow_redirects=False)
                 assert resp.status_code == 302
-                assert resp.headers["Location"].endswith("/hr_dashboard")
-                # _clear_login_failures() (blueprints/auth.py) enqueues its
-                # DB write onto the shared background writer thread rather
-                # than running it synchronously (see utils/auth.py's own
-                # docstring on that queue) -- back-to-back login attempts
-                # with zero delay between them can otherwise race that
-                # write. Not specific to this feature; settling here is
-                # just what this suite's existing helper is for.
+                assert resp.headers["Location"].endswith("/admin")
+                with client.session_transaction() as sess:
+                    assert sess.get("admin_role") == "hr" and sess.get("admin_base_type") == "hr"
+                    assert "employee_id" not in sess
+                # _clear_login_failures() enqueues its DB write onto the
+                # shared background writer thread -- back-to-back logins can
+                # otherwise race it.
                 _wait_for_async_writes()
             cur.execute("SELECT COUNT(*) FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
             assert cur.fetchone()[0] == 1
         finally:
-            cur.execute("UPDATE employees SET role=NULL WHERE employee_id=%s", (seed_employee["employee_id"],))
+            cur.execute("UPDATE employees SET access_role=NULL WHERE employee_id=%s", (seed_employee["employee_id"],))
             cur.execute("DELETE FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
             cur.close()
 
@@ -222,51 +227,6 @@ class TestAdminLoginEdgeBranches:
         finally:
             cur.execute("UPDATE employees SET role=NULL, force_pin_change=0 WHERE employee_id=%s",
                         (seed_employee["employee_id"],))
-            cur.close()
-
-    def test_manager_role_employee_login_redirects_to_leave_holidays(self, client, seed_employee, db_engine):
-        cur = db_engine.cursor()
-        cur.execute("UPDATE employees SET role='Manager' WHERE employee_id=%s", (seed_employee["employee_id"],))
-        try:
-            resp = client.post("/login", data={
-                "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
-            }, follow_redirects=False)
-            assert resp.status_code == 302
-            assert resp.headers["Location"].endswith("/leave_holidays")
-            with client.session_transaction() as sess:
-                assert sess.get("admin_logged_in") is True
-                assert sess.get("admin_username") == seed_employee["employee_id"]
-                assert sess.get("admin_role") == "manager"
-                assert "employee_id" not in sess
-            cur.execute("SELECT role, is_active FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
-            row = cur.fetchone()
-            assert row is not None
-            assert row[0] == "manager" and row[1] == 1
-        finally:
-            cur.execute("UPDATE employees SET role=NULL WHERE employee_id=%s", (seed_employee["employee_id"],))
-            cur.execute("DELETE FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
-            cur.close()
-
-    def test_manager_role_employee_login_is_idempotent(self, client, seed_employee, db_engine):
-        """Same UNIQUE-constraint concern as the HR case above -- a second
-        login must reuse the first auto-provisioned row, not try to
-        INSERT a duplicate."""
-        cur = db_engine.cursor()
-        cur.execute("UPDATE employees SET role='manager' WHERE employee_id=%s", (seed_employee["employee_id"],))
-        try:
-            for _ in range(2):
-                client.post("/logout")
-                resp = client.post("/login", data={
-                    "identifier": seed_employee["employee_id"], "password": seed_employee["password"],
-                }, follow_redirects=False)
-                assert resp.status_code == 302
-                assert resp.headers["Location"].endswith("/leave_holidays")
-                _wait_for_async_writes()
-            cur.execute("SELECT COUNT(*) FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
-            assert cur.fetchone()[0] == 1
-        finally:
-            cur.execute("UPDATE employees SET role=NULL WHERE employee_id=%s", (seed_employee["employee_id"],))
-            cur.execute("DELETE FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
             cur.close()
 
     def test_manager_substring_role_does_not_grant_admin_access(self, client, seed_employee, db_engine):

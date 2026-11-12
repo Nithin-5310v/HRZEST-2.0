@@ -46,13 +46,12 @@ def inject_common_vars():
 def _hr_has_own_employee():
     """True if the current HR-role session's admin_username is backed by
     a real employees row -- gates templates/admin_base.html's "My
-    Profile" button (blueprints/auth.py's switch_to_my_employee_portal()
-    404s harmlessly without this, but showing the button at all when
-    there's nothing to switch to is just a dead click). Some admin_users
-    role='hr' accounts are standalone (created via /hr_accounts) rather
-    than auto-provisioned from an employee whose own role is "HR" -- see
-    blueprints/auth.py's _ensure_hr_admin_account -- and have no
-    employees row of their own to switch to.
+    Workspace" link (blueprints/core.py's my_workspace() bounces without
+    this, but showing the link at all when there's nothing to show is just
+    a dead click). Some admin_users role='hr' accounts are standalone
+    (created via /hr_accounts) rather than provisioned from an employee
+    assigned a role -- see blueprints/auth.py's _ensure_role_admin_account
+    -- and have no employees row of their own.
 
     Cached on flask.g per-request since inject_common_vars() runs once
     per template render but this can be called from more than one context

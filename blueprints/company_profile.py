@@ -514,8 +514,8 @@ def my_employee_profile_create():
 
     _audit("create_own_employee_profile", "employees", emp_id,
            f"Admin {username} created their own employee profile {emp_id}")
-    flash(f"Your employee profile is ready (Employee ID {emp_id}). Click My Employee Dashboard to mark "
-          "your attendance.", "success")
+    flash(f"Your employee profile is ready (Employee ID {emp_id}). Use 'Open my employee "
+          "dashboard' below to mark your attendance.", "success")
     return redirect(back)
 
 

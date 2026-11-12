@@ -26,7 +26,7 @@ def org_chart_page():
     co = get_company_settings()
     cursor.close()
     db.close()
-    return render_template("org_chart.html",
+    return render_template("org_chart.html", active_nav="admin_tools",
                            co=co, departments=departments,
                            pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,

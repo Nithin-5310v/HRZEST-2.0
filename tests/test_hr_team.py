@@ -26,6 +26,10 @@ def people(db_engine, seed_admin):
     """Makes employees on demand: people("HRT01", role="HR")."""
     made = []
     cur = db_engine.cursor()
+    # Only Administrator and Employee are built in now; HR dashboard access
+    # is the company's own "HR" role (role_key 'hr') in Roles & Access.
+    cur.execute("INSERT INTO roles (role_key, display_name, base_type, is_system) "
+                "VALUES ('hr','HR','hr',FALSE) ON CONFLICT (role_key) DO NOTHING")
 
     def make(emp_id, name=None, role=None, assigned_hr=None, login=None):
         """login: None -- no HR login row yet (never signed in); 1/0 -- one with access on/off."""
@@ -94,6 +98,16 @@ class TestHrTeamTab:
         assert b"Ravi Dev is now an HR." in resp.data
         assert _employee(db_engine, "HRT02", "role") == "HR"
         assert _login_row(db_engine, "HRT02") == ("hr", 1)
+        assert _employee(db_engine, "HRT02", "access_role") == "hr", "assigned the HR role in Roles & Access"
+
+    def test_access_needs_an_hr_role_in_roles_and_access(self, client, db_engine, people, monkeypatch):
+        people("HRT02", role="Developer")
+        _admin(client)
+        # A company with no "HR" role of its own yet.
+        monkeypatch.setattr("blueprints.hr_team.HR_ROLE", "no_such_role")
+        resp = client.post("/profile/hr/add", data={"employee_id": "HRT02", "access": "1"}, follow_redirects=True)
+        assert b"create a role named" in resp.data
+        assert _employee(db_engine, "HRT02", "access_role") is None
 
     def test_add_hr_without_access_yet(self, client, db_engine, people):
         people("HRT02", role="Developer")
@@ -125,8 +139,25 @@ class TestHrTeamTab:
         assert b"HR dashboard access turned off for Asha HR." in resp.data
         assert _login_row(db_engine, "HRT01") == ("hr", 0), "a row is made even before they ever signed in"
         assert b"Access off" in resp.data
+        assert _employee(db_engine, "HRT01", "access_role") is None
         client.post("/profile/hr/HRT01/access", data={"access": "1"})
         assert _login_row(db_engine, "HRT01") == ("hr", 1)
+        assert _employee(db_engine, "HRT01", "access_role") == "hr"
+
+    def test_turning_access_off_keeps_a_different_role(self, client, db_engine, people):
+        people("HRT01", role="HR")
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO roles (role_key, display_name, base_type, is_system) "
+                    "VALUES ('hrt_lead','HRT Lead','hr',FALSE) ON CONFLICT (role_key) DO NOTHING")
+        cur.execute("UPDATE employees SET access_role='hrt_lead' WHERE employee_id='HRT01'")
+        db_engine.commit()
+        _admin(client)
+        client.post("/profile/hr/HRT01/access", data={"access": "0"})
+        assert _employee(db_engine, "HRT01", "access_role") == "hrt_lead"
+        cur.execute("UPDATE employees SET access_role=NULL WHERE employee_id='HRT01'")
+        cur.execute("DELETE FROM roles WHERE role_key='hrt_lead'")
+        db_engine.commit()
+        cur.close()
 
     def test_access_only_for_hrs(self, client, db_engine, people):
         people("HRT02", role="Developer")
@@ -147,13 +178,26 @@ class TestSigningInWithoutAccess:
         with client.session_transaction() as sess:
             assert sess.get("employee_id") == "HRT01" and not sess.get("admin_logged_in")
 
-    def test_hr_with_access_gets_the_hr_dashboard(self, client, people):
+    def test_hr_job_title_alone_gets_the_employee_portal(self, client, people):
         people("HRT01", role="HR")
         resp = client.post("/login", data={"identifier": "HRT01", "password": PASSWORD})
-        assert resp.headers["Location"].endswith("/hr_dashboard")
+        assert "/employee_portal" in resp.headers["Location"]
+
+    def test_hr_with_access_gets_the_hr_dashboard(self, client, people):
+        people("HRT01", role="HR")
+        _admin(client)
+        client.post("/profile/hr/HRT01/access", data={"access": "1"})
+        client.post("/logout")
+        resp = client.post("/login", data={"identifier": "HRT01", "password": PASSWORD})
+        assert resp.headers["Location"].endswith("/admin")
+        with client.session_transaction() as sess:
+            assert sess.get("admin_role") == "hr" and sess.get("admin_logged_in")
 
     def test_turning_access_off_ends_an_open_hr_session(self, client, db_engine, people):
         people("HRT01", role="HR")
+        _admin(client)
+        client.post("/profile/hr/HRT01/access", data={"access": "1"})
+        client.post("/logout")
         client.post("/login", data={"identifier": "HRT01", "password": PASSWORD})
         assert client.get("/hr_dashboard").status_code == 200
         cur = db_engine.cursor()

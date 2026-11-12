@@ -814,7 +814,7 @@ def settings_roles():
     each role's per-module access (none/view/edit). superadmin is never shown
     or editable here (it always has full access)."""
     return render_template("roles_settings.html",
-                           active_nav="settings",
+                           active_nav="roles",
                            rbac_roles=list_roles(),
                            rbac_permissions=all_role_permissions(),
                            rbac_assignments=employees_by_role(),

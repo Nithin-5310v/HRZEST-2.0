@@ -396,19 +396,16 @@
     <span class="nav-icon"><i class="ti ti-shield-lock"></i></span>Roles &amp; Access
   </a>
   {% endif %}
-  {# One click to this person's own employee dashboard (their attendance,
-     leave, payslips), and "Back to ... Dashboard" there to return --
-     blueprints/auth.py switch_to_my_employee_portal(). Shown only when
-     the account has an employee record of its own (hr_has_own_employee), and
-     always to the company admin: without a profile yet, it leads them to the
+  {# Everyone here is also an employee: My Workspace (blueprints/core.py's
+     my_workspace()) shows their own attendance, leave, payslips, tickets and
+     profile INSIDE this same dashboard -- no switch to the separate employee
+     portal and no "Back to ... Dashboard". The company admin always gets it:
+     until they've created their own employee profile, it opens the
      Organization page's card to create one. #}
-  {% if hr_has_own_employee or session.get('admin_role') == 'admin' %}
-  <form action="{{ tpath('/switch_to_my_employee_portal') }}" method="POST" class="nav-item-form">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
-    <button type="submit" class="nav-item nav-item-btn" aria-label="Switch to my employee dashboard">
-      <span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Employee Dashboard
-    </button>
-  </form>
+  {% if hr_has_own_employee or session.admin_role == 'admin' %}
+  <a class="nav-item {{ 'active' if active_nav == 'my_workspace' }}" href="{{ tpath('/my_workspace') }}" {{ 'aria-current=page' if active_nav == 'my_workspace' }}>
+    <span class="nav-icon"><i class="ti ti-user-circle"></i></span>My Workspace
+  </a>
   {% endif %}
   <form action="{{ tpath('/logout') }}" method="POST" class="nav-item-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
@@ -480,6 +477,9 @@
         {% if not _is_hr and not _is_manager %}
         <a class="app-user-item" role="menuitem" href="{{ tpath('/profile') }}"><i class="ti ti-id-badge-2"></i> Profile</a>
         <a class="app-user-item" role="menuitem" href="{{ tpath('/settings') }}"><i class="ti ti-settings"></i> Settings</a>
+        {% endif %}
+        {% if hr_has_own_employee or session.admin_role == 'admin' %}
+        <a class="app-user-item" role="menuitem" href="{{ tpath('/my_workspace') }}"><i class="ti ti-user-circle"></i> My Workspace</a>
         {% endif %}
         <form action="{{ tpath('/logout') }}" method="POST" class="app-user-logout">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />

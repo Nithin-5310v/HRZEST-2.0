@@ -162,7 +162,7 @@ def get_billing_emails():
     """Who gets billing mail (bills, renewals, trial and auto-debit notices,
     the employee-added headcount notice): the company's admin accounts only.
     get_admin_emails() also returns HR and manager staff -- their admin-panel
-    accounts (auth.py's _ensure_hr_admin_account etc.) carry their own email
+    accounts (auth.py's _ensure_role_admin_account) carry their own email
     -- and the bill is no business of theirs."""
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

@@ -1333,7 +1333,7 @@ def admin_payslips():
             m = 12
             y -= 1
 
-    return render_template("admin_payslips.html",
+    return render_template("admin_payslips.html", active_nav="salary",
                            employees=employees,
                            slip_months=slip_months,
                            pending_leaves=pending_leaves,
@@ -1424,7 +1424,7 @@ def payroll_settings():
     cursor.close()
     db.close()
 
-    return render_template("payroll_settings.html",
+    return render_template("payroll_settings.html", active_nav="salary",
                            cfg=cfg, employees=employees,
                            pending_leaves=pending_leaves,
                            pending_resignations=pending_resignations,

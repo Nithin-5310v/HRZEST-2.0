@@ -25,39 +25,74 @@
       #view-dashboard { display: none; }
       #view-dashboard.active { display: block; }
 
-      .wks-head { margin-bottom: 16px; }
-      .wks-head h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; }
-      .wks-head p { font-size: 14px; color: #64748b; margin: 4px 0 0; }
+      /* ── Page header + tab bar ── one palette, matched to the admin shell's
+         blue banner, shared by the header and the Overview tab. */
+      .wks { --wk-brand: #1d4ed8; --wk-brand-2: #2563eb; --wk-ink: #0f172a; --wk-body: #334155;
+             --wk-muted: #64748b; --wk-faint: #94a3b8; --wk-line: #e4e8f0; --wk-soft: #f6f8fc; --wk-card: #fff; }
+      body.dark-mode .wks { --wk-ink: #e6edf3; --wk-body: #c9d1d9; --wk-muted: #8b949e; --wk-faint: #6e7681;
+                            --wk-line: #30363d; --wk-soft: #0d1117; --wk-card: #161b22; }
+      /* The employee portal's own search box -- the admin shell already has navigation. */
+      .wks .emp-search-row { display: none; }
 
-      .wks-tabs {
-        display: flex; flex-wrap: wrap; gap: 6px;
-        background: #fff; border: 1px solid #e5e9f2; border-radius: 14px;
-        padding: 6px; margin-bottom: 18px;
-      }
-      .wtab {
-        display: inline-flex; align-items: center; gap: 7px;
-        padding: 9px 15px; border: none; border-radius: 10px;
-        background: transparent; color: #475569;
-        font-size: 13.5px; font-weight: 700; font-family: inherit;
-        cursor: pointer; transition: background .15s, color .15s;
-        white-space: nowrap;
-      }
-      .wtab:hover { background: #f1f5f9; color: #1e293b; }
-      .wtab.active { background: #4f46e5; color: #fff; }
-      .wtab-danger { color: #dc2626; margin-left: auto; }
-      .wtab-danger:hover { background: #fef2f2; color: #b91c1c; }
-      .wtab.active.wtab-danger { background: #dc2626; color: #fff; }
+      .wks-profile { position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 18px;
+                     background: linear-gradient(120deg, #1e3a8a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff;
+                     box-shadow: 0 10px 30px -12px rgba(29,78,216,.45); }
+      .wks-profile::after { content: ""; position: absolute; right: -80px; top: -120px; width: 340px; height: 340px;
+                            border-radius: 50%; background: radial-gradient(closest-side, rgba(255,255,255,.14), transparent); pointer-events: none; }
+      .wks-profile-main { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between;
+                          gap: 20px; flex-wrap: wrap; padding: 24px 26px 20px; }
+      .wks-id { display: flex; align-items: center; gap: 16px; min-width: 0; }
+      .wks-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+                    border: 3px solid rgba(255,255,255,.35); }
+      .wks-avatar-ph { display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.16);
+                       color: #fff; font-size: 24px; font-weight: 800; letter-spacing: .5px; }
+      .wks-eyebrow { font-size: 12.5px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; opacity: .75; }
+      /* !important: admin-theme.css styles every .main h1 with the page ink colour. */
+      .wks .wks-name { font-size: 24px; font-weight: 800; line-height: 1.2; margin: 2px 0 4px; color: #fff !important; }
+      .wks-title { font-size: 14px; opacity: .88; }
+      .wks-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+      .wks-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 10px;
+                 font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; border: 1px solid transparent;
+                 transition: background .15s, border-color .15s, color .15s; white-space: nowrap; }
+      .wks-btn-light { background: #fff; color: #1d4ed8; }
+      .wks-btn-light:hover { background: #eff6ff; }
+      .wks-btn-ghost { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.28); }
+      .wks-btn-ghost:hover { background: rgba(255,255,255,.18); }
+      .wks-btn-primary { background: var(--wk-brand); color: #fff; }
+      .wks-btn-primary:hover { background: #1e40af; }
+      .wks-facts { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px 26px; padding: 13px 26px;
+                   background: rgba(15,23,42,.18); border-top: 1px solid rgba(255,255,255,.12); font-size: 13.5px; }
+      .wks-fact { display: inline-flex; align-items: center; gap: 7px; color: rgba(255,255,255,.92); }
+      .wks-fact i { font-size: 16px; opacity: .7; }
+      .wks-fact b { font-weight: 700; }
+      .wks-role { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px;
+                  background: rgba(255,255,255,.16); font-weight: 700; font-size: 12.5px; }
 
-      body.dark-mode .wks-tabs { background: #161b22 !important; border-color: #30363d !important; }
-      body.dark-mode .wtab { color: #94a3b8 !important; }
-      body.dark-mode .wtab:hover { background: #1c2128 !important; color: #cdd9e5 !important; }
-      body.dark-mode .wks-head h1 { color: #cdd9e5 !important; }
-      body.dark-mode .wks-head p { color: #768390 !important; }
+      .wks-tabs-wrap { position: relative; margin-bottom: 20px; border-bottom: 1px solid var(--wk-line); }
+      .wks-tabs { display: flex; align-items: stretch; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+      .wks-tabs::-webkit-scrollbar { display: none; }
+      .wtab { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 12px 11px;
+              border: none; background: none; color: var(--wk-muted); font-size: 13.5px; font-weight: 600;
+              font-family: inherit; cursor: pointer; white-space: nowrap; transition: color .15s; }
+      .wtab i { font-size: 16px; }
+      .wtab::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px;
+                     border-radius: 2px 2px 0 0; background: transparent; transition: background .15s; }
+      .wtab:hover { color: var(--wk-ink); }
+      .wtab.active { color: var(--wk-brand); }
+      .wtab.active::after { background: var(--wk-brand); }
+      .wtab:focus-visible { outline: 2px solid var(--wk-brand-2); outline-offset: -2px; border-radius: 8px; }
+      .wtab-sep { flex: 1 0 12px; }
+      .wtab-danger:hover, .wtab-danger.active { color: #dc2626; }
+      .wtab-danger.active::after { background: #dc2626; }
+      body.dark-mode .wtab.active { color: #79b8ff !important; }
+      body.dark-mode .wtab.active::after { background: #79b8ff !important; }
 
-      @media (max-width: 640px) {
-        .wks-tabs { gap: 4px; }
-        .wtab { padding: 8px 11px; font-size: 13px; }
-        .wtab span.wtab-label { display: none; }
+      @media (max-width: 760px) {
+        .wks-profile-main { padding: 20px; }
+        .wks-facts { padding: 12px 20px; }
+        .wks .wks-name { font-size: 20px; }
+        .wks-actions { width: 100%; }
+        .wks-actions .wks-btn { flex: 1; justify-content: center; }
       }
 
       /* ── OT & Comp-off tab: scoped under #view-compoff so its component
@@ -229,88 +264,154 @@
       body.dark-mode #view-onboarding .badge-blue { background: #1e3a8a !important; color: #60a5fa !important; }
 
       /* ── Overview tab (purpose-built, not the shared portal dashboard) ── */
-      .wov-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; background: #fff; border: 1px solid #e5e9f2; border-radius: 16px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 16px rgba(16,24,40,.03); }
-      .wov-hero-id { display: flex; align-items: center; gap: 14px; min-width: 0; }
-      .wov-avatar { width: 56px; height: 56px; border-radius: 14px; object-fit: cover; flex-shrink: 0; }
-      .wov-avatar-ph { background: #4f46e5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; }
-      .wov-name { font-size: 19px; font-weight: 800; color: #0f172a; }
-      .wov-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 5px; font-size: 13px; color: #64748b; }
-      .wov-role-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; background: #eef2ff; color: #4f46e5; font-weight: 700; font-size: 12.5px; }
-      .wov-id { color: #94a3b8; }
-      .wov-dot { color: #cbd5e1; }
-      .wov-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-      .wov-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border: none; border-radius: 10px; background: #4f46e5; color: #fff; font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
-      .wov-btn:hover { background: #4338ca; }
-      .wov-btn-ghost { background: #f8fafc; color: #475569; border: 1px solid #e5e9f2; }
-      .wov-btn-ghost:hover { background: #eef2f7; }
+      .wov-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+      .wov-kpi { background: var(--wk-card); border: 1px solid var(--wk-line); border-radius: 14px; padding: 16px 18px;
+                 box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+      .wov-kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .wov-kpi-lbl { font-size: 13px; font-weight: 600; color: var(--wk-muted); }
+      .wov-kpi-ico { width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center;
+                     justify-content: center; font-size: 18px; flex-shrink: 0; }
+      /* One accent everywhere (static/dashboard-unify.css); only status pills keep meaning colours. */
+      .wov-ico-green, .wov-ico-blue, .wov-ico-amber, .wov-ico-violet { background: #eff6ff; color: #1d4ed8; }
+      .wov-kpi-num { font-size: 28px; font-weight: 800; color: var(--wk-ink); line-height: 1.1; margin-top: 8px;
+                     font-variant-numeric: tabular-nums; }
+      .wov-kpi-unit { font-size: 14px; font-weight: 600; color: var(--wk-muted); margin-left: 5px; }
+      .wov-kpi-foot { font-size: 12.5px; color: var(--wk-faint); margin-top: 4px; }
 
-      .wov-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
-      .wov-stat { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #e5e9f2; border-radius: 14px; padding: 14px 16px; }
-      .wov-stat-icon { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
-      .wov-si-blue { background: #eef2ff; color: #4f46e5; }
-      .wov-si-green { background: #ecfdf5; color: #16a34a; }
-      .wov-si-amber { background: #fffbeb; color: #d97706; }
-      .wov-si-purple { background: #f5f3ff; color: #7c3aed; }
-      .wov-stat-num { display: block; font-size: 21px; font-weight: 800; color: #0f172a; line-height: 1.2; }
-      .wov-stat-lbl { display: block; font-size: 12px; color: #64748b; font-weight: 600; margin-top: 1px; }
+      .wov-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+      .wov-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+      .wov-card { background: var(--wk-card); border: 1px solid var(--wk-line); border-radius: 14px; padding: 18px 20px;
+                  box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+      .wov-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+      .wov-card-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15.5px; font-weight: 700; color: var(--wk-ink); }
+      .wov-card-head h2 i { font-size: 18px; color: var(--wk-brand); }
+      body.dark-mode .wov-card-head h2 i { color: #79b8ff; }
+      .wov-card-link { display: inline-flex; align-items: center; gap: 2px; padding: 4px 6px; margin-right: -6px; border: none;
+                       border-radius: 6px; background: none; color: var(--wk-brand); font-size: 13px; font-weight: 600;
+                       font-family: inherit; cursor: pointer; }
+      .wov-card-link:hover { background: #eff6ff; }
+      body.dark-mode .wov-card-link { color: #79b8ff; }
+      body.dark-mode .wov-card-link:hover { background: #1c2330; }
 
-      .wov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-      .wov-card { background: #fff; border: 1px solid #e5e9f2; border-radius: 14px; padding: 18px; }
-      .wov-card-title { font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: #64748b; display: flex; align-items: center; gap: 7px; margin-bottom: 14px; }
-      .wov-empty { font-size: 13.5px; color: #94a3b8; padding: 6px 0; }
-      .wov-link-btn { background: none; border: none; color: #4f46e5; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; padding: 6px 0 0; }
-      .wov-link-btn:hover { color: #4338ca; }
+      .wov-att { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+      .wov-att-cell { display: flex; flex-direction: column; gap: 5px; padding: 12px 14px; border-radius: 10px; background: var(--wk-soft); }
+      .wov-lbl { font-size: 12px; font-weight: 600; color: var(--wk-muted); }
+      .wov-val { font-size: 15.5px; font-weight: 700; color: var(--wk-ink); }
+      .wov-empty-row { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 12px; background: var(--wk-soft); flex-wrap: wrap; }
+      .wov-empty-ico { width: 42px; height: 42px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+                       background: #eff6ff; color: #1d4ed8; font-size: 20px; flex-shrink: 0; }
+      .wov-empty-title { font-size: 14.5px; font-weight: 700; color: var(--wk-ink); }
+      .wov-empty-sub { font-size: 13px; color: var(--wk-muted); margin-top: 2px; }
+      .wov-empty-cta { margin-left: auto; }
+      .wov-empty { font-size: 13.5px; color: var(--wk-faint); padding: 4px 0; }
 
-      .wov-att-row { display: flex; gap: 18px; flex-wrap: wrap; }
-      .wov-att-item { display: flex; flex-direction: column; gap: 3px; }
-      .wov-att-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .3px; }
-      .wov-att-val { font-size: 15px; font-weight: 700; color: #1e293b; }
-      .wov-att-badge { display: inline-block; width: fit-content; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 20px; background: #ecfdf5; color: #16a34a; }
+      .wov-bars { display: flex; flex-direction: column; gap: 14px; }
+      .wov-bar-meta { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; color: var(--wk-body); margin-bottom: 6px; }
+      .wov-bar-meta span:last-child { color: var(--wk-muted); font-variant-numeric: tabular-nums; }
+      .wov-bar-meta strong { color: var(--wk-ink); }
+      .wov-bar { height: 7px; border-radius: 99px; background: #eef2f7; overflow: hidden; }
+      .wov-bar span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #2563eb, #1d4ed8); }
+      body.dark-mode .wov-bar { background: #21262d; }
 
-      .wov-leave-list, .wov-hol-list { display: flex; flex-direction: column; gap: 9px; }
-      .wov-leave-row, .wov-hol-row { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; color: #334155; }
-      .wov-leave-num { font-weight: 800; color: #0f172a; }
-      .wov-leave-of { font-weight: 500; color: #94a3b8; font-size: 12px; margin-left: 2px; }
-      .wov-hol-date { font-weight: 700; color: #4f46e5; min-width: 52px; display: inline-block; }
+      .wov-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+      .wov-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--wk-muted); padding: 0 8px 8px 0;
+                      border-bottom: 1px solid var(--wk-line); }
+      .wov-table td { padding: 11px 8px 11px 0; color: var(--wk-body); border-bottom: 1px solid var(--wk-line); }
+      .wov-table tr:last-child td { border-bottom: none; }
+      .wov-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; width: fit-content; }
+      .wov-pill-ok { background: #ecfdf5; color: #047857; }
+      .wov-pill-warn { background: #fffbeb; color: #b45309; }
+      .wov-pill-bad { background: #fef2f2; color: #b91c1c; }
+      .wov-pill-muted { background: #f1f5f9; color: #475569; }
+      body.dark-mode .wov-pill-ok { background: #0f2e22; color: #4ade80; }
+      body.dark-mode .wov-pill-warn { background: #3a2a0b; color: #fbbf24; }
+      body.dark-mode .wov-pill-bad { background: #3b1414; color: #fca5a5; }
+      body.dark-mode .wov-pill-muted { background: #21262d; color: #c9d1d9; }
 
-      .wov-detail-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13.5px; color: #64748b; padding: 7px 0; border-bottom: 1px solid #f4f6fa; }
-      .wov-detail-row:last-of-type { border-bottom: none; }
-      .wov-detail-row strong { color: #1e293b; font-weight: 700; text-align: right; }
+      .wov-dl { margin: 0; }
+      .wov-dl div { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--wk-line); font-size: 13.5px; }
+      .wov-dl div:last-child { border-bottom: none; }
+      .wov-dl dt { color: var(--wk-muted); }
+      .wov-dl dd { margin: 0; color: var(--wk-ink); font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 
-      body.dark-mode .wov-hero, body.dark-mode .wov-stat, body.dark-mode .wov-card { background: #161b22 !important; border-color: #30363d !important; }
-      body.dark-mode .wov-name { color: #e6edf3 !important; }
-      body.dark-mode .wov-sub { color: #8b949e !important; }
-      body.dark-mode .wov-stat-num { color: #e6edf3 !important; }
-      body.dark-mode .wov-card-title { color: #8b949e !important; }
-      body.dark-mode .wov-att-val { color: #e6edf3 !important; }
-      body.dark-mode .wov-leave-row, body.dark-mode .wov-hol-row { color: #c9d1d9 !important; }
-      body.dark-mode .wov-leave-num { color: #e6edf3 !important; }
-      body.dark-mode .wov-detail-row { color: #8b949e !important; border-color: #30363d !important; }
-      body.dark-mode .wov-detail-row strong { color: #e6edf3 !important; }
-      body.dark-mode .wov-btn-ghost { background: #21262d !important; border-color: #30363d !important; color: #c9d1d9 !important; }
+      .wov-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+      .wov-list li { display: flex; align-items: center; gap: 12px; }
+      .wov-date { width: 44px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding: 5px 0;
+                  border-radius: 10px; background: #eff6ff; color: #1d4ed8; line-height: 1.1; }
+      .wov-date span { font-size: 16px; font-weight: 800; }
+      .wov-date small { font-size: 11px; font-weight: 700; text-transform: uppercase; }
+      body.dark-mode .wov-date { background: #1c2330; color: #79b8ff; }
+      .wov-list-main { display: flex; flex-direction: column; min-width: 0; }
+      .wov-list-main strong { font-size: 13.5px; font-weight: 600; color: var(--wk-ink); overflow-wrap: anywhere; }
+      .wov-list-main small { font-size: 12px; color: var(--wk-faint); margin-top: 1px; }
+
+      body.dark-mode :is(.wov-ico-green, .wov-ico-blue, .wov-ico-amber, .wov-ico-violet, .wov-empty-ico) { background: #1c2330; color: #79b8ff; }
+
+      @media (max-width: 1100px) {
+        .wov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .wov-layout { grid-template-columns: minmax(0, 1fr); }
+      }
+      @media (max-width: 520px) {
+        .wov-kpis { grid-template-columns: minmax(0, 1fr); }
+      }
     </style>
 {% endblock %}
 
 {% block main %}
-      <div class="wks-head">
-        <h1>My Workspace</h1>
-        <p>Your granted modules stay in the sidebar — this is everything about your own job: attendance, leave, payslips, tickets and profile.</p>
-      </div>
+      {% set _mark_att = "openWfhScanner()" if (attendance_auth_cfg.qr_enabled or attendance_auth_cfg.face_enabled
+                                                or attendance_auth_cfg.fingerprint_enabled) else "showView('attendance')" %}
+      <div class="wks">
+      <section class="wks-profile" aria-label="My Workspace">
+        <div class="wks-profile-main">
+          <div class="wks-id">
+            {% if emp[4] %}
+            <img class="wks-avatar" src="/my_photo?v={{ photo_v }}" alt="" />
+            {% else %}
+            <span class="wks-avatar wks-avatar-ph" aria-hidden="true">{{ emp[1][:1]|upper }}</span>
+            {% endif %}
+            <div>
+              <div class="wks-eyebrow">My Workspace</div>
+              <h1 class="wks-name">{{ emp[1] }}</h1>
+              <div class="wks-title">{{ emp[2] or 'Employee' }}{% if emp[31] %} &middot; {{ emp[31] }}{% endif %}</div>
+            </div>
+          </div>
+          <div class="wks-actions">
+            {# Opens the check-in scanner (_employee_portal_scripts.html's
+               wfhScanModal, static/js/employee-portal.js openWfhScanner) --
+               the same one the employee portal's dashboard uses. With no
+               check-in method enabled there's nothing to scan, so it shows
+               the Attendance tab instead. #}
+            <button type="button" class="wks-btn wks-btn-light" id="sbn-ov-attendance" data-on-click="{{ _mark_att }}"><i class="ti ti-fingerprint"></i> Mark Attendance</button>
+            <button type="button" class="wks-btn wks-btn-ghost" data-on-click="showView('apply-leave')"><i class="ti ti-calendar-event"></i> Apply Leave</button>
+            <button type="button" class="wks-btn wks-btn-ghost" data-on-click="showView('tickets')"><i class="ti ti-ticket"></i> Raise Ticket</button>
+          </div>
+        </div>
+        <div class="wks-facts">
+          <span class="wks-fact"><span class="wks-role"><i class="ti ti-shield-check"></i> {{ access_role_label }}</span></span>
+          <span class="wks-fact"><i class="ti ti-id"></i> Employee ID <b>{{ emp[0] }}</b></span>
+          {% if emp[7] %}<span class="wks-fact"><i class="ti ti-clock"></i> {{ emp[7] }}{% if emp[8] and emp[9] %} <b>{{ emp[8].strftime('%I:%M %p') }} – {{ emp[9].strftime('%I:%M %p') }}</b>{% endif %}</span>{% endif %}
+          {% if emp[30] %}<span class="wks-fact"><i class="ti ti-user-check"></i> Reports to <b>{{ emp[30] }}</b></span>{% endif %}
+          {% if emp[28] %}<span class="wks-fact"><i class="ti ti-map-pin"></i> {{ emp[28]|capitalize }}</span>{% endif %}
+        </div>
+      </section>
 
-      <div class="wks-tabs" role="tablist" aria-label="My workspace sections">
-        <button type="button" class="sb-item wtab" id="sbn-workspace-overview" data-on-click="showView('workspace-overview')" role="tab"><i class="ti ti-home"></i><span class="wtab-label">Overview</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-attendance" data-on-click="showView('attendance')" role="tab"><i class="ti ti-calendar-check"></i><span class="wtab-label">Attendance</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-apply-leave" data-on-click="showView('apply-leave')" role="tab"><i class="ti ti-calendar-event"></i><span class="wtab-label">Apply Leave</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-earnings" data-on-click="showView('earnings')" role="tab"><i class="ti ti-coin"></i><span class="wtab-label">Earnings</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-holidays" data-on-click="showView('holidays')" role="tab"><i class="ti ti-beach"></i><span class="wtab-label">Holidays</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-compoff" data-on-click="showView('compoff')" role="tab"><i class="ti ti-clock-bolt"></i><span class="wtab-label">OT &amp; Comp-off</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-performance" data-on-click="showView('performance')" role="tab"><i class="ti ti-chart-line"></i><span class="wtab-label">Performance</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-onboarding" data-on-click="showView('onboarding')" role="tab"><i class="ti ti-checklist"></i><span class="wtab-label">Onboarding</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-tickets" data-on-click="showView('tickets')" role="tab"><i class="ti ti-ticket"></i><span class="wtab-label">Tickets</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-my-profile" data-on-click="showView('my-profile')" role="tab"><i class="ti ti-user-circle"></i><span class="wtab-label">My Profile</span></button>
-        <button type="button" class="sb-item wtab" id="sbn-policies" data-on-click="showView('policies')" role="tab"><i class="ti ti-file-text"></i><span class="wtab-label">Policies</span></button>
-        <button type="button" class="sb-item wtab wtab-danger" id="sbn-resign" data-on-click="openResignGate()" role="tab"><i class="ti ti-door-exit"></i><span class="wtab-label">Resign</span></button>
-      </div>
+      <nav class="wks-tabs-wrap" aria-label="My workspace sections">
+        <div class="wks-tabs" role="tablist">
+          <button type="button" class="sb-item wtab" id="sbn-workspace-overview" data-on-click="showView('workspace-overview')" role="tab"><i class="ti ti-home"></i><span class="wtab-label">Overview</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-attendance" data-on-click="showView('attendance')" role="tab"><i class="ti ti-calendar-check"></i><span class="wtab-label">Attendance</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-apply-leave" data-on-click="showView('apply-leave')" role="tab"><i class="ti ti-calendar-event"></i><span class="wtab-label">Leave</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-earnings" data-on-click="showView('earnings')" role="tab"><i class="ti ti-coin"></i><span class="wtab-label">Payslips</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-holidays" data-on-click="showView('holidays')" role="tab"><i class="ti ti-beach"></i><span class="wtab-label">Holidays</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-compoff" data-on-click="showView('compoff')" role="tab"><i class="ti ti-clock-bolt"></i><span class="wtab-label">OT &amp; Comp-off</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-performance" data-on-click="showView('performance')" role="tab"><i class="ti ti-chart-line"></i><span class="wtab-label">Performance</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-onboarding" data-on-click="showView('onboarding')" role="tab"><i class="ti ti-checklist"></i><span class="wtab-label">Onboarding</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-tickets" data-on-click="showView('tickets')" role="tab"><i class="ti ti-ticket"></i><span class="wtab-label">Tickets</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-my-profile" data-on-click="showView('my-profile')" role="tab"><i class="ti ti-user-circle"></i><span class="wtab-label">Profile</span></button>
+          <button type="button" class="sb-item wtab" id="sbn-policies" data-on-click="showView('policies')" role="tab"><i class="ti ti-file-text"></i><span class="wtab-label">Policies</span></button>
+          <span class="wtab-sep" aria-hidden="true"></span>
+          <button type="button" class="sb-item wtab wtab-danger" id="sbn-resign" data-on-click="openResignGate()" role="tab"><i class="ti ti-door-exit"></i><span class="wtab-label">Resign</span></button>
+        </div>
+      </nav>
 
       <div id="view-workspace-overview" class="view active">
         {% include "_my_workspace_overview.html" %}
@@ -328,6 +429,7 @@
 
       <div id="view-onboarding" class="view">
         {% include "_my_onboarding_content.html" %}
+      </div>
       </div>
 {% endblock %}
 

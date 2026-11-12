@@ -60,7 +60,7 @@ def company_verification_page():
         flash("No company verification record found.", "error")
         return redirect(tpath("/admin"))
     return render_template(
-        "company_verification.html", application=application, doc_kinds=_APPLICATION_DOC_KINDS,
+        "company_verification.html", active_nav="settings", application=application, doc_kinds=_APPLICATION_DOC_KINDS,
     )
 
 
@@ -254,7 +254,7 @@ def company_details_page():
     if not tenant:
         flash("No company record found.", "error")
         return redirect(tpath("/admin"))
-    return render_template("company_details.html", gst_number=tenant[3] or "",
+    return render_template("company_details.html", active_nav="settings", gst_number=tenant[3] or "",
                            portal_url=f"{_safe_app_url()}/{tenant[2]}/login")
 
 

@@ -1,5 +1,5 @@
-"""HR staff in the app, like on the website: an employee whose role is "HR"
-signs in (/api/signin) to the HR panel -- through the admin login, emailed
+"""HR staff in the app, like on the website: an employee assigned the HR
+role in Settings -> Roles & Access signs in (/api/signin) to the HR panel -- through the admin login, emailed
 code included -- and can switch to their own employee view
 (/api/hr/my_employee_session), the app's twin of the web "My Profile" switch."""
 import pytest
@@ -11,10 +11,14 @@ from extensions import app as flask_app
 def hr_employee(db_engine, seed_employee):
     emp_id = seed_employee["employee_id"]
     cur = db_engine.cursor()
-    cur.execute("UPDATE employees SET role='HR' WHERE employee_id=%s", (emp_id,))
+    cur.execute("INSERT INTO roles (role_key, display_name, base_type, is_system) "
+                "VALUES ('hr','HR','hr',FALSE) ON CONFLICT (role_key) DO NOTHING")
     db_engine.commit()
+    from utils.helpers.rbac import assign_employee_role
+    with flask_app.test_request_context():
+        assign_employee_role(emp_id, "hr")
     yield seed_employee
-    cur.execute("UPDATE employees SET role=NULL WHERE employee_id=%s", (emp_id,))
+    cur.execute("UPDATE employees SET role=NULL, access_role=NULL WHERE employee_id=%s", (emp_id,))
     cur.execute("DELETE FROM api_tokens WHERE identity=%s", (emp_id,))
     cur.execute("DELETE FROM admin_users WHERE username=%s", (emp_id,))
     db_engine.commit()
@@ -56,6 +60,20 @@ class TestHrSignin:
     def test_other_employees_still_sign_in_as_employees(self, client, seed_employee):
         body = _signin(client, seed_employee["employee_id"], seed_employee["password"]).get_json()
         assert body["account"] == "employee"
+
+    def test_hr_job_title_alone_signs_in_as_an_employee(self, client, db_engine, seed_employee):
+        emp_id = seed_employee["employee_id"]
+        cur = db_engine.cursor()
+        cur.execute("UPDATE employees SET role='HR' WHERE employee_id=%s", (emp_id,))
+        db_engine.commit()
+        try:
+            body = _signin(client, emp_id, seed_employee["password"]).get_json()
+            assert body["account"] == "employee"
+        finally:
+            cur.execute("UPDATE employees SET role=NULL WHERE employee_id=%s", (emp_id,))
+            cur.execute("DELETE FROM api_tokens WHERE identity=%s", (emp_id,))
+            db_engine.commit()
+            cur.close()
 
     def test_wrong_password_is_still_generic(self, client, hr_employee):
         resp = _signin(client, hr_employee["employee_id"], "Wrong-Pass-1")

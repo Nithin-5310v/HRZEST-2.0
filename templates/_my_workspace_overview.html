@@ -1,102 +1,152 @@
-{# A clean, purpose-built Overview for my_workspace.html -- NOT the shared
+{# The Overview tab of my_workspace.html -- purpose-built, NOT the shared
    employee-portal "view-dashboard" (which this page also carries, unused,
-   as part of _employee_portal_views.html's bundle). Built fresh so it can
-   look like the rest of the admin shell rather than the older portal's
-   denser, icon-only stat strip. Needs: emp, access_role_label, photo_v,
-   today_att, att_pct, total_hours, leave_balance, leave_type_balances,
-   open_tickets_count, pending_leaves_count, compoff_avail_days,
-   upcoming_holidays -- all already in my_workspace()'s merged context. #}
-<div class="wov-hero">
-  <div class="wov-hero-id">
-    {% if emp[4] %}
-    <img class="wov-avatar" src="/my_photo?v={{ photo_v }}" alt="{{ emp[1] }}" />
-    {% else %}
-    <span class="wov-avatar wov-avatar-ph">{{ emp[1][:1]|upper }}</span>
-    {% endif %}
-    <div>
-      <div class="wov-name">Welcome back, {{ emp[1].split(' ')[0] }} <span aria-hidden="true">&#128075;</span></div>
-      <div class="wov-sub">
-        <span class="wov-role-badge"><i class="ti ti-shield-check"></i> {{ access_role_label }}</span>
-        <span class="wov-id">ID {{ emp[0] }}</span>
-        {% if emp[31] %}<span class="wov-dot" aria-hidden="true">&middot;</span><span class="wov-dept">{{ emp[31] }}</span>{% endif %}
-      </div>
-    </div>
+   as part of _employee_portal_views.html's bundle). The person's identity
+   and quick actions live in the page header above the tabs; this tab is
+   the at-a-glance summary. Needs: emp, att_pct, full_days, leave_balance,
+   leave_type_balances, pending_leaves_count, open_tickets_count,
+   compoff_avail_days, today_att, my_leaves, upcoming_holidays,
+   announcements, and my_workspace.html's _mark_att -- all already in my_workspace()'s merged context. #}
+{% set _status_cls = {'approved': 'ok', 'pending': 'warn', 'rejected': 'bad', 'cancelled': 'muted'} %}
+
+<div class="wov-kpis">
+  <div class="wov-kpi">
+    <div class="wov-kpi-top"><span class="wov-kpi-lbl">Attendance this month</span><span class="wov-kpi-ico wov-ico-green"><i class="ti ti-calendar-stats"></i></span></div>
+    <div class="wov-kpi-num">{{ att_pct }}%</div>
+    <div class="wov-kpi-foot">{{ full_days }} full day{{ '' if full_days == 1 else 's' }} recorded</div>
   </div>
-  <div class="wov-hero-actions">
-    <button type="button" class="wov-btn" id="sbn-ov-attendance" data-on-click="showView('attendance')"><i class="ti ti-calendar-check"></i> Mark Attendance</button>
-    <button type="button" class="wov-btn wov-btn-ghost" data-on-click="showView('apply-leave')"><i class="ti ti-calendar-event"></i> Apply Leave</button>
+  <div class="wov-kpi">
+    <div class="wov-kpi-top"><span class="wov-kpi-lbl">Leave balance</span><span class="wov-kpi-ico wov-ico-blue"><i class="ti ti-calendar-event"></i></span></div>
+    <div class="wov-kpi-num">{{ "%g"|format(leave_balance) }}<span class="wov-kpi-unit">days</span></div>
+    <div class="wov-kpi-foot">Across all leave types</div>
+  </div>
+  <div class="wov-kpi">
+    <div class="wov-kpi-top"><span class="wov-kpi-lbl">Pending requests</span><span class="wov-kpi-ico wov-ico-amber"><i class="ti ti-hourglass"></i></span></div>
+    <div class="wov-kpi-num">{{ pending_leaves_count + open_tickets_count }}</div>
+    <div class="wov-kpi-foot">{{ pending_leaves_count }} leave &middot; {{ open_tickets_count }} ticket{{ '' if open_tickets_count == 1 else 's' }}</div>
+  </div>
+  <div class="wov-kpi">
+    <div class="wov-kpi-top"><span class="wov-kpi-lbl">Comp-off available</span><span class="wov-kpi-ico wov-ico-violet"><i class="ti ti-clock-bolt"></i></span></div>
+    <div class="wov-kpi-num">{{ "%g"|format(compoff_avail_days) }}<span class="wov-kpi-unit">days</span></div>
+    <div class="wov-kpi-foot">Earned from overtime</div>
   </div>
 </div>
 
-<div class="wov-stats">
-  <div class="wov-stat">
-    <span class="wov-stat-icon wov-si-blue"><i class="ti ti-calendar-event"></i></span>
-    <span><span class="wov-stat-num">{{ "%g"|format(leave_balance) }}</span><span class="wov-stat-lbl">Leave days left</span></span>
-  </div>
-  <div class="wov-stat">
-    <span class="wov-stat-icon wov-si-green"><i class="ti ti-chart-donut"></i></span>
-    <span><span class="wov-stat-num">{{ att_pct }}%</span><span class="wov-stat-lbl">Attendance this month</span></span>
-  </div>
-  <div class="wov-stat">
-    <span class="wov-stat-icon wov-si-amber"><i class="ti ti-ticket"></i></span>
-    <span><span class="wov-stat-num">{{ open_tickets_count }}</span><span class="wov-stat-lbl">Open tickets</span></span>
-  </div>
-  <div class="wov-stat">
-    <span class="wov-stat-icon wov-si-purple"><i class="ti ti-clock-bolt"></i></span>
-    <span><span class="wov-stat-num">{{ "%g"|format(compoff_avail_days) }}</span><span class="wov-stat-lbl">Comp-off days</span></span>
-  </div>
-</div>
-
-<div class="wov-grid">
-  <div class="wov-card">
-    <div class="wov-card-title"><i class="ti ti-calendar-check"></i> Today's Attendance</div>
-    {% if today_att %}
-    {% set _lt, _lo, _st, _lst, _at = today_att %}
-    <div class="wov-att-row">
-      <div class="wov-att-item"><span class="wov-att-lbl">Login</span><span class="wov-att-val">{{ _lt.strftime('%I:%M %p') if _lt else '—' }}</span></div>
-      <div class="wov-att-item"><span class="wov-att-lbl">Logout</span><span class="wov-att-val">{{ _lo.strftime('%I:%M %p') if _lo else '—' }}</span></div>
-      <div class="wov-att-item"><span class="wov-att-lbl">Status</span><span class="wov-att-badge">{{ _at or _st or '—' }}</span></div>
-    </div>
-    {% else %}
-    <div class="wov-empty">No attendance recorded today yet.</div>
-    <button type="button" class="wov-link-btn" data-on-click="showView('attendance')">Go mark it <i class="ti ti-arrow-right"></i></button>
-    {% endif %}
-  </div>
-
-  <div class="wov-card">
-    <div class="wov-card-title"><i class="ti ti-calendar-event"></i> Leave Balance</div>
-    {% if leave_type_balances %}
-    <div class="wov-leave-list">
-      {% for lt in leave_type_balances[:4] %}
-      <div class="wov-leave-row">
-        <span>{{ lt.name }}</span>
-        <span class="wov-leave-num">{{ "%g"|format(lt.balance) }}<span class="wov-leave-of">/ {{ "%g"|format(lt.quota) }}</span></span>
+<div class="wov-layout">
+  <div class="wov-col">
+    <section class="wov-card">
+      <header class="wov-card-head">
+        <h2><i class="ti ti-fingerprint"></i> Today's attendance</h2>
+        <button type="button" class="wov-card-link" data-on-click="showView('attendance')">View history <i class="ti ti-chevron-right"></i></button>
+      </header>
+      {% if today_att %}
+      {% set _lt, _lo, _st, _lst, _at = today_att %}
+      <div class="wov-att">
+        <div class="wov-att-cell"><span class="wov-lbl">Check-in</span><span class="wov-val">{{ _lt.strftime('%I:%M %p') if _lt else '—' }}</span></div>
+        <div class="wov-att-cell"><span class="wov-lbl">Check-out</span><span class="wov-val">{{ _lo.strftime('%I:%M %p') if _lo else '—' }}</span></div>
+        <div class="wov-att-cell"><span class="wov-lbl">Status</span><span class="wov-pill wov-pill-ok">{{ _at or _st or '—' }}</span></div>
+        {% if emp[8] and emp[9] %}
+        <div class="wov-att-cell"><span class="wov-lbl">Shift</span><span class="wov-val">{{ emp[8].strftime('%I:%M %p') }} – {{ emp[9].strftime('%I:%M %p') }}</span></div>
+        {% endif %}
       </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="wov-empty">No leave balance set up yet.</div>
-    {% endif %}
+      {% else %}
+      <div class="wov-empty-row">
+        <span class="wov-empty-ico"><i class="ti ti-clock"></i></span>
+        <div>
+          <div class="wov-empty-title">You haven't checked in today</div>
+          <div class="wov-empty-sub">{% if emp[8] and emp[9] %}Your shift: {{ emp[8].strftime('%I:%M %p') }} – {{ emp[9].strftime('%I:%M %p') }}{% else %}Mark your attendance to start the day.{% endif %}</div>
+        </div>
+        <button type="button" class="wks-btn wks-btn-primary wov-empty-cta" data-on-click="{{ _mark_att }}"><i class="ti ti-fingerprint"></i> Check in</button>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="wov-card">
+      <header class="wov-card-head">
+        <h2><i class="ti ti-calendar-event"></i> Leave balance</h2>
+        <button type="button" class="wov-card-link" data-on-click="showView('apply-leave')">Apply leave <i class="ti ti-chevron-right"></i></button>
+      </header>
+      {% if leave_type_balances %}
+      <div class="wov-bars">
+        {% for lt in leave_type_balances[:5] %}
+        {% set _pct = ((lt.balance / lt.quota) * 100) if lt.quota else 0 %}
+        <div class="wov-bar-row">
+          <div class="wov-bar-meta"><span>{{ lt.name }}</span><span><strong>{{ "%g"|format(lt.balance) }}</strong> / {{ "%g"|format(lt.quota) }}</span></div>
+          <div class="wov-bar" role="progressbar" aria-label="{{ lt.name }} remaining" aria-valuenow="{{ _pct|round|int }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ [_pct, 100]|min }}%"></span></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="wov-empty">No leave types have been set up yet.</div>
+      {% endif %}
+    </section>
+
+    <section class="wov-card">
+      <header class="wov-card-head">
+        <h2><i class="ti ti-list-check"></i> Recent leave requests</h2>
+        <button type="button" class="wov-card-link" data-on-click="showView('apply-leave')">View all <i class="ti ti-chevron-right"></i></button>
+      </header>
+      {% if my_leaves %}
+      <table class="wov-table">
+        <thead><tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Status</th></tr></thead>
+        <tbody>
+          {% for l in my_leaves[:4] %}
+          <tr>
+            <td>{{ l[0].strftime('%d %b %Y') if l[0] is not string else l[0] }}</td>
+            <td>{{ l[4] or 'Leave' }}</td>
+            <td><span class="wov-pill wov-pill-{{ _status_cls.get((l[2] or '')|lower, 'muted') }}">{{ l[2] }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="wov-empty">You haven't requested any leave yet.</div>
+      {% endif %}
+    </section>
   </div>
 
-  <div class="wov-card">
-    <div class="wov-card-title"><i class="ti ti-id"></i> My Details</div>
-    <div class="wov-detail-row"><span>Email</span><strong>{{ emp[3] or '—' }}</strong></div>
-    <div class="wov-detail-row"><span>Phone</span><strong>{{ emp[10] or '—' }}</strong></div>
-    <div class="wov-detail-row"><span>Joined</span><strong>{{ emp[5].strftime('%d %b %Y') if emp[5] else '—' }}</strong></div>
-    <button type="button" class="wov-link-btn" data-on-click="showView('my-profile')">View full profile <i class="ti ti-arrow-right"></i></button>
-  </div>
+  <div class="wov-col">
+    <section class="wov-card">
+      <header class="wov-card-head">
+        <h2><i class="ti ti-id-badge-2"></i> My details</h2>
+        <button type="button" class="wov-card-link" data-on-click="showView('my-profile')">Edit <i class="ti ti-chevron-right"></i></button>
+      </header>
+      <dl class="wov-dl">
+        <div><dt>Email</dt><dd>{{ emp[3] or '—' }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ emp[10] or '—' }}</dd></div>
+        <div><dt>Date of joining</dt><dd>{{ emp[5].strftime('%d %b %Y') if emp[5] else '—' }}</dd></div>
+        <div><dt>Reporting manager</dt><dd>{{ emp[30] or '—' }}</dd></div>
+      </dl>
+    </section>
 
-  <div class="wov-card">
-    <div class="wov-card-title"><i class="ti ti-beach"></i> Upcoming Holidays</div>
-    {% if upcoming_holidays %}
-    <div class="wov-hol-list">
-      {% for d, n in upcoming_holidays %}
-      <div class="wov-hol-row"><span class="wov-hol-date">{{ d.strftime('%d %b') }}</span><span>{{ n }}</span></div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="wov-empty">No upcoming holidays.</div>
-    {% endif %}
+    <section class="wov-card">
+      <header class="wov-card-head">
+        <h2><i class="ti ti-beach"></i> Upcoming holidays</h2>
+        <button type="button" class="wov-card-link" data-on-click="showView('holidays')">Calendar <i class="ti ti-chevron-right"></i></button>
+      </header>
+      {% if upcoming_holidays %}
+      <ul class="wov-list">
+        {% for d, n in upcoming_holidays[:4] %}
+        <li><span class="wov-date"><span>{{ d.strftime('%d') }}</span><small>{{ d.strftime('%b') }}</small></span><span class="wov-list-main"><strong>{{ n }}</strong><small>{{ d.strftime('%A') }}</small></span></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="wov-empty">No upcoming holidays.</div>
+      {% endif %}
+    </section>
+
+    <section class="wov-card">
+      <header class="wov-card-head">
+        <h2><i class="ti ti-speakerphone"></i> Announcements</h2>
+      </header>
+      {% if announcements %}
+      <ul class="wov-list">
+        {% for a in announcements[:3] %}
+        <li><span class="wov-list-main"><strong>{{ a[1] }}</strong><small>{{ a[4].strftime('%d %b %Y') if a[4] else '' }}</small></span></li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="wov-empty">No announcements right now.</div>
+      {% endif %}
+    </section>
   </div>
 </div>

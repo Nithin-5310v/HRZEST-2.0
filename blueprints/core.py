@@ -741,23 +741,27 @@ def _issue_employee_api_token(emp_id):
 
 def _hr_employee_signin(emp_id, employee_result):
     """Like the website's login (auth._finish_employee_login): an employee
-    whose role is exactly "HR" signs in to the HR panel, through the same
-    admin login -- emailed code included -- not as a plain employee. Their
-    own employee view is one tap away (/api/hr/my_employee_session).
+    assigned the HR role in Settings -> Roles & Access signs in to the HR
+    panel, through the same admin login -- emailed code included -- not as a
+    plain employee. A job title of "HR" alone grants nothing. Their own
+    employee view is one tap away (/api/hr/my_employee_session).
     Returns the admin answer, or None to keep the employee one."""
-    from blueprints.auth import _ensure_hr_admin_account, _HR_EMPLOYEE_ROLE
     resp, status = employee_result if isinstance(employee_result, tuple) else (employee_result, 200)
     body = resp.get_json(silent=True) or {}
     if not body.get("ok"):
         return None
     with _db() as (cursor, conn):
-        cursor.execute("SELECT role FROM employees WHERE employee_id=%s", (emp_id,))
+        # The assignment (utils.helpers.rbac.assign_employee_role) keeps the
+        # admin_users login on the role and active; clearing it deactivates it.
+        cursor.execute(
+            "SELECT COALESCE(e.access_role,''), COALESCE(a.is_active,0) FROM employees e "
+            "LEFT JOIN admin_users a ON a.username = e.employee_id AND a.role = %s "
+            "WHERE e.employee_id=%s",
+            (HR_ROLE, emp_id),
+        )
         row = cursor.fetchone()
-        if not row or (row[0] or "").strip().lower() != _HR_EMPLOYEE_ROLE:
+        if not row or row[0] != HR_ROLE or not row[1]:
             return None
-    # Without HR dashboard access they stay signed in as an employee.
-    if not _ensure_hr_admin_account(emp_id, body.get("email")):
-        return None
     with _db() as (cursor, conn):
         # The employee token minted on the way here isn't handed out.
         cursor.execute("DELETE FROM api_tokens WHERE token=%s", (_hash_token(body["token"]),))
