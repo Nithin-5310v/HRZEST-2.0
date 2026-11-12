@@ -859,9 +859,17 @@ def _flash_hierarchy_effects(capped=(), lowered=()):
 @role_required("admin")
 def settings_roles():
     """Roles & Access -> Hierarchy: the role tree and who is under whom."""
+    people = people_hierarchy()
+    # employee_id -> their node (team size, employees and role-holders under
+    # them), for the selected role's "People in this role" list.
+    people_index, stack = {}, list(people["roots"])
+    while stack:
+        node = stack.pop()
+        people_index[node["employee_id"]] = node
+        stack += node["children"]
     return _roles_page("roles_hierarchy.html", "hierarchy",
-                       people=people_hierarchy(), rbac_permissions=all_role_permissions(),
-                       rbac_assignments=employees_by_role())
+                       people=people, people_index=people_index,
+                       rbac_permissions=all_role_permissions(), rbac_assignments=employees_by_role())
 
 
 @admin_views_bp.route("/settings/roles/list")
