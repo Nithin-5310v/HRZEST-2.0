@@ -191,7 +191,7 @@ export default function ResignationsScreen() {
             {["Pending", "Accepted", "Declined", "All"].map((tab) => {
               const active = activeTab === tab;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={tab}
                   activeOpacity={0.7}
                   style={[styles.tabButton, active && styles.tabButtonActive]}
@@ -275,7 +275,7 @@ export default function ResignationsScreen() {
                   {/* Action Buttons for Pending */}
                   {isPending && (
                     <View style={styles.actionRow}>
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         activeOpacity={0.8}
                         style={[styles.btn, styles.btnAccept]}
                         disabled={actingId === item.id}
@@ -291,7 +291,7 @@ export default function ResignationsScreen() {
                         )}
                       </TouchableOpacity>
 
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         activeOpacity={0.8}
                         style={[styles.btn, styles.btnDecline]}
                         disabled={actingId === item.id}

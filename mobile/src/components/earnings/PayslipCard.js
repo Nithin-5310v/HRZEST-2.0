@@ -97,7 +97,7 @@ export default function PayslipCard({
         </Picker>
       </View>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.9}
         style={styles.button}
         onPress={() =>

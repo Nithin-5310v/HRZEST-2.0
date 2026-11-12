@@ -24,6 +24,9 @@ import { Picker } from "@react-native-picker/picker";
 import AdminHeader from "../../components/admin/AdminHeader";
 import { useTheme } from "../../store/ThemeContext";
 import { fetchAttendanceEmployees, fetchEmployees, markAttendance } from "../../api/client";
+import {
+  NO_TIME_TYPES, buildRecord, initialEntry, isChanged, isMarked, savedSummary,
+} from "../../utils/attendanceEdit";
 
 // ── Constants ──────────────────────────────────────────────────────
 
@@ -89,7 +92,7 @@ const getInitials = (name) =>
 
 // ── Main Screen ────────────────────────────────────────────────────
 
-export default function MarkAttendanceScreen({ navigation }) {
+export default function MarkAttendanceScreen({ navigation, route }) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -98,6 +101,7 @@ export default function MarkAttendanceScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingRow, setSavingRow] = useState(null);
 
   // Time picker state
   const [timePickerOpen, setTimePickerOpen] = useState(false);
@@ -113,6 +117,18 @@ export default function MarkAttendanceScreen({ navigation }) {
     loadEmployees();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
+
+  // Opened from Daily Attendance's "Edit" on one employee: show that
+  // person on that day.
+  const focusId = route?.params?.focusEmployeeId;
+  const focusDate = route?.params?.date;
+  useEffect(() => {
+    if (focusId) setSearch(focusId);
+    if (focusDate) {
+      const [y, m, d] = String(focusDate).split("-").map(Number);
+      if (y && m && d) setSelectedDate(new Date(y, m - 1, d));
+    }
+  }, [focusId, focusDate]);
 
   // ── Handlers ─────────────────────────────────────────────────────
 
@@ -146,14 +162,12 @@ export default function MarkAttendanceScreen({ navigation }) {
     setLoading(false);
   };
 
+  // Start from what the server already has for the day, so a marked
+  // employee shows their record and can be updated.
   const initAttendance = (emps) => {
     const initial = {};
     emps.forEach((e) => {
-      initial[e.employee_id] = {
-        type: "",
-        login: e.shift_start || "",
-        logout: e.shift_end || "",
-      };
+      initial[e.employee_id] = initialEntry(e);
     });
     setAttendance(initial);
   };
@@ -211,29 +225,31 @@ export default function MarkAttendanceScreen({ navigation }) {
     setTimePickerField(null);
   };
 
-  const handleSave = async () => {
-    const records = Object.entries(attendance)
-      .filter(([_, v]) => v.type)
-      .map(([empId, v]) => ({
-        emp_id: empId,
-        attendance_type: v.type,
-        login_time: v.login || null,
-        logout_time: v.logout || null,
-      }));
+  const empById = React.useMemo(() => {
+    const map = {};
+    employees.forEach((e) => { map[e.employee_id] = e; });
+    return map;
+  }, [employees]);
 
-    if (records.length === 0) {
-      Alert.alert("No Changes", "Please mark attendance for at least one employee.");
+  // Only rows the admin changed: new marks and updates to saved records.
+  const changedIds = Object.keys(attendance).filter((id) => isChanged(attendance[id], empById[id]));
+  const updateCount = changedIds.filter((id) => isMarked(empById[id])).length;
+
+  const saveRecords = async (ids, rowId = null) => {
+    if (ids.length === 0) {
+      Alert.alert("No Changes", "Mark or change attendance for at least one employee first.");
       return;
     }
-
-    setSaving(true);
+    const records = ids.map((id) => buildRecord(id, attendance[id]));
+    if (rowId) setSavingRow(rowId); else setSaving(true);
     try {
       const res = await markAttendance(formatDateISO(selectedDate), records);
       if (res.data?.ok) {
-        Alert.alert(
-          "Success",
-          `Attendance saved for ${records.length} employee(s) on ${formatDate(selectedDate)}.`
-        );
+        const updated = ids.filter((id) => isMarked(empById[id])).length;
+        const added = ids.length - updated;
+        const what = [added && `${added} marked`, updated && `${updated} updated`].filter(Boolean).join(", ");
+        Alert.alert("Saved", `Attendance on ${formatDate(selectedDate)}: ${what}.`);
+        await loadEmployees();   // the rows now show what was saved
       } else {
         Alert.alert("Save Failed", res.data?.msg || "Could not save attendance. Please try again.");
       }
@@ -241,8 +257,10 @@ export default function MarkAttendanceScreen({ navigation }) {
       const msg = e.response?.data?.msg || e.message || "Could not save attendance. Please check your connection and try again.";
       Alert.alert("Save Failed", msg);
     }
-    setSaving(false);
+    if (rowId) setSavingRow(null); else setSaving(false);
   };
+
+  const handleSave = () => saveRecords(changedIds);
 
   // ── Computed ─────────────────────────────────────────────────────
 
@@ -256,12 +274,19 @@ export default function MarkAttendanceScreen({ navigation }) {
     );
   });
 
-  const markedCount = Object.values(attendance).filter((v) => v.type).length;
+  const markedCount = employees.filter((e) => isMarked(e)).length;
 
   // ── Render ───────────────────────────────────────────────────────
 
   const renderEmployee = ({ item }) => {
     const att = attendance[item.employee_id] || { type: "", login: "", logout: "" };
+    const marked = isMarked(item);
+    const changed = isChanged(att, item);
+    const noTimes = NO_TIME_TYPES.includes(att.type);
+    // A saved type the list doesn't offer (an older value) still shows.
+    const typeOptions = att.type && !ATT_STATUS_OPTIONS.some((o) => o.value === att.type)
+      ? [...ATT_STATUS_OPTIONS, { label: att.type, value: att.type }]
+      : ATT_STATUS_OPTIONS;
     const statusColor = att.type ? STATUS_COLORS[att.type] : null;
     const workMode = (item.work_mode || "office").toLowerCase();
     const workModeColor = WORK_MODE_COLORS[workMode] || WORK_MODE_COLORS.office;
@@ -346,6 +371,18 @@ export default function MarkAttendanceScreen({ navigation }) {
           <Text style={styles.noRecords}>No records</Text>
         )}
 
+        {/* What's saved for the day */}
+        <View style={[styles.savedRow, marked ? styles.savedRowOn : null]}>
+          <Ionicons
+            name={marked ? "checkmark-circle" : "ellipse-outline"}
+            size={16}
+            color={marked ? "#15803D" : "#98A2B3"}
+          />
+          <Text style={[styles.savedText, marked ? styles.savedTextOn : null]} testID={`saved-${item.employee_id}`}>
+            {marked ? `Saved: ${savedSummary(item)}` : "Not marked yet"}
+          </Text>
+        </View>
+
         {/* Attendance Status Picker */}
         <View style={styles.pickerContainer}>
           <Picker
@@ -355,7 +392,7 @@ export default function MarkAttendanceScreen({ navigation }) {
             dropdownIconColor={colors.textLight}
             itemStyle={{ fontSize: 14, color: colors.text }}
           >
-            {ATT_STATUS_OPTIONS.map((opt) => (
+            {typeOptions.map((opt) => (
               <Picker.Item
                 key={opt.value}
                 label={opt.label}
@@ -366,23 +403,48 @@ export default function MarkAttendanceScreen({ navigation }) {
           </Picker>
         </View>
 
-        {/* Login / Logout Time */}
+        {/* Login / Logout Time (none for Absent, Leave, Holiday, Week Off) */}
         <View style={styles.timeRow}>
           <TouchableOpacity
-            style={styles.timeInput}
+            style={[styles.timeInput, noTimes && styles.timeInputOff]}
             onPress={() => openTimePicker(item.employee_id, "login")}
+            disabled={noTimes}
+            accessibilityRole="button"
+            accessibilityLabel={`Check-in time for ${item.name}: ${noTimes ? "none" : att.login || "not set"}`}
           >
-            <Ionicons name="time-outline" size={16} color="#475467" />
-            <Text style={styles.timeText}>{att.login || "—"}</Text>
+            <Ionicons name="log-in-outline" size={16} color="#475467" />
+            <Text style={styles.timeText}>{noTimes ? "—" : att.login || "In —"}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.timeInput}
+            style={[styles.timeInput, noTimes && styles.timeInputOff]}
             onPress={() => openTimePicker(item.employee_id, "logout")}
+            disabled={noTimes}
+            accessibilityRole="button"
+            accessibilityLabel={`Check-out time for ${item.name}: ${noTimes ? "none" : att.logout || "not set"}`}
           >
-            <Ionicons name="time-outline" size={16} color="#475467" />
-            <Text style={styles.timeText}>{att.logout || "—"}</Text>
+            <Ionicons name="log-out-outline" size={16} color="#475467" />
+            <Text style={styles.timeText}>{noTimes ? "—" : att.logout || "Out —"}</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Save or update just this employee */}
+        {changed ? (
+          <TouchableOpacity
+            style={[styles.rowSaveBtn, marked ? styles.rowUpdateBtn : null]}
+            onPress={() => saveRecords([item.employee_id], item.employee_id)}
+            disabled={savingRow === item.employee_id || saving}
+            accessibilityRole="button"
+            accessibilityLabel={`${marked ? "Update" : "Save"} attendance for ${item.name}`}
+            testID={`rowSave-${item.employee_id}`}
+          >
+            {savingRow === item.employee_id ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name={marked ? "refresh" : "save"} size={16} color="#FFFFFF" />
+            )}
+            <Text style={styles.rowSaveText}>{marked ? "Update" : "Save"}</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     );
   };
@@ -405,7 +467,7 @@ export default function MarkAttendanceScreen({ navigation }) {
           {/* Date Bar */}
           <View style={styles.dateBar}>
             <Text style={styles.dateLabel}>Select Date</Text>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.dateButton}
               onPress={() => setDatePickerOpen(true)}
             >
@@ -423,7 +485,7 @@ export default function MarkAttendanceScreen({ navigation }) {
           <View style={styles.quickBar}>
             <Text style={styles.quickLabel}>Quick Mark All:</Text>
             {QUICK_MARK_OPTIONS.map((opt) => (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 key={opt.value}
                 style={styles.qbtn}
                 onPress={() => handleQuickMark(opt.value)}
@@ -476,12 +538,15 @@ export default function MarkAttendanceScreen({ navigation }) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerCount}>
-            {markedCount} of {filteredEmployees.length} marked
+            {markedCount} of {employees.length} marked
+            {changedIds.length ? ` · ${changedIds.length} change(s)` : ""}
           </Text>
           <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            style={[styles.saveButton, (saving || changedIds.length === 0) && styles.saveButtonDisabled]}
             onPress={handleSave}
-            disabled={saving}
+            disabled={saving || changedIds.length === 0}
+            accessibilityRole="button"
+            testID="saveAllAttendance"
           >
             {saving ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -489,7 +554,7 @@ export default function MarkAttendanceScreen({ navigation }) {
               <Ionicons name="save" size={18} color="#FFFFFF" />
             )}
             <Text style={styles.saveText}>
-              {saving ? "Saving…" : "Save Attendance"}
+              {saving ? "Saving…" : updateCount ? `Save & Update (${changedIds.length})` : `Save Attendance${changedIds.length ? ` (${changedIds.length})` : ""}`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -533,6 +598,20 @@ export default function MarkAttendanceScreen({ navigation }) {
 // ── Styles ─────────────────────────────────────────────────────────
 
 const makeStyles = (colors) => StyleSheet.create({
+  savedRow: {
+    flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10,
+    paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: "#F2F4F7",
+  },
+  savedRowOn: { backgroundColor: "#ECFDF3" },
+  savedText: { fontSize: 12.5, color: "#667085", flexShrink: 1 },
+  savedTextOn: { color: "#067647", fontWeight: "600" },
+  timeInputOff: { opacity: 0.45 },
+  rowSaveBtn: {
+    marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    backgroundColor: "#2563EB", borderRadius: 10, paddingVertical: 10,
+  },
+  rowUpdateBtn: { backgroundColor: "#D97706" },
+  rowSaveText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 20,

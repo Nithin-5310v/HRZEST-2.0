@@ -15,6 +15,7 @@ import CompOffStatsGrid from "../../components/compoff/CompOffStatsGrid";
 import CompOffInfoCard from "../../components/compoff/CompOffInfoCard";
 import OvertimeHistoryCard from "../../components/compoff/OvertimeHistoryCard";
 import ProfileHeader from "../../components/profile/ProfileHeader";
+import { reportError } from "../../utils/crashReporting";
 
 export default function CompOffScreen() {
   const { user } = useAuth();
@@ -37,7 +38,7 @@ export default function CompOffScreen() {
       if (profRes?.data?.ok && profRes?.data?.profile) {
         setProfile(profRes.data.profile);
       }
-    } catch (_) {}
+    } catch (e) { reportError(e, { where: "CompOffScreen" }); }
   };
 
   React.useEffect(() => {

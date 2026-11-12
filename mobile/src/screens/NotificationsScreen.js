@@ -29,6 +29,7 @@ import {
   broadcastNotification,
 } from "../api/client";
 import { notificationFilters } from "../data/notificationsData";
+import { reportError } from "../utils/crashReporting";
 
 export default function NotificationsScreen() {
   const { colors } = useTheme();
@@ -87,7 +88,7 @@ export default function NotificationsScreen() {
       } else {
         await markEmployeeNotificationsRead();
       }
-    } catch (_) {}
+    } catch (e) { reportError(e, { where: "NotificationsScreen" }); }
     setNotificationsList((prev) =>
       prev.map((item) => ({ ...item, unread: false }))
     );
@@ -166,14 +167,14 @@ export default function NotificationsScreen() {
         {/* Action Row */}
         <View style={styles.actionRow}>
           {unreadCount > 0 && (
-            <TouchableOpacity style={styles.markReadBtn} onPress={handleMarkAllRead}>
+            <TouchableOpacity accessibilityRole="button" style={styles.markReadBtn} onPress={handleMarkAllRead}>
               <Ionicons name="checkmark-done" size={16} color="#0284C7" style={{ marginRight: 4 }} />
               <Text style={styles.markReadText}>Mark all as read</Text>
             </TouchableOpacity>
           )}
 
           {canBroadcast && (
-            <TouchableOpacity style={styles.broadcastBtn} onPress={() => setBroadcastVisible(true)}>
+            <TouchableOpacity accessibilityRole="button" style={styles.broadcastBtn} onPress={() => setBroadcastVisible(true)}>
               <Ionicons name="megaphone-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
               <Text style={styles.broadcastBtnText}>Send Broadcast</Text>
             </TouchableOpacity>
@@ -230,14 +231,14 @@ export default function NotificationsScreen() {
             />
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.cancelBtn}
                 onPress={() => setBroadcastVisible(false)}
               >
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.submitBtn}
                 disabled={broadcasting}
                 onPress={handleSendBroadcast}

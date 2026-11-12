@@ -55,7 +55,7 @@ export default function EmployeeUpcomingEvents({
           </Text>
         </View>
         {navigation ? (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={{ flexDirection: "row", alignItems: "center" }}
             onPress={() => navigation.navigate("Holidays")}
           >
@@ -78,7 +78,7 @@ export default function EmployeeUpcomingEvents({
         </View>
       ) : (
         events.map((item, index) => (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={index}
             activeOpacity={0.8}
             style={styles.card}

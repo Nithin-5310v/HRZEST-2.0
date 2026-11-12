@@ -151,7 +151,7 @@ export default function SeatsBillingScreen() {
             </View>
           )}
           {!isUnlimited && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[styles.primaryBtn, atCap && styles.primaryBtnDanger]}
               onPress={openBillingWebView}
               disabled={webviewLoading}
@@ -201,7 +201,7 @@ export default function SeatsBillingScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={openBillingWebView} disabled={webviewLoading}>
+          <TouchableOpacity accessibilityRole="button" style={styles.primaryBtn} onPress={openBillingWebView} disabled={webviewLoading}>
             {webviewLoading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
@@ -239,7 +239,7 @@ export default function SeatsBillingScreen() {
         <SafeAreaView style={styles.webviewContainer}>
           <View style={styles.webviewHeader}>
             <Text style={styles.webviewTitle}>Seats & Billing</Text>
-            <TouchableOpacity onPress={closeWebView} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={closeWebView} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>

@@ -201,7 +201,7 @@ export default function PerformanceScreen({ navigation }) {
 
           {/* Review List */}
           {filteredReviews.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.reviewCard} activeOpacity={0.85} onPress={() => openReviewModal(item)}>
+            <TouchableOpacity accessibilityRole="button" key={item.id} style={styles.reviewCard} activeOpacity={0.85} onPress={() => openReviewModal(item)}>
               <View style={styles.cardTop}>
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>
@@ -284,7 +284,7 @@ export default function PerformanceScreen({ navigation }) {
                 <Text style={{ fontSize: 17, fontWeight: "800", color: colors.text }}>
                   Q{CURRENT_QUARTER} {CURRENT_YEAR} Review -- {reviewTarget?.employeeName}
                 </Text>
-                <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setReviewModalVisible(false)}>
                   <Ionicons name="close-circle" size={26} color="#475467" />
                 </TouchableOpacity>
               </View>
@@ -304,14 +304,14 @@ export default function PerformanceScreen({ navigation }) {
                 </Text>
 
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 22, marginBottom: 10 }}>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={{ flex: 1, backgroundColor: "#EEF1F5", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
                     onPress={() => handleSubmitReview("Draft")}
                     disabled={submittingReview}
                   >
                     <Text style={{ fontWeight: "800", color: "#344054" }}>Save Draft</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={{ flex: 1, backgroundColor: "#2563EB", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
                     onPress={() => handleSubmitReview("Completed")}
                     disabled={submittingReview}

@@ -17,6 +17,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import { useTheme } from "../../store/ThemeContext";
 import { fetchEmployeePortal, submitResignation } from "../../api/client";
+import { localISODate } from "../../utils/dates";
+import { reportError } from "../../utils/crashReporting";
 
 const REASONS = [
   { icon: "trending-up-outline", label: "Career Growth" },
@@ -30,7 +32,7 @@ const REASONS = [
 function addDays(n) {
   const d = new Date();
   d.setDate(d.getDate() + n);
-  return d.toISOString().split("T")[0];
+  return localISODate(d);
 }
 
 export default function ResignScreen() {
@@ -50,7 +52,7 @@ export default function ResignScreen() {
       if (res && res.data && res.data.ok) {
         setExisting(res.data.resignation);
       }
-    } catch (_) {}
+    } catch (e) { reportError(e, { where: "ResignScreen" }); }
     setLoading(false);
   };
 
@@ -248,7 +250,7 @@ export default function ResignScreen() {
                   const monthName = dateObj.toLocaleString("default", { month: "short" });
 
                   return (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={d}
                       activeOpacity={0.7}
                       style={[styles.dateChip, active && styles.dateChipActive]}
@@ -282,7 +284,7 @@ export default function ResignScreen() {
               {REASONS.map((r) => {
                 const active = reason === r.label;
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={r.label}
                     activeOpacity={0.7}
                     style={[styles.reasonChip, active && styles.reasonChipActive]}
@@ -317,7 +319,7 @@ export default function ResignScreen() {
           </View>
 
           {/* Submit Button */}
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             activeOpacity={0.8}
             style={[styles.submitBtn, (!confirmed || submitting) && styles.submitBtnDisabled]}
             disabled={!confirmed || submitting}

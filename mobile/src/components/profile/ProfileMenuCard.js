@@ -17,7 +17,7 @@ export default function ProfileMenuCard({
   onPress,
 }) {
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       activeOpacity={0.85}
       style={styles.card}
       onPress={onPress}

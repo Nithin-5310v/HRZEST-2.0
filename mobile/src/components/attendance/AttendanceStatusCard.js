@@ -134,7 +134,7 @@ export default function AttendanceStatusCard({
 
       {/* Action Button */}
       {onCheckIn && (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           activeOpacity={0.88}
           disabled={checking}
           onPress={onCheckIn}

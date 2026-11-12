@@ -13,6 +13,7 @@ from utils.helpers import (
     _validate_image_file,
     add_employee_seat_cap_check,
     amount,
+    decrypt_pii,
     encrypt_contact,
     int_param,
     validate_emp_id,
@@ -30,7 +31,9 @@ from .registration import _send_welcome_credentials_email
 @limiter.limit("10 per minute")
 def api_employees():
     page = max(1, int_param(request.args.get("page", 1)))
-    per_page = min(100, max(1, int_param(request.args.get("per_page", 50))))
+    # Up to 500 a page: the app loads the whole staff list (it used to get
+    # only the first 50) and this route allows 10 calls a minute.
+    per_page = min(500, max(1, int_param(request.args.get("per_page", 50))))
     offset = (page - 1) * per_page
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -41,7 +44,7 @@ def api_employees():
     # an edit made in the app blanked the employee's role and joining date.
     cursor.execute("""
         SELECT e.employee_id, e.name, e.email, s.salary_per_day,
-               e.role, e.department, e.phone, e.date_of_joining
+               e.role, e.department, e.phone, e.date_of_joining, e.face_image IS NOT NULL
         FROM employees e
         LEFT JOIN salary_config s ON e.employee_id = s.employee_id
         ORDER BY e.name
@@ -52,9 +55,11 @@ def api_employees():
     db.close()
     return jsonify({"ok": True, "total": total, "page": page, "per_page": per_page,
                     "employees": [
-                        {"employee_id": r[0], "name": r[1], "email": r[2], "salary_per_day": float(amount(r[3])),
-                         "role": r[4] or "", "department": r[5] or "", "phone": r[6] or "",
-                         "date_of_joining": r[7].isoformat() if r[7] else ""}
+                        # email and phone are stored encrypted (encrypt_contact).
+                        {"employee_id": r[0], "name": r[1], "email": decrypt_pii(r[2]) or "",
+                         "salary_per_day": float(amount(r[3])),
+                         "role": r[4] or "", "department": r[5] or "", "phone": decrypt_pii(r[6]) or "",
+                         "date_of_joining": r[7].isoformat() if r[7] else "", "has_photo": bool(r[8])}
                         for r in rows
                     ]})
 
@@ -203,6 +208,45 @@ def api_edit_employee(emp_id):
     if role != _prev_role:
         _audit("update_employee_role", "employees", emp_id, f"role changed from {_prev_role!r} to {role!r} (via API)")
     return jsonify({"ok": True, "msg": "Employee updated."})
+
+
+@employees_bp.route("/api/employees/<emp_id>/photo", methods=["POST"])
+@api_required
+@api_role_required("admin")
+@limiter.limit("20 per minute")
+def api_update_employee_photo(emp_id):
+    """The app's Staff screen setting an employee's face photo. It used to
+    post to /api/employee/photo, which changes the photo of the token's OWN
+    employee record and ignores which employee was meant: for an owner admin
+    with a linked profile that replaced the admin's photo. The face is
+    checked before anything is written, so a rejected photo never replaces
+    the one on file."""
+    file = request.files.get("photo") or request.files.get("face")
+    if not file or not file.filename:
+        return jsonify({"ok": False, "msg": "No photo provided."}), 400
+    ok, err = _validate_image_file(file)
+    if not ok:
+        return jsonify({"ok": False, "msg": err}), 400
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute("SELECT 1 FROM employees WHERE employee_id=%s", (emp_id,))
+        if not cursor.fetchone():
+            return jsonify({"ok": False, "msg": "Employee not found."}), 404
+        if _face_recognition_available:
+            file.stream.seek(0)
+            if not face_recognition.face_locations(detection_array(file.stream)):
+                return jsonify({"ok": False, "msg": "No face found in the photo. Use a clear, front-facing photo."}), 400
+            file.stream.seek(0)
+        filepath = face_photo_path(emp_id)
+        save_upload(file, filepath)
+        cursor.execute("UPDATE employees SET face_image=%s WHERE employee_id=%s", (filepath, emp_id))
+        db.commit()
+    finally:
+        cursor.close()
+        db.close()
+    _audit("update_employee_photo", "employees", emp_id, "photo updated from the mobile app")
+    return jsonify({"ok": True, "msg": "Photo updated."})
 
 
 @employees_bp.route("/api/employees/<emp_id>", methods=["DELETE"])

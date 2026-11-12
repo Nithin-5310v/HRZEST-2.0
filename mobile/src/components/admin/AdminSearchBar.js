@@ -33,7 +33,7 @@ export default function AdminSearchBar({
           style={styles.input}
         />
         {value ? (
-          <TouchableOpacity onPress={onClear || (() => onChangeText && onChangeText(""))}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClear || (() => onChangeText && onChangeText(""))}>
             <Ionicons name="close-circle" size={18} color={THEME.colors.textLight} />
           </TouchableOpacity>
         ) : null}
@@ -41,7 +41,7 @@ export default function AdminSearchBar({
 
       {/* Filter Button */}
       {onFilterPress && (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Filter"
           activeOpacity={0.8}
           style={[styles.filterButton, hasActiveFilter && styles.filterButtonActive]}
           onPress={onFilterPress}

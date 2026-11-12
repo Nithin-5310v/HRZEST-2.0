@@ -142,7 +142,7 @@ export default function DocumentsScreen() {
         title="Documents & Statutory Files"
         showBack
         rightAction={
-          <TouchableOpacity onPress={openUploadModal} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Add" onPress={openUploadModal} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="add-circle" size={26} color={colors.primary} />
           </TouchableOpacity>
         }
@@ -175,7 +175,7 @@ export default function DocumentsScreen() {
                   {doc.expiry_date ? ` • Expires ${doc.expiry_date}` : ""}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => handleDelete(doc)} disabled={deletingId === doc.id} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete" onPress={() => handleDelete(doc)} disabled={deletingId === doc.id} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 {deletingId === doc.id ? (
                   <ActivityIndicator size="small" color={colors.danger} />
                 ) : (
@@ -192,7 +192,7 @@ export default function DocumentsScreen() {
           <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
               <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Upload Document</Text>
-              <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setUploadModalVisible(false)}>
                 <Ionicons name="close-circle" size={26} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -200,7 +200,7 @@ export default function DocumentsScreen() {
             <Text style={{ fontSize: 11, fontWeight: "700", color: colors.textSecondary, marginBottom: 6 }}>DOCUMENT TYPE</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
               {DOC_TYPES.map((t) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={t}
                   onPress={() => setDocType(t)}
                   style={{
@@ -213,7 +213,7 @@ export default function DocumentsScreen() {
               ))}
             </View>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               onPress={handlePickPhoto}
               style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: "#BFDBFE", borderStyle: "dashed", borderRadius: 14, padding: 20, alignItems: "center", marginBottom: 16 }}
             >
@@ -223,7 +223,7 @@ export default function DocumentsScreen() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={{ backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
               onPress={handleUpload}
               disabled={uploading}

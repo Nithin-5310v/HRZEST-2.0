@@ -104,7 +104,7 @@ export default function SecurityScreen() {
           placeholderTextColor={colors.textLight}
         />
 
-        <TouchableOpacity onPress={onToggle}>
+        <TouchableOpacity accessibilityRole="button" onPress={onToggle}>
           <Ionicons
             name={secure ? "eye-outline" : "eye-off-outline"}
             size={22}

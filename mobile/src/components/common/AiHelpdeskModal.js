@@ -78,7 +78,7 @@ export default function AiHelpdeskModal({ visible, onClose }) {
                 <Text style={styles.headerSub}>Always active • Virtual Assistant</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close-circle" size={26} color="#475467" />
             </TouchableOpacity>
           </View>
@@ -121,7 +121,7 @@ export default function AiHelpdeskModal({ visible, onClose }) {
               onChangeText={setInput}
               onSubmitEditing={handleSend}
             />
-            <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
+            <TouchableOpacity accessibilityRole="button" style={styles.sendBtn} onPress={handleSend}>
               <Ionicons name="send" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>

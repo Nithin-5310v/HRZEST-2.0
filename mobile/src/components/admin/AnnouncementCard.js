@@ -64,7 +64,7 @@ export default function AnnouncementCard({
           Announcements
         </Text>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           onPress={onViewAll}
           activeOpacity={0.8}
         >

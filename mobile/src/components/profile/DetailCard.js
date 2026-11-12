@@ -17,7 +17,7 @@ export default function DetailCard({
   onPress,
 }) {
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       activeOpacity={editable ? 0.85 : 1}
       onPress={onPress}
       style={styles.card}

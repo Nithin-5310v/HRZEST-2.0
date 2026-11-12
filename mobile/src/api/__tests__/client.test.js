@@ -351,10 +351,24 @@ describe('GET with no params', () => {
     expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/dashboard');
   });
 
-  it('fetchEmployees GETs /api/employees', async () => {
-    mockAxiosInstance.get.mockResolvedValue({ data: [] });
-    await client.fetchEmployees();
-    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/employees');
+  it('fetchEmployees GETs /api/employees, 500 a page', async () => {
+    mockAxiosInstance.get.mockResolvedValue({ data: { ok: true, total: 1, employees: [{ employee_id: 'E1' }] } });
+    const res = await client.fetchEmployees();
+    expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/employees', { params: { page: 1, per_page: 500 } });
+    expect(mockAxiosInstance.get).toHaveBeenCalledTimes(1);
+    expect(res.data.employees).toHaveLength(1);
+  });
+
+  it('fetchEmployees follows the pages until it has the whole staff list', async () => {
+    const page = (n, ids) => ({ data: { ok: true, total: 5, per_page: 2, page: n, employees: ids.map((id) => ({ employee_id: id })) } });
+    mockAxiosInstance.get
+      .mockResolvedValueOnce(page(1, ['A', 'B']))
+      .mockResolvedValueOnce(page(2, ['C', 'D']))
+      .mockResolvedValueOnce(page(3, ['E']));
+    const res = await client.fetchEmployees();
+    expect(res.data.employees.map((e) => e.employee_id)).toEqual(['A', 'B', 'C', 'D', 'E']);
+    expect(res.data.total).toBe(5);
+    expect(mockAxiosInstance.get).toHaveBeenLastCalledWith('/api/employees', { params: { page: 3, per_page: 500 } });
   });
 
   it('fetchEmployeePortal GETs /api/employee/portal', async () => {

@@ -94,7 +94,7 @@ export default function EmployeeHeroCard({
 
       {/* Live Status Bar */}
       <View style={styles.statusBar}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           activeOpacity={0.8}
           disabled={checking || completed}
           onPress={onCheckIn}

@@ -62,7 +62,7 @@ export default function CompOffFilterSheet({
               Filter Records
             </Text>
 
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClose}>
               <Ionicons
                 name="close"
                 size={24}
@@ -90,7 +90,7 @@ export default function CompOffFilterSheet({
                   selectedStatus === item;
 
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={item}
                     activeOpacity={0.85}
                     style={[
@@ -133,7 +133,7 @@ export default function CompOffFilterSheet({
                   selectedDepartment === item;
 
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={item}
                     activeOpacity={0.85}
                     style={[
@@ -188,7 +188,7 @@ export default function CompOffFilterSheet({
 
           <View style={styles.footer}>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.resetButton}
               onPress={onReset}
             >
@@ -197,7 +197,7 @@ export default function CompOffFilterSheet({
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.applyButton}
               onPress={onApply}
             >

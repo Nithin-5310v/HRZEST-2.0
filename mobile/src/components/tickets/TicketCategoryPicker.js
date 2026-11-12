@@ -55,7 +55,7 @@ export default function TicketCategoryPicker({
             selectedCategory === item.id;
 
           return (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={item.id}
               activeOpacity={0.9}
               style={[

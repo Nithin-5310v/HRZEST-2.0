@@ -163,7 +163,7 @@ export default function CompanySignupScreen({ navigation }) {
                     <Ionicons name="mail-outline" size={15} color={WEB.brand} />
                     <Text style={styles.enteredText} numberOfLines={1}>{pending.email}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => setPending(null)} disabled={loading}>
+                  <TouchableOpacity accessibilityRole="button" onPress={() => setPending(null)} disabled={loading}>
                     <Text style={[webAuthStyles.link, styles.changeLink]}>Change details</Text>
                   </TouchableOpacity>
                 </View>
@@ -185,7 +185,7 @@ export default function CompanySignupScreen({ navigation }) {
 
                 <WebButton title="Verify & Open My Dashboard" onPress={handleVerify} loading={loading} />
 
-                <TouchableOpacity style={styles.centerLink} onPress={handleResend} disabled={loading}>
+                <TouchableOpacity accessibilityRole="button" style={styles.centerLink} onPress={handleResend} disabled={loading}>
                   <Text style={webAuthStyles.link}>Didn't get a code? Resend</Text>
                 </TouchableOpacity>
               </>
@@ -259,7 +259,7 @@ export default function CompanySignupScreen({ navigation }) {
                       secureTextEntry={!showPass}
                       autoCapitalize="none"
                     />
-                    <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                    <TouchableOpacity accessibilityRole="button" onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
                       <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={18} color={WEB.textSubtle} />
                     </TouchableOpacity>
                   </View>
@@ -267,7 +267,7 @@ export default function CompanySignupScreen({ navigation }) {
 
                 <WebButton title="Send Verification Code" onPress={handleSendCode} loading={loading} />
 
-                <TouchableOpacity style={styles.centerLink} onPress={() => navigation.goBack()}>
+                <TouchableOpacity accessibilityRole="button" style={styles.centerLink} onPress={() => navigation.goBack()}>
                   <Text style={webAuthStyles.linkMuted}>Already registered? Sign in to your workspace →</Text>
                 </TouchableOpacity>
               </>

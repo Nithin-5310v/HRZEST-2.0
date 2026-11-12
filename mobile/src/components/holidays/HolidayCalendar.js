@@ -123,7 +123,7 @@ export default function HolidayCalendar({
           }
 
           return (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={index}
               activeOpacity={0.8}
               style={[
