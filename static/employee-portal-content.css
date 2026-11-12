@@ -101,8 +101,8 @@
       .cal-filter { background: #ffffff; border: 1px solid #dbeafe; border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
       .cal-filter label { font-size: 15px; color: #64748b; }
       .cal-filter select { padding: 7px 10px; border: 1px solid #dbeafe; border-radius: 7px; background: #f8fafc; color: #1e293b; font-size: 15px; }
-      .cal-filter .btn-view { padding: 8px 18px; border: none; border-radius: 8px; background: #3b82f6; color: white; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; }
-      .cal-filter .btn-pdf  { padding: 8px 18px; border: none; border-radius: 8px; background: #16a34a; color: white; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; }
+      .cal-filter .btn-view { padding: 8px 18px; border: none; border-radius: 8px; background: #2563eb; color: white; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; }
+      .cal-filter .btn-pdf  { padding: 8px 18px; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #344054; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; }
 
       .calendar { background: #ffffff; border: 1px solid #dbeafe; border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
       .cal-header { display: grid; grid-template-columns: repeat(7, 52px); gap: 6px; justify-content: center; text-align: center; margin-bottom: 6px; }
@@ -131,11 +131,12 @@
         border: 5px solid transparent; border-top-color: #1e293b; pointer-events: none;
       }
       .cal-empty  { background: transparent; }
-      .cal-full   { background: #dcfce7; color: #15803d; border: 1.5px solid #86efac; }
-      .cal-late   { background: #fef9c3; color: #92400e; border: 1.5px solid #fde047; }
-      .cal-half   { background: #fff7ed; color: #c2410c; border: 1.5px solid #fdba74; }
-      .cal-absent { background: #fee2e2; color: #dc2626; border: 1.5px solid #fca5a5; }
-      .cal-holiday{ background: #ede9fe; color: #6d28d9; border: 1.5px solid #c4b5fd; }
+      /* One accent, light shades of blue (strongest = full day); absent is neutral grey. */
+      .cal-full   { background: #bfdbfe; color: #1e3a8a; border: 1.5px solid #60a5fa; }
+      .cal-late   { background: #dbeafe; color: #1e40af; border: 1.5px solid #93c5fd; }
+      .cal-half   { background: #eff6ff; color: #1e40af; border: 1.5px solid #bfdbfe; }
+      .cal-absent { background: #fff; color: #475569; border: 1.5px solid #cbd5e1; }
+      .cal-holiday{ background: #eff6ff; color: #2563eb; border: 1.5px dashed #93c5fd; }
       .cal-weekend{ background: #f8fafc; color: #cbd5e1; border: 1.5px solid #e2e8f0; }
       .cal-future { background: #f8fafc; color: #e2e8f0; border: 1.5px solid #f1f5f9; }
       .cal-today  { box-shadow: 0 0 0 2px #3b82f6 !important; }
@@ -199,11 +200,11 @@
 
       .btn-leave {
         padding: 11px 28px; border: none; border-radius: 10px;
-        background: #22c55e;
+        background: #2563eb;
         color: white; font-size: 16px; font-weight: 700;
         cursor: pointer; transition: 0.2s;
       }
-      .btn-leave:hover { background: #16a34a; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(34,197,94,0.25); }
+      .btn-leave:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37,99,235,0.25); }
 
       /* RESIGN */
       .resign-warning {
@@ -238,10 +239,10 @@
       .ticket-full { grid-column: 1 / -1; }
       .btn-ticket {
         padding: 11px 28px; border: none; border-radius: 10px;
-        background: #6366f1;
+        background: #2563eb;
         color: white; font-size: 16px; font-weight: 700; cursor: pointer; transition: 0.2s;
       }
-      .btn-ticket:hover { background: #4f46e5; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,102,241,0.25); }
+      .btn-ticket:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(37,99,235,0.25); }
       .ticket-row { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
       .ticket-row-header { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
       .ticket-subject { font-size: 16px; font-weight: 600; flex: 1; color: #1e293b; }

@@ -71,3 +71,58 @@ body.dark-mode .ai-msg, body.dark-mode .notif-item { background: #161b22 !import
 body:not(.dark-mode) :is(.main, .app-content) :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="submit"]):not([type="button"]) { color: #101828; }
 body:not(.dark-mode) :is(.main, .app-content) :is(input, textarea)::placeholder { color: #667085; }
 body:not(.dark-mode) :is(.main, .app-content) :is([style*="color:#cdd9e5"],[style*="color:#e6edf3"],[style*="color:#9da7b3"],[style*="color:#768390"],[style*="color:#c9d1d9"]) { color: #475467 !important; }
+
+/* ── Employee views use the admin dashboard's theme (static/admin-theme.css) ──
+   The employee portal and My Workspace (.wks) share these views. They read
+   like the admin dashboard: white cards with a neutral border, 12px corners,
+   ink + two greys for text, light-grey table heads, and one blue (#2563eb)
+   for actions, links and icon chips -- no blue-tinted borders or navy panels. */
+body:not(.dark-mode) :is(.app-content, .wks) :is(.section, .card, .stat-card) {
+  background: #fff !important; border: 1px solid #e6e9ef !important; border-radius: 12px !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04) !important;
+}
+body:not(.dark-mode) :is(.app-content, .wks) :is(.u-bd-1-solid-dbeafe, .u-bd-1d5-solid-dbeafe, .u-bd-2-solid-dbeafe,
+                                                 .u-bd-1-solid-bfdbfe, .u-bd-1d5-solid-bfdbfe, .u-bd-1d5-solid-c7d2fe) {
+  border-color: #e6e9ef !important;
+}
+body:not(.dark-mode) :is(.app-content, .wks) :is(.u-bdb-2-solid-dbeafe, .u-bdb-1d5-solid-bfdbfe, .u-bdb-1-solid-e2e8f0) {
+  border-bottom: 1px solid #eaecf0 !important;
+}
+/* Navy headings and figures -> the admin's ink. */
+body:not(.dark-mode) :is(.app-content, .wks) :is(.u-c-1e3a8a, .u-c-1e40af, .u-c-0f172a, .u-c-1e293b) { color: #101828 !important; }
+body:not(.dark-mode) :is(.app-content, .wks) :is(.u-c-475569, .u-c-334155) { color: #475467 !important; }
+body:not(.dark-mode) :is(.app-content, .wks) .u-c-64748b { color: #667085 !important; }
+body:not(.dark-mode) :is(.app-content, .wks) :is(.card-title) { color: #101828; font-weight: 600; }
+/* Light-blue panels -> the admin's light-grey surface (icon chips stay blue). */
+body:not(.dark-mode) :is(.app-content, .wks) :is(.u-bg-eff6ff, .u-bg-f0f7ff, .u-bg-f8faff):not([class*="u-w-"]) { background: #f9fafb !important; }
+/* Tables, as on admin pages. */
+body:not(.dark-mode) :is(.app-content, .wks) table thead th,
+body:not(.dark-mode) :is(.app-content, .wks) table tr.u-bg-1e3a8a > * {
+  background: #f9fafb !important; color: #475467 !important; font-weight: 600;
+  border-bottom: 1px solid #eaecf0 !important;
+}
+body:not(.dark-mode) :is(.app-content, .wks) table tbody td { border-bottom-color: #f2f4f7; color: #344054; }
+/* Form controls, as on admin pages. */
+body:not(.dark-mode) :is(.app-content, .wks) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea) {
+  background-color: #fff !important; border-color: #d0d5dd !important; border-radius: 8px; color: #101828;
+}
+body:not(.dark-mode) :is(.app-content, .wks) :is(input, select, textarea):focus {
+  border-color: #2563eb !important; box-shadow: 0 0 0 3px rgba(37, 99, 235, .14); outline: none;
+}
+/* Payslip summary, "Pay Slips" bar and incentives card: white admin cards. */
+body:not(.dark-mode) .app-content :is(.u-bg-linear-gradien92de10, .u-bg-linear-gradiene204f8, .u-bg-linear-gradien709188) {
+  background: #fff !important; border: 1px solid #e6e9ef !important; box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+body:not(.dark-mode) .app-content :is(.u-bg-linear-gradien92de10, .u-bg-linear-gradiene204f8, .u-bg-linear-gradien709188),
+body:not(.dark-mode) .app-content :is(.u-bg-linear-gradien92de10, .u-bg-linear-gradiene204f8, .u-bg-linear-gradien709188) * {
+  color: #101828 !important;
+}
+body:not(.dark-mode) .app-content .u-bg-linear-gradien92de10 .u-op-d7 { color: #667085 !important; opacity: 1; }
+body:not(.dark-mode) .app-content .u-bg-linear-gradien92de10 .u-bg-rgba255_255_255_d12 { background: #f9fafb !important; border: 1px solid #eaecf0; }
+body:not(.dark-mode) .app-content button.u-bg-1e3a8a { background: #2563eb !important; color: #fff !important; }
+/* Primary actions (Mark Attendance, the check-in scanner's Start) are the
+   admin's solid blue button, not a gradient. */
+body:not(.dark-mode) :is(.app-content .u-bg-linear-gradiene7a6cb, #wfhStartBtn) { background: #2563eb !important; border-radius: 8px !important; }
+body:not(.dark-mode) :is(.app-content .u-bg-linear-gradiene7a6cb, #wfhStartBtn):hover { background: #1d4ed8 !important; }
+/* Same text sizes as the admin dashboard (admin.html .stat-lbl is 14px). */
+:is(.app-content, .wks) .stat-lbl { font-size: 14px; }

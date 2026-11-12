@@ -157,7 +157,7 @@
           var tstr = (h12 < 10 ? '0' : '') + h12 + ':' + (b.minute < 10 ? '0' : '') + b.minute + ' ' + ampm;
           var icon = b.duration >= 30 ? 'ti-clock' : 'ti-coffee';
           var el   = document.createElement('div');
-          Object.assign(el.style, {display:'flex', alignItems:'center', gap:'10px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'12px', padding:'10px 16px', minWidth:'180px'});
+          Object.assign(el.style, {display:'flex', alignItems:'center', gap:'10px', background:'#f9fafb', border:'1px solid #e6e9ef', borderRadius:'12px', padding:'10px 16px', minWidth:'180px'});
           el.innerHTML = '<span class="u-fs-22 u-c-2563eb"><i class="ti ' + icon + '" aria-hidden="true"></i></span>'
             + '<div><div class="u-fs-13 u-fw-700 u-c-1e293b">' + escHtml(b.name) + '</div>'
             + '<div class="u-fs-12 u-c-64748b u-mt-2">' + tstr + ' &nbsp;·&nbsp; ' + b.duration + ' min</div></div>';
