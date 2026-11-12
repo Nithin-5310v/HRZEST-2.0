@@ -1,0 +1,91 @@
+{% extends "roles_base.html" %}
+
+{# One role-holder's team (Roles & Access -> Assignments -> Team): the people
+   attached directly to them -- by Reporting manager (added/removed here) or
+   Assigned HR (Organization -> HR team) -- and attaching more. A "Their team"
+   role sees these people and everyone under them. #}
+
+{% block roles_content %}
+        {% set _role = (rbac_tree | selectattr('role_key', 'equalto', person.access_role) | list | first) %}
+        <section class="rx-card">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <span class="rx-av" style="width:48px;height:48px;font-size:19px;">{{ person.name[:1]|upper }}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:20px;font-weight:700;color:var(--ink);">{{ person.name }}</div>
+              <div class="rx-meta" style="font-size:14px;">{{ person.employee_id }}{% if person.department %} · {{ person.department }}{% endif %}</div>
+            </div>
+            <div class="rx-actions">
+              {% if _role %}<a class="rx-chip rx-chip-blue" href="{{ tpath('/settings/roles/role/' ~ _role.role_key) }}" style="text-decoration:none;font-size:13.5px;padding:4px 11px;"><i class="ti ti-shield-lock"></i> {{ _role.display_name }}</a>
+              {% if _role.data_scope == 'team' %}<span class="rx-chip" style="font-size:13.5px;padding:4px 11px;"><i class="ti ti-users-group"></i> Sees their team ({{ team_size }})</span>
+              {% else %}<span class="rx-chip rx-chip-blue" style="font-size:13.5px;padding:4px 11px;"><i class="ti ti-building"></i> Sees the whole company</span>{% endif %}{% endif %}
+            </div>
+          </div>
+        </section>
+
+        <section class="rx-card">
+          <div class="rx-card-head">
+            <div>
+              <h2><i class="ti ti-users"></i> Directly under {{ person.name.split(' ')[0] }} <span class="rx-chip">{{ direct|length }}</span></h2>
+              <p>{{ team_size }} {{ 'person' if team_size == 1 else 'people' }} in total, counting everyone under these people too.</p>
+            </div>
+          </div>
+          {% if direct %}
+          <div class="rx-scroll">
+            <table class="rx-table">
+              <thead><tr><th>Person</th><th>Role</th><th>Attached by</th><th></th></tr></thead>
+              <tbody>
+                {% for e in direct %}
+                {% set er = (rbac_tree | selectattr('role_key', 'equalto', e.access_role) | list | first) %}
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:10px;"><span class="rx-av {{ '' if e.access_role else 'rx-av-muted' }}">{{ e.name[:1]|upper }}</span>
+                    <div>{% if e.access_role %}<a href="{{ tpath('/settings/roles/team/' ~ e.employee_id) }}">{{ e.name }}</a>{% else %}<span class="rx-name">{{ e.name }}</span>{% endif %}
+                      <div class="rx-meta">{{ e.employee_id }}{% if e.department %} · {{ e.department }}{% endif %}</div></div></div></td>
+                  <td>{% if er %}<span class="rx-chip rx-chip-blue">{{ er.display_name }}</span>{% else %}<span class="rx-muted">Employee</span>{% endif %}</td>
+                  <td>{% if e.via_manager %}<span class="rx-chip">Reporting manager</span>{% endif %} {% if e.via_hr %}<span class="rx-chip">Assigned HR</span>{% endif %}</td>
+                  <td style="text-align:right;">
+                    {% if e.via_manager %}
+                    <form method="POST" action="{{ tpath('/roles/team/detach') }}" style="display:inline;">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                      <input type="hidden" name="holder_id" value="{{ person.employee_id }}" />
+                      <input type="hidden" name="employee_id" value="{{ e.employee_id }}" />
+                      <button class="rx-btn rx-btn-ghost rx-btn-sm" type="submit">Remove</button>
+                    </form>
+                    {% else %}<span class="rx-meta" title="Change it on Organization → HR team">via HR team</span>{% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="rx-empty">Nobody is attached yet. Add employees below.</div>
+          {% endif %}
+        </section>
+
+        <section class="rx-card">
+          <div class="rx-card-head">
+            <div>
+              <h2><i class="ti ti-user-plus"></i> Add to {{ person.name.split(' ')[0] }}'s team</h2>
+              <p>Makes {{ person.name.split(' ')[0] }} their Reporting manager. People above {{ person.name.split(' ')[0] }} aren't listed.</p>
+            </div>
+          </div>
+          {% if candidates %}
+          <form method="POST" action="{{ tpath('/roles/team/attach') }}" class="rx-actions" style="align-items:flex-end;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <input type="hidden" name="holder_id" value="{{ person.employee_id }}" />
+            <div class="rx-field" style="flex:1;min-width:260px;">
+              <label for="tm-emp">Employee</label>
+              <select class="rx-select" id="tm-emp" name="employee_id" required>
+                <option value="" selected disabled>Choose an employee…</option>
+                {% for e in candidates %}
+                <option value="{{ e.employee_id }}">{{ e.name }} · {{ e.employee_id }}{% if e.department %} · {{ e.department }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <button class="rx-btn" type="submit"><i class="ti ti-user-plus"></i> Add to team</button>
+          </form>
+          {% else %}
+          <div class="rx-empty">Everyone who can be attached already is.</div>
+          {% endif %}
+        </section>
+{% endblock %}

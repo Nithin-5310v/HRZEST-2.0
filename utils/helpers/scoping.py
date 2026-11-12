@@ -28,112 +28,90 @@ def co_scope_column(active_cid, alias=""):
     return f"AND {col}=%s", (active_cid,)
 
 
-# ── HR-scoping WHERE fragments + ownership check ────────────────────────────
-# Same shape as the company-scoping pair above, but for an HR-role admin
-# session's assigned_hr_username instead of a selected company -- session-
-# driven (no active_cid-style param needed) since "which HR is this" is
-# always exactly session["admin_username"] when session["admin_role"] is
-# HR_ROLE, never a value a caller picks. blueprints/employees.py's
-# view_employees() had this exact pattern hand-inlined 3x before these
-# existed; new call sites should use these instead of re-inlining again.
+# ── Team-scoping WHERE fragments + ownership check ──────────────────────────
+# A role whose data scope is 'team' (Settings -> Roles & Access; see
+# utils.helpers.rbac.role_data_scope) sees only its own people: everyone
+# attached to that person -- by Reporting manager (employees.manager_id) or
+# Assigned HR (employees.assigned_hr_username) -- at any depth. So a Senior
+# HR sees the Junior HRs under them and every employee under those Junior
+# HRs; a Junior HR sees only their own. 'company' roles, the owner 'admin'
+# and superadmin are never scoped. A role-holder's username is their own
+# employee_id, so "who is this" is always session["admin_username"], never a
+# value a caller picks.
+#
+# The hr_scope_* names are kept from when only the built-in 'hr' role was
+# scoped (to its assigned employees); every call site already uses them, so
+# they now carry the team scope for any 'team' role. The manager_scope_*
+# trio that sat beside them is covered by the same team and is a no-op.
+TEAM_SUBQUERY = (
+    "WITH RECURSIVE _team(id) AS ("
+    "SELECT employee_id FROM employees WHERE manager_id=%s OR assigned_hr_username=%s "
+    "UNION SELECT e.employee_id FROM employees e JOIN _team t "
+    "ON e.manager_id = t.id OR e.assigned_hr_username = t.id"
+    ") SELECT id FROM _team"
+)
+
+
+def team_scope_active():
+    """True if the admin-side session is limited to its own team. (A session
+    with no admin role -- anonymous, or a plain employee -- never is.)"""
+    role = session.get("admin_role")
+    if not role or role in ("admin", "superadmin"):
+        return False
+    from .rbac import role_data_scope
+    return role_data_scope(role) == "team"
+
+
+def _team_params():
+    me = session.get("admin_username")
+    return (me, me)
+
+
 def hr_scope_subquery(alias=""):
-    """WHERE fragment + params scoping to an HR session's assigned
-    employees via a subquery, for tables that don't have their own
-    assigned_hr_username column (attendance, leave_requests, tickets, ...).
-    Returns ("", ()) for a non-HR (or unauthenticated) session -- 'admin'
-    and every other admin-side role stay fully unscoped, exactly as
-    before this existed."""
-    from utils.auth import HR_ROLE
-    if session.get("admin_role") != HR_ROLE:
+    """WHERE fragment + params scoping a table with an employee_id column
+    (attendance, leave_requests, tickets, ...) to the session's team.
+    Returns ("", ()) for a whole-company (or unauthenticated) session."""
+    if not team_scope_active():
         return "", ()
     col = f"{alias}.employee_id" if alias else "employee_id"
-    return f"AND {col} IN (SELECT employee_id FROM employees WHERE assigned_hr_username=%s)", (session.get("admin_username"),)  # nosec B608
+    return f"AND {col} IN ({TEAM_SUBQUERY})", _team_params()  # nosec B608 -- fixed SQL fragments
 
 
 def hr_scope_column(alias=""):
-    """WHERE fragment + params scoping by a direct assigned_hr_username
-    column (e.g. the employees table itself)."""
-    from utils.auth import HR_ROLE
-    if session.get("admin_role") != HR_ROLE:
-        return "", ()
-    col = f"{alias}.assigned_hr_username" if alias else "assigned_hr_username"
-    return f"AND {col}=%s", (session.get("admin_username"),)
+    """WHERE fragment + params scoping the employees table itself (alias =
+    its alias in the query) to the session's team."""
+    return hr_scope_subquery(alias)
 
 
 def hr_scope_denied(emp_id):
-    """True if the current session is HR-role and emp_id is NOT one of its
-    assigned employees -- i.e. this request should be rejected. Always
-    False for 'admin' (and any other non-HR admin-side role). Generalized
-    from blueprints/employees.py's original _hr_scope_denied (that file now
-    imports this instead of keeping its own copy) so every blueprint with a
-    single-record action route (approve a leave, resolve a ticket, correct
-    an attendance row, ...) can guard it the same way, rather than each
-    silently allowing an HR session to act on any employee's record by URL/
-    ID edit -- which is what every one of those routes did before this.
-
-    Re-queries the DB on every call rather than trusting anything cached in
-    the session -- an HR session reaching a DIFFERENT HR's employee by
-    editing an id in the request must be caught against the current, real
-    row every time."""
-    from utils.auth import HR_ROLE
-    if session.get("admin_role") != HR_ROLE:
+    """True if the session is team-scoped and emp_id is NOT in its team --
+    i.e. this request should be rejected. Always False for whole-company
+    roles. Every single-record action route (approve a leave, resolve a
+    ticket, correct an attendance row, ...) guards with this, so a
+    team-scoped session can't act on someone else's record by editing an id.
+    A role-holder acting on their own record is never denied by this alone.
+    Re-queries on every call rather than trusting anything cached."""
+    if not team_scope_active():
         return False
     if emp_id == session.get("admin_username"):
         return False
     with _db() as (cursor, _conn):
-        cursor.execute("SELECT assigned_hr_username FROM employees WHERE employee_id=%s", (emp_id,))
-        row = cursor.fetchone()
-    return not row or row[0] != session.get("admin_username")
+        cursor.execute(f"SELECT 1 WHERE %s IN ({TEAM_SUBQUERY})", (emp_id,) + _team_params())  # nosec B608
+        return cursor.fetchone() is None
 
 
-# ── Manager-scoping WHERE fragments + ownership check ───────────────────────
-# Same shape as the HR-scoping trio above, but for a manager-role session's
-# direct reports instead of an HR's assigned employees. Reuses the existing
-# employees.manager_id column (already populated for the org chart --
-# blueprints/employees.py's add/edit forms, blueprints/admin_views.py's
-# api_org_chart_data()) rather than adding a new link table: a manager's
-# admin_users.username is always that same person's own employee_id (see
-# blueprints/auth.py's _ensure_role_admin_account -- it's provisioned
-# FROM an employee row, sharing that row's ID), so
-# "employees reporting to this manager" is just employees.manager_id
-# matching session["admin_username"], no new schema needed.
+# Covered by the team scope above (a manager's direct and indirect reports
+# are part of their team); kept so existing call sites stay unchanged.
 def manager_scope_subquery(alias=""):
-    """WHERE fragment + params scoping to a manager session's direct
-    reports via a subquery, for tables without their own manager_id
-    column (leave_requests, resignation_requests, overtime). Returns
-    ("", ()) for a non-manager (or unauthenticated) session."""
-    from utils.auth import MANAGER_ROLE
-    if session.get("admin_role") != MANAGER_ROLE:
-        return "", ()
-    col = f"{alias}.employee_id" if alias else "employee_id"
-    return f"AND {col} IN (SELECT employee_id FROM employees WHERE manager_id=%s)", (session.get("admin_username"),)  # nosec B608
+    return "", ()
 
 
 def manager_scope_column(alias=""):
-    """WHERE fragment + params scoping by a direct manager_id column
-    (the employees table itself)."""
-    from utils.auth import MANAGER_ROLE
-    if session.get("admin_role") != MANAGER_ROLE:
-        return "", ()
-    col = f"{alias}.manager_id" if alias else "manager_id"
-    return f"AND {col}=%s", (session.get("admin_username"),)
+    return "", ()
 
 
 def manager_scope_denied(emp_id):
-    """True if the current session is manager-role and emp_id is NOT one
-    of its direct reports -- mirrors hr_scope_denied's shape exactly,
-    including the same self-access exception (a manager acting on their
-    own employee_id, e.g. their own leave request appearing in a shared
-    list, is never denied by this check alone)."""
-    from utils.auth import MANAGER_ROLE
-    if session.get("admin_role") != MANAGER_ROLE:
-        return False
-    if emp_id == session.get("admin_username"):
-        return False
-    with _db() as (cursor, _conn):
-        cursor.execute("SELECT manager_id FROM employees WHERE employee_id=%s", (emp_id,))
-        row = cursor.fetchone()
-    return not row or row[0] != session.get("admin_username")
+    return False
 
 
 # ── Pending-action header counters ──────────────────────────────────────────

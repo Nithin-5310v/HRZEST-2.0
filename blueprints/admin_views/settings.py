@@ -24,13 +24,21 @@ from utils.helpers.rbac import (
     VALID_BASE_TYPES,
     all_role_permissions,
     assign_employee_role,
+    attach_to,
     create_role,
     delete_role,
+    detach_from,
     employees_by_role,
     list_employees_with_roles,
     list_roles,
+    people_hierarchy,
     rename_role,
+    role_ceilings,
+    role_tree,
+    set_all_permissions,
     set_permissions,
+    team_of,
+    update_role,
 )
 from . import _TOGGLE_COLUMN_MAP, _TOGGLE_LABEL_MAP, _update_company_setting_flag, admin_views_bp
 
@@ -799,40 +807,185 @@ def api_settings_save_salary_rules():
 
 
 # ── Roles & Access (per-company RBAC) ─────────────────────────────────────────
-# All four routes are admin-only (same gate as the rest of /settings). They
-# edit the roles / role_permissions tables that utils.helpers.rbac.can_access()
-# reads. superadmin is never represented here and can't be changed; the 'admin'
-# role is kept at full access by set_permissions() so no company locks itself out.
-def _roles_redirect():
-    return redirect(tpath("/settings/roles"))
+# A small module of its own, admin-only (the same gate as the rest of
+# /settings): Hierarchy (the role tree and who is under whom), Roles (create;
+# one page per role), Access matrix (every role x module), Assignments (who
+# holds which role, who they report to) and a Team page per role-holder.
+# They edit the roles / role_permissions tables utils.helpers.rbac reads.
+# superadmin is never shown and can't be changed; the 'admin' role is kept at
+# full access by set_permissions() so no company locks itself out.
+_MODULE_LABELS = {
+    "employees": "Employees", "attendance": "Attendance", "payroll": "Salary & Payslips",
+    "leaves": "Leaves & Holidays", "announcements": "Announcements", "tickets": "Tickets",
+    "overtime": "OT & Comp-off", "performance": "Performance", "onboarding": "Onboarding",
+    "resignations": "Resignations", "reports": "Analytics & Reports", "admin_tools": "Admin Tools",
+    "organization": "Organization",
+}
+# Where a form sends the admin back to (?next=...) -- a fixed list, never a URL.
+_ROLES_PAGES = {
+    "hierarchy": "/settings/roles", "list": "/settings/roles/list", "access": "/settings/roles/access",
+    "assignments": "/settings/roles/assignments",
+}
+
+
+def _roles_redirect(page=None, role_key=None, employee_id=None):
+    if role_key:
+        return redirect(tpath(f"/settings/roles/role/{role_key}"))
+    if employee_id:
+        return redirect(tpath(f"/settings/roles/team/{employee_id}"))
+    return redirect(tpath(_ROLES_PAGES.get(page or request.form.get("next", ""), "/settings/roles")))
+
+
+def _roles_page(template, section, **ctx):
+    """Render one Roles & Access page with what every page's header needs."""
+    roles = list_roles()
+    return render_template(
+        template, active_nav="roles", roles_section=section,
+        rbac_roles=roles, rbac_tree=role_tree(roles), rbac_modules=RBAC_MODULES,
+        module_labels=_MODULE_LABELS, rbac_base_types=VALID_BASE_TYPES, **ctx,
+    )
+
+
+def _flash_hierarchy_effects(capped=(), lowered=()):
+    if capped:
+        flash("Some access was set to the most the role it reports to allows: "
+              + ", ".join(_MODULE_LABELS.get(m, m) if isinstance(m, str) else
+                          f"{m[0]} – {_MODULE_LABELS.get(m[1], m[1])}" for m in capped) + ".", "info")
+    if lowered:
+        flash("Roles below it were lowered to fit: " + ", ".join(lowered) + ".", "info")
 
 
 @admin_views_bp.route("/settings/roles")
 @role_required("admin")
 def settings_roles():
-    """Dedicated admin-only "Roles & Access" page: create custom roles and set
-    each role's per-module access (none/view/edit). superadmin is never shown
-    or editable here (it always has full access)."""
-    return render_template("roles_settings.html",
-                           active_nav="roles",
-                           rbac_roles=list_roles(),
-                           rbac_permissions=all_role_permissions(),
-                           rbac_assignments=employees_by_role(),
-                           rbac_employees=list_employees_with_roles(),
-                           rbac_modules=RBAC_MODULES,
-                           rbac_base_types=VALID_BASE_TYPES)
+    """Roles & Access -> Hierarchy: the role tree and who is under whom."""
+    people = people_hierarchy()
+    # employee_id -> their node (team size, employees and role-holders under
+    # them), for the selected role's "People in this role" list.
+    people_index, stack = {}, list(people["roots"])
+    while stack:
+        node = stack.pop()
+        people_index[node["employee_id"]] = node
+        stack += node["children"]
+    return _roles_page("roles_hierarchy.html", "hierarchy",
+                       people=people, people_index=people_index,
+                       rbac_permissions=all_role_permissions(), rbac_assignments=employees_by_role())
+
+
+@admin_views_bp.route("/settings/roles/list")
+@role_required("admin")
+def settings_roles_list():
+    """Roles & Access -> Roles: create a role; every role in hierarchy order."""
+    return _roles_page("roles_list.html", "list", rbac_permissions=all_role_permissions(),
+                       rbac_assignments=employees_by_role())
+
+
+@admin_views_bp.route("/settings/roles/role/<role_key>")
+@role_required("admin")
+def settings_role_detail(role_key):
+    """One role: its details, Reports to, data scope, access and people."""
+    roles = list_roles()
+    role = next((r for r in roles if r["role_key"] == role_key and not r["is_system"]), None)
+    if role is None:
+        flash("Role not found.", "error")
+        return _roles_redirect("list")
+    from utils.helpers.rbac import _descendant_keys
+    from utils.helpers.db import _db
+    with _db() as (cur, _conn):
+        below = _descendant_keys(cur, role_key)
+    return _roles_page("role_detail.html", "list", role=role,
+                       rbac_permissions=all_role_permissions(), ceiling=role_ceilings().get(role_key, {}),
+                       members=employees_by_role().get(role_key, []),
+                       parent_choices=[r for r in role_tree(roles) if r["role_key"] != role_key
+                                       and r["role_key"] not in below])
+
+
+@admin_views_bp.route("/settings/roles/access")
+@role_required("admin")
+def settings_roles_access():
+    """Roles & Access -> Access matrix: every role x every module."""
+    return _roles_page("roles_access.html", "access", rbac_permissions=all_role_permissions(),
+                       ceilings=role_ceilings())
+
+
+@admin_views_bp.route("/settings/roles/assignments")
+@role_required("admin")
+def settings_roles_assignments():
+    """Roles & Access -> Assignments: who holds which role, and who they
+    report to."""
+    employees = list_employees_with_roles()
+    from utils.helpers.db import _db
+    with _db() as (cur, _conn):
+        cur.execute("SELECT employee_id, COALESCE(manager_id,'') FROM employees")
+        managers = dict(cur.fetchall())
+    holders = [e for e in employees if e["access_role"]]
+    return _roles_page("roles_assignments.html", "assignments", rbac_employees=employees,
+                       managers=managers, holders=holders)
+
+
+@admin_views_bp.route("/settings/roles/team/<employee_id>")
+@role_required("admin")
+def settings_roles_team(employee_id):
+    """One role-holder's team: who is attached to them, and attach more."""
+    employees = list_employees_with_roles()
+    person = next((e for e in employees if e["employee_id"] == employee_id and e["access_role"]), None)
+    if person is None:
+        flash("That person doesn't hold a role.", "error")
+        return _roles_redirect("assignments")
+    from utils.helpers.db import _db
+    with _db() as (cur, _conn):
+        cur.execute("SELECT employee_id, COALESCE(manager_id,''), COALESCE(assigned_hr_username,'') "
+                    "FROM employees")
+        links = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
+    team = team_of(employee_id)
+    # Everyone above them (walking up Reporting manager / Assigned HR) --
+    # attaching one of those would loop the hierarchy.
+    above, frontier = set(), [p for p in links.get(employee_id, ("", "")) if p]
+    while frontier:
+        p = frontier.pop()
+        if p in above or p == employee_id:
+            continue
+        above.add(p)
+        frontier += [q for q in links.get(p, ("", "")) if q]
+    direct = [dict(e, via_manager=links.get(e["employee_id"], ("", ""))[0] == employee_id,
+                   via_hr=links.get(e["employee_id"], ("", ""))[1] == employee_id)
+              for e in employees
+              if employee_id in links.get(e["employee_id"], ("", "")) and e["employee_id"] != employee_id]
+    candidates = [e for e in employees if e["employee_id"] != employee_id
+                  and e["employee_id"] not in above
+                  and links.get(e["employee_id"], ("", ""))[0] != employee_id]
+    return _roles_page("roles_team.html", "assignments", person=person, direct=direct,
+                       team_size=len(team), candidates=candidates)
 
 
 @admin_views_bp.route("/roles/create", methods=["POST"])
 @role_required("admin")
 def rbac_create_role():
     try:
-        create_role(request.form.get("display_name", ""),
-                    request.form.get("base_type", ""))
-        flash("Role created.", "success")
+        # Every new role is 'custom': its dashboard is whatever access it gets.
+        key = create_role(request.form.get("display_name", ""), "custom",
+                          request.form.get("parent_role_key", ""), request.form.get("description", ""),
+                          request.form.get("data_scope", "company"))
+        flash("Role created. It starts with no access — choose what it can do below.", "success")
+        return _roles_redirect(role_key=key)
     except ValueError as exc:
         flash(str(exc), "error")
-    return _roles_redirect()
+    return _roles_redirect("list")
+
+
+@admin_views_bp.route("/roles/update", methods=["POST"])
+@role_required("admin")
+def rbac_update_role():
+    role_key = request.form.get("role_key", "")
+    try:
+        lowered = update_role(role_key, request.form.get("display_name", ""),
+                              request.form.get("parent_role_key", ""), request.form.get("description", ""),
+                              request.form.get("data_scope", "company"))
+        flash("Role saved.", "success")
+        _flash_hierarchy_effects(lowered=lowered)
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect(role_key=role_key)
 
 
 @admin_views_bp.route("/roles/rename", methods=["POST"])
@@ -852,19 +1005,20 @@ def rbac_rename_role():
 def rbac_delete_role():
     try:
         delete_role(request.form.get("role_key", ""))
-        flash("Role deleted.", "success")
+        flash("Role deleted. Roles that reported to it now report to the role above it.", "success")
     except ValueError as exc:
         flash(str(exc), "error")
-    return _roles_redirect()
+        return _roles_redirect(role_key=request.form.get("role_key", ""))
+    return _roles_redirect("list")
 
 
 @admin_views_bp.route("/roles/assign", methods=["POST"])
 @role_required("admin")
 def rbac_assign_role():
     """Give a new hire a dashboard, promote/demote (change role), or remove
-    an employee's admin access entirely -- the one control the Roles &
-    Access page was missing (it could only show who already had a role, not
-    set it). role_key='' removes access."""
+    an employee's admin access entirely; optionally set who they report to
+    (their Reporting manager, which places them in that person's team).
+    role_key='' removes access."""
     employee_id = request.form.get("employee_id", "")
     role_key = request.form.get("role_key", "")
     try:
@@ -878,20 +1032,72 @@ def rbac_assign_role():
         else:
             flash(f"{emp_name}'s access role was removed — they'll see the regular employee dashboard.",
                   "success")
+        if "reports_to" in request.form:
+            reports_to = request.form.get("reports_to", "")
+            from utils.helpers.db import _db
+            with _db() as (cur, conn):
+                cur.execute("SELECT COALESCE(manager_id,'') FROM employees WHERE employee_id=%s", (employee_id,))
+                current = (cur.fetchone() or ("",))[0]
+                if not reports_to and current:
+                    cur.execute("UPDATE employees SET manager_id=NULL WHERE employee_id=%s", (employee_id,))
+                    conn.commit()
+            if reports_to and reports_to != current:
+                attach_to(reports_to, employee_id)
     except ValueError as exc:
         flash(str(exc), "error")
-    return _roles_redirect()
+    return _roles_redirect("assignments")
 
 
 @admin_views_bp.route("/roles/permissions", methods=["POST"])
 @role_required("admin")
 def rbac_save_permissions():
     role_key = request.form.get("role_key", "")
-    # One <select name="perm_<module>"> per module in the grid row.
+    # One <input name="perm_<module>"> per module in the grid.
     perms = {m: request.form.get("perm_" + m, "none") for m in RBAC_MODULES}
     try:
-        set_permissions(role_key, perms)
+        capped, lowered = set_permissions(role_key, perms)
         flash("Access updated.", "success")
+        _flash_hierarchy_effects(capped, lowered)
     except ValueError as exc:
         flash(str(exc), "error")
-    return _roles_redirect()
+    return _roles_redirect(role_key=role_key)
+
+
+@admin_views_bp.route("/roles/matrix", methods=["POST"])
+@role_required("admin")
+def rbac_save_matrix():
+    """Save the whole Access matrix: one field per cell, cell_<role>__<module>."""
+    custom = [r["role_key"] for r in list_roles() if not r["is_system"]]
+    grid = {rk: {m: request.form.get(f"cell_{rk}__{m}", "none") for m in RBAC_MODULES}
+            for rk in custom if f"row_{rk}" in request.form}
+    try:
+        capped, lowered = set_all_permissions(grid)
+        flash("Access matrix saved.", "success")
+        _flash_hierarchy_effects(capped, lowered)
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect("access")
+
+
+@admin_views_bp.route("/roles/team/attach", methods=["POST"])
+@role_required("admin")
+def rbac_team_attach():
+    holder = request.form.get("holder_id", "")
+    try:
+        name = attach_to(holder, request.form.get("employee_id", ""))
+        flash(f"{name} now reports to them and is part of their team.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect(employee_id=holder)
+
+
+@admin_views_bp.route("/roles/team/detach", methods=["POST"])
+@role_required("admin")
+def rbac_team_detach():
+    holder = request.form.get("holder_id", "")
+    try:
+        name = detach_from(holder, request.form.get("employee_id", ""))
+        flash(f"{name} no longer reports to them.", "success")
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return _roles_redirect(employee_id=holder)

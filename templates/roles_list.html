@@ -1,0 +1,166 @@
+{% extends "roles_base.html" %}
+
+{# Roles & Access -> Roles: every role in hierarchy order, and creating a role
+   in a dialog (Reports to, Can see, description). A new role's dashboard is
+   built from the access it gets on its own page (role_detail.html). #}
+
+{% block roles_css %}
+      .rl-role { display: flex; flex-direction: column; min-width: 0; }
+      .rl-role a { font-size: 15px; }
+      .rl-desc { font-size: 13px; color: var(--ink-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+      .rl-acc { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+      .rl-acc span { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+      .rl-acc .a-edit { background: var(--blue); color: #fff; }
+      .rl-acc .a-view { background: var(--blue-soft); color: var(--blue); }
+      .rl-acc .a-none { background: #f2f4f7; color: var(--ink-3); }
+      .rl-row { cursor: pointer; }
+      .rl-go { color: var(--faint); font-size: 18px; }
+      .rl-row:hover .rl-go { color: var(--blue); }
+      .rl-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+      .rl-search { position: relative; flex: 1; max-width: 340px; }
+      .rl-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); }
+      .rl-search input { padding-left: 34px; }
+
+      /* margin/inset: the app resets every margin to 0, which pins a dialog top-left. */
+      dialog.rl-dialog { margin: auto; inset: 0; height: fit-content; max-height: calc(100vh - 32px); overflow: auto;
+                         border: none; border-radius: 14px; padding: 0; width: min(640px, calc(100vw - 32px));
+                         box-shadow: 0 24px 64px rgba(16,24,40,.22); }
+      dialog.rl-dialog::backdrop { background: rgba(16,24,40,.45); }
+      .rl-dlg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 22px 0; }
+      .rx .rl-dlg-head h2, .rl-dlg-head h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--ink, #101828); }
+      .rl-dlg-head p { margin: 4px 0 0; font-size: 14px; color: #667085; }
+      .rl-dlg-x { border: none; background: none; font-size: 20px; color: #667085; cursor: pointer; padding: 2px; border-radius: 6px; }
+      .rl-dlg-x:hover { background: #f2f4f7; color: #101828; }
+      .rl-dlg-body { padding: 18px 22px; }
+      .rl-dlg-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid #eaecf0; background: #f9fafb; border-radius: 0 0 14px 14px; }
+      .rl-scope { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .rl-scope label { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid #d0d5dd; border-radius: 10px; cursor: pointer; }
+      .rl-scope input { margin-top: 3px; accent-color: #2563eb; }
+      .rl-scope label:has(input:checked) { border-color: #2563eb; background: #eef4ff; }
+      .rl-scope b { display: block; font-size: 14px; color: #101828; }
+      .rl-scope span { display: block; font-size: 13px; color: #667085; margin-top: 2px; line-height: 1.45; }
+      @media (max-width: 560px) { .rl-scope { grid-template-columns: 1fr; } }
+{% endblock %}
+
+{% block roles_head_actions %}
+          <button type="button" class="rx-btn" id="rlNewBtn"><i class="ti ti-plus"></i> New role</button>
+{% endblock %}
+
+{% block roles_content %}
+        <section class="rx-card">
+          <div class="rl-toolbar">
+            <div>
+              <div style="font-size:17px;font-weight:600;color:var(--ink);">All roles</div>
+              <div class="rx-meta" style="font-size:14px;">In hierarchy order · {{ rbac_tree|length }} role{{ '' if rbac_tree|length == 1 else 's' }}</div>
+            </div>
+            <div class="rl-search"><i class="ti ti-search"></i><input class="rx-input" id="rlSearch" type="search" placeholder="Search roles" aria-label="Search roles" /></div>
+          </div>
+          <div class="rx-scroll">
+            <table class="rx-table" id="rlTable">
+              <thead><tr><th>Role</th><th>Reports to</th><th>Can see</th><th>Access</th><th>People</th><th style="width:40px;"></th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div class="rl-role"><span class="rx-indent"><i class="ti ti-crown rx-muted"></i> <b style="color:var(--ink);font-size:15px;">Administrator</b></span>
+                    <span class="rl-desc">Built in · runs the company account</span></div></td>
+                  <td class="rx-muted">—</td>
+                  <td><span class="rx-chip rx-chip-blue"><i class="ti ti-building"></i> Whole company</span></td>
+                  <td><span class="rl-acc"><span class="a-edit">Full access</span></span></td>
+                  <td class="rx-muted">Account owner</td><td></td>
+                </tr>
+                {% for r in rbac_tree %}
+                {% set perms = rbac_permissions.get(r.role_key, {}) %}
+                {% set n_edit = perms.values()|select('equalto', 'edit')|list|length %}
+                {% set n_view = perms.values()|select('equalto', 'view')|list|length %}
+                {% set n_none = rbac_modules|length - n_edit - n_view %}
+                {% set parent = (rbac_tree | selectattr('role_key', 'equalto', r.parent_role_key) | list | first) %}
+                {% set href = tpath('/settings/roles/role/' ~ r.role_key) %}
+                <tr class="rl-row" data-href="{{ href }}" data-search="{{ (r.display_name ~ ' ' ~ r.description)|lower }}">
+                  <td><div class="rl-role">
+                    <span class="rx-indent"><span class="rx-branch">{{ '   ' * r.depth }}{{ '└' if r.depth else '' }}</span><a href="{{ href }}">{{ r.display_name }}</a></span>
+                    {% if r.description %}<span class="rl-desc" style="padding-left:{{ r.depth * 22 }}px;" title="{{ r.description }}">{{ r.description }}</span>{% endif %}
+                  </div></td>
+                  <td>{{ parent.display_name if parent else 'Administrator' }}</td>
+                  <td>{% if r.data_scope == 'team' %}<span class="rx-chip"><i class="ti ti-users-group"></i> Their team</span>{% else %}<span class="rx-chip rx-chip-blue"><i class="ti ti-building"></i> Whole company</span>{% endif %}</td>
+                  <td>{% if n_edit or n_view %}<span class="rl-acc">{% if n_edit %}<span class="a-edit">{{ n_edit }} Edit</span>{% endif %}{% if n_view %}<span class="a-view">{{ n_view }} View</span>{% endif %}{% if n_none %}<span class="a-none">{{ n_none }} None</span>{% endif %}</span>
+                      {% else %}<span class="rl-acc"><span class="a-none">No access yet</span></span>{% endif %}</td>
+                  <td>{{ rbac_assignments.get(r.role_key, [])|length }}</td>
+                  <td style="text-align:right;"><i class="ti ti-chevron-right rl-go" aria-hidden="true"></i></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if not rbac_tree %}<div class="rx-empty">No roles yet. Click <b>New role</b> to create your first one.</div>{% endif %}
+          <div class="rx-empty" id="rlNoMatch" style="display:none;">No roles match your search.</div>
+        </section>
+
+        <dialog class="rl-dialog" id="rlDialog" aria-labelledby="rlDlgTitle">
+          <form method="POST" action="{{ tpath('/roles/create') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <div class="rl-dlg-head">
+              <div>
+                <h2 id="rlDlgTitle">New role</h2>
+                <p>It starts with no access; you choose what it can do next. Its dashboard is built from exactly that access.</p>
+              </div>
+              <button type="button" class="rl-dlg-x" data-close aria-label="Close"><i class="ti ti-x"></i></button>
+            </div>
+            <div class="rl-dlg-body">
+              <div class="rx-grid" style="grid-template-columns:1fr 1fr;">
+                <div class="rx-field">
+                  <label for="rc-name">Role name</label>
+                  <input class="rx-input" id="rc-name" type="text" name="display_name" required maxlength="80" placeholder="e.g. Senior Manager" />
+                </div>
+                <div class="rx-field">
+                  <label for="rc-parent">Reports to</label>
+                  <select class="rx-select" id="rc-parent" name="parent_role_key">
+                    <option value="">Administrator (top level)</option>
+                    {% for r in rbac_tree %}
+                    <option value="{{ r.role_key }}">{{ '— ' * r.depth }}{{ r.display_name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="rx-field rx-field-wide">
+                  <label>Can see</label>
+                  <div class="rl-scope">
+                    <label><input type="radio" name="data_scope" value="team" checked /><span><b>Their team only</b><span>People under them, at any depth.</span></span></label>
+                    <label><input type="radio" name="data_scope" value="company" /><span><b>Whole company</b><span>Every employee.</span></span></label>
+                  </div>
+                </div>
+                <div class="rx-field rx-field-wide">
+                  <label for="rc-desc">Description <span class="rx-muted" style="font-weight:500;">(optional)</span></label>
+                  <input class="rx-input" id="rc-desc" type="text" name="description" maxlength="255" placeholder="e.g. Leads the regional managers and approves their teams' leave" />
+                </div>
+              </div>
+            </div>
+            <div class="rl-dlg-foot">
+              <button type="button" class="rx-btn rx-btn-ghost" data-close>Cancel</button>
+              <button class="rx-btn" type="submit"><i class="ti ti-plus"></i> Create role</button>
+            </div>
+          </form>
+        </dialog>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+      (function () {
+        var dlg = document.getElementById('rlDialog');
+        var open = function () { if (dlg && dlg.showModal) { dlg.showModal(); document.getElementById('rc-name').focus(); } };
+        var btn = document.getElementById('rlNewBtn');
+        if (btn) btn.addEventListener('click', open);
+        if (location.hash === '#create') open();
+        dlg && dlg.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { dlg.close(); }); });
+
+        document.querySelectorAll('tr.rl-row').forEach(function (tr) {
+          tr.addEventListener('click', function (e) { if (!e.target.closest('a')) location.href = tr.dataset.href; });
+        });
+        var q = document.getElementById('rlSearch'), none = document.getElementById('rlNoMatch');
+        if (q) q.addEventListener('input', function () {
+          var v = q.value.trim().toLowerCase(), shown = 0;
+          document.querySelectorAll('tr.rl-row').forEach(function (tr) {
+            var m = !v || (tr.dataset.search || '').indexOf(v) !== -1; tr.style.display = m ? '' : 'none'; if (m) shown++;
+          });
+          if (none) none.style.display = (v && !shown) ? '' : 'none';
+        });
+      })();
+    </script>
+{% endblock %}

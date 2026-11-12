@@ -1,0 +1,300 @@
+{% extends "roles_base.html" %}
+
+{# Roles & Access -> Hierarchy, as a master-detail view: the role tree on the
+   left (rbac_tree, Administrator at the top), the selected role's details on
+   the right -- where it sits, its scope, access by module, the people who
+   hold it (with their teams, from people_index / utils.helpers.rbac.
+   people_hierarchy) and the roles reporting to it. Every panel is rendered
+   up front; the tree just switches which one shows (#role=<key> remembers
+   it). #}
+
+{% block roles_css %}
+      .hy { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 18px; align-items: start; }
+      .hy-panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+      aside.hy-panel { position: sticky; top: 20px; }
+      .hy-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #eaecf0; }
+      .hy-panel-head h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+      .hy-panel-head span { font-size: 13px; color: var(--ink-3); }
+
+      /* Tree */
+      .hy-tree { list-style: none; margin: 0; padding: 8px; }
+      .hy-tree ul { list-style: none; margin: 0; padding: 0 0 0 18px; position: relative; }
+      .hy-tree ul::before { content: ""; position: absolute; left: 11px; top: 0; bottom: 14px; border-left: 1px solid #e4e7ec; }
+      .hy-node { position: relative; }
+      .hy-tree ul > .hy-node::before { content: ""; position: absolute; left: -7px; top: 19px; width: 9px; border-top: 1px solid #e4e7ec; }
+      .hy-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; background: none; border-radius: 8px;
+                 font: inherit; font-size: 14.5px; color: #344054; text-align: left; cursor: pointer; }
+      .hy-item:hover { background: #f9fafb; color: var(--ink); }
+      .hy-item.active { background: var(--blue-soft); color: var(--blue); font-weight: 600; }
+      .hy-item .hy-ic { width: 26px; height: 26px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center;
+                        background: #f2f4f7; color: var(--ink-3); font-size: 15px; flex-shrink: 0; }
+      .hy-item.active .hy-ic { background: #fff; color: var(--blue); }
+      .hy-item .hy-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hy-count { font-size: 12px; font-weight: 600; color: var(--ink-3); background: #f2f4f7; border-radius: 999px; padding: 1px 8px; }
+      .hy-item.active .hy-count { background: #fff; color: var(--blue); }
+      .hy-toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; color: var(--faint);
+                   border-radius: 4px; flex-shrink: 0; transition: transform .15s; }
+      .hy-toggle.spacer { visibility: hidden; }
+      .hy-node.collapsed > ul { display: none; }
+      .hy-node.collapsed > .hy-item .hy-toggle { transform: rotate(-90deg); }
+      .hy-foot { padding: 12px 16px; border-top: 1px solid #eaecf0; }
+
+      /* Detail */
+      .hy-detail[hidden] { display: none; }
+      .hy-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 20px 22px; border-bottom: 1px solid #eaecf0; }
+      .hy-title { display: flex; align-items: center; gap: 14px; min-width: 0; }
+      .hy-title-ic { width: 44px; height: 44px; border-radius: 11px; background: var(--blue-soft); color: var(--blue); display: inline-flex;
+                     align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+      .rx .hy-title h2 { margin: 0; font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+      .hy-crumbs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-3); margin-top: 3px; }
+      .hy-crumbs button { border: none; background: none; padding: 0; font: inherit; color: var(--ink-3); cursor: pointer; }
+      .hy-crumbs button:hover { color: var(--blue); }
+      .hy-desc { font-size: 14px; color: var(--ink-2); margin-top: 8px; max-width: 640px; line-height: 1.5; }
+      .hy-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid #eaecf0; }
+      .hy-fig { padding: 14px 22px; border-right: 1px solid #eaecf0; }
+      .hy-fig:last-child { border-right: none; }
+      .hy-fig b { display: block; font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; }
+      .hy-fig span { font-size: 13.5px; color: var(--ink-3); }
+      .hy-sec { padding: 18px 22px; border-bottom: 1px solid #eaecf0; }
+      .hy-sec:last-child { border-bottom: none; }
+      .hy-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+      .rx .hy-sec-head h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+      .hy-sec-head a { font-size: 13.5px; font-weight: 600; color: var(--blue); text-decoration: none; }
+      .hy-sec-head a:hover { text-decoration: underline; }
+
+      .hy-acc { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+      .hy-acc-group { grid-column: 1 / -1; font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+                      color: var(--ink-3); padding: 12px 0 4px; }
+      .hy-acc-group:first-child { padding-top: 0; }
+      .hy-acc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f2f4f7; font-size: 14.5px; color: #344054; }
+      .hy-lvl { font-size: 12.5px; font-weight: 600; padding: 2px 10px; border-radius: 999px; min-width: 52px; text-align: center; }
+      .hy-lvl.l-edit { background: var(--blue); color: #fff; }
+      .hy-lvl.l-view { background: var(--blue-soft); color: var(--blue); }
+      .hy-lvl.l-none { background: #f2f4f7; color: var(--faint); }
+
+      .hy-people { display: flex; flex-direction: column; }
+      .hy-person { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f2f4f7; }
+      .hy-person:last-child { border-bottom: none; }
+      .hy-av { width: 36px; height: 36px; border-radius: 50%; background: var(--blue-soft); color: var(--blue); font-weight: 700; font-size: 14px;
+               display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      .hy-person a { color: var(--ink); font-weight: 600; text-decoration: none; font-size: 14.5px; }
+      .hy-person a:hover { color: var(--blue); }
+      .hy-under { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+      .hy-under span { font-size: 12.5px; padding: 2px 8px; border-radius: 999px; background: #f2f4f7; color: var(--ink-2); }
+      .hy-sub-roles { display: flex; flex-wrap: wrap; gap: 8px; }
+      .hy-sub-roles button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--line-2); border-radius: 8px;
+                             background: #fff; font: inherit; font-size: 14px; font-weight: 600; color: #344054; cursor: pointer; }
+      .hy-sub-roles button:hover { border-color: #b2ccff; color: var(--blue); background: #fafcff; }
+      .hy-sub-roles i { color: var(--ink-3); }
+      .hy-empty { font-size: 14px; color: var(--ink-3); }
+      .hy-chip-scope { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+      .hy-chip-scope.s-team { background: #f2f4f7; color: var(--ink-2); }
+      .hy-chip-scope.s-company { background: var(--blue-soft); color: var(--blue); }
+
+      @media (max-width: 1000px) { .hy { grid-template-columns: minmax(0, 1fr); } .hy-acc { grid-template-columns: minmax(0, 1fr); } }
+      @media (max-width: 600px) { .hy-figs { grid-template-columns: minmax(0, 1fr); } .hy-fig { border-right: none; border-bottom: 1px solid #eaecf0; } }
+{% endblock %}
+
+{% block roles_head_actions %}
+          <a class="rx-btn" href="{{ tpath('/settings/roles/list') }}#create"><i class="ti ti-plus"></i> New role</a>
+{% endblock %}
+
+{% macro scope_chip(scope) -%}
+  {% if scope == 'team' %}<span class="hy-chip-scope s-team" title="Sees only the people under them"><i class="ti ti-users-group"></i> Their team</span>
+  {% else %}<span class="hy-chip-scope s-company" title="Sees every employee"><i class="ti ti-building"></i> Whole company</span>{% endif %}
+{%- endmacro %}
+
+{% macro tree_branch(parent_key, depth) %}
+  {% if depth == 0 %}{% set kids = rbac_tree | selectattr('depth', 'equalto', 0) | list %}
+  {% else %}{% set kids = rbac_tree | selectattr('parent_role_key', 'equalto', parent_key) | selectattr('depth', 'equalto', depth) | list %}{% endif %}
+  {% if kids %}
+  <ul>
+    {% for r in kids %}
+    <li class="hy-node">
+      <button type="button" class="hy-item" data-role="{{ r.role_key }}">
+        <span class="hy-toggle{{ '' if r.children else ' spacer' }}" data-toggle aria-hidden="true"><i class="ti ti-chevron-down"></i></span>
+        <span class="hy-ic"><i class="ti ti-shield-lock"></i></span>
+        <span class="hy-label">{{ r.display_name }}</span>
+        <span class="hy-count" title="People with this role">{{ rbac_assignments.get(r.role_key, [])|length }}</span>
+      </button>
+      {{ tree_branch(r.role_key, depth + 1) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+{% endmacro %}
+
+{% block roles_content %}
+        {% set _groups = [
+          ('People', ['employees', 'attendance', 'leaves', 'resignations', 'onboarding']),
+          ('Time & pay', ['payroll', 'overtime']),
+          ('Workplace', ['performance', 'announcements', 'tickets']),
+          ('Administration', ['reports', 'admin_tools', 'organization']),
+        ] %}
+        {% set _by_key = {} %}{% for r in rbac_tree %}{% set _ = _by_key.update({r.role_key: r}) %}{% endfor %}
+        <div class="hy">
+          {# ── Role tree ── #}
+          <aside class="hy-panel">
+            <div class="hy-panel-head"><h2>Role hierarchy</h2><span>{{ rbac_tree|length }} role{{ '' if rbac_tree|length == 1 else 's' }}</span></div>
+            <ul class="hy-tree">
+              <li class="hy-node">
+                <button type="button" class="hy-item" data-role="__admin">
+                  <span class="hy-toggle{{ '' if rbac_tree else ' spacer' }}" data-toggle aria-hidden="true"><i class="ti ti-chevron-down"></i></span>
+                  <span class="hy-ic"><i class="ti ti-crown"></i></span>
+                  <span class="hy-label">Administrator</span>
+                </button>
+                {{ tree_branch('', 0) }}
+              </li>
+            </ul>
+            <div class="hy-foot"><a class="rx-btn rx-btn-ghost rx-btn-sm" href="{{ tpath('/settings/roles/list') }}#create" style="width:100%;justify-content:center;"><i class="ti ti-plus"></i> Add a role</a></div>
+          </aside>
+
+          {# ── Administrator panel ── #}
+          <section class="hy-panel hy-detail" data-panel="__admin" hidden>
+            <div class="hy-head">
+              <div class="hy-title">
+                <span class="hy-title-ic"><i class="ti ti-crown"></i></span>
+                <div><h2>Administrator</h2><div class="hy-crumbs">Top of the hierarchy · built in</div></div>
+              </div>
+              {{ scope_chip('company') }}
+            </div>
+            <div class="hy-figs">
+              <div class="hy-fig"><b>{{ people.total }}</b><span>Employees it sees</span></div>
+              <div class="hy-fig"><b>{{ rbac_modules|length }}/{{ rbac_modules|length }}</b><span>Modules, full access</span></div>
+              <div class="hy-fig"><b>{{ rbac_tree|selectattr('depth', 'equalto', 0)|list|length }}</b><span>Roles reporting to it</span></div>
+            </div>
+            <div class="hy-sec">
+              <div class="hy-sec-head"><h3>Roles reporting to the Administrator</h3></div>
+              {% set _top = rbac_tree|selectattr('depth', 'equalto', 0)|list %}
+              {% if _top %}
+              <div class="hy-sub-roles">{% for c in _top %}<button type="button" data-goto="{{ c.role_key }}"><i class="ti ti-shield-lock"></i> {{ c.display_name }}</button>{% endfor %}</div>
+              {% else %}<div class="hy-empty">No roles yet. <a href="{{ tpath('/settings/roles/list') }}#create" style="color:var(--blue);font-weight:600;">Create your first role</a>.</div>{% endif %}
+            </div>
+            {% if people.unattached %}
+            <div class="hy-sec">
+              <div class="hy-sec-head"><h3>Not under anyone ({{ people.unattached|length }})</h3></div>
+              <div class="hy-empty" style="margin-bottom:8px;">Only whole-company roles see these employees. Open a person's team on <a href="{{ tpath('/settings/roles/assignments') }}" style="color:var(--blue);font-weight:600;">Assignments</a> to attach them.</div>
+              <div class="hy-under">{% for e in people.unattached[:24] %}<span>{{ e.name }}</span>{% endfor %}{% if people.unattached|length > 24 %}<span>+{{ people.unattached|length - 24 }} more</span>{% endif %}</div>
+            </div>
+            {% endif %}
+          </section>
+
+          {# ── One panel per role ── #}
+          {% for r in rbac_tree %}
+          {% set perms = rbac_permissions.get(r.role_key, {}) %}
+          {% set n_edit = perms.values()|select('equalto', 'edit')|list|length %}
+          {% set n_view = perms.values()|select('equalto', 'view')|list|length %}
+          {% set holders = rbac_assignments.get(r.role_key, []) %}
+          <section class="hy-panel hy-detail" data-panel="{{ r.role_key }}" hidden>
+            <div class="hy-head">
+              <div class="hy-title">
+                <span class="hy-title-ic"><i class="ti ti-shield-lock"></i></span>
+                <div>
+                  <h2>{{ r.display_name }}</h2>
+                  <div class="hy-crumbs">
+                    <button type="button" data-goto="__admin">Administrator</button>
+                    {% for k in r.ancestors %}<i class="ti ti-chevron-right"></i><button type="button" data-goto="{{ k }}">{{ _by_key[k].display_name }}</button>{% endfor %}
+                    <i class="ti ti-chevron-right"></i><span style="color:var(--ink);font-weight:600;">{{ r.display_name }}</span>
+                  </div>
+                  {% if r.description %}<div class="hy-desc">{{ r.description }}</div>{% endif %}
+                </div>
+              </div>
+              <div class="rx-actions">
+                {{ scope_chip(r.data_scope) }}
+                <a class="rx-btn rx-btn-sm" href="{{ tpath('/settings/roles/role/' ~ r.role_key) }}"><i class="ti ti-pencil"></i> Edit role</a>
+              </div>
+            </div>
+            <div class="hy-figs">
+              <div class="hy-fig"><b>{{ holders|length }}</b><span>{{ 'Person' if holders|length == 1 else 'People' }} with this role</span></div>
+              <div class="hy-fig"><b>{{ n_edit + n_view }}/{{ rbac_modules|length }}</b><span>Modules ({{ n_edit }} edit, {{ n_view }} view)</span></div>
+              <div class="hy-fig"><b>{{ r.children|length }}</b><span>Roles reporting to it</span></div>
+            </div>
+
+            <div class="hy-sec">
+              <div class="hy-sec-head"><h3>Access</h3><a href="{{ tpath('/settings/roles/role/' ~ r.role_key) }}">Change access</a></div>
+              <div class="hy-acc">
+                {% for title, mods in _groups %}
+                <div class="hy-acc-group">{{ title }}</div>
+                {% for mod in mods if mod in rbac_modules %}
+                {% set lvl = perms.get(mod, 'none') %}
+                <div class="hy-acc-row"><span>{{ module_labels.get(mod, mod) }}</span><span class="hy-lvl l-{{ lvl }}">{{ 'No access' if lvl == 'none' else lvl|capitalize }}</span></div>
+                {% endfor %}
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="hy-sec">
+              <div class="hy-sec-head"><h3>People with this role</h3><a href="{{ tpath('/settings/roles/assignments') }}">Assign</a></div>
+              {% if holders %}
+              <div class="hy-people">
+                {% for p in holders %}
+                {% set node = people_index.get(p.employee_id) %}
+                <div class="hy-person">
+                  <span class="hy-av">{{ p.name[:1]|upper }}</span>
+                  <div style="flex:1;min-width:0;">
+                    <a href="{{ tpath('/settings/roles/team/' ~ p.employee_id) }}">{{ p.name }}</a>
+                    <div class="rx-meta">{{ p.employee_id }} · {{ node.team_size if node else 0 }} in their team</div>
+                    {% if node and (node.children or node.members) %}
+                    <div class="hy-under">
+                      {% for c in node.children[:6] %}<span title="{{ c.role_name }}">{{ c.name }} · {{ c.role_name }}</span>{% endfor %}
+                      {% for m in node.members[:8] %}<span>{{ m.name }}</span>{% endfor %}
+                      {% set _more = (node.children|length - 6 if node.children|length > 6 else 0) + (node.members|length - 8 if node.members|length > 8 else 0) %}
+                      {% if _more %}<span>+{{ _more }} more</span>{% endif %}
+                    </div>
+                    {% endif %}
+                  </div>
+                  <a class="rx-btn rx-btn-ghost rx-btn-sm" href="{{ tpath('/settings/roles/team/' ~ p.employee_id) }}">Team</a>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="hy-empty">No one holds this role yet. <a href="{{ tpath('/settings/roles/assignments') }}" style="color:var(--blue);font-weight:600;">Assign it</a>.</div>
+              {% endif %}
+            </div>
+
+            <div class="hy-sec">
+              <div class="hy-sec-head"><h3>Roles reporting to {{ r.display_name }}</h3></div>
+              {% if r.children %}
+              <div class="hy-sub-roles">{% for k in r.children %}<button type="button" data-goto="{{ k }}"><i class="ti ti-shield-lock"></i> {{ _by_key[k].display_name }}</button>{% endfor %}</div>
+              {% else %}<div class="hy-empty">None. When creating a role, choose <b>{{ r.display_name }}</b> under “Reports to”.</div>{% endif %}
+            </div>
+          </section>
+          {% endfor %}
+        </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+      /* Master-detail: the tree picks which role's panel is shown; the choice
+         is kept in the URL (#role=key) so a refresh or link opens the same one. */
+      (function () {
+        var items = document.querySelectorAll('.hy-item[data-role]');
+        var panels = document.querySelectorAll('.hy-detail');
+        function show(key) {
+          var found = false;
+          panels.forEach(function (p) { var on = p.dataset.panel === key; p.hidden = !on; if (on) found = true; });
+          if (!found) return show('__admin');
+          items.forEach(function (b) { b.classList.toggle('active', b.dataset.role === key); });
+          var btn = document.querySelector('.hy-item[data-role="' + key + '"]');
+          for (var n = btn && btn.parentElement.parentElement; n && n.classList; n = n.parentElement) {
+            if (n.classList.contains('hy-node')) n.classList.remove('collapsed');
+          }
+          history.replaceState(null, '', '#role=' + key);
+        }
+        items.forEach(function (b) {
+          b.addEventListener('click', function (e) {
+            if (e.target.closest('[data-toggle]') && !e.target.closest('.spacer')) {
+              b.parentElement.classList.toggle('collapsed'); return;
+            }
+            show(b.dataset.role);
+          });
+        });
+        document.querySelectorAll('[data-goto]').forEach(function (b) {
+          b.addEventListener('click', function () { show(b.dataset.goto); });
+        });
+        var m = /role=([\w-]+)/.exec(location.hash);
+        var first = document.querySelector('.hy-detail[data-panel]:not([data-panel="__admin"])');
+        show(m ? m[1] : (first ? first.dataset.panel : '__admin'));
+      })();
+    </script>
+{% endblock %}

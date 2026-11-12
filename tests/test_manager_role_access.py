@@ -123,16 +123,25 @@ class TestDashboardShowsOnlyGrantedModules:
         assert b"Your Modules" in page and b"Tickets \xc2\xb7 Leaves \xc2\xb7 Resign." in page
         for hidden in (b"Total Employees", b"Present Today", b"OT Pending", b"Onboarding Overview",
                        b"Employee Management", b"Attendance Tracking", b"Shifts &amp; Breaks",
-                       b"Salary &amp; Payslips", b"Export Month", b"sendAbsenteeReport()\" class", b"Quick Actions",
-                       b"Attendance Trend"):
+                       b"Salary &amp; Payslips", b"Export Month", b"sendAbsenteeReport()\" class",
+                       b"Set Daily Salary", b"Register Employee", b"Attendance Trend"):
             assert hidden not in page, hidden
+        # Edit access to Leaves is what puts "Add Holiday" on their dashboard.
+        assert b"Add Holiday" in page
 
-    def test_holiday_and_salary_actions_need_an_admin_type_role(self, client, team):
-        # 'manager' has employees edit (Register Employee) but /admin_action is admin-only.
-        cur_role = "manager"
-        _login(client, role=cur_role)
-        page = client.get("/admin").data
-        assert b"Add Holiday" not in page and b"Set Daily Salary" not in page
+    def test_quick_actions_follow_module_access(self, client, db_engine, leaves_only):
+        """The holiday and daily-salary actions need Leaves / Salary edit
+        access -- on the dashboard and at /admin_action itself."""
+        _login(client, role="leave_desk")
+        resp = client.post("/admin_action", data={"action": "salary", "emp_id": "MGRT02", "salary": "999"})
+        assert resp.status_code == 302 and resp.headers["Location"].endswith("/admin")
+        cur = db_engine.cursor()
+        cur.execute("SELECT 1 FROM salary_config WHERE employee_id='MGRT02'")
+        assert cur.fetchone() is None, "salary was written without Salary access"
+        client.post("/admin_action", data={"action": "holiday", "date": "2026-12-25", "holiday_name": "Xmas"})
+        cur.execute("SELECT name FROM holidays WHERE date='2026-12-25'")
+        assert (cur.fetchone() or [None])[0] == "Xmas"
+        cur.close()
 
     def test_owner_admin_sees_everything(self, client, seed_admin):
         with client.session_transaction() as sess:

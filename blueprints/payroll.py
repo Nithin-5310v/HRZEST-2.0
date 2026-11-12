@@ -46,7 +46,8 @@ payroll_bp = Blueprint("payroll", __name__)
 
 
 @payroll_bp.route("/view_salary")
-@role_required("admin")
+@admin_required
+@require_access("payroll", "view")
 @limiter.limit("10 per minute")
 def view_salary():
     db = get_db_connection()
@@ -76,7 +77,8 @@ def view_salary():
 
 
 @payroll_bp.route("/update_salary", methods=["POST"])
-@role_required("admin")
+@admin_required
+@require_access("payroll", "edit")
 @limiter.limit("20 per minute")
 def update_salary():
     emp_id = request.form["emp_id"]
@@ -314,7 +316,8 @@ _SALARY_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml
 
 
 @payroll_bp.route("/salary_report_export")
-@role_required("admin")
+@admin_required
+@require_access("payroll", "view")
 @limiter.limit("10 per minute")
 def salary_report_export():
     from flask import send_file
@@ -445,7 +448,8 @@ def _payslip_email(emp_id, year, month):
 
 
 @payroll_bp.route("/send_salary_email", methods=["POST"])
-@role_required("admin")   # admin only, like the salary report it belongs to (QA SEC-10)
+@admin_required
+@require_access("payroll", "edit")   # admin only, like the salary report it belongs to (QA SEC-10)
 def send_salary_email():
     emp_id = request.form["emp_id"]
     year = int_param(request.form["year"])
@@ -471,7 +475,8 @@ def send_salary_email():
 
 
 @payroll_bp.route("/send_all_salary_emails", methods=["POST"])
-@role_required("admin")
+@admin_required
+@require_access("payroll", "edit")
 @limiter.limit("5 per minute")
 def send_all_salary_emails():
     year = int_param(request.form["year"])
@@ -849,7 +854,8 @@ def my_attendance_pdf():
 
 
 @payroll_bp.route("/apply_hike", methods=["POST"])
-@role_required("admin")
+@admin_required
+@require_access("payroll", "edit")
 @limiter.limit("10 per minute")
 def apply_hike():
     q = int_param(request.form.get("quarter", 1))
@@ -925,7 +931,8 @@ def apply_hike():
 
 
 @payroll_bp.route("/award_performance_bonus", methods=["POST"])
-@role_required("admin")
+@admin_required
+@require_access("payroll", "edit")
 @limiter.limit("10 per minute")
 def award_performance_bonus():
     q = int_param(request.form.get("quarter", 1))

@@ -40,7 +40,25 @@ def inject_common_vars():
         _is_manager=(session.get("admin_role") == MANAGER_ROLE
                      or session.get("admin_base_type") == "manager"),
         hr_has_own_employee=_hr_has_own_employee(),
+        admin_role_label=_admin_role_label(),
     )
+
+
+def _admin_role_label():
+    """The header's role name for an admin-side session: "Administrator"
+    for the owner, otherwise the role's own name from Settings -> Roles &
+    Access (e.g. "Senior Manager"), never a fixed HR/Manager label."""
+    role = session.get("admin_role")
+    if not session.get("admin_logged_in") or not role:
+        return ""
+    if role in ("admin", "superadmin"):
+        return "Administrator"
+    try:
+        from utils.helpers.rbac import list_roles
+        return next((r["display_name"] for r in list_roles() if r["role_key"] == role),
+                    role.replace("_", " ").title())
+    except Exception:
+        return role.replace("_", " ").title()
 
 
 def _hr_has_own_employee():

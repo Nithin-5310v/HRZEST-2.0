@@ -166,12 +166,14 @@ class TestHrScopeHelpers:
             from utils.helpers import hr_scope_column, hr_scope_subquery
             session["admin_role"] = "hr"
             session["admin_username"] = "test_hr_admin"
+            # A 'team' role (the built-in hr is one) is limited to everyone
+            # attached to it -- by Assigned HR or Reporting manager, any depth.
             col, params = hr_scope_column(alias="e")
-            assert col == "AND e.assigned_hr_username=%s"
-            assert params == ("test_hr_admin",)
+            assert col.startswith("AND e.employee_id IN (WITH RECURSIVE")
+            assert params == ("test_hr_admin", "test_hr_admin")
             sub, params2 = hr_scope_subquery(alias="x")
             assert "x.employee_id IN" in sub
-            assert params2 == ("test_hr_admin",)
+            assert params2 == ("test_hr_admin", "test_hr_admin")
 
     def test_hr_scope_denied_false_for_admin(self, client):
         with client.application.test_request_context():
@@ -340,12 +342,15 @@ class TestManagerScopeHelpers:
             from utils.helpers import manager_scope_column, manager_scope_subquery
             session["admin_role"] = "manager"
             session["admin_username"] = "test_manager_admin"
-            col, params = manager_scope_column(alias="e")
-            assert col == "AND e.manager_id=%s"
-            assert params == ("test_manager_admin",)
-            sub, params2 = manager_scope_subquery(alias="x")
-            assert "x.employee_id IN" in sub
-            assert params2 == ("test_manager_admin",)
+            # The manager_* helpers are covered by the team scope on the hr_*
+            # helpers beside them at every call site: a manager's direct and
+            # indirect reports are part of their team.
+            from utils.helpers import hr_scope_column
+            assert manager_scope_column(alias="e") == ("", ())
+            assert manager_scope_subquery(alias="x") == ("", ())
+            col, params = hr_scope_column(alias="e")
+            assert col.startswith("AND e.employee_id IN (WITH RECURSIVE")
+            assert params == ("test_manager_admin", "test_manager_admin")
 
     def test_manager_scope_denied_false_for_admin(self, client):
         with client.application.test_request_context():
@@ -360,7 +365,9 @@ class TestManagerScopeHelpers:
             from utils.helpers import manager_scope_denied
             session["admin_role"] = "manager"
             session["admin_username"] = seed_manager_admin["username"]
-            assert manager_scope_denied(seed_employee["employee_id"]) is True
+            from utils.helpers import hr_scope_denied
+            assert manager_scope_denied(seed_employee["employee_id"]) is False   # covered by the team scope
+            assert hr_scope_denied(seed_employee["employee_id"]) is True
 
     def test_manager_scope_denied_false_for_direct_report(self, client, seed_direct_report, seed_manager_admin):
         with client.application.test_request_context():
