@@ -121,7 +121,7 @@ export default function HolidaysScreen() {
             month navigation. */}
 
         <View style={styles.monthNavRow}>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
             onPress={() => {
               if (month === 1) { setMonth(12); setYear(year - 1); } else { setMonth(month - 1); }
             }}
@@ -132,7 +132,7 @@ export default function HolidaysScreen() {
           <Text style={styles.monthNavLabel}>
             {new Date(year, month - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })}
           </Text>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             onPress={() => {
               if (month === 12) { setMonth(1); setYear(year + 1); } else { setMonth(month + 1); }
             }}

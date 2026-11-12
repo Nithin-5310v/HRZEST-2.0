@@ -18,7 +18,7 @@ const ActionButton = ({
   background,
   onPress,
 }) => (
-  <TouchableOpacity
+  <TouchableOpacity accessibilityRole="button"
     activeOpacity={0.85}
     style={[
       styles.actionButton,

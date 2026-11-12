@@ -32,12 +32,12 @@ export default function AppLockScreen() {
             : "Verify your identity to continue."}
         </Text>
 
-        <TouchableOpacity style={styles.unlockBtn} onPress={prompt} activeOpacity={0.85}>
+        <TouchableOpacity accessibilityRole="button" style={styles.unlockBtn} onPress={prompt} activeOpacity={0.85}>
           <Ionicons name="finger-print" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
           <Text style={styles.unlockBtnText}>Unlock</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.signOutBtn} onPress={signOut}>
+        <TouchableOpacity accessibilityRole="button" style={styles.signOutBtn} onPress={signOut}>
           <Text style={styles.signOutText}>Sign out instead</Text>
         </TouchableOpacity>
       </View>

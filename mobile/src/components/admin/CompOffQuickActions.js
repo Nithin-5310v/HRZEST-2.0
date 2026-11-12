@@ -63,7 +63,7 @@ export default function CompOffQuickActions({
 
         {actions.map((item) => (
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={item.title}
             activeOpacity={0.85}
             style={styles.card}

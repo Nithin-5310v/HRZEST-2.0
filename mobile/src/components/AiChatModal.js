@@ -93,7 +93,7 @@ export default function AiChatModal({ visible, onClose }) {
                 <Text style={styles.headerSubtitle}>24/7 Smart HR Helpdesk</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" style={styles.closeBtn} onPress={onClose}>
               <Ionicons name="close" size={24} color="#667085" />
             </TouchableOpacity>
           </LinearGradient>
@@ -102,7 +102,7 @@ export default function AiChatModal({ visible, onClose }) {
           <View style={styles.promptsContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {quickPrompts.map((prompt, idx) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={idx}
                   style={styles.promptChip}
                   onPress={() => handleSend(prompt)}
@@ -155,7 +155,7 @@ export default function AiChatModal({ visible, onClose }) {
               onChangeText={setInput}
               onSubmitEditing={() => handleSend()}
             />
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[styles.sendBtn, !input.trim() && { opacity: 0.5 }]}
               disabled={!input.trim() || loading}
               onPress={() => handleSend()}

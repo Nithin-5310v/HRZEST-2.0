@@ -9,7 +9,10 @@ import { secureGetItem, secureSetItem, secureRemoveItem } from './secureStorage'
 
 const STORAGE_KEY = '@custom_created_employees_v1';
 
-export const saveLocalEmployee = async (employeeObj) => {
+// Kept only to remove it: the app no longer keeps its own copy of the
+// staff list (it kept employees deleted on the website, and duplicated
+// renumbered ones). clearLocalEmployees() wipes what older versions saved.
+const saveLocalEmployee = async (employeeObj) => {
   try {
     const existingStr = await secureGetItem(STORAGE_KEY);
     let list = existingStr ? JSON.parse(existingStr) : [];

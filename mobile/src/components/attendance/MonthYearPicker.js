@@ -44,7 +44,7 @@ export default function MonthYearPicker({
         </View>
 
         <View style={styles.navigation}>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
             activeOpacity={0.8}
             style={styles.arrowButton}
             onPress={onPrevious}
@@ -56,7 +56,7 @@ export default function MonthYearPicker({
             />
           </TouchableOpacity>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             activeOpacity={0.8}
             style={styles.arrowButton}
             onPress={onNext}

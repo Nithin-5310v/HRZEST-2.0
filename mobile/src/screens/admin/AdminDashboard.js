@@ -29,8 +29,8 @@ import AiChatModal from "../../components/AiChatModal";
 import { fetchDashboard } from "../../api/client";
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "../../store/ThemeContext";
-import { mergeEmployeesWithLocal } from "../../utils/employeeStore";
 import useLiveRefresh, { formatUpdated } from "../../utils/useLiveRefresh";
+import { reportError } from "../../utils/crashReporting";
 
 export default function AdminDashboard({ navigation }) {
   const { user, updateUser } = useAuth();
@@ -49,10 +49,7 @@ export default function AdminDashboard({ navigation }) {
   const loadDashboard = async () => {
     let ok = false;
     try {
-      const [res, allEmps] = await Promise.all([
-        fetchDashboard().catch(() => null),
-        mergeEmployeesWithLocal([]).catch(() => []),
-      ]);
+      const res = await fetchDashboard().catch(() => null);
       if (res?.data) {
         ok = true;
         setDashboardData(res.data);
@@ -61,9 +58,9 @@ export default function AdminDashboard({ navigation }) {
         if (res.data.company_name && updateUser && res.data.company_name !== user?.company) {
           updateUser({ company: res.data.company_name });
         }
-        setTotalEmpsCount(Math.max(res.data.total_employees || 0, allEmps.length));
+        setTotalEmpsCount(res.data.total_employees || 0);
       }
-    } catch (_) {}
+    } catch (e) { reportError(e, { where: "AdminDashboard" }); }
     return ok;
   };
 
@@ -187,7 +184,7 @@ export default function AdminDashboard({ navigation }) {
                   <Ionicons name="megaphone" size={22} color={colors.primary} />
                   <Text style={styles.modalTitle}>Company Announcements</Text>
                 </View>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close"
                   style={styles.closeBtn}
                   onPress={() => setAnnouncementModalVisible(false)}
                 >
@@ -247,7 +244,7 @@ export default function AdminDashboard({ navigation }) {
                   <Ionicons name="time" size={22} color={colors.primary} />
                   <Text style={styles.modalTitle}>System Activity & Audit Logs</Text>
                 </View>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close"
                   style={styles.closeBtn}
                   onPress={() => setActivityModalVisible(false)}
                 >
@@ -285,7 +282,7 @@ export default function AdminDashboard({ navigation }) {
         </Modal>
 
         {/* Floating AI HR Assistant Button */}
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           activeOpacity={0.9}
           style={{
             position: "absolute",

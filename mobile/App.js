@@ -17,6 +17,8 @@ import EmployeeDrawerNavigator from "./src/navigation/EmployeeDrawerNavigator";
 import ManagerDrawerNavigator from "./src/navigation/ManagerDrawerNavigator";
 import { getNavigatorKey } from "./src/navigation/roleRouting";
 import { initCrashReporting } from "./src/utils/crashReporting";
+import ErrorBoundary from "./src/components/common/ErrorBoundary";
+import useAppUpdates from "./src/utils/useAppUpdates";
 
 initCrashReporting();
 
@@ -83,6 +85,8 @@ function RootNavigator() {
 // launch and app-lock screens render outside any navigator, and on web the
 // safe-area SafeAreaView throws without a provider above it.
 export default function App() {
+  // Offers "Restart now" as soon as an over-the-air update has downloaded.
+  useAppUpdates();
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -90,7 +94,9 @@ export default function App() {
           <AuthProvider>
             <NavigationContainer>
               <StatusBar style="dark" />
-              <RootNavigator />
+              <ErrorBoundary>
+                <RootNavigator />
+              </ErrorBoundary>
             </NavigationContainer>
           </AuthProvider>
         </ThemeProvider>

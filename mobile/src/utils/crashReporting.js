@@ -14,4 +14,17 @@ export const initCrashReporting = () => {
   });
 };
 
+// For errors the app handles but shouldn't hide: sent to Sentry once a DSN
+// is set, printed in development, otherwise dropped. Never throws.
+export const reportError = (error, context = {}) => {
+  try {
+    if (__DEV__) {
+      console.warn('[reportError]', context?.where || '', error?.message || error);
+    }
+    if (DSN) Sentry.captureException(error, { extra: context });
+  } catch (_) {
+    // reporting must never break the caller
+  }
+};
+
 export { Sentry };

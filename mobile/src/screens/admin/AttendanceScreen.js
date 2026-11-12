@@ -16,8 +16,9 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import AdminHeader from "../../components/admin/AdminHeader";
 import AdminSearchBar from "../../components/admin/AdminSearchBar";
+import TodayAttendance from "../../components/admin/TodayAttendance";
 import SaasFilterSheet from "../../components/common/SaasFilterSheet";
-import { fetchEmployees, fetchDashboard, fetchMonthlyReport } from "../../api/client";
+import { fetchDashboard, fetchMonthlyReport } from "../../api/client";
 import useLiveRefresh, { formatUpdated } from "../../utils/useLiveRefresh";
 import { useTheme } from "../../store/ThemeContext";
 
@@ -61,17 +62,17 @@ export default function AttendanceScreen({ navigation }) {
     const key = `${selectedYear}-${selectedMonth}`;
     try {
       const monthIdx = MONTHS.indexOf(selectedMonth) + 1;
-      const [empRes, dashRes, reportRes] = await Promise.all([
-        fetchEmployees().catch(() => null),
+      // No staff-list call: it's rate-limited server-side, and the
+      // dashboard's total is all this screen needs.
+      const [dashRes, reportRes] = await Promise.all([
         fetchDashboard().catch(() => null),
         fetchMonthlyReport(parseInt(selectedYear, 10), monthIdx).catch(() => null),
       ]);
-      const empList = empRes?.data?.employees || [];
       const dash = dashRes?.data || {};
 
       if (reportRes?.data?.ok && Array.isArray(reportRes.data.report)) {
         const repList = reportRes.data.report;
-        const total = repList.length || empList.length || 0;
+        const total = repList.length || dash.total_employees || 0;
         const avgPct = total > 0 ? Math.round(repList.reduce((acc, curr) => acc + (curr.pct || 0), 0) / total) : 0;
 
         setSummary({
@@ -103,7 +104,7 @@ export default function AttendanceScreen({ navigation }) {
         // (22 full days, 100%) for every "Active" employee based on
         // nothing but their status flag. Showing an honest empty state
         // instead of invented per-employee attendance records.
-        const total = empList.length || dash.total_employees || 0;
+        const total = dash.total_employees || 0;
         setSummary({
           employees: total,
           workingDays: dash.working_days || 26,
@@ -216,7 +217,7 @@ export default function AttendanceScreen({ navigation }) {
             </Text>
           )}
           {/* Quick Mark Attendance Banner */}
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={styles.markBanner}
             activeOpacity={0.85}
             onPress={() => navigation.navigate("AdminTabs", { screen: "MarkAttendance" })}
@@ -224,16 +225,19 @@ export default function AttendanceScreen({ navigation }) {
             <View style={styles.markBannerLeft}>
               <Ionicons name="create-outline" size={24} color="#FFFFFF" />
               <View style={{ marginLeft: 12 }}>
-                <Text style={styles.markBannerTitle}>Mark Bulk Attendance</Text>
-                <Text style={styles.markBannerSub}>Quick manual attendance entry for staff</Text>
+                <Text style={styles.markBannerTitle}>Mark or Update Attendance</Text>
+                <Text style={styles.markBannerSub}>Add or correct any employee's day</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
           </TouchableOpacity>
 
+          {/* Today's check-ins and check-outs, with times */}
+          <TodayAttendance navigation={navigation} search={search} />
+
           {/* Month & Year Selectors */}
           <View style={styles.selectorRow}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.selectorPill}
               activeOpacity={0.8}
               onPress={() => setMonthModalVisible(true)}
@@ -243,7 +247,7 @@ export default function AttendanceScreen({ navigation }) {
               <Ionicons name="chevron-down" size={14} color="#475467" />
             </TouchableOpacity>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.selectorPill}
               activeOpacity={0.8}
               onPress={() => setYearModalVisible(true)}
@@ -267,7 +271,7 @@ export default function AttendanceScreen({ navigation }) {
           {/* Status Filter Chips */}
           <View style={styles.filterRow}>
             {["All", "Present", "Late", "Absent"].map((f) => (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 key={f}
                 style={[
                   styles.filterChip,
@@ -340,7 +344,7 @@ export default function AttendanceScreen({ navigation }) {
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Select Month</Text>
-                <TouchableOpacity onPress={() => setMonthModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setMonthModalVisible(false)}>
                   <Ionicons name="close" size={22} color={colors.text} />
                 </TouchableOpacity>
               </View>
@@ -348,7 +352,7 @@ export default function AttendanceScreen({ navigation }) {
                 data={MONTHS}
                 keyExtractor={(item) => item}
                 renderItem={({ item }) => (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={[
                       styles.pickerOption,
                       selectedMonth === item && styles.pickerOptionActive,
@@ -387,7 +391,7 @@ export default function AttendanceScreen({ navigation }) {
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Select Year</Text>
-                <TouchableOpacity onPress={() => setYearModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setYearModalVisible(false)}>
                   <Ionicons name="close" size={22} color={colors.text} />
                 </TouchableOpacity>
               </View>
@@ -395,7 +399,7 @@ export default function AttendanceScreen({ navigation }) {
                 data={years}
                 keyExtractor={(item) => item}
                 renderItem={({ item }) => (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={[
                       styles.pickerOption,
                       selectedYear === item && styles.pickerOptionActive,

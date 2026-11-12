@@ -13,7 +13,7 @@ export default function NotificationCard({
   onPress,
 }) {
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       activeOpacity={0.9}
       style={[
         styles.card,

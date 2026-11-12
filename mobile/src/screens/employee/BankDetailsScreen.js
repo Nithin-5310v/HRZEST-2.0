@@ -122,7 +122,7 @@ export default function BankDetailsScreen() {
               <Text style={styles.subText}>{bankInfo.accountName}</Text>
             </View>
 
-            <TouchableOpacity style={styles.editBtn} onPress={() => setModalVisible(true)}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit" style={styles.editBtn} onPress={() => setModalVisible(true)}>
               <Ionicons name="create-outline" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -143,7 +143,7 @@ export default function BankDetailsScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Bank & Identity Details</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setModalVisible(false)}>
                 <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -166,7 +166,7 @@ export default function BankDetailsScreen() {
             <Text style={styles.inputLabel}>AADHAR NUMBER</Text>
             <TextInput style={styles.input} value={editAadharNumber} onChangeText={setEditAadharNumber} keyboardType="number-pad" />
 
-            <TouchableOpacity style={styles.saveModalBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity accessibilityRole="button" style={styles.saveModalBtn} onPress={handleSave} disabled={saving}>
               {saving ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
@@ -236,4 +236,4 @@ const makeStyles = (colors) => StyleSheet.create({
     marginTop: 20,
   },
   saveModalBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
-});
+});

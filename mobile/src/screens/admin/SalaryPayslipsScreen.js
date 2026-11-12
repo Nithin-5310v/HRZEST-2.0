@@ -343,7 +343,7 @@ export default function SalaryPayslipsScreen({ navigation }) {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Month</Text>
-              <TouchableOpacity onPress={() => setMonthModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setMonthModalVisible(false)}>
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -351,7 +351,7 @@ export default function SalaryPayslipsScreen({ navigation }) {
               data={MONTHS}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[
                     styles.pickerOption,
                     selectedMonth === item && styles.pickerOptionActive,
@@ -390,7 +390,7 @@ export default function SalaryPayslipsScreen({ navigation }) {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Year</Text>
-              <TouchableOpacity onPress={() => setYearModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setYearModalVisible(false)}>
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
@@ -398,7 +398,7 @@ export default function SalaryPayslipsScreen({ navigation }) {
               data={YEARS}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[
                     styles.pickerOption,
                     selectedYear === item && styles.pickerOptionActive,

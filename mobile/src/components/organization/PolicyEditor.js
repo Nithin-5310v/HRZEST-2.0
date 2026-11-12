@@ -52,7 +52,7 @@ export default function PolicyEditor({ policy, categories = [], templates = [], 
           <Text style={styles.label}>START FROM A TEMPLATE</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             {templates.map((tpl) => (
-              <TouchableOpacity key={tpl.title} style={styles.chip} onPress={() => applyTemplate(tpl)}>
+              <TouchableOpacity accessibilityRole="button" key={tpl.title} style={styles.chip} onPress={() => applyTemplate(tpl)}>
                 <Text style={styles.chipText}>{tpl.title}</Text>
               </TouchableOpacity>
             ))}
@@ -65,7 +65,7 @@ export default function PolicyEditor({ policy, categories = [], templates = [], 
         {[...categories, { key: OTHER, label: "Other…" }].map((c) => {
           const active = category === c.key;
           return (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={c.key}
               style={[styles.chip, active && styles.chipActive]}
               onPress={() => setCategory(c.key)}
@@ -121,10 +121,10 @@ export default function PolicyEditor({ policy, categories = [], templates = [], 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.actions}>
-        <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={onCancel} disabled={saving}>
+        <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnGhost]} onPress={onCancel} disabled={saving}>
           <Text style={styles.btnGhostText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={submit} disabled={saving}>
+        <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={submit} disabled={saving}>
           {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.btnPrimaryText}>Save policy</Text>}
         </TouchableOpacity>
       </View>

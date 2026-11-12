@@ -24,6 +24,7 @@ import {
   fetchShifts, createShift, fetchSettings, saveCompanySettings, saveGeoRadius,
   toggleCompanyFeature, fetchAdminProfile, changeAdminPassword, saveSalaryRules,
 } from "../../api/client";
+import { reportError } from "../../utils/crashReporting";
 
 // company_settings.working_days is a free-form CSV of day abbreviations
 // (e.g. "Mon,Tue,Wed,Thu,Fri"), but this screen's UI is a simpler 3-chip
@@ -324,7 +325,7 @@ export default function SettingsScreen({ navigation, route }) {
       if (res?.data?.ok && Array.isArray(res.data.shifts)) {
         setShifts(res.data.shifts);
       }
-    } catch (_) {}
+    } catch (e) { reportError(e, { where: "SettingsScreen" }); }
     setShiftsLoading(false);
   };
 
@@ -375,7 +376,7 @@ export default function SettingsScreen({ navigation, route }) {
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={tab.id}
                   activeOpacity={0.8}
                   style={[styles.tabButton, isActive && styles.tabButtonActive]}
@@ -430,7 +431,7 @@ export default function SettingsScreen({ navigation, route }) {
                 <Text style={styles.label}>WORKING DAYS POLICY</Text>
                 <View style={styles.daysToggleRow}>
                   {["Mon - Fri", "Mon - Sat", "All 7 Days"].map((option) => (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={option}
                       style={[
                         styles.chipBtn,
@@ -451,7 +452,7 @@ export default function SettingsScreen({ navigation, route }) {
                 </View>
               </View>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.saveButton}
                 activeOpacity={0.8}
                 onPress={handleSaveCompany}
@@ -477,7 +478,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <Ionicons name="time" size={22} color={colors.primary} />
                   <Text style={[styles.cardHeaderTitle, { marginLeft: 8 }]}>Work Shifts & Grace Timings</Text>
                 </View>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.smallAddBtn}
                   onPress={() => setAddShiftModal(true)}
                 >
@@ -515,7 +516,7 @@ export default function SettingsScreen({ navigation, route }) {
                 </View>
               ))}
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.saveButton}
                 activeOpacity={0.8}
                 onPress={() => handleSaveSalaryRules(setSavingShiftRules)}
@@ -602,7 +603,7 @@ export default function SettingsScreen({ navigation, route }) {
                 />
               </View>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.saveButton}
                 activeOpacity={0.8}
                 onPress={handleSaveAttendance}
@@ -675,7 +676,7 @@ export default function SettingsScreen({ navigation, route }) {
                 />
               </View>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.saveButton}
                 activeOpacity={0.8}
                 onPress={handleChangePassword}
@@ -814,7 +815,7 @@ export default function SettingsScreen({ navigation, route }) {
                 />
               </View>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.saveButton}
                 activeOpacity={0.8}
                 onPress={() => handleSaveSalaryRules(setSavingPayrollRules)}
@@ -876,7 +877,7 @@ export default function SettingsScreen({ navigation, route }) {
               <View style={styles.card}>
                 <Text style={[styles.cardHeaderTitle, { marginBottom: 14 }]}>Account Management & Actions</Text>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.actionRow}
                   activeOpacity={0.7}
                   onPress={() => setActiveTab("security")}
@@ -891,7 +892,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.actionRow}
                   activeOpacity={0.7}
                   onPress={() => setActiveTab("company")}
@@ -906,7 +907,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.actionRow}
                   activeOpacity={0.7}
                   onPress={() => setActiveTab("notifications")}
@@ -921,7 +922,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.logoutBtn}
                   activeOpacity={0.8}
                   onPress={signOut}
@@ -947,7 +948,7 @@ export default function SettingsScreen({ navigation, route }) {
             <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Create New Work Shift</Text>
-                <TouchableOpacity onPress={() => setAddShiftModal(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setAddShiftModal(false)}>
                   <Ionicons name="close" size={22} color="#475467" />
                 </TouchableOpacity>
               </View>
@@ -981,7 +982,7 @@ export default function SettingsScreen({ navigation, route }) {
                 </View>
               </View>
 
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={styles.saveButton}
                 activeOpacity={0.8}
                 onPress={handleAddShift}

@@ -56,7 +56,7 @@ export default function CompOffBottomSheet({
 
             </View>
 
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClose}>
 
               <Ionicons
                 name="close"
@@ -156,7 +156,7 @@ export default function CompOffBottomSheet({
 
           <View style={styles.footer}>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={isPending ? styles.secondaryButton : styles.wideSecondaryButton}
               onPress={onClose}
               disabled={actionLoading}
@@ -170,7 +170,7 @@ export default function CompOffBottomSheet({
 
             {isPending && (
               <>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.rejectButton}
                   onPress={onReject}
                   disabled={actionLoading}
@@ -180,7 +180,7 @@ export default function CompOffBottomSheet({
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.primaryButton}
                   onPress={onApprove}
                   disabled={actionLoading}

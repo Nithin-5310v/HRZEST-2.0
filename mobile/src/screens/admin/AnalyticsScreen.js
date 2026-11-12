@@ -156,7 +156,7 @@ export default function AnalyticsScreen({ navigation }) {
               {["Week", "Month", "Quarter", "Year"].map((period) => {
                 const isActive = selectedPeriod === period;
                 return (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     key={period}
                     activeOpacity={0.8}
                     style={[styles.periodPill, isActive && styles.periodPillActive]}
@@ -170,7 +170,7 @@ export default function AnalyticsScreen({ navigation }) {
               })}
             </View>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.exportBtn}
               activeOpacity={0.8}
               onPress={handleExport}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   ScrollView,
+  FlatList,
   View,
   Text,
   StyleSheet,
@@ -27,13 +28,14 @@ try {
 import AdminHeader from "../../components/admin/AdminHeader";
 import AdminSearchBar from "../../components/admin/AdminSearchBar";
 import {
-  fetchEmployees, addEmployee, uploadEmployeePhoto, getPhotoUrl, fetchBillingStatus,
+  fetchEmployees, addEmployee, uploadPhotoForEmployee, getPhotoUrl, fetchBillingStatus,
   editEmployee, deleteEmployee, sendEmailBlast,
 } from "../../api/client";
-import { saveLocalEmployee, mergeEmployeesWithLocal, deleteLocalEmployee } from "../../utils/employeeStore";
 import { useTheme } from "../../store/ThemeContext";
 
 import SaasFilterSheet from "../../components/common/SaasFilterSheet";
+import { localISODate } from "../../utils/dates";
+import { reportError } from "../../utils/crashReporting";
 
 export default function EmployeesScreen({ navigation }) {
   const { colors } = useTheme();
@@ -60,7 +62,7 @@ export default function EmployeesScreen({ navigation }) {
   const [newEmpDept, setNewEmpDept] = useState("");
   const [newEmpEmail, setNewEmpEmail] = useState("");
   const [newEmpPhone, setNewEmpPhone] = useState("");
-  const [newEmpDoj, setNewEmpDoj] = useState(new Date().toISOString().split("T")[0]);
+  const [newEmpDoj, setNewEmpDoj] = useState(localISODate());
   const [newEmpPassword, setNewEmpPassword] = useState("");
   const [newEmpPhoto, setNewEmpPhoto] = useState(null);
 
@@ -125,7 +127,7 @@ export default function EmployeesScreen({ navigation }) {
     setNewEmpName("Ravi Kumar");
     setNewEmpEmail("ravikumar@company.com");
     setNewEmpPhone("9876543210");
-    setNewEmpDoj(new Date().toISOString().split("T")[0]);
+    setNewEmpDoj(localISODate());
     setNewEmpDept("Engineering");
     setNewEmpRole("Senior Software Engineer");
     setNewEmpPassword("welcome123");
@@ -206,16 +208,15 @@ export default function EmployeesScreen({ navigation }) {
         status: emp.status || "Active",
         phone: emp.phone || "",
         date_of_joining: emp.date_of_joining || emp.doj || "",
-        has_photo: true,
+        // An older server doesn't say; treat that as "has a photo", as before.
+        has_photo: emp.has_photo !== false,
       }));
 
-      const mergedList = await mergeEmployeesWithLocal(formattedList);
-      setEmployees(mergedList);
+      // The server's list is the only source: a phone-side copy kept
+      // employees deleted on the website and miscounted the staff.
+      setEmployees(formattedList);
     } catch (e) {
-      const storedLocal = await mergeEmployeesWithLocal([]);
-      if (storedLocal.length > 0) {
-        setEmployees(storedLocal);
-      }
+      // Offline or a server error: keep the list already on screen.
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -293,11 +294,10 @@ export default function EmployeesScreen({ navigation }) {
       date_of_joining: payload.date_of_joining,
       has_photo: !!newEmpPhoto,
     };
-    // Cache locally so the new employee shows up immediately even if the
-    // subsequent list refresh is briefly stale.
-    await saveLocalEmployee(newStaffObj);
+    // Shown at once; loadData() below replaces it with the server's record.
     setEmployees((prev) => [newStaffObj, ...prev.filter((e) => (e.employee_id || e.id) !== empIdTrim)]);
 
+    let photoFailed = null;
     if (newEmpPhoto) {
       try {
         const formData = new FormData();
@@ -307,8 +307,12 @@ export default function EmployeesScreen({ navigation }) {
           name: `${empIdTrim}.jpg`,
           type: "image/jpeg",
         });
-        await uploadEmployeePhoto(formData).catch(() => null);
-      } catch (_) {}
+        const up = await uploadPhotoForEmployee(empIdTrim, formData).catch((e) => e?.response || null);
+        if (!up?.data?.ok) photoFailed = up?.data?.msg || "The photo couldn't be uploaded.";
+      } catch (e) {
+        photoFailed = "The photo couldn't be uploaded.";
+        reportError(e, { where: "EmployeesScreen.addPhoto" });
+      }
     }
 
     await loadData();
@@ -316,6 +320,7 @@ export default function EmployeesScreen({ navigation }) {
     Alert.alert(
       "Staff Registered 🎉",
       `Employee '${empNameTrim}' (${empIdTrim}) registered successfully!\n\nDefault Password: ${empPassTrim}`
+        + (photoFailed ? `\n\nPhoto not saved: ${photoFailed} Add it from the employee's profile.` : "")
     );
     setAddModalVisible(false);
     setNewEmpId("");
@@ -324,7 +329,7 @@ export default function EmployeesScreen({ navigation }) {
     setNewEmpDept("");
     setNewEmpEmail("");
     setNewEmpPhone("");
-    setNewEmpDoj(new Date().toISOString().split("T")[0]);
+    setNewEmpDoj(localISODate());
     setNewEmpPassword("");
     setNewEmpPhoto(null);
     setSubmitting(false);
@@ -372,7 +377,6 @@ export default function EmployeesScreen({ navigation }) {
         (e.employee_id || e.id) === editEmpId ? { ...e, ...payload } : e
       )
     );
-    await saveLocalEmployee({ employee_id: editEmpId, ...payload });
 
     setEditSubmitting(false);
     setEditModalVisible(false);
@@ -402,7 +406,6 @@ export default function EmployeesScreen({ navigation }) {
               Alert.alert("Removal Failed", res?.data?.msg || "Could not remove this employee. Please try again.");
               return;
             }
-            await deleteLocalEmployee(empId);
             setEmployees((prev) => prev.filter((e) => (e.employee_id || e.id) !== empId));
             setSelectedEmp(null);
             Alert.alert("Removed", `${emp.name || empId} has been removed.`);
@@ -455,9 +458,16 @@ export default function EmployeesScreen({ navigation }) {
           onMenu={() => navigation.dispatch(DrawerActions.openDrawer())}
         />
 
-        <ScrollView
+        {/* A FlatList, so only the rows on screen are drawn: a big staff
+            list used to render every row at once. */}
+        <FlatList
+          data={loading ? [] : filteredEmployees}
+          keyExtractor={(emp) => String(emp.id || emp.employee_id)}
+          initialNumToRender={15}
+          windowSize={7}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -465,111 +475,116 @@ export default function EmployeesScreen({ navigation }) {
               colors={[colors.primary]}
             />
           }
-        >
-          {/* Summary Hero Card */}
-          <View style={styles.heroCard}>
-            <View style={styles.heroRow}>
-              <View>
-                <Text style={styles.heroNumber}>{employees.length}</Text>
-                <Text style={styles.heroTitle}>Total Employees</Text>
+          ListHeaderComponent={
+            <View>
+            {/* Summary Hero Card */}
+            <View style={styles.heroCard}>
+              <View style={styles.heroRow}>
+                <View>
+                  <Text style={styles.heroNumber}>{employees.length}</Text>
+                  <Text style={styles.heroTitle}>Total Employees</Text>
+                </View>
+                <View style={styles.heroIconBadge}>
+                  <Ionicons name="people" size={28} color="#FFFFFF" />
+                </View>
               </View>
-              <View style={styles.heroIconBadge}>
-                <Ionicons name="people" size={28} color="#FFFFFF" />
-              </View>
-            </View>
-            <Text style={styles.heroSubtitle}>
-              {employees.filter((e) => e.status === "Active").length} Active •{" "}
-              {employees.filter((e) => e.status === "On Leave" || e.status === "Leave").length} On Leave
-            </Text>
-          </View>
-
-          {/* Seat-limit banner -- same data as web's employees.html banner */}
-          {billingStatus && billingStatus.paid_employee_slots != null && (
-            <TouchableOpacity
-              style={[
-                styles.seatBanner,
-                billingStatus.employee_count >= billingStatus.paid_employee_slots && styles.seatBannerDanger,
-              ]}
-              onPress={() => navigation.navigate("SeatsBilling")}
-              activeOpacity={0.85}
-            >
-              <Ionicons
-                name={billingStatus.employee_count >= billingStatus.paid_employee_slots ? "lock-closed" : "people"}
-                size={16}
-                color={billingStatus.employee_count >= billingStatus.paid_employee_slots ? "#991B1B" : "#1D4ED8"}
-              />
-              <Text
-                style={[
-                  styles.seatBannerText,
-                  billingStatus.employee_count >= billingStatus.paid_employee_slots && { color: "#991B1B" },
-                ]}
-              >
-                Seats: {billingStatus.employee_count} / {billingStatus.paid_employee_slots} used
-                {billingStatus.employee_count >= billingStatus.paid_employee_slots ? " — tap to buy more" : ""}
+              <Text style={styles.heroSubtitle}>
+                {employees.filter((e) => e.status === "Active").length} Active •{" "}
+                {employees.filter((e) => e.status === "On Leave" || e.status === "Leave").length} On Leave
               </Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
-            </TouchableOpacity>
-          )}
+            </View>
 
-          {/* Search & Filter */}
-          <AdminSearchBar
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search by name, ID, or role..."
-            onFilterPress={() => setFilterModalVisible(true)}
-            hasActiveFilter={hasActiveFilter}
-            onClear={() => setSearch("")}
-          />
-
-          {/* Department Filter Chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-            {departments.map((dept) => (
-              <TouchableOpacity
-                key={dept}
+            {/* Seat-limit banner -- same data as web's employees.html banner */}
+            {billingStatus && billingStatus.paid_employee_slots != null && (
+              <TouchableOpacity accessibilityRole="button"
                 style={[
-                  styles.chip,
-                  selectedDept === dept && styles.chipActive,
+                  styles.seatBanner,
+                  billingStatus.employee_count >= billingStatus.paid_employee_slots && styles.seatBannerDanger,
                 ]}
-                onPress={() => setSelectedDept(dept)}
+                onPress={() => navigation.navigate("SeatsBilling")}
+                activeOpacity={0.85}
               >
+                <Ionicons
+                  name={billingStatus.employee_count >= billingStatus.paid_employee_slots ? "lock-closed" : "people"}
+                  size={16}
+                  color={billingStatus.employee_count >= billingStatus.paid_employee_slots ? "#991B1B" : "#1D4ED8"}
+                />
                 <Text
                   style={[
-                    styles.chipText,
-                    selectedDept === dept && styles.chipTextActive,
+                    styles.seatBannerText,
+                    billingStatus.employee_count >= billingStatus.paid_employee_slots && { color: "#991B1B" },
                   ]}
                 >
-                  {dept}
+                  Seats: {billingStatus.employee_count} / {billingStatus.paid_employee_slots} used
+                  {billingStatus.employee_count >= billingStatus.paid_employee_slots ? " — tap to buy more" : ""}
                 </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textLight} />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            )}
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Employee List</Text>
-            <Text style={styles.sectionBadge}>{filteredEmployees.length} Results</Text>
-          </View>
+            {/* Search & Filter */}
+            <AdminSearchBar
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search by name, ID, or role..."
+              onFilterPress={() => setFilterModalVisible(true)}
+              hasActiveFilter={hasActiveFilter}
+              onClear={() => setSearch("")}
+            />
 
-          {loading ? (
-            <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 30 }} />
-          ) : filteredEmployees.length === 0 ? (
-            <View style={{ padding: 32, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderRadius: 16, marginTop: 12, borderWidth: 1, borderColor: colors.border }}>
-              <Ionicons name="people-outline" size={48} color={colors.textLight} />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "#344054", marginTop: 12 }}>
-                No Staff Members Found
-              </Text>
-              <Text style={{ fontSize: 13, color: "#475467", textAlign: "center", marginTop: 4, marginBottom: 16 }}>
-                Your directory is currently empty. Tap below to register your first staff member.
-              </Text>
-              <TouchableOpacity
-                style={{ backgroundColor: "#2563EB", paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12 }}
-                onPress={() => setAddModalVisible(true)}
-              >
-                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>+ Add First Staff Member</Text>
-              </TouchableOpacity>
+            {/* Department Filter Chips */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+              {departments.map((dept) => (
+                <TouchableOpacity accessibilityRole="button"
+                  key={dept}
+                  style={[
+                    styles.chip,
+                    selectedDept === dept && styles.chipActive,
+                  ]}
+                  onPress={() => setSelectedDept(dept)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      selectedDept === dept && styles.chipTextActive,
+                    ]}
+                  >
+                    {dept}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Employee List</Text>
+              <Text style={styles.sectionBadge}>{filteredEmployees.length} Results</Text>
             </View>
-          ) : (
-            filteredEmployees.map((emp) => (
-              <TouchableOpacity
+            </View>
+          }
+          ListEmptyComponent={
+            loading ? (
+              <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 30 }} />
+            ) : (
+              <View style={{ padding: 32, alignItems: "center", justifyContent: "center", backgroundColor: colors.card, borderRadius: 16, marginTop: 12, borderWidth: 1, borderColor: colors.border }}>
+                <Ionicons name="people-outline" size={48} color={colors.textLight} />
+                <Text style={{ fontSize: 16, fontWeight: "700", color: "#344054", marginTop: 12 }}>
+                  No Staff Members Found
+                </Text>
+                <Text style={{ fontSize: 13, color: "#475467", textAlign: "center", marginTop: 4, marginBottom: 16 }}>
+                  Your directory is currently empty. Tap below to register your first staff member.
+                </Text>
+                <TouchableOpacity accessibilityRole="button"
+                  style={{ backgroundColor: "#2563EB", paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12 }}
+                  onPress={() => setAddModalVisible(true)}
+                >
+                  <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>+ Add First Staff Member</Text>
+                </TouchableOpacity>
+              </View>
+            )
+          }
+          ListFooterComponent={<View style={{ height: 110 }} />}
+          renderItem={({ item: emp }) => (
+              <TouchableOpacity accessibilityRole="button"
                 key={emp.id || emp.employee_id}
                 style={styles.employeeCard}
                 activeOpacity={0.8}
@@ -623,11 +638,8 @@ export default function EmployeesScreen({ navigation }) {
                   <Ionicons name="chevron-forward" size={18} color={colors.textLight} style={{ marginTop: 8 }} />
                 </View>
               </TouchableOpacity>
-            ))
           )}
-
-          <View style={{ height: 110 }} />
-        </ScrollView>
+        />
 
         {/* Comprehensive Employee Detail Modal */}
         <Modal visible={!!selectedEmp} transparent animationType="fade" onRequestClose={() => setSelectedEmp(null)}>
@@ -679,7 +691,7 @@ export default function EmployeesScreen({ navigation }) {
                   </View>
 
                   <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={{ flex: 1, backgroundColor: "#F0FDFA", borderWidth: 1, borderColor: "#99F6E4", borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
                       onPress={() => {
                         const emp = selectedEmp;
@@ -690,14 +702,14 @@ export default function EmployeesScreen({ navigation }) {
                       <Text style={{ color: "#0F766E", fontWeight: "700", fontSize: 13 }}>ID Card</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={{ flex: 1, backgroundColor: colors.blueBg, borderWidth: 1, borderColor: "#BFDBFE", borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
                       onPress={() => openEditModal(selectedEmp)}
                     >
                       <Text style={{ color: "#1E40AF", fontWeight: "700", fontSize: 13 }}>Edit</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={{ flex: 1, backgroundColor: colors.danger, borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
                       onPress={() => handleDeleteEmployee(selectedEmp)}
                       disabled={deleting}
@@ -709,7 +721,7 @@ export default function EmployeesScreen({ navigation }) {
                       )}
                     </TouchableOpacity>
 
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={{ flex: 1, backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 10, alignItems: "center" }}
                       onPress={() => setSelectedEmp(null)}
                     >
@@ -734,7 +746,7 @@ export default function EmployeesScreen({ navigation }) {
                   <Ionicons name="create-outline" size={20} color="#2563EB" style={{ marginRight: 8 }} />
                   <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Edit {editEmpId}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setEditModalVisible(false)}>
                   <Ionicons name="close-circle" size={26} color="#475467" />
                 </TouchableOpacity>
               </View>
@@ -772,7 +784,7 @@ export default function EmployeesScreen({ navigation }) {
                   onChangeText={setEditEmpDoj}
                 />
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={{ backgroundColor: "#2563EB", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 20, marginBottom: 10 }}
                   onPress={handleEditEmployeeSubmit}
                   disabled={editSubmitting}
@@ -789,7 +801,7 @@ export default function EmployeesScreen({ navigation }) {
         </Modal>
 
         {/* Floating Add Employee Button */}
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           activeOpacity={0.88}
           style={{
             position: "absolute",
@@ -813,7 +825,7 @@ export default function EmployeesScreen({ navigation }) {
         </TouchableOpacity>
 
         {/* Floating Email Blast Button */}
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           activeOpacity={0.88}
           style={{
             position: "absolute",
@@ -845,7 +857,7 @@ export default function EmployeesScreen({ navigation }) {
                   <Ionicons name="person-add" size={20} color="#2563EB" style={{ marginRight: 8 }} />
                   <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Add New Staff Member</Text>
                 </View>
-                <TouchableOpacity onPress={() => setAddModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setAddModalVisible(false)}>
                   <Ionicons name="close-circle" size={26} color="#475467" />
                 </TouchableOpacity>
               </View>
@@ -853,7 +865,7 @@ export default function EmployeesScreen({ navigation }) {
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
                 {/* 1-Tap Quick Fill Demo Preset -- dev convenience only */}
                 {__DEV__ && (
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FDE68A", paddingVertical: 10, borderRadius: 12, marginBottom: 14 }}
                     onPress={handleQuickFill}
                   >
@@ -886,14 +898,14 @@ export default function EmployeesScreen({ navigation }) {
                   </Text>
 
                   <View style={{ flexDirection: "row", gap: 12, marginTop: 12 }}>
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#2563EB", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, elevation: 2 }}
                       onPress={handleTakePhoto}
                     >
                       <Ionicons name="camera-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
                       <Text style={{ fontSize: 12, fontWeight: "800", color: "#FFFFFF" }}>📷 Camera</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={{ flexDirection: "row", alignItems: "center", backgroundColor: colors.blueBg, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: "#BFDBFE" }}
                       onPress={handlePickPhoto}
                     >
@@ -920,7 +932,7 @@ export default function EmployeesScreen({ navigation }) {
                     onChangeText={setNewEmpId}
                     autoCapitalize="characters"
                   />
-                  <TouchableOpacity
+                  <TouchableOpacity accessibilityRole="button"
                     style={{ backgroundColor: colors.blueBg, borderWidth: 1, borderColor: "#DBEAFE", paddingHorizontal: 12, paddingVertical: 11, borderRadius: 10 }}
                     onPress={handleAutoGenerateId}
                   >
@@ -985,7 +997,7 @@ export default function EmployeesScreen({ navigation }) {
                   secureTextEntry
                 />
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={{ backgroundColor: "#2563EB", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 20, marginBottom: 10 }}
                   onPress={handleAddEmployeeSubmit}
                   disabled={submitting}
@@ -1008,7 +1020,7 @@ export default function EmployeesScreen({ navigation }) {
             <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "85%" }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <Text style={{ fontSize: 17, fontWeight: "800", color: colors.text }}>Broadcast Email</Text>
-                <TouchableOpacity onPress={() => setBlastModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setBlastModalVisible(false)}>
                   <Ionicons name="close" size={22} color="#475467" />
                 </TouchableOpacity>
               </View>
@@ -1021,7 +1033,7 @@ export default function EmployeesScreen({ navigation }) {
                     { key: "department", label: "Department" },
                     { key: "individual", label: "One Employee" },
                   ].map((opt) => (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={opt.key}
                       style={{
                         flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center",
@@ -1042,7 +1054,7 @@ export default function EmployeesScreen({ navigation }) {
                     <Text style={{ fontSize: 11, fontWeight: "800", color: "#475467", letterSpacing: 0.6, marginBottom: 8 }}>DEPARTMENT</Text>
                     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
                       {[...new Set(employees.map((e) => e.department).filter(Boolean))].map((dept) => (
-                        <TouchableOpacity
+                        <TouchableOpacity accessibilityRole="button"
                           key={dept}
                           style={{
                             paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
@@ -1090,7 +1102,7 @@ export default function EmployeesScreen({ navigation }) {
                   multiline
                 />
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={{ backgroundColor: colors.primary, flexDirection: "row", justifyContent: "center", alignItems: "center", paddingVertical: 14, borderRadius: 14 }}
                   onPress={handleSendBlast}
                   disabled={sendingBlast}

@@ -154,7 +154,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
 
         {/* Tab Switcher */}
         <View style={styles.tabsContainer}>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[styles.tab, activeTab === "leaves" && styles.activeTab]}
             onPress={() => setActiveTab("leaves")}
           >
@@ -162,7 +162,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
             <Text style={[styles.tabText, activeTab === "leaves" && styles.activeTabText]}>Leave Requests</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[styles.tab, activeTab === "compoff" && styles.activeTab]}
             onPress={() => setActiveTab("compoff")}
           >
@@ -170,7 +170,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
             <Text style={[styles.tabText, activeTab === "compoff" && styles.activeTabText]}>Comp-Off</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[styles.tab, activeTab === "holidays" && styles.activeTab]}
             onPress={() => setActiveTab("holidays")}
           >
@@ -214,12 +214,12 @@ export default function LeavesHolidaysScreen({ navigation }) {
 
                     {req.status === "Pending" || !req.status ? (
                       <View style={styles.actionRow}>
-                        <TouchableOpacity style={[styles.btn, styles.btnReject]} onPress={() => handleLeaveAction(req.id, "reject")}>
+                        <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnReject]} onPress={() => handleLeaveAction(req.id, "reject")}>
                           <Ionicons name="close" size={16} color="#DC2626" />
                           <Text style={styles.rejectText}>Reject</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={[styles.btn, styles.btnApprove]} onPress={() => handleLeaveAction(req.id, "approve")}>
+                        <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnApprove]} onPress={() => handleLeaveAction(req.id, "approve")}>
                           <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                           <Text style={styles.approveText}>Approve</Text>
                         </TouchableOpacity>
@@ -258,7 +258,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
             <View>
               <View style={styles.holidayHeaderRow}>
                 <Text style={styles.sectionHeader}>Company Holidays ({holidays.length})</Text>
-                <TouchableOpacity style={styles.addBtn} onPress={() => setAddHolidayModalVisible(true)}>
+                <TouchableOpacity accessibilityRole="button" style={styles.addBtn} onPress={() => setAddHolidayModalVisible(true)}>
                   <Ionicons name="add" size={18} color="#FFFFFF" />
                   <Text style={styles.addBtnText}>Add Holiday</Text>
                 </TouchableOpacity>
@@ -284,7 +284,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
                         </View>
                       </View>
 
-                      <TouchableOpacity onPress={() => handleDeleteHoliday(h)}>
+                      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete" onPress={() => handleDeleteHoliday(h)}>
                         <Ionicons name="trash-outline" size={20} color={colors.danger} />
                       </TouchableOpacity>
                     </View>
@@ -318,11 +318,11 @@ export default function LeavesHolidaysScreen({ navigation }) {
               />
 
               <View style={styles.modalBtnRow}>
-                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAddHolidayModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" style={styles.modalCancelBtn} onPress={() => setAddHolidayModalVisible(false)}>
                   <Text style={styles.modalCancelText}>Cancel</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleAddHoliday} disabled={savingHoliday}>
+                <TouchableOpacity accessibilityRole="button" style={styles.modalSubmitBtn} onPress={handleAddHoliday} disabled={savingHoliday}>
                   {savingHoliday ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   ) : (

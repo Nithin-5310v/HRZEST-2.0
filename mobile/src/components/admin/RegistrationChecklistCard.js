@@ -88,7 +88,7 @@ export default function RegistrationChecklistCard({ navigation, onVerification }
               ) : step.status === "review" ? (
                 <Text style={styles.reviewText}>Under review</Text>
               ) : (
-                <TouchableOpacity style={styles.action} onPress={() => navigation.navigate(info.screen)} activeOpacity={0.85}>
+                <TouchableOpacity accessibilityRole="button" style={styles.action} onPress={() => navigation.navigate(info.screen)} activeOpacity={0.85}>
                   <Text style={styles.actionText}>{rejected ? "Re-upload documents" : info.action}</Text>
                   <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
                 </TouchableOpacity>
