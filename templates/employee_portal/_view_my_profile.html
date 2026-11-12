@@ -58,7 +58,7 @@
         {% set _total = _pf | length %}
         {% set _pct   = (_done.n / _total * 100) | round | int %}
         {% set _missing = _pf | rejectattr(1) | map(attribute=0) | list %}
-        {% set _bar_color = '#16a34a' if _pct == 100 else ('#f59e0b' if _pct >= 60 else '#ef4444') %}
+        {% set _bar_color = '#2563eb' %}
 
         <div class="u-bg-fff u-bd-1-solid-e2e8f0 u-br-12 u-p-14-18 u-mb-18 u-d-flex u-ai-center u-gap-16">
           <div class="u-fx-1">
@@ -106,7 +106,7 @@
             </div>
             {# Download buttons #}
             <div class="u-d-flex u-fxd-column u-gap-10">
-              <a class="u-p-9-18 u-br-9 u-bg-ede9fe u-c-6d28d9 u-fs-13 u-fw-600 u-tdec-none u-bd-1-solid-c4b5fd u-d-flex u-ai-center u-gap-7" href="{{ tpath('/my_qr') }}">
+              <a class="u-p-9-18 u-br-9 u-bg-dbeafe u-c-1e3a8a u-fs-13 u-fw-600 u-tdec-none u-bd-1-solid-93c5fd u-d-flex u-ai-center u-gap-7" href="{{ tpath('/my_qr') }}">
                 <i class="ti ti-device-mobile hz-ico" aria-hidden="true"></i> Download QR Code
               </a>
               <a class="u-p-9-18 u-br-9 u-bg-dbeafe u-c-1e3a8a u-fs-13 u-fw-600 u-tdec-none u-bd-1-solid-93c5fd u-d-flex u-ai-center u-gap-7" href="{{ tpath('/my_id_card') }}">

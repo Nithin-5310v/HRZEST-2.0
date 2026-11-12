@@ -2,54 +2,59 @@
    first-time my_workspace_setup.html, inside each page's <style>. #}
       /* ── Page header + tab bar ── one palette, matched to the admin shell's
          blue banner, shared by the header and the Overview tab. */
-      .wks { --wk-brand: #1d4ed8; --wk-brand-2: #2563eb; --wk-ink: #0f172a; --wk-body: #334155;
-             --wk-muted: #64748b; --wk-faint: #94a3b8; --wk-line: #e4e8f0; --wk-soft: #f6f8fc; --wk-card: #fff; }
+      /* The admin dashboard's tokens (static/admin-theme.css --ui-*). */
+      .wks { --wk-brand: #2563eb; --wk-brand-2: #1d4ed8; --wk-brand-soft: #eef4ff; --wk-ink: #101828; --wk-body: #475467;
+             --wk-muted: #667085; --wk-faint: #98a2b3; --wk-line: #e6e9ef; --wk-line-2: #d0d5dd; --wk-soft: #f9fafb; --wk-card: #fff; }
       body.dark-mode .wks { --wk-ink: #e6edf3; --wk-body: #c9d1d9; --wk-muted: #8b949e; --wk-faint: #6e7681;
                             --wk-line: #30363d; --wk-soft: #0d1117; --wk-card: #161b22; }
       /* The employee portal's own search box -- the admin shell already has navigation. */
       .wks .emp-search-row { display: none; }
 
-      .wks-profile { position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 18px;
-                     background: linear-gradient(120deg, #1e3a8a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff;
-                     box-shadow: 0 10px 30px -12px rgba(29,78,216,.45); }
-      .wks-profile::after { content: ""; position: absolute; right: -80px; top: -120px; width: 340px; height: 340px;
-                            border-radius: 50%; background: radial-gradient(closest-side, rgba(255,255,255,.14), transparent); pointer-events: none; }
+      /* A white admin card, like the cards below it. */
+      .wks-profile { position: relative; overflow: hidden; border-radius: 12px; margin-bottom: 18px;
+                     background: var(--wk-card); color: var(--wk-ink);
+                     border: 1px solid var(--wk-line); box-shadow: 0 1px 2px rgba(16,24,40,.04); }
       .wks-profile-main { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between;
                           gap: 20px; flex-wrap: wrap; padding: 24px 26px 20px; }
       .wks-id { display: flex; align-items: center; gap: 16px; min-width: 0; }
       .wks-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
-                    border: 3px solid rgba(255,255,255,.35); }
-      .wks-avatar-ph { display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.16);
-                       color: #fff; font-size: 24px; font-weight: 800; letter-spacing: .5px; }
-      .wks-eyebrow { font-size: 12.5px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; opacity: .75; }
+                    border: 3px solid #fff; box-shadow: 0 0 0 1px var(--wk-line); }
+      .wks-avatar-ph { display: flex; align-items: center; justify-content: center; background: var(--wk-brand-soft);
+                       color: var(--wk-brand); font-size: 24px; font-weight: 700; letter-spacing: .5px; }
+      .wks .wks-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--wk-muted); }
       /* !important: admin-theme.css styles every .main h1 with the page ink colour. */
-      .wks .wks-name { font-size: 24px; font-weight: 800; line-height: 1.2; margin: 2px 0 4px; color: #fff !important; }
-      .wks-title { font-size: 14px; opacity: .88; }
+      .wks .wks-name { font-size: 24px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; margin: 2px 0 4px; color: var(--wk-ink); }
+      .wks .wks-title { font-size: 15px; color: var(--wk-muted); }
       .wks-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-      .wks-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 10px;
-                 font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; border: 1px solid transparent;
+      .wks-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 8px;
+                 font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; border: 1px solid transparent;
                  transition: background .15s, border-color .15s, color .15s; white-space: nowrap; }
-      .wks-btn-light { background: #fff; color: #1d4ed8; }
-      .wks-btn-light:hover { background: #eff6ff; }
-      .wks-btn-ghost { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.28); }
-      .wks-btn-ghost:hover { background: rgba(255,255,255,.18); }
-      .wks-btn-primary { background: var(--wk-brand); color: #fff; }
-      .wks-btn-primary:hover { background: #1e40af; }
+      /* On the light header: the main action is the one blue, the rest are white. */
+      .wks-btn-light, .wks-btn-primary { background: var(--wk-brand); color: #fff; }
+      .wks-btn-light:hover, .wks-btn-primary:hover { background: var(--wk-brand-2); }
+      .wks-btn-ghost { background: #fff; color: #344054; border-color: var(--wk-line-2); }
+      .wks-btn-ghost:hover { background: var(--wk-soft); color: var(--wk-ink); }
+      .wks-btn-ghost i { color: var(--wk-muted); }
       .wks-facts { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px 26px; padding: 13px 26px;
-                   background: rgba(15,23,42,.18); border-top: 1px solid rgba(255,255,255,.12); font-size: 13.5px; }
-      .wks-fact { display: inline-flex; align-items: center; gap: 7px; color: rgba(255,255,255,.92); }
-      .wks-fact i { font-size: 16px; opacity: .7; }
-      .wks-fact b { font-weight: 700; }
+                   background: var(--wk-soft); border-top: 1px solid #eaecf0; font-size: 14.5px; }
+      .wks-fact { display: inline-flex; align-items: center; gap: 7px; color: var(--wk-body); }
+      .wks-fact i { font-size: 16px; color: var(--wk-muted); }
+      .wks-fact b { font-weight: 700; color: var(--wk-ink); }
       .wks-role { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px;
-                  background: rgba(255,255,255,.16); font-weight: 700; font-size: 12.5px; }
+                  background: var(--wk-brand-soft); color: var(--wk-brand); font-weight: 600; font-size: 13.5px; }
+      .wks-role i { color: var(--wk-brand); }
+      body.dark-mode .wks-profile { background: #161b22; border-color: #30363d; }
+      body.dark-mode .wks-facts { background: #0d1117; border-color: #30363d; }
+      body.dark-mode .wks-role, body.dark-mode .wks-avatar-ph { background: #1c2330; color: #79b8ff; }
 
       .wks-tabs-wrap { position: relative; margin-bottom: 20px; border-bottom: 1px solid var(--wk-line); }
       .wks-tabs { display: flex; align-items: stretch; gap: 2px; overflow-x: auto; scrollbar-width: none; }
       .wks-tabs::-webkit-scrollbar { display: none; }
       .wtab { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 12px 11px;
-              border: none; background: none; color: var(--wk-muted); font-size: 13.5px; font-weight: 600;
+              border: none; background: none; color: var(--wk-muted); font-size: 14.5px; font-weight: 600;
               font-family: inherit; cursor: pointer; white-space: nowrap; transition: color .15s; }
-      .wtab i { font-size: 16px; }
+      /* Text-only tabs (the full-size labels need the room). */
+      .wtab i { display: none; }
       .wtab::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px;
                      border-radius: 2px 2px 0 0; background: transparent; transition: background .15s; }
       .wtab:hover { color: var(--wk-ink); }

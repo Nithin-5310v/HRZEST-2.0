@@ -29,11 +29,11 @@
               </div>
               <div class="u-bg-rgba255_255_255_d12 u-br-10 u-p-12">
                 <div class="u-fs-11 u-op-d7 u-mb-3">Incentives</div>
-                <div class="u-fs-18 u-fw-800 u-c-86efac">+₹{{ "%.2f"|format(incentives_this_month) }}</div>
+                <div class="u-fs-18 u-fw-800">+₹{{ "%.2f"|format(incentives_this_month) }}</div>
               </div>
               <div class="u-bg-rgba255_255_255_d12 u-br-10 u-p-12">
                 <div class="u-fs-11 u-op-d7 u-mb-3">PF, PT &amp; TDS</div>
-                <div class="u-fs-18 u-fw-800 u-c-fecaca">−₹{{ "%.2f"|format(statutory_this_month) }}</div>
+                <div class="u-fs-18 u-fw-800">−₹{{ "%.2f"|format(statutory_this_month) }}</div>
               </div>
             </div>
           </div>
@@ -44,21 +44,21 @@
               <i class="ti ti-calculator u-c-3b82f6"></i> This Month Breakdown
             </div>
             <div class="u-d-grid u-gtc-1fr-1fr u-gap-10">
-              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-f0fdf4 u-br-9">
-                <span class="u-fs-13 u-c-15803d u-fw-600">Full Days</span>
-                <span class="u-fs-13 u-fw-800 u-c-15803d">{{ full_days }} × ₹{{ "%.0f"|format(salary_per_day) }} = ₹{{ "%.2f"|format(full_days * salary_per_day) }}</span>
+              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-eff6ff u-br-9">
+                <span class="u-fs-13 u-c-1e40af u-fw-600">Full Days</span>
+                <span class="u-fs-13 u-fw-800 u-c-1e40af">{{ full_days }} × ₹{{ "%.0f"|format(salary_per_day) }} = ₹{{ "%.2f"|format(full_days * salary_per_day) }}</span>
               </div>
-              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-fffbeb u-br-9">
-                <span class="u-fs-13 u-c-d97706 u-fw-600">Late Days</span>
-                <span class="u-fs-13 u-fw-800 u-c-d97706">{{ late_days }} × ₹{{ "%.0f"|format(salary_per_day) }} = ₹{{ "%.2f"|format(late_days * salary_per_day) }}</span>
+              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-eff6ff u-br-9">
+                <span class="u-fs-13 u-c-1e40af u-fw-600">Late Days</span>
+                <span class="u-fs-13 u-fw-800 u-c-1e40af">{{ late_days }} × ₹{{ "%.0f"|format(salary_per_day) }} = ₹{{ "%.2f"|format(late_days * salary_per_day) }}</span>
               </div>
-              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-fff7ed u-br-9">
-                <span class="u-fs-13 u-c-ea580c u-fw-600">Half Days</span>
-                <span class="u-fs-13 u-fw-800 u-c-ea580c">{{ half_days }} × ₹{{ "%.0f"|format(salary_per_day * 0.5) }} = ₹{{ "%.2f"|format(half_days * salary_per_day * 0.5) }}</span>
+              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-eff6ff u-br-9">
+                <span class="u-fs-13 u-c-1e40af u-fw-600">Half Days</span>
+                <span class="u-fs-13 u-fw-800 u-c-1e40af">{{ half_days }} × ₹{{ "%.0f"|format(salary_per_day * 0.5) }} = ₹{{ "%.2f"|format(half_days * salary_per_day * 0.5) }}</span>
               </div>
-              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-fff1f2 u-br-9">
-                <span class="u-fs-13 u-c-dc2626 u-fw-600">Absent (Deduction)</span>
-                <span class="u-fs-13 u-fw-800 u-c-dc2626">−₹{{ "%.2f"|format(absent_days * salary_per_day) }}</span>
+              <div class="u-d-flex u-jc-space-between u-p-10-14 u-bg-eff6ff u-br-9">
+                <span class="u-fs-13 u-c-1e40af u-fw-600">Absent (Deduction)</span>
+                <span class="u-fs-13 u-fw-800 u-c-1e40af">−₹{{ "%.2f"|format(absent_days * salary_per_day) }}</span>
               </div>
             </div>
             <div class="u-mt-12 u-p-12-14 u-bg-eff6ff u-br-9 u-d-flex u-jc-space-between u-ai-center">

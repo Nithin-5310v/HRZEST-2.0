@@ -13,29 +13,29 @@
         <div class="u-d-grid u-gtc-repeatauto-fil7f56f0 u-gap-10">
           {% for ltb in leave_type_balances %}
           {% set pct_used = (ltb.used / ltb.quota * 100)|int if ltb.quota > 0 else 0 %}
-          {% set col = '#ef4444' if ltb.balance == 0 else ('#f59e0b' if ltb.balance <= 3 else '#16a34a') %}
-          <div style="background:#fff;border:1.5px solid {% if ltb.balance == 0 %}#fecdd3{% elif ltb.balance <= 3 %}#fde68a{% else %}#bbf7d0{% endif %};border-radius:12px;padding:14px;">
+          {% set col = '#94a3b8' if ltb.balance == 0 else '#1d4ed8' %}
+          <div style="background:#fff;border:1.5px solid {% if ltb.balance == 0 %}#e2e8f0{% else %}#dbeafe{% endif %};border-radius:12px;padding:14px;">
             <div class="u-fs-10 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-mb-8">{{ ltb.name }}</div>
             <div class="u-d-flex u-ai-baseline u-gap-4 u-mb-6">
               <span style="font-size:28px;font-weight:800;color:{{ col }};line-height:1;">{{ ltb.balance }}</span>
               <span class="u-fs-12 u-c-94a3b8">/ {{ ltb.quota }} days</span>
             </div>
             <div class="u-bg-f1f5f9 u-br-20 u-h-6 u-ov-hidden u-mb-6">
-              <div style="height:100%;border-radius:20px;width:{{ [pct_used,100]|min }}%;background:{% if pct_used >= 80 %}#ef4444{% elif pct_used >= 50 %}#f59e0b{% else %}#22c55e{% endif %};transition:.4s;"></div>
+              <div style="height:100%;border-radius:20px;width:{{ [pct_used,100]|min }}%;background:#2563eb;transition:.4s;"></div>
             </div>
             <div class="u-fs-10 u-c-94a3b8">{{ ltb.used }} used · {{ ltb.balance }} remaining</div>
           </div>
           {% endfor %}
           {# Comp-off balance card #}
           <a class="u-tdec-none" href="{{ tpath('/my_compoff') }}">
-          <div style="background:#fff;border:1.5px solid {% if compoff_avail_days > 0 %}#bbf7d0{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;cursor:pointer;transition:.2s;" data-hover-style="border-color:#3b82f6">
+          <div style="background:#fff;border:1.5px solid {% if compoff_avail_days > 0 %}#dbeafe{% else %}#e2e8f0{% endif %};border-radius:12px;padding:14px;cursor:pointer;transition:.2s;" data-hover-style="border-color:#3b82f6">
             <div class="u-fs-10 u-fw-700 u-c-64748b u-ttr-uppercase u-ls-d4 u-mb-8">Comp-off <span class="u-bg-eff6ff u-c-3b82f6 u-br-4 u-p-1-5 u-fs-9">OT</span></div>
             <div class="u-d-flex u-ai-baseline u-gap-4 u-mb-6">
-              <span style="font-size:28px;font-weight:800;color:{% if compoff_avail_days > 0 %}#16a34a{% else %}#94a3b8{% endif %};line-height:1;">{{ compoff_avail_days }}</span>
+              <span style="font-size:28px;font-weight:800;color:{% if compoff_avail_days > 0 %}#1d4ed8{% else %}#94a3b8{% endif %};line-height:1;">{{ compoff_avail_days }}</span>
               <span class="u-fs-12 u-c-94a3b8">/ {{ compoff_earned_days }} days</span>
             </div>
             <div class="u-bg-f1f5f9 u-br-20 u-h-6 u-ov-hidden u-mb-6">
-              <div style="height:100%;border-radius:20px;width:{% if compoff_earned_days > 0 %}{{ [(compoff_avail_days / compoff_earned_days * 100)|int, 100]|min }}{% else %}0{% endif %}%;background:#22c55e;"></div>
+              <div style="height:100%;border-radius:20px;width:{% if compoff_earned_days > 0 %}{{ [(compoff_avail_days / compoff_earned_days * 100)|int, 100]|min }}{% else %}0{% endif %}%;background:#2563eb;"></div>
             </div>
             <div class="u-fs-10 u-c-94a3b8">{{ compoff_avail_days }} available · view details →</div>
           </div>

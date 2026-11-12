@@ -16,7 +16,7 @@
     <p>{{ emp_role }} &nbsp;&middot;&nbsp; {{ emp_dept or 'No Department' }}</p>
   </div>
   <div class="u-ta-center">
-    <div style="font-size:38px;font-weight:900;color:{% if avail_days > 0 %}#4ade80{% else %}rgba(255,255,255,.5){% endif %};">
+    <div style="font-size:38px;font-weight:900;color:{% if avail_days > 0 %}#fff{% else %}rgba(255,255,255,.5){% endif %};">
       {{ "%.1f"|format(avail_days) }}
     </div>
     <div class="u-fs-12 u-op-d75">Comp-off Days Available</div>
@@ -29,11 +29,11 @@
     <div class="lbl">OT Hours Earned</div>
   </div>
   <div class="stat-card">
-    <div class="num u-c-16a34a">{{ "%.1f"|format(avail_days) }}</div>
+    <div class="num u-c-1d4ed8">{{ "%.1f"|format(avail_days) }}</div>
     <div class="lbl">Days Available</div>
   </div>
   <div class="stat-card">
-    <div class="num u-c-f59e0b">{{ "%.1f"|format(used_days) }}</div>
+    <div class="num u-c-1d4ed8">{{ "%.1f"|format(used_days) }}</div>
     <div class="lbl">Days Used</div>
   </div>
   <div class="stat-card">
@@ -72,10 +72,10 @@
             <span class="u-fw-700 u-c-3b82f6">{{ (ot_min // 60) }}h {{ (ot_min % 60) }}m</span>
             <span class="u-fs-11 u-c-94a3b8">({{ ot_min }} min)</span>
           </td>
-          <td class="u-c-16a34a u-fw-600">Rs. {{ "%.2f"|format(ot_pay) }}</td>
+          <td class="u-c-1d4ed8 u-fw-600">Rs. {{ "%.2f"|format(ot_pay) }}</td>
           <td>
             {% if status == 'Approved' and ot_min >= min_ot_minutes %}
-            <span class="u-c-16a34a u-fw-700 u-fs-12">
+            <span class="u-c-1d4ed8 u-fw-700 u-fs-12">
               <i class="ti ti-check"></i> +{{ "%.1f"|format(ot_min / minutes_per_day) }} days
             </span>
             {% elif ot_min < min_ot_minutes %}
