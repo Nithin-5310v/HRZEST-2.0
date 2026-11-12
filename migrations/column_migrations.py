@@ -60,6 +60,19 @@ def _run_role_hierarchy_migration(cursor, db):
         cursor.execute("ALTER TABLE roles ADD COLUMN IF NOT EXISTS parent_role_key VARCHAR(50)")
         cursor.execute("ALTER TABLE roles ADD COLUMN IF NOT EXISTS description VARCHAR(255)")
         cursor.execute("ALTER TABLE roles ADD COLUMN IF NOT EXISTS data_scope VARCHAR(10) NOT NULL DEFAULT 'company'")
+        # 'custom': a company-defined role whose dashboard is built from its
+        # module access alone (Settings -> Roles & Access), not a fixed
+        # Admin/HR/Manager dashboard.
+        cursor.execute("ALTER TABLE roles DROP CONSTRAINT IF EXISTS roles_base_type_check")
+        cursor.execute("ALTER TABLE roles ADD CONSTRAINT roles_base_type_check "
+                       "CHECK (base_type IN ('admin','hr','manager','employee','custom'))")
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='role_custom_dashboard_v1'")
+        if not cursor.fetchone():
+            # Roles a company made itself stop borrowing a fixed dashboard; the
+            # old built-in 'hr' and 'manager' (and their logins) keep theirs.
+            cursor.execute("UPDATE roles SET base_type='custom' "
+                           "WHERE NOT is_system AND role_key NOT IN ('hr','manager')")
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('role_custom_dashboard_v1')")
         cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='role_hierarchy_v1'")
         if not cursor.fetchone():
             cursor.execute("UPDATE roles SET data_scope='team' WHERE role_key IN ('hr','manager')")

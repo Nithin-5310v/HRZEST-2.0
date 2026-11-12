@@ -402,7 +402,7 @@ def _finish_employee_login(employee_id, name, role, force_pin_change, email):
     from utils.helpers.rbac import defined_role_base_type
     _access_role = _get_employee_access_role(employee_id)
     _role_base = defined_role_base_type(_access_role)
-    if _role_base in ("admin", "hr", "manager"):
+    if _role_base in ("admin", "hr", "manager", "custom"):
         _ensure_role_admin_account(employee_id, email, _access_role)
         if app.config["MANDATORY_LOGIN_MFA"]:
             mark_totp_enabled(employee_id)

@@ -5,7 +5,9 @@ import secrets
 from database import get_db_connection, transaction
 from extensions import app_log, limiter, log_security_event
 from flask import flash, jsonify, redirect, render_template, request, session
-from utils.auth import HR_ROLE, admin_required, generate_password_hash, record_password_change, role_required
+from utils.auth import (
+    HR_ROLE, admin_required, generate_password_hash, record_password_change, require_access, role_required,
+)
 from utils.dlp import has_pii_clearance, mask_tail
 from utils.face_utils import _face_recognition_available, face_recognition, detection_array
 from utils.helpers import (
@@ -27,11 +29,22 @@ from utils.tenant_files import face_photo_path
 from . import employees_bp
 
 
+# Which module's edit access each admin_action needs (Settings -> Roles &
+# Access) -- the owner Administrator always has it.
+_ADMIN_ACTION_MODULES = {"update_face": "employees", "reset_password": "employees",
+                         "holiday": "leaves", "salary": "payroll"}
+
+
 @employees_bp.route("/admin_action", methods=["POST"])
-@role_required("admin")
+@admin_required
 @limiter.limit("20 per minute")
 def admin_action():
     action = request.form.get("action")
+    from utils.helpers.rbac import can_access
+    module = _ADMIN_ACTION_MODULES.get(action)
+    if not module or not can_access(module, "edit"):
+        flash("You don't have access to that section.", "error")
+        return redirect(tpath("/admin"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -132,7 +145,8 @@ def admin_action():
 
 
 @employees_bp.route("/delete_employee/<emp_id>", methods=["POST"])
-@role_required("admin")
+@admin_required
+@require_access("employees", "edit")
 @limiter.limit("10 per minute")
 def delete_employee(emp_id):
     db = get_db_connection()

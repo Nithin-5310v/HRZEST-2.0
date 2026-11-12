@@ -235,8 +235,8 @@
     {# Every section below shows only what the logged-in role can use
        (Settings -> Roles & Access); the owner Administrator passes every
        can_access() check. Holiday and salary quick actions post to
-       /admin_action, which only admin-type roles may use at all. #}
-    {% set _admin_type = session.admin_role in ['admin', 'superadmin'] or session.admin_base_type == 'admin' %}
+       /admin_action, which checks the same Leaves / Salary edit access. #}
+    {% set _admin_type = session.admin_role in ['admin', 'superadmin'] %}
     {% if can_access('attendance') %}
     <div class="header-actions">
       <a href="{{ tpath('/monthly_report_export') }}?month={{ now_month }}&year={{ now_year }}" class="hbtn hbtn-green"><i class="ti ti-download"></i> Export Month</a>
@@ -427,8 +427,8 @@
   {% endif %}
 
   {# QUICK ACTIONS #}
-  {% set _qa_holiday = _admin_type and can_access('leaves', 'edit') %}
-  {% set _qa_salary = _admin_type and can_access('payroll', 'edit') %}
+  {% set _qa_holiday = can_access('leaves', 'edit') %}
+  {% set _qa_salary = can_access('payroll', 'edit') %}
   {% set _qa_register = can_access('employees', 'edit') %}
   {% if _qa_holiday or _qa_salary or _qa_register %}
   <div class="section">

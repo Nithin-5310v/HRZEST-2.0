@@ -96,7 +96,9 @@ def can_access(module, action="view", role=None):
 
 # ── Management (read + write) used by the Settings "Roles & Access" screen ────
 VALID_ACCESS = ("none", "view", "edit")
-VALID_BASE_TYPES = ("admin", "hr", "manager", "employee")
+# 'custom' is every role a company creates: its dashboard is built from the
+# modules it is granted. 'hr'/'manager' remain for the old built-in roles.
+VALID_BASE_TYPES = ("admin", "hr", "manager", "employee", "custom")
 # The two fixed dashboards, whose identity/base can't be changed or deleted.
 # 'admin' stays full access so a company can never lock every admin out
 # (superadmin, separate and never in this table, is the ultimate backstop).
@@ -456,7 +458,7 @@ def base_type_for_role(role_key):
         cur.close()
 
 
-def create_role(display_name, base_type, parent_role_key="", description="", data_scope="company"):
+def create_role(display_name, base_type="custom", parent_role_key="", description="", data_scope="company"):
     """Create a custom role from a display name + base type, reporting to
     parent_role_key ('' = directly under the Administrator). Returns its
     role_key. Raises ValueError on bad input or a name that collides."""

@@ -836,7 +836,7 @@ def _init_core_tables(cursor, db):
             role_key VARCHAR(50) UNIQUE NOT NULL,
             display_name VARCHAR(80) NOT NULL,
             base_type VARCHAR(20) NOT NULL
-                CHECK (base_type IN ('admin','hr','manager','employee')),
+                CHECK (base_type IN ('admin','hr','manager','employee','custom')),
             is_system BOOLEAN DEFAULT FALSE,
             parent_role_key VARCHAR(50),
             description VARCHAR(255),

@@ -25,7 +25,7 @@ def _admin(client, username="test_admin"):
         sess["admin_role"] = "admin"
 
 
-def _as(client, username, role, base="manager"):
+def _as(client, username, role, base="custom"):
     with client.session_transaction() as sess:
         sess.clear()
         sess["admin_logged_in"] = True
@@ -55,8 +55,8 @@ def roles(client, seed_admin):
     """Senior Manager (top level) > Junior Manager, both 'team'."""
     from utils.helpers.rbac import create_role, set_permissions
     with client.application.test_request_context():
-        senior = create_role("Senior Manager", "manager", "", "Leads the managers", "team")
-        junior = create_role("Junior Manager", "manager", senior, "", "team")
+        senior = create_role("Senior Manager", "custom", "", "Leads the managers", "team")
+        junior = create_role("Junior Manager", "custom", senior, "", "team")
         set_permissions(senior, {"employees": "edit", "leaves": "edit", "payroll": "view"})
         set_permissions(junior, {"employees": "view", "leaves": "edit"})
     return {"senior": senior, "junior": junior}
@@ -111,7 +111,7 @@ class TestCeiling:
     def test_moving_under_a_weaker_parent_lowers_the_role(self, client, db_engine, roles):
         from utils.helpers.rbac import create_role, update_role
         with client.application.test_request_context():
-            weak = create_role("Viewer Lead", "manager", "", "", "company")   # no access at all
+            weak = create_role("Viewer Lead", "custom", "", "", "company")   # no access at all
             lowered = update_role(roles["junior"], "Junior Manager", weak, "", "team")
         assert set(_perms(db_engine, roles["junior"]).values()) == {"none"}
         assert "Junior Manager" in lowered
@@ -148,8 +148,8 @@ class TestTree:
     def test_deleting_a_role_moves_its_children_up(self, client, db_engine, roles):
         from utils.helpers.rbac import create_role, delete_role
         with client.application.test_request_context():
-            middle = create_role("Middle", "manager", roles["senior"], "", "team")
-            leaf = create_role("Leaf", "manager", middle, "", "team")
+            middle = create_role("Middle", "custom", roles["senior"], "", "team")
+            leaf = create_role("Leaf", "custom", middle, "", "team")
             delete_role(middle)
         assert _parent(db_engine, middle) == "missing"
         assert _parent(db_engine, leaf) == roles["senior"]
@@ -281,3 +281,53 @@ class TestPages:
         cur.execute("SELECT manager_id FROM employees WHERE employee_id='SNR01'")
         assert cur.fetchone()[0] is None
         cur.close()
+
+
+# ── A role's dashboard is built from its access ─────────────────────────────
+class TestDashboardFromAccess:
+    def test_new_roles_have_no_fixed_dashboard(self, client, db_engine, roles):
+        cur = db_engine.cursor()
+        cur.execute("SELECT base_type FROM roles WHERE role_key IN (%s,%s)", (roles["senior"], roles["junior"]))
+        assert {r[0] for r in cur.fetchall()} == {"custom"}
+        cur.close()
+
+    def test_create_form_has_no_dashboard_choice(self, client, roles):
+        _admin(client)
+        html = client.get("/settings/roles/list").get_data(as_text=True)
+        assert 'name="base_type"' not in html
+
+    def test_role_holder_logs_in_to_the_module_dashboard(self, client, company, roles, db_engine):
+        from utils.auth import generate_password_hash
+        cur = db_engine.cursor()
+        cur.execute("UPDATE employees SET password=%s WHERE employee_id='JNR01'", (generate_password_hash("Jn@12345"),))
+        db_engine.commit()
+        cur.close()
+        resp = client.post("/login", data={"identifier": "JNR01", "password": "Jn@12345"})
+        assert resp.headers["Location"].endswith("/admin")
+        with client.session_transaction() as sess:
+            assert sess["admin_role"] == roles["junior"] and sess["admin_base_type"] == "custom"
+        page = client.get("/admin").get_data(as_text=True)
+        assert "Junior Manager" in page            # the header shows the role's own name
+        assert 'href="/settings"' not in page      # company settings stay with the Administrator
+
+    def test_leave_approval_follows_leaves_access(self, client, db_engine, company, roles):
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO leave_requests (employee_id, leave_date, reason, status) "
+                    "VALUES ('EMPA1', '2026-12-01', 'x', 'Pending') RETURNING id")
+        lid = cur.fetchone()[0]
+        cur.execute("UPDATE role_permissions SET access='view' WHERE role_key=%s AND module='leaves'",
+                    (roles["junior"],))
+        db_engine.commit()
+        _as(client, "JNR01", roles["junior"])
+        resp = client.post(f"/leave_action/{lid}", data={"action": "approve"},
+                           headers={"X-Requested-With": "XMLHttpRequest"})
+        assert resp.status_code == 403
+        cur.execute("SELECT status FROM leave_requests WHERE id=%s", (lid,))
+        assert cur.fetchone()[0] == "Pending"
+        cur.close()
+
+    def test_salary_pages_follow_payroll_access(self, client, company, roles):
+        _as(client, "JNR01", roles["junior"])          # no Salary access
+        assert client.get("/view_salary", headers={"Accept": "application/json"}).status_code == 403
+        _as(client, "SNR01", roles["senior"])          # Salary: View
+        assert client.get("/view_salary").status_code == 200

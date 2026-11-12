@@ -288,7 +288,7 @@
 <a class="skip-link" href="#main-content">Skip to main content</a>
 
 {# ── SIDEBAR ── #}
-{% set _org_locked = co.org_profile_pending and session.admin_role not in ('hr', 'manager') %}
+{% set _org_locked = co.org_profile_pending and session.admin_role in ('admin', 'superadmin') %}
 <div class="sidebar{{ ' sidebar--locked' if _org_locked }}" role="navigation" aria-label="Primary">
   {# Base-type-aware: a custom role (Settings -> Roles & Access) built on the HR
      or Manager base counts as HR/Manager here, not just the literal built-in
@@ -461,7 +461,7 @@
     </div>
     {% set _ulogin = session.admin_username or 'Admin' %}
     {% set _uname = admin_display_name or (_ulogin.split('@')[0] if '@' in _ulogin else _ulogin) %}
-    {% set _urole = 'HR' if _is_hr else ('Manager' if _is_manager else 'Administrator') %}
+    {% set _urole = admin_role_label or 'Administrator' %}
     {% set _uphoto = admin_avatar_url %}
     {% set _uinit = admin_initials or _uname[:2]|upper %}
     {# Admin profile menu (Profile / Settings / Logout) #}
@@ -474,7 +474,9 @@
           <span class="app-avatar app-avatar-lg" aria-hidden="true">{% if _uphoto %}<img src="{{ _uphoto }}" alt="" />{% else %}{{ _uinit }}{% endif %}</span>
           <span><span class="app-user-panel-name">{{ _uname }}</span><span class="app-user-panel-role">{{ _urole }} · {{ co.company_name }}</span></span>
         </div>
-        {% if not _is_hr and not _is_manager %}
+        {# Company profile and settings: the owner Administrator only (the
+           Organization module, if granted, is in the sidebar). #}
+        {% if session.admin_role in ['admin', 'superadmin'] %}
         <a class="app-user-item" role="menuitem" href="{{ tpath('/profile') }}"><i class="ti ti-id-badge-2"></i> Profile</a>
         <a class="app-user-item" role="menuitem" href="{{ tpath('/settings') }}"><i class="ti ti-settings"></i> Settings</a>
         {% endif %}

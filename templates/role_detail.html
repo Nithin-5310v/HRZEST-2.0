@@ -13,7 +13,22 @@
       .rd-crumbs a { color: var(--ink-3); text-decoration: none; }
       .rd-crumbs a:hover { color: var(--blue); }
       .rd-cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-      .perm-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+      .perm-summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+      .perm-summary span { padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+      .perm-summary .s-edit { background: var(--blue); color: #fff; }
+      .perm-summary .s-view { background: var(--blue-soft); color: var(--blue); }
+      .perm-summary .s-none { background: #f2f4f7; color: var(--ink-3); }
+      .perm-group { border: 1px solid #eaecf0; border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+      .perm-group-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px;
+                         background: var(--soft); border-bottom: 1px solid #eaecf0; font-size: 14px; font-weight: 600; color: var(--ink); }
+      .perm-group-head i { color: var(--ink-3); margin-right: 4px; }
+      .perm-quick { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; background: #fff; }
+      .perm-quick button { border: none; background: none; padding: 4px 10px; font: inherit; font-size: 12.5px; font-weight: 600;
+                           color: var(--ink-2); cursor: pointer; border-right: 1px solid var(--line-2); }
+      .perm-quick button:last-child { border-right: none; }
+      .perm-quick button:hover { background: var(--blue-soft); color: var(--blue); }
+      .perm-group .perm-list { padding: 2px 14px; }
+      .perm-list { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 28px; }
       .perm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px solid #f2f4f7; }
       .perm-name { font-size: 14.5px; font-weight: 500; color: #344054; }
       .perm-cap { display: block; font-size: 12.5px; color: var(--faint); margin-top: 1px; }
@@ -25,8 +40,40 @@
       @media (max-width: 1000px) { .rd-cols { grid-template-columns: minmax(0,1fr); } .perm-list { grid-template-columns: minmax(0,1fr); } }
 {% endblock %}
 
+{% block scripts %}
+    <script>
+      /* Access card: live summary, and "set all" per group -- never above a
+         module's limit (its higher options are disabled), so each module gets
+         the closest allowed level. */
+      (function () {
+        var order = ['none', 'view', 'edit'];
+        var summary = document.getElementById('permSummary');
+        function update() {
+          var n = {none: 0, view: 0, edit: 0};
+          document.querySelectorAll('.perm-row input[type=radio]:checked').forEach(function (r) { n[r.value]++; });
+          if (summary) summary.innerHTML = '<span class="s-edit">' + n.edit + ' Edit</span><span class="s-view">' + n.view +
+            ' View</span><span class="s-none">' + n.none + ' None</span>';
+        }
+        document.querySelectorAll('[data-group]').forEach(function (g) {
+          g.querySelectorAll('[data-set]').forEach(function (b) {
+            b.addEventListener('click', function () {
+              g.querySelectorAll('.perm-row').forEach(function (row) {
+                for (var i = order.indexOf(b.dataset.set); i >= 0; i--) {
+                  var r = row.querySelector('input[value="' + order[i] + '"]');
+                  if (r && !r.disabled) { r.checked = true; break; }
+                }
+              });
+              update();
+            });
+          });
+        });
+        document.querySelectorAll('.perm-row input[type=radio]').forEach(function (r) { r.addEventListener('change', update); });
+        update();
+      })();
+    </script>
+{% endblock %}
+
 {% block roles_content %}
-        {% set _base_labels = {'admin': 'Admin', 'hr': 'HR', 'manager': 'Manager', 'employee': 'Employee'} %}
         {% set _by_key = {} %}{% for r in rbac_tree %}{% set _ = _by_key.update({r.role_key: r}) %}{% endfor %}
         {% set _node = _by_key.get(role.role_key) %}
         {% set _parent = _by_key.get(role.parent_role_key) %}
@@ -56,21 +103,38 @@
               <form method="POST" action="{{ tpath('/roles/permissions') }}">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
                 <input type="hidden" name="role_key" value="{{ role.role_key }}" />
-                <div class="perm-list">
-                  {% for mod in rbac_modules %}
-                  {% set current = perms.get(mod, 'none') %}
-                  {% set cap = ceiling.get(mod, 'edit') %}
-                  <div class="perm-row">
-                    <span class="perm-name">{{ module_labels.get(mod, mod) }}{% if cap != 'edit' %}<span class="perm-cap"><i class="ti ti-lock"></i> Up to {{ cap|capitalize if cap != 'none' else 'No access' }}</span>{% endif %}</span>
-                    <span class="rx-seg">
-                      {% for opt, lbl in (('none', 'None'), ('view', 'View'), ('edit', 'Edit')) %}
-                      <input type="radio" id="p_{{ mod }}_{{ opt }}" name="perm_{{ mod }}" value="{{ opt }}" {% if current == opt %}checked{% endif %} {% if _rank[opt] > _rank[cap] %}disabled{% endif %} />
-                      <label for="p_{{ mod }}_{{ opt }}">{{ lbl }}</label>
-                      {% endfor %}
+                {% set _groups = [
+                  ('People', 'ti-users', ['employees', 'attendance', 'leaves', 'resignations', 'onboarding']),
+                  ('Time & pay', 'ti-coin', ['payroll', 'overtime']),
+                  ('Workplace', 'ti-briefcase', ['performance', 'announcements', 'tickets']),
+                  ('Administration', 'ti-settings', ['reports', 'admin_tools', 'organization']),
+                ] %}
+                <div class="perm-summary" id="permSummary" aria-live="polite"></div>
+                {% for title, icon, mods in _groups %}
+                <div class="perm-group" data-group>
+                  <div class="perm-group-head">
+                    <span><i class="ti {{ icon }}"></i> {{ title }}</span>
+                    <span class="perm-quick" role="group" aria-label="Set all {{ title }}">
+                      <button type="button" data-set="none">None</button><button type="button" data-set="view">View</button><button type="button" data-set="edit">Edit</button>
                     </span>
                   </div>
-                  {% endfor %}
+                  <div class="perm-list">
+                    {% for mod in mods if mod in rbac_modules %}
+                    {% set current = perms.get(mod, 'none') %}
+                    {% set cap = ceiling.get(mod, 'edit') %}
+                    <div class="perm-row">
+                      <span class="perm-name">{{ module_labels.get(mod, mod) }}{% if cap != 'edit' %}<span class="perm-cap"><i class="ti ti-lock"></i> Up to {{ cap|capitalize if cap != 'none' else 'no access' }} ({{ _parent.display_name if _parent else 'parent' }})</span>{% endif %}</span>
+                      <span class="rx-seg">
+                        {% for opt, lbl in (('none', 'None'), ('view', 'View'), ('edit', 'Edit')) %}
+                        <input type="radio" id="p_{{ mod }}_{{ opt }}" name="perm_{{ mod }}" value="{{ opt }}" {% if current == opt %}checked{% endif %} {% if _rank[opt] > _rank[cap] %}disabled{% endif %} />
+                        <label for="p_{{ mod }}_{{ opt }}">{{ lbl }}</label>
+                        {% endfor %}
+                      </span>
+                    </div>
+                    {% endfor %}
+                  </div>
                 </div>
+                {% endfor %}
                 <div class="rx-note" style="margin-top:14px;"><i class="ti ti-eye"></i><span><b>View</b> = open and read · <b>Edit</b> = change · <b>None</b> = hidden from their menu and blocked. Lowering access here also lowers every role below this one.</span></div>
                 <div class="rx-foot"><button class="rx-btn" type="submit"><i class="ti ti-device-floppy"></i> Save access</button></div>
               </form>
@@ -111,7 +175,7 @@
                   </div>
                   <div class="rx-field">
                     <label>Dashboard</label>
-                    <div class="rx-hint" style="font-size:14.5px;color:var(--ink-2);">{{ _base_labels.get(role.base_type, role.base_type) }} dashboard</div>
+                    <div class="rx-hint" style="font-size:14.5px;color:var(--ink-2);">Built from its access: the menu and dashboard show only the modules granted here.</div>
                   </div>
                 </div>
                 <div class="rx-foot"><button class="rx-btn" type="submit"><i class="ti ti-device-floppy"></i> Save details</button></div>

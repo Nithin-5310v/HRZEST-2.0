@@ -20,7 +20,7 @@ from database import get_db_connection
 from utils.attendance_utils import is_company_working_day
 from utils.auth import (
     admin_required, employee_required, any_user_required, api_required, employee_api_required, api_role_required,
-    require_access, role_required, MANAGER_ROLE, HR_ROLE,
+    require_access, MANAGER_ROLE, HR_ROLE,
 )
 from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
@@ -571,7 +571,8 @@ def _decide_leave(cursor, db, lid, action):
 
 
 @leave_bp.route("/leave_action/<int:lid>", methods=["POST"])
-@role_required(*_LEAVE_APPROVER_ROLES)
+@admin_required
+@require_access("leaves", "edit")
 def leave_action(lid):
     action = request.form.get("action", "")
     if action not in ("Approved", "Rejected"):
@@ -804,7 +805,8 @@ def request_resignation():
 
 
 @leave_bp.route("/resignation_action/<int:rid>", methods=["POST"])
-@role_required(*_LEAVE_APPROVER_ROLES)
+@admin_required
+@require_access("resignations", "edit")
 def resignation_action(rid):
     action = request.form.get("action", "")
     if action not in ("Accepted", "Declined"):
@@ -880,7 +882,8 @@ def resignation_action(rid):
 
 
 @leave_bp.route("/bulk_leave_action", methods=["POST"])
-@role_required(*_LEAVE_APPROVER_ROLES)
+@admin_required
+@require_access("leaves", "edit")
 def bulk_leave_action():
     action = request.form.get("action", "")
     raw_ids = request.form.getlist("leave_ids")
@@ -1715,7 +1718,8 @@ def overtime():
 
 
 @leave_bp.route("/overtime_action/<int:oid>", methods=["POST"])
-@role_required(*_LEAVE_APPROVER_ROLES)
+@admin_required
+@require_access("overtime", "edit")
 def overtime_action(oid):
     action = request.form.get('action', '').strip()
     notes = request.form.get('notes', '').strip()

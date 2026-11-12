@@ -954,7 +954,8 @@ def settings_roles_team(employee_id):
 @role_required("admin")
 def rbac_create_role():
     try:
-        key = create_role(request.form.get("display_name", ""), request.form.get("base_type", ""),
+        # Every new role is 'custom': its dashboard is whatever access it gets.
+        key = create_role(request.form.get("display_name", ""), "custom",
                           request.form.get("parent_role_key", ""), request.form.get("description", ""),
                           request.form.get("data_scope", "company"))
         flash("Role created. It starts with no access — choose what it can do below.", "success")
