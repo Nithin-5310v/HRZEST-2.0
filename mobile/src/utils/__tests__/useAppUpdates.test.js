@@ -6,7 +6,8 @@ jest.mock('expo-updates', () => ({
   reloadAsync: jest.fn(() => Promise.resolve()),
 }));
 
-import * as Updates from 'expo-updates';
+// The mocked module object itself, so tests can switch isEnabled.
+const Updates = jest.requireMock('expo-updates');
 import { checkForAppUpdate } from '../useAppUpdates';
 
 describe('checkForAppUpdate', () => {

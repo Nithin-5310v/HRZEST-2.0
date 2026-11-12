@@ -19,7 +19,6 @@ export const initCrashReporting = () => {
 export const reportError = (error, context = {}) => {
   try {
     if (__DEV__) {
-      // eslint-disable-next-line no-console
       console.warn('[reportError]', context?.where || '', error?.message || error);
     }
     if (DSN) Sentry.captureException(error, { extra: context });

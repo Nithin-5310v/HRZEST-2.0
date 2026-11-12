@@ -40,3 +40,10 @@ jobs:
       - name: Test
         working-directory: mobile
         run: node node_modules/jest/bin/jest.js --ci
+
+      # Report-only for now: the existing code has a backlog of lint errors
+      # (mostly React's newer hook rules). Make this blocking once it's 0.
+      - name: Lint (report only)
+        working-directory: mobile
+        continue-on-error: true
+        run: node node_modules/eslint/bin/eslint.js .
