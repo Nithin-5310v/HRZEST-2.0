@@ -1,0 +1,121 @@
+{% extends "admin_base.html" %}
+
+{# Shared shell of the Roles & Access module (blueprints/admin_views/
+   settings.py): page header, the Hierarchy / Roles / Access matrix /
+   Assignments sub-navigation, and the styles every page uses -- the admin
+   dashboard's own palette (static/admin-theme.css). Pages fill {% block
+   roles_content %}; roles_section names the active tab. #}
+
+{% block title %}Roles & Access{% endblock %}
+
+{% block page_css %}
+    <style>
+      .rx { --ink: #101828; --ink-2: #475467; --ink-3: #667085; --faint: #98a2b3; --line: #e6e9ef; --line-2: #d0d5dd;
+            --soft: #f9fafb; --blue: #2563eb; --blue-2: #1d4ed8; --blue-soft: #eef4ff; max-width: 1180px; }
+      .rx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+      .rx-head h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.015em; color: var(--ink); margin: 0; }
+      .rx-head p { font-size: 14.5px; color: var(--ink-3); margin: 6px 0 0; max-width: 720px; line-height: 1.55; }
+      .rx-nav { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 22px; overflow-x: auto; scrollbar-width: none; }
+      .rx-nav::-webkit-scrollbar { display: none; }
+      .rx-nav a { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 11px 14px; font-size: 14.5px;
+                  font-weight: 600; color: var(--ink-3); text-decoration: none; white-space: nowrap; }
+      .rx-nav a:hover { color: var(--ink); }
+      .rx-nav a.active { color: var(--blue); }
+      .rx-nav a.active::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--blue); }
+      .rx-nav .rx-count { font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: #f2f4f7; color: var(--ink-2); }
+      .rx-nav a.active .rx-count { background: var(--blue-soft); color: var(--blue); }
+
+      .rx-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin-bottom: 18px;
+                 box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+      .rx-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+      .rx .rx-card-head h2 { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 600; color: var(--ink); margin: 0; }
+      .rx-card-head h2 i { color: var(--ink-3); font-size: 19px; }
+      .rx .rx-card-head p { font-size: 14px; color: var(--ink-3); margin: 4px 0 0; }
+
+      .rx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 16px; }
+      .rx-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+      .rx-field-wide { grid-column: 1 / -1; }
+      .rx .rx-field label { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+      .rx .rx-hint { font-size: 13px; color: var(--ink-3); line-height: 1.5; }
+      .rx-input, .rx-select { width: 100%; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: #fff;
+                              color: var(--ink); font: inherit; font-size: 14.5px; }
+      .rx-input:focus, .rx-select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.14); }
+      .rx-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 8px; border: 1px solid transparent;
+                background: var(--blue); color: #fff; font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; }
+      .rx-btn:hover { background: var(--blue-2); }
+      .rx-btn-ghost { background: #fff; color: #344054; border-color: var(--line-2); }
+      .rx-btn-ghost:hover { background: var(--soft); color: var(--ink); }
+      .rx-btn-danger { background: #fff; color: #b42318; border-color: #fecdca; }
+      .rx-btn-danger:hover { background: #fef3f2; }
+      .rx-btn-sm { padding: 7px 12px; font-size: 13.5px; }
+      .rx-btn:disabled { opacity: .45; cursor: not-allowed; }
+      .rx-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .rx-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #eaecf0; }
+
+      .rx-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+                 background: #f2f4f7; color: var(--ink-2); white-space: nowrap; }
+      .rx-chip-blue { background: var(--blue-soft); color: var(--blue); }
+      .rx-chip i { font-size: 13px; }
+      .rx-muted { color: var(--ink-3); }
+      .rx-empty { font-size: 14.5px; color: var(--ink-3); padding: 18px 0; text-align: center; }
+      .rx-av { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+               background: var(--blue-soft); color: var(--blue); font-size: 14px; font-weight: 700; }
+      .rx-av-muted { background: #f2f4f7; color: var(--ink-3); }
+      .rx-name { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+      .rx-meta { font-size: 13px; color: var(--ink-3); }
+
+      .rx-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+      .rx-table th { text-align: left; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2);
+                     background: var(--soft); padding: 10px 12px; border-bottom: 1px solid #eaecf0; white-space: nowrap; }
+      .rx-table td { padding: 12px; border-bottom: 1px solid #f2f4f7; color: #344054; vertical-align: middle; }
+      .rx-table tr:last-child td { border-bottom: none; }
+      .rx-table tbody tr:hover td { background: #fafbfc; }
+      .rx-table a { color: var(--ink); text-decoration: none; font-weight: 600; }
+      .rx-table a:hover { color: var(--blue); }
+      .rx-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+
+      /* Role tree rows: indent + connector by depth. */
+      .rx-indent { display: inline-flex; align-items: center; gap: 8px; }
+      .rx-branch { color: var(--line-2); font-family: ui-monospace, monospace; white-space: pre; }
+
+      /* None / View / Edit segmented control. */
+      .rx-seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: #fff; flex-shrink: 0; }
+      .rx-seg input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+      .rx-seg label { padding: 6px 13px; font-size: 13.5px; font-weight: 600; color: var(--ink-3); cursor: pointer; user-select: none;
+                      border-right: 1px solid var(--line-2); }
+      .rx-seg label:last-of-type { border-right: none; }
+      .rx-seg input[value="none"]:checked + label { background: #f2f4f7; color: var(--ink-2); }
+      .rx-seg input[value="view"]:checked + label { background: var(--blue-soft); color: var(--blue); }
+      .rx-seg input[value="edit"]:checked + label { background: var(--blue); color: #fff; }
+      .rx-seg input:disabled + label { color: #d0d5dd; cursor: not-allowed; background: repeating-linear-gradient(135deg,#fff,#fff 4px,#f9fafb 4px,#f9fafb 8px); }
+      .rx-seg input:focus-visible + label { box-shadow: inset 0 0 0 2px rgba(37,99,235,.45); }
+
+      .rx-note { display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--soft);
+                 border: 1px solid #eaecf0; font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+      .rx-note i { color: var(--ink-3); font-size: 17px; margin-top: 1px; }
+      body.dark-mode .rx-card, body.dark-mode .rx-input, body.dark-mode .rx-select { background: #161b22; border-color: #30363d; color: #e6edf3; }
+      body.dark-mode .rx-head h1, body.dark-mode .rx-name, body.dark-mode .rx-card-head h2 { color: #e6edf3; }
+      @media (max-width: 760px) { .rx-card { padding: 16px; } }
+      {% block roles_css %}{% endblock %}
+    </style>
+{% endblock %}
+
+{% block main %}
+      {% set _custom_roles = rbac_roles | rejectattr('is_system') | list %}
+      <div class="rx">
+        <div class="rx-head">
+          <div>
+            <h1>Roles &amp; Access</h1>
+            <p>Build your company's role hierarchy: who reports to whom, what each role can do, and whose records it sees. A role can never have more access than the role above it.</p>
+          </div>
+          {% block roles_head_actions %}{% endblock %}
+        </div>
+        <nav class="rx-nav" aria-label="Roles and access sections">
+          <a href="{{ tpath('/settings/roles') }}" class="{{ 'active' if roles_section == 'hierarchy' }}" {{ 'aria-current=page' if roles_section == 'hierarchy' }}><i class="ti ti-hierarchy-2"></i> Hierarchy</a>
+          <a href="{{ tpath('/settings/roles/list') }}" class="{{ 'active' if roles_section == 'list' }}" {{ 'aria-current=page' if roles_section == 'list' }}><i class="ti ti-shield-lock"></i> Roles <span class="rx-count">{{ _custom_roles|length }}</span></a>
+          <a href="{{ tpath('/settings/roles/access') }}" class="{{ 'active' if roles_section == 'access' }}" {{ 'aria-current=page' if roles_section == 'access' }}><i class="ti ti-table"></i> Access matrix</a>
+          <a href="{{ tpath('/settings/roles/assignments') }}" class="{{ 'active' if roles_section == 'assignments' }}" {{ 'aria-current=page' if roles_section == 'assignments' }}><i class="ti ti-user-check"></i> Assignments</a>
+        </nav>
+        {% block roles_content %}{% endblock %}
+      </div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "roles_base.html" %}
+
+{# Roles & Access -> Access matrix: every role (hierarchy order) x every
+   module in one form. Options above a role's parent are disabled; the server
+   (utils.helpers.rbac.set_all_permissions) also saves parents first and caps
+   each role at its parent, so the hierarchy can't be broken from here. #}
+
+{% block roles_css %}
+      .mx-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+      .mx-table th { position: sticky; top: 0; background: var(--soft); color: var(--ink-2); font-size: 12.5px; font-weight: 600;
+                     text-transform: uppercase; letter-spacing: .04em; padding: 10px 8px; border-bottom: 1px solid #eaecf0;
+                     text-align: center; white-space: normal; min-width: 92px; line-height: 1.3; }
+      .mx-table th:first-child, .mx-table td:first-child { position: sticky; left: 0; z-index: 1; text-align: left; min-width: 220px; background: #fff; }
+      .mx-table th:first-child { background: var(--soft); z-index: 2; }
+      .mx-table td { padding: 8px; border-bottom: 1px solid #f2f4f7; text-align: center; }
+      .mx-table tr:last-child td { border-bottom: none; }
+      .mx-role a { color: var(--ink); font-weight: 600; text-decoration: none; }
+      .mx-role a:hover { color: var(--blue); }
+      .mx-sel { width: 84px; padding: 6px 8px; border: 1px solid var(--line-2); border-radius: 7px; font: inherit; font-size: 13.5px;
+                background: #fff; color: var(--ink); }
+      /* !important: admin-theme.css gives every .main select a white background. */
+      .mx-sel.mx-edit { background: var(--blue) !important; border-color: var(--blue) !important; color: #fff !important; }
+      .mx-sel.mx-view { background: var(--blue-soft) !important; border-color: #b2ccff !important; color: var(--blue) !important; }
+      .mx-sel.mx-none { color: var(--ink-3); }
+      .mx-full { color: var(--ink-3); font-size: 13px; }
+{% endblock %}
+
+{% block roles_content %}
+        <section class="rx-card">
+          <div class="rx-card-head">
+            <div>
+              <h2><i class="ti ti-table"></i> Access matrix</h2>
+              <p>Every role and module in one place. A role can't be given more than the role it reports to; lowering a role lowers the roles below it.</p>
+            </div>
+          </div>
+          {% if rbac_tree %}
+          <form method="POST" action="{{ tpath('/roles/matrix') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            {% set _rank = {'none': 0, 'view': 1, 'edit': 2} %}
+            <div class="rx-scroll">
+              <table class="mx-table">
+                <thead>
+                  <tr><th>Role</th>{% for mod in rbac_modules %}<th>{{ module_labels.get(mod, mod) }}</th>{% endfor %}</tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="mx-role"><span class="rx-indent"><i class="ti ti-crown rx-muted"></i> <b style="color:var(--ink);">Administrator</b></span></td>
+                    {% for mod in rbac_modules %}<td class="mx-full">Full</td>{% endfor %}
+                  </tr>
+                  {% for r in rbac_tree %}
+                  {% set perms = rbac_permissions.get(r.role_key, {}) %}
+                  {% set caps = ceilings.get(r.role_key, {}) %}
+                  <tr>
+                    <td class="mx-role">
+                      <input type="hidden" name="row_{{ r.role_key }}" value="1" />
+                      <span class="rx-indent"><span class="rx-branch">{{ '   ' * r.depth }}└</span><a href="{{ tpath('/settings/roles/role/' ~ r.role_key) }}">{{ r.display_name }}</a></span>
+                    </td>
+                    {% for mod in rbac_modules %}
+                    {% set cur = perms.get(mod, 'none') %}
+                    {% set cap = caps.get(mod, 'edit') %}
+                    <td>
+                      <select class="mx-sel mx-{{ cur }}" name="cell_{{ r.role_key }}__{{ mod }}" aria-label="{{ r.display_name }}: {{ module_labels.get(mod, mod) }}" data-mx>
+                        <option value="none" {% if cur == 'none' %}selected{% endif %}>None</option>
+                        <option value="view" {% if cur == 'view' %}selected{% endif %} {% if _rank['view'] > _rank[cap] %}disabled{% endif %}>View</option>
+                        <option value="edit" {% if cur == 'edit' %}selected{% endif %} {% if _rank['edit'] > _rank[cap] %}disabled{% endif %}>Edit</option>
+                      </select>
+                    </td>
+                    {% endfor %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="rx-foot"><button class="rx-btn" type="submit"><i class="ti ti-device-floppy"></i> Save matrix</button></div>
+          </form>
+          {% else %}
+          <div class="rx-empty">No roles yet. <a href="{{ tpath('/settings/roles/list') }}#create" style="color:var(--blue);font-weight:600;">Create your first role</a>.</div>
+          {% endif %}
+        </section>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+      /* Colour each cell by its value as it changes (blue = Edit, light blue = View). */
+      document.querySelectorAll('select[data-mx]').forEach(function (sel) {
+        sel.addEventListener('change', function () { sel.className = 'mx-sel mx-' + sel.value; });
+      });
+    </script>
+{% endblock %}

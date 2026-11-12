@@ -1,0 +1,119 @@
+{% extends "roles_base.html" %}
+
+{# Roles & Access -> Assignments: who holds which role and who they report
+   to (their Reporting manager, which puts them in that person's team), and
+   giving someone on the plain employee dashboard a role. Both forms post to
+   /roles/assign. #}
+
+{% block roles_content %}
+        {% set _roles_by_key = {} %}{% for r in rbac_tree %}{% set _ = _roles_by_key.update({r.role_key: r}) %}{% endfor %}
+        {% set _assigned = rbac_employees | selectattr('access_role') | list %}
+        {% set _unassigned = rbac_employees | rejectattr('access_role') | list %}
+
+        <section class="rx-card">
+          <div class="rx-card-head">
+            <div>
+              <h2><i class="ti ti-user-check"></i> People with a role <span class="rx-chip">{{ _assigned|length }}</span></h2>
+              <p>Change someone's role or who they report to. <b>Reports to</b> places them in that person's team.</p>
+            </div>
+          </div>
+          {% if not rbac_tree %}
+          <div class="rx-empty">Create a role first on the <a href="{{ tpath('/settings/roles/list') }}" style="color:var(--blue);font-weight:600;">Roles</a> page.</div>
+          {% elif not _assigned %}
+          <div class="rx-empty">Nobody has a role yet. Use <b>Assign a role</b> below.</div>
+          {% else %}
+          <div class="rx-scroll">
+            <table class="rx-table">
+              <thead><tr><th>Person</th><th>Role</th><th>Reports to</th><th></th></tr></thead>
+              <tbody>
+                {% for emp in _assigned %}
+                {% set fid = 'as-' ~ loop.index %}
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span class="rx-av">{{ emp.name[:1]|upper }}</span>
+                      <div><a href="{{ tpath('/settings/roles/team/' ~ emp.employee_id) }}">{{ emp.name }}</a>
+                        <div class="rx-meta">{{ emp.employee_id }}{% if emp.department %} · {{ emp.department }}{% endif %}</div></div>
+                    </div>
+                  </td>
+                  <td>
+                    <select class="rx-select" name="role_key" form="{{ fid }}" aria-label="Role for {{ emp.name }}" style="min-width:190px;">
+                      <option value="">No role (employee dashboard)</option>
+                      {% for r in rbac_tree %}
+                      <option value="{{ r.role_key }}" {% if emp.access_role == r.role_key %}selected{% endif %}>{{ '— ' * r.depth }}{{ r.display_name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <select class="rx-select" name="reports_to" form="{{ fid }}" aria-label="{{ emp.name }} reports to" style="min-width:190px;">
+                      <option value="">Administrator (no one)</option>
+                      {% for h in holders if h.employee_id != emp.employee_id %}
+                      <option value="{{ h.employee_id }}" {% if managers.get(emp.employee_id) == h.employee_id %}selected{% endif %}>{{ h.name }} · {{ _roles_by_key[h.access_role].display_name if h.access_role in _roles_by_key else h.access_role }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td style="text-align:right;white-space:nowrap;">
+                    <form id="{{ fid }}" method="POST" action="{{ tpath('/roles/assign') }}" style="display:inline;">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                      <input type="hidden" name="employee_id" value="{{ emp.employee_id }}" />
+                      <button class="rx-btn rx-btn-sm" type="submit">Save</button>
+                    </form>
+                    <a class="rx-btn rx-btn-ghost rx-btn-sm" href="{{ tpath('/settings/roles/team/' ~ emp.employee_id) }}">Team</a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+        </section>
+
+        {% if rbac_tree %}
+        <section class="rx-card">
+          <div class="rx-card-head">
+            <div>
+              <h2><i class="ti ti-user-plus"></i> Assign a role</h2>
+              <p>{{ _unassigned|length }} employee{{ '' if _unassigned|length == 1 else 's' }} on the plain employee dashboard.</p>
+            </div>
+          </div>
+          {% if _unassigned %}
+          <form method="POST" action="{{ tpath('/roles/assign') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <div class="rx-grid">
+              <div class="rx-field">
+                <label for="an-emp">Employee</label>
+                <select class="rx-select" id="an-emp" name="employee_id" required>
+                  <option value="" selected disabled>Choose an employee…</option>
+                  {% for emp in _unassigned %}
+                  <option value="{{ emp.employee_id }}">{{ emp.name }} · {{ emp.employee_id }}{% if emp.department %} · {{ emp.department }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="rx-field">
+                <label for="an-role">Role</label>
+                <select class="rx-select" id="an-role" name="role_key" required>
+                  <option value="" selected disabled>Choose a role…</option>
+                  {% for r in rbac_tree %}
+                  <option value="{{ r.role_key }}">{{ '— ' * r.depth }}{{ r.display_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="rx-field">
+                <label for="an-to">Reports to</label>
+                <select class="rx-select" id="an-to" name="reports_to">
+                  <option value="">Administrator (no one)</option>
+                  {% for h in holders %}
+                  <option value="{{ h.employee_id }}">{{ h.name }} · {{ _roles_by_key[h.access_role].display_name if h.access_role in _roles_by_key else h.access_role }}</option>
+                  {% endfor %}
+                </select>
+                <span class="rx-hint">e.g. a Junior Manager reports to a Senior Manager.</span>
+              </div>
+            </div>
+            <div class="rx-foot"><button class="rx-btn" type="submit"><i class="ti ti-user-check"></i> Assign role</button></div>
+          </form>
+          {% else %}
+          <div class="rx-empty">Everyone already has a role.</div>
+          {% endif %}
+        </section>
+        {% endif %}
+{% endblock %}

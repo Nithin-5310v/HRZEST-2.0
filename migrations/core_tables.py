@@ -838,6 +838,10 @@ def _init_core_tables(cursor, db):
             base_type VARCHAR(20) NOT NULL
                 CHECK (base_type IN ('admin','hr','manager','employee')),
             is_system BOOLEAN DEFAULT FALSE,
+            parent_role_key VARCHAR(50),
+            description VARCHAR(255),
+            data_scope VARCHAR(10) NOT NULL DEFAULT 'company'
+                CHECK (data_scope IN ('company','team')),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)

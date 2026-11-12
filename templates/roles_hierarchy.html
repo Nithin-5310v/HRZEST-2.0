@@ -1,0 +1,168 @@
+{% extends "roles_base.html" %}
+
+{# Roles & Access -> Hierarchy: the role tree (rbac_tree) and the people tree
+   (people, from utils.helpers.rbac.people_hierarchy): every role-holder under
+   the nearest role-holder above them, with the employees attached to them.
+   A "Their team" role sees exactly the people shown under that person. #}
+
+{% block roles_css %}
+      .hx-tree { list-style: none; margin: 0; padding: 0; }
+      .hx-tree .hx-tree { margin-left: 22px; padding-left: 16px; border-left: 1px dashed var(--line-2); }
+      .hx-node { padding: 6px 0; }
+      .hx-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+      .hx-row:hover { border-color: #b2ccff; background: #fafcff; }
+      .hx-row-root { background: var(--soft); }
+      .hx-main { flex: 1; min-width: 0; }
+      .hx-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .hx-title a { color: var(--ink); text-decoration: none; font-size: 15px; font-weight: 600; }
+      .hx-title a:hover { color: var(--blue); }
+      .hx-sub { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+      .hx-ic { width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+               background: var(--blue-soft); color: var(--blue); font-size: 17px; }
+      .hx-ic-admin { background: #101828; color: #fff; }
+      .hx-side { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+      .hx-members { margin: 8px 0 2px 46px; display: flex; flex-wrap: wrap; gap: 6px; }
+      .hx-member { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--soft);
+                   border: 1px solid #eaecf0; font-size: 13.5px; color: var(--ink-2); }
+      .hx-member .rx-av { width: 24px; height: 24px; font-size: 11.5px; }
+      .hx-more { font-size: 13.5px; color: var(--blue); font-weight: 600; text-decoration: none; padding: 4px 6px; }
+      .hx-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13.5px; color: var(--ink-3); }
+      .hx-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-bottom: 18px; }
+      .hx-stat { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+      .hx-stat b { display: block; font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; }
+      .hx-stat span { font-size: 14px; color: var(--ink-3); }
+      @media (max-width: 900px) { .hx-stats { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+      @media (max-width: 640px) { .hx-tree .hx-tree { margin-left: 8px; padding-left: 10px; } .hx-members { margin-left: 0; } }
+{% endblock %}
+
+{% block roles_head_actions %}
+          <a class="rx-btn" href="{{ tpath('/settings/roles/list') }}#create"><i class="ti ti-plus"></i> New role</a>
+{% endblock %}
+
+{% macro scope_chip(scope) -%}
+  {% if scope == 'team' %}<span class="rx-chip" title="Sees only the people under them"><i class="ti ti-users-group"></i> Their team</span>
+  {% else %}<span class="rx-chip rx-chip-blue" title="Sees every employee"><i class="ti ti-building"></i> Whole company</span>{% endif %}
+{%- endmacro %}
+
+{% macro person_node(n) %}
+  <li class="hx-node">
+    <div class="hx-row">
+      <span class="rx-av">{{ n.name[:1]|upper }}</span>
+      <div class="hx-main">
+        <div class="hx-title"><a href="{{ tpath('/settings/roles/team/' ~ n.employee_id) }}">{{ n.name }}</a>
+          <a class="rx-chip rx-chip-blue" href="{{ tpath('/settings/roles/role/' ~ n.role_key) }}" style="font-size:12.5px;font-weight:600;">{{ n.role_name }}</a></div>
+        <div class="hx-sub">{{ n.employee_id }}{% if n.department %} · {{ n.department }}{% endif %}{% if n.title %} · {{ n.title }}{% endif %}</div>
+      </div>
+      <div class="hx-side">
+        {{ scope_chip(n.data_scope) }}
+        <span class="rx-chip"><i class="ti ti-users"></i> {{ n.team_size }} in team</span>
+      </div>
+    </div>
+    {% if n.members %}
+    <div class="hx-members">
+      {% for m in n.members[:12] %}
+      <span class="hx-member" title="{{ m.employee_id }}"><span class="rx-av rx-av-muted">{{ m.name[:1]|upper }}</span>{{ m.name }}</span>
+      {% endfor %}
+      {% if n.members|length > 12 %}<a class="hx-more" href="{{ tpath('/settings/roles/team/' ~ n.employee_id) }}">+{{ n.members|length - 12 }} more</a>{% endif %}
+    </div>
+    {% endif %}
+    {% if n.children %}
+    <ul class="hx-tree">{% for c in n.children %}{{ person_node(c) }}{% endfor %}</ul>
+    {% endif %}
+  </li>
+{% endmacro %}
+
+              {% macro role_branch(parent_key, depth) %}
+  {% set kids = rbac_tree | selectattr('depth', 'equalto', depth) | selectattr('parent_role_key', 'equalto', parent_key) | list %}
+  {% if depth == 0 %}{% set kids = rbac_tree | selectattr('depth', 'equalto', 0) | list %}{% endif %}
+  {% if kids %}
+  <ul class="hx-tree">
+    {% for r in kids %}
+    {% set perms = rbac_permissions.get(r.role_key, {}) %}
+    {% set n_edit = perms.values()|select('equalto', 'edit')|list|length %}
+    {% set n_view = perms.values()|select('equalto', 'view')|list|length %}
+    <li class="hx-node">
+      <div class="hx-row">
+        <span class="hx-ic"><i class="ti ti-shield-lock"></i></span>
+        <div class="hx-main">
+          <div class="hx-title"><a href="{{ tpath('/settings/roles/role/' ~ r.role_key) }}">{{ r.display_name }}</a></div>
+          <div class="hx-sub">{% if n_edit or n_view %}{{ n_edit }} edit · {{ n_view }} view{% else %}No access yet{% endif %}{% if r.description %} · {{ r.description }}{% endif %}</div>
+        </div>
+        <div class="hx-side">
+          {{ scope_chip(r.data_scope) }}
+          <span class="rx-chip"><i class="ti ti-user"></i> {{ rbac_assignments.get(r.role_key, [])|length }}</span>
+        </div>
+      </div>
+      {{ role_branch(r.role_key, depth + 1) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+{% endmacro %}
+
+{% block roles_content %}
+        {% set _people_count = rbac_assignments.values()|map('length')|sum %}
+        <div class="hx-stats">
+          <div class="hx-stat"><b>{{ rbac_tree|length }}</b><span>Roles</span></div>
+          <div class="hx-stat"><b>{{ people.holders }}</b><span>People with a role</span></div>
+          <div class="hx-stat"><b>{{ rbac_tree|selectattr('depth', 'gt', 0)|list|length }}</b><span>Roles reporting to another role</span></div>
+          <div class="hx-stat"><b>{{ people.unattached|length }}</b><span>Employees not under anyone</span></div>
+        </div>
+
+        <section class="rx-card">
+          <div class="rx-card-head">
+            <div>
+              <h2><i class="ti ti-hierarchy-2"></i> Role structure</h2>
+              <p>Each role reports to the role above it and can't have more access than it.</p>
+            </div>
+          </div>
+          <ul class="hx-tree">
+            <li class="hx-node">
+              <div class="hx-row hx-row-root">
+                <span class="hx-ic hx-ic-admin"><i class="ti ti-crown"></i></span>
+                <div class="hx-main">
+                  <div class="hx-title"><span style="font-size:15px;font-weight:600;color:var(--ink);">Administrator</span></div>
+                  <div class="hx-sub">Full access to everything · sees every employee</div>
+                </div>
+              </div>
+              {% if rbac_tree %}
+              {{ role_branch('', 0) }}
+              {% else %}
+              <div class="rx-empty">No roles yet. <a href="{{ tpath('/settings/roles/list') }}#create" style="color:var(--blue);font-weight:600;">Create your first role</a>.</div>
+              {% endif %}
+            </li>
+          </ul>
+        </section>
+
+        <section class="rx-card">
+          <div class="rx-card-head">
+            <div>
+              <h2><i class="ti ti-users-group"></i> People</h2>
+              <p>Who holds each role, who they report to, and the employees under them. A <b>Their team</b> role sees exactly the people under that person.</p>
+            </div>
+            <a class="rx-btn rx-btn-ghost rx-btn-sm" href="{{ tpath('/settings/roles/assignments') }}"><i class="ti ti-user-check"></i> Manage assignments</a>
+          </div>
+          <ul class="hx-tree">
+            <li class="hx-node">
+              <div class="hx-row hx-row-root">
+                <span class="hx-ic hx-ic-admin"><i class="ti ti-crown"></i></span>
+                <div class="hx-main">
+                  <div class="hx-title"><span style="font-size:15px;font-weight:600;color:var(--ink);">Administrator</span></div>
+                  <div class="hx-sub">Sees all {{ people.total }} employees</div>
+                </div>
+              </div>
+              {% if people.roots %}
+              <ul class="hx-tree">{% for n in people.roots %}{{ person_node(n) }}{% endfor %}</ul>
+              {% else %}
+              <div class="rx-empty">Nobody has a role yet. <a href="{{ tpath('/settings/roles/assignments') }}" style="color:var(--blue);font-weight:600;">Assign one</a>.</div>
+              {% endif %}
+            </li>
+          </ul>
+          {% if people.unattached %}
+          <div class="rx-note" style="margin-top:14px;">
+            <i class="ti ti-info-circle"></i>
+            <span><b>{{ people.unattached|length }} employee{{ '' if people.unattached|length == 1 else 's' }}</b> {{ 'is' if people.unattached|length == 1 else 'are' }} not under anyone, so only whole-company roles see {{ 'them' }}: {{ people.unattached[:6]|map(attribute='name')|join(', ') }}{% if people.unattached|length > 6 %} and {{ people.unattached|length - 6 }} more{% endif %}. Open a person's team to attach them.</span>
+          </div>
+          {% endif %}
+        </section>
+{% endblock %}

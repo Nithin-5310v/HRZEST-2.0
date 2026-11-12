@@ -27,6 +27,7 @@ def _run_schema_migrations(cursor, db):
     _run_privacy_tables_migration(cursor, db)
     _run_detection_state_migration(cursor, db)
     _run_leave_declined_to_rejected(cursor, db)
+    _run_role_hierarchy_migration(cursor, db)
     _run_default_roles_to_custom_migration(cursor, db)
 
 
@@ -44,6 +45,29 @@ def _run_leave_declined_to_rejected(cursor, db):
     except Exception as exc:
         db.rollback()
         app_log.warning("Migration 'leave_declined_to_rejected_v1' failed: %s", exc, exc_info=True)
+
+
+def _run_role_hierarchy_migration(cursor, db):
+    """Hierarchical roles (utils.helpers.rbac): each role may report to a
+    parent role (parent_role_key; NULL = directly under the Administrator),
+    has a description, and a data scope -- 'company' (every employee) or
+    'team' (only the employees attached to that person, at any depth).
+    Before this, the built-in 'hr' and 'manager' roles were the only ones
+    limited to their own people, so they start as 'team' and everything
+    else as 'company' -- exactly today's behaviour. One-time, so a company
+    that later changes those scopes keeps its choice."""
+    try:
+        cursor.execute("ALTER TABLE roles ADD COLUMN IF NOT EXISTS parent_role_key VARCHAR(50)")
+        cursor.execute("ALTER TABLE roles ADD COLUMN IF NOT EXISTS description VARCHAR(255)")
+        cursor.execute("ALTER TABLE roles ADD COLUMN IF NOT EXISTS data_scope VARCHAR(10) NOT NULL DEFAULT 'company'")
+        cursor.execute("SELECT 1 FROM _applied_migrations WHERE name='role_hierarchy_v1'")
+        if not cursor.fetchone():
+            cursor.execute("UPDATE roles SET data_scope='team' WHERE role_key IN ('hr','manager')")
+            cursor.execute("INSERT INTO _applied_migrations (name) VALUES ('role_hierarchy_v1')")
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        app_log.warning("Migration 'role hierarchy' failed: %s", exc, exc_info=True)
 
 
 LEGACY_ROLE_KEYS = ("hr", "manager")
@@ -65,8 +89,10 @@ def ensure_legacy_role(cursor, role_key):
     cursor.execute("SELECT 1 FROM roles WHERE role_key=%s", (role_key,))
     if cursor.fetchone():
         return
+    # Both were limited to their own people before roles had a data scope.
     cursor.execute(
-        "INSERT INTO roles (role_key, display_name, base_type, is_system) VALUES (%s,%s,%s,FALSE)",
+        "INSERT INTO roles (role_key, display_name, base_type, is_system, data_scope) "
+        "VALUES (%s,%s,%s,FALSE,'team')",
         (role_key, display_name, role_key),
     )
     cursor.executemany(

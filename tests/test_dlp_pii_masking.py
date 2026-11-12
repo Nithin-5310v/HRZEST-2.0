@@ -74,6 +74,8 @@ class TestEmployeeDetailMasking:
     def test_manager_sees_masked_pii(self, client, seed_admin, db_engine, pii_employee):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='manager' WHERE username=%s", (seed_admin["username"],))
+        # A manager sees only their own team: put the employee in it.
+        cur.execute("UPDATE employees SET manager_id=%s WHERE employee_id=%s", (seed_admin["username"], pii_employee))
         db_engine.commit()
         cur.close()
         try:
@@ -121,6 +123,8 @@ class TestEmployeeProfileMasking:
     def test_manager_sees_masked_salary(self, client, seed_admin, db_engine, pii_employee):
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET role='manager' WHERE username=%s", (seed_admin["username"],))
+        # A manager sees only their own team: put the employee in it.
+        cur.execute("UPDATE employees SET manager_id=%s WHERE employee_id=%s", (seed_admin["username"], pii_employee))
         db_engine.commit()
         cur.close()
         try:

@@ -1,0 +1,148 @@
+{% extends "roles_base.html" %}
+
+{# One role (Roles & Access -> Roles -> a role): name, Reports to, data scope,
+   description; its access per module, where anything above the parent's
+   access is locked (ceiling); the people who hold it; delete. #}
+
+{% block roles_css %}
+      .rd-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+      .rd-ic { width: 46px; height: 46px; border-radius: 12px; background: var(--blue-soft); color: var(--blue); display: inline-flex;
+               align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+      .rx .rd-head h2 { margin: 0; font-size: 21px; font-weight: 700; color: var(--ink); }
+      .rd-crumbs { font-size: 13.5px; color: var(--ink-3); margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+      .rd-crumbs a { color: var(--ink-3); text-decoration: none; }
+      .rd-crumbs a:hover { color: var(--blue); }
+      .rd-cols { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+      .perm-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+      .perm-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px solid #f2f4f7; }
+      .perm-name { font-size: 14.5px; font-weight: 500; color: #344054; }
+      .perm-cap { display: block; font-size: 12.5px; color: var(--faint); margin-top: 1px; }
+      .rd-person { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f2f4f7; }
+      .rd-person:last-child { border-bottom: none; }
+      .rd-person a { color: var(--ink); font-weight: 600; text-decoration: none; font-size: 14.5px; }
+      .rd-person a:hover { color: var(--blue); }
+      .rd-danger { border-color: #fecdca; }
+      @media (max-width: 1000px) { .rd-cols { grid-template-columns: minmax(0,1fr); } .perm-list { grid-template-columns: minmax(0,1fr); } }
+{% endblock %}
+
+{% block roles_content %}
+        {% set _base_labels = {'admin': 'Admin', 'hr': 'HR', 'manager': 'Manager', 'employee': 'Employee'} %}
+        {% set _by_key = {} %}{% for r in rbac_tree %}{% set _ = _by_key.update({r.role_key: r}) %}{% endfor %}
+        {% set _node = _by_key.get(role.role_key) %}
+        {% set _parent = _by_key.get(role.parent_role_key) %}
+        {% set perms = rbac_permissions.get(role.role_key, {}) %}
+        {% set _rank = {'none': 0, 'view': 1, 'edit': 2} %}
+        <div class="rd-head">
+          <span class="rd-ic"><i class="ti ti-shield-lock"></i></span>
+          <div>
+            <h2>{{ role.display_name }}</h2>
+            <div class="rd-crumbs">
+              <span>Administrator</span>
+              {% for k in (_node.ancestors if _node else []) %}<i class="ti ti-chevron-right"></i><a href="{{ tpath('/settings/roles/role/' ~ k) }}">{{ _by_key[k].display_name }}</a>{% endfor %}
+              <i class="ti ti-chevron-right"></i><b style="color:var(--ink);">{{ role.display_name }}</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="rd-cols">
+          <div>
+            <section class="rx-card">
+              <div class="rx-card-head">
+                <div>
+                  <h2><i class="ti ti-lock"></i> Access</h2>
+                  <p>{% if _parent %}Limited by <b>{{ _parent.display_name }}</b>: options above its access are locked.{% else %}Reports to the Administrator, so any access can be granted.{% endif %}</p>
+                </div>
+              </div>
+              <form method="POST" action="{{ tpath('/roles/permissions') }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="role_key" value="{{ role.role_key }}" />
+                <div class="perm-list">
+                  {% for mod in rbac_modules %}
+                  {% set current = perms.get(mod, 'none') %}
+                  {% set cap = ceiling.get(mod, 'edit') %}
+                  <div class="perm-row">
+                    <span class="perm-name">{{ module_labels.get(mod, mod) }}{% if cap != 'edit' %}<span class="perm-cap"><i class="ti ti-lock"></i> Up to {{ cap|capitalize if cap != 'none' else 'No access' }}</span>{% endif %}</span>
+                    <span class="rx-seg">
+                      {% for opt, lbl in (('none', 'None'), ('view', 'View'), ('edit', 'Edit')) %}
+                      <input type="radio" id="p_{{ mod }}_{{ opt }}" name="perm_{{ mod }}" value="{{ opt }}" {% if current == opt %}checked{% endif %} {% if _rank[opt] > _rank[cap] %}disabled{% endif %} />
+                      <label for="p_{{ mod }}_{{ opt }}">{{ lbl }}</label>
+                      {% endfor %}
+                    </span>
+                  </div>
+                  {% endfor %}
+                </div>
+                <div class="rx-note" style="margin-top:14px;"><i class="ti ti-eye"></i><span><b>View</b> = open and read · <b>Edit</b> = change · <b>None</b> = hidden from their menu and blocked. Lowering access here also lowers every role below this one.</span></div>
+                <div class="rx-foot"><button class="rx-btn" type="submit"><i class="ti ti-device-floppy"></i> Save access</button></div>
+              </form>
+            </section>
+          </div>
+
+          <div>
+            <section class="rx-card">
+              <div class="rx-card-head"><div><h2><i class="ti ti-settings"></i> Details</h2></div></div>
+              <form method="POST" action="{{ tpath('/roles/update') }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="role_key" value="{{ role.role_key }}" />
+                <div class="rx-grid" style="grid-template-columns:minmax(0,1fr);">
+                  <div class="rx-field">
+                    <label for="rd-name">Role name</label>
+                    <input class="rx-input" id="rd-name" type="text" name="display_name" value="{{ role.display_name }}" required maxlength="80" />
+                  </div>
+                  <div class="rx-field">
+                    <label for="rd-parent">Reports to</label>
+                    <select class="rx-select" id="rd-parent" name="parent_role_key">
+                      <option value="" {% if not role.parent_role_key %}selected{% endif %}>Administrator (top level)</option>
+                      {% for r in parent_choices %}
+                      <option value="{{ r.role_key }}" {% if r.role_key == role.parent_role_key %}selected{% endif %}>{{ '— ' * r.depth }}{{ r.display_name }}</option>
+                      {% endfor %}
+                    </select>
+                    <span class="rx-hint">Moving it under a role with less access lowers this role (and those below it) to fit.</span>
+                  </div>
+                  <div class="rx-field">
+                    <label for="rd-scope">Can see</label>
+                    <select class="rx-select" id="rd-scope" name="data_scope">
+                      <option value="team" {% if role.data_scope == 'team' %}selected{% endif %}>Their team only</option>
+                      <option value="company" {% if role.data_scope == 'company' %}selected{% endif %}>Whole company</option>
+                    </select>
+                  </div>
+                  <div class="rx-field">
+                    <label for="rd-desc">Description</label>
+                    <input class="rx-input" id="rd-desc" type="text" name="description" value="{{ role.description }}" maxlength="255" placeholder="What this role is for" />
+                  </div>
+                  <div class="rx-field">
+                    <label>Dashboard</label>
+                    <div class="rx-hint" style="font-size:14.5px;color:var(--ink-2);">{{ _base_labels.get(role.base_type, role.base_type) }} dashboard</div>
+                  </div>
+                </div>
+                <div class="rx-foot"><button class="rx-btn" type="submit"><i class="ti ti-device-floppy"></i> Save details</button></div>
+              </form>
+            </section>
+
+            <section class="rx-card">
+              <div class="rx-card-head">
+                <div><h2><i class="ti ti-users"></i> People <span class="rx-chip">{{ members|length }}</span></h2></div>
+                <a class="rx-btn rx-btn-ghost rx-btn-sm" href="{{ tpath('/settings/roles/assignments') }}">Assign</a>
+              </div>
+              {% for p in members %}
+              <div class="rd-person">
+                <span class="rx-av">{{ p.name[:1]|upper }}</span>
+                <div style="flex:1;min-width:0;"><a href="{{ tpath('/settings/roles/team/' ~ p.employee_id) }}">{{ p.name }}</a><div class="rx-meta">{{ p.employee_id }}</div></div>
+                <a class="rx-btn rx-btn-ghost rx-btn-sm" href="{{ tpath('/settings/roles/team/' ~ p.employee_id) }}">Team</a>
+              </div>
+              {% else %}
+              <div class="rx-empty" style="padding:8px 0;text-align:left;">No one holds this role yet.</div>
+              {% endfor %}
+            </section>
+
+            <section class="rx-card rd-danger">
+              <div class="rx-card-head"><div><h2><i class="ti ti-trash"></i> Delete role</h2>
+                <p>Only when nobody holds it. Roles that report to it move up to {{ _parent.display_name if _parent else 'the Administrator' }}.</p></div></div>
+              <form method="POST" action="{{ tpath('/roles/delete') }}" data-on-submit="return hzConfirmSubmit(event, this.dataset.confirmMsg)" data-confirm-msg="Delete the role {{ role.display_name|e }}?">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+                <input type="hidden" name="role_key" value="{{ role.role_key }}" />
+                <button class="rx-btn rx-btn-danger" type="submit" {% if members %}disabled title="Reassign its people first"{% endif %}><i class="ti ti-trash"></i> Delete {{ role.display_name }}</button>
+              </form>
+            </section>
+          </div>
+        </div>
+{% endblock %}
