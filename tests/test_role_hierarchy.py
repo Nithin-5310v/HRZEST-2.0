@@ -221,8 +221,7 @@ class TestPages:
     def test_hierarchy_page_shows_people_and_their_employees(self, client, company):
         _admin(client)
         html = client.get("/settings/roles").get_data(as_text=True)
-        # The org chart: every role, and the people holding each one.
-        for text in ("Senior Manager", "Junior Manager", "Person SNR01", "Person JNR01", "Person JNR02"):
+        for text in ("Senior Manager", "Junior Manager", "Person SNR01", "Person JNR01", "Person EMPA1"):
             assert text in html, text
 
     def test_role_page_locks_options_above_the_parent(self, client, company, roles):
