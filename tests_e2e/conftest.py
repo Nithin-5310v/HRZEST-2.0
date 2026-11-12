@@ -64,6 +64,11 @@ def live_server():
 
     from werkzeug.serving import make_server
 
+    # Same as tests/conftest.py: the suite logs in more often than /login's
+    # 20-a-minute limit allows, and test order decides which test gets the 429.
+    from extensions import limiter
+    limiter.enabled = False
+
     port = _free_port()
     server = make_server("127.0.0.1", port, wsgi.app, threaded=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True, name="e2e-live-server")
