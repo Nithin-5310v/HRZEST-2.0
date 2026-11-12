@@ -93,8 +93,8 @@ def hr_scope_denied(emp_id):
 # blueprints/employees.py's add/edit forms, blueprints/admin_views.py's
 # api_org_chart_data()) rather than adding a new link table: a manager's
 # admin_users.username is always that same person's own employee_id (see
-# blueprints/auth.py's _ensure_manager_admin_account -- it's auto-
-# provisioned FROM an employee row, sharing that row's ID), so
+# blueprints/auth.py's _ensure_role_admin_account -- it's provisioned
+# FROM an employee row, sharing that row's ID), so
 # "employees reporting to this manager" is just employees.manager_id
 # matching session["admin_username"], no new schema needed.
 def manager_scope_subquery(alias=""):

@@ -852,22 +852,22 @@ def _init_core_tables(cursor, db):
         )
     """)
     db.commit()
-    # Seed the four system roles (idempotent -- never overwrites an edited row).
-    # 'hr' and 'manager' are the role_keys every existing HR/Manager account
-    # already carries (admin_users.role, set by the "HR"/"Manager" job-title
-    # login in blueprints/auth.py), so they must exist with access rows or
-    # can_access() would lock those accounts out of every module. A company
-    # can still tighten them, or define its own (e.g. "Senior HR") alongside.
+    # Seed the two fixed dashboards (idempotent -- never overwrites an edited
+    # row): Administrator and Employee. Every other role (HR, Manager, Senior
+    # HR Manager, ...) is one the company creates in Settings -> Roles & Access
+    # and assigns to an employee; an employee with no assigned role gets only
+    # the employee dashboard.
     cursor.executemany(
         "INSERT INTO roles (role_key, display_name, base_type, is_system) "
         "VALUES (%s,%s,%s,TRUE) ON CONFLICT (role_key) DO NOTHING",
         [
             ("admin", "Administrator", "admin"),
-            ("hr", "HR", "hr"),
-            ("manager", "Manager", "manager"),
             ("employee", "Employee", "employee"),
         ],
     )
+    # Companies seeded 'hr' and 'manager' as system roles before this keep
+    # them as custom roles -- see migrations/column_migrations.py's
+    # _run_default_roles_to_custom_migration().
     db.commit()
     # Seed sensible default per-module access for the system roles. Modules are
     # the admin-side feature areas the Roles & Access grid exposes; 'admin'
@@ -876,17 +876,10 @@ def _init_core_tables(cursor, db):
                      "announcements", "tickets", "overtime", "performance",
                      "onboarding", "resignations", "reports", "admin_tools",
                      "organization")
-    # The Administrator gets full access. HR and Manager get exactly what their
-    # routes allowed before Roles & Access existed: every module that was open
-    # to any admin-side role, plus announcements for HR; payroll, reports,
-    # admin tools and the company profile stayed Administrator-only. Custom
-    # roles start with no access (utils.helpers.rbac.create_role).
-    _admin_only = ("payroll", "reports", "admin_tools", "organization")
+    # The Administrator gets full access; custom roles start with no access
+    # (utils.helpers.rbac.create_role).
     _rbac_defaults = {
         "admin": {_m: "edit" for _m in _rbac_modules},
-        "hr": {_m: "edit" for _m in _rbac_modules if _m not in _admin_only},
-        "manager": {_m: "edit" for _m in _rbac_modules
-                    if _m not in _admin_only and _m != "announcements"},
         "employee": {_m: "none" for _m in _rbac_modules},
     }
     for _role_key, _perms in _rbac_defaults.items():

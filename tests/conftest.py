@@ -333,6 +333,13 @@ def _init_test_db(db_engine):
             "VALUES (%s, %s, %s, 'enterprise', 'active')",
             ("Test Co", "att-test-suite", os.environ["DB_NAME"]),
         )
+    # A new company only gets Administrator and Employee; the suite's
+    # company stands in for one made before that, which keeps the old HR
+    # and Manager roles as custom roles -- the suite's "hr"/"manager"
+    # sessions rely on them.
+    from migrations.column_migrations import LEGACY_ROLE_KEYS, ensure_legacy_role
+    for role_key in LEGACY_ROLE_KEYS:
+        ensure_legacy_role(cur, role_key)
     cur.close()
 
 

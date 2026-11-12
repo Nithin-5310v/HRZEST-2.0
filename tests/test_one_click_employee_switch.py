@@ -1,15 +1,17 @@
 """One click from the admin side to your own employee dashboard, and one
 click back (blueprints/auth.py switch_to_my_employee_portal /
-switch_back_to_hr_panel): the sidebar's "My Employee Dashboard" button for
-an HR or manager whose login is their employee ID, and for the company
-admin, whose own record is the profile linked to their login
-(utils/own_profile.py)."""
+switch_back_to_hr_panel) for an HR or manager whose login is their
+employee ID, and for the company admin, whose own record is the profile
+linked to their login (utils/own_profile.py). The sidebar no longer has a
+"My Employee Dashboard" item; the Organization page's own-profile card
+keeps its "Open my employee dashboard" button."""
 import pytest
 
 from utils.auth import HR_ROLE
 
 SWITCH = b'action="/switch_to_my_employee_portal"'
 BACK = b'action="/switch_back_to_hr_panel"'
+WORKSPACE = b'href="/my_workspace"'
 
 
 def _login(client, username, role):
@@ -49,10 +51,10 @@ def admin_profile(db_engine, seed_admin):
 
 
 class TestHr:
-    def test_sidebar_has_the_one_click_switch(self, client, hr_with_record):
+    def test_sidebar_has_no_employee_dashboard_item(self, client, hr_with_record):
         _login(client, hr_with_record["username"], HR_ROLE)
         page = client.get("/employees").data
-        assert SWITCH in page and b"My Employee Dashboard" in page
+        assert SWITCH not in page and b"My Employee Dashboard" not in page
 
     def test_switches_and_comes_back_to_the_hr_dashboard(self, client, hr_with_record):
         _login(client, hr_with_record["username"], HR_ROLE)
@@ -71,10 +73,43 @@ class TestHr:
         assert SWITCH not in client.get("/employees").data
 
 
-class TestCompanyAdmin:
-    def test_button_shows_even_before_a_profile_exists(self, client, seed_admin):
+class TestMyWorkspace:
+    """A role-holder's own employee details are a module of their role
+    dashboard (blueprints/core.py's my_workspace), not a separate one."""
+
+    def test_sidebar_links_to_my_workspace(self, client, hr_with_record):
+        _login(client, hr_with_record["username"], HR_ROLE)
+        page = client.get("/employees").data
+        assert WORKSPACE in page and b"My Workspace" in page
+
+    def test_opens_inside_the_role_dashboard(self, client, hr_with_record):
+        _login(client, hr_with_record["username"], HR_ROLE)
+        resp = client.get("/my_workspace")
+        assert resp.status_code == 200 and b"Hema HR" in resp.data
+        with client.session_transaction() as sess:
+            assert sess["admin_logged_in"] and "employee_id" not in sess
+
+    def test_not_shown_without_a_record_of_their_own(self, client, seed_hr_admin):
+        _login(client, seed_hr_admin["username"], HR_ROLE)
+        assert WORKSPACE not in client.get("/employees").data
+
+    def test_company_admin_with_a_profile_opens_it(self, client, seed_admin, admin_profile):
         _login(client, seed_admin["username"], "admin")
-        assert SWITCH in client.get("/admin").data
+        assert WORKSPACE in client.get("/admin").data
+        resp = client.get("/my_workspace")
+        assert resp.status_code == 200 and b"Owner Admin" in resp.data
+
+    def test_company_admin_without_a_profile_sets_it_up_there(self, client, seed_admin):
+        _login(client, seed_admin["username"], "admin")
+        assert WORKSPACE in client.get("/admin").data
+        resp = client.get("/my_workspace")
+        assert resp.status_code == 200 and b"Set up your workspace" in resp.data
+
+
+class TestCompanyAdmin:
+    def test_sidebar_has_no_employee_dashboard_item(self, client, seed_admin):
+        _login(client, seed_admin["username"], "admin")
+        assert SWITCH not in client.get("/admin").data
 
     def test_without_a_profile_it_leads_to_creating_one(self, client, seed_admin):
         _login(client, seed_admin["username"], "admin")

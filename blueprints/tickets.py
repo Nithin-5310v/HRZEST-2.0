@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Tickets blueprint -- support ticket lifecycle."""
-from flask import Blueprint, request, session, redirect, jsonify, flash
+from flask import Blueprint, request, redirect, jsonify, flash
 from database import get_db_connection
 from utils.auth import (
     admin_required, any_user_required, api_required, employee_api_required,
@@ -8,18 +8,16 @@ from utils.auth import (
 )
 from utils.email_utils import get_email_config, send_email_async
 from utils.helpers import (
-    tpath, _create_notification, hr_scope_denied, invalidate_pending_counts_cache,
+    tpath, _create_notification, hr_scope_denied, manager_scope_denied, invalidate_pending_counts_cache,
     self_service_emp_id, self_service_return_path,
 )
 
 # Roles allowed to read or act on company-wide support tickets via the
 # Bearer-token API below (/api/tickets, /api/tickets/<id>/action) -- the
-# web /tickets and /ticket_action routes are only @admin_required with no
-# stricter role split of their own, so this mirrors the same admin/hr
-# split used elsewhere for HR-adjacent, company-wide data (see
-# blueprints/leave.py's _LEAVE_APPROVER_ROLES, minus 'manager' -- there's
-# no per-team ticket ownership/assignment concept in this codebase for a
-# manager's involvement to scope down to).
+# web /tickets and /ticket_action routes are gated by the role's Tickets
+# access in Settings -> Roles & Access instead. The app's API keeps the
+# admin/hr split used elsewhere for HR-adjacent, company-wide data (see
+# blueprints/leave.py's _LEAVE_APPROVER_ROLES, minus 'manager').
 _TICKET_ADMIN_ROLES = ("admin", "hr")
 
 tickets_bp = Blueprint("tickets", __name__)
@@ -58,15 +56,16 @@ def raise_ticket():
 @require_access("tickets")
 def tickets_view():
     """Standalone Tickets module (own sidebar item); shares the page
-    renderer with Leaves & Holidays."""
+    renderer with Leaves & Holidays. Who may open it is the role's Tickets
+    access in Settings -> Roles & Access; a manager-role session sees only
+    its direct reports' tickets (render_hr_hub's manager scoping)."""
     from blueprints.leave import render_hr_hub
-    if session.get("admin_role") == "manager":
-        return redirect(tpath("/leave_holidays"))
     return render_hr_hub("tickets", "tickets")
 
 
 @tickets_bp.route("/ticket_action/<int:tid>", methods=["POST"])
 @admin_required
+@require_access("tickets", "edit")
 def ticket_action(tid):
     new_status = request.form.get("status", "").strip()
     admin_response = request.form.get("admin_response", "").strip()
@@ -85,7 +84,7 @@ def ticket_action(tid):
         WHERE t.id = %s
     """, (tid,))
     row = cursor.fetchone()
-    if row and hr_scope_denied(row[6]):
+    if row and (hr_scope_denied(row[6]) or manager_scope_denied(row[6])):
         cursor.close()
         db.close()
         return (jsonify({"ok": False, "msg": "Ticket not found."}), 404) if is_ajax else ("Forbidden", 403)

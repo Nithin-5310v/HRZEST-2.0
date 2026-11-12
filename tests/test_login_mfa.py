@@ -195,7 +195,8 @@ def mandatory_admin_mfa_enabled(client):
 
 
 class TestHrRoleEmployeeLoginMfa:
-    """Full real-world path for a freshly created HR-role employee with
+    """Full real-world path for a freshly created employee assigned the HR
+    role in Roles & Access, with
     BOTH MANDATORY_LOGIN_MFA and MANDATORY_ADMIN_MFA on (the actual
     combination this feature was built and debugged against): password ->
     emailed OTP -> forced PIN change (new employees always start with
@@ -207,7 +208,9 @@ class TestHrRoleEmployeeLoginMfa:
         self, client, sent_codes, seed_employee, db_engine, mandatory_login_mfa_enabled, mandatory_admin_mfa_enabled,
     ):
         cur = db_engine.cursor()
-        cur.execute("UPDATE employees SET role='HR', force_pin_change=1 WHERE employee_id=%s",
+        cur.execute("INSERT INTO roles (role_key, display_name, base_type, is_system) "
+                    "VALUES ('hr','HR','hr',FALSE) ON CONFLICT (role_key) DO NOTHING")
+        cur.execute("UPDATE employees SET access_role='hr', force_pin_change=1 WHERE employee_id=%s",
                     (seed_employee["employee_id"],))
         try:
             # 1. Password login -> stops at the emailed-OTP step, same as
@@ -231,7 +234,7 @@ class TestHrRoleEmployeeLoginMfa:
             resp = client.post("/force_change_pin", data={
                 "new_password": "NewStrongPass@1", "confirm_password": "NewStrongPass@1",
             }, follow_redirects=False)
-            assert resp.headers.get("Location") == "/hr_dashboard"
+            assert resp.headers.get("Location") == "/admin"
             with client.session_transaction() as sess:
                 assert sess.get("admin_logged_in") is True
                 assert sess.get("admin_username") == seed_employee["employee_id"]
@@ -245,7 +248,7 @@ class TestHrRoleEmployeeLoginMfa:
             cur.execute("SELECT totp_enabled FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
             assert cur.fetchone()[0] == 1
         finally:
-            cur.execute("UPDATE employees SET role=NULL, force_pin_change=0 WHERE employee_id=%s",
+            cur.execute("UPDATE employees SET access_role=NULL, force_pin_change=0 WHERE employee_id=%s",
                         (seed_employee["employee_id"],))
             cur.execute("DELETE FROM admin_users WHERE username=%s", (seed_employee["employee_id"],))
             cur.close()

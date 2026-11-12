@@ -741,23 +741,27 @@ def _issue_employee_api_token(emp_id):
 
 def _hr_employee_signin(emp_id, employee_result):
     """Like the website's login (auth._finish_employee_login): an employee
-    whose role is exactly "HR" signs in to the HR panel, through the same
-    admin login -- emailed code included -- not as a plain employee. Their
-    own employee view is one tap away (/api/hr/my_employee_session).
+    assigned the HR role in Settings -> Roles & Access signs in to the HR
+    panel, through the same admin login -- emailed code included -- not as a
+    plain employee. A job title of "HR" alone grants nothing. Their own
+    employee view is one tap away (/api/hr/my_employee_session).
     Returns the admin answer, or None to keep the employee one."""
-    from blueprints.auth import _ensure_hr_admin_account, _HR_EMPLOYEE_ROLE
     resp, status = employee_result if isinstance(employee_result, tuple) else (employee_result, 200)
     body = resp.get_json(silent=True) or {}
     if not body.get("ok"):
         return None
     with _db() as (cursor, conn):
-        cursor.execute("SELECT role FROM employees WHERE employee_id=%s", (emp_id,))
+        # The assignment (utils.helpers.rbac.assign_employee_role) keeps the
+        # admin_users login on the role and active; clearing it deactivates it.
+        cursor.execute(
+            "SELECT COALESCE(e.access_role,''), COALESCE(a.is_active,0) FROM employees e "
+            "LEFT JOIN admin_users a ON a.username = e.employee_id AND a.role = %s "
+            "WHERE e.employee_id=%s",
+            (HR_ROLE, emp_id),
+        )
         row = cursor.fetchone()
-        if not row or (row[0] or "").strip().lower() != _HR_EMPLOYEE_ROLE:
+        if not row or row[0] != HR_ROLE or not row[1]:
             return None
-    # Without HR dashboard access they stay signed in as an employee.
-    if not _ensure_hr_admin_account(emp_id, body.get("email")):
-        return None
     with _db() as (cursor, conn):
         # The employee token minted on the way here isn't handed out.
         cursor.execute("DELETE FROM api_tokens WHERE token=%s", (_hash_token(body["token"]),))
@@ -990,6 +994,26 @@ def api_employee_signup():
         return jsonify({"ok": False, "msg": "Could not register employee. Please try again."}), 500
 
 
+def _render_workspace_setup():
+    """The company admin's My Workspace before they have an employee profile:
+    the same header, and a card that creates it from Organization -> Your
+    details (templates/my_workspace_setup.html) instead of sending them off
+    to the Organization page."""
+    with _db() as (cursor, _conn):
+        cursor.execute("SELECT display_name, email, mobile, job_title FROM admin_users WHERE username=%s",
+                       (session.get("admin_username"),))
+        name, email, mobile, job_title = cursor.fetchone() or (None, None, None, None)
+        cursor.execute("SELECT DISTINCT department FROM employees "
+                       "WHERE department IS NOT NULL AND department <> '' ORDER BY department")
+        departments = [r[0] for r in cursor.fetchall()]
+    return render_template(
+        "my_workspace_setup.html", active_nav="my_workspace", co=get_company_settings(),
+        admin_name=(name or "").strip(), admin_email=email or "", admin_mobile=mobile or "",
+        admin_job_title=job_title or "", own_departments=departments,
+        today_iso=company_today().isoformat(),
+    )
+
+
 @core_bp.route("/my_workspace")
 @admin_required
 def my_workspace():
@@ -1025,9 +1049,7 @@ def my_workspace():
     emp_id = self_service_emp_id()
     ctx = _build_portal_context(emp_id) if emp_id else None
     if ctx is None and session.get("admin_role") == "admin":
-        flash("Create your employee profile first (Your details, below), then My Workspace "
-              "lets you mark your own attendance.", "info")
-        return redirect(tpath("/profile") + "#my-employee-profile")
+        return _render_workspace_setup()
     if ctx is None:
         flash("No personal profile is linked to this account.", "error")
         return redirect(tpath("/admin"))

@@ -232,14 +232,25 @@
       <div class="admin-search-results" id="adminSearchResults" role="listbox"></div>
     </div>
     <script src="{{ static_url('portal-search.js') }}" defer></script>
+    {# Every section below shows only what the logged-in role can use
+       (Settings -> Roles & Access); the owner Administrator passes every
+       can_access() check. Holiday and salary quick actions post to
+       /admin_action, which only admin-type roles may use at all. #}
+    {% set _admin_type = session.admin_role in ['admin', 'superadmin'] or session.admin_base_type == 'admin' %}
+    {% if can_access('attendance') %}
     <div class="header-actions">
-      <a href="/monthly_report_export?month={{ now_month }}&year={{ now_year }}" class="hbtn hbtn-green"><i class="ti ti-download"></i> Export Month</a>
+      <a href="{{ tpath('/monthly_report_export') }}?month={{ now_month }}&year={{ now_year }}" class="hbtn hbtn-green"><i class="ti ti-download"></i> Export Month</a>
+      {% if can_access('attendance', 'edit') %}
       <button type="button" data-on-click="sendAbsenteeReport()" class="hbtn hbtn-blue"><i class="ti ti-mail"></i> Email Absentees</button>
+      {% endif %}
     </div>
+    {% endif %}
   </div>
 
   {# STAT CARDS #}
+  {% if can_access('employees') or can_access('attendance') or can_access('overtime') %}
   <div class="stats">
+    {% if can_access('employees') %}
     <a class="stat-card" href="{{ tpath('/employees') }}">
       <div class="stat-icon si-blue"><i class="ti ti-users" style="color:#2563eb"></i></div>
       <div>
@@ -247,6 +258,8 @@
         <div class="stat-lbl">Total Employees</div>
       </div>
     </a>
+    {% endif %}
+    {% if can_access('attendance') %}
     <a class="stat-card" href="{{ tpath('/today_present') }}">
       <div class="stat-icon si-green"><i class="ti ti-check" style="color:#16a34a"></i></div>
       <div>
@@ -268,6 +281,8 @@
         <div class="stat-lbl">Late Logins</div>
       </div>
     </a>
+    {% endif %}
+    {% if can_access('overtime') %}
     <a class="stat-card" href="{{ tpath('/overtime') }}" style="border-color:{% if pending_ot|default(0) > 0 %}#fca5a5{% endif %};">
       <div class="stat-icon u-bg-fff7ed"><i class="ti ti-clock-bolt u-fs-24 u-c-ea580c"></i></div>
       <div>
@@ -275,12 +290,15 @@
         <div class="stat-lbl">OT Pending</div>
       </div>
     </a>
+    {% endif %}
   </div>
+  {% endif %}
 
   {# PLAN & PAYMENTS (company admins only, like the billing emails) #}
   {% if plan %}{% include "_plan_card.html" %}{% endif %}
 
   {# ONBOARDING WIDGET #}
+  {% if can_access('onboarding') %}
   <div class="section u-mb-20">
     <div class="section-title u-d-flex u-ai-center u-jc-space-between">
       <span><i class="ti ti-clipboard-list"></i> Onboarding Overview</span>
@@ -318,12 +336,16 @@
     </div>
     {% endif %}
   </div>
+  {% endif %}
 
   {# MODULE OVERVIEW #}
+  {% set _hub_access = can_access('leaves') or can_access('tickets') or can_access('resignations') %}
+  {% if can_access('employees') or can_access('attendance') or can_access('payroll') or _hub_access or can_access('announcements') %}
   <div class="section u-mb-20">
-    <div class="section-title"><i class="ti ti-apps"></i> Admin Modules</div>
+    <div class="section-title"><i class="ti ti-apps"></i> {{ 'Admin Modules' if _admin_type else 'Your Modules' }}</div>
     <div class="u-d-grid u-gtc-repeat3_1fr u-gap-14">
 
+      {% if can_access('employees') %}
       <a class="u-tdec-none" href="{{ tpath('/employees') }}">
         <div class="u-bg-eff6ff u-bd-1d5-solid-bfdbfe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(30,58,138,0.12)">
           <div class="u-w-26 u-h-26 u-bg-dbeafe u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-users" style="color:#1e40af"></i></div>
@@ -333,7 +355,9 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
+      {% if can_access('attendance') %}
       <a class="u-tdec-none" href="{{ tpath('/monthly_report') }}">
         <div class="u-bg-f0fdf4 u-bd-1d5-solid-86efac u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(21,128,61,0.12)">
           <div class="u-w-26 u-h-26 u-bg-dcfce7 u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-chart-bar" style="color:#15803d"></i></div>
@@ -343,7 +367,9 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
+      {% if can_access('employees', 'edit') %}
       <a class="u-tdec-none" href="{{ tpath('/employees?tab=schedule') }}">
         <div class="u-bg-faf5ff u-bd-1d5-solid-d8b4fe u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(124,58,237,0.12)">
           <div class="u-w-26 u-h-26 u-bg-ede9fe u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-clock-hour-4" style="color:#7c3aed"></i></div>
@@ -353,7 +379,9 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
+      {% if can_access('payroll') %}
       <a class="u-tdec-none" href="{{ tpath('/salary_report') }}">
         <div class="u-bg-fefce8 u-bd-1d5-solid-fde047 u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(133,77,14,0.12)">
           <div class="u-w-26 u-h-26 u-bg-fef9c3 u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-coin" style="color:#854d0e"></i></div>
@@ -363,8 +391,11 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
-      <a class="u-tdec-none" href="{{ tpath('/leave_holidays?tab=leaves') }}">
+      {% if _hub_access %}
+      {# Opens the first of the three this role can use. #}
+      <a class="u-tdec-none" href="{{ tpath('/leave_holidays?tab=leaves') if can_access('leaves') else (tpath('/tickets') if can_access('tickets') else tpath('/resignations')) }}">
         <div class="u-bg-fff7ed u-bd-1d5-solid-fed7aa u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(194,65,12,0.12)">
           <div class="u-w-26 u-h-26 u-bg-ffedd5 u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-clipboard-list" style="color:#c2410c"></i></div>
           <div>
@@ -377,8 +408,9 @@
           </div>
         </div>
       </a>
+      {% endif %}
 
-      {% if session.admin_role != 'manager' %}
+      {% if can_access('announcements') %}
       <a class="u-tdec-none" href="{{ tpath('/announcements') }}">
         <div class="u-bg-fff1f2 u-bd-1d5-solid-fda4af u-br-14 u-p-16-18 u-d-flex u-ai-center u-gap-14 u-trs-0d2s" data-hover-style="transform:translateY(-2px);box-shadow:0 6px 20px rgba(190,18,60,0.12)">
           <div class="u-w-26 u-h-26 u-bg-ffe4e6 u-br-8 u-d-flex u-ai-center u-jc-center u-fs-13 u-fxs-0"><i class="ti ti-speakerphone" style="color:#be123c"></i></div>
@@ -392,12 +424,18 @@
 
     </div>
   </div>
+  {% endif %}
 
   {# QUICK ACTIONS #}
+  {% set _qa_holiday = _admin_type and can_access('leaves', 'edit') %}
+  {% set _qa_salary = _admin_type and can_access('payroll', 'edit') %}
+  {% set _qa_register = can_access('employees', 'edit') %}
+  {% if _qa_holiday or _qa_salary or _qa_register %}
   <div class="section">
     <div class="section-title"><i class="ti ti-bolt"></i> Quick Actions</div>
     <div class="action-grid">
 
+      {% if _qa_holiday %}
       <div class="action-card">
         <div class="ac-icon u-bg-dcfce7" style="color:#16a34a"><i class="ti ti-calendar-plus"></i></div>
         <h4>Add Holiday</h4>
@@ -409,7 +447,9 @@
           <button type="submit" class="btn btn-green">Add Holiday</button>
         </form>
       </div>
+      {% endif %}
 
+      {% if _qa_salary %}
       <div class="action-card">
         <div class="ac-icon u-bg-ede9fe" style="color:#7c3aed"><i class="ti ti-coin"></i></div>
         <h4>Set Daily Salary</h4>
@@ -421,18 +461,23 @@
           <button type="submit" class="btn btn-indigo">Update Salary</button>
         </form>
       </div>
+      {% endif %}
 
+      {% if _qa_register %}
       <div class="action-card">
         <div class="ac-icon u-bg-dbeafe" style="color:#2563eb"><i class="ti ti-user-plus"></i></div>
         <h4>Register Employee</h4>
         <div class="sub">Add a new employee to the system</div>
         <a href="{{ tpath('/employees?open=add') }}" class="btn btn-blue u-d-flex u-ai-center u-jc-center" style="text-decoration:none;">Register Employee</a>
       </div>
+      {% endif %}
 
     </div>
   </div>
+  {% endif %}
 
   {# ATTENDANCE CHARTS #}
+  {% if can_access('attendance') %}
   <div class="u-d-grid u-gtc-2fr-1fr u-gap-16 u-mb-20">
 
     <div class="section u-mb-0">
@@ -446,6 +491,7 @@
     </div>
 
   </div>
+  {% endif %}
 
   {# ═══ EDIT EMPLOYEE MODAL ═══ #}
   <div class="u-d-none u-pos-fixed u-ins-0 u-bg-rgba0_0_0_0d55 u-zi-1000 u-ai-center u-jc-center" id="editModal">
@@ -613,10 +659,12 @@
     function rowKey(r) { return `${r.emp_id}|${r.login_t}|${r.logout_t}|${r.status}|${r.logout_s}|${r.att_type}`; }
 
     function applyLiveData(data) {
-      document.getElementById("statTotal").textContent   = data.total;
-      document.getElementById("statPresent").textContent = data.present;
-      document.getElementById("statAbsent").textContent  = data.absent;
-      document.getElementById("statLate").textContent    = data.late;
+      // A stat card is left out when the role can't access its module.
+      const setStat = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setStat("statTotal", data.total);
+      setStat("statPresent", data.present);
+      setStat("statAbsent", data.absent);
+      setStat("statLate", data.late);
       const newKeys = new Set(data.rows.map(rowKey));
       let html = "";
       if (data.rows.length === 0) {
@@ -677,7 +725,10 @@
       try { await refreshDashboard(); } catch(e) {}
       _dashboardTimer = setTimeout(scheduleDashboardRefresh, REFRESH_INTERVAL);
     }
+    {# Both feeds are Attendance data; without that access they'd only be refused. #}
+    {% if can_access('attendance') %}
     setTimeout(scheduleDashboardRefresh, 5000);
+    {% endif %}
     setInterval(updateLastUpdated, 5000);
 
     /* ── ATTENDANCE CHARTS ── */
@@ -751,7 +802,9 @@
       try { await loadCharts(); } catch(e) {}
       _chartTimer = setTimeout(scheduleChartRefresh, 120000);
     }
+    {% if can_access('attendance') %}
     scheduleChartRefresh();
+    {% endif %}
   </script>
 
 {% endblock %}

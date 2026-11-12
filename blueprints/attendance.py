@@ -45,6 +45,7 @@ def _today_pending_counts(cursor):
 
 @attendance_bp.route("/today_present")
 @admin_required
+@require_access("attendance")
 def today_present():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -65,7 +66,7 @@ def today_present():
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close()
     db.close()
-    return render_template("today_attendance.html",
+    return render_template("today_attendance.html", active_nav="attendance",
                            filter_type="present", title="Present Today",
                            rows=rows, today=today.strftime("%d %b %Y"),
                            pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
@@ -73,6 +74,7 @@ def today_present():
 
 @attendance_bp.route("/today_absent")
 @admin_required
+@require_access("attendance")
 def today_absent():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -92,7 +94,7 @@ def today_absent():
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close()
     db.close()
-    return render_template("today_attendance.html",
+    return render_template("today_attendance.html", active_nav="attendance",
                            filter_type="absent", title="Absent Today",
                            rows=rows, today=today.strftime("%d %b %Y"),
                            pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
@@ -100,6 +102,7 @@ def today_absent():
 
 @attendance_bp.route("/today_late")
 @admin_required
+@require_access("attendance")
 def today_late():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -119,7 +122,7 @@ def today_late():
     pl, pr, pt = _today_pending_counts(cursor)
     cursor.close()
     db.close()
-    return render_template("today_attendance.html",
+    return render_template("today_attendance.html", active_nav="attendance",
                            filter_type="late", title="Late Logins Today",
                            rows=rows, today=today.strftime("%d %b %Y"),
                            pending_leaves=pl, pending_resignations=pr, pending_tickets=pt)
@@ -967,6 +970,7 @@ def api_bulk_mark_attendance():
 
 @attendance_bp.route("/monthly_report_export")
 @admin_required
+@require_access("attendance")
 @limiter.limit("10 per minute")
 def monthly_report_export():
     from flask import send_file
@@ -1101,6 +1105,7 @@ def monthly_report_export():
 
 @attendance_bp.route("/send_absentee_report", methods=["POST"])
 @admin_required
+@require_access("attendance", "edit")
 def send_absentee_report():
     cfg = get_email_config()
     if not cfg:

@@ -2,10 +2,12 @@
 """Organization page's HR team tab: the company admin sees its HRs, makes an
 employee an HR, and turns each HR's dashboard access on or off.
 
-An HR is an employee whose role is exactly "HR" (blueprints/auth.py's
-_finish_employee_login), backed by an admin_users row with the same
-username as their employee ID. That row's is_active flag is their HR
-dashboard access:
+An HR is an employee whose job title is exactly "HR", backed by an
+admin_users row with the same username as their employee ID. Their HR
+dashboard access is that row's is_active flag together with the HR role
+assigned to them in Settings -> Roles & Access (employees.access_role,
+what blueprints/auth.py's _finish_employee_login routes on) -- this tab
+keeps the two in step:
 
   * on  -- they sign in with their employee login and land on the HR
            dashboard, where they can add employees and manage the ones
@@ -27,6 +29,9 @@ from utils.helpers import _db, decrypt_pii, get_company_settings, tpath
 hr_team_bp = Blueprint("hr_team", __name__)
 
 # employees.role is a free-text job title; exactly "HR" makes an HR.
+# A role named "HR" gets the role_key 'hr' (utils.helpers.rbac._slug).
+_NO_HR_ROLE_MSG = ("Their HR dashboard access is off: create a role named \"HR\" in Settings -> "
+                   "Roles & Access first, then turn it on here or assign it there.")
 _IS_HR = "LOWER(TRIM(COALESCE(e.role, ''))) = 'hr'"
 _ACTIVE = "COALESCE(e.is_active, 1) = 1"
 
@@ -107,7 +112,19 @@ def hr_team():
 
 
 def _set_access(cursor, username, access, email=None):
-    """Creates or updates the HR's admin_users row with this access."""
+    """Creates or updates the HR's admin_users row with this access, and
+    assigns or clears their HR role in Roles & Access to match. Only
+    Administrator and Employee are built in, so access can only be turned
+    on once the company has an HR role (role_key 'hr'); without one this
+    saves access off. Returns whether access ended up on."""
+    if access:
+        cursor.execute("SELECT 1 FROM roles WHERE role_key=%s", (HR_ROLE,))
+        access = cursor.fetchone() is not None
+    # Never overwrite a different role this person was given in Roles & Access.
+    cursor.execute(
+        "UPDATE employees SET access_role=%s WHERE employee_id=%s AND COALESCE(access_role, '') IN ('', %s)",
+        (HR_ROLE if access else None, username, HR_ROLE),
+    )
     cursor.execute("SELECT role FROM admin_users WHERE username=%s", (username,))
     row = cursor.fetchone()
     if row:
@@ -115,11 +132,12 @@ def _set_access(cursor, username, access, email=None):
                        (HR_ROLE, 1 if access else 0, username))
     else:
         # Random, never-shown password: an HR signs in with their own
-        # employee login (same as blueprints/auth._ensure_hr_admin_account).
+        # employee login (same as blueprints/auth._ensure_role_admin_account).
         cursor.execute(
             "INSERT INTO admin_users (username, password, role, email, is_active) VALUES (%s,%s,%s,%s,%s)",
             (username, generate_password_hash(secrets.token_urlsafe(32)), HR_ROLE, email, 1 if access else 0),
         )
+    return access
 
 
 @hr_team_bp.route("/profile/hr/add", methods=["POST"])
@@ -142,7 +160,8 @@ def hr_team_add():
             flash(f"{emp_id} is also the name of an admin login, so it can't be made an HR account.", "error")
             return redirect(tpath("/profile/hr"))
         cursor.execute("UPDATE employees SET role='HR' WHERE employee_id=%s", (emp_id,))
-        _set_access(cursor, emp_id, access, decrypt_pii(enc_email) or None)
+        wanted = access
+        access = _set_access(cursor, emp_id, access, decrypt_pii(enc_email) or None)
         db.commit()
     log_security_event(
         "admin.hr_added", f"Employee '{emp_id}' made an HR (role was {previous_role!r}), "
@@ -151,6 +170,7 @@ def hr_team_add():
     )
     flash(f"{name} is now an HR. " + (
         "They sign in with their usual employee login and land on the HR dashboard." if access
+        else _NO_HR_ROLE_MSG if wanted
         else "Turn on their dashboard access when they should start using it."), "success")
     return redirect(tpath("/profile/hr"))
 
@@ -174,9 +194,13 @@ def hr_team_access(username):
         if emp and login and (login[0] or "admin") not in (HR_ROLE, "manager"):
             flash(f"{username} is also the name of an admin login, so its access can't be changed here.", "error")
             return redirect(tpath("/profile/hr"))
-        _set_access(cursor, username, access, decrypt_pii(emp[1]) if emp else None)
+        wanted = access
+        access = _set_access(cursor, username, access, decrypt_pii(emp[1]) if emp else None)
         db.commit()
     name = emp[0] if emp else username
+    if wanted and not access:
+        flash(_NO_HR_ROLE_MSG, "error")
+        return redirect(tpath("/profile/hr"))
     log_security_event(
         "admin.hr_access_changed", f"HR dashboard access for '{username}' turned {'on' if access else 'off'}",
         level="WARNING", identifier=session.get("admin_username"), hr_username=username, access=access,

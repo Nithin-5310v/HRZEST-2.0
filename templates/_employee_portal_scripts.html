@@ -53,7 +53,7 @@
           @keyframes wfhScan { 0%,100% { top:0; } 50% { top:calc(100% - 3px); } }
         </style>
 
-        <button class="u-w-100pct u-p-13 u-bd-none u-br-13 u-bg-linear-gradienb4a52d u-c-fff u-fs-14 u-fw-800 u-cur-pointer u-mb-10" id="wfhStartBtn" data-on-click="startWfhFlow()">
+        <button class="u-w-100pct u-p-13 u-bd-none u-br-13 u-bg-linear-gradiene7a6cb u-c-fff u-fs-14 u-fw-800 u-cur-pointer u-mb-10" id="wfhStartBtn" data-on-click="startWfhFlow()">
           &#128247; <span id="wfhStartBtnLabel">Start Attendance Check-In</span>
         </button>
 
@@ -155,10 +155,10 @@
           var ampm = b.hour < 12 ? 'AM' : 'PM';
           var h12  = b.hour % 12 || 12;
           var tstr = (h12 < 10 ? '0' : '') + h12 + ':' + (b.minute < 10 ? '0' : '') + b.minute + ' ' + ampm;
-          var icon = b.duration >= 30 ? '🍽️' : '☕';
+          var icon = b.duration >= 30 ? 'ti-clock' : 'ti-coffee';
           var el   = document.createElement('div');
-          Object.assign(el.style, {display:'flex', alignItems:'center', gap:'10px', background:'#f0fdf4', border:'1px solid #86efac', borderRadius:'12px', padding:'10px 16px', minWidth:'180px'});
-          el.innerHTML = '<span class="u-fs-22">' + icon + '</span>'
+          Object.assign(el.style, {display:'flex', alignItems:'center', gap:'10px', background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'12px', padding:'10px 16px', minWidth:'180px'});
+          el.innerHTML = '<span class="u-fs-22 u-c-2563eb"><i class="ti ' + icon + '" aria-hidden="true"></i></span>'
             + '<div><div class="u-fs-13 u-fw-700 u-c-1e293b">' + escHtml(b.name) + '</div>'
             + '<div class="u-fs-12 u-c-64748b u-mt-2">' + tstr + ' &nbsp;·&nbsp; ' + b.duration + ' min</div></div>';
           list.appendChild(el);

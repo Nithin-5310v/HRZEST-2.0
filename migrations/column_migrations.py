@@ -27,6 +27,7 @@ def _run_schema_migrations(cursor, db):
     _run_privacy_tables_migration(cursor, db)
     _run_detection_state_migration(cursor, db)
     _run_leave_declined_to_rejected(cursor, db)
+    _run_default_roles_to_custom_migration(cursor, db)
 
 
 def _run_leave_declined_to_rejected(cursor, db):
@@ -43,6 +44,67 @@ def _run_leave_declined_to_rejected(cursor, db):
     except Exception as exc:
         db.rollback()
         app_log.warning("Migration 'leave_declined_to_rejected_v1' failed: %s", exc, exc_info=True)
+
+
+LEGACY_ROLE_KEYS = ("hr", "manager")
+
+
+def ensure_legacy_role(cursor, role_key):
+    """Create the old built-in 'hr' or 'manager' role, with the access grid
+    it used to be seeded with, as an ordinary custom role -- if this
+    company has no row for it yet. Used for a company that still has
+    logins on one of them (below) and by the test suite, whose company
+    stands in for one created before only Administrator and Employee were
+    built in. Doesn't commit."""
+    from utils.helpers.rbac import RBAC_MODULES
+    admin_only = ("payroll", "reports", "admin_tools", "organization")
+    display_name, granted = {
+        "hr": ("HR", {m for m in RBAC_MODULES if m not in admin_only}),
+        "manager": ("Manager", {m for m in RBAC_MODULES if m not in admin_only and m != "announcements"}),
+    }[role_key]
+    cursor.execute("SELECT 1 FROM roles WHERE role_key=%s", (role_key,))
+    if cursor.fetchone():
+        return
+    cursor.execute(
+        "INSERT INTO roles (role_key, display_name, base_type, is_system) VALUES (%s,%s,%s,FALSE)",
+        (role_key, display_name, role_key),
+    )
+    cursor.executemany(
+        "INSERT INTO role_permissions (role_key, module, access) VALUES (%s,%s,%s) "
+        "ON CONFLICT (role_key, module) DO NOTHING",
+        [(role_key, m, "edit" if m in granted else "none") for m in RBAC_MODULES],
+    )
+
+
+def _run_default_roles_to_custom_migration(cursor, db):
+    """Only Administrator and Employee are fixed dashboards now
+    (migrations/core_tables.py's roles seed). A company seeded before that
+    still has 'hr' and 'manager' as system roles: keep them, with their
+    access grids, as ordinary custom roles it can edit or delete, and put
+    each person who was using one -- an active admin_users login on it,
+    reached through the old "HR"/"Manager" job-title login -- on it in
+    employees.access_role, now the only thing that grants a role dashboard.
+    Idempotent: clearing a role in Roles & Access deactivates that login
+    (utils.helpers.rbac.assign_employee_role), so nobody is re-granted."""
+    try:
+        for role_key in LEGACY_ROLE_KEYS:
+            cursor.execute("SELECT 1 FROM admin_users WHERE role=%s LIMIT 1", (role_key,))
+            if cursor.fetchone():
+                ensure_legacy_role(cursor, role_key)
+        cursor.execute("UPDATE roles SET is_system=FALSE WHERE role_key IN ('hr','manager') AND is_system")
+        cursor.execute("""
+            UPDATE employees e SET access_role = a.role
+            FROM admin_users a
+            WHERE a.username = e.employee_id
+              AND a.role IN ('hr','manager')
+              AND COALESCE(a.is_active, 1) = 1
+              AND COALESCE(e.access_role, '') = ''
+              AND EXISTS (SELECT 1 FROM roles r WHERE r.role_key = a.role)
+        """)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        app_log.warning("Migration 'default roles to custom' failed: %s", exc, exc_info=True)
 
 
 def _run_auth_hardening_migration(cursor, db):

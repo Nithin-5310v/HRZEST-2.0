@@ -27,7 +27,7 @@ from utils.helpers import (
     hr_scope_subquery, hr_scope_column, hr_scope_denied, get_pending_counts, company_today,
     get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache, int_param,
     notify_new_holiday, encrypt_amount, self_service_emp_id, self_service_return_path,
-    manager_scope_subquery, manager_scope_column, manager_scope_denied,
+    manager_scope_subquery, manager_scope_column, manager_scope_denied, can_access,
 )
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
 from utils.leave_utils import get_indian_holidays
@@ -431,23 +431,23 @@ def render_hr_hub(tab, page):
     leave_used = {row[0]: float(row[1]) for row in cursor.fetchall()}
     cursor.execute("SELECT id, name, annual_quota FROM leave_types WHERE is_active=1 ORDER BY id")
     leave_types_list = cursor.fetchall()
-    # Tickets have no per-team ownership concept (see _LEAVE_APPROVER_ROLES'
-    # own docstring above and blueprints/tickets.py's _TICKET_ADMIN_ROLES,
-    # which excludes 'manager' entirely) -- a manager session gets none of
-    # this tab's data at all, not just company/HR-scoped data.
-    if _is_manager:
+    # Tickets follow the role's Tickets access (Settings -> Roles & Access);
+    # without it this tab gets no data at all. A manager-role session sees
+    # its direct reports' tickets, like their leave and resignations above.
+    if not can_access("tickets"):
         all_tickets = []
         pending_tickets = 0
     else:
         cursor.execute(f"""
             SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
                    t.priority, t.status, t.admin_response, t.created_at, t.updated_at
-            FROM tickets t JOIN employees e ON t.employee_id = e.employee_id {_co_join} {_hr_join}
+            FROM tickets t JOIN employees e ON t.employee_id = e.employee_id {_co_join} {_hr_join} {_mgr_join}
             ORDER BY CASE WHEN t.status='Open' THEN 0 WHEN t.status='In Progress' THEN 1
                           WHEN t.status='Resolved' THEN 2 WHEN t.status='Closed' THEN 3 ELSE 4 END, t.created_at DESC
-        """, _co_args + _hr_args)  # nosec B608
+        """, _co_args + _hr_args + _mgr_args)  # nosec B608
         all_tickets = cursor.fetchall()
-        cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub} {_hr_sub}", _co_args + _hr_args)  # nosec B608
+        cursor.execute(f"SELECT COUNT(*) FROM tickets WHERE status='Open' {_co_sub} {_hr_sub} {_mgr_sub}",
+                       _co_args + _hr_args + _mgr_args)  # nosec B608
         pending_tickets = cursor.fetchone()[0]
     cursor.execute(f"""
         SELECT rr.id, e.name, rr.employee_id, rr.last_working_day, rr.reason, rr.status, rr.created_at

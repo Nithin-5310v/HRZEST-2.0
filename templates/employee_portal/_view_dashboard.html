@@ -193,7 +193,7 @@
           </div>
 
           {% if attendance_auth_cfg.qr_enabled or attendance_auth_cfg.face_enabled or attendance_auth_cfg.fingerprint_enabled %}
-          <button class="u-mt-8 u-w-100pct u-p-9 u-bd-none u-br-10 u-bg-linear-gradienb4a52d u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-jc-center u-gap-8" data-on-click="openWfhScanner()">
+          <button class="u-mt-8 u-w-100pct u-p-9 u-bd-none u-br-10 u-bg-linear-gradiene7a6cb u-c-fff u-fs-13 u-fw-700 u-cur-pointer u-d-flex u-ai-center u-jc-center u-gap-8" data-on-click="openWfhScanner()">
             Mark Attendance
           </button>
           {% endif %}
@@ -240,22 +240,22 @@
             <svg class="u-fxs-0" width="90" height="90" viewBox="0 0 90 90">
               <circle cx="45" cy="45" r="34" fill="none" stroke="#e2e8f0" stroke-width="12"/>
               {% if f_d > 0 %}
-              <circle cx="45" cy="45" r="34" fill="none" stroke="#16a34a" stroke-width="12"
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#1e40af" stroke-width="12"
                 stroke-dasharray="{{ f_d }} {{ circ - f_d }}" stroke-dashoffset="{{ circ * 0.25 }}"
                 transform="rotate(-90 45 45)"/>
               {% endif %}
               {% if l_d > 0 %}
-              <circle cx="45" cy="45" r="34" fill="none" stroke="#d97706" stroke-width="12"
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#3b82f6" stroke-width="12"
                 stroke-dasharray="{{ l_d }} {{ circ - l_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d }}"
                 transform="rotate(-90 45 45)"/>
               {% endif %}
               {% if h_d > 0 %}
-              <circle cx="45" cy="45" r="34" fill="none" stroke="#f97316" stroke-width="12"
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#93c5fd" stroke-width="12"
                 stroke-dasharray="{{ h_d }} {{ circ - h_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d - l_d }}"
                 transform="rotate(-90 45 45)"/>
               {% endif %}
               {% if a_d > 0 %}
-              <circle cx="45" cy="45" r="34" fill="none" stroke="#ef4444" stroke-width="12"
+              <circle cx="45" cy="45" r="34" fill="none" stroke="#bfdbfe" stroke-width="12"
                 stroke-dasharray="{{ a_d }} {{ circ - a_d }}" stroke-dashoffset="{{ circ * 0.25 - f_d - l_d - h_d }}"
                 transform="rotate(-90 45 45)"/>
               {% endif %}
@@ -269,10 +269,10 @@
             </svg>
           {% endif %}
           <div class="u-d-flex u-fxd-column u-gap-5 u-fs-12">
-            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-bg-16a34a u-fxs-0"></span><span>Full Days <strong>{{ full_days }}</strong></span></div>
-            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-bg-d97706 u-fxs-0"></span><span>Late Days <strong>{{ late_days }}</strong></span></div>
-            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-bg-f97316 u-fxs-0"></span><span>Half Days <strong>{{ half_days }}</strong></span></div>
-            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-bg-ef4444 u-fxs-0"></span><span>Absent <strong>{{ absent_days }}</strong></span></div>
+            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-fxs-0" style="background:#1e40af"></span><span>Full Days <strong>{{ full_days }}</strong></span></div>
+            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-fxs-0" style="background:#3b82f6"></span><span>Late Days <strong>{{ late_days }}</strong></span></div>
+            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-fxs-0" style="background:#93c5fd"></span><span>Half Days <strong>{{ half_days }}</strong></span></div>
+            <div class="u-d-flex u-ai-center u-gap-5"><span class="u-w-8 u-h-8 u-br-3 u-fxs-0" style="background:#bfdbfe"></span><span>Absent <strong>{{ absent_days }}</strong></span></div>
           </div>
         </div>
 
@@ -282,9 +282,9 @@
           {% if upcoming_holidays %}
             {% for hdate, hname in upcoming_holidays %}
             <div class="u-d-flex u-ai-center u-gap-12 u-p-9-0 u-bdb-1-solid-f1f5f9">
-              <div class="u-bg-ede9fe u-br-8 u-p-6-10 u-ta-center u-fxs-0 u-minw-42">
-                <div class="u-fs-14 u-fw-700 u-c-6d28d9">{{ hdate.strftime('%d') if hdate else '' }}</div>
-                <div class="u-fs-10 u-c-8b5cf6 u-ttr-uppercase">{{ hdate.strftime('%b') if hdate else '' }}</div>
+              <div class="u-bg-eff6ff u-br-8 u-p-6-10 u-ta-center u-fxs-0 u-minw-42">
+                <div class="u-fs-14 u-fw-700 u-c-1d4ed8">{{ hdate.strftime('%d') if hdate else '' }}</div>
+                <div class="u-fs-10 u-c-2563eb u-ttr-uppercase">{{ hdate.strftime('%b') if hdate else '' }}</div>
               </div>
               <div class="u-fs-13 u-fw-600 u-c-1e293b">{{ hname }}</div>
             </div>
@@ -318,10 +318,9 @@
         <div class="u-fs-14 u-fw-700 u-c-1e293b u-mb-14 u-d-flex u-ai-center u-gap-8"><i class="ti ti-speakerphone hz-ico" aria-hidden="true"></i> Announcements</div>
         {% for ann_id, ann_title, ann_content, ann_pri, ann_date, ann_att in announcements %}
         <div style="border-radius:10px;padding:14px 16px;margin-bottom:10px;border-left:4px solid
-          {% if ann_pri=='Urgent' %}#ef4444{% elif ann_pri=='Important' %}#f59e0b{% else %}#3b82f6{% endif %};
-          background:{% if ann_pri=='Urgent' %}#fff5f5{% elif ann_pri=='Important' %}#fffbeb{% else %}#f0f7ff{% endif %};">
+          {% if ann_pri in ('Urgent', 'Important') %}#1d4ed8{% else %}#93c5fd{% endif %};background:#f0f7ff;">
           <div class="u-fs-13 u-fw-700 u-c-1e293b u-mb-4">
-            {% if ann_pri=='Urgent' %}<i class="ti ti-circle-filled hz-ico hz-bad" aria-hidden="true"></i>{% elif ann_pri=='Important' %}<i class="ti ti-circle-filled hz-ico hz-warn" aria-hidden="true"></i>{% else %}<i class="ti ti-speakerphone hz-ico" aria-hidden="true"></i>{% endif %}
+            <i class="ti ti-speakerphone hz-ico" aria-hidden="true"></i>
             {{ ann_title }}
             <span style="font-size:12px;font-weight:600;padding:2px 7px;border-radius:20px;margin-left:6px;
               background:{% if ann_pri=='Urgent' %}#fee2e2;color:#dc2626{% elif ann_pri=='Important' %}#fef9c3;color:#92400e{% else %}#dbeafe;color:#1e40af{% endif %};">{{ ann_pri }}</span>

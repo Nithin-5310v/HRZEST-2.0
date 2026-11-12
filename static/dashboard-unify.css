@@ -31,6 +31,11 @@ body:not(.dark-mode) .si-yellow i,
 body:not(.dark-mode) .si-red i { color: #2563eb !important; }
 .brand-icon i, .nav-icon i { color: #2563eb; }
 body:not(.dark-mode) .nav-icon { color: #2563eb; }
+/* Resignation / Logout in the employee sidebar read like every other item,
+   as Logout does in the admin sidebar (the account menu keeps its red). */
+body:not(.dark-mode) .sb-item.danger { color: #475467; }
+body:not(.dark-mode) .sb-item.danger:hover { background: #f2f4f7; color: #101828; }
+body:not(.dark-mode) .sb-item.danger .nav-icon { color: #2563eb; }
 
 /* ── One font colour (not on the blue banner / buttons / ribbon) ── */
 body:not(.dark-mode) .main :is(h1,h2,h3,h4,h5,h6,p,label,td,th,li,small,.sub,.stat-label,.stat-sub):not(.page-header *):not(.hbtn):not(.btn-blue):not(.btn-primary):not(.badge-count),
