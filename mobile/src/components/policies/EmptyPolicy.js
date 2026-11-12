@@ -32,7 +32,7 @@ export default function EmptyPolicy({
         {message}
       </Text>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.9}
         style={styles.button}
         onPress={onPress}

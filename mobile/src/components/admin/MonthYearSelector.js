@@ -59,7 +59,7 @@ export default function MonthYearSelector({
 
     <View style={styles.container}>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.9}
         style={styles.selectorCard}
         onPress={changeMonth}
@@ -91,7 +91,7 @@ export default function MonthYearSelector({
 
       </TouchableOpacity>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.9}
         style={styles.selectorCard}
         onPress={changeYear}
@@ -123,7 +123,7 @@ export default function MonthYearSelector({
 
       </TouchableOpacity>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Filter"
         activeOpacity={0.9}
         style={styles.filterButton}
         onPress={onFilterPress}

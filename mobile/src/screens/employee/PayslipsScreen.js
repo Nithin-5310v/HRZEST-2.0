@@ -27,11 +27,11 @@ function MonthPicker({ year, month, onChange }) {
   };
   return (
     <View style={mp.row}>
-      <TouchableOpacity onPress={prev} style={mp.btn}>
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" onPress={prev} style={mp.btn}>
         <Ionicons name="chevron-back" size={20} color={colors.primary} />
       </TouchableOpacity>
       <Text style={mp.label}>{MONTHS[month - 1]} {year}</Text>
-      <TouchableOpacity onPress={next} style={mp.btn}>
+      <TouchableOpacity accessibilityRole="button" onPress={next} style={mp.btn}>
         <Ionicons name="chevron-forward" size={20} color={colors.primary} />
       </TouchableOpacity>
     </View>

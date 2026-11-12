@@ -24,6 +24,7 @@ import ProfileImageCard from "../../components/profile/ProfileImageCard";
 import ProfileCompletionCard from "../../components/profile/ProfileCompletionCard";
 import ProfileMenuCard from "../../components/profile/ProfileMenuCard";
 import DigitalIdCardModal from "../../components/employee/DigitalIdCardModal";
+import { reportError } from "../../utils/crashReporting";
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -141,7 +142,7 @@ export default function ProfileScreen() {
         setEditEmergency(updated.emergencyContact);
         if (updateUser) updateUser(updated);
       }
-    } catch (_) {}
+    } catch (e) { reportError(e, { where: "ProfileScreen" }); }
     setRefreshing(false);
     setLoading(false);
   };
@@ -394,7 +395,7 @@ export default function ProfileScreen() {
           <View style={{ backgroundColor: colors.card, borderRadius: 24, padding: 24 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <Text style={{ fontSize: 15, fontWeight: "800", color: colors.text }}>Edit Profile Details</Text>
-              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setEditModalVisible(false)}>
                 <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -429,7 +430,7 @@ export default function ProfileScreen() {
               onChangeText={setEditAddress}
             />
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={styles.saveBtn}
               onPress={handleSaveProfile}
               disabled={submitting}

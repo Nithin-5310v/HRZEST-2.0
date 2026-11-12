@@ -17,6 +17,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../../store/AuthContext";
 import { useTheme } from "../../store/ThemeContext";
 import { submitLeaveRequest, fetchEmployeeLeaves, cancelLeaveRequest } from "../../api/client";
+import { localISODate, parseISODate } from "../../utils/dates";
+import { reportError } from "../../utils/crashReporting";
 
 const LEAVE_TYPES = [
   { label: "Casual Leave (CL)", value: "Casual Leave", icon: "briefcase-outline" },
@@ -52,7 +54,7 @@ function addDays(n) {
 }
 
 function toISO(d) {
-  return new Date(d).toISOString().split("T")[0];
+  return localISODate(new Date(d));
 }
 
 function fmtDate(iso) {
@@ -84,7 +86,7 @@ export default function LeaveScreen() {
     try {
       const res = await fetchEmployeeLeaves();
       if (res?.data?.ok) setHistory(res.data);
-    } catch (_) {}
+    } catch (e) { reportError(e, { where: "LeaveScreen" }); }
     setHistLoading(false);
   };
 
@@ -193,14 +195,14 @@ export default function LeaveScreen() {
 
       {/* Tab Switcher */}
       <View style={styles.tabBar}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.tabBtn, tab === "request" && styles.tabBtnActive]}
           onPress={() => setTab("request")}
         >
           <Text style={[styles.tabTxt, tab === "request" && styles.tabTxtActive]}>Apply Leave</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.tabBtn, tab === "history" && styles.tabBtnActive]}
           onPress={() => setTab("history")}
         >
@@ -259,7 +261,7 @@ export default function LeaveScreen() {
             <Text style={styles.cardTitle}>LEAVE TYPE</Text>
             <View style={styles.typeGrid}>
               {LEAVE_TYPES.map((t) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={t.value}
                   style={[styles.typeChip, leaveType === t.value && styles.typeChipActive]}
                   onPress={() => setLeaveType(t.value)}
@@ -278,7 +280,7 @@ export default function LeaveScreen() {
             <Text style={styles.cardTitle}>DURATION / SLOT</Text>
             <View style={styles.typeGrid}>
               {LEAVE_SLOTS.map((s) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={s.value}
                   style={[styles.slotChip, leaveSlot === s.value && styles.slotChipActive]}
                   onPress={() => setLeaveSlot(s.value)}
@@ -297,7 +299,7 @@ export default function LeaveScreen() {
             <Text style={styles.cardTitle}>SELECT LEAVE DATE</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {dateOptions.map((opt) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={opt.iso}
                   style={[styles.dateChip, leaveDate === opt.iso && styles.dateChipActive]}
                   onPress={() => setDate(opt.iso)}
@@ -320,7 +322,7 @@ export default function LeaveScreen() {
             <Text style={styles.cardTitle}>REASON FOR LEAVE</Text>
             <View style={styles.chips}>
               {REASONS.map((r) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={r.label}
                   style={[styles.chip, reason === r.value && styles.chipActive]}
                   onPress={() => {
@@ -347,7 +349,7 @@ export default function LeaveScreen() {
             )}
           </View>
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[styles.submitBtn, loading && { opacity: 0.6 }]}
             onPress={handleSubmit}
             disabled={loading}
@@ -375,7 +377,7 @@ export default function LeaveScreen() {
           {/* Status Filter Chips */}
           <View style={styles.filterRow}>
             {["All", "Pending", "Approved", "Rejected"].map((st) => (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 key={st}
                 style={[styles.filterChip, statusFilter === st && styles.filterChipActive]}
                 onPress={() => setStatusFilter(st)}
@@ -399,13 +401,13 @@ export default function LeaveScreen() {
           ) : (
             filteredLeaves.map((l) => {
               const st = STATUS_STYLE[l.status] || STATUS_STYLE.Pending;
-              const isFuture = new Date(l.leave_date) > new Date();
+              const isFuture = parseISODate(l.leave_date) > new Date();
               return (
                 <View key={l.id} style={styles.leaveRow}>
                   <View style={styles.leaveDateBox}>
-                    <Text style={styles.leaveDateNum}>{new Date(l.leave_date).getDate()}</Text>
+                    <Text style={styles.leaveDateNum}>{parseISODate(l.leave_date).getDate()}</Text>
                     <Text style={styles.leaveDateMon}>
-                      {new Date(l.leave_date).toLocaleString("default", { month: "short" })}
+                      {parseISODate(l.leave_date).toLocaleString("default", { month: "short" })}
                     </Text>
                   </View>
 
@@ -420,7 +422,7 @@ export default function LeaveScreen() {
                     </View>
 
                     {l.status === "Pending" && isFuture && (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         onPress={() => handleCancel(l.id, l.leave_date)}
                         disabled={cancelling === l.id}
                         style={styles.cancelBtn}

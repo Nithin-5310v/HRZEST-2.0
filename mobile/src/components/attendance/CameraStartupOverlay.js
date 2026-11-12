@@ -13,17 +13,17 @@ export default function CameraStartupOverlay({ camera, onUsePhoneCamera, onCance
       <Ionicons name="videocam-off-outline" size={44} color="rgba(255,255,255,0.6)" />
       <Text style={styles.title}>Camera not available</Text>
       <Text style={styles.text}>{camera.error}</Text>
-      <TouchableOpacity style={styles.primaryBtn} onPress={camera.retry} activeOpacity={0.85}>
+      <TouchableOpacity accessibilityRole="button" style={styles.primaryBtn} onPress={camera.retry} activeOpacity={0.85}>
         <Text style={styles.primaryTxt}>Restart camera</Text>
       </TouchableOpacity>
       {onUsePhoneCamera ? (
-        <TouchableOpacity style={styles.secondaryBtn} onPress={onUsePhoneCamera} activeOpacity={0.85}>
+        <TouchableOpacity accessibilityRole="button" style={styles.secondaryBtn} onPress={onUsePhoneCamera} activeOpacity={0.85}>
           <Ionicons name="camera-outline" size={16} color="#fff" />
           <Text style={styles.secondaryTxt}>Use phone camera</Text>
         </TouchableOpacity>
       ) : null}
       {onCancel ? (
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+        <TouchableOpacity accessibilityRole="button" style={styles.cancelBtn} onPress={onCancel}>
           <Text style={styles.cancelTxt}>Cancel</Text>
         </TouchableOpacity>
       ) : null}

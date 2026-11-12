@@ -24,7 +24,7 @@ export default function EmployeeRecentAttendance({
           </Text>
         </View>
         {navigation && (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={{ flexDirection: "row", alignItems: "center" }}
             onPress={() => navigation.navigate("Attendance")}
           >
@@ -64,7 +64,7 @@ export default function EmployeeRecentAttendance({
               : "#EF4444";
 
           return (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={index}
               activeOpacity={0.8}
               style={styles.item}

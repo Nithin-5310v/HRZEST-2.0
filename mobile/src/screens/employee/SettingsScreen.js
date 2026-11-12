@@ -24,6 +24,7 @@ import {
   requestNotificationPermission, scheduleDailyCheckinReminder, cancelDailyCheckinReminder,
 } from "../../utils/localNotifications";
 import { fetchEmployeeProfile, updateNotificationPreferences } from "../../api/client";
+import { reportError } from "../../utils/crashReporting";
 
 export default function SettingsScreen({ navigation }) {
   const { signOut } = useAuth();
@@ -40,7 +41,7 @@ export default function SettingsScreen({ navigation }) {
       try {
         const res = await fetchEmployeeProfile();
         if (res?.data?.ok) setEmailAlerts(!!res.data.profile.email_alerts_enabled);
-      } catch (_) {}
+      } catch (e) { reportError(e, { where: "SettingsScreen" }); }
     })();
   }, []);
 
@@ -104,7 +105,7 @@ export default function SettingsScreen({ navigation }) {
     danger = false,
     onPress,
   }) => (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       activeOpacity={0.8}
       style={styles.settingCard}
       onPress={onPress}

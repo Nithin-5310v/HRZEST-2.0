@@ -115,7 +115,7 @@ export default function RegistrationCompanyScreen({ navigation }) {
           />
 
           <Text style={styles.label}>COMPANY LOGO (OPTIONAL)</Text>
-          <TouchableOpacity style={styles.logoPick} onPress={pickLogo} activeOpacity={0.8}>
+          <TouchableOpacity accessibilityRole="button" style={styles.logoPick} onPress={pickLogo} activeOpacity={0.8}>
             {logo ? (
               <Image source={{ uri: logo.uri }} style={styles.logoPreview} accessibilityLabel="Chosen company logo" />
             ) : (
@@ -127,7 +127,7 @@ export default function RegistrationCompanyScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+          <TouchableOpacity accessibilityRole="button" style={styles.submitBtn} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
             {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitBtnText}>Save Company Details</Text>}
           </TouchableOpacity>
         </View>

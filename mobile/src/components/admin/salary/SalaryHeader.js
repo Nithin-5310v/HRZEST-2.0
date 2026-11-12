@@ -38,7 +38,7 @@ export default function SalaryHeader({
         </View>
       </View>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.8}
         style={styles.settingsButton}
         onPress={onSettingsPress}

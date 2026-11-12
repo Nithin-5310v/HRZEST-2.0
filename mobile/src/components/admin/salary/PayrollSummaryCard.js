@@ -181,7 +181,7 @@ export default function PayrollSummaryCard({
 
       {/* Generate Button */}
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.85}
         style={styles.button}
         onPress={onGeneratePayroll}

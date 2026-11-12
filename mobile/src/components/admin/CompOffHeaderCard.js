@@ -70,7 +70,7 @@ export default function CompOffHeaderCard({
 
         </View>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Filter"
           activeOpacity={0.85}
           style={styles.settingsButton}
           onPress={onSettings}

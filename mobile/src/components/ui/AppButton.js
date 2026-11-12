@@ -41,7 +41,7 @@ export default function AppButton({
 
   return (
 
-    <Pressable
+    <Pressable accessibilityRole="button"
 
       onPress={onPress}
 

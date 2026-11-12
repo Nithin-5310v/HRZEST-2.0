@@ -38,7 +38,7 @@ export default function EmptySalaryState({
         {subtitle}
       </Text>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.85}
         style={styles.button}
         onPress={onPress}

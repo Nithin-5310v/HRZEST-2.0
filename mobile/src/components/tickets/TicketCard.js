@@ -36,7 +36,7 @@ export default function TicketCard({
   };
 
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       activeOpacity={0.9}
       style={styles.container}
       onPress={onPress}

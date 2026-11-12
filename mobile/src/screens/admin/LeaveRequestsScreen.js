@@ -172,7 +172,7 @@ export default function LeaveRequestsScreen({ navigation }) {
           {/* Status Tabs */}
           <View style={styles.tabsRow}>
             {["Pending", "Approved", "Rejected", "All"].map((tab) => (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 key={tab}
                 style={[styles.tab, activeTab === tab && styles.tabActive]}
                 onPress={() => setActiveTab(tab)}
@@ -243,7 +243,7 @@ export default function LeaveRequestsScreen({ navigation }) {
 
                 {item.status === "Pending" && (
                   <View style={styles.actionsRow}>
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={styles.rejectBtn}
                       onPress={() => handleAction(item.id, "Rejected")}
                     >
@@ -251,7 +251,7 @@ export default function LeaveRequestsScreen({ navigation }) {
                       <Text style={styles.rejectBtnText}>Reject</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       style={styles.approveBtn}
                       onPress={() => handleAction(item.id, "Approved")}
                     >

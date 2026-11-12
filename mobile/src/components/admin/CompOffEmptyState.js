@@ -50,7 +50,7 @@ export default function CompOffEmptyState({
 
       {/* Button */}
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.85}
         style={styles.button}
         onPress={onPress}

@@ -62,7 +62,7 @@ export default function EmployeeQuickActions({ navigation }) {
       </View>
       <View style={styles.grid}>
         {ACTIONS.map(item => (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={item.title}
             activeOpacity={0.88}
             style={styles.card}

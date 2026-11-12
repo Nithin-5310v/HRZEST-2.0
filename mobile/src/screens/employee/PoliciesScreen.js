@@ -129,7 +129,7 @@ export default function PoliciesScreen() {
             />
             <View style={styles.contactCard}>
               {contactRows.map((row) => (
-                <TouchableOpacity key={row.icon} style={styles.contactRow} onPress={() => Linking.openURL(row.url)}>
+                <TouchableOpacity accessibilityRole="button" key={row.icon} style={styles.contactRow} onPress={() => Linking.openURL(row.url)}>
                   <Ionicons name={row.icon} size={18} color={colors.primary} />
                   <Text style={styles.contactText} numberOfLines={1}>{row.text}</Text>
                   <Ionicons name="open-outline" size={15} color={colors.textLight} />

@@ -22,7 +22,7 @@ export default function NotificationFilter({
           selectedFilter === filter;
 
         return (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={filter}
             activeOpacity={0.85}
             onPress={() =>

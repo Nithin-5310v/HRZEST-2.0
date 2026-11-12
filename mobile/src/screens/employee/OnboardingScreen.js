@@ -144,7 +144,7 @@ export default function OnboardingScreen() {
                         value={noteDrafts[task.id] || ""}
                         onChangeText={(t) => setNoteDrafts((prev) => ({ ...prev, [task.id]: t }))}
                       />
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         style={styles.doneBtn}
                         onPress={() => handleCompleteTask(task)}
                         disabled={completingId === task.id}

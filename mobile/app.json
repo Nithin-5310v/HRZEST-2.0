@@ -25,16 +25,24 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "CAMERA",
         "android.permission.CAMERA",
+        "android.permission.INTERNET"
+      ],
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.INTERNET"
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "plugins": [
-      "expo-camera",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "HRzest uses the camera to scan attendance QR codes and take face photos.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       "expo-asset",
       "expo-font",
       "expo-secure-store",
@@ -56,6 +64,27 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#2563EB"
+        }
+      ],
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "HRzest checks your location when you mark attendance, to confirm you are at your work location."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "HRzest lets you choose a profile or employee photo from your library.",
+          "cameraPermission": "HRzest uses the camera to take a profile or employee photo.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "HRzest can use Face ID to unlock the app."
         }
       ]
     ],

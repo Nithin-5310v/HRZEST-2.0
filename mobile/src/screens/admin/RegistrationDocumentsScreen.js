@@ -104,7 +104,7 @@ export default function RegistrationDocumentsScreen({ navigation }) {
           {DOC_SLOTS.map((slot) => {
             const picked = files[slot.key];
             return (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 key={slot.key}
                 style={[styles.docSlot, picked && styles.docSlotFilled]}
                 onPress={() => (slot.pickType === "image" ? pickImage(slot.key) : pickDocument(slot.key))}
@@ -122,7 +122,7 @@ export default function RegistrationDocumentsScreen({ navigation }) {
             );
           })}
 
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={uploading} activeOpacity={0.85}>
+          <TouchableOpacity accessibilityRole="button" style={styles.submitBtn} onPress={handleSubmit} disabled={uploading} activeOpacity={0.85}>
             {uploading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitBtnText}>Submit for Review</Text>}
           </TouchableOpacity>
         </View>

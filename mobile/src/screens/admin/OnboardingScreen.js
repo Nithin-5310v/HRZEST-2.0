@@ -183,7 +183,7 @@ export default function OnboardingScreen({ navigation }) {
               const progress = (item.tasksCompleted / item.totalTasks) * 100;
 
               return (
-                <TouchableOpacity key={item.id} style={styles.card} activeOpacity={0.85} onPress={() => openTaskModal(item)}>
+                <TouchableOpacity accessibilityRole="button" key={item.id} style={styles.card} activeOpacity={0.85} onPress={() => openTaskModal(item)}>
                   <View style={styles.cardHeader}>
                     <View style={styles.iconCircle}>
                       <Ionicons name="person-add-outline" size={20} color="#2563EB" />
@@ -256,7 +256,7 @@ export default function OnboardingScreen({ navigation }) {
                 <Text style={{ fontSize: 17, fontWeight: "800", color: colors.text }}>
                   {taskModalOnboarding?.employeeName}'s Tasks
                 </Text>
-                <TouchableOpacity onPress={() => setTaskModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setTaskModalVisible(false)}>
                   <Ionicons name="close-circle" size={26} color="#475467" />
                 </TouchableOpacity>
               </View>
@@ -269,7 +269,7 @@ export default function OnboardingScreen({ navigation }) {
                 <ScrollView showsVerticalScrollIndicator={false}>
                   {tasks.map((task) => (
                     <View key={task.id} style={{ flexDirection: "row", alignItems: "flex-start", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         onPress={() => toggleTask(task)}
                         disabled={updatingTaskId === task.id}
                         style={{

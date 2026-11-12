@@ -47,7 +47,7 @@ export default function SaasFilterSheet({
               <Ionicons name="options" size={22} color={THEME.colors.primary} />
               <Text style={styles.title}>{title}</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={20} color={THEME.colors.textPrimary || "#101828"} />
             </TouchableOpacity>
           </View>
@@ -61,7 +61,7 @@ export default function SaasFilterSheet({
                   {statusOptions.map((status) => {
                     const active = selectedStatus === status;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={status}
                         activeOpacity={0.8}
                         style={[styles.chip, active && styles.chipActive]}
@@ -85,7 +85,7 @@ export default function SaasFilterSheet({
                   {deptOptions.map((dept) => {
                     const active = selectedDept === dept;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={dept}
                         activeOpacity={0.8}
                         style={[styles.chip, active && styles.chipActive]}
@@ -109,7 +109,7 @@ export default function SaasFilterSheet({
                   {sortOptions.map((sort) => {
                     const active = selectedSort === sort;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={sort}
                         activeOpacity={0.8}
                         style={[styles.chip, active && styles.chipActive]}
@@ -133,7 +133,7 @@ export default function SaasFilterSheet({
                   {dateOptions.map((dateOpt) => {
                     const active = selectedDate === dateOpt;
                     return (
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="button"
                         key={dateOpt}
                         activeOpacity={0.8}
                         style={[styles.chip, active && styles.chipActive]}
@@ -152,11 +152,11 @@ export default function SaasFilterSheet({
 
           {/* Action Footer */}
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.resetBtn} onPress={onReset}>
+            <TouchableOpacity accessibilityRole="button" style={styles.resetBtn} onPress={onReset}>
               <Text style={styles.resetText}>Reset All</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.applyBtn} onPress={onApply || onClose}>
+            <TouchableOpacity accessibilityRole="button" style={styles.applyBtn} onPress={onApply || onClose}>
               <Text style={styles.applyText}>Apply Filters</Text>
             </TouchableOpacity>
           </View>

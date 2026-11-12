@@ -92,7 +92,7 @@ export default function IdCardScreen({ navigation, route }) {
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle-outline" size={40} color={colors.danger} />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={load}>
+            <TouchableOpacity accessibilityRole="button" style={styles.retryButton} onPress={load}>
               <Text style={styles.retryButtonText}>Try Again</Text>
             </TouchableOpacity>
           </View>
@@ -103,7 +103,7 @@ export default function IdCardScreen({ navigation, route }) {
               style={styles.cardImage}
               resizeMode="contain"
             />
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity accessibilityRole="button" style={styles.saveButton} onPress={handleSave} disabled={saving}>
               {saving ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (

@@ -11,7 +11,7 @@ jest.mock('../../api/client', () => ({
 
 // Stateful, not just resolved-value stubs -- employeeStore.js now persists
 // its locally-created-employee cache through secureStorage.js (native ->
-// expo-secure-store), so these tests' saveLocalEmployee()/getLocalEmployees()
+// expo-secure-store), so these tests' secure-storage reads and writes
 // round trips need a fake that actually remembers what was written, not one
 // that always resolves the same static value regardless of prior calls.
 jest.mock('expo-secure-store', () => {
@@ -53,18 +53,19 @@ jest.mock('../../utils/pushNotifications', () => ({
 }));
 
 import { AuthProvider, useAuth } from '../AuthContext';
-import { saveLocalEmployee, getLocalEmployees } from '../../utils/employeeStore';
 import { queuePunch, getPendingPunches } from '../../utils/offlineQueue';
 import { __store as secureStoreBackingStore } from 'expo-secure-store';
 
-// AuthContext.signIn()/signOut() are responsible for keeping two plain
-// (non-account-scoped) AsyncStorage caches -- employeeStore's locally-
-// created-employee list and offlineQueue's pending punch queue -- from
-// bleeding across accounts on a shared device. See the "Cross-tenant data
-// bleed on device reuse" fix: neither cache carries a company/account id
-// of its own, so isolation has to be enforced at the sign-in/sign-out
-// boundary instead.
-describe('AuthContext cross-account cache isolation', () => {
+const OLD_STAFF_CACHE = '@custom_created_employees_v1';
+const allPunches = async () => JSON.parse((await AsyncStorage.getItem('offline_punch_queue')) || '[]');
+
+// Offline punches are tagged with the account that made them
+// (utils/offlineQueue.js): AuthContext tells the queue whose session it is,
+// so a punch is only ever sent with its owner's own login. Signing out or
+// another account signing in on the same phone no longer deletes it.
+// The staff-list copy older versions kept is removed whenever the account
+// changes or someone signs out.
+describe('AuthContext offline punches and old caches', () => {
   const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
 
   beforeEach(async () => {
@@ -72,72 +73,105 @@ describe('AuthContext cross-account cache isolation', () => {
     secureStoreBackingStore.clear();
   });
 
-  it('keeps cached data when the same account signs in again', async () => {
+  it('keeps punches when the same account signs in again', async () => {
     const { result } = await renderHook(() => useAuth(), { wrapper });
     await act(async () => {
       await result.current.signIn('tok1', { role: 'employee', employeeId: 'E1', name: 'Alice' });
     });
     await act(async () => {
-      await saveLocalEmployee({ employee_id: 'X1', name: 'Cached' });
       await queuePunch(1, 2);
     });
-
     await act(async () => {
       await result.current.signIn('tok2', { role: 'employee', employeeId: 'E1', name: 'Alice' });
     });
-
-    expect(await getLocalEmployees()).toHaveLength(1);
     expect(await getPendingPunches()).toHaveLength(1);
   });
 
-  it('wipes cached data when a different account signs in', async () => {
+  it("never offers one person's punches to a different account", async () => {
     const { result } = await renderHook(() => useAuth(), { wrapper });
     await act(async () => {
       await result.current.signIn('tok1', { role: 'employee', employeeId: 'E1', name: 'Alice' });
     });
     await act(async () => {
-      await saveLocalEmployee({ employee_id: 'X1', name: 'Cached' });
       await queuePunch(1, 2);
     });
-
     await act(async () => {
       await result.current.signIn('tok2', { role: 'employee', employeeId: 'E2', name: 'Bob' });
     });
+    expect(await getPendingPunches()).toHaveLength(0);
+    // Alice's punch is still on the phone for when she signs back in.
+    expect(await allPunches()).toHaveLength(1);
+    await act(async () => {
+      await result.current.signIn('tok3', { role: 'employee', employeeId: 'E1', name: 'Alice' });
+    });
+    expect(await getPendingPunches()).toHaveLength(1);
+  });
 
-    expect(await getLocalEmployees()).toHaveLength(0);
+  it('separates the same id across admin vs employee and across companies', async () => {
+    const { result } = await renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.signIn('tok1', { role: 'employee', employeeId: 'E1', companySlug: 'acme' });
+    });
+    await act(async () => {
+      await queuePunch(1, 2);
+    });
+    await act(async () => {
+      await result.current.signIn('tok2', { role: 'employee', employeeId: 'E1', companySlug: 'globex' });
+    });
+    expect(await getPendingPunches()).toHaveLength(0);
+    await act(async () => {
+      await result.current.signIn('tok3', { role: 'admin', name: 'E1', companySlug: 'acme' });
+    });
     expect(await getPendingPunches()).toHaveLength(0);
   });
 
-  it('wipes cached data across admin vs employee role, even with an overlapping identifier', async () => {
+  it('keeps unsent punches through sign-out (they used to be deleted)', async () => {
     const { result } = await renderHook(() => useAuth(), { wrapper });
     await act(async () => {
-      await result.current.signIn('tok1', { role: 'admin', name: 'E1' });
+      await result.current.signIn('tok1', { role: 'employee', employeeId: 'E1', name: 'Alice' });
     });
     await act(async () => {
-      await saveLocalEmployee({ employee_id: 'X1', name: 'Cached' });
+      await queuePunch(1, 2);
     });
-
+    await act(async () => {
+      await result.current.signOut();
+    });
+    expect(await getPendingPunches()).toHaveLength(0); // nobody signed in
+    expect(await allPunches()).toHaveLength(1);
     await act(async () => {
       await result.current.signIn('tok2', { role: 'employee', employeeId: 'E1', name: 'Alice' });
     });
-
-    expect(await getLocalEmployees()).toHaveLength(0);
+    expect(await getPendingPunches()).toHaveLength(1);
   });
 
-  it('wipes cached data when the same username signs in at a different company', async () => {
+  it('drops punches with no recorded owner when the account changes', async () => {
+    await AsyncStorage.setItem('offline_punch_queue', JSON.stringify([
+      { id: 'legacy', punched_at: new Date().toISOString(), lat: 1, lon: 2 },
+    ]));
+    await AsyncStorage.setItem('device_session_owner', 'employee::E1');
     const { result } = await renderHook(() => useAuth(), { wrapper });
     await act(async () => {
-      await result.current.signIn('tok1', { role: 'admin', name: 'admin', companySlug: 'acme' });
+      await result.current.signIn('tok2', { role: 'employee', employeeId: 'E2', name: 'Bob' });
     });
-    await act(async () => {
-      await saveLocalEmployee({ employee_id: 'X1', name: 'Cached' });
-    });
+    expect(await allPunches()).toHaveLength(0);
+  });
 
+  it("removes the old staff-list copy on sign-out and when the account changes", async () => {
+    const { result } = await renderHook(() => useAuth(), { wrapper });
     await act(async () => {
-      await result.current.signIn('tok2', { role: 'admin', name: 'admin', companySlug: 'globex' });
+      await result.current.signIn('tok1', { role: 'admin', name: 'admin1' });
     });
+    secureStoreBackingStore.set(OLD_STAFF_CACHE, '[{"employee_id":"X1"}]');
+    await act(async () => {
+      await result.current.signOut();
+    });
+    expect(secureStoreBackingStore.has(OLD_STAFF_CACHE)).toBe(false);
 
-    expect(await getLocalEmployees()).toHaveLength(0);
+    secureStoreBackingStore.set(OLD_STAFF_CACHE, '[{"employee_id":"X1"}]');
+    await act(async () => {
+      await result.current.signIn('tok2', { role: 'admin', name: 'admin2' });
+    });
+    expect(secureStoreBackingStore.has(OLD_STAFF_CACHE)).toBe(false);
   });
 
   it('sends the API to the signed-in company, and back to the default one on signOut()', async () => {
@@ -156,47 +190,4 @@ describe('AuthContext cross-account cache isolation', () => {
     expect(setCompanySlug).toHaveBeenLastCalledWith('');
   });
 
-  it('wipes cached data on a clean signOut()', async () => {
-    const { result } = await renderHook(() => useAuth(), { wrapper });
-    await act(async () => {
-      await result.current.signIn('tok1', { role: 'admin', name: 'admin1' });
-    });
-    await act(async () => {
-      await saveLocalEmployee({ employee_id: 'X1', name: 'Cached' });
-    });
-
-    await act(async () => {
-      await result.current.signOut();
-    });
-
-    expect(await getLocalEmployees()).toHaveLength(0);
-  });
-
-  it('detects a mismatch after an unclean kill (no signOut) followed by a different account', async () => {
-    // First "session": sign in, cache data, then the component tree is
-    // torn down without ever calling signOut() -- simulating the app
-    // being killed outright rather than the user logging out.
-    const first = await renderHook(() => useAuth(), { wrapper });
-    await act(async () => {
-      await first.result.current.signIn('tok1', { role: 'admin', name: 'admin1' });
-    });
-    await act(async () => {
-      await saveLocalEmployee({ employee_id: 'X1', name: 'Cached' });
-    });
-    first.unmount();
-
-    // Fresh mount (simulating an app relaunch) -- a different account logs in.
-    const second = await renderHook(() => useAuth(), { wrapper });
-    await act(async () => {
-      await second.result.current.signIn('tok2', { role: 'admin', name: 'admin2' });
-    });
-
-    expect(await getLocalEmployees()).toHaveLength(0);
-    // Unlike `first` above, this tree was never explicitly unmounted --
-    // left dangling, it bled into whichever describe block ran next
-    // (surfaced by adding the push-notification tests below: their
-    // renderHook() calls intermittently got back a null context, and RTL
-    // warned of "overlapping act() calls").
-    second.unmount();
-  });
 });

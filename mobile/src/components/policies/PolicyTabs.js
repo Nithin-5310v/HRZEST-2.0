@@ -32,7 +32,7 @@ export default function PolicyTabs({
         const active = selectedTab === tab;
 
         return (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={tab}
             activeOpacity={0.85}
             style={[

@@ -39,7 +39,7 @@ export default function CompOffSegmentTabs({
         const active = selectedTab === tab.key;
 
         return (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={tab.key}
             activeOpacity={0.85}
             style={[

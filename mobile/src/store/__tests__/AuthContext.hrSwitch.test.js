@@ -101,6 +101,12 @@ describe('AuthContext HR <-> employee view', () => {
     await act(async () => {
       await result.current.switchBackToHr();
     });
+    // Back in the HR panel the punch isn't the HR login's to send...
+    expect(await getPendingPunches()).toHaveLength(0);
+    // ...but it's still there for their own employee view.
+    await act(async () => {
+      await result.current.switchToEmployeeView();
+    });
     expect(await getPendingPunches()).toHaveLength(1);
   });
 

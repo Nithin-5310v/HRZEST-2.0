@@ -185,7 +185,7 @@ export default function OrganizationScreen({ navigation }) {
   const renderDetails = () => (
     <>
       <View style={[styles.card, styles.identity]}>
-        <TouchableOpacity onPress={changeLogo} disabled={logoBusy} accessibilityLabel="Change logo">
+        <TouchableOpacity accessibilityRole="button" onPress={changeLogo} disabled={logoBusy} accessibilityLabel="Change logo">
           <View style={styles.logo}>
             {logoBusy ? (
               <ActivityIndicator color={colors.primary} />
@@ -208,7 +208,7 @@ export default function OrganizationScreen({ navigation }) {
         <View style={styles.cardHead}>
           <Text style={styles.cardTitle}>Company details</Text>
           {!editing ? (
-            <TouchableOpacity style={styles.editBtn} onPress={startEdit}>
+            <TouchableOpacity accessibilityRole="button" style={styles.editBtn} onPress={startEdit}>
               <Ionicons name="create-outline" size={15} color={colors.primary} />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
@@ -235,10 +235,10 @@ export default function OrganizationScreen({ navigation }) {
               </View>
             ))}
             <View style={styles.actions}>
-              <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={() => setEditing(false)} disabled={saving}>
+              <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnGhost]} onPress={() => setEditing(false)} disabled={saving}>
                 <Text style={styles.btnGhostText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.btnPrimary]} onPress={saveDetails} disabled={saving}>
+              <TouchableOpacity accessibilityRole="button" style={[styles.btn, styles.btnPrimary]} onPress={saveDetails} disabled={saving}>
                 {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.btnPrimaryText}>Save changes</Text>}
               </TouchableOpacity>
             </View>
@@ -276,7 +276,7 @@ export default function OrganizationScreen({ navigation }) {
           onCancel={() => setEditor(null)}
         />
       ) : (
-        <TouchableOpacity style={styles.addBtn} onPress={() => setEditor({ policy: null })}>
+        <TouchableOpacity accessibilityRole="button" style={styles.addBtn} onPress={() => setEditor({ policy: null })}>
           <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
           <Text style={styles.addBtnText}>Add a policy</Text>
         </TouchableOpacity>
@@ -305,15 +305,15 @@ export default function OrganizationScreen({ navigation }) {
           <Text style={styles.policyTitle}>{p.title}</Text>
           <Text style={styles.policyBody} numberOfLines={3}>{p.body}</Text>
           <View style={styles.policyActions}>
-            <TouchableOpacity style={styles.policyAction} onPress={() => setEditor({ policy: p })}>
+            <TouchableOpacity accessibilityRole="button" style={styles.policyAction} onPress={() => setEditor({ policy: p })}>
               <Ionicons name="create-outline" size={15} color={colors.primary} />
               <Text style={styles.policyActionText}>Edit</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.policyAction} onPress={() => togglePublished(p)}>
+            <TouchableOpacity accessibilityRole="button" style={styles.policyAction} onPress={() => togglePublished(p)}>
               <Ionicons name={p.is_published ? "eye-off-outline" : "eye-outline"} size={15} color={colors.primary} />
               <Text style={styles.policyActionText}>{p.is_published ? "Unpublish" : "Publish"}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.policyAction} onPress={() => confirmDelete(p)}>
+            <TouchableOpacity accessibilityRole="button" style={styles.policyAction} onPress={() => confirmDelete(p)}>
               <Ionicons name="trash-outline" size={15} color={colors.danger} />
               <Text style={[styles.policyActionText, { color: colors.danger }]}>Delete</Text>
             </TouchableOpacity>

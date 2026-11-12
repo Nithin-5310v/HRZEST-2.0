@@ -14,7 +14,7 @@ export default function YearSelector({
 }) {
   return (
     <View style={styles.container}>
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.85}
         style={styles.button}
         onPress={onPrevious}
@@ -42,7 +42,7 @@ export default function YearSelector({
         </Text>
       </View>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.85}
         style={styles.button}
         onPress={onNext}
