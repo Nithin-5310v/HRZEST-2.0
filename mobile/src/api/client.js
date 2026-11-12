@@ -131,7 +131,26 @@ export const adminLogout = () => client.post('/api/logout');
 
 export const fetchDashboard = () => client.get('/api/dashboard');
 
-export const fetchEmployees = () => client.get('/api/employees');
+// The whole staff list. The server pages it (it used to send only the
+// first 50, so bigger companies saw part of their staff and search missed
+// the rest); this asks for 500 a page and follows the pages to the end.
+// Answers like a single response: { data: { ok, total, employees } }.
+const EMPLOYEES_PAGE = 500;
+export const fetchEmployees = async () => {
+  const first = await client.get('/api/employees', { params: { page: 1, per_page: EMPLOYEES_PAGE } });
+  const data = first?.data || {};
+  if (!data.ok) return first;
+  const employees = [...(data.employees || [])];
+  const total = Number(data.total) || employees.length;
+  const pageSize = Number(data.per_page) || EMPLOYEES_PAGE;
+  for (let page = 2; employees.length < total && page <= Math.ceil(total / pageSize); page += 1) {
+    const next = await client.get('/api/employees', { params: { page, per_page: EMPLOYEES_PAGE } });
+    const more = next?.data?.employees || [];
+    if (!more.length) break;
+    employees.push(...more);
+  }
+  return { ...first, data: { ...data, employees, total } };
+};
 
 // ── Admin: Mark Attendance ──────────────────────────────────────────
 export const fetchAttendanceEmployees = (date) =>
@@ -261,8 +280,15 @@ export const fetchMyEmployeeSession = () => client.post('/api/hr/my_employee_ses
 // and attendance endpoints, which is all the Me tab needs.
 export const fetchAdminMe = () => client.get('/api/admin/me');
 
+// The signed-in employee's OWN photo (Profile screen).
 export const uploadEmployeePhoto = (formData) =>
   client.post('/api/employee/photo', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
+
+// An admin setting another employee's photo (Staff screen). Not the route
+// above: that one always changes the token's own record.
+export const uploadPhotoForEmployee = (empId, formData) =>
+  client.post(`/api/employees/${encodeURIComponent(empId)}/photo`, formData,
+    { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });
 
 export const qrFaceCheckin = (formData) =>
   client.post('/api/employee/qr-face-checkin', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 30000 });

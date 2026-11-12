@@ -156,14 +156,14 @@ export default function DocumentsScreen({ navigation }) {
         >
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{selectedEmpId ? `Documents for ${selectedEmpId}` : `All Documents (${docs.length})`}</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={openUploadModal}>
+            <TouchableOpacity accessibilityRole="button" style={styles.addBtn} onPress={openUploadModal}>
               <Ionicons name="add" size={18} color="#FFFFFF" />
               <Text style={styles.addBtnText}>Upload</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[styles.filterChip, !selectedEmpId && styles.filterChipActive]}
               onPress={() => setSelectedEmpId("")}
             >
@@ -172,7 +172,7 @@ export default function DocumentsScreen({ navigation }) {
             {employees.map((e) => {
               const eid = e.employee_id || e.id;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={eid}
                   style={[styles.filterChip, selectedEmpId === eid && styles.filterChipActive]}
                   onPress={() => setSelectedEmpId(eid)}
@@ -205,7 +205,7 @@ export default function DocumentsScreen({ navigation }) {
                     {doc.expiry_date ? ` • Expires ${doc.expiry_date}` : ""}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => handleDelete(doc)} disabled={deletingId === doc.id} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete" onPress={() => handleDelete(doc)} disabled={deletingId === doc.id} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   {deletingId === doc.id ? <ActivityIndicator size="small" color={colors.danger} /> : <Ionicons name="trash-outline" size={20} color={colors.danger} />}
                 </TouchableOpacity>
               </View>
@@ -220,7 +220,7 @@ export default function DocumentsScreen({ navigation }) {
             <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, maxHeight: "85%" }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#EEF1F5" }}>
                 <Text style={{ fontSize: 18, fontWeight: "800", color: colors.text }}>Upload Document</Text>
-                <TouchableOpacity onPress={() => setUploadModalVisible(false)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setUploadModalVisible(false)}>
                   <Ionicons name="close-circle" size={26} color="#475467" />
                 </TouchableOpacity>
               </View>
@@ -238,7 +238,7 @@ export default function DocumentsScreen({ navigation }) {
                 <Text style={{ fontSize: 11, fontWeight: "700", color: "#475467", marginBottom: 6 }}>DOCUMENT TYPE</Text>
                 <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                   {DOC_TYPES.map((t) => (
-                    <TouchableOpacity
+                    <TouchableOpacity accessibilityRole="button"
                       key={t}
                       onPress={() => setDocType(t)}
                       style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: docType === t ? "#2563EB" : "#EEF1F5" }}
@@ -248,7 +248,7 @@ export default function DocumentsScreen({ navigation }) {
                   ))}
                 </View>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   onPress={handlePickPhoto}
                   style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: "#BFDBFE", borderStyle: "dashed", borderRadius: 14, padding: 20, alignItems: "center", marginBottom: 16 }}
                 >
@@ -258,7 +258,7 @@ export default function DocumentsScreen({ navigation }) {
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={{ backgroundColor: "#2563EB", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
                   onPress={handleUpload}
                   disabled={uploading}

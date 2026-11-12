@@ -84,7 +84,7 @@ export default function AttendanceOverviewCard({
   ];
 
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       activeOpacity={0.92}
       style={styles.card}
       onPress={() => {

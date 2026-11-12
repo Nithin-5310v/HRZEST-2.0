@@ -119,7 +119,7 @@ export default function ExperienceScreen() {
         title="Experience"
         showBack
         rightAction={
-          <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <TouchableOpacity accessibilityRole="button" onPress={() => setModalVisible(true)}>
             <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
           </TouchableOpacity>
         }
@@ -164,7 +164,7 @@ export default function ExperienceScreen() {
                   </View>
                   {!!entry.description && <Text style={styles.cardDesc}>{entry.description}</Text>}
                 </View>
-                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(entry)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete" style={styles.deleteBtn} onPress={() => handleDelete(entry)}>
                   <Ionicons name="trash-outline" size={18} color={colors.danger} />
                 </TouchableOpacity>
               </View>
@@ -178,7 +178,7 @@ export default function ExperienceScreen() {
           <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: 8 }}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Experience</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setModalVisible(false)}>
                 <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -213,7 +213,7 @@ export default function ExperienceScreen() {
               placeholder="What did you work on?"
             />
 
-            <TouchableOpacity style={styles.saveModalBtn} onPress={handleAdd} disabled={saving}>
+            <TouchableOpacity accessibilityRole="button" style={styles.saveModalBtn} onPress={handleAdd} disabled={saving}>
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveModalBtnText}>Add Experience</Text>}
             </TouchableOpacity>
           </ScrollView>

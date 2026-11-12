@@ -33,6 +33,8 @@ import AttendanceHistoryCard from "../../components/attendance/AttendanceHistory
 import AttendanceEmptyState from "../../components/attendance/AttendanceEmptyState";
 
 import ProfileHeader from "../../components/profile/ProfileHeader";
+import { localISODate } from "../../utils/dates";
+import { reportError } from "../../utils/crashReporting";
 
 export default function AttendanceScreen() {
   const navigation = useNavigation();
@@ -66,7 +68,7 @@ export default function AttendanceScreen() {
         loadedMonth.current = key;
         ok = true;
       }
-    } catch {}
+    } catch (e) { reportError(e, { where: "AttendanceScreen" }); }
     if (!ok && loadedMonth.current !== key) {
       setAttendance([]);
       loadedMonth.current = key;
@@ -100,7 +102,7 @@ export default function AttendanceScreen() {
     } catch (_) {}
 
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const todayIso = new Date().toISOString().split("T")[0];
+    const todayIso = localISODate();
 
     try {
       const res = await employeeCheckin(lat, lon, { mocked, device_id: await getDeviceId() });
@@ -193,7 +195,7 @@ export default function AttendanceScreen() {
   const percentage = totalMarked === 0 ? 0 : Math.round((present / totalMarked) * 100);
 
   // Today's or latest attendance record
-  const todayIso = new Date().toISOString().split("T")[0];
+  const todayIso = localISODate();
   const todayRecord = attendance.find((x) => x.date === todayIso) || attendance[0] || {};
 
   const checkInTime = todayRecord.login_time || todayRecord.check_in || "--:--";

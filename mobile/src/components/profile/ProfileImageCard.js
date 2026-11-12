@@ -38,7 +38,7 @@ export default function ProfileImageCard({
           </View>
         )}
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Take photo"
           activeOpacity={0.85}
           style={styles.cameraButton}
           onPress={onChangePhoto}
@@ -79,7 +79,7 @@ export default function ProfileImageCard({
 
       {/* Actions */}
       <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           activeOpacity={0.85}
           style={[styles.editButton, { flex: 1 }]}
           onPress={onEditProfile}
@@ -89,7 +89,7 @@ export default function ProfileImageCard({
         </TouchableOpacity>
 
         {onViewIdCard && (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             activeOpacity={0.85}
             style={[styles.editButton, { flex: 1, backgroundColor: "#101828" }]}
             onPress={onViewIdCard}

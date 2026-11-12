@@ -112,7 +112,7 @@ export default function EducationScreen() {
         title="Education"
         showBack
         rightAction={
-          <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <TouchableOpacity accessibilityRole="button" onPress={() => setModalVisible(true)}>
             <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
           </TouchableOpacity>
         }
@@ -150,7 +150,7 @@ export default function EducationScreen() {
                     {entry.percentage ? ` • ${entry.percentage}%` : ""}
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(entry)}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Delete" style={styles.deleteBtn} onPress={() => handleDelete(entry)}>
                   <Ionicons name="trash-outline" size={18} color={colors.danger} />
                 </TouchableOpacity>
               </View>
@@ -164,7 +164,7 @@ export default function EducationScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Education</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setModalVisible(false)}>
                 <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -181,7 +181,7 @@ export default function EducationScreen() {
             <Text style={styles.inputLabel}>PERCENTAGE / CGPA</Text>
             <TextInput style={styles.input} value={percentage} onChangeText={setPercentage} keyboardType="decimal-pad" placeholder="e.g. 78.5" />
 
-            <TouchableOpacity style={styles.saveModalBtn} onPress={handleAdd} disabled={saving}>
+            <TouchableOpacity accessibilityRole="button" style={styles.saveModalBtn} onPress={handleAdd} disabled={saving}>
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveModalBtnText}>Add Education</Text>}
             </TouchableOpacity>
           </View>

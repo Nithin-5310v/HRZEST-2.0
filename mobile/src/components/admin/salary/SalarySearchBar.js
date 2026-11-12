@@ -37,7 +37,7 @@ export default function SalarySearchBar({
         />
 
         {value?.length > 0 && (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close"
             activeOpacity={0.7}
             onPress={onClear}
             style={styles.clearButton}
@@ -52,7 +52,7 @@ export default function SalarySearchBar({
       </View>
 
       {onFilterPress && (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Filter"
           activeOpacity={0.8}
           style={[styles.filterButton, hasActiveFilter && styles.filterButtonActive]}
           onPress={onFilterPress}

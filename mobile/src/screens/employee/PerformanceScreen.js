@@ -70,7 +70,7 @@ function ReviewCard({ review, onSubmitComment, submittingId }) {
         onChangeText={setComment}
         multiline
       />
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={styles.commentBtn}
         onPress={() => onSubmitComment(review.id, comment)}
         disabled={isSubmitting}

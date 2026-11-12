@@ -83,7 +83,7 @@ function TicketCard({ ticket, onUpdate }) {
   return (
     <View style={styles.card}>
       {/* Card Header Tap Area */}
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.7}
         onPress={() => setExpanded((e) => !e)}
         style={styles.cardHeader}
@@ -163,7 +163,7 @@ function TicketCard({ ticket, onUpdate }) {
             {STATUSES.map((s) => {
               const active = status === s;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={s}
                   activeOpacity={0.7}
                   style={[styles.chip, active && styles.chipActive]}
@@ -190,7 +190,7 @@ function TicketCard({ ticket, onUpdate }) {
           />
 
           {/* Save Button */}
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             activeOpacity={0.8}
             style={styles.btnSave}
             onPress={save}
@@ -312,7 +312,7 @@ export default function AdminTicketsScreen() {
             {["All", "Open", "In Progress", "Resolved", "Closed"].map((f) => {
               const active = filter === f;
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={f}
                   activeOpacity={0.7}
                   style={[styles.filterChip, active && styles.filterChipActive]}

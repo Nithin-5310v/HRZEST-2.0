@@ -31,7 +31,7 @@ export default function EmptyTickets({
         from HR, IT, Payroll, or Administration.
       </Text>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.9}
         style={styles.button}
         onPress={onCreateTicket}

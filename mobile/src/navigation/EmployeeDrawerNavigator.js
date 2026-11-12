@@ -2,11 +2,14 @@ import React from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import AttendanceScreen from "../screens/employee/AttendanceScreen";
 import EmployeeNavigator from "./EmployeeNavigator";
+import useOfflineSync from "../utils/useOfflineSync";
 import EmployeeDrawerContent from "../screens/employee/EmployeeDrawerContent";
 
 const Drawer = createDrawerNavigator();
 
 export default function EmployeeDrawerNavigator() {
+  // Punches saved offline go out from anywhere in the app, not just the Dashboard.
+  useOfflineSync();
   return (
     <Drawer.Navigator
       initialRouteName="EmployeeTabs"

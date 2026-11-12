@@ -59,7 +59,7 @@ export default function RecentActivityList({
           Recent Activity
         </Text>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           activeOpacity={0.8}
           onPress={onViewAll}
         >

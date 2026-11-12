@@ -817,6 +817,39 @@ def _api_hr_username():
     return g.api_user if row and row[0] == HR_ROLE else None
 
 
+# Attendance types with no working hours: stored without check-in/out times.
+_NO_TIME_TYPES = ("Absent", "Leave", "Holiday", "Week Off")
+
+
+def _clean_hhmm(value):
+    """'09:05' / '09:05:00' -> '09:05'; anything else -> None."""
+    text = str(value or "").strip()[:5]
+    try:
+        datetime.datetime.strptime(text, "%H:%M")
+    except ValueError:
+        return None
+    return text
+
+
+def _audit_manual_marks(cursor, date_obj, rows, existing):
+    """One audit_logs row per manual mark from the app, with the account
+    that made it (an API call has no web session for _audit() to read). An
+    admin changing their own linked profile is flagged as a self-edit."""
+    from utils.own_profile import linked_employee_id
+    actor = getattr(g, "api_user", None) or "api"
+    own_id = linked_employee_id(cursor, actor)
+    for eid, _date, login_t, logout_t, att_type in rows:
+        action = "update_attendance" if eid in existing else "mark_attendance"
+        if eid in (own_id, actor):
+            action += "_self"
+        cursor.execute(
+            "INSERT INTO audit_logs (actor, actor_type, action, target_table, target_id, detail, ip_address) "
+            "VALUES (%s,'admin',%s,'attendance',%s,%s,%s)",
+            (actor, action, eid,
+             f"{date_obj.isoformat()}: {att_type} {login_t or '--'}-{logout_t or '--'} (mobile app)",
+             request.remote_addr or ""))
+
+
 @attendance_bp.route("/api/bulk_mark_attendance", methods=["GET", "POST"])
 @api_required
 def api_bulk_mark_attendance():
@@ -845,15 +878,23 @@ def api_bulk_mark_attendance():
         rows = []
         for r in records:
             eid = r.get("emp_id") or r.get("employee_id")
-            att_type = r.get("attendance_type", "").strip()
+            att_type = (r.get("attendance_type") or "").strip()
             if not eid or not att_type or eid not in allowed_ids:
                 continue
-            login_t = r.get("login_time") or None
-            logout_t = r.get("logout_time") or None
+            login_t = _clean_hhmm(r.get("login_time"))
+            logout_t = _clean_hhmm(r.get("logout_time"))
+            if att_type in _NO_TIME_TYPES:
+                # Nobody worked: a shift's default 09:00-18:00 must not be
+                # stored as check-in/out times (the app used to send them).
+                login_t = logout_t = None
             rows.append((eid, date_obj, login_t, logout_t, att_type))
 
         saved = len(rows)
         if rows:
+            # Which of these already had a record: an update, not a first mark.
+            cursor.execute("SELECT employee_id FROM attendance WHERE date=%s AND employee_id = ANY(%s)",
+                           (date_obj, [row[0] for row in rows]))
+            existing = {row[0] for row in cursor.fetchall()}
             placeholders = ",".join(["(%s,%s,%s,%s,%s,'Manual','Manual')"] * len(rows))
             params = [v for row in rows for v in row]
             cursor.execute(
@@ -864,6 +905,7 @@ def api_bulk_mark_attendance():
                 "attendance_type=EXCLUDED.attendance_type, status='Manual', logout_status='Manual'",
                 params
             )
+            _audit_manual_marks(cursor, date_obj, rows, existing)
             db.commit()
         cursor.close()
         db.close()
@@ -892,7 +934,8 @@ def api_bulk_mark_attendance():
     """, (_hr_user,) if _hr_user else ())  # nosec B608 -- _hr_filter is a fixed literal, value is %s-bound
     emp_rows = cursor.fetchall()
 
-    cursor.execute("SELECT employee_id, login_time, logout_time, attendance_type FROM attendance WHERE date=%s", (date_obj,))
+    cursor.execute("SELECT employee_id, login_time, logout_time, attendance_type, status "
+                   "FROM attendance WHERE date=%s", (date_obj,))
     att_map = {r[0]: r for r in cursor.fetchall()}
     cursor.close()
     db.close()
@@ -909,9 +952,14 @@ def api_bulk_mark_attendance():
             "shift_start": r[4],
             "shift_end": r[5],
             "work_mode": r[6],
-            "attendance_type": att[3] if att else "",
-            "login_time": str(att[1]) if att and att[1] else None,
-            "logout_time": str(att[2]) if att and att[2] else None,
+            "attendance_type": (att[3] or "") if att else "",
+            # HH:MM -- a check-in's time carries seconds and microseconds.
+            "login_time": att[1].strftime("%H:%M") if att and att[1] else None,
+            "logout_time": att[2].strftime("%H:%M") if att and att[2] else None,
+            # How the day was recorded: "Late Login", "Half Day Login", ...,
+            # or "Manual" for an admin's entry; None when nothing is recorded.
+            "status": (att[4] or None) if att else None,
+            "marked": bool(att),
         })
 
     return jsonify({"ok": True, "date": date_obj.isoformat(), "employees": employees})

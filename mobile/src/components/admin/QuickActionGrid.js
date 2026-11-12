@@ -45,7 +45,7 @@ export default function QuickActionGrid({ navigation }) {
 
       <View style={styles.grid}>
         {ACTIONS.map((item) => (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={item.title}
             activeOpacity={0.85}
             style={styles.card}

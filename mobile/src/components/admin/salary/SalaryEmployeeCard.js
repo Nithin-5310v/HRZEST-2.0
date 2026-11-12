@@ -143,7 +143,7 @@ export default function SalaryEmployeeCard({
 
       {/* Actions */}
       <View style={styles.actionRow}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={styles.actionButton}
           onPress={() => onView && onView(employee)}
         >
@@ -155,7 +155,7 @@ export default function SalaryEmployeeCard({
           <Text style={styles.actionText}>View</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={styles.actionButton}
           onPress={() => onDownload && onDownload(employee)}
         >
@@ -167,7 +167,7 @@ export default function SalaryEmployeeCard({
           <Text style={styles.actionText}>Download</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={styles.actionButton}
           onPress={() => onEmail && onEmail(employee)}
         >

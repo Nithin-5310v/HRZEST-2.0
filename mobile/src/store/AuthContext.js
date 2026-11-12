@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -8,7 +9,7 @@ import {
 import { secureGetItem, secureSetItem, secureMultiRemove } from '../utils/secureStorage';
 import { getBiometricLockEnabled, setLastCompanySlug } from '../utils/preferences';
 import { clearLocalEmployees } from '../utils/employeeStore';
-import { clearQueue as clearOfflinePunchQueue } from '../utils/offlineQueue';
+import { pruneQueue, setQueueOwner } from '../utils/offlineQueue';
 import { registerForPushNotifications } from '../utils/pushNotifications';
 
 const AuthContext = createContext(null);
@@ -40,18 +41,27 @@ const ownerKeyFor = (userData) =>
   `${userData?.role || 'unknown'}:${userData?.companySlug || ''}:` +
   `${userData?.role === 'employee' ? userData?.employeeId : userData?.name}`;
 
-// Wipes every locally-persisted, non-session-keyed cache this app keeps --
-// currently the admin-side "created employees" cache and the employee-side
-// offline attendance punch queue. Called whenever the account about to use
-// the device differs from whichever account last did (see
-// DEVICE_SESSION_OWNER_KEY above), and unconditionally on every clean
-// signOut(), so neither survives into a different account's session on the
-// same device.
+// Called whenever the account about to use the device differs from
+// whichever account last did (see DEVICE_SESSION_OWNER_KEY above), and on
+// every clean signOut(). Removes the staff-list copy older versions kept,
+// and offline punches with no known owner or too old to sync. Punches with
+// an owner stay: each is sent only under its owner's own login
+// (offlineQueue.js), so it survives sign-out instead of being lost.
 const clearCrossAccountCaches = async () => {
   await Promise.all([
     clearLocalEmployees().catch(() => {}),
-    clearOfflinePunchQueue().catch(() => {}),
+    pruneQueue().catch(() => {}),
   ]);
+};
+
+// App lock: after this long in the background, unlocking is asked again.
+export const RELOCK_AFTER_MS = 5 * 60 * 1000;
+
+// The user turned the lock on and the phone has a fingerprint/face/PIN set up.
+const shouldLock = async () => {
+  if (!(await getBiometricLockEnabled())) return false;
+  if (!(await LocalAuthentication.hasHardwareAsync())) return false;
+  return LocalAuthentication.isEnrolledAsync();
 };
 
 export function AuthProvider({ children }) {
@@ -72,12 +82,11 @@ export function AuthProvider({ children }) {
           const restoredUser = JSON.parse(saved);
           // Before anything renders: every API call from here on goes to this company.
           setCompanySlug(restoredUser.companySlug);
+          setQueueOwner(ownerKeyFor(restoredUser));
+          clearLocalEmployees().catch(() => {});
           setUser(restoredUser);
           try {
-            const wantsLock = await getBiometricLockEnabled();
-            const hasHw = wantsLock && await LocalAuthentication.hasHardwareAsync();
-            const isEnrolled = hasHw && await LocalAuthentication.isEnrolledAsync();
-            if (isEnrolled) setLocked(true);
+            if (await shouldLock()) setLocked(true);
           } catch (_) {}
         } else {
           await secureMultiRemove(SESSION_KEYS);
@@ -92,10 +101,36 @@ export function AuthProvider({ children }) {
     // stuck retrying calls with a dead token.
     setUnauthorizedHandler(() => {
       secureMultiRemove(SESSION_KEYS).catch(() => {});
+      setQueueOwner(null);
       setCompanySlug('');
       setUser(null);
     });
     return () => setUnauthorizedHandler(null);
+  }, []);
+
+  // The app lock also applies after the app has been in the background for
+  // a while (it used to apply only when the app was started), so a phone
+  // left unlocked doesn't keep HR data open.
+  const backgroundSince = useRef(null);
+  const userRef = useRef(user);
+  userRef.current = user;
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state === 'background') {
+        backgroundSince.current = Date.now();
+        return;
+      }
+      if (state !== 'active' || !backgroundSince.current) return;
+      const away = Date.now() - backgroundSince.current;
+      backgroundSince.current = null;
+      if (!userRef.current || away < RELOCK_AFTER_MS) return;
+      try {
+        if (await shouldLock()) setLocked(true);
+      } catch (_) {
+        // no biometrics: nothing to lock with
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   const signIn = async (token, userData) => {
@@ -113,6 +148,7 @@ export function AuthProvider({ children }) {
       }
       await AsyncStorage.setItem(DEVICE_SESSION_OWNER_KEY, newOwnerKey);
     } catch (_) {}
+    setQueueOwner(newOwnerKey);
 
     // userData.companySlug: the company this session belongs to ('' or
     // missing = the server's default company).
@@ -148,6 +184,7 @@ export function AuthProvider({ children }) {
     } catch (_) {}
     // Only now: the logout call above still had to reach this company.
     setCompanySlug('');
+    setQueueOwner(null);
     await secureMultiRemove(SESSION_KEYS);
     await clearCrossAccountCaches();
     setUser(null);
@@ -175,6 +212,7 @@ export function AuthProvider({ children }) {
     await secureSetItem('hr_return', JSON.stringify({ token: hrToken, user }));
     await secureSetItem('token', data.token);
     await secureSetItem('user', JSON.stringify(employeeUser));
+    setQueueOwner(ownerKeyFor(employeeUser));
     setUser(employeeUser);
   };
 
@@ -188,6 +226,7 @@ export function AuthProvider({ children }) {
     await secureSetItem('token', hrReturn.token);
     await secureSetItem('user', JSON.stringify(hrReturn.user));
     await secureMultiRemove(['hr_return']);
+    setQueueOwner(ownerKeyFor(hrReturn.user));
     setUser(hrReturn.user);
   };
 

@@ -99,7 +99,7 @@ export default function EmployeeAttendanceCard({
       </View>
 
       {/* Button */}
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.9}
         disabled={checking}
         onPress={onCheckIn}

@@ -230,10 +230,10 @@ export default function QRScannerModal({ visible, onClose }) {
           <Ionicons name="location-outline" size={56} color="rgba(255,255,255,0.45)" />
           <Text style={styles.permTitle}>Location Required</Text>
           <Text style={styles.permText}>{locError}</Text>
-          <TouchableOpacity style={styles.permBtn} onPress={() => { setLocError(null); fetchLocation(); }}>
+          <TouchableOpacity accessibilityRole="button" style={styles.permBtn} onPress={() => { setLocError(null); fetchLocation(); }}>
             <Text style={styles.permBtnTxt}>Retry</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+          <TouchableOpacity accessibilityRole="button" onPress={onClose} style={styles.cancelBtn}>
             <Text style={styles.cancelTxt}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -248,7 +248,7 @@ export default function QRScannerModal({ visible, onClose }) {
         <View style={styles.center}>
           <ActivityIndicator color="#fff" size="large" />
           <Text style={styles.loadingTxt}>Getting your location…</Text>
-          <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+          <TouchableOpacity accessibilityRole="button" onPress={onClose} style={styles.cancelBtn}>
             <Text style={styles.cancelTxt}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -272,10 +272,10 @@ export default function QRScannerModal({ visible, onClose }) {
           <Ionicons name="camera-outline" size={56} color="rgba(255,255,255,0.45)" />
           <Text style={styles.permTitle}>Camera Access Required</Text>
           <Text style={styles.permText}>Camera is needed to scan the QR code and capture your face for attendance.</Text>
-          <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
+          <TouchableOpacity accessibilityRole="button" style={styles.permBtn} onPress={requestPermission}>
             <Text style={styles.permBtnTxt}>Grant Camera Access</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+          <TouchableOpacity accessibilityRole="button" onPress={onClose} style={styles.cancelBtn}>
             <Text style={styles.cancelTxt}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -303,11 +303,11 @@ export default function QRScannerModal({ visible, onClose }) {
 
           {/* Top bar */}
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.iconBtn}>
               <Ionicons name="close" size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.topTitle}>Scan Employee QR</Text>
-            <TouchableOpacity onPress={flipCamera} style={styles.iconBtn}>
+            <TouchableOpacity accessibilityRole="button" onPress={flipCamera} style={styles.iconBtn}>
               <Ionicons name="camera-reverse-outline" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -371,11 +371,11 @@ export default function QRScannerModal({ visible, onClose }) {
 
           {/* Top bar */}
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={resetToQR} style={styles.iconBtn}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back" onPress={resetToQR} style={styles.iconBtn}>
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.topTitle}>Face Verification</Text>
-            <TouchableOpacity onPress={flipCamera} style={styles.iconBtn}>
+            <TouchableOpacity accessibilityRole="button" onPress={flipCamera} style={styles.iconBtn}>
               <Ionicons name="camera-reverse-outline" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -405,12 +405,12 @@ export default function QRScannerModal({ visible, onClose }) {
               <ActivityIndicator color="#fff" size="large" style={{ marginTop: 24 }} />
             ) : (
               <>
-                <TouchableOpacity style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Take photo" style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
                   <View style={styles.captureBtnInner}>
                     <Ionicons name="camera" size={30} color="#2563EB" />
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={captureWithPhoneCamera} style={styles.phoneCameraLink}>
+                <TouchableOpacity accessibilityRole="button" onPress={captureWithPhoneCamera} style={styles.phoneCameraLink}>
                   <Text style={styles.phoneCameraTxt}>Camera not showing? Use the phone's camera</Text>
                 </TouchableOpacity>
               </>

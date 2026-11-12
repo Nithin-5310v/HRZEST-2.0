@@ -66,4 +66,8 @@ jobs:
       - name: Publish update
         if: steps.token.outputs.skip != 'true'
         working-directory: mobile
+        # Set explicitly as well: an update once shipped without the server
+        # address when the export didn't pick up .env.production.
+        env:
+          EXPO_PUBLIC_API_BASE_URL: https://hrzest.com
         run: npx --yes eas-cli@25.0.0 update --channel preview --auto --non-interactive --clear-cache

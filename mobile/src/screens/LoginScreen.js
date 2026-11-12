@@ -291,7 +291,7 @@ export default function LoginScreen({ navigation }) {
                 maxLength={6}
               />
               <AppButton title="Verify and continue" onPress={handleVerifyCode} loading={loading} />
-              <TouchableOpacity style={styles.centerLink} onPress={() => setChallengeId(null)} disabled={loading}>
+              <TouchableOpacity accessibilityRole="button" style={styles.centerLink} onPress={() => setChallengeId(null)} disabled={loading}>
                 <Text style={styles.link}>Start over</Text>
               </TouchableOpacity>
             </>
@@ -370,23 +370,23 @@ export default function LoginScreen({ navigation }) {
               </View>
 
               <View style={styles.linksRow}>
-                <TouchableOpacity onPress={() => setShowScanner(true)} style={styles.inline}>
+                <TouchableOpacity accessibilityRole="button" onPress={() => setShowScanner(true)} style={styles.inline}>
                   <Ionicons name="scan-outline" size={16} color={WEB.brand} />
                   <Text style={styles.link}>Scan attendance QR</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={handleForgotPassword}>
+                <TouchableOpacity accessibilityRole="button" onPress={handleForgotPassword}>
                   <Text style={styles.link}>Forgot password?</Text>
                 </TouchableOpacity>
               </View>
 
               <AppButton title="Sign in" onPress={handleSignIn} loading={loading} />
               {!showCompany ? (
-                <TouchableOpacity style={styles.centerLink} onPress={() => setShowCompany(true)}>
+                <TouchableOpacity accessibilityRole="button" style={styles.centerLink} onPress={() => setShowCompany(true)}>
                   <Text style={styles.link}>Sign in to a specific company</Text>
                 </TouchableOpacity>
               ) : null}
               {__DEV__ && (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.centerLink}
                   onPress={() => {
                     setIdentifier("admin");

@@ -145,7 +145,7 @@ export function AppButton({ title, onPress, kind = "primary", icon, loading, dis
 /** The full-width filled (Material) submit button. */
 export function WebButton({ title, onPress, loading, disabled, icon = "arrow-forward", style }) {
   return (
-    <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.85} style={style}>
+    <TouchableOpacity accessibilityRole="button" onPress={onPress} disabled={disabled || loading} activeOpacity={0.85} style={style}>
       <View style={webAuthStyles.button}>
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
@@ -163,7 +163,7 @@ export function WebButton({ title, onPress, loading, disabled, icon = "arrow-for
 /** The small tonal button in the top bar (the website's .nav-link-btn). */
 export function WebNavButton({ title, icon, onPress }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity accessibilityRole="button" onPress={onPress} activeOpacity={0.85}>
       <View style={webAuthStyles.navButton}>
         {icon ? <Ionicons name={icon} size={14} color={WEB.brandDark} style={{ marginRight: 6 }} /> : null}
         <Text style={webAuthStyles.navButtonText}>{title}</Text>

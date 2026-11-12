@@ -145,7 +145,7 @@ export default function AdminDrawerContent(props) {
     const active = activeRoute === item.route;
 
     return (
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         key={item.title}
         activeOpacity={0.88}
         style={[styles.menuItem, active && styles.activeMenuItem]}
@@ -257,7 +257,7 @@ export default function AdminDrawerContent(props) {
 
       {/* Bottom Logout Button */}
       <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           activeOpacity={0.88}
           style={styles.logoutButton}
           onPress={handleLogout}

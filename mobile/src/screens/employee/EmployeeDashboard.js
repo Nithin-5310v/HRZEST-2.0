@@ -17,12 +17,12 @@ import {
   fetchEmployeePortal,
   employeeCheckin,
   employeeLogout,
-  syncOfflinePunches,
   getPhotoUrl,
   fetchEmployeeAttendance,
   fetchEmployeeLeaves,
 } from "../../api/client";
-import { queuePunch, getPendingPunches, clearQueue } from "../../utils/offlineQueue";
+import { queuePunch, getPendingPunches } from "../../utils/offlineQueue";
+import { sendPendingPunches, describeSync } from "../../utils/useOfflineSync";
 import { getDeviceId } from "../../utils/deviceId";
 
 import { useAuth } from "../../store/AuthContext";
@@ -160,27 +160,17 @@ export default function EmployeeDashboard({ navigation }) {
     setRefreshing(false);
   };
 
+  // The shared sync (utils/useOfflineSync.js): sends only the punches it
+  // read, so one saved while it runs isn't lost, and never runs twice at once.
   const syncPending = async () => {
-    const punches = await getPendingPunches();
-    if (punches.length === 0) return;
     setSyncing(true);
-    try {
-      const res = await syncOfflinePunches(punches, await getDeviceId());
-      if (res.data.ok) {
-        await clearQueue();
-        setPendingCount(0);
-        const synced  = res.data.results?.filter(r => r.ok).length ?? punches.length;
-        const failed  = res.data.results?.filter(r => !r.ok).length ?? 0;
-        const msg     = failed > 0
-          ? `${synced} punch(es) synced. ${failed} rejected (too old or duplicate).`
-          : `${synced} offline punch(es) synced successfully.`;
-        Alert.alert("Sync Complete", msg);
-        await loadDashboard();
-      }
-    } catch {
-      // Server still unreachable — keep punches in queue
-    }
+    const result = await sendPendingPunches();
     setSyncing(false);
+    setPendingCount((await getPendingPunches()).length);
+    if (result) {
+      Alert.alert("Sync Complete", describeSync(result));
+      await loadDashboard();
+    }
   };
 
   useFocusEffect(
@@ -400,7 +390,7 @@ export default function EmployeeDashboard({ navigation }) {
       </ScrollView>
 
       {/* Floating Action Button for AI HRMS Helpdesk */}
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         activeOpacity={0.88}
         style={{
           position: "absolute",

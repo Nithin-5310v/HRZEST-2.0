@@ -226,7 +226,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
         // (the same offline path the quick check-in button uses), instead
         // of just erroring out with nothing recorded.
         try {
-          await queuePunch(coords?.lat ?? null, coords?.lon ?? null);
+          await queuePunch(coords?.lat ?? null, coords?.lon ?? null, { mocked: !!coords?.mocked });
           Alert.alert(
             'Saved Offline 📍',
             `Could not reach the server, but your check-in at ${timeNow} was saved on this device and will sync automatically once you're back online.`,
@@ -455,10 +455,10 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
           <Ionicons name="alert-circle-outline" size={56} color="rgba(255,255,255,0.45)" />
           <Text style={styles.permTitle}>Setup Required</Text>
           <Text style={styles.permText}>{locError}</Text>
-          <TouchableOpacity style={styles.permBtn} onPress={() => { setLocError(null); initModal(); }}>
+          <TouchableOpacity accessibilityRole="button" style={styles.permBtn} onPress={() => { setLocError(null); initModal(); }}>
             <Text style={styles.permBtnTxt}>Retry</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+          <TouchableOpacity accessibilityRole="button" onPress={onClose} style={styles.cancelBtn}>
             <Text style={styles.cancelTxt}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -473,7 +473,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
         <View style={styles.center}>
           <ActivityIndicator color="#fff" size="large" />
           <Text style={styles.loadingTxt}>Getting your location…</Text>
-          <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+          <TouchableOpacity accessibilityRole="button" onPress={onClose} style={styles.cancelBtn}>
             <Text style={styles.cancelTxt}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -500,10 +500,10 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
           <Text style={styles.permText}>
             Camera is needed to scan your QR code and capture your face for attendance.
           </Text>
-          <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
+          <TouchableOpacity accessibilityRole="button" style={styles.permBtn} onPress={requestPermission}>
             <Text style={styles.permBtnTxt}>Grant Camera Access</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+          <TouchableOpacity accessibilityRole="button" onPress={onClose} style={styles.cancelBtn}>
             <Text style={styles.cancelTxt}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -517,7 +517,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
       <Modal visible={visible} animationType="slide" statusBarTranslucent>
         <View style={styles.center}>
           <View style={styles.methodCard}>
-            <TouchableOpacity onPress={onClose} style={styles.methodClose}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.methodClose}>
               <Ionicons name="close" size={22} color="rgba(255,255,255,0.6)" />
             </TouchableOpacity>
             <Ionicons name="shield-checkmark-outline" size={48} color="#3B82F6" style={{ marginBottom: 12 }} />
@@ -527,7 +527,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
             {availCombos.map(id => {
               const c = COMBO_META[id];
               return (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   key={id}
                   style={[styles.comboBtn, authMethod === id && styles.comboBtnActive]}
                   onPress={() => {
@@ -581,14 +581,14 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
           />
 
           <View style={styles.topBar}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               onPress={availCombos.length > 1 ? () => setStep('method') : onClose}
               style={styles.iconBtn}
             >
               <Ionicons name={availCombos.length > 1 ? 'arrow-back' : 'close'} size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.topTitle}>Scan Employee QR</Text>
-            <TouchableOpacity onPress={flipCamera} style={styles.iconBtn}>
+            <TouchableOpacity accessibilityRole="button" onPress={flipCamera} style={styles.iconBtn}>
               <Ionicons name="camera-reverse-outline" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -611,7 +611,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
                 <Text style={styles.locTxt}>Location captured</Text>
               </View>
             )}
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               activeOpacity={0.85}
               style={{
                 backgroundColor: "#2563EB",
@@ -659,7 +659,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
       <Modal visible={visible} animationType="slide" statusBarTranslucent>
         <View style={styles.center}>
           <View style={styles.fpCard}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
               onPress={() => isQRFP ? resetFlow() : setStep('method')}
               style={styles.fpBack}
             >
@@ -689,7 +689,7 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
             {processing ? (
               <ActivityIndicator color="#3B82F6" size="large" style={{ marginTop: 28 }} />
             ) : (
-              <TouchableOpacity style={styles.fpBtn} onPress={handleFingerprint} activeOpacity={0.8}>
+              <TouchableOpacity accessibilityRole="button" style={styles.fpBtn} onPress={handleFingerprint} activeOpacity={0.8}>
                 <Ionicons name="finger-print" size={32} color="#fff" />
                 <Text style={styles.fpBtnTxt}>Verify Biometric</Text>
               </TouchableOpacity>
@@ -723,14 +723,14 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
           />
 
           <View style={styles.topBar}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Back"
               onPress={isFaceFP ? () => setStep('fingerprint') : resetFlow}
               style={styles.iconBtn}
             >
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.topTitle}>Face Verification</Text>
-            <TouchableOpacity onPress={flipCamera} style={styles.iconBtn}>
+            <TouchableOpacity accessibilityRole="button" onPress={flipCamera} style={styles.iconBtn}>
               <Ionicons name="camera-reverse-outline" size={24} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -765,12 +765,12 @@ export default function AttendanceScannerModal({ visible, onClose, onSuccess }) 
               <ActivityIndicator color="#fff" size="large" style={{ marginTop: 24 }} />
             ) : (
               <>
-                <TouchableOpacity style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Take photo" style={styles.captureBtn} onPress={handleCaptureFace} activeOpacity={0.85}>
                   <View style={styles.captureBtnInner}>
                     <Ionicons name="camera" size={30} color="#2563EB" />
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={captureWithPhoneCamera} style={styles.phoneCameraLink}>
+                <TouchableOpacity accessibilityRole="button" onPress={captureWithPhoneCamera} style={styles.phoneCameraLink}>
                   <Text style={styles.phoneCameraTxt}>Camera not showing? Use the phone's camera</Text>
                 </TouchableOpacity>
               </>

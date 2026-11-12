@@ -45,7 +45,7 @@ export default function AnalyticsOverviewCard({
 
       <View style={styles.row}>
         {cards.map((item) => (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             key={item.title}
             activeOpacity={0.85}
             style={styles.card}

@@ -17,7 +17,7 @@ export default function SaveButton({
   const isDisabled = disabled || loading;
 
   return (
-    <TouchableOpacity
+    <TouchableOpacity accessibilityRole="button"
       activeOpacity={0.85}
       disabled={isDisabled}
       onPress={onPress}

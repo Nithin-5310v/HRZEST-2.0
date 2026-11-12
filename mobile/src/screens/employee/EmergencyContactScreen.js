@@ -113,7 +113,7 @@ export default function EmergencyContactScreen() {
               <Text style={styles.subText}>{emergency.primaryRelation} • {emergency.primaryPhone}</Text>
             </View>
 
-            <TouchableOpacity style={styles.editBtn} onPress={() => setModalVisible(true)}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Edit" style={styles.editBtn} onPress={() => setModalVisible(true)}>
               <Ionicons name="create-outline" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
@@ -132,7 +132,7 @@ export default function EmergencyContactScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Emergency Contact</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close" onPress={() => setModalVisible(false)}>
                 <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -149,7 +149,7 @@ export default function EmergencyContactScreen() {
             <Text style={styles.inputLabel}>FAMILY ADDRESS</Text>
             <TextInput style={styles.input} value={editAddress} onChangeText={setEditAddress} multiline />
 
-            <TouchableOpacity style={styles.saveModalBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity accessibilityRole="button" style={styles.saveModalBtn} onPress={handleSave} disabled={saving}>
               {saving ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
@@ -219,4 +219,4 @@ const makeStyles = (colors) => StyleSheet.create({
     marginTop: 20,
   },
   saveModalBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
-});
+});

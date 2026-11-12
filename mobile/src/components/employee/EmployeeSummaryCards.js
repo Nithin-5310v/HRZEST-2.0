@@ -86,7 +86,7 @@ export default function EmployeeSummaryCards({
 
           CARDS.map((item) => (
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={item.key}
               activeOpacity={0.8}
               style={styles.card}

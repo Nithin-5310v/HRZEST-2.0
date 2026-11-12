@@ -108,7 +108,7 @@ export default function DigitalIdCardModal({ visible, employee, onClose }) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+          <TouchableOpacity accessibilityRole="button" style={styles.closeBtn} onPress={onClose}>
             <Text style={styles.closeBtnText}>Close ID Card</Text>
           </TouchableOpacity>
         </View>
