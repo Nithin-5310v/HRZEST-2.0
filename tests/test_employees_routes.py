@@ -470,7 +470,16 @@ class TestMyPhoto:
         assert resp.status_code == 302
         assert "login" in resp.headers.get("Location", "")
 
-    def test_no_photo_on_file_returns_404(self, client, seed_employee):
+    def test_no_photo_on_file_returns_404(self, client, seed_employee, cleanup_emp_files):
+        # Another test may have left a TST001 photo behind; this test needs
+        # a guaranteed-empty state, so clear it first (cleanup_emp_files
+        # removes the same files again on teardown).
+        eid = seed_employee["employee_id"]
+        cleanup_emp_files.append(eid)
+        for photo in (os.path.join(UPLOAD_FOLDER, eid + ".jpg"),
+                      face_photo_path(eid, "public")):
+            if os.path.exists(photo):
+                os.remove(photo)
         with client.session_transaction() as sess:
             sess["employee_id"] = seed_employee["employee_id"]
         resp = client.get("/my_photo")
