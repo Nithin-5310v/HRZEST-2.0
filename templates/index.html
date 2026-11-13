@@ -1334,7 +1334,13 @@
         $("statusBar").style.display = "none";
         const empId = await startQRScan();
         if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
-        gEmployeeId = empId.trim().toUpperCase();
+        // A signed badge ("<employee_id>.<16-hex signature>", qr_generator.py)
+        // is sent exactly as scanned: the signature covers the ID as stored,
+        // so upper-casing it turned "Sales-007.<sig>" into a code the server
+        // rejected as "Invalid or unrecognized QR code". Only a bare ID is
+        // normalised. Same rule as the mobile app's parseEmployeeIdFromQR().
+        const scanned = empId.trim();
+        gEmployeeId = /^[^.]+\.[0-9a-f]{16}$/i.test(scanned) ? scanned : scanned.toUpperCase();
       }
 
       async function doFaceStep() {

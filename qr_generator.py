@@ -1,6 +1,7 @@
 import qrcode
 import os
 import hmac
+import re
 import hashlib
 from io import BytesIO
 
@@ -109,17 +110,67 @@ def verify_qr_value(qr_value: str):
     several check-in routes already did before this existed) don't break
     a legitimate scan."""
     if not qr_value or "." not in qr_value:
+        _log_rejection("malformed", qr_value)
         return None, False
     emp_id, _, sig = qr_value.rpartition(".")
     if not emp_id or not sig:
+        _log_rejection("malformed", qr_value)
         return None, False
     sig = sig.lower()
-    if hmac.compare_digest(_qr_signature(emp_id), sig):
-        return emp_id, True
-    if _legacy_qr_accepted() and hmac.compare_digest(_legacy_qr_signature(emp_id), sig):
-        # Logged so admins can see who still carries an old badge before
-        # the window closes.
-        _log.warning("attendance.qr_legacy_accepted: pre-tenant QR code used for %s (tenant %s); "
-                     "reissue this badge before QR_LEGACY_ACCEPT_UNTIL", emp_id, _default_tenant_key())
-        return emp_id, True
+    spellings = [emp_id]
+    for candidate in _id_spellings(emp_id):
+        if candidate not in spellings:
+            spellings.append(candidate)
+        if hmac.compare_digest(_qr_signature(candidate), sig):
+            return candidate, True
+        if _legacy_qr_accepted() and hmac.compare_digest(_legacy_qr_signature(candidate), sig):
+            # Logged so admins can see who still carries an old badge before
+            # the window closes.
+            _log.warning("attendance.qr_legacy_accepted: pre-tenant QR code used for %s (tenant %s); "
+                         "reissue this badge before QR_LEGACY_ACCEPT_UNTIL", candidate, _default_tenant_key())
+            return candidate, True
+    expired_legacy = any(hmac.compare_digest(_legacy_qr_signature(c), sig) for c in spellings)
+    _log_rejection("legacy_expired" if expired_legacy else "bad_signature", qr_value, emp_id)
     return None, False
+
+
+_EMP_ID_SHAPE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
+def _id_spellings(emp_id):
+    """The scanned ID, then -- only if it differs -- the same employee's ID
+    exactly as stored. The signature covers the stored spelling, and some
+    scanners (an older kiosk page, hardware readers in caps-lock mode)
+    upper-case the whole payload, which turned a valid "Sales-007" badge
+    into an unverifiable "SALES-007". The stored spelling comes from the
+    current company's employees table, matched case-insensitively and only
+    when exactly one employee matches (a lookup runs only after the scanned
+    spelling failed, so valid scans cost nothing extra)."""
+    yield emp_id
+    if not _EMP_ID_SHAPE.match(emp_id):
+        return
+    try:
+        from database import get_db_connection
+        db = get_db_connection()
+        try:
+            cur = db.cursor()
+            cur.execute("SELECT employee_id FROM employees WHERE UPPER(employee_id)=UPPER(%s) LIMIT 2", (emp_id,))
+            rows = cur.fetchall()
+            cur.close()
+        finally:
+            db.close()
+    except Exception as exc:
+        _log.warning("attendance.qr_id_lookup_failed: %s", type(exc).__name__)
+        return
+    if len(rows) == 1 and rows[0][0] != emp_id:
+        yield rows[0][0]
+
+
+def _log_rejection(reason, qr_value, emp_id=None):
+    """One line per rejected scan, so "Invalid or unrecognized QR code" can be
+    traced to its cause: malformed (not a signed badge at all),
+    legacy_expired (a pre-company badge after QR_LEGACY_ACCEPT_UNTIL), or
+    bad_signature (signed for another company, with another SECRET_KEY, or
+    for an employee this company doesn't have)."""
+    _log.warning("attendance.qr_rejected: reason=%s tenant=%s employee=%s length=%d",
+                 reason, _default_tenant_key(), emp_id or "-", len(qr_value or ""))
