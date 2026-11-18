@@ -1,5 +1,6 @@
 """The Organization page's HR team tab (blueprints/hr_team.py): the company
-admin makes employees HRs and turns their HR dashboard access on and off;
+admin turns HRs' dashboard access on and off (the HR role itself is given in
+Roles & Access -- this tab no longer makes HRs);
 an HR without access signs in as a plain employee; an HR adding an employee
 can assign them to another HR; the admin reassigns an employee's HR from
 their profile."""
@@ -73,15 +74,25 @@ def _employee(db_engine, emp_id, col):
 
 
 class TestHrTeamTab:
-    def test_lists_hrs_and_who_can_be_added(self, client, people):
+    def test_lists_hrs(self, client, people):
         people("HRT01", "Asha HR", role="HR")
         people("HRT02", "Ravi Dev", role="Developer", assigned_hr="HRT01")
         _admin(client)
         page = client.get("/profile/hr").get_data(as_text=True)
         assert "HR team" in page and "Asha HR" in page
         assert "Access on" in page and "Hasn't signed in yet" in page
-        assert '<option value="HRT02">Ravi Dev (HRT02) -- Developer</option>' in page
-        assert '<option value="HRT01">' not in page, "already an HR"
+        assert "Ravi Dev" not in page, "only HRs are listed"
+
+    def test_no_add_hr_form_points_to_roles_and_access(self, client, db_engine, people):
+        """HRs are made in Settings -> Roles & Access, not on the Organization page."""
+        people("HRT02", "Ravi Dev", role="Developer")
+        _admin(client)
+        page = client.get("/profile/hr").get_data(as_text=True)
+        assert "Add an HR" not in page and "/profile/hr/add" not in page
+        assert "/settings/roles" in page
+        assert client.post("/profile/hr/add", data={"employee_id": "HRT02", "access": "1"}).status_code in (404, 405)
+        assert _employee(db_engine, "HRT02", "role") == "Developer"
+        assert _login_row(db_engine, "HRT02") is None
 
     def test_only_the_company_admin(self, client, db_engine, people):
         people("HRT01", role="HR", login=1)
@@ -91,46 +102,25 @@ class TestHrTeamTab:
         assert client.post("/profile/hr/HRT04/access", data={"access": "0"}).status_code in (302, 403)
         assert _login_row(db_engine, "HRT04") is None, "an HR can't switch another HR off"
 
-    def test_add_hr_with_access(self, client, db_engine, people):
-        people("HRT02", "Ravi Dev", role="Developer")
-        _admin(client)
-        resp = client.post("/profile/hr/add", data={"employee_id": "HRT02", "access": "1"}, follow_redirects=True)
-        assert b"Ravi Dev is now an HR." in resp.data
-        assert _employee(db_engine, "HRT02", "role") == "HR"
-        assert _login_row(db_engine, "HRT02") == ("hr", 1)
-        assert _employee(db_engine, "HRT02", "access_role") == "hr", "assigned the HR role in Roles & Access"
-
     def test_access_needs_an_hr_role_in_roles_and_access(self, client, db_engine, people, monkeypatch):
-        people("HRT02", role="Developer")
+        people("HRT01", role="HR")
         _admin(client)
         # A company with no "HR" role of its own yet.
         monkeypatch.setattr("blueprints.hr_team.HR_ROLE", "no_such_role")
-        resp = client.post("/profile/hr/add", data={"employee_id": "HRT02", "access": "1"}, follow_redirects=True)
+        resp = client.post("/profile/hr/HRT01/access", data={"access": "1"}, follow_redirects=True)
         assert b"create a role named" in resp.data
-        assert _employee(db_engine, "HRT02", "access_role") is None
+        assert _employee(db_engine, "HRT01", "access_role") is None
 
-    def test_add_hr_without_access_yet(self, client, db_engine, people):
-        people("HRT02", role="Developer")
-        _admin(client)
-        client.post("/profile/hr/add", data={"employee_id": "HRT02"})
-        assert _login_row(db_engine, "HRT02") == ("hr", 0)
-
-    def test_add_refuses_an_admin_login_name(self, client, db_engine, people):
-        people("HRT03", role="Developer")
+    def test_access_refuses_an_admin_login_name(self, client, db_engine, people):
+        people("HRT03", role="HR")
         cur = db_engine.cursor()
         cur.execute("INSERT INTO admin_users (username, password, role) VALUES ('HRT03', 'x', 'admin')")
         db_engine.commit()
         cur.close()
         _admin(client)
-        resp = client.post("/profile/hr/add", data={"employee_id": "HRT03", "access": "1"}, follow_redirects=True)
+        resp = client.post("/profile/hr/HRT03/access", data={"access": "0"}, follow_redirects=True)
         assert b"also the name of an admin login" in resp.data
         assert _login_row(db_engine, "HRT03") == ("admin", 1)
-        assert _employee(db_engine, "HRT03", "role") == "Developer"
-
-    def test_add_refuses_unknown_employee(self, client, seed_admin):
-        _admin(client)
-        resp = client.post("/profile/hr/add", data={"employee_id": "NOPE999", "access": "1"}, follow_redirects=True)
-        assert b"Choose an active employee" in resp.data
 
     def test_stop_and_give_access(self, client, db_engine, people):
         people("HRT01", "Asha HR", role="HR")

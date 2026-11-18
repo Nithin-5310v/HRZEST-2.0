@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Organization page's HR team tab: the company admin sees its HRs, makes an
-employee an HR, and turns each HR's dashboard access on or off.
+"""Organization page's HR team tab: the company admin sees its HRs and turns
+each HR's dashboard access on or off. Giving someone the HR role happens in
+Settings -> Roles & Access, not here.
 
 An HR is an employee whose job title is exactly "HR", backed by an
 admin_users row with the same username as their employee ID. Their HR
@@ -98,16 +99,11 @@ def _team(cursor):
 def hr_team():
     with _db() as (cursor, _db_conn):
         team = _team(cursor)
-        cursor.execute(
-            "SELECT e.employee_id, e.name, COALESCE(e.role, ''), COALESCE(e.department, '') FROM employees e "
-            f"WHERE {_ACTIVE} AND NOT {_IS_HR} ORDER BY e.name",  # nosec B608 -- fixed SQL fragments
-        )
-        candidates = [{"id": r[0], "name": r[1], "role": r[2], "department": r[3]} for r in cursor.fetchall()]
         cursor.execute("SELECT COUNT(*) FROM employees WHERE assigned_hr_username IS NULL AND COALESCE(is_active, 1) = 1")
         unassigned = cursor.fetchone()[0]
     return render_template(
         "profile.html", active_nav="profile", active_tab="hr", co=get_company_settings(),
-        hr_team=team, hr_candidates=candidates, unassigned_count=unassigned,
+        hr_team=team, unassigned_count=unassigned,
     )
 
 
@@ -138,41 +134,6 @@ def _set_access(cursor, username, access, email=None):
             (username, generate_password_hash(secrets.token_urlsafe(32)), HR_ROLE, email, 1 if access else 0),
         )
     return access
-
-
-@hr_team_bp.route("/profile/hr/add", methods=["POST"])
-@role_required("admin")
-def hr_team_add():
-    emp_id = (request.form.get("employee_id") or "").strip()
-    access = request.form.get("access") == "1"
-    with _db() as (cursor, db):
-        cursor.execute("SELECT name, email, COALESCE(is_active, 1), role FROM employees WHERE employee_id=%s",
-                       (emp_id,))
-        emp = cursor.fetchone()
-        if not emp or not emp[2]:
-            flash("Choose an active employee to make an HR.", "error")
-            return redirect(tpath("/profile/hr"))
-        name, enc_email, _active, previous_role = emp
-        cursor.execute("SELECT role FROM admin_users WHERE username=%s", (emp_id,))
-        login = cursor.fetchone()
-        if login and (login[0] or "admin") not in (HR_ROLE, "manager"):
-            # Same name as an admin login: making it an HR would change that login.
-            flash(f"{emp_id} is also the name of an admin login, so it can't be made an HR account.", "error")
-            return redirect(tpath("/profile/hr"))
-        cursor.execute("UPDATE employees SET role='HR' WHERE employee_id=%s", (emp_id,))
-        wanted = access
-        access = _set_access(cursor, emp_id, access, decrypt_pii(enc_email) or None)
-        db.commit()
-    log_security_event(
-        "admin.hr_added", f"Employee '{emp_id}' made an HR (role was {previous_role!r}), "
-        f"dashboard access {'on' if access else 'off'}",
-        level="WARNING", identifier=session.get("admin_username"), employee_id=emp_id,
-    )
-    flash(f"{name} is now an HR. " + (
-        "They sign in with their usual employee login and land on the HR dashboard." if access
-        else _NO_HR_ROLE_MSG if wanted
-        else "Turn on their dashboard access when they should start using it."), "success")
-    return redirect(tpath("/profile/hr"))
 
 
 @hr_team_bp.route("/profile/hr/<username>/access", methods=["POST"])

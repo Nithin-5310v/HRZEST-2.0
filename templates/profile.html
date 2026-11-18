@@ -98,14 +98,10 @@
   .ticket-row .t-subject { font-weight: 700; color: #0f172a; font-size: 15.5px; }
   .ticket-row .t-meta { font-size: 13.5px; color: #94a3b8; }
 
-  .hr-add { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; }
-  .hr-add .p-input { margin: 0; }
-  .hr-check { display: inline-flex; gap: 8px; align-items: center; font-size: 14.5px; color: #334155; white-space: nowrap; }
   .muted-sm { font-size: 13px; color: #94a3b8; margin-top: 2px; }
   .hr-note { display: flex; gap: 10px; align-items: flex-start; background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
     border-radius: 12px; padding: 12px 14px; font-size: 14.5px; margin-bottom: 16px; }
   .hr-table-scroll { overflow-x: auto; }
-  @media (max-width: 720px) { .hr-add { grid-template-columns: 1fr; } }
 
   .p-btn.danger { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; }
   textarea.p-input { font-family: inherit; resize: vertical; }
@@ -793,23 +789,7 @@
       <p>An HR with dashboard access signs in with their usual employee login and lands on the HR dashboard,
          where they add employees and manage the ones assigned to them. Turn access off and they sign in to
          their own employee portal instead.</p>
-    </div>
-
-    <div class="p-card">
-      <h2>Add an HR</h2>
-      <p class="sub">Choose an employee -- their role becomes "HR".</p>
-      {% if hr_candidates %}
-      <form method="POST" action="{{ tpath('/profile/hr/add') }}" class="hr-add">
-        <select class="p-input" id="hr-emp" name="employee_id" required aria-label="Employee to make an HR">
-          <option value="">Choose an employee…</option>
-          {% for c in hr_candidates %}<option value="{{ c.id }}">{{ c.name }} ({{ c.id }}){% if c.role %} -- {{ c.role }}{% endif %}{% if c.department %}, {{ c.department }}{% endif %}</option>{% endfor %}
-        </select>
-        <label class="hr-check"><input type="checkbox" name="access" value="1" checked> Give HR dashboard access now</label>
-        <button class="p-btn sm" type="submit"><i class="ti ti-user-plus"></i> Add HR</button>
-      </form>
-      {% else %}
-      <div class="empty-state" style="padding:16px;">Add employees first, then make one of them an HR here.</div>
-      {% endif %}
+      <p>To give someone the HR role, use <a class="text" href="{{ tpath('/settings/roles') }}">Roles &amp; Access</a>.</p>
     </div>
 
     {% if unassigned_count %}
@@ -848,7 +828,7 @@
         </tbody>
       </table>
       {% else %}
-      <div class="empty-state">No HRs yet. Add one above.</div>
+      <div class="empty-state">No HRs yet. Give someone the HR role in <a class="text" href="{{ tpath('/settings/roles') }}">Roles &amp; Access</a>.</div>
       {% endif %}
     </div>
   {% endif %}
