@@ -116,7 +116,7 @@
           h('span', { class: 'banner-ico' }, SOC.icon(d.threat.level === 'normal' ? 'integrity' : 'alerts')),
           h('div', null, h('strong', null, 'Threat level: ', h('span', { class: 'cap' }, d.threat.level)), h('div', null, d.threat.reasons.join('. ') + '.'))));
         if (d.proxy_hint) {
-          frag.appendChild(SOC.callout(['Most events come from a private address (', h('span', { class: 'mono' }, d.top_ips[0].ip),
+          frag.appendChild(SOC.callout(['Most events come from a private address (', h('span', { class: 'mono' }, d.proxy_ip || ''),
             '). The app is seeing its proxy or container gateway, not the real visitors, so source IPs and locations below are not meaningful. ',
             'Set TRUSTED_PROXY_HOPS to the number of proxies in front of the app (see Posture).'], 'warn'));
         }
@@ -129,7 +129,7 @@
           SOC.kpi('Failed logins', fmt.n(k.failed_logins), fmt.n(k.lockouts) + ' lockouts', k.failed_logins > 50 ? 'medium' : 'info', ex('kpi', 'failed_logins'), 'lock'),
           SOC.kpi('WAF blocks', fmt.n(k.waf_blocks), '', k.waf_blocks ? 'medium' : 'ok', ex('kpi', 'waf_blocks'), 'response'),
           SOC.kpi('Honeypot hits', fmt.n(k.honeypot_hits), '', k.honeypot_hits ? 'medium' : 'ok', ex('kpi', 'honeypot_hits'), 'target'),
-          SOC.kpi('Unique IPs', fmt.n(k.unique_ips), 'with location', 'info', ex('kpi', 'unique_ips'), 'globe'),
+          SOC.kpi('Unique IPs', fmt.n(k.unique_ips), 'internet sources', 'info', ex('kpi', 'unique_ips'), 'globe'),
           SOC.kpi('Active bans', fmt.n(d.active_bans), '', 'info', '#/response', 'ban'),
           SOC.kpi('Open cases', fmt.n(d.cases.open), '', d.cases.open ? 'medium' : 'ok', '#/cases', 'cases')));
 
@@ -153,7 +153,12 @@
           columns: [{ label: 'Account', render: (r) => SOC.idLink(r.identifier) }, { label: 'Events', num: true, key: 'events' },
             { label: 'IPs', num: true, key: 'ips' }, { label: 'Last', render: (r) => when(r.last) }]
         });
-        frag.appendChild(h('div', { class: 'grid cols-2' }, SOC.card('Most active sources', ipTable), SOC.card('Most active accounts', idTable)));
+        const hidden = d.internal_sources || { count: 0 };
+        const sources = hidden.count
+          ? h('div', null, ipTable, h('p', { class: 'note' }, fmt.n(hidden.events) + ' event(s) from ' + fmt.n(hidden.count) +
+              ' internal address(es) (this server, its proxy or a private network) are not listed: they are not visitors.'))
+          : ipTable;
+        frag.appendChild(h('div', { class: 'grid cols-2' }, SOC.card('Most active sources', sources), SOC.card('Most active accounts', idTable)));
 
         const alerts = d.recent_alerts.length
           ? h('ul', { class: 'list' }, d.recent_alerts.map(eventRowLite)) : SOC.empty('No alerts in this window.');
@@ -171,7 +176,7 @@
 
         root.textContent = ''; root.appendChild(frag);
         const lv = (n) => d.timeline.map((p) => p[n]);
-        const label = (t) => (d.bucket === '1 day' ? t.slice(5, 10) : t.slice(5, 16));
+        const label = (t) => (d.bucket === '1 day' ? fmt.time(t).slice(5, 10) : fmt.time(t).slice(5, 16));
         SOC.chart(canvas, {
           type: 'bar',
           data: { labels: d.timeline.map((p) => label(p.t)), datasets: [
@@ -187,7 +192,7 @@
         });
       };
       await draw(true);
-      ctl.poll(() => { if (!SOC.drawer.isOpen()) draw(false).catch(() => {}); }, 30000);
+      ctl.poll(() => { if (!SOC.drawer.isOpen()) draw(false).catch(() => {}); }, 15000);
     }
   });
 

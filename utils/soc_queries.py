@@ -25,6 +25,7 @@ import threading
 import time
 
 from utils import soc_taxonomy as tax
+from utils.client_ip import is_internal_ip
 from utils.soc_db import each_tenant, list_tenants, read_cursor
 from utils.soc_util import clamp_int, iso, like_escape, looks_like_ip
 
@@ -165,9 +166,13 @@ def overview(hours=24):
             "COUNT(*) FILTER (WHERE " + k["waf_blocks"] + "), "
             "COUNT(*) FILTER (WHERE " + k["honeypot_hits"] + "), "
             "COUNT(*) FILTER (WHERE " + k["lockouts"] + "), "
-            "COUNT(DISTINCT ip) FILTER (WHERE ip IS NOT NULL), MAX(created_at) "
+            "MAX(created_at) "
             "FROM security_events WHERE " + _WINDOW, (hours,))  # nosec B608 -- KPI_SQL is constant
-        (total, crit, err, warn, det, authfail, waf, honey, lock, ips, last_ts) = cur.fetchone()
+        (total, crit, err, warn, det, authfail, waf, honey, lock, last_ts) = cur.fetchone()
+        # Unique *internet* sources: the app's own loopback / proxy / LAN
+        # addresses are not visitors, so they are not counted (or listed below).
+        cur.execute("SELECT DISTINCT ip FROM security_events WHERE " + _WINDOW + " AND ip IS NOT NULL", (hours,))
+        ips = sum(1 for (ip,) in cur.fetchall() if not is_internal_ip(ip))
         out["kpi"] = {"events": total, "critical": crit, "error": err, "warning": warn, "detections": det,
                       "failed_logins": authfail, "waf_blocks": waf, "honeypot_hits": honey, "lockouts": lock,
                       "unique_ips": ips, "last_event": iso(last_ts)}
@@ -213,8 +218,11 @@ def overview(hours=24):
         cur.execute(
             "SELECT ip, COUNT(*), COUNT(DISTINCT event_type), MAX(created_at), "
             "COUNT(*) FILTER (WHERE level IN ('ERROR','CRITICAL')) FROM security_events "
-            "WHERE " + _WINDOW + " AND ip IS NOT NULL GROUP BY ip ORDER BY 5 DESC, 2 DESC LIMIT 10", (hours,))
+            "WHERE " + _WINDOW + " AND ip IS NOT NULL GROUP BY ip ORDER BY 5 DESC, 2 DESC LIMIT 40", (hours,))
         rows = cur.fetchall()
+        internal = [r for r in rows if is_internal_ip(r[0])]
+        rows = [r for r in rows if not is_internal_ip(r[0])][:10]
+        out["internal_sources"] = {"count": len(internal), "events": sum(r[1] for r in internal)}
         banned = _banned_set(cur, [r[0] for r in rows])
         out["top_ips"] = [{"ip": ip, "events": c, "types": t, "last": iso(ts), "high": hi,
                            "banned": ip in banned, "protected": _protected(ip)} for ip, c, t, ts, hi in rows]
@@ -227,6 +235,7 @@ def overview(hours=24):
                     " AND ip IS NOT NULL GROUP BY ip ORDER BY 2 DESC LIMIT 1", (hours,))
         busiest = cur.fetchone()
         out["proxy_hint"] = bool(busiest and total and _protected(busiest[0]) and busiest[1] * 2 >= total)
+        out["proxy_ip"] = busiest[0] if out["proxy_hint"] else None
         # "Most active accounts": WAF / honeypot / ban-review events put the
         # source *address* in `identifier` (the ip column is always the
         # requester -- for a TCP decoy report, the honeypot container), so
@@ -239,7 +248,7 @@ def overview(hours=24):
             "GROUP BY identifier ORDER BY 2 DESC LIMIT 10", (hours,))
         out["top_identifiers"] = [{"identifier": i, "events": c, "ips": n, "last": iso(ts)} for i, c, n, ts in cur.fetchall()]
         cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + _WINDOW + " AND " + ALERT_SQL +
-                    " ORDER BY id DESC LIMIT 12", (hours,))
+                    " ORDER BY created_at DESC, id DESC LIMIT 12", (hours,))
         out["recent_alerts"] = [shape_event(r) for r in cur.fetchall()]
         cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
         # Same count as the Response view's active_total (platform + company rows).
