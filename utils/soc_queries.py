@@ -824,6 +824,20 @@ def attendance_integrity(days=7):
 
     def build():
         def per_tenant(t, cur):
+            # Default company stores its tables in public.
+            # Other tenants must have their own schema-specific table.
+            default_schema = os.environ.get("DB_NAME", "employee_attendance")
+            evidence_schema = (
+                "public" if t["schema"] == default_schema
+                else t["schema"]
+            )
+
+            # Without its own table, the bare name below would resolve to
+            # public.punch_evidence and count the default company's punches again.
+            # (read_cursor already validated the schema name.)
+            cur.execute("SELECT to_regclass(%s)", (f'"{evidence_schema}".punch_evidence',))
+            if cur.fetchone()[0] is None:
+                return None
             cur.execute(
                 "SELECT COUNT(*), COUNT(*) FILTER (WHERE outcome <> 'accepted'), COUNT(*) FILTER (WHERE mocked), "
                 "COUNT(*) FILTER (WHERE flags IS NOT NULL AND flags <> ''), "

@@ -84,18 +84,45 @@ class TestHomeRegistrationErrors:
 
 class TestHomeRegistrationSuccess:
     def test_valid_submission_starts_an_application(self, client, db_engine, monkeypatch):
-        patch_package(monkeypatch, "blueprints.org", "send_org_signup_otp_email", lambda email, company, otp: True)
+        patch_package(
+            monkeypatch,
+            "blueprints.org",
+            "send_org_signup_otp_email",
+            lambda email, company, otp: True
+        )
+
         resp = client.post("/create_org", data={
-            "company_name": "Home Form Valid Co", "admin_email": "hf@homeformvalid.test",
-            "admin_mobile": "9876543210", "admin_password": "password123", "return_to": "home",
+            "company_name": "Home Form Valid Co",
+            "admin_email": "hf@homeformvalid.test",
+            "admin_mobile": "9876543210",
+            "admin_password": "password123",
+            "return_to": "home",
         })
+
         assert resp.status_code == 302
-        # Next step is always the emailed-code screen (conftest's
-        # APP_ENV=development used to skip it).
-        assert resp.headers["Location"].startswith("/create_org/verify_otp?application_id=")
+        assert resp.headers["Location"].startswith(
+            "/create_org/verify_otp?application_id="
+        )
+
         cur = db_engine.cursor()
-        cur.execute("SELECT company_name, admin_username, admin_mobile, status FROM att_master.tenant_applications "
-                    "WHERE admin_email=%s", ("hf@homeformvalid.test",))
-        row = cur.fetchone()
+        cur.execute(
+            "SELECT id, company_name, admin_username, admin_email, "
+            "admin_mobile, status "
+            "FROM att_master.tenant_applications "
+            "WHERE admin_email=%s ORDER BY id DESC",
+            ("hf@homeformvalid.test",)
+        )
+        rows = cur.fetchall()
         cur.close()
-        assert row == ("Home Form Valid Co", "hf@homeformvalid.test", "9876543210", "started")
+
+        assert rows, "No application was created"
+
+        row = rows[0]
+
+        assert row[1:] == (
+            "Home Form Valid Co",
+            "hf@homeformvalid.test",
+            "hf@homeformvalid.test",
+            "9876543210",
+            "started",
+        )

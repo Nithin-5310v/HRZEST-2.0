@@ -517,24 +517,39 @@ class TestApiEmployeesList:
 
     def test_returns_paginated_list(self, client, seed_admin, seed_employee):
         token = _admin_bearer_token(client, seed_admin)
-        resp = client.get("/api/employees?page=1&per_page=10",
-                          headers={"Authorization": f"Bearer {token}"})
+        resp = client.get(
+            "/api/employees?page=1&per_page=100",
+            headers={"Authorization": f"Bearer {token}"}
+        )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["ok"] is True
-        assert any(e["employee_id"] == seed_employee["employee_id"] for e in data["employees"])
+        assert data["total"] >= 1
+        assert any(
+            e["employee_id"] == seed_employee["employee_id"]
+            for e in data["employees"]
+        )
 
     def test_includes_role_and_joining_date(self, client, seed_admin, seed_employee, db_engine):
         """The app's edit form starts from this list and PUTs role and
         date_of_joining back as given -- missing here, an edit in the app
         blanked both."""
         cur = db_engine.cursor()
-        cur.execute("UPDATE employees SET role='HR', department='Ops', date_of_joining='2026-09-15' "
-                    "WHERE employee_id=%s", (seed_employee["employee_id"],))
+        cur.execute(
+            "UPDATE employees SET role='HR', department='Ops', date_of_joining='2026-09-15' "
+            "WHERE employee_id=%s",
+            (seed_employee["employee_id"],)
+        )
         cur.close()
         token = _admin_bearer_token(client, seed_admin)
-        resp = client.get("/api/employees?per_page=100", headers={"Authorization": f"Bearer {token}"})
-        row = next(e for e in resp.get_json()["employees"] if e["employee_id"] == seed_employee["employee_id"])
+        resp = client.get(
+            "/api/employees?per_page=100",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        row = next(
+            e for e in resp.get_json()["employees"]
+            if e["employee_id"] == seed_employee["employee_id"]
+        )
         assert row["role"] == "HR"
         assert row["department"] == "Ops"
         assert row["date_of_joining"] == "2026-09-15"
