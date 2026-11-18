@@ -125,7 +125,7 @@ HRZEST/
 │ ═══ 11. Tests & QA ═══════════════════════════════════════════════════════════════
 ├── tests/                          ~160 pytest files (back end, API, pages)
 ├── tests_e2e/                      Playwright browser tests
-├── qa_audit/                       QA audit baselines
+├── qa_audit/                       QA audit helper scripts
 ├── pytest.ini, requirements-dev.txt, docker-compose.test.yml
 │
 │ ═══ 12. Deployment & operations ════════════════════════════════════════════════
@@ -358,7 +358,7 @@ More detail: `SECURITY.md`, `docs/SECURITY_HARDENING.md`.
 | End-to-end browser tests | `tests_e2e/` (Playwright) | see `tests_e2e/README.md` |
 | Mobile tests | `mobile/**/__tests__/` (Jest + React Native Testing Library) | `npx jest` in `mobile/` |
 | Dashboard wiring audit | `tests/dashboard_audit.py` + `tests/test_dashboard_wiring.py` (dead links, unescaped HTML, unlabeled fields…) | part of pytest |
-| QA audit baselines | `qa_audit/`, `docs/QA_AUDIT.md` | |
+| QA audit scripts | `qa_audit/`, `docs/QA_AUDIT.md` | |
 
 ---
 
