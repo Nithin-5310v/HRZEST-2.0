@@ -22,7 +22,7 @@ The owner asked for the remaining flaws to be fixed, Phase 6 included, and chose
 
 NV-10/NV-11 keep the safe defaults above (no change to rounding or to "Present = half day").
 
-Raw tool output is in `qa_audit/baseline/`. The helper scripts I wrote for this audit are in `qa_audit/tools/`.
+The raw tool output was in `qa_audit/baseline/`. That folder was removed on 2026-11-18 because nothing used it. It is still in git history at `7b79cb29` (`git show 7b79cb29:qa_audit/baseline/<file>`). The helper scripts I wrote for this audit are in `qa_audit/tools/`, and they can regenerate it.
 
 ---
 
@@ -342,7 +342,7 @@ Branch `qa-audit-fixes`, rebased onto `security-fixes` c983530, one issue per co
 | Server-clock dates in blueprints (ruff DTZ005/011) | 92 | 6 (deliberate: receipt ids, comparisons with stored timestamps) |
 | Unguarded `int()` on request input (`unguarded_int.py`) | 80 | **0** |
 
-Raw output: `qa_audit/baseline/` (before) and `qa_audit/baseline/pytest_cov_after.txt` (after).
+Raw output (removed 2026-11-18, still at `7b79cb29` in git history): `qa_audit/baseline/` (before) and `qa_audit/baseline/pytest_cov_after.txt` (after).
 
 ### 8.2 Load test
 
