@@ -84,6 +84,17 @@ def parse_ip(ip):
     return addr
 
 
+def is_internal_ip(ip) -> bool:
+    """True for loopback / private / CGNAT / link-local addresses: the app's
+    own proxy, container gateway or office LAN, never a visitor on the
+    internet. Narrower than is_protected_ip: operator never-ban CIDRs (real
+    public addresses) and unparseable values are not "internal"."""
+    addr = parse_ip(ip)
+    if addr is None:
+        return False
+    return any(addr.version == net.version and addr in net for net in _BUILTIN_NETS)
+
+
 def is_protected_ip(ip) -> bool:
     """True when `ip` must never be IP-banned or used as a per-client
     identity: unknown/unparseable, non-routable, or operator-allow-listed.

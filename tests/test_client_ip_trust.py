@@ -284,3 +284,21 @@ class TestCollapseWarning:
         client_ip.warn_if_client_ip_collapsed("127.0.0.1", app_env="development")
         assert calls == []
         client_ip._reset_warning_for_tests()
+
+
+@pytest.mark.parametrize("ip,internal", [
+    ("127.0.0.1", True), ("10.1.2.3", True), ("172.17.0.1", True), ("192.168.1.6", True),
+    ("100.64.0.1", True), ("::1", True), ("fe80::1", True), ("::ffff:127.0.0.1", True),
+    ("45.33.32.156", False), ("203.0.113.9", False), ("2001:4860:4860::8888", False),
+    ("not-an-ip", False), (None, False), ("", False),
+])
+def test_is_internal_ip(ip, internal):
+    assert client_ip.is_internal_ip(ip) is internal
+
+
+def test_is_internal_ip_ignores_operator_never_ban_list(monkeypatch):
+    # An office's public egress address is allow-listed from bans, but it is a
+    # real internet source and must still be listed / counted by the SOC.
+    monkeypatch.setenv("WAF_NEVER_BAN_CIDRS", "45.33.32.0/24")
+    assert client_ip.is_protected_ip("45.33.32.156") is True
+    assert client_ip.is_internal_ip("45.33.32.156") is False

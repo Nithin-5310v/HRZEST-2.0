@@ -91,12 +91,26 @@
       while (x >= 1024 && i < u.length - 1) { x /= 1024; i++; }
       return (i ? x.toFixed(1) : x) + ' ' + u[i];
     },
-    time: function (s) { return s ? String(s).replace('T', ' ').slice(0, 19) : '–'; },
-    ago: function (s) {
-      if (!s) return '';
+    // Timestamps arrive as the database's own wall clock with no zone (UTC on
+    // the live server). SOC.skew is the gap between that clock and this
+    // browser (set from /pulse), so subtracting it gives the real moment,
+    // which is then shown in the viewer's own time zone.
+    instant: function (s) {
+      if (!s) return NaN;
       var t = Date.parse(String(s).replace(' ', 'T').slice(0, 19) + 'Z');
+      return isNaN(t) ? NaN : t - SOC.skew;
+    },
+    time: function (s) {
+      if (!s) return '–';
+      var t = fmt.instant(s);
+      if (isNaN(t)) return String(s).replace('T', ' ').slice(0, 19);
+      var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; };
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+    },
+    ago: function (s) {
+      var t = fmt.instant(s);
       if (isNaN(t)) return '';
-      var d = Math.max(0, (Date.now() + SOC.skew - t) / 1000);
+      var d = Math.max(0, (Date.now() - t) / 1000);
       if (d < 60) return Math.floor(d) + 's ago';
       if (d < 3600) return Math.floor(d / 60) + 'm ago';
       if (d < 86400) return Math.floor(d / 3600) + 'h ago';
@@ -128,6 +142,7 @@
         if (!res.ok || (data && data.ok === false)) {
           var e = new Error((data && data.msg) || ('Request failed (' + res.status + ')')); e.status = res.status; throw e;
         }
+        if (method === 'GET') SOC.lastSync = Date.now();
         return data;
       });
     });
@@ -456,6 +471,25 @@
     }, 5000);
   }
 
+  /* ---------- live indicator: how fresh is what is on screen ---------- */
+  SOC.lastSync = 0;
+  function liveWatch() {
+    var tag = document.getElementById('liveTag'), txt = document.getElementById('liveText');
+    if (!tag || !txt) return;
+    var zone = '';
+    try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* old browser */ }
+    tag.title = 'Updates on its own while this tab is open. Times are in your time zone' + (zone ? ' (' + zone + ')' : '') + '.';
+    function tick() {
+      if (!SOC.lastSync) return;
+      var s = Math.round((Date.now() - SOC.lastSync) / 1000);
+      var stale = s > 90 || document.hidden;
+      tag.className = 'live' + (stale ? ' stale' : '');
+      txt.textContent = (stale ? 'Updated ' : 'Live · updated ') + (s < 5 ? 'just now' : s < 60 ? s + 's ago' : Math.floor(s / 60) + 'm ago');
+    }
+    setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) SOC.refreshPulse(true); });
+  }
+
   SOC.start = function () {
     buildNav();
     var av = document.getElementById('avatar'); av.textContent = (SOC.user || '?').charAt(0).toUpperCase();
@@ -477,8 +511,8 @@
     else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) document.documentElement.dataset.theme = 'light';
     window.addEventListener('hashchange', route);
     SOC.refreshPulse().then(route);
-    setInterval(function () { if (!document.hidden) SOC.refreshPulse(true); }, 60000);
-    idleWatch();
+    setInterval(function () { if (!document.hidden) SOC.refreshPulse(true); }, 30000);
+    idleWatch(); liveWatch();
   };
 
   /* views register themselves in the files loaded after this one; start once all are in */

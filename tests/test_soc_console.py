@@ -1185,6 +1185,29 @@ class TestIpIntel:
             add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP)
         d = c.get("/soc/api/overview").get_json()
         assert d["top_ips"][0]["ip"] == PUBLIC_IP and d["proxy_hint"] is True
+        assert d["proxy_ip"] == "10.0.0.2"
+
+    def test_overview_lists_and_counts_only_internet_sources(self, soc, db_engine):
+        c, _ = soc()
+        for ip in ("127.0.0.1", "127.0.0.1", "10.0.0.2", "172.17.0.1"):
+            add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=ip)
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP)
+        add_event(db_engine, "auth.failure", ip=TOR_IP)
+        d = c.get("/soc/api/overview").get_json()
+        assert {t["ip"] for t in d["top_ips"]} == {PUBLIC_IP, TOR_IP}
+        assert d["kpi"]["unique_ips"] == 2
+        # The test client's own SOC login also logs from 127.0.0.1, hence >=.
+        assert d["internal_sources"]["count"] == 3 and d["internal_sources"]["events"] >= 4
+        assert d["proxy_hint"] is True and d["proxy_ip"] == "127.0.0.1"
+
+    def test_latest_alerts_are_newest_first(self, soc, db_engine):
+        c, _ = soc()
+        # Inserted out of time order (as a backfill or a delayed writer would).
+        add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP, minutes_ago=30, message="older")
+        add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP, minutes_ago=2, message="newest")
+        add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP, minutes_ago=90, message="oldest")
+        msgs = [a["message"] for a in c.get("/soc/api/overview").get_json()["recent_alerts"]]
+        assert msgs[:3] == ["newest", "older", "oldest"]
 
 
 # ════════════════════════════════════════════════════════════════════
