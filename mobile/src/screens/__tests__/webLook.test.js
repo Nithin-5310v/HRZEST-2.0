@@ -14,7 +14,6 @@ jest.mock('react-native-safe-area-context', () => ({
     return <View {...props}>{children}</View>;
   },
 }));
-jest.mock('../QRScannerModal', () => () => null);
 jest.mock('../../store/AuthContext', () => ({ useAuth: () => ({ signIn: jest.fn(), user: null }) }));
 jest.mock('../../utils/preferences', () => ({ getLastCompanySlug: jest.fn().mockResolvedValue('') }));
 // The first render compiles the screens and Expo modules; give a cold run time.
@@ -43,6 +42,11 @@ describe('LaunchCountdownScreen', () => {
     await fireEvent.press(screen.getByText('Register your company'));
     expect(navigation.navigate).toHaveBeenLastCalledWith('CompanySignup');
   });
+
+  it('offers no attendance check-in before sign-in', async () => {
+    const screen = await render(<LaunchCountdownScreen navigation={{ navigate: jest.fn() }} />);
+    expect(screen.queryByText(/QR scan/i)).toBeNull();
+  });
 });
 
 describe('LoginScreen', () => {
@@ -52,6 +56,7 @@ describe('LoginScreen', () => {
     expect(screen.getByText('Welcome back')).toBeTruthy();
     expect(screen.getByText('EMAIL, USERNAME OR EMPLOYEE ID')).toBeTruthy();
     expect(screen.queryByText('Employee')).toBeNull();
+    expect(screen.queryByText(/attendance QR/i)).toBeNull();
     await fireEvent.press(screen.getByText('Register your company'));
     expect(navigation.navigate).toHaveBeenCalledWith('CompanySignup');
     await fireEvent.press(screen.getByLabelText('Back'));

@@ -1073,6 +1073,11 @@ class TestApiEmployeeCheckinCoverage:
 
 class TestQrFaceCheckinCoverage:
 
+    @pytest.fixture(autouse=True)
+    def _signed_in_app(self, client, seed_employee):
+        """The endpoint needs a signed-in caller; use the employee's app token."""
+        client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {_emp_token(client, seed_employee)}"
+
     def _make_jpeg(self):
         from PIL import Image as _PIL
         buf = io.BytesIO()

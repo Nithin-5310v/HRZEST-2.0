@@ -581,7 +581,8 @@ class TestCheckinCombosServerSide:
                                                                      signed_qr):
         mock_package(mocker, "blueprints.employee_portal", "get_auth_config", return_value=dict(_FACE_ON))
         rv = client.post("/api/employee/qr-face-checkin", data={
-            "employee_id": signed_qr(seed_employee["employee_id"]), "auth_combo": "qr_fingerprint"})
+            "employee_id": signed_qr(seed_employee["employee_id"]), "auth_combo": "qr_fingerprint"},
+            headers={"Authorization": f"Bearer {_employee_token(client, seed_employee)}"})
         assert rv.status_code == 403
 
 

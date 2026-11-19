@@ -19,7 +19,7 @@ from utils.attendance_utils import (
     is_within_range,
     record_attendance_failure,
 )
-from utils.auth import employee_api_required
+from utils.auth import employee_api_required, resolve_bearer_identity_any
 from utils.face_utils import _face_recognition_available, _get_known_face_encoding, face_recognition
 from utils.helpers import (
     _audit,
@@ -329,15 +329,23 @@ def api_employee_auth_config():
 @employee_portal_bp.route("/api/employee/qr-face-checkin", methods=["POST"])
 @limiter.limit("20 per minute")
 def api_employee_qr_face_checkin():
-    """Kiosk endpoint -- supports auth_combo: qr_face | qr_fingerprint | face_fingerprint.
+    """QR / face / fingerprint check-in -- auth_combo: qr_face | qr_fingerprint | face_fingerprint.
 
-    Also serves the logged-in employee's own dashboard "Mark Attendance"
-    widget: when an employee session exists, its employee_id always wins
-    over whatever was posted, so a logged-in employee can never mark
-    attendance under a different employee_id. With no session (the shared
-    kiosk device, which is never logged in), falls back to the posted
-    employee_id exactly as before -- unauthenticated by design there, since
-    the QR/face/fingerprint combo itself is the proof of identity."""
+    The caller must be signed in: either an employee web session or a live
+    mobile-app login token (employee or admin). Nothing may start a check-in
+    without signing in first -- the mobile app's logged-out "Quick attendance
+    QR scan" kiosk was removed, and the web kiosk posts to /attendance, not
+    here.
+
+    When an employee session exists, its employee_id always wins over
+    whatever was posted, so a logged-in employee can never mark attendance
+    under a different employee_id. A token caller is checked exactly as
+    before: the signed QR / face / fingerprint combo proves whose
+    attendance it is."""
+    _session_emp_id = session.get("employee_id")
+    if not _session_emp_id and not resolve_bearer_identity_any():
+        return jsonify({"ok": False, "msg": "Please sign in to mark attendance."}), 401
+
     lat = request.form.get("lat")
     lon = request.form.get("lon")
     face_photo = request.files.get("face_photo")
@@ -346,11 +354,10 @@ def api_employee_qr_face_checkin():
     if auth_combo not in ("qr_face", "qr_fingerprint", "face_fingerprint"):
         return jsonify({"ok": False, "msg": "Invalid auth_combo"}), 400
 
-    _session_emp_id = session.get("employee_id")
     if _session_emp_id:
         employee_id = _session_emp_id.strip().upper()
     elif auth_combo in ("qr_face", "qr_fingerprint"):
-        # Shared, unauthenticated kiosk device: the posted "employee_id" is
+        # Signed-in app (token, no session): the posted "employee_id" is
         # really whatever text was scanned off the QR code, which must be
         # this employee's signed "<id>.<hmac>" value (qr_generator.py), not
         # a bare ID -- otherwise the QR/fingerprint combo below would be
