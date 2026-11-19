@@ -302,8 +302,11 @@ against your baseline, and `security_events` is a single platform-level table
   pushes to GHCR, signs it keylessly (cosign/Sigstore), attaches a CycloneDX
   SBOM, and the host runs `scripts/deploy_verified_image.sh`, which refuses
   tag-addressed or unsigned images. The host no longer builds.
-* **DAST.** `.github/workflows/dast.yml` — ZAP baseline against `STAGING_URL`
-  (a repository variable; no-op until set). Never aim it at production.
+* **DAST.** `.github/workflows/dast.yml` — weekly ZAP *baseline* (passive: no attack
+  payloads) against `STAGING_URL`, a repository variable set to https://hrzest.com
+  until a separate staging site exists. Fails if the variable is missing. Findings go
+  to the run's `zap_scan` artifact, not a public issue. Never switch it to the active
+  full scan while it points at production.
 * **Infrastructure that existed only in comments** is now code:
   `scripts/host_hardening.sh` (ufw + NAT redirects + podman auto-update/restart +
   rootless-network check); `deploy.sh` rewritten to match the real Podman stack.
