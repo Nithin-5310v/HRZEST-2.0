@@ -34,7 +34,8 @@ class TestRobotsTxt:
     def test_falls_back_to_default_domain_without_app_url(self, client, monkeypatch):
         monkeypatch.delenv("APP_URL", raising=False)
         monkeypatch.setenv("APP_ENV", "production")
-        assert "Sitemap: https://www.hrzest.com/sitemap.xml" in client.get("/robots.txt").get_data(as_text=True)
+        # hrzest.com (no www) is canonical (security review OBS-09).
+        assert "Sitemap: https://hrzest.com/sitemap.xml" in client.get("/robots.txt").get_data(as_text=True)
 
     def test_host_header_cannot_poison_the_sitemap_url(self, client, monkeypatch):
         monkeypatch.setenv("APP_URL", "https://real.example.test")

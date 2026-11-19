@@ -163,6 +163,10 @@ if __name__ == "__main__":
     from werkzeug.middleware.proxy_fix import ProxyFix
     if not isinstance(app.wsgi_app, ProxyFix):
         app.wsgi_app = apply_proxy_fix(app.wsgi_app)
+    # www -> canonical host, outermost like in wsgi.py (OBS-09).
+    from utils.canonical_host import CanonicalHostMiddleware
+    if not isinstance(app.wsgi_app, CanonicalHostMiddleware):
+        app.wsgi_app = CanonicalHostMiddleware(app.wsgi_app)
     # Only started here -- when app.py is run directly (`python app.py`,
     # local dev). wsgi.py (the real production entrypoint) already starts
     # this exact worker itself before importing app.py; starting it again

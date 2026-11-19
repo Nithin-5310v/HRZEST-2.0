@@ -22,8 +22,9 @@ from flask import Blueprint, Response, request
 
 seo_bp = Blueprint("seo", __name__)
 
-# Used when APP_URL isn't set. Matches the og:url already on the landing page.
-_DEFAULT_BASE_URL = "https://www.hrzest.com"
+# Used when APP_URL isn't set. hrzest.com (no www) is the canonical host:
+# www.hrzest.com redirects to it (utils/canonical_host.py, and nginx).
+_DEFAULT_BASE_URL = "https://hrzest.com"
 
 # Paths a search engine may index. Anything else gets noindex.
 INDEXABLE_PATHS = ("/", "/create_org", "/security-policy")
