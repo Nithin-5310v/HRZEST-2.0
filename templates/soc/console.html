@@ -26,6 +26,10 @@
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn ghost small" id="logoutBtn">Sign out</button>
       </form>
+      <form method="post" action="/socperson/logout/everywhere">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn ghost small" id="logoutAllBtn" title="Also ends this account's sessions in every other browser">Sign out everywhere</button>
+      </form>
     </div>
   </aside>
 

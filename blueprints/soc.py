@@ -259,6 +259,17 @@ def logout():
     return redirect("/socperson/login", 303)
 
 
+@soc_bp.route("/socperson/logout/everywhere", methods=["POST"])
+@soc_required("viewer")
+def logout_everywhere():
+    """End this person's sessions in every browser (e.g. a device left signed in)."""
+    me = soc_auth.current_user()
+    soc_auth.end_all_sessions(me["id"])
+    soc_auth.end_session()
+    soc_auth.audit(me["username"], "logout_everywhere", ip=_ip())
+    return redirect("/socperson/login", 303)
+
+
 # ── assets ───────────────────────────────────────────────────────────
 # The console's own JS/CSS live in soc_ui/ (not static/) and are served only to a
 # signed-in session, so the page code -- which documents every API route -- is
@@ -627,7 +638,10 @@ def api_user_update(uid):
         if target["id"] == me["id"]:
             return _err("Another admin has to reset your passkey.")
         removed = soc_passkeys.reset(uid)
-        soc_auth.audit(me["username"], "user_passkey_reset", target=target["username"], detail=f"{removed} removed", ip=_ip())
+        # A lost or stolen device may still hold an open session: end them all.
+        soc_auth.end_all_sessions(uid)
+        soc_auth.audit(me["username"], "user_passkey_reset", target=target["username"],
+                       detail=f"{removed} removed; all sessions ended", ip=_ip())
     else:
         return _err("Unknown action.")
     return _ok()

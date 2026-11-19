@@ -73,6 +73,9 @@ STATEMENTS = [
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_hash TEXT",
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_expires_at TIMESTAMP",
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_sent_at TIMESTAMP",
+    # Bumped to end every open session of that person at once (passkey reset,
+    # "Sign out everywhere"); each session remembers the value it started with.
+    "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS session_epoch INT NOT NULL DEFAULT 0",
     # Passkeys (utils/soc_passkeys.py): the step after the emailed code. Public
     # keys only -- the private key never leaves the person's device.
     """

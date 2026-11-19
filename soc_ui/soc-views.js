@@ -687,7 +687,7 @@
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: x.active ? 'deactivate' : 'activate' }, x.active ? 'Disabled' : 'Enabled').then(refresh).catch(() => {}) }, x.active ? 'Disable' : 'Enable'),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: 'unlock' }, 'Unlocked').then(refresh).catch(() => {}) }, 'Unlock'),
             x.passkeys && x.username !== SOC.user ? h('button', { class: 'btn ghost small', type: 'button', onclick: async () => {
-              if (await SOC.confirm('Remove ' + x.username + '\'s passkeys? They will create a new one at their next sign-in, after the emailed code.')) call(x.id, { action: 'reset_passkey' }, 'Passkey reset').then(refresh).catch(() => {});
+              if (await SOC.confirm('Remove ' + x.username + '\'s passkeys and sign them out everywhere? They will create a new passkey at their next sign-in, after the emailed code.')) call(x.id, { action: 'reset_passkey' }, 'Passkey reset').then(refresh).catch(() => {});
             } }, 'Reset passkey') : null) }
         ] }));
       };

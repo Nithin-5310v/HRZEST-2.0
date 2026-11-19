@@ -388,6 +388,27 @@ class TestSessionLifecycle:
         assert c.get("/socperson/api/me").status_code == 401
         assert "logout" in [a for _, a, _ in audit_actions(db_engine)]
 
+    def test_sign_out_everywhere_ends_every_session_of_that_person_only(self, soc, db_engine):
+        laptop, email = soc("alice", "admin")
+        phone = flask_app.test_client()
+        assert sign_in(phone, email).status_code == 303
+        colleague, _ = soc("bob", "analyst")
+        r = laptop.post("/socperson/logout/everywhere")
+        assert r.status_code == 303 and r.headers["Location"].endswith("/socperson/login")
+        assert laptop.get("/socperson/api/me").status_code == 401
+        assert phone.get("/socperson/api/me").status_code == 401           # the other browser too
+        assert colleague.get("/socperson/api/me").status_code == 200       # nobody else
+        assert ("alice", "logout_everywhere", None) in audit_actions(db_engine)
+        assert sign_in(laptop, email).status_code == 303                  # and signing in again works
+        assert laptop.get("/socperson/api/me").status_code == 200
+        assert flask_app.test_client().post("/socperson/logout/everywhere").status_code == 302   # needs a session
+
+    def test_a_session_without_the_current_epoch_ends(self, soc):
+        c, _ = soc()
+        with c.session_transaction() as s:
+            del s["soc_epoch"]                     # e.g. a session from before this check existed
+        assert c.get("/socperson/api/me").status_code == 401
+
 
 # ════════════════════════════════════════════════════════════════════
 # isolation from every other surface

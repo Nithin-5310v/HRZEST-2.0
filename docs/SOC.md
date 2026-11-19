@@ -70,8 +70,10 @@ Passkeys need HTTPS and the site's own domain: the passkey is tied to the first 
 Note that whoever completes the first sign-in after the email code creates the passkey, so sign
 in yourself soon after listing an address.
 
-**Lost device:** another admin uses **Users & audit → Reset passkey**; you create a new one at
-your next sign-in. **Sole admin locked out:** set `SOC_PASSKEY=off` on the server, restart, sign
+**Lost device:** another admin uses **Users & audit → Reset passkey**, which also ends every open
+session of that person, so a stolen device that was signed in is out at once; you create a new
+passkey at your next sign-in. **Left signed in somewhere?** **Sign out everywhere** (bottom of the
+sidebar) ends your sessions in every browser. **Sole admin locked out:** set `SOC_PASSKEY=off` on the server, restart, sign
 in with the code, then turn it back on (the Posture page flags it while it is off).
 
 To remove someone, take their address out of `SOC_LOGIN_EMAILS` and restart: their open session
@@ -88,7 +90,8 @@ ends on its next request. **Users & audit → Disable** is the immediate switch 
 | Disable / enable / unlock SOC accounts, read the SOC audit trail | | | ✔ |
 
 Viewers never receive raw session identifiers. A role change in `SOC_LOGIN_EMAILS`, removal
-from it, or deactivation ends that user's console session on their next request.
+from it, deactivation, a passkey reset or "Sign out everywhere" ends that user's console sessions
+on their next request.
 
 ## Settings (`.env`)
 

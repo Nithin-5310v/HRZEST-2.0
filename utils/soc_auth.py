@@ -227,7 +227,7 @@ def event(event_type, message, level="WARNING", **fields):
 
 # ── users ────────────────────────────────────────────────────────────
 _USER_COLS = ("id", "username", "email", "role", "active", "failed_count", "locked_until", "last_login_at",
-              "last_login_ip", "created_by", "created_at")
+              "last_login_ip", "created_by", "created_at", "session_epoch")
 
 
 # `is_locked` is computed by the database (its own clock and timezone), never by
@@ -319,6 +319,14 @@ def update_user(uid, *, role=None, active=None):
     params.append(uid)
     with write_cursor("att_master") as cur:
         cur.execute("UPDATE soc_users SET " + ", ".join(sets) + " WHERE id=%s", params)  # nosec B608 -- fixed column names
+        return cur.rowcount == 1
+
+
+def end_all_sessions(uid):
+    """End every open console session of this person, in every browser, on its
+    next request (each session carries the epoch it started with)."""
+    with write_cursor("att_master") as cur:
+        cur.execute("UPDATE soc_users SET session_epoch = session_epoch + 1 WHERE id=%s", (uid,))
         return cur.rowcount == 1
 
 
@@ -472,8 +480,8 @@ def verify_login_code(email, code, ip):
 
 
 # ── session ──────────────────────────────────────────────────────────
-_SESSION_KEYS = ("soc_uid", "soc_user", "soc_role", "soc_at", "soc_last", "soc_pending_email", "soc_pending_at",
-                 "soc_pk_uid", "soc_pk_at", "soc_pk_challenge", "soc_pk_mode")
+_SESSION_KEYS = ("soc_uid", "soc_user", "soc_role", "soc_at", "soc_last", "soc_epoch", "soc_pending_email",
+                 "soc_pending_at", "soc_pk_uid", "soc_pk_at", "soc_pk_challenge", "soc_pk_mode")
 PASSKEY_STEP_SECONDS = 5 * 60
 
 
@@ -522,6 +530,7 @@ def establish(user, ip):
     session["soc_role"] = user["role"]
     session["soc_at"] = now
     session["soc_last"] = now
+    session["soc_epoch"] = user.get("session_epoch") or 0
     session["_csrf"] = secrets.token_hex(32)
     session.permanent = False
     with write_cursor("att_master") as cur:
@@ -561,6 +570,10 @@ def _session_user():
     # A role change since login ends the session at once -- in the database or in
     # SOC_LOGIN_EMAILS -- and so does taking the address off that list.
     if user["role"] != session.get("soc_role") or login_role(user.get("email")) != user["role"]:
+        end_session()
+        return None
+    # A passkey reset or "Sign out everywhere" since login ends it too.
+    if (user.get("session_epoch") or 0) != session.get("soc_epoch"):
         end_session()
         return None
     # Background polling (X-SOC-Poll) must not count as activity, or an unattended

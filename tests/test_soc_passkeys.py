@@ -142,16 +142,25 @@ class TestPasskeyStep:
 
     def test_admin_resets_someone_elses_passkey_but_not_their_own(self, authenticator, db_engine):
         admin, _ = signed_in("alice")
-        signed_in("bob", "analyst", credential_id=cred_id(2))
+        bob_browser, bob_email = signed_in("bob", "analyst", credential_id=cred_id(2))
         users = admin.get("/socperson/api/users").get_json()
         assert users["passkey_required"] is True
         assert {u["username"]: u["passkeys"] for u in users["users"]} == {"alice": 1, "bob": 1}
         bob, me = soc_auth.get_user("bob")["id"], soc_auth.get_user("alice")["id"]
+        assert bob_browser.get("/socperson/api/me").status_code == 200
         assert admin.post(f"/socperson/api/users/{bob}", json={"action": "reset_passkey"}).status_code == 200
         assert soc_passkeys.credentials(bob) == []
+        # The lost device's open session ends at once; the admin's own does not.
+        assert bob_browser.get("/socperson/api/me").status_code == 401
+        assert admin.get("/socperson/api/me").status_code == 200
         assert ("alice", "user_passkey_reset", "bob") in audit_actions(db_engine)
         assert admin.post(f"/socperson/api/users/{me}", json={"action": "reset_passkey"}).status_code == 400
         assert len(soc_passkeys.credentials(me)) == 1
+        # Bob signs in again and, with no passkey left, creates a new one.
+        code_step(bob_browser, bob_email)
+        o, v = passkey_step(bob_browser, cred_id(3))
+        assert o.get_json()["mode"] == "register" and v.status_code == 200
+        assert bob_browser.get("/socperson/api/me").status_code == 200
 
     def test_switching_it_off_is_the_recovery_path_and_posture_says_so(self, client, monkeypatch):
         def posture():

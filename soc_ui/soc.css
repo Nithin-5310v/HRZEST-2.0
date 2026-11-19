@@ -54,7 +54,7 @@ a:hover { text-decoration: underline; }
 #nav a[aria-current="page"] svg { color: var(--accent); }
 #nav .count { margin-left: auto; font-size: 11px; background: var(--critical); color: #fff; border-radius: 999px; padding: 1px 7px; }
 #nav .sep { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 14px 10px 4px; }
-.side-foot { padding: 12px 14px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.side-foot { padding: 12px 14px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .side-foot form { margin: 0; }
 .who { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .who-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
