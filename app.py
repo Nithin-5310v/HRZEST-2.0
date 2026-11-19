@@ -55,7 +55,7 @@ from extensions import app, app_log, limiter, log_security_event  # noqa: E402,F
 # Import ORDER matters: Flask runs before_request hooks in registration order
 # (and after_request hooks in reverse), and each module registers its hooks
 # on the shared app as it is imported.
-from app_setup import config, templating, tenant, security, csrf_csp, errors  # noqa: E402,F401
+from app_setup import config, templating, tenant, security, csrf_csp, cache_control, errors  # noqa: E402,F401
 
 # Re-exported so existing `from app import X` call sites and tests keep working.
 from app_setup.csrf_csp import _add_csrf_fields, _csrf_exempt, _CSRF_METHODS  # noqa: E402,F401
@@ -163,6 +163,10 @@ if __name__ == "__main__":
     from werkzeug.middleware.proxy_fix import ProxyFix
     if not isinstance(app.wsgi_app, ProxyFix):
         app.wsgi_app = apply_proxy_fix(app.wsgi_app)
+    # www -> canonical host, outermost like in wsgi.py (OBS-09).
+    from utils.canonical_host import CanonicalHostMiddleware
+    if not isinstance(app.wsgi_app, CanonicalHostMiddleware):
+        app.wsgi_app = CanonicalHostMiddleware(app.wsgi_app)
     # Only started here -- when app.py is run directly (`python app.py`,
     # local dev). wsgi.py (the real production entrypoint) already starts
     # this exact worker itself before importing app.py; starting it again

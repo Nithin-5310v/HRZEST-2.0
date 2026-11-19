@@ -134,7 +134,7 @@ HRZEST/
 ├── .github/                        CI workflows, Dependabot
 ├── observability/                  logs + alerts (Alloy → Loki → Grafana)
 ├── nginx/, nginx.conf, nginx.conf.example, init-letsencrypt.sh
-├── Containerfile, compose*.yaml, entrypoint.sh, deploy.sh, gunicorn.conf.py, Procfile
+├── Containerfile, compose*.yaml, entrypoint.sh, deploy.sh, gunicorn.conf.py
 ├── requirements.txt, requirements.lock, .python-version
 │
 │ ═══ 13. Docs ══════════════════════════════════════════════════════════════════════
@@ -153,7 +153,7 @@ HRZEST/
 | Area | Pages |
 | --- | --- |
 | Public site & sign-up | `landing.html` (home), `create_org.html` (one-step sign-up + inline email code), `create_org_verify_otp.html` (Google/Microsoft sign-up code), `create_org_pay.html`, `create_org_setup_trial.html`, `create_org_upload_documents.html`, `create_org_pending.html`, `create_org_status.html` |
-| Login & account security | `admin_login.html` (one login page for admin, HR, manager, employee), `mfa_verify.html`, `step_up_mfa.html`, `admin_mfa_required.html`, `*_forgot_password.html`, `*_reset_password.html`, `force_change_pin.html`, `security_lockout.html` |
+| Login & account security | `admin_login.html` (one login page for admin, HR, manager, employee; email + password), `mfa_verify.html`, `step_up_mfa.html`, `admin_mfa_required.html`, `forgot_password.html` (one form, by email, any company), `*_reset_password.html`, `force_change_pin.html`, `security_lockout.html` |
 | Company admin dashboard | `admin_base.html` (layout: sidebar, banners, registration checklist, chat widget), `admin.html` (dashboard), `employees.html`, `employee_detail.html`, `edit_employee.html`, `today_attendance.html`, `bulk_attendance.html`, `monthly_report.html`, `leave_*.html`, `overtime.html`, `salary.html`, `salary_report.html`, `payroll_settings.html`, `admin_payslips.html`, `onboarding*.html`, `offer_letter*.html`, `performance*.html`, `analytics.html`, `org_chart.html`, `activity_log.html`, `admin_tools.html`, `settings.html`, `profile.html`, `company_details.html`, `company_verification.html`, `seat_checkout.html`, `pay_overdue_bill.html`, `id_card_template_editor.html` |
 | HR dashboard | `hr_dashboard.html` |
 | Employee self-service | `employee_portal.html`, `employee_profile.html`, `employee_attendance_detail.html`, `my_compoff.html`, `my_onboarding.html`, `my_performance.html` |
@@ -373,7 +373,7 @@ More detail: `SECURITY.md`, `docs/SECURITY_HARDENING.md`.
 | Host & backups | `scripts/host_hardening.sh`, `scripts/backup_db.sh`, `hrzest-backup.service` / `.timer`, `scripts/provision_db_roles.py` |
 | Logs & monitoring | `observability/` (Grafana Alloy → Loki → Grafana, security alert rules) |
 | Dependencies | `requirements.txt`, `requirements.lock` (hash-pinned), `requirements-dev.txt`, `docs/DEPENDENCIES.txt`; `mobile/package.json` |
-| Other | `desktop_agent/wifi_posture_agent.py` (office Wi-Fi check for the employee portal), `Procfile` (PaaS hosts) |
+| Other | `desktop_agent/wifi_posture_agent.py` (office Wi-Fi check for the employee portal) |
 
 ---
 

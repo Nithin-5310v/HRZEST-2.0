@@ -900,7 +900,8 @@ def risky_sessions():
             if soc_scope.is_test_company(t["slug"]):       # your own testing (SOC_TEST_COMPANIES)
                 return None
             cur.execute("SELECT sid, identifier, attempt_type, score, status, last_reason, updated_at FROM session_risk "
-                        "WHERE status <> 'active' OR score > 0 ORDER BY updated_at DESC LIMIT 25")
+                        # A plain logout ('revoked', score 0) isn't risky.
+                        "WHERE status NOT IN ('active', 'revoked') OR score > 0 ORDER BY updated_at DESC LIMIT 25")
             rows = [r for r in cur.fetchall() if not soc_scope.is_test_account(r[1])]
             if not rows:
                 return None

@@ -276,7 +276,12 @@ def _security_headers(response):
     # ── Invariant headers (every response, every content-type) ──────────────
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # "0", not "1; mode=block" (security review OBS-08, 2026-11): the old
+    # browser XSS auditor this header switched on has been removed from every
+    # current browser, and where it still exists its blocking mode could be
+    # abused to leak or break pages. OWASP recommends disabling it explicitly
+    # and relying on the CSP below, which is unchanged.
+    response.headers["X-XSS-Protection"] = "0"
     # setdefault so a surface that needs a stricter policy keeps its own (the SOC console sends
     # no-referrer). No route sets a weaker one; keep it that way.
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -416,9 +421,6 @@ def _security_headers(response):
             "form-action 'none'; base-uri 'none';"
         )
     return response
-
-
-# csp_report migrated to blueprints/core.py
 
 
 @app.after_request

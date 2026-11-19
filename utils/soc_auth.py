@@ -532,6 +532,10 @@ def establish(user, ip):
     session["soc_last"] = now
     session["soc_epoch"] = user.get("session_epoch") or 0
     session["_csrf"] = secrets.token_hex(32)
+    # Server-side session id, so logout can revoke this exact session
+    # (security review Section 9; checked in _session_user()).
+    from utils.session_risk import ensure_session_id
+    ensure_session_id(session)
     session.permanent = False
     with write_cursor("att_master") as cur:
         cur.execute("UPDATE soc_users SET failed_count=0, locked_until=NULL, last_login_at=NOW(), last_login_ip=%s "
@@ -540,8 +544,14 @@ def establish(user, ip):
     event("soc.login_success", "SOC console login", level="INFO", identifier=user["username"])
 
 
-def end_session():
+def end_session(revoke=False):
+    """Drop the SOC keys from the session. revoke=True (logout) also revokes
+    the session id server-side, so a copied cookie stops working at once."""
     who = session.get("soc_user")
+    if revoke:
+        from utils.session_risk import revoke_session_id
+        revoke_session_id(session.get("_sid"), who or "soc", "soc logout")
+        session.pop("_sid", None)
     for k in _SESSION_KEYS:
         session.pop(k, None)
     return who
@@ -565,6 +575,10 @@ def _session_user():
         g._soc_db_error = True          # fail closed; the guard answers 503 for API calls
         return None
     if not user or not user["active"]:
+        end_session()
+        return None
+    from utils.session_risk import is_session_compromised
+    if is_session_compromised(session.get("_sid")):  # logged out, or revoked by an analyst
         end_session()
         return None
     # A role change since login ends the session at once -- in the database or in

@@ -6,3 +6,5 @@ Containerfile     text eol=lf
 *.alloy           text eol=lf
 requirements*.txt text eol=lf
 requirements.lock text eol=lf
+# Host config files installed on the Linux server (sshd, fail2ban, nginx).
+scripts/host-hardening/* text eol=lf

@@ -266,9 +266,9 @@
 
       <form action="{{ tpath('/login') }}" method="POST" autocomplete="on">
         <div class="field-group">
-          <label class="field-label" for="login_identifier">Email, Username or Employee ID</label>
-          <input class="field-input" type="text" id="login_identifier" name="identifier"
-                 placeholder="Enter your email, username or employee ID"
+          <label class="field-label" for="login_identifier">Email</label>
+          <input class="field-input" type="text" inputmode="email" id="login_identifier" name="identifier"
+                 placeholder="you@company.com"
                  required autofocus autocomplete="username" autocapitalize="none" spellcheck="false" />
         </div>
 
@@ -294,11 +294,11 @@
 
       <div class="links">
         <a href="{{ tpath('/checkin') }}">← Attendance Kiosk</a>
-        <a href="{{ tpath('/admin_forgot_password') }}" class="forgot">Forgot Password?</a>
+        <a href="{{ tpath('/forgot_password') }}" class="forgot">Forgot Password?</a>
       </div>
 
       <div class="hint">
-        <strong>Sign In Help</strong> — Use your <strong>username</strong> or <strong>employee ID</strong> to continue.
+        <strong>Sign In Help</strong> — Sign in with your <strong>email address</strong> and password.
       </div>
       {% endif %}
     </div>

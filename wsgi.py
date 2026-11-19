@@ -44,6 +44,11 @@ app.wsgi_app = apply_proxy_fix(app.wsgi_app)
 from utils.tenant_routing import TenantPrefixMiddleware
 app.wsgi_app = TenantPrefixMiddleware(app.wsgi_app)
 
+# Outermost: www.<APP_URL host> -> <APP_URL host>, path and query kept
+# (security review OBS-09; utils/canonical_host.py).
+from utils.canonical_host import CanonicalHostMiddleware
+app.wsgi_app = CanonicalHostMiddleware(app.wsgi_app)
+
 # ── Startup DB init ───────────────────────────────────────────────────────────
 # Once per deploy, one worker at a time -- see migrations/runner.py (QA SCALE-02).
 with app.app_context():

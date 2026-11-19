@@ -59,6 +59,3 @@ def _seed_defaults_and_admin(cursor, db, seed_admin=True):
     if admin_count > 0:
         cursor.execute("UPDATE company_settings SET setup_done=1 WHERE setup_done=0")
         db.commit()
-
-
-# assign_leave_balances_for_employee moved to utils/leave_utils.py

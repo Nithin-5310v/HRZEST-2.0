@@ -77,10 +77,20 @@ def test_employee_link_names_the_company_and_opens(client, seed_employee, sent):
     assert _opens_in_a_fresh_browser(link)
 
 
-@pytest.mark.parametrize("page", ["admin_forgot_password", "employee_forgot_password"])
-def test_no_company_known_goes_to_the_company_step_first(client, monkeypatch, page):
+@pytest.mark.parametrize("page", ["forgot_password", "admin_forgot_password", "employee_forgot_password"])
+def test_no_company_known_still_shows_the_form(client, monkeypatch, page):
+    """It used to bounce to /login's company step, so "Forgot password" from
+    the landing page never worked. It now searches every company itself."""
     monkeypatch.setenv("LOGIN_ASKS_FOR_COMPANY", "true")
     resp = client.get(f"/{page}")
-    assert resp.status_code == 302 and resp.headers["Location"].endswith("/login")
-    # Inside a company the form is shown as usual.
+    assert resp.status_code == 200 and b'name="email"' in resp.data
     assert client.get(f"/{SLUG}/{page}").status_code == 200
+
+
+def test_bare_request_finds_the_company_and_links_to_it(client, admin_email, sent, monkeypatch):
+    monkeypatch.setenv("LOGIN_ASKS_FOR_COMPANY", "true")
+    resp = client.post("/forgot_password", data={"email": admin_email})
+    assert b"A password reset link has been sent to owner@acme.test" in resp.data
+    link = _link(sent[0], "admin_reset_password")
+    assert f"/{SLUG}/admin_reset_password/" in link
+    assert _opens_in_a_fresh_browser(link)

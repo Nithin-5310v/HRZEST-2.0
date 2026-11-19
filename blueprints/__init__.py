@@ -42,6 +42,7 @@ BLUEPRINTS = (
     ("company_profile", "company_profile_bp"),
     ("hr_team", "hr_team_bp"),
     ("seo", "seo_bp"),
+    ("security_txt", "security_txt_bp"),
     ("oauth_signup", "oauth_signup_bp"),
     ("privacy", "privacy_bp"),
     ("soc", "soc_bp"),

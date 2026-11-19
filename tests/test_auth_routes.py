@@ -418,10 +418,10 @@ class TestAdminForgotPassword:
     def test_get_renders_form(self, client):
         assert client.get("/admin_forgot_password").status_code == 200
 
-    def test_unknown_email_gives_generic_response(self, client):
+    def test_unknown_email_says_no_account(self, client):
         resp = client.post("/admin_forgot_password", data={"email": "nobody@nowhere.test"})
         assert resp.status_code == 200
-        assert b"check your inbox" in resp.data.lower() or resp.status_code == 200
+        assert b"No account found with this email address." in resp.data
 
     def test_known_email_without_smtp_config_shows_error(self, client, seed_admin, db_engine, monkeypatch):
         cur = db_engine.cursor()
@@ -533,7 +533,7 @@ class TestEmployeeForgotPassword:
 
     def test_empty_employee_id_rejected(self, client):
         resp = client.post("/employee_forgot_password", data={"employee_id": ""})
-        assert b"enter your Employee ID" in resp.data
+        assert b"Please enter your email address." in resp.data
 
     def test_unknown_employee_id_generic_response(self, client):
         resp = client.post("/employee_forgot_password", data={"employee_id": "NOPE_XYZ"})

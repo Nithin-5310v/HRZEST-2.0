@@ -948,14 +948,6 @@ def get_master_db():
     return _PooledConnection(pool, conn)
 
 
-def get_owner_db_connection():
-    """get_db_connection() on the owner role (== get_db_connection() when no
-    owner role is configured). For the rare runtime operation that is
-    genuinely DDL: nothing in request handling should need it."""
-    with owner_privileges():
-        return get_db_connection()
-
-
 def get_owner_master_db():
     """get_master_db() on the owner role -- tenant deletion (DROP SCHEMA)."""
     with owner_privileges():

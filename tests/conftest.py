@@ -141,6 +141,10 @@ register_all(flask_app)
 # the pre-migration subdomain/session-cache branches.
 from utils.tenant_routing import TenantPrefixMiddleware
 flask_app.wsgi_app = TenantPrefixMiddleware(flask_app.wsgi_app)
+# ...and wsgi.py's outermost www -> canonical-host redirect (OBS-09). It only
+# acts when APP_URL names a real domain, so it's a no-op unless a test sets one.
+from utils.canonical_host import CanonicalHostMiddleware  # noqa: E402
+flask_app.wsgi_app = CanonicalHostMiddleware(flask_app.wsgi_app)
 
 # Import app AFTER blueprints are registered so all module-level reads pick
 # up test values AND _register_api_v1_aliases() sees the full route set.

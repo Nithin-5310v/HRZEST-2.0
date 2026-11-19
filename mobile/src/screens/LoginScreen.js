@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,9 +23,9 @@ import {
   parseCompanySlug,
   resolveCompany,
   setCompanySlug,
+  requestPasswordReset,
 } from "../api/client";
 import { useAuth } from "../store/AuthContext";
-import { API_BASE_URL } from "../config";
 import { getLastCompanySlug } from "../utils/preferences";
 import AppTopBar from "../components/AppTopBar";
 import { WEB, AppButton } from "../theme/webAuthStyle";
@@ -53,6 +52,7 @@ export default function LoginScreen({ navigation }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [focused, setFocused] = useState(null);
 
@@ -144,7 +144,7 @@ export default function LoginScreen({ navigation }) {
     const typed = identifier.trim();
     // Passwords are sent exactly as typed -- spaces are valid characters.
     if (!typed || !password) {
-      Alert.alert("Input Required", "Enter your email, username or employee ID, and your password.");
+      Alert.alert("Input Required", "Enter your email address and your password.");
       return;
     }
     setLoading(true);
@@ -228,24 +228,33 @@ export default function LoginScreen({ navigation }) {
     setLoading(false);
   };
 
-  // Resets are emailed from the website's forms, per company; open the one
-  // for this person's company (the emailed link comes back to the same
-  // company). Admins reset by email; employees -- HR staff included, who
-  // sign in with their employee ID -- by employee ID.
+  // "Forgot password?": the reset link is emailed to the address typed above.
+  // The server looks in every company, so no company is needed first; it
+  // says when no account has that email.
   const handleForgotPassword = async () => {
-    if (!companyUrl.trim()) {
-      setShowCompany(true);
-      Alert.alert("Your company", "Enter your company's name above, then tap Forgot password again.");
+    const email = identifier.trim();
+    if (!email.includes("@")) {
+      Alert.alert("Forgot password", "Enter your email address above, then tap Forgot password again.");
       return;
     }
-    if (!(await applyTypedCompany())) return;
-    const slug = getCompanySlug();
-    const base = `${API_BASE_URL}${slug ? `/${slug}` : ""}`;
-    Alert.alert("Reset Your Password", "How do you sign in?", [
-      { text: "Admin (email)", onPress: () => Linking.openURL(`${base}/admin_forgot_password`) },
-      { text: "Employee or HR (employee ID)", onPress: () => Linking.openURL(`${base}/employee_forgot_password`) },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    if (resetting) return;
+    setResetting(true);
+    try {
+      const res = await requestPasswordReset(email);
+      Alert.alert("Reset email sent", res?.data?.msg || `A password reset link has been sent to ${email}.`);
+    } catch (e) {
+      const status = e?.response?.status;
+      const msg = e?.response?.data?.msg;
+      if (status === 404) {
+        Alert.alert("Email not found", msg || "No account found with this email address.");
+      } else if (status === 429) {
+        Alert.alert("Too many requests", "Please wait a minute and try again.");
+      } else {
+        Alert.alert("Couldn't send reset email", msg || "Please check your connection and try again.");
+      }
+    } finally {
+      setResetting(false);
+    }
   };
 
   const goBack = navigation?.canGoBack?.() ? () => navigation.goBack() : undefined;
@@ -323,12 +332,15 @@ export default function LoginScreen({ navigation }) {
               ) : null}
 
               <View>
-                <Text style={styles.label}>EMAIL, USERNAME OR EMPLOYEE ID</Text>
+                <Text style={styles.label}>EMAIL</Text>
                 <View style={fieldStyle("id")}>
-                  <Ionicons name="person-outline" size={20} color={WEB.textMuted} />
+                  <Ionicons name="mail-outline" size={20} color={WEB.textMuted} />
                   <TextInput
                     style={styles.input}
-                    placeholder="e.g. you@company.com or EMP-1001"
+                    placeholder="you@company.com"
+                    keyboardType="email-address"
+                    textContentType="emailAddress"
+                    autoComplete="email"
                     placeholderTextColor={WEB.textSubtle}
                     value={identifier}
                     onChangeText={setIdentifier}

@@ -178,11 +178,11 @@ class TestAdminForgotPassword:
         rv = client.get("/admin_forgot_password")
         assert rv.status_code == 200
 
-    def test_post_unknown_email_shows_sent_message(self, client):
-        """No account enumeration — same response whether email exists or not."""
+    def test_post_unknown_email_says_no_account(self, client):
+        """Owner's decision (2026-11-19): an unknown email is told so plainly."""
         rv = client.post("/admin_forgot_password", data={"email": "nobody@example.com"})
         assert rv.status_code == 200
-        # Should render template with sent=True (no error)
+        assert b"No account found with this email address." in rv.data
 
     def test_post_known_email_no_email_config_shows_error(self, client, seed_admin, db_engine, mocker):
         """Email configured for admin but email service not set up → error message."""
@@ -291,7 +291,7 @@ class TestEmployeeForgotPassword:
     def test_post_empty_id_shows_error(self, client):
         rv = client.post("/employee_forgot_password", data={"employee_id": ""})
         assert rv.status_code == 200
-        assert b"Employee ID" in rv.data
+        assert b"Please enter your email address." in rv.data
 
     def test_post_unknown_employee_shows_sent(self, client):
         rv = client.post("/employee_forgot_password", data={"employee_id": "GHOST99"})

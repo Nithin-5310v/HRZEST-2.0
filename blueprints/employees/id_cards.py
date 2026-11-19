@@ -9,7 +9,7 @@ from io import BytesIO
 from qr_generator import generate_qr
 from utils.attendance_utils import _td_to_time
 from utils.auth import HR_ROLE, admin_required, api_required, api_role_required
-from utils.helpers import decrypt_pii, get_company_settings
+from utils.helpers import decrypt_pii, get_company_settings, hr_scope_denied
 from utils.storage import open_image, open_private
 from utils.tenant_files import resolve_face_photo
 from . import employees_bp
@@ -743,6 +743,10 @@ def _build_id_card_buf(emp_id):
 @admin_required
 def admin_id_card(emp_id):
     from flask import send_file
+    # The card carries the employee's signed attendance QR: team-scoped
+    # roles get only their own people's cards.
+    if hr_scope_denied(emp_id):
+        return "Employee not found", 404
     buf = _build_id_card_buf(emp_id)
     if buf is None:
         return "Employee not found", 404
@@ -755,6 +759,8 @@ def admin_id_card(emp_id):
 @admin_required
 def admin_view_id_card(emp_id):
     from flask import send_file
+    if hr_scope_denied(emp_id):  # see admin_id_card()
+        return "Employee not found", 404
     buf = _build_id_card_buf(emp_id)
     if buf is None:
         return "Employee not found", 404

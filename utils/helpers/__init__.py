@@ -155,7 +155,6 @@ from .rbac import (  # noqa: E402,F401
     VALID_BASE_TYPES,
     all_role_permissions,
     assign_employee_role,
-    base_type_for_role,
     can_access,
     defined_role_base_type,
     create_role,

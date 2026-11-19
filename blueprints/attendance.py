@@ -17,7 +17,10 @@ from flask import (
 )
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection
-from utils.auth import admin_required, api_required, resolve_bearer_identity_any, HR_ROLE, require_access
+from utils.auth import (
+    admin_required, api_required, api_role_required, resolve_bearer_identity_any, HR_ROLE, require_access,
+    role_required,
+)
 from utils.helpers import (
     tpath, get_auth_config, allowed_checkin_combos, get_company_settings, _safe_redirect, _safe_referrer_redirect,
     co_scope_column, hr_scope_column, hr_scope_denied, decrypt_pii, get_pending_action_counts,
@@ -1506,6 +1509,8 @@ def api_admin_flagged_punches():
         days = max(1, min(int(request.args.get("days", 7)), 90))
     except ValueError:
         days = 7
+    # A team-scoped role sees only its own people's punches.
+    scope_sql, scope_args = hr_scope_column()
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     try:
@@ -1513,7 +1518,8 @@ def api_admin_flagged_punches():
             "SELECT id, employee_id, channel, auth_combo, ip, device_id, liveness, liveness_action, "
             "flags, outcome, created_at FROM punch_evidence "
             "WHERE ((flags IS NOT NULL AND flags <> '') OR outcome = 'rejected') "
-            "AND created_at > NOW() - (%s * INTERVAL '1 day') ORDER BY id DESC LIMIT 500", (days,))
+            f"AND created_at > NOW() - (%s * INTERVAL '1 day') {scope_sql} "  # nosec B608 -- fixed fragment
+            "ORDER BY id DESC LIMIT 500", (days,) + tuple(scope_args))
         rows = cursor.fetchall()
     finally:
         cursor.close()
@@ -1525,7 +1531,10 @@ def api_admin_flagged_punches():
 
 
 @attendance_bp.route("/api/admin/attendance/office_networks", methods=["GET", "POST"])
-@admin_required
+# The anti-spoofing allow-list is a company security setting, like
+# toggle_auth_method and save_geo_radius: company admin only
+# (security review route audit, 2026-11).
+@role_required("admin")
 def api_admin_office_networks():
     """Public IP ranges on-site punches must come from (WFH exempt). An empty
     list or require=false turns the rule off. Only flagged, never enforced,
@@ -1623,6 +1632,10 @@ def process_punch(cursor, db, emp_id, employee_name, punch_dt=None):
 
 @attendance_bp.route("/api/attendance/checkin", methods=["POST"])
 @api_required
+# It punches whichever employee_id the body names, with no face/QR/passkey
+# factor, so only the company admin's token may use it -- not HR, managers
+# or custom roles (security review route audit, 2026-11).
+@api_role_required("admin")
 def api_checkin():
     data = request.get_json() or {}
     emp_id = data.get("employee_id")

@@ -1,0 +1,26 @@
+# /etc/fail2ban/jail.d/hrzest-sshd.local on the EC2 host (security review
+# OBS-05). Installed by scripts/host-hardening/install_ssh_hardening.sh.
+#
+# 3 failed SSH logins within 10 minutes -> banned for 1 hour; repeat
+# offenders (the recidive jail) -> banned for a week. Ubuntu 24.04 logs sshd
+# to the systemd journal, hence backend = systemd.
+[DEFAULT]
+backend  = systemd
+banaction = nftables-multiport
+# Never ban the server itself. Add your office/home IP here if it is stable.
+ignoreip = 127.0.0.1/8 ::1
+
+[sshd]
+enabled  = true
+port     = ssh
+maxretry = 3
+findtime = 10m
+bantime  = 1h
+
+[recidive]
+enabled  = true
+backend  = auto
+logpath  = /var/log/fail2ban.log
+findtime = 1d
+maxretry = 3
+bantime  = 1w

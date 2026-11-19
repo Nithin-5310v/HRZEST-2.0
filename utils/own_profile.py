@@ -32,14 +32,6 @@ def linked_employee_id(cursor, username):
     return row[0] if row and row[0] else None
 
 
-def is_linked_employee(cursor, employee_id):
-    """True when `employee_id` is some admin login's own profile."""
-    if not employee_id:
-        return False
-    cursor.execute("SELECT 1 FROM admin_users WHERE linked_employee_id=%s", (employee_id,))
-    return cursor.fetchone() is not None
-
-
 def session_linked_employee_id():
     """linked_employee_id() for the current owner-admin web session, looked
     up once per request. None for any other session."""

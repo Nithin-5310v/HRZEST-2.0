@@ -409,6 +409,15 @@ class TestSessionLifecycle:
             del s["soc_epoch"]                     # e.g. a session from before this check existed
         assert c.get("/socperson/api/me").status_code == 401
 
+    def test_logout_also_kills_a_copied_cookie(self, soc):
+        """Security review Section 9: logout revokes the session server-side."""
+        c, _ = soc()
+        assert c.get("/socperson/api/me").status_code == 200
+        stolen = c.get_cookie("__Host-session").value
+        c.post("/socperson/logout")
+        c.set_cookie("__Host-session", stolen)
+        assert c.get("/socperson/api/me").status_code == 401
+
 
 # ════════════════════════════════════════════════════════════════════
 # isolation from every other surface
@@ -432,8 +441,7 @@ class TestIsolation:
     def test_a_console_session_opens_nothing_else(self, soc):
         c, _ = soc("alice", "admin")
         assert c.get("/admin").status_code in (302, 401)
-        r = c.get("/super_admin")
-        assert r.status_code == 302 and "/super_admin/login" in r.headers["Location"]
+        assert c.get("/super_admin").status_code == 404  # OBS-07
         assert c.get("/employee_portal").status_code in (302, 401)
         assert c.get("/api/employees").status_code == 401
 

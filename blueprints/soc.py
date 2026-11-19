@@ -73,8 +73,8 @@ def _latest_integrity():
 
 @soc_bp.after_request
 def _headers(resp):
-    resp.headers["Cache-Control"] = "no-store, max-age=0"
-    resp.headers["Pragma"] = "no-cache"
+    # Cache-Control/Pragma/Expires: no-store comes from app_setup/cache_control.py
+    # for every SOC response, like the rest of the site.
     resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
     resp.headers["Referrer-Policy"] = "no-referrer"
     return resp
@@ -253,7 +253,7 @@ def logout():
     blocked = _guard_network()
     if blocked:
         return blocked
-    who = soc_auth.end_session()
+    who = soc_auth.end_session(revoke=True)
     if who:
         soc_auth.audit(who, "logout", ip=_ip())
     return redirect("/socperson/login", 303)

@@ -748,10 +748,22 @@ class TestSecurityHeaders:
         val = resp.headers.get("X-Frame-Options", "")
         assert val.upper() in ("DENY", "SAMEORIGIN")
 
-    def test_x_xss_protection(self, client):
-        # Modern browsers deprecate X-XSS-Protection; app omits it intentionally
+    def test_x_xss_protection_is_disabled(self, client):
+        """OBS-08: the legacy XSS auditor is switched off ("0"), never "1; mode=block"."""
         resp = client.get("/login")
-        assert resp.status_code in (200, 304)  # header presence is optional
+        assert resp.headers.get("X-XSS-Protection") == "0"
+
+    @pytest.mark.parametrize("path", ["/login", "/", "/robots.txt", "/api/health"])
+    def test_ground_rule_headers_unchanged(self, client, monkeypatch, path):
+        """These values must stay exactly as they are (security review 2026-11)."""
+        monkeypatch.setenv("APP_ENV", "production")
+        resp = client.get(path)
+        assert resp.headers.get("Strict-Transport-Security") == "max-age=63072000; includeSubDomains; preload"
+        assert resp.headers.get("X-Frame-Options") == "DENY"
+        assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+        assert resp.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+        assert resp.headers.get("Content-Security-Policy")
+        assert len(resp.headers.getlist("X-Frame-Options")) == 1, "set in one place only"
 
     @pytest.mark.parametrize("path", ["/create_org/pay/1", "/create_org/setup_trial/1",
                                       "/pay_overdue_bill", "/settings/seats", "/settings"])

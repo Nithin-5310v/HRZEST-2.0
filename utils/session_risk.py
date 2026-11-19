@@ -25,6 +25,10 @@ from utils.async_writer import enqueue_write
 
 _RISK_THRESHOLD = int(os.environ.get("SESSION_RISK_THRESHOLD", "50"))
 
+# Statuses that end a session server-side. 'compromised' comes from the risk
+# score or a SOC analyst; 'revoked' from logout (revoke_session_id below).
+DEAD_STATUSES = ("compromised", "revoked")
+
 
 def ensure_session_id(session) -> str:
     """Get-or-create the per-login correlation ID stored in the session
@@ -110,9 +114,60 @@ def _evaluate_session_risk_db(sid: str, identifier: str, attempt_type: str,
     return new_score
 
 
+def revoke_session_id(sid: str, identifier: str, reason: str = "logout") -> bool:
+    """Server-side logout (security review Section 9, 2026-11).
+
+    Sessions are signed cookies, so session.clear() at logout only empties
+    the copy in this browser: a copy taken earlier (from a log, a terminal,
+    a proxy) would stay valid until its idle or absolute timeout. Marking
+    the session's id 'revoked' here makes every auth check reject that copy
+    on its very next request (is_session_compromised below).
+
+    Written synchronously, not through the async writer, so the revocation
+    is in place before the logout response is sent. Returns False (and
+    logs) on a DB error; the caller still clears the cookie."""
+    if not sid:
+        return False
+    try:
+        db = get_db_connection()
+        cur = db.cursor()
+        cur.execute(
+            """
+            INSERT INTO session_risk (sid, identifier, attempt_type, score, status, last_reason)
+            VALUES (%s, %s, 'logout', 0, 'revoked', %s)
+            ON CONFLICT (sid) DO UPDATE SET status='revoked', last_reason=EXCLUDED.last_reason, updated_at=NOW()
+            """,
+            (sid[:64], (identifier or "unknown")[:150], reason[:300]),
+        )
+        db.commit()
+        cur.close()
+        db.close()
+        return True
+    except Exception as e:
+        app_log.error("revoke_session_id failed: %s", type(e).__name__)
+        return False
+
+
+def end_session_server_side(session, identifier: str, reason: str = "logout") -> None:
+    """Logout helper: revoke this session's id, then clear the cookie."""
+    revoke_session_id(session.get("_sid"), identifier, reason)
+    session.clear()
+
+
+def rotate_session_id(session, identifier: str, reason: str) -> str:
+    """Give a live session a new id and a new CSRF token, revoking the old id
+    (used after a password change). Returns the new id."""
+    old = session.pop("_sid", None)
+    if old:
+        revoke_session_id(old, identifier, reason)
+    session.pop("_csrf", None)  # app_setup/templating._csrf_token() mints a new one
+    return ensure_session_id(session)
+
+
 def is_session_compromised(sid: str) -> bool:
     """Server-side check -- the actual enforcement point. Called from the
-    auth decorators on every request, not just at login."""
+    auth decorators on every request, not just at login. True for a session
+    ended by the risk score, a SOC analyst, or logout (DEAD_STATUSES)."""
     if not sid:
         return False
     # Answered already, in the same statement as the account checks, by
@@ -120,7 +175,7 @@ def is_session_compromised(sid: str) -> bool:
     from utils import request_guard
     cached = request_guard.cached_risk_status(sid)
     if cached is not None:
-        return cached == "compromised"
+        return cached in DEAD_STATUSES
     try:
         db = get_db_connection()
         cur = db.cursor()
@@ -128,7 +183,7 @@ def is_session_compromised(sid: str) -> bool:
         row = cur.fetchone()
         cur.close()
         db.close()
-        return bool(row and row[0] == "compromised")
+        return bool(row and row[0] in DEAD_STATUSES)
     except Exception as e:
         app_log.error("is_session_compromised check failed for sid=%s: %s", sid, e)
         # Fail open on a DB error here, not closed -- an outage in this

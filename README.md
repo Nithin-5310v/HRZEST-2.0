@@ -17,7 +17,7 @@ A full-featured, self-hosted employee management and attendance platform built w
 | **Documents** | Employee document upload and management |
 | **Tickets** | Internal support ticket system |
 | **Notifications** | In-app notification feed (admin and employee) |
-| **Org chart** | Multi-tenant org provisioning -- instant, via "Sign up with Google/Microsoft" (`/create_org`), auto-approved onto a 2-day free trial, no documents or payment upfront (see `GOOGLE_OAUTH_CLIENT_ID`/`MICROSOFT_OAUTH_CLIENT_ID` in `.env.example`) |
+| **Org chart** | Multi-tenant org provisioning -- instant, via "Sign up with Google/Microsoft" (`/create_org`), auto-approved onto a 30-day free trial (`TRIAL_DURATION_DAYS` in `blueprints/trial_billing.py`), no documents or payment upfront (see `GOOGLE_OAUTH_CLIENT_ID`/`MICROSOFT_OAUTH_CLIENT_ID` in `.env.example`) |
 | **Employee portal** | Self-service: attendance, payslips, leaves, profile, QR code |
 | **Mobile app** | React Native app for employee check-in/out |
 
@@ -38,21 +38,28 @@ A full-featured, self-hosted employee management and attendance platform built w
 
 ### 1. Clone and create a virtual environment
 
+The code lives at **https://github.com/Nithin-5310v/HRZEST-2.0**. Day-to-day work
+branches off `develop` (see [Contributing](#contributing)).
+
 ```bash
-git clone https://github.com/Nithin-magzest/emplyeee-attendance.git
-cd employee-attendance-system
-python -m venv venv
-# Windows:
-venv\Scripts\activate
+git clone https://github.com/Nithin-5310v/HRZEST-2.0.git
+cd HRZEST-2.0
+git checkout develop
+python -m venv .venv
+# Windows (PowerShell):
+.venv\Scripts\Activate.ps1
 # Mac/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### 2. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 ```
+
+`requirements-dev.txt` adds pytest, flake8 and the other tools the tests and
+CI use; leave it out on a server.
 
 ### 3. Configure environment variables
 
@@ -75,10 +82,13 @@ Edit `.env` and fill in every value. The required ones are:
 ### 4. Run the development server
 
 ```bash
-python wsgi.py
+python run_dev.py
 ```
 
-The server starts on `https://localhost:5000` (self-signed cert) or `http://localhost:5000` if no cert is found. The first run creates all database tables automatically.
+`run_dev.py` sets development defaults (`APP_ENV=development`, so cookies work
+over plain HTTP) and prints the local URLs. It serves `http://127.0.0.1:5000`,
+or HTTPS if `cert.pem`/`key.pem` exist (`python scripts/generate_cert.py`
+makes a self-signed pair). The first run creates all database tables.
 
 **Default admin login:** username `admin`, password from `ADMIN_PASSWORD` in `.env`.
 
@@ -103,10 +113,13 @@ DB_HOST=127.0.0.1 DB_PORT=5432 DB_USER=postgres DB_PASS=ci_testpass DB_NAME=att_
   SECRET_KEY=ci-test-secret-key FLASK_ENV=testing python -m pytest tests/ -v
 ```
 
-Or, against your own Postgres instance, set the connection variables in your shell or `.env`:
+Or, against your own Postgres instance, set the connection variables in your shell or `.env`.
+The suite creates and empties its own database, `att_test` by default; to run two
+checkouts side by side give each its own name with `HRZEST_TEST_DB` (it must
+contain "test"). `-n 4` runs in parallel, one database per worker:
 
 ```bash
-DB_HOST=127.0.0.1 DB_USER=postgres DB_PASS=yourpass DB_NAME=att_test python -m pytest tests/
+DB_HOST=127.0.0.1 DB_USER=postgres DB_PASS=yourpass HRZEST_TEST_DB=att_test python -m pytest tests/ -n 4
 ```
 
 The CI pipeline runs tests against a real PostgreSQL 16 container — not mocks. This prevents mock/prod divergence.
@@ -128,13 +141,31 @@ The app is available at `http://localhost` (nginx proxies to the Flask app on po
 
 ## Production deployment
 
-**Quick checklist:**
+Production (https://hrzest.com) runs gunicorn under systemd on an AWS EC2
+host. Nobody deploys by hand: releases go through the Jenkins pipeline in
+[`Jenkinsfile`](Jenkinsfile) (setup and day-to-day use:
+[ci/jenkins/README.md](ci/jenkins/README.md)):
 
-- [ ] Set all `.env` variables — especially `SECRET_KEY`, `ENCRYPTION_KEY`, `ADMIN_PASSWORD`, `APP_URL`, `ALLOWED_ORIGINS`
-- [ ] Point your domain DNS to the server IP
-- [ ] Run `./init-letsencrypt.sh` to provision a Let's Encrypt TLS certificate
-- [ ] Run `./deploy.sh` to pull, build, and start the containers
-- [ ] Update `mobile/src/config.js` → `API_BASE_URL = 'https://yourdomain.com'` before building the mobile app
+1. Open a pull request into `develop`. GitHub Actions runs lint, tests and
+   the security scans; once it's merged, Jenkins deploys `develop` to the
+   development copy (`http://localhost:5050` on the Jenkins PC).
+2. Open a pull request from `develop` into `main` and merge it with
+   **Create a merge commit**. Jenkins only offers production for a merged
+   pull request with passing checks, never a direct push to `main`.
+3. Approve the build in Jenkins. That moves the `production` branch to the
+   commit, and the server pulls and deploys it by itself
+   (`scripts/ec2_autodeploy.sh`).
+
+Server hardening steps are in
+[docs/SECURITY_HARDENING.md](docs/SECURITY_HARDENING.md). Before building the
+mobile app for release, point `mobile/src/config.js` at the production URL.
+
+### Self-hosting with containers
+
+The repo can also run as containers on your own server (`compose.prod.yaml`):
+set every `.env` variable (especially `SECRET_KEY`, `ENCRYPTION_KEY`,
+`ADMIN_PASSWORD`, `APP_URL`, `ALLOWED_ORIGINS`), point DNS at the server, run
+`./init-letsencrypt.sh` for a TLS certificate, then `./deploy.sh`.
 
 **Container hardening (compose.yaml):** every service runs as non-root with
 a read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`, and a
@@ -230,9 +261,11 @@ run `scripts/host_hardening.sh` on a new host, make sure the host preserves real
 
 ## Contributing
 
-1. Fork the repo and create a feature branch
+1. Clone https://github.com/Nithin-5310v/HRZEST-2.0 and branch off `develop`
+   (`git checkout -b fix/short-description develop`)
 2. Copy `.env.example` to `.env` and configure for local dev
-3. Run `python -m pytest tests/ -v` — all tests must pass
-4. Open a pull request against `master`
+3. Run `python -m pytest tests/ -n 4` — all tests must pass
+4. Open a pull request against **`develop`**; never push to `main` directly
+   (see [Production deployment](#production-deployment))
 
 **Never commit** `.env`, `cert.pem`, or `key.pem`.

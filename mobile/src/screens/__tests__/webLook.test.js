@@ -54,7 +54,7 @@ describe('LoginScreen', () => {
     const navigation = { navigate: jest.fn(), canGoBack: () => true, goBack: jest.fn() };
     const screen = await render(<LoginScreen navigation={navigation} />);
     expect(screen.getByText('Welcome back')).toBeTruthy();
-    expect(screen.getByText('EMAIL, USERNAME OR EMPLOYEE ID')).toBeTruthy();
+    expect(screen.getByText('EMAIL')).toBeTruthy();
     expect(screen.queryByText('Employee')).toBeNull();
     expect(screen.queryByText(/attendance QR/i)).toBeNull();
     await fireEvent.press(screen.getByText('Register your company'));

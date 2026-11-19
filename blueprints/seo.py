@@ -22,18 +22,23 @@ from flask import Blueprint, Response, request
 
 seo_bp = Blueprint("seo", __name__)
 
-# Used when APP_URL isn't set. Matches the og:url already on the landing page.
-_DEFAULT_BASE_URL = "https://www.hrzest.com"
+# Used when APP_URL isn't set. hrzest.com (no www) is the canonical host:
+# www.hrzest.com redirects to it (utils/canonical_host.py, and nginx).
+_DEFAULT_BASE_URL = "https://hrzest.com"
 
 # Paths a search engine may index. Anything else gets noindex.
-INDEXABLE_PATHS = ("/", "/create_org")
+INDEXABLE_PATHS = ("/", "/create_org", "/security-policy")
 
 # Responses that must stay fetchable and un-tagged.
-_UNTAGGED_PATHS = ("/robots.txt", "/sitemap.xml")
+_UNTAGGED_PATHS = ("/robots.txt", "/sitemap.xml", "/.well-known/security.txt")
 _UNTAGGED_PREFIXES = ("/static/",)
 
-# Never useful to crawl: JSON APIs, payment/webhook callbacks, the operator console.
-_ROBOTS_DISALLOW = ("/api/", "/webhooks/", "/csp-report", "/super_admin")
+# Never useful to crawl: the JSON APIs. robots.txt is public, so it must not
+# name anything private (security review OBS-07 removed /super_admin,
+# /webhooks/ and /csp-report). Private pages are kept out of search results
+# by the X-Robots-Tag: noindex header below, and the operator console
+# answers 404 to anyone without a super-admin session.
+_ROBOTS_DISALLOW = ("/api/",)
 
 
 def _base_url():
