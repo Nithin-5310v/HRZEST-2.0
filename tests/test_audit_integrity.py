@@ -247,6 +247,77 @@ class TestEdgeCases:
         assert r["unchained_rows_after_chain_start"] == 0
 
 
+class TestStreamingVerifier:
+    """The verifier reads the table in batches through a server-side cursor and
+    keeps only a small buffer, so it works at any table size (the console used to
+    refuse above 500,000 rows because every row was held in memory). Tiny batch
+    and buffer sizes here make every path run on a small table."""
+
+    @pytest.fixture(autouse=True)
+    def _small(self, monkeypatch):
+        monkeypatch.setattr(audit_chain, "BATCH", 7)
+
+    def test_many_batches_verify_clean_including_concurrent_writers(self, chain):
+        _add_audit(chain, 30)
+
+        def worker(n):                           # concurrent inserts: chain order != id order
+            c = _connect()
+            cur = c.cursor()
+            cur.execute(f"SET search_path TO {SCHEMA}, public")
+            for i in range(15):
+                cur.execute("INSERT INTO audit_logs (actor, action) VALUES (%s,%s)", (f"t{n}", f"op.{i}"))
+            c.close()
+        ts = [threading.Thread(target=worker, args=(n,)) for n in range(6)]
+        [t.start() for t in ts]
+        [t.join() for t in ts]
+        r = _report(chain)
+        assert r["ok"], r["violations"]
+        assert r["rows_chained"] == 120
+
+    def test_a_missing_link_with_a_long_tail_is_counted_without_holding_it(self, chain, monkeypatch):
+        monkeypatch.setattr(audit_chain, "PENDING_LIMIT", 3)
+        _add_audit(chain, 40)
+        _bypass(chain, "DELETE FROM audit_logs WHERE action='act.5'")
+        r = _report(chain)
+        orphans = next(v for v in r["violations"] if v["type"] == "orphan_rows")
+        assert not r["ok"] and orphans["count"] == 34            # everything after the gap
+        assert any(v["type"] == "head_mismatch" for v in r["violations"])
+
+    def test_tampering_is_still_found_in_a_later_batch(self, chain):
+        _add_audit(chain, 25)
+        _bypass(chain, "UPDATE audit_logs SET detail='edited' WHERE action='act.23'")
+        r = _report(chain)
+        assert [v["id"] for v in r["violations"] if v["type"] == "row_modified"] == [24]
+
+    def test_an_anchor_found_deep_in_the_chain_is_recognised(self, chain):
+        _add_audit(chain, 10)
+        anchor = _report(chain)["head"]
+        _add_audit(chain, 20, prefix="later")
+        assert _report(chain, anchors=[anchor, anchor])["ok"]
+        assert not _report(chain, anchors=["f" * 64])["ok"]
+
+    def test_same_report_without_a_server_side_cursor(self, chain):
+        _add_audit(chain, 15)
+        _bypass(chain, "DELETE FROM audit_logs WHERE action='act.3'")
+
+        class NoNamedCursors:                    # e.g. a driver wrapper without them
+            def __init__(self, cur):
+                self._cur = cur
+
+            def __getattr__(self, name):
+                if name == "connection":
+                    raise AttributeError(name)
+                return getattr(self._cur, name)
+
+        plain = audit_chain.verify_table(NoNamedCursors(chain), SCHEMA, "audit_logs")
+        assert plain == _report(chain)
+
+    def test_a_deadline_stops_it(self, chain):
+        _add_audit(chain, 3)
+        with pytest.raises(audit_chain.VerificationTimeout):
+            audit_chain.verify_table(chain, SCHEMA, "audit_logs", deadline=0)
+
+
 class TestBypassIsCompiledOutOfProduction:
     def test_strict_function_in_production(self, monkeypatch):
         monkeypatch.setenv("APP_ENV", "production")

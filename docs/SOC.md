@@ -103,7 +103,6 @@ on their next request.
 | `SOC_SESSION_HOURS` | 8 | Absolute session lifetime. |
 | `LOKI_URL` | unset | Enables the **Logs** view (read-only LogQL). Read from the environment only, never from a request. |
 | `SOC_LOG_MAX_MB` | 5 | Largest log the analyser accepts. |
-| `SOC_VERIFY_MAX_ROWS` | 500000 | Above this many `security_events` rows, use `scripts/verify_audit_chain.py` instead of the button. |
 | `SOC_TEST_CIDRS` | unset | Addresses / ranges you test from (office, VPN, CI); their events are left out of every view. |
 | `SOC_TEST_ACCOUNTS` | unset | Identifiers you test with (usernames, emails, employee IDs); left out of every view. |
 | `SOC_TEST_COMPANIES` | unset | Company URL slugs used only for testing; left out of every view, including Tenant risk, Attendance fraud and sessions. |
@@ -124,7 +123,7 @@ on their next request.
 * **Response** – current IP bans (add, lift) and risky sessions across tenants (revoke).
 * **Tenant risk**, **Attendance fraud** – per-company activity and punch-integrity signals (mock location, replayed photos, shared devices, liveness failures).
 * **Detections** – the correlation rules, their thresholds and when each last fired.
-* **Audit integrity** – verifies the hash chain over `security_events` on demand.
+* **Audit integrity** – verifies the hash chain over `security_events` on demand. The verifier streams the table, so memory stays flat at any size; a button press stops after 45 seconds on a very long chain, and the scheduled check (03:45 nightly) verifies all of it.
 * **Posture** – live configuration checks with the setting to change. Reports whether a control is on, never a secret.
 * **Users & audit** (admin) – accounts (whether each is still listed in `SOC_LOGIN_EMAILS`, disable / enable, unlock) and the append-only record of everything done in the console.
 
@@ -140,7 +139,7 @@ on their next request.
 
 ## Limits to know about
 
-* `security_events` has no tenant column; tenant views attribute events by the first segment of the request path, so events outside a tenant URL are not attributed.
+* Each event records the company its request ran as (`security_events.tenant`, also inside the hash-chained `extra_json`). Events from before that was recorded fall back to the first segment of the request path, which usually does not name the company (the company prefix is taken out of the path before the app sees it), so older company activity is mostly unattributed. Platform pages belong to no company.
 * There is no GeoIP or threat-intelligence enrichment, on purpose: the console shows only what HRZEST recorded. Location, VPN and hosting checks have to be done outside it.
 * The append-only trigger stops the application role from rewriting the SOC audit trail, not a database owner; forward it off-box for that (see `SECURITY_HARDENING.md`).
 * Cross-tenant views read each tenant in turn (cached 45 s, 300 tenants max, short per-tenant timeout); a tenant that errors is skipped and counted.

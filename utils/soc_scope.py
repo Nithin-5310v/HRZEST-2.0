@@ -141,13 +141,16 @@ def _console_event(event_type, path):
 
 
 # ── the filter ───────────────────────────────────────────────────────
+# The event's company: the one its request ran as (security_events.tenant), or
+# for rows from before that column, the first path segment.
+_COMPANY_SQL = "lower(COALESCE(NULLIF(tenant, ''), split_part(COALESCE(path, ''), '/', 2)))"
 _GENUINE_SQL = (
     "COALESCE(event_type, '') <> ALL(%s) "
     "AND NOT (COALESCE(ip, '') = ANY(%s) AND (COALESCE(event_type, '') LIKE 'soc.%%' "
     "OR COALESCE(path, '') = '" + CONSOLE_PATH + "' OR COALESCE(path, '') LIKE '" + CONSOLE_PATH + "/%%')) "
     "AND NOT (COALESCE(ip, '') = ANY(%s)) "
     "AND lower(COALESCE(identifier, '')) <> ALL(%s) "
-    "AND lower(split_part(COALESCE(path, ''), '/', 2)) <> ALL(%s)"
+    "AND " + _COMPANY_SQL + " <> ALL(%s)"
 )
 
 
@@ -175,14 +178,14 @@ def excluded_summary(cur, hours):
         "(COALESCE(event_type, '') LIKE 'soc.%%' OR COALESCE(path, '') = '" + CONSOLE_PATH + "' "
         "OR COALESCE(path, '') LIKE '" + CONSOLE_PATH + "/%%'))), "
         "COUNT(*) FILTER (WHERE COALESCE(ip, '') = ANY(%s) OR lower(COALESCE(identifier, '')) = ANY(%s) "
-        "OR lower(split_part(COALESCE(path, ''), '/', 2)) = ANY(%s)) "
+        "OR " + _COMPANY_SQL + " = ANY(%s)) "
         "FROM security_events WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')",
         (internal, list(OWN_EVENT_TYPES), consoles, test, test_accounts(), test_companies(), hours))
     raw, server, console, testing = cur.fetchone()
     return {"recorded": raw, "server": server, "console": console, "testing": testing}
 
 
-def is_genuine(event_type, ip, identifier, path):
+def is_genuine(event_type, ip, identifier, path, tenant=None):
     """The same rules for one row (lists filtered in Python)."""
     if event_type in OWN_EVENT_TYPES:
         return False
@@ -192,5 +195,7 @@ def is_genuine(event_type, ip, identifier, path):
         return False
     if is_test_account(identifier):
         return False
+    if tenant:
+        return not is_test_company(tenant)
     parts = (path or "").split("/")                 # same as split_part(path, '/', 2) in SQL
     return not is_test_company(parts[1] if len(parts) > 1 else "")

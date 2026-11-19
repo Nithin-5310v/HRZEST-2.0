@@ -37,17 +37,10 @@ PAGE = f"""<!doctype html><html><head><meta charset="utf-8"></head><body>
 </body></html>"""
 
 
-@pytest.fixture(scope="module")
-def browser():
-    # One Playwright instance per module: the sync API can't run two at once.
-    with sync_api.sync_playwright() as p:
-        try:
-            b = p.chromium.launch()
-        except Exception as exc:  # browser binaries not installed
-            pytest.skip(f"chromium unavailable: {exc}")
-        yield b
-        b.close()
-
+# The browser is pytest-playwright's session-wide one. This module used to start
+# its own sync_playwright() here, which the sync API refuses once another test in
+# the session has started pytest-playwright's ("Sync API inside the asyncio
+# loop") -- so running tests_e2e/ as a whole errored on every test below.
 
 @pytest.fixture(scope="module")
 def page(browser):
