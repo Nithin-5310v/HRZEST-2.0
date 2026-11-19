@@ -105,7 +105,8 @@ def _qr_fingerprint_checkin(client, seed_employee, mocker, hour, minute, signed_
         sess["wa_fp_verified_at"] = time.time()
     return client.post("/api/employee/qr-face-checkin", data={
         "employee_id": signed_qr(EMP), "auth_combo": "qr_fingerprint",
-    }, content_type="multipart/form-data").get_json()
+    }, content_type="multipart/form-data",
+        headers={"Authorization": f"Bearer {_emp_token(client, seed_employee)}"}).get_json()
 
 
 def _device_checkin(client, seed_admin, mocker, hour, minute):

@@ -29,7 +29,6 @@ import { useAuth } from "../store/AuthContext";
 import { API_BASE_URL } from "../config";
 import { getLastCompanySlug } from "../utils/preferences";
 import AppTopBar from "../components/AppTopBar";
-import QRScannerModal from "./QRScannerModal";
 import { WEB, AppButton } from "../theme/webAuthStyle";
 
 // The sign-in page (design: "Final app" board "Sign in"): one box for an
@@ -55,7 +54,6 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
   const [focused, setFocused] = useState(null);
 
   // Admin sign-in step 2 (emailed code). Only the server's opaque
@@ -255,7 +253,6 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={styles.page}>
-      <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
       <AppTopBar
         title={challengeId ? "Check your email" : "Sign in"}
         onBack={challengeId ? () => setChallengeId(null) : goBack}
@@ -370,10 +367,6 @@ export default function LoginScreen({ navigation }) {
               </View>
 
               <View style={styles.linksRow}>
-                <TouchableOpacity accessibilityRole="button" onPress={() => setShowScanner(true)} style={styles.inline}>
-                  <Ionicons name="scan-outline" size={16} color={WEB.brand} />
-                  <Text style={styles.link}>Scan attendance QR</Text>
-                </TouchableOpacity>
                 <TouchableOpacity accessibilityRole="button" onPress={handleForgotPassword}>
                   <Text style={styles.link}>Forgot password?</Text>
                 </TouchableOpacity>
@@ -431,8 +424,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 15, color: WEB.text, paddingVertical: 0 },
   codeInput: { textAlign: "center", fontSize: 24, fontWeight: "700", letterSpacing: 8, color: WEB.text },
   hint: { fontSize: 12, color: WEB.textMuted, marginTop: 6, lineHeight: 17 },
-  linksRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  inline: { flexDirection: "row", alignItems: "center", gap: 5 },
+  linksRow: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center" },
   link: { fontSize: 14, fontWeight: "700", color: WEB.brand },
   centerLink: { alignSelf: "center", paddingVertical: 4 },
   footer: { fontSize: 14, color: WEB.textMuted, textAlign: "center" },

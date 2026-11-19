@@ -4,16 +4,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppTopBar from "../components/AppTopBar";
-import QRScannerModal from "./QRScannerModal";
 import { WEB, Wordmark, AppButton } from "../theme/webAuthStyle";
 
 // The landing page the app opens on (design: "Final app" board "Landing
 // page"): the app's top bar, the website's headline, a live clock, what
-// the app does, then Sign in / Register / the attendance kiosk.
+// the app does, then Sign in / Register. Attendance check-in is only
+// offered after signing in -- there is no logged-out QR kiosk here.
 export default function LaunchCountdownScreen({ navigation, onContinue }) {
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(new Date());
-  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
@@ -29,7 +28,6 @@ export default function LaunchCountdownScreen({ navigation, onContinue }) {
 
   return (
     <View style={styles.page}>
-      <QRScannerModal visible={showScanner} onClose={() => setShowScanner(false)} />
       <AppTopBar
         titleNode={<Wordmark />}
         showCompany={false}
@@ -83,7 +81,6 @@ export default function LaunchCountdownScreen({ navigation, onContinue }) {
         <View style={styles.buttons}>
           <AppButton title="Sign in" onPress={signIn} />
           <AppButton title="Register your company" kind="outline" onPress={register} />
-          <AppButton title="Quick attendance QR scan" kind="tonal" icon="scan-outline" onPress={() => setShowScanner(true)} />
         </View>
 
         <View style={styles.trust}>
