@@ -26,6 +26,8 @@ _log = logging.getLogger("attendance")
 RESERVED_PATH_SEGMENTS = frozenset({
     # infra / static
     "static", "healthz", "favicon.ico", "csp-report", "api", "robots.txt", "sitemap.xml",
+    # RFC 9116 security.txt and the disclosure policy (blueprints/security_txt.py)
+    ".well-known", "security.txt", "security-policy",
     # auth / tenant-picker pages (global, not company-scoped)
     "login", "admin_login", "admin-login", "employee_login", "get-started", "create_org", "org_payment_success",
     "mobile_bridge_login",

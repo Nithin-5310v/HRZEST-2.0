@@ -26,10 +26,10 @@ seo_bp = Blueprint("seo", __name__)
 _DEFAULT_BASE_URL = "https://www.hrzest.com"
 
 # Paths a search engine may index. Anything else gets noindex.
-INDEXABLE_PATHS = ("/", "/create_org")
+INDEXABLE_PATHS = ("/", "/create_org", "/security-policy")
 
 # Responses that must stay fetchable and un-tagged.
-_UNTAGGED_PATHS = ("/robots.txt", "/sitemap.xml")
+_UNTAGGED_PATHS = ("/robots.txt", "/sitemap.xml", "/.well-known/security.txt")
 _UNTAGGED_PREFIXES = ("/static/",)
 
 # Never useful to crawl: JSON APIs, payment/webhook callbacks, the operator console.
