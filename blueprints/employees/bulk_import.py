@@ -24,7 +24,6 @@ default onboarding checklist and the welcome email with sign-in details.
 import datetime
 import io
 import re
-import secrets
 import threading
 
 import psycopg2
@@ -47,6 +46,7 @@ from utils.helpers import (
 from utils.leave_utils import assign_leave_balances_for_employee
 from . import employees_bp
 from .registration import _max_emp_seq, _send_welcome_credentials_email, assign_default_onboarding
+from utils.tokens import waf_safe_token
 
 MAX_ROWS = 1000
 MAX_BYTES = 2 * 1024 * 1024
@@ -361,7 +361,7 @@ def employee_import():
 
         created = []
         for r in ready:
-            password = secrets.token_urlsafe(8)
+            password = waf_safe_token(8)
             emp_id, outcome = r["emp_id"], None
             for _attempt in range(5):
                 if not r["emp_id"]:
