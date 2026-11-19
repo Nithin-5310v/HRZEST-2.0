@@ -11,6 +11,7 @@ from utils.helpers import _safe_app_url, save_application_document
 from .duplicates import _record_duplicate_alert, check_duplicate_name
 from .provisioning import provision_tenant, send_portal_ready_email
 from .validation import _slug_for_company
+from utils.tokens import waf_safe_token
 
 
 _OTP_TTL_MINUTES = 5
@@ -132,7 +133,7 @@ def send_application_rejected_email(to_email, company_name, reason, status_url=N
 
 
 def _generate_access_token():
-    return secrets.token_urlsafe(32)
+    return waf_safe_token(32)
 
 
 def _load_application(application_id, access_token):
@@ -448,7 +449,7 @@ def _reject_application_reviewed(application, reviewed_by, reason):
         return False, "Application is not yet provisioned."
     from database import get_master_db
     from utils.auth import _hash_token
-    new_token = secrets.token_urlsafe(32)
+    new_token = waf_safe_token(32)
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(

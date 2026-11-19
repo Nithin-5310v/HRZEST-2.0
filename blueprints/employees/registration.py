@@ -34,6 +34,7 @@ from utils.storage import save_upload
 from utils.tenant_files import face_photo_path
 from utils.webauthn_utils import _enroll_fingerprint_from_form
 from . import employees_bp
+from utils.tokens import waf_safe_token
 
 
 def _send_welcome_credentials_email(emp_id, name, email, password=None, must_change=True):
@@ -287,7 +288,7 @@ def add_employee_page():
         filepath = face_photo_path(emp_id)
         save_upload(file, filepath)
 
-    auto_pass = secrets.token_urlsafe(8)
+    auto_pass = waf_safe_token(8)
     hashed_pwd = generate_password_hash(auto_pass)
 
     # Retry up to 5 times in case of duplicate ID collision

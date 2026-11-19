@@ -56,6 +56,7 @@ from utils.oauth_client import (
     provider_configured, build_authorize_url, complete_oauth, OAuthError,
     PERSONAL_EMAIL_DOMAINS,
 )
+from utils.tokens import waf_safe_token
 
 oauth_signup_bp = Blueprint("oauth_signup", __name__)
 
@@ -233,7 +234,7 @@ def _start_pending_signup(provider, identity):
     way back to the row, so it travels in the verify link and form."""
     from database import get_master_db
     from blueprints.org import _generate_otp, _OTP_TTL_MINUTES, send_org_signup_otp_email
-    token = secrets.token_urlsafe(32)
+    token = waf_safe_token(32)
     otp_code = _generate_otp()
     conn = get_master_db()
     cur = conn.cursor()

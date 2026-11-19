@@ -18,6 +18,7 @@ import hmac
 import secrets
 
 from flask import current_app
+from utils.tokens import waf_safe_token
 
 MAX_ATTEMPTS = 5
 
@@ -58,7 +59,7 @@ def issue_challenge(cursor, kind: str, username: str, ttl_sec: int):
     must only ever be handed to the email sender -- never stored, logged,
     or returned to the client. Caller commits."""
     code = f"{secrets.randbelow(900000) + 100000}"
-    challenge_id = secrets.token_urlsafe(32)
+    challenge_id = waf_safe_token(32)
     schema = _current_schema(cursor)
     cursor.execute(PURGE_EXPIRED_SQL)
     cursor.execute("DELETE FROM login_otp_challenges WHERE kind=%s AND username=%s", (kind, username))
