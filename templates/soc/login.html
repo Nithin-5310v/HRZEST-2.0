@@ -8,6 +8,10 @@
   <title>Sign in</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/socperson/assets/login.css">
+  {% if step == "passkey" %}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script src="/socperson/assets/login.js" defer></script>
+  {% endif %}
 </head>
 <body>
   <main class="wrap">
@@ -20,6 +24,12 @@
       {% if step == "code" %}
         <h1 id="h">Check your email</h1>
         <p class="sub">If <strong>{{ email }}</strong> may sign in, a 6-digit code is on its way. It expires in {{ minutes }} minutes.</p>
+      {% elif step == "passkey" and mode == "register" %}
+        <h1 id="h">Set up your passkey</h1>
+        <p class="sub">One more step, once: create a passkey on this device (fingerprint, face or device PIN), or on your phone or security key. From now on, every sign-in asks for it after the emailed code.</p>
+      {% elif step == "passkey" %}
+        <h1 id="h">Confirm it's you</h1>
+        <p class="sub">Use your passkey for <strong>{{ email }}</strong>: fingerprint, face, device PIN, phone or security key.</p>
       {% else %}
         <h1 id="h">Sign in</h1>
         <p class="sub">Authorised personnel only. Activity is logged.</p>
@@ -28,7 +38,16 @@
       {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
       {% if notice %}<div class="notice" role="status">{{ notice }}</div>{% endif %}
 
-      {% if step == "code" %}
+      {% if step == "passkey" %}
+      <div id="pkStatus" role="status" hidden></div>
+      <button type="button" id="pk" data-mode="{{ mode }}">{{ "Create passkey" if mode == "register" else "Use passkey" }}</button>
+      <form method="post" action="/socperson/login" class="restart">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="restart">
+        <button type="submit" class="link">Start again with a different email</button>
+      </form>
+
+      {% elif step == "code" %}
       <form method="post" action="/socperson/login" autocomplete="off">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="code">

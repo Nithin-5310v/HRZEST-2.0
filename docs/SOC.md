@@ -40,8 +40,8 @@ are skipped. `SOC_DIGEST=off` turns it off; `SOC_DIGEST_HOUR` moves it.
 
 ## Getting in
 
-There are no passwords and no default accounts. Sign-in is an emailed one-time code, and only
-the addresses you list on the server can get one.
+There are no passwords and no default accounts. Sign-in is an emailed one-time code followed by
+your passkey, and only the addresses you list on the server can get a code.
 
 1. In the server's `.env`, list who may sign in and allow your networks, then restart:
 
@@ -54,12 +54,25 @@ the addresses you list on the server can get one.
    No role means `admin`. Keep the addresses in `.env`, not in the repository.
 2. Open `/socperson/login`, enter your address, and enter the 6-digit code from the email.
    Codes last 10 minutes, work once, and at most one is sent per minute ("Send a new code").
-3. The account is created on your first sign-in; its role always follows `SOC_LOGIN_EMAILS`.
+3. Then confirm with your passkey: fingerprint, face or device PIN, your phone, or a security
+   key. The first time, you create one instead (`utils/soc_passkeys.py`). The console stays
+   closed until this step is done, and a failed passkey counts toward the same lockout as a
+   wrong code.
+4. The account is created on your first sign-in; its role always follows `SOC_LOGIN_EMAILS`.
 
 Any address gets the same "check your email" screen, so the form does not reveal who is
 authorised; addresses that are not listed simply never receive a code. Email must work:
 without SMTP the code is sent nowhere (with `APP_ENV=development` only, it is written to the
 application log so the flow can be tried locally).
+
+Passkeys need HTTPS and the site's own domain: the passkey is tied to the first entry in
+`ALLOWED_ORIGINS` (opening the console by IP address cannot work). Only public keys are stored.
+Note that whoever completes the first sign-in after the email code creates the passkey, so sign
+in yourself soon after listing an address.
+
+**Lost device:** another admin uses **Users & audit → Reset passkey**; you create a new one at
+your next sign-in. **Sole admin locked out:** set `SOC_PASSKEY=off` on the server, restart, sign
+in with the code, then turn it back on (the Posture page flags it while it is off).
 
 To remove someone, take their address out of `SOC_LOGIN_EMAILS` and restart: their open session
 ends on its next request. **Users & audit → Disable** is the immediate switch that needs no restart.
@@ -93,6 +106,7 @@ from it, or deactivation ends that user's console session on their next request.
 | `SOC_TEST_COMPANIES` | unset | Company URL slugs used only for testing; left out of every view, including Tenant risk, Attendance fraud and sessions. |
 | `SOC_DIGEST` | on | `off` stops the daily summary email. |
 | `SOC_DIGEST_HOUR` | 8 | Hour (0–23, Asia/Kolkata) the daily summary is sent. |
+| `SOC_PASSKEY` | on | The passkey step after the emailed code. `off` only to let a sole admin who lost their passkey back in. |
 | `SOC_AUTO_BAN` | false | `true` bans automated detections at once (the old behaviour) instead of queueing them in **Ban review**. Leave off when an analyst watches the queue: customers often share one office or mobile-network address. |
 
 ## What each view shows

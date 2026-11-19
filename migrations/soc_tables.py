@@ -73,6 +73,20 @@ STATEMENTS = [
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_hash TEXT",
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_expires_at TIMESTAMP",
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_sent_at TIMESTAMP",
+    # Passkeys (utils/soc_passkeys.py): the step after the emailed code. Public
+    # keys only -- the private key never leaves the person's device.
+    """
+    CREATE TABLE IF NOT EXISTS soc_passkeys (
+        id             SERIAL PRIMARY KEY,
+        user_id        INT          NOT NULL,
+        credential_id  TEXT         NOT NULL UNIQUE,
+        public_key     TEXT         NOT NULL,
+        sign_count     BIGINT       NOT NULL DEFAULT 0,
+        created_at     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+        last_used_at   TIMESTAMP
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_soc_passkeys_user ON soc_passkeys (user_id)",
     "CREATE INDEX IF NOT EXISTS idx_soc_cases_status ON soc_cases (status, updated_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_soc_cases_event ON soc_cases (source_event_id)",
     """

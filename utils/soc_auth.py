@@ -472,7 +472,30 @@ def verify_login_code(email, code, ip):
 
 
 # ── session ──────────────────────────────────────────────────────────
-_SESSION_KEYS = ("soc_uid", "soc_user", "soc_role", "soc_at", "soc_last", "soc_pending_email", "soc_pending_at")
+_SESSION_KEYS = ("soc_uid", "soc_user", "soc_role", "soc_at", "soc_last", "soc_pending_email", "soc_pending_at",
+                 "soc_pk_uid", "soc_pk_at", "soc_pk_challenge", "soc_pk_mode")
+PASSKEY_STEP_SECONDS = 5 * 60
+
+
+def start_passkey_step(user):
+    """The emailed code was right: the passkey (utils/soc_passkeys.py) is all that
+    stands between this browser and a session. Nothing else carries over."""
+    for k in _SESSION_KEYS:
+        session.pop(k, None)
+    session["soc_pk_uid"] = user["id"]
+    session["soc_pk_at"] = time.time()
+
+
+def passkey_step_user():
+    """The user half-way through sign-in (code done, passkey not yet), still
+    active, unlocked and listed -- or None."""
+    uid = session.get("soc_pk_uid")
+    if not uid or time.time() - session.get("soc_pk_at", 0) > PASSKEY_STEP_SECONDS:
+        return None
+    user = get_user_by_id(uid)
+    if not user or not user["active"] or user["is_locked"] or login_role(user.get("email")) is None:
+        return None
+    return user
 
 
 def start_pending(email):

@@ -30,6 +30,9 @@ def _fresh_soc_state(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     # Recorded by monkeypatch so whatever allow() adds is undone after the test.
     monkeypatch.setenv("SOC_LOGIN_EMAILS", "")
+    # Sign-in here is the emailed code alone; the passkey step after it has its
+    # own tests (tests/test_soc_passkeys.py), which turn it back on.
+    monkeypatch.setenv("SOC_PASSKEY", "off")
     OUTBOX.clear()
     monkeypatch.setattr(soc_auth, "deliver_login_code", lambda email, code: OUTBOX.append((email, code)) or True)
     soc_queries.clear_cache()

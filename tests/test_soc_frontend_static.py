@@ -90,7 +90,15 @@ def test_assets_are_exactly_the_whitelisted_files():
     pub, priv = _blueprint_assets()
     on_disk = {p.name for p in UI.iterdir() if p.is_file()}
     assert on_disk == pub | priv, f"on disk only: {sorted(on_disk - pub - priv)}; whitelisted only: {sorted((pub | priv) - on_disk)}"
-    assert pub == {"login.css"}, "only the login stylesheet may be served without a session"
+    assert pub == {"login.css", "login.js"}, "only the sign-in page's own files may be served without a session"
+
+
+def test_the_public_sign_in_script_knows_nothing_of_the_console_api():
+    """login.js is served before sign-in, so it must not document the console's API."""
+    src = _read(UI / "login.js")
+    assert "/socperson/api/" not in src
+    assert set(re.findall(r"['\"](/socperson(?:/[^'\"]*)?)['\"]", src)) == {
+        "/socperson", "/socperson/login/passkey/options", "/socperson/login/passkey/verify"}
 
 
 def test_every_resource_the_templates_load_exists_and_is_served():

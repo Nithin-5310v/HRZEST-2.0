@@ -681,14 +681,20 @@
           { label: 'User', render: (x) => [x.username, x.email && x.email !== x.username ? h('div', { class: 'note mono' }, x.email) : null] },
           { label: 'Role', key: 'role' },
           { label: 'Access', render: (x) => !x.listed ? SOC.chip('not listed', 'plain') : !x.active ? SOC.chip('disabled', 'bad') : x.is_locked ? SOC.chip('locked', 'bad') : SOC.chip('active', 'ok') },
+          { label: 'Passkey', render: (x) => x.passkeys ? SOC.chip(x.passkeys + ' set up', 'ok') : SOC.chip('none yet', 'plain') },
           { label: 'Last sign-in', render: (x) => x.last_login_at ? [fmt.time(x.last_login_at), h('div', { class: 'note mono' }, x.last_login_ip || '')] : null },
           { label: '', render: (x) => h('div', { class: 'row' },
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: x.active ? 'deactivate' : 'activate' }, x.active ? 'Disabled' : 'Enabled').then(refresh).catch(() => {}) }, x.active ? 'Disable' : 'Enable'),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: 'unlock' }, 'Unlocked').then(refresh).catch(() => {}) }, 'Unlock')) }
+            h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: 'unlock' }, 'Unlocked').then(refresh).catch(() => {}) }, 'Unlock'),
+            x.passkeys && x.username !== SOC.user ? h('button', { class: 'btn ghost small', type: 'button', onclick: async () => {
+              if (await SOC.confirm('Remove ' + x.username + '\'s passkeys? They will create a new one at their next sign-in, after the emailed code.')) call(x.id, { action: 'reset_passkey' }, 'Passkey reset').then(refresh).catch(() => {});
+            } }, 'Reset passkey') : null) }
         ] }));
       };
       const refresh = () => api.get('/socperson/api/users').then((n) => table(n.users));
-      root.append(SOC.callout('Sign-in is an emailed one-time code. To add or remove someone, or change a role, edit SOC_LOGIN_EMAILS on the server and restart; removing an address ends that person\'s session at once. Disable is the immediate switch for an account.'), tableBox);
+      root.append(SOC.callout('Sign-in is an emailed one-time code followed by a passkey' + (d.passkey_required ? '' : ' (currently OFF: SOC_PASSKEY=off)') +
+        '. To add or remove someone, or change a role, edit SOC_LOGIN_EMAILS on the server and restart; removing an address ends that person\'s session at once. ' +
+        'Disable is the immediate switch for an account. Reset passkey is for a lost device.', d.passkey_required ? '' : 'warn'), tableBox);
       table(d.users);
     }
   });
