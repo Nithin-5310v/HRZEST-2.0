@@ -886,7 +886,8 @@ def risky_sessions():
     def build():
         def per_tenant(t, cur):
             cur.execute("SELECT sid, identifier, attempt_type, score, status, last_reason, updated_at FROM session_risk "
-                        "WHERE status <> 'active' OR score > 0 ORDER BY updated_at DESC LIMIT 25")
+                        # A plain logout ('revoked', score 0) isn't risky.
+                        "WHERE status NOT IN ('active', 'revoked') OR score > 0 ORDER BY updated_at DESC LIMIT 25")
             rows = cur.fetchall()
             if not rows:
                 return None

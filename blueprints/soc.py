@@ -198,7 +198,7 @@ def logout():
     blocked = _guard_network()
     if blocked:
         return blocked
-    who = soc_auth.end_session()
+    who = soc_auth.end_session(revoke=True)
     if who:
         soc_auth.audit(who, "logout", ip=_ip())
     return redirect("/soc/login", 303)

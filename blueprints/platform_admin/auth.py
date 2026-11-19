@@ -6,6 +6,7 @@ from extensions import app_log, limiter, log_security_event
 from flask import current_app, redirect, render_template, request, session
 from utils.auth import _mask_identifier, check_password_hash, dummy_password_check
 from utils.login_otp import discard_challenge, issue_challenge, verify_challenge
+from utils.session_risk import end_session_server_side, ensure_session_id
 from utils.totp import send_mfa_login_email
 from . import _MFA_OTP_TTL_SEC, platform_admin_bp
 
@@ -24,6 +25,9 @@ def _complete_platform_admin_login(username):
     # as every other login flow, for free.
     session["_session_created"] = time.time()
     session.permanent = True
+    # Server-side session id, so logout can revoke this session
+    # (security review Section 9; checked by _platform_admin_required).
+    ensure_session_id(session)
     log_security_event(
         "auth.platform_admin_login_success",
         f"Platform admin session established for '{username}'",
@@ -155,5 +159,5 @@ def platform_admin_login():
 
 @platform_admin_bp.route("/super_admin/logout", methods=["POST"])
 def platform_admin_logout():
-    session.clear()
+    end_session_server_side(session, session.get("platform_admin_username"))
     return redirect("/super_admin/login")

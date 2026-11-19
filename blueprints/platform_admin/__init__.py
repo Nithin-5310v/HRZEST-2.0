@@ -82,6 +82,12 @@ def _platform_admin_required(view):
             # admins, employees -- the console's pages don't exist. The
             # operator signs in at /super_admin/login directly.
             abort(404)
+        # A session ended at logout (or flagged by the SOC) is dead even if
+        # someone kept a copy of its cookie (security review Section 9).
+        from utils.session_risk import is_session_compromised
+        if is_session_compromised(session.get("_sid")):
+            session.clear()
+            abort(404)
         last_activity = session.get("platform_admin_last_activity", 0)
         if (time.time() - last_activity) > _IDLE_TIMEOUT_SEC:
             session.clear()

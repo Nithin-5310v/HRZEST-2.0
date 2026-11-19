@@ -304,6 +304,15 @@ class TestSessionLifecycle:
         assert c.get("/soc/api/me").status_code == 401
         assert "logout" in [a for _, a, _ in audit_actions(db_engine)]
 
+    def test_logout_also_kills_a_copied_cookie(self, soc):
+        """Security review Section 9: logout revokes the session server-side."""
+        c, _ = soc()
+        assert c.get("/soc/api/me").status_code == 200
+        stolen = c.get_cookie("__Host-session").value
+        c.post("/soc/logout")
+        c.set_cookie("__Host-session", stolen)
+        assert c.get("/soc/api/me").status_code == 401
+
 
 # ════════════════════════════════════════════════════════════════════
 # isolation from every other surface

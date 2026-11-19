@@ -196,6 +196,10 @@ def refresh_own_password_version(table: str, id_value) -> None:
     pwv = session.get("_pwv")
     if pwv and pwv[0] == table and pwv[1] == id_value:
         stamp_password_version(table, id_value)
+        # New session id and CSRF token for the session that changed the
+        # password; the old id is revoked (security review Section 9).
+        from utils.session_risk import rotate_session_id
+        rotate_session_id(session, str(id_value), "password changed")
 
 
 def _password_changed_since_login() -> bool:
