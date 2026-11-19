@@ -26,7 +26,7 @@ from utils.auth import (
 )
 from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
 from utils.helpers import (
-    tpath, get_company_settings, _audit, _db, company_url, _safe_redirect,
+    tpath, get_company_settings, _audit, _db, company_url, _safe_redirect, contact_lookup_keys,
     self_service_emp_id, self_service_return_path,
 )
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async, notify_if_new_login_ip
@@ -117,11 +117,55 @@ def _find_company_slug(typed):
     return row[0] if row else None
 
 
+def _email_sign_in_names(cursor, email):
+    """The sign-in names (admin/HR/manager usernames first, then employee
+    IDs) of every account in this schema that has this email. Admins match on
+    admin_users.email or on a username that is the email (sign-up admins);
+    employees on the encrypted email's blind index."""
+    email = (email or "").strip().lower()
+    if "@" not in email:
+        return []
+    cursor.execute("SELECT username FROM admin_users WHERE LOWER(email)=%s OR username=%s ORDER BY username",
+                   (email, email))
+    names = [r[0] for r in cursor.fetchall()]
+    cursor.execute("SELECT employee_id FROM employees WHERE email_bidx = ANY(%s) ORDER BY employee_id",
+                   (contact_lookup_keys("email", email),))
+    names += [r[0] for r in cursor.fetchall() if r[0] not in names]
+    return names
+
+
+def _sign_in_name(cursor, identifier, password):
+    """The account name /login and the app's /api/signin go on with.
+
+    People sign in with their email. An email is matched to its account --
+    the one whose password it is, else the first, so lockout and failure
+    records still count against a real account. An employee ID or username
+    still works as typed (a quiet fallback, e.g. for an employee with no
+    email on file), and so does an email no account has on file, since a
+    sign-up admin's username is their email."""
+    if "@" not in identifier:
+        return identifier
+    names = _email_sign_in_names(cursor, identifier)
+    for name in names:
+        if _accounts_matching_name(cursor, name, password)[1]:
+            return name
+    return names[0] if names else identifier
+
+
 def _accounts_matching(cursor, identifier, password):
-    """(exists, matches) for one schema: whether an account with this
-    sign-in name is there -- an admin/HR/manager username or the lowercased
-    email sign-up admins use, or an employee ID -- and whether the password
-    is its password. The same names /login itself accepts."""
+    """(exists, matches) for one schema: whether an account signs in with
+    this email (or employee ID / username), and whether the password is its
+    password. The same names /login itself accepts."""
+    names = _email_sign_in_names(cursor, identifier) if "@" in identifier else []
+    if not names:
+        return _accounts_matching_name(cursor, identifier, password)
+    results = [_accounts_matching_name(cursor, name, password) for name in names]
+    return any(r[0] for r in results), any(r[1] for r in results)
+
+
+def _accounts_matching_name(cursor, identifier, password):
+    """_accounts_matching for one sign-in name: an admin/HR/manager username
+    or the lowercased email sign-up admins use, or an employee ID."""
     names = [identifier] + ([identifier.lower()] if identifier != identifier.lower() else [])
     cursor.execute("SELECT password FROM admin_users WHERE username = ANY(%s)", (names,))
     hashes = [r[0] for r in cursor.fetchall()]
@@ -299,7 +343,7 @@ def _start_login_mfa(co, login_template, kind, identifier, email, role_label):
             level="ERROR", identifier=identifier,
         )
         _record_login_failure(identifier)
-        return render_template(login_template, co=co, error="Invalid credentials. Check your ID and password.")
+        return render_template(login_template, co=co, error="Invalid credentials. Check your email and password.")
 
     # Only the opaque challenge id goes into the (client-readable) session
     # cookie -- the code itself is kept server-side as an HMAC.
@@ -598,6 +642,8 @@ def admin_login():
                                    error="This account is in more than one company. Enter your company's "
                                          "name or URL to continue.")
         co = get_company_settings()  # the company the credentials named, if they named one
+        with _db() as (cursor, _conn):
+            identifier = _sign_in_name(cursor, identifier, password)
         # Password is intentionally never inspected or logged here -- only
         # the identifier field is checked, and only its shape (matched
         # pattern name), never the raw value, goes into the alert.
@@ -669,7 +715,7 @@ def admin_login():
                 )
                 return render_template(
                     "admin_login.html", co=co,
-                    error="Invalid credentials. Check your ID and password.",
+                    error="Invalid credentials. Check your email and password.",
                     show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY,
                 )
             _clear_login_failures(identifier)
@@ -715,7 +761,7 @@ def admin_login():
             stored_pwd = emp_row[3]
             if not stored_pwd or not check_password_hash(stored_pwd, password):
                 _record_login_failure(identifier)
-                return render_template("admin_login.html", co=co, error="Invalid credentials. Check your ID and password.",
+                return render_template("admin_login.html", co=co, error="Invalid credentials. Check your email and password.",
                                        show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
             _clear_login_failures(identifier)
             # Past the last working day of an accepted resignation: the right
@@ -739,7 +785,7 @@ def admin_login():
             # whether the account exists.
             dummy_password_check(password)
         _record_login_failure(identifier)
-        return render_template("admin_login.html", error="Invalid credentials. Check your ID and password.",
+        return render_template("admin_login.html", error="Invalid credentials. Check your email and password.",
                                show_captcha=will_need_captcha, turnstile_site_key=_TURNSTILE_SITE_KEY)
     return render_template("admin_login.html", co=co)
 
@@ -911,9 +957,7 @@ RESET_TOKEN_VALID_HOURS = 3
 
 
 def _new_reset_token():
-    """(token, token_hash, expiry) for a password-reset link -- shared by
-    admin_forgot_password and employee_forgot_password, which previously
-    each generated this identically."""
+    """(token, token_hash, expiry) for a password-reset link (forgot_password)."""
     token = secrets.token_hex(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=RESET_TOKEN_VALID_HOURS)
@@ -933,44 +977,27 @@ def _find_by_reset_token(cursor, table, id_column, token):
     return cursor.fetchone()
 
 
-@auth_bp.route("/admin_forgot_password", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
-def admin_forgot_password():
-    # No company yet (bare URL, nothing in the session): pick one on /login's
-    # company step first -- its /<company>/login links back here with it.
-    if _login_needs_company():
-        return redirect("/login")
-    if request.method == "GET":
-        return render_template("admin_forgot_password.html",
-                               sent=False, error=None)
-    admin_email = request.form.get("email", "").strip().lower()
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT id FROM admin_users WHERE LOWER(email)=%s", (admin_email,))
-    row = cursor.fetchone()
-    if not row:
-        cursor.close()
-        db.close()
-        # Return the same message whether the email exists or not (no account enumeration)
-        return render_template("admin_forgot_password.html", sent=True, error=None)
-    token, token_hash, expiry = _new_reset_token()
-    admin_id = row[0]
-    cursor.execute(
-        "UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE id=%s",
-        (token_hash, expiry, admin_id)
-    )
-    db.commit()
-    cursor.close()
-    db.close()
-    cfg = get_email_config()
-    if not cfg:
-        return render_template("admin_forgot_password.html", sent=False,
-                               error="Email service not configured. Go to Admin → Email Settings first.")
-    reset_url = company_url('/admin_reset_password/' + token)
-    html_body = f"""
+# ── Forgot password ──────────────────────────────────────────────────────────
+# One form for everyone: the person types the email they sign in with (an
+# employee ID or username still works as a fallback). Opened inside a company
+# (/<company>/forgot_password, or after /login's company step) it looks there;
+# opened from the landing page or the app with no company, it looks in every
+# company -- it used to bounce to /login instead, so "Forgot password" from
+# the landing page never worked. It says plainly whether an account was found
+# (owner's decision, 2026-11-19); rate-limited here and in nginx.
+
+_RESET_NOT_FOUND_EMAIL = "No account found with this email address."
+_RESET_NOT_FOUND_ID = "No account found with this employee ID or username."
+_RESET_NO_EMAIL = "There's no email address on file for this account. Please contact HR."
+_RESET_NOT_CONFIGURED = "Email service not configured. Please contact HR or your administrator."
+_RESET_SEND_FAILED = "Failed to send email. Please try again later or contact HR."
+
+
+def _admin_reset_email_html(reset_url):
+    return f"""
 <div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
   <div style="background:#1e3a8a;padding:24px 28px;color:white;">
-    <div style="font-size:20px;font-weight:700;">🔐 Admin Password Reset</div>
+    <div style="font-size:20px;font-weight:700;">&#128272; Admin Password Reset</div>
     <div style="font-size:13px;opacity:0.75;margin-top:4px;">HRzest.com</div>
   </div>
   <div style="padding:28px;">
@@ -984,13 +1011,189 @@ def admin_forgot_password():
     <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
   </div>
 </div>"""
+
+
+def _employee_reset_email_html(reset_url, emp_name, emp_id):
+    return f"""
+<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
+  <div style="background:#1e3a8a;padding:24px 28px;color:white;">
+    <div style="font-size:20px;font-weight:700;">&#128272; Password Reset</div>
+    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Employee Portal</div>
+  </div>
+  <div style="padding:28px;">
+    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">Hi <strong>{emp_name}</strong>, you requested a
+      password reset for Employee ID <strong>{emp_id}</strong>.</p>
+    <a href="{reset_url}" style="display:block;text-align:center;padding:14px 28px;background:#1e3a8a;color:white;
+      border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
+      Reset My Password
+    </a>
+    <p style="font-size:13px;color:#64748b;">This link expires in <strong>{RESET_TOKEN_VALID_HOURS} hours</strong>.
+      If you did not request this, please ignore this email.</p>
+    <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
+  </div>
+</div>"""
+
+
+def _reset_targets():
+    """Where a forgot-password request looks: None = this request's own
+    database, (slug, db_name) = that company. Only this company when the URL
+    or the session names one; otherwise every active company -- after the
+    default database on a single-company server (local dev, the tests)."""
+    if request.environ.get("hrz.tenant_slug") or session.get("tenant_slug"):
+        return [None]
+    from database import get_master_db
+    targets = [] if _login_asks_for_company() else [None]
+    conn = get_master_db()
+    cur = conn.cursor(buffered=True)
     try:
-        send_email_smtp(admin_email, "Admin Password Reset -- HRzest.com", html_body, cfg)
-    except Exception:
-        app_log.error("Failed to send admin password reset email", exc_info=True)
-        return render_template("admin_forgot_password.html", sent=False,
-                               error="Failed to send email. Please check your email settings.")
-    return render_template("admin_forgot_password.html", sent=True, error=None)
+        cur.execute("SELECT subdomain, db_name FROM tenants WHERE status='active' "
+                    "AND schema_missing_tables IS NULL ORDER BY subdomain")
+        targets += cur.fetchall()
+    finally:
+        cur.close()
+        conn.close()
+    return targets
+
+
+def _reset_accounts_here(login):
+    """Accounts in the current database that sign in with `login`:
+    [(kind, key, email, name)], kind "admin" or "employee"."""
+    with _db() as (cursor, _conn):
+        if "@" in login:
+            email = login.lower()
+            cursor.execute("SELECT username, email FROM admin_users "
+                           "WHERE (LOWER(email)=%s OR username=%s) AND COALESCE(is_active,1)=1", (email, email))
+            admins = cursor.fetchall()
+            cursor.execute("SELECT employee_id, email, name FROM employees WHERE email_bidx = ANY(%s)",
+                           (contact_lookup_keys("email", email),))
+            employees = cursor.fetchall()
+        else:
+            cursor.execute("SELECT username, email FROM admin_users "
+                           "WHERE username=%s AND COALESCE(is_active,1)=1", (login,))
+            admins = cursor.fetchall()
+            cursor.execute("SELECT employee_id, email, name FROM employees WHERE employee_id IN (%s, %s)",
+                           (login, login.upper()))
+            employees = cursor.fetchall()
+    found = []
+    for username, email in admins:
+        found.append(("admin", username, email or (username if "@" in username else None), None))
+    for emp_id, email, name in employees:
+        found.append(("employee", emp_id, email or None, name))
+    return found
+
+
+def _send_reset_here(kind, key, to_email, name, cfg):
+    """Store a fresh reset token for this account and email its link.
+    True when sent (admins) or queued (employees)."""
+    token, token_hash, expiry = _new_reset_token()
+    with _db() as (cursor, conn):
+        if kind == "admin":
+            cursor.execute("UPDATE admin_users SET reset_token=%s, reset_token_expiry=%s WHERE username=%s",
+                           (token_hash, expiry, key))
+        else:
+            cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
+                           (token_hash, expiry, key))
+        conn.commit()
+    if kind == "admin":
+        html_body = _admin_reset_email_html(company_url("/admin_reset_password/" + token))
+        try:
+            send_email_smtp(to_email, "Admin Password Reset -- HRzest.com", html_body, cfg)
+        except Exception:
+            app_log.error("Failed to send admin password reset email", exc_info=True)
+            return False
+        return True
+    html_body = _employee_reset_email_html(company_url("/employee_reset_password/" + token),
+                                           _html.escape(name or key), _html.escape(key))
+    send_email_async(to_email, "Password Reset -- Employee Portal", html_body, cfg)
+    return True
+
+
+def _request_password_reset(login):
+    """Email a reset link to every account that signs in with `login`.
+    -> (outcome, message): outcome "sent", "not_found", "no_email",
+    "not_configured" or "send_failed"."""
+    login = (login or "").strip()[:254]
+    saved = {k: getattr(g, k) for k in ("tenant_db", "tenant_slug", "billing_locked") if hasattr(g, k)}
+    found = sent = 0
+    problems = set()
+    try:
+        for target in _reset_targets():
+            if target is not None:
+                _sign_in_under_company(*target, bind_session=False)
+            try:
+                accounts = _reset_accounts_here(login)
+            except Exception:
+                app_log.warning("forgot password: account lookup failed", exc_info=True)
+                continue
+            found += len(accounts)
+            with_email = [a for a in accounts if a[2]]
+            if accounts and not with_email:
+                problems.add("no_email")
+            if with_email:
+                cfg = get_email_config()
+                if not cfg:
+                    problems.add("not_configured")
+                else:
+                    for kind, key, to_email, name in with_email:
+                        if _send_reset_here(kind, key, to_email, name, cfg):
+                            sent += 1
+                        else:
+                            problems.add("send_failed")
+            if target is None and accounts:
+                break  # on a single-company server the default database is the company
+    finally:
+        for k in ("tenant_db", "tenant_slug", "billing_locked"):
+            if k in saved:
+                setattr(g, k, saved[k])
+            elif hasattr(g, k):
+                delattr(g, k)
+    if sent:
+        where = login if "@" in login else "the email address on file"
+        return "sent", (f"A password reset link has been sent to {where}. "
+                        f"It expires in {RESET_TOKEN_VALID_HOURS} hours.")
+    if not found:
+        return "not_found", _RESET_NOT_FOUND_EMAIL if "@" in login else _RESET_NOT_FOUND_ID
+    for outcome, msg in (("send_failed", _RESET_SEND_FAILED), ("not_configured", _RESET_NOT_CONFIGURED),
+                         ("no_email", _RESET_NO_EMAIL)):
+        if outcome in problems:
+            return outcome, msg
+    return "send_failed", _RESET_SEND_FAILED
+
+
+@auth_bp.route("/forgot_password", methods=["GET", "POST"])
+@auth_bp.route("/admin_forgot_password", methods=["GET", "POST"])
+@auth_bp.route("/employee_forgot_password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+@limiter.limit("20 per hour")
+def forgot_password():
+    if request.method == "GET":
+        return render_template("forgot_password.html", sent=False, message=None, error=None, email="")
+    # "employee_id" is the old employee form's field; still accepted.
+    login = (request.form.get("email") or request.form.get("employee_id") or "").strip()
+    if not login:
+        return render_template("forgot_password.html", sent=False, message=None, email="",
+                               error="Please enter your email address.")
+    outcome, msg = _request_password_reset(login)
+    if outcome == "sent":
+        return render_template("forgot_password.html", sent=True, message=msg, error=None, email=login)
+    return render_template("forgot_password.html", sent=False, message=None, error=msg, email=login)
+
+
+@auth_bp.route("/api/forgot_password", methods=["POST"])
+@limiter.limit("5 per minute")
+@limiter.limit("20 per hour")
+def api_forgot_password():
+    """The app's "Forgot password?": the same search and email as the web
+    form. 200 when a link was sent, 404 when no account has this email, 422
+    when it has no email on file, 400 for an empty box, 503 when the email
+    couldn't be sent."""
+    data = request.get_json(silent=True) or {}
+    login = str(data.get("email") or "").strip()
+    if not login:
+        return jsonify({"ok": False, "code": "empty", "msg": "Please enter your email address."}), 400
+    outcome, msg = _request_password_reset(login)
+    status = {"sent": 200, "not_found": 404, "no_email": 422}.get(outcome, 503)
+    return jsonify({"ok": outcome == "sent", "code": outcome, "msg": msg}), status
 
 
 @auth_bp.route("/admin_reset_password/<token>", methods=["GET", "POST"])
@@ -1033,60 +1236,6 @@ def admin_reset_password(token):
     cursor.close()
     db.close()
     return render_template("admin_reset_password.html", valid=True, done=True, token=token, error=None)
-
-
-@auth_bp.route("/employee_forgot_password", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
-def employee_forgot_password():
-    if _login_needs_company():
-        return redirect("/login")
-    if request.method == "GET":
-        return render_template("employee_forgot_password.html", sent=False, error=None)
-    emp_id = request.form.get("employee_id", "").strip()
-    if not emp_id:
-        return render_template("employee_forgot_password.html", sent=False, error="Please enter your Employee ID.")
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT employee_id, email, name FROM employees WHERE employee_id=%s", (emp_id,))
-    row = cursor.fetchone()
-    if not row or not row[1]:
-        cursor.close()
-        db.close()
-        # Generic message to avoid account enumeration; also covers "no email on file"
-        return render_template("employee_forgot_password.html", sent=True, error=None)
-    db_email = row[1]
-    emp_name = _html.escape(row[2] or emp_id)
-    token, token_hash, expiry = _new_reset_token()
-    cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",
-                   (token_hash, expiry, emp_id))
-    db.commit()
-    cursor.close()
-    db.close()
-    cfg = get_email_config()
-    if not cfg:
-        return render_template("employee_forgot_password.html", sent=False,
-                               error="Email service not configured. Please contact HR.")
-    reset_url = company_url('/employee_reset_password/' + token)
-    html_body = f"""
-<div style="font-family:Segoe UI,sans-serif;max-width:520px;margin:auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #dbeafe;">
-  <div style="background:#1e3a8a;padding:24px 28px;color:white;">
-    <div style="font-size:20px;font-weight:700;">🔐 Password Reset</div>
-    <div style="font-size:13px;opacity:0.75;margin-top:4px;">Employee Portal</div>
-  </div>
-  <div style="padding:28px;">
-    <p style="font-size:15px;color:#1e293b;margin-bottom:20px;">Hi <strong>{emp_name}</strong>, you requested a
-      password reset for Employee ID <strong>{emp_id}</strong>.</p>
-    <a href="{reset_url}" style="display:block;text-align:center;padding:14px 28px;background:#1e3a8a;color:white;
-      border-radius:10px;text-decoration:none;font-size:15px;font-weight:700;margin-bottom:20px;">
-      Reset My Password
-    </a>
-    <p style="font-size:13px;color:#64748b;">This link expires in <strong>{RESET_TOKEN_VALID_HOURS} hours</strong>.
-      If you did not request this, please ignore this email.</p>
-    <p style="font-size:12px;color:#94a3b8;margin-top:12px;">Or copy this link: {reset_url}</p>
-  </div>
-</div>"""
-    send_email_async(db_email, "Password Reset -- Employee Portal", html_body, cfg)
-    return render_template("employee_forgot_password.html", sent=True, error=None)
 
 
 @auth_bp.route("/employee_reset_password/<token>", methods=["GET", "POST"])
