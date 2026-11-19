@@ -1,17 +1,16 @@
-// The sign-in page: one box for an email, username or employee ID (the
-// server's /api/signin decides admin or employee, like the website). The
-// server also finds the company from those details and answers which
-// (company_slug); the Company box is hidden unless the person opens it,
-// the details fit more than one company, or for Forgot password. A typed
+// The sign-in page: one box for the email (an employee ID or username still
+// works quietly; the server's /api/signin decides admin or employee, like the
+// website). The server also finds the company from those details and answers
+// which (company_slug); the Company box is hidden unless the person opens it
+// or the details fit more than one company. A typed
 // company is applied (api/client.js's setCompanySlug) before the call, and
 // the session remembers the company (signIn's companySlug).
 import React from 'react';
-import { Alert, Linking } from 'react-native';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 import LoginScreen from '../LoginScreen';
 import * as api from '../../api/client';
-import { API_BASE_URL } from '../../config';
 
 const mockSignIn = jest.fn();
 let mockSlug = '';
@@ -26,6 +25,7 @@ jest.mock('../../api/client', () => ({
   verifyAdminLogin: jest.fn(),
   employeeLogin: jest.fn(),
   signInAccount: jest.fn(),
+  requestPasswordReset: jest.fn(),
   setCompanySlug: jest.fn((slug) => { mockSlug = slug; }),
   getCompanySlug: jest.fn(() => mockSlug),
   parseCompanySlug: jest.requireActual('../../api/client').parseCompanySlug,
@@ -39,7 +39,7 @@ jest.setTimeout(30000);
 
 const COMPANY = "Company name or web address";
 const SHOW_COMPANY = 'Sign in to a specific company';
-const IDENT = 'e.g. you@company.com or EMP-1001';
+const IDENT = 'you@company.com';
 const PASS = 'Your password';
 
 beforeEach(() => {
@@ -179,39 +179,39 @@ it('tells a leaver their access ended after the last working day', async () => {
   expect(mockSignIn).not.toHaveBeenCalled();
 });
 describe('Forgot password', () => {
-  const choose = (label) => Alert.alert.mock.calls.at(-1)[2].find((b) => b.text === label).onPress();
-
-  beforeEach(() => jest.spyOn(Linking, 'openURL').mockResolvedValue(true));
-
-  it("opens the reset page of the company in the Company box", async () => {
+  // Emails a reset link to the address in the box; the server searches every
+  // company, so no company is asked for, and it says when the email is unknown.
+  async function forgot(ident) {
     const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
-    await openCompanyBox(screen);
-    await fireEvent.changeText(screen.getByPlaceholderText(COMPANY), 'acme');
+    if (ident !== undefined) await fireEvent.changeText(screen.getByPlaceholderText(IDENT), ident);
     await fireEvent.press(screen.getByText('Forgot password?'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Reset Your Password', expect.any(String), expect.any(Array)));
-    choose('Employee or HR (employee ID)');
-    expect(Linking.openURL).toHaveBeenCalledWith(`${API_BASE_URL}/acme/employee_forgot_password`);
-    choose('Admin (email)');
-    expect(Linking.openURL).toHaveBeenLastCalledWith(`${API_BASE_URL}/acme/admin_forgot_password`);
-  });
+    return screen;
+  }
 
-  it("doesn't open anything for a company that doesn't exist", async () => {
-    api.resolveCompany.mockRejectedValueOnce({ response: { status: 404, data: { ok: false, msg: 'No such company.' } } });
-    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
-    await openCompanyBox(screen);
-    await fireEvent.changeText(screen.getByPlaceholderText(COMPANY), 'nope');
-    await fireEvent.press(screen.getByText('Forgot password?'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Company Not Found', 'No such company.'));
-    expect(Linking.openURL).not.toHaveBeenCalled();
-  });
-
-  it('asks for the company first when none is known', async () => {
-    const screen = await render(<LoginScreen navigation={{ navigate: jest.fn() }} />);
+  it('sends the reset email and says so, without asking for a company', async () => {
+    api.requestPasswordReset.mockResolvedValueOnce({ data: { ok: true, msg: 'A password reset link has been sent to a@acme.test.' } });
+    const screen = await forgot(' a@acme.test ');
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(
+      'Reset email sent', 'A password reset link has been sent to a@acme.test.'));
+    expect(api.requestPasswordReset).toHaveBeenCalledWith('a@acme.test');
     expect(screen.queryByPlaceholderText(COMPANY)).toBeNull();
-    await fireEvent.press(screen.getByText('Forgot password?'));
-    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Your company', expect.any(String)));
-    expect(screen.getByPlaceholderText(COMPANY)).toBeTruthy();
-    expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+
+  it("says when no account has that email", async () => {
+    api.requestPasswordReset.mockRejectedValueOnce({
+      response: { status: 404, data: { ok: false, msg: 'No account found with this email address.' } },
+    });
+    await forgot('ghost@acme.test');
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(
+      'Email not found', 'No account found with this email address.'));
+  });
+
+  it('asks for the email first when the box is empty or not an email', async () => {
+    await forgot();
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Forgot password', expect.stringMatching(/email/i)));
+    await forgot('EMP-1001');
+    expect(Alert.alert).toHaveBeenLastCalledWith('Forgot password', expect.stringMatching(/email/i));
+    expect(api.requestPasswordReset).not.toHaveBeenCalled();
   });
 });
 

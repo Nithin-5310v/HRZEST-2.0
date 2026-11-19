@@ -4,7 +4,7 @@ import hashlib
 import os
 import threading
 from extensions import app_log
-from flask import request, session
+from flask import g, request, session
 
 # utils/helpers/urls.py -> repo root is three levels up.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -172,7 +172,10 @@ def company_url(path: str) -> str:
     session only, so a link built from that request's own URL would work
     only in the same browser -- opened from a mail app or another device it
     would land in no company and report its token as invalid."""
-    slug = request.environ.get("hrz.tenant_slug") or session.get("tenant_slug") or ""
+    # g.tenant_slug: a company this request switched to itself -- a bare
+    # /forgot_password searching every company (auth._sign_in_under_company).
+    slug = (request.environ.get("hrz.tenant_slug") or getattr(g, "tenant_slug", None)
+            or session.get("tenant_slug") or "")
     return f"{_safe_app_url()}{'/' + slug if slug else ''}{path}"
 
 

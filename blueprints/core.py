@@ -814,9 +814,10 @@ def api_hr_my_employee_session():
 @limiter.limit("20 per hour")
 def api_signin():
     """The app's one sign-in box, with the website /login's rules
-    (auth.admin_login): an admin, HR or manager account whose username --
-    or lowercased email -- and password match signs in as that; anything
-    else is tried as an employee ID. The answer is /api/login's or
+    (auth.admin_login): people sign in with their email (auth._sign_in_name
+    finds its account; an employee ID or username still works as a
+    fallback). An admin, HR or manager account whose password matches signs
+    in as that; anything else is tried as an employee ID. The answer is /api/login's or
     /api/employee/login's, plus "account": "admin" | "employee" and
     "company_slug": the company signed in to.
 
@@ -824,7 +825,7 @@ def api_signin():
     box), the credentials name the company, as on the website's bare /login
     (auth._bare_login_company); 409 company_required when they fit more
     than one, so the app asks which."""
-    from blueprints.auth import _bare_login_company
+    from blueprints.auth import _bare_login_company, _sign_in_name
     data = request.get_json(silent=True) or {}
     identifier = str(data.get("identifier") or "").strip()
     password = str(data.get("password") or "")
@@ -833,6 +834,8 @@ def api_signin():
     if _bare_login_company(identifier, password, bind_session=False) == "many":
         return jsonify({"ok": False, "company_required": True,
                         "msg": "This account is in more than one company. Enter your company's name."}), 409
+    with _db() as (cursor, _conn):
+        identifier = _sign_in_name(cursor, identifier, password)
     if _admin_password_matches(identifier, password):
         account, result = "admin", _api_admin_login(identifier, password)
     else:

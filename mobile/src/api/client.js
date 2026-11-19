@@ -13,7 +13,9 @@ const client = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
 // Company URL -- and sends every API call under it. Sign-up calls belong to
 // no company yet, so they never get one.
 let companySlug = '';
-const COMPANYLESS_PATHS = ['/api/create_org', '/api/company/resolve'];
+// /api/forgot_password searches every company for the email, so a company
+// remembered from an earlier sign-in must not narrow it.
+const COMPANYLESS_PATHS = ['/api/create_org', '/api/company/resolve', '/api/forgot_password'];
 
 export const setCompanySlug = (slug) => {
   companySlug = slug || '';
@@ -119,6 +121,12 @@ export const resolveCompany = (q) => client.get('/api/company/resolve', { params
 // employeeLogin, plus account: 'admin' | 'employee'.
 export const signInAccount = (identifier, password) =>
   client.post('/api/signin', { identifier, password });
+
+// "Forgot password?" (blueprints/auth.py's /api/forgot_password): emails a
+// reset link to the account with this email. 200 { ok, msg } when sent;
+// 404 when no account has this email.
+export const requestPasswordReset = (email) =>
+  client.post('/api/forgot_password', { email });
 
 export const adminLogin = (username, password) =>
   client.post('/api/login', { username, password });
