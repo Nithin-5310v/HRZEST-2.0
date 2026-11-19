@@ -317,7 +317,7 @@ def all_role_permissions():
 def defined_role_base_type(role_key):
     """base_type ('admin'|'hr'|'manager'|'employee') if role_key is a role that
     actually exists in Settings -> Roles & Access (the roles table), else None.
-    Unlike base_type_for_role(), an unknown/free-text value returns None -- so a
+    An unknown/free-text value returns None -- so a
     plain job title like "Developer" routes to the normal employee portal, and
     only a real assigned role sends an employee to the admin-side dashboard.
     Used by blueprints/auth.py's login routing."""
@@ -437,23 +437,6 @@ def assign_employee_role(employee_id, role_key):
             cur.execute("UPDATE admin_users SET is_active=0 WHERE username=%s", (employee_id,))
         db.commit()
         return role_key, emp_name
-    finally:
-        cur.close()
-
-
-def base_type_for_role(role_key):
-    """The base_type ('admin'|'hr'|'manager'|'employee') a role maps to, which
-    decides the admin panel it lands on. Unknown/legacy role -> 'admin' so an
-    existing account is never downgraded by a missing row. superadmin stays
-    'admin'-tier here but bypasses every gate elsewhere."""
-    if role_key in ("admin", "superadmin"):
-        return "admin"
-    db = get_db_connection()
-    cur = db.cursor()
-    try:
-        cur.execute("SELECT base_type FROM roles WHERE role_key=%s", (role_key,))
-        row = cur.fetchone()
-        return row[0] if row else "admin"
     finally:
         cur.close()
 
