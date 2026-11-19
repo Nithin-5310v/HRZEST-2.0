@@ -120,6 +120,6 @@ def test_tenant_hint():
     assert tax.tenant_hint("/acme") == "acme"
     assert tax.tenant_hint("/login") is None            # reserved top-level route
     assert tax.tenant_hint("/super_admin/x") is None
-    assert tax.tenant_hint("/soc/api/overview") is None
+    assert tax.tenant_hint("/socperson/api/overview") is None
     assert tax.tenant_hint("/index.php") is None         # looks like a file, not a slug
     assert tax.tenant_hint("") is None and tax.tenant_hint(None) is None

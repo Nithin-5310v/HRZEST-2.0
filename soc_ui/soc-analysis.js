@@ -38,7 +38,7 @@
       go.disabled = true; go.textContent = 'Analysing…';
       results.textContent = ''; results.appendChild(SOC.skeleton());
       const mine = ++latest;
-      api.form('/soc/api/loganalysis', fd).then((r) => { if (mine === latest) show(r.report); })
+      api.form('/socperson/api/loganalysis', fd).then((r) => { if (mine === latest) show(r.report); })
         .catch((err) => { if (mine === latest) { results.textContent = ''; results.appendChild(SOC.callout(err.message, 'bad')); } })
         .finally(() => { go.disabled = false; go.textContent = 'Analyse'; });
     } }, drop, paste, h('div', { class: 'row' }, go,
@@ -53,7 +53,7 @@
       platBtn.disabled = true; platBtn.textContent = 'Analysing…';
       results.textContent = ''; results.appendChild(SOC.skeleton());
       const hours = SOC.hours;
-      api.post('/soc/api/loganalysis/platform', { hours }).then((r) => {
+      api.post('/socperson/api/loganalysis/platform', { hours }).then((r) => {
         SOC._platformReport = { hours, at: Date.now(), report: r.report };
         if (mine === latest) show(r.report);
       }).catch((err) => { if (mine === latest) { results.textContent = ''; results.appendChild(SOC.callout(err.message, 'bad')); } })
@@ -166,7 +166,7 @@
         SOC.can('analyst') ? h('button', { class: 'btn danger', type: 'button', disabled: !ips.length, onclick: async () => {
           const durLabel = banDur.options[banDur.selectedIndex].text;
           if (!(await SOC.confirm('Ban ' + ips.length + ' address(es) ' + (banDur.value === '0' ? 'until lifted' : 'for ' + durLabel) + '? Private and shared addresses are skipped automatically.', { okText: 'Ban' }))) return;
-          api.post('/soc/api/bans/bulk', { ips, reason: 'Log analysis: ' + (r.filename || 'pasted log'), minutes: Number(banDur.value) }).then((res) => {
+          api.post('/socperson/api/bans/bulk', { ips, reason: 'Log analysis: ' + (r.filename || 'pasted log'), minutes: Number(banDur.value) }).then((res) => {
             const okN = res.results.filter((x) => x.ok).length;
             SOC.toast(okN + ' banned, ' + (res.results.length - okN) + ' skipped', okN ? 'good' : 'bad');
             SOC.refreshPulse();

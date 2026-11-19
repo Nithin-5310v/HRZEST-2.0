@@ -98,9 +98,9 @@ def _waf_inspect_request():
         return
     # SOC analysts legitimately search for and paste attack strings (an SQLi payload
     # as an event filter, a hostile log excerpt). Exempt only authenticated
-    # /soc/api/ calls: the login page and everything else stay inspected, and
+    # /socperson/api/ calls: the login page and everything else stay inspected, and
     # that API uses bound parameters only (utils/soc_queries.py).
-    if request.path.startswith("/soc/api/") and session.get("soc_uid"):
+    if request.path.startswith("/socperson/api/") and session.get("soc_uid"):
         return
     hit = waf.inspect_request(request)
     if hit:

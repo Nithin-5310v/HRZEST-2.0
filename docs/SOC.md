@@ -1,27 +1,35 @@
-# SOC console (`/soc`)
+# SOC console (`/socperson`)
 
 A standalone security-operations console for the platform operator. It reads what the
 product already records about attacks and abuse, lets an analyst investigate and respond,
 and analyses raw logs. It is **not** linked from any other dashboard: you reach it by
-typing `https://<host>/soc`.
+typing `https://<host>/socperson`.
 
 ## Getting in
 
-1. Create the first administrator (there are no default credentials):
+There are no passwords and no default accounts. Sign-in is an emailed one-time code, and only
+the addresses you list on the server can get one.
+
+1. In the server's `.env`, list who may sign in and allow your networks, then restart:
 
    ```
-   python scripts/seed_soc_user.py --username alice --role admin --email alice@example.com
+   SOC_LOGIN_EMAILS=you@example.com
+   SOC_ALLOWED_CIDRS=203.0.113.0/24
    ```
 
-   It prompts for a password (12+ characters) and prints a **one-time setup code**.
-2. Open `/soc/login`, enter the username and password, then the setup code, then scan the QR
-   code with an authenticator app and enter the 6-digit code. The setup code is single-use.
-3. Every later sign-in is password + 6-digit code. Codes are single-use (a code that has
-   already been accepted is refused for the rest of its 30-second window).
+   Each entry may name a role: `you@example.com, ana@example.com:analyst, ops@example.com:viewer`.
+   No role means `admin`. Keep the addresses in `.env`, not in the repository.
+2. Open `/socperson/login`, enter your address, and enter the 6-digit code from the email.
+   Codes last 10 minutes, work once, and at most one is sent per minute ("Send a new code").
+3. The account is created on your first sign-in; its role always follows `SOC_LOGIN_EMAILS`.
 
-The setup code exists so someone who learns only a new account's password cannot enrol *their*
-authenticator first. Hand over the password and the code through different channels. If a user
-loses their phone, an admin uses **Users & audit → Reset MFA**, which issues a fresh setup code.
+Any address gets the same "check your email" screen, so the form does not reveal who is
+authorised; addresses that are not listed simply never receive a code. Email must work:
+without SMTP the code is sent nowhere (with `APP_ENV=development` only, it is written to the
+application log so the flow can be tried locally).
+
+To remove someone, take their address out of `SOC_LOGIN_EMAILS` and restart: their open session
+ends on its next request. **Users & audit → Disable** is the immediate switch that needs no restart.
 
 ## Roles
 
@@ -31,16 +39,17 @@ loses their phone, an admin uses **Users & audit → Reset MFA**, which issues a
 | Open / update cases, add notes | | ✔ | ✔ |
 | Ban / unban IPs, decide Ban review items, revoke sessions | | ✔ | ✔ |
 | Log analysis, CSV export, audit-chain verification, Loki search | | ✔ | ✔ |
-| Manage SOC users, read the SOC audit trail | | | ✔ |
+| Disable / enable / unlock SOC accounts, read the SOC audit trail | | | ✔ |
 
-Viewers never receive raw session identifiers. A role change, deactivation or password reset
-ends that user's console session on their next request.
+Viewers never receive raw session identifiers. A role change in `SOC_LOGIN_EMAILS`, removal
+from it, or deactivation ends that user's console session on their next request.
 
 ## Settings (`.env`)
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SOC_ALLOWED_CIDRS` | unset | Comma-separated CIDRs allowed to reach `/soc`. Others get a plain 404. A malformed value denies everyone. **Set this in production.** |
+| `SOC_LOGIN_EMAILS` | unset | Who may sign in: comma-separated addresses, each optionally `:viewer`, `:analyst` or `:admin` (default `admin`). Unset means nobody can sign in. |
+| `SOC_ALLOWED_CIDRS` | unset | Comma-separated CIDRs allowed to reach `/socperson`. Others get a plain 404. A malformed value denies everyone. **Unset, the console is closed everywhere except `APP_ENV=development`**; `0.0.0.0/0,::/0` opens it to every address on purpose. |
 | `SOC_IDLE_MINUTES` | 15 | Sign-out after this long without a user action (background refresh does not count). |
 | `SOC_SESSION_HOURS` | 8 | Absolute session lifetime. |
 | `LOKI_URL` | unset | Enables the **Logs** view (read-only LogQL). Read from the environment only, never from a request. |
@@ -62,16 +71,16 @@ ends that user's console session on their next request.
 * **Detections** – the correlation rules, their thresholds and when each last fired.
 * **Audit integrity** – verifies the hash chain over `security_events` on demand.
 * **Posture** – live configuration checks with the setting to change. Reports whether a control is on, never a secret.
-* **Users & audit** (admin) – accounts and the append-only record of everything done in the console.
+* **Users & audit** (admin) – accounts (whether each is still listed in `SOC_LOGIN_EMAILS`, disable / enable, unlock) and the append-only record of everything done in the console.
 
 ## How it is protected
 
 * Separate accounts, session keys and guard from every other login; other sessions grant nothing here and a console session grants nothing elsewhere.
-* Password (12+ chars) **and** TOTP; lockout after 5 failures for 15 minutes; failures indistinguishable from unknown users; session re-validated against the database on every request.
-* Unreachable at `/<company>/soc`; `soc` is a reserved URL segment so no company can claim it.
+* Emailed one-time code for listed addresses only; the code is stored as an HMAC keyed with the app secret, expires in 10 minutes and is cleared by the statement that accepts it; lockout after 5 wrong codes for 15 minutes; listed and unlisted addresses see the same screens; session re-validated against the database and `SOC_LOGIN_EMAILS` on every request. With no password or authenticator, whoever controls a listed inbox can sign in, which is why the network allow-list is enforced in production.
+* Unreachable at `/<company>/socperson`; `socperson` (and the old `soc`) are reserved URL segments so no company can claim them. The old `/soc` path answers 404.
 * Every response is `no-store` and `noindex`; its JS/CSS are served only to a signed-in session.
 * Every query is parameterised and runs read-only with a statement timeout. Event data is rendered as text only (no `innerHTML`, no inline script), enforced by `tests/test_soc_frontend_static.py`.
-* Authenticated analysts are exempt from the WAF only on `/soc/api/` so they can search for attack strings; the login page stays inspected. Pasted logs are uploaded as a file for the same reason.
+* Authenticated analysts are exempt from the WAF only on `/socperson/api/` so they can search for attack strings; the login page stays inspected. Pasted logs are uploaded as a file for the same reason.
 * Every login, failure and action goes to `att_master.soc_audit_log` (append-only by trigger) and is mirrored into the normal security stream so it ships off-box with everything else.
 
 ## Limits to know about

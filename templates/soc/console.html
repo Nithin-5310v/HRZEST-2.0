@@ -8,7 +8,7 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Security Operations</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/soc/assets/soc.css">
+  <link rel="stylesheet" href="/socperson/assets/soc.css">
 </head>
 <body data-user="{{ username }}" data-role="{{ role }}" data-idle="{{ idle_seconds }}" data-loki="{{ 1 if loki else 0 }}">
   <a class="skip" href="#view">Skip to content</a>
@@ -22,7 +22,7 @@
     <div class="side-foot">
       <div class="who"><span class="avatar" id="avatar" aria-hidden="true"></span>
         <span class="who-text"><strong id="whoName"></strong><small id="whoRole"></small></span></div>
-      <form method="post" action="/soc/logout">
+      <form method="post" action="/socperson/logout">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn ghost small" id="logoutBtn">Sign out</button>
       </form>
@@ -63,9 +63,9 @@
   <div id="idleWarn" class="idle" hidden role="alert">Your session will end soon due to inactivity. <button class="btn small" id="idleStay">Stay signed in</button></div>
 
   <script src="/static/chart.umd.min.js"></script>
-  <script src="/soc/assets/soc-core.js"></script>
-  <script src="/soc/assets/soc-views.js"></script>
-  <script src="/soc/assets/soc-analysis.js"></script>
-  <script src="/soc/assets/soc-banreview.js"></script>
+  <script src="/socperson/assets/soc-core.js"></script>
+  <script src="/socperson/assets/soc-views.js"></script>
+  <script src="/socperson/assets/soc-analysis.js"></script>
+  <script src="/socperson/assets/soc-banreview.js"></script>
 </body>
 </html>

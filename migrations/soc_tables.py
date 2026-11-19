@@ -5,7 +5,10 @@ They live in the platform's own master schema, never in a tenant schema: SOC
 staff are platform operators, and nothing a tenant admin can reach should be
 able to read or write these rows.
 
-  soc_users       analyst accounts (password hash + encrypted TOTP secret)
+  soc_users       analyst accounts. Sign-in is an emailed one-time code for the
+                  addresses in SOC_LOGIN_EMAILS (utils/soc_auth.py); the
+                  password / TOTP columns are left over from the earlier
+                  password + authenticator login and are no longer read
   soc_cases       triage / incident cases opened from events, detections or logs
   soc_case_notes  analyst notes on a case
   soc_audit_log   every SOC login and action. Append-only: a trigger rejects
@@ -65,6 +68,11 @@ STATEMENTS = [
     )
     """,
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS enroll_code_hash TEXT",
+    # Emailed one-time sign-in code: HMAC of the code (never the code), its
+    # expiry, and when the last one went out (one per minute at most).
+    "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_hash TEXT",
+    "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_expires_at TIMESTAMP",
+    "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_sent_at TIMESTAMP",
     "CREATE INDEX IF NOT EXISTS idx_soc_cases_status ON soc_cases (status, updated_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_soc_cases_event ON soc_cases (source_event_id)",
     """

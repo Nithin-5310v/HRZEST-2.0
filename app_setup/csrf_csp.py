@@ -111,8 +111,8 @@ def _enforce_csrf():
             # page (auth.admin_login).
             if request.path.startswith("/super_admin"):
                 login_url = "/super_admin/login"
-            elif request.path == "/soc" or request.path.startswith("/soc/"):
-                login_url = "/soc/login"
+            elif request.path == "/socperson" or request.path.startswith("/socperson/"):
+                login_url = "/socperson/login"
             else:
                 login_url = url_for("auth.admin_login")
             return redirect(login_url)

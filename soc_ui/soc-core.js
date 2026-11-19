@@ -136,7 +136,7 @@
     if (method !== 'GET') init.headers['X-CSRF-Token'] = csrf();
     if (poll) init.headers['X-SOC-Poll'] = '1';
     return fetch(url, init).then(function (res) {
-      if (res.status === 401) { window.location.href = '/soc/login'; throw new Error('Signed out'); }
+      if (res.status === 401) { window.location.href = '/socperson/login'; throw new Error('Signed out'); }
       var json = (res.headers.get('content-type') || '').indexOf('json') >= 0;
       return (json ? res.json() : Promise.resolve(null)).then(function (data) {
         if (!res.ok || (data && data.ok === false)) {
@@ -203,7 +203,7 @@
     for (var i = 0; i < want.length; i += 50) {
       (function (chunk) {
         chunk.forEach(function (ip) { geoPending[ip] = 1; });
-        SOC.api.get('/soc/api/geo', { ips: chunk.join(',') }, true).then(function (d) {
+        SOC.api.get('/socperson/api/geo', { ips: chunk.join(',') }, true).then(function (d) {
           chunk.forEach(function (ip) { geoCache[ip] = (d.geo && d.geo[ip]) || { scope: 'unavailable' }; });
         }).catch(function () {
           chunk.forEach(function (ip) { geoCache[ip] = { scope: 'unavailable' }; });
@@ -453,7 +453,7 @@
     SOC.pulse = p;
   }
   SOC.refreshPulse = function (poll) {
-    return SOC.api.get('/soc/api/pulse', null, poll).then(applyPulse).catch(function () { /* transient */ });
+    return SOC.api.get('/socperson/api/pulse', null, poll).then(applyPulse).catch(function () { /* transient */ });
   };
 
   function idleWatch() {
@@ -462,11 +462,11 @@
       document.addEventListener(ev, function () { if (!warned) last = Date.now(); }, { passive: true });
     });
     document.getElementById('idleStay').addEventListener('click', function () {
-      SOC.api.get('/soc/api/me').then(function () { warned = false; last = Date.now(); bar.hidden = true; });
+      SOC.api.get('/socperson/api/me').then(function () { warned = false; last = Date.now(); bar.hidden = true; });
     });
     setInterval(function () {
       var idle = (Date.now() - last) / 1000;
-      if (idle >= SOC.idle) { window.location.href = '/soc/login'; }
+      if (idle >= SOC.idle) { window.location.href = '/socperson/login'; }
       else if (idle >= SOC.idle - 60) { warned = true; bar.hidden = false; }
     }, 5000);
   }

@@ -345,10 +345,92 @@ jobs:
           FLASK_ENV: testing
         run: python -m pytest tests/ -v --tb=short --cov=. --cov-report=term-missing --cov-fail-under=40
 
+  test-role-split:
+    # tests/test_db_role_split.py skips itself unless the app runs as a
+    # restricted runtime role with a separate owner role (DB_OWNER_USER) --
+    # the production hardening in scripts/provision_db_roles.py. The `test`
+    # job connects as the postgres superuser, so without this job those checks
+    # (runtime role cannot run DDL, cannot rewrite audit_logs / security_events /
+    # soc_audit_log, cannot touch the chain head) never ran anywhere.
+    name: Pytest (least-privilege database roles)
+    runs-on: ubuntu-latest
+    needs: [lint, security, sast, secrets-scan]
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_testpass
+          POSTGRES_DB: att_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d att_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_NAME: att_test
+      # Throwaway passwords for roles that exist only in this job's database.
+      HRZEST_OWNER_ROLE: hrzest_owner
+      HRZEST_OWNER_PASS: owner_ci_pass
+      HRZEST_APP_ROLE: hrzest_app
+      HRZEST_APP_PASS: app_ci_pass
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        # Same install as the `test` job (see the lint job for why dlib-bin).
+        run: |
+          pip install --no-cache-dir dlib-bin
+          pip install --no-cache-dir --no-deps face-recognition face-recognition-models
+          grep -v '^face-recognition' requirements.txt > /tmp/ci-requirements.txt
+          pip install --no-cache-dir -r /tmp/ci-requirements.txt -r requirements-dev.txt
+
+      - name: Provision the owner and runtime roles
+        env:
+          PG_ADMIN_USER: postgres
+          PG_ADMIN_PASS: ci_testpass
+        run: |
+          python scripts/provision_db_roles.py
+          # Test harness only: tests/conftest.py restores each test's snapshot with
+          # session_replication_role=replica, which a NOSUPERUSER owner may not set
+          # by default. The provisioning script never grants this in production.
+          python -c "import psycopg2; c = psycopg2.connect(host='127.0.0.1', user='postgres', password='ci_testpass', dbname='att_test'); c.autocommit = True; c.cursor().execute('GRANT SET ON PARAMETER session_replication_role TO hrzest_owner')"
+
+      - name: Run the role-split tests as the restricted runtime role
+        env:
+          DB_USER: hrzest_app
+          DB_PASS: app_ci_pass
+          DB_OWNER_USER: hrzest_owner
+          DB_OWNER_PASS: owner_ci_pass
+          SECRET_KEY: ci-test-secret-key-not-used-in-prod
+          FLASK_ENV: testing
+        # Fails on any skip too: these tests skip themselves when the split is not
+        # in effect, so a broken setup must not pass as a silent no-op again.
+        run: |
+          set -o pipefail
+          python -m pytest tests/test_db_role_split.py -v --tb=short -rs | tee /tmp/role-split.txt
+          if grep -qE "[0-9]+ skipped" /tmp/role-split.txt; then
+            echo "::error::Role-split tests were skipped: the restricted-role setup did not take effect."
+            exit 1
+          fi
+
   podman:
     name: Podman build
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, test-role-split]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

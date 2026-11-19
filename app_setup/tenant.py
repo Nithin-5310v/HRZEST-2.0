@@ -69,8 +69,8 @@ def _resolve_tenant():
     if any(request.path.startswith(p) for p in skip_prefixes):
         return
     # The SOC console is a platform surface, never tenant-scoped. Exact segment
-    # match so a company slug that merely starts with "soc" is unaffected.
-    if request.path == "/soc" or request.path.startswith("/soc/"):
+    # match so a company slug that merely starts with "socperson" is unaffected.
+    if request.path == "/socperson" or request.path.startswith("/socperson/"):
         return
 
     url_slug = request.environ.get("hrz.tenant_slug")

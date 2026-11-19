@@ -31,7 +31,7 @@
     const form = h('form', { class: 'stack', onsubmit: async (e) => {
       e.preventDefault();
       if (!(await SOC.confirm('Ban ' + ip + '? Every visitor from this address will be refused.', { okText: 'Ban' }))) return;
-      act(api.post('/soc/api/bans', { ip, reason: reason.value, minutes: Number(dur.value) }), ip + ' banned')
+      act(api.post('/socperson/api/bans', { ip, reason: reason.value, minutes: Number(dur.value) }), ip + ' banned')
         .then(() => { SOC.drawer.close(); SOC.refreshPulse(); if (done) done(); }).catch(() => {});
     } },
       h('p', null, 'Ban ', h('strong', { class: 'mono' }, ip), ' at the application layer. Private, shared and never-ban addresses are refused.'),
@@ -46,7 +46,7 @@
     const sum = h('textarea', { class: 'textarea', id: 'cSum', maxlength: '5000' }, seed.summary || '');
     return h('form', { class: 'stack', onsubmit: (e) => {
       e.preventDefault();
-      act(api.post('/soc/api/cases', { title: title.value, severity: sev.value, summary: sum.value, source_type: seed.source_type || 'manual', source_event_id: seed.source_event_id || null }), 'Case saved')
+      act(api.post('/socperson/api/cases', { title: title.value, severity: sev.value, summary: sum.value, source_type: seed.source_type || 'manual', source_event_id: seed.source_event_id || null }), 'Case saved')
         .then((r) => { SOC.drawer.close(); SOC.refreshPulse(); if (done) done(r.id); else SOC.go('cases'); }).catch(() => {});
     } },
       field('Title', title, 'cTitle'), field('Severity', sev, 'cSev'), field('Summary', sum, 'cSum'),
@@ -60,7 +60,7 @@
 
   SOC.openEvent = function (id) {
     SOC.drawer.open('Event #' + id, SOC.skeleton());
-    api.get('/soc/api/events/' + id).then(({ event: e }) => {
+    api.get('/socperson/api/events/' + id).then(({ event: e }) => {
       const box = h('div', { class: 'stack' });
       box.appendChild(h('div', { class: 'row' }, SOC.level(e.level), SOC.chip(e.family_label || e.family, 'plain'), SOC.mitre(e.mitre)));
       box.appendChild(h('p', null, e.message));
@@ -108,7 +108,7 @@
     id: 'overview', label: 'Overview', title: 'Overview',
     async render(root, ctl) {
       const draw = async (initial) => {
-        const d = await api.get('/soc/api/overview', { hours: SOC.hours }, !initial);
+        const d = await api.get('/socperson/api/overview', { hours: SOC.hours }, !initial);
         const k = d.kpi, frag = h('div'), ex = SOC.explainHref;
         // Same tone as the header badge: orange for high, red only for critical.
         const tone = { normal: 'good', elevated: 'warn', high: 'high', critical: 'bad' }[d.threat.level] || 'warn';
@@ -207,14 +207,14 @@
         let cursor = null, shown = 0, topId = 0;
 
         const query = (extra) => Object.assign({}, state, { hours: SOC.hours, alerts: alertsOnly ? '1' : '' }, extra || {});
-        const csvLink = needs('analyst') ? h('a', { class: 'btn ghost', href: '/soc/api/events.csv' + api.qs(query()), download: '' }, 'Export CSV') : null;
+        const csvLink = needs('analyst') ? h('a', { class: 'btn ghost', href: '/socperson/api/events.csv' + api.qs(query()), download: '' }, 'Export CSV') : null;
         const sync = () => {
           history.replaceState(null, '', '#/' + id + api.qs(state));
-          if (csvLink) csvLink.href = '/soc/api/events.csv' + api.qs(query());
+          if (csvLink) csvLink.href = '/socperson/api/events.csv' + api.qs(query());
         };
         const load = async (reset) => {
           if (reset) { cursor = null; shown = 0; newBar.textContent = ''; tableBox.textContent = ''; tableBox.appendChild(SOC.skeleton()); }
-          const d = await api.get('/soc/api/events', query({ cursor }));
+          const d = await api.get('/socperson/api/events', query({ cursor }));
           if (reset) { tableBox.textContent = ''; topId = d.events.length ? d.events[0].id : 0; }
           if (reset && !d.events.length) { tableBox.appendChild(SOC.empty('No events match these filters in the selected window.')); more.textContent = ''; return; }
           if (reset || !tableBox.firstChild) tableBox.appendChild(table(d.events));
@@ -269,7 +269,7 @@
         // offer to show it -- never reshuffle the list under an analyst who is reading it.
         ctl.poll(() => {
           if (SOC.drawer.isOpen()) return;
-          api.get('/soc/api/events', query({ since: topId, limit: 200 }), true).then((d) => {
+          api.get('/socperson/api/events', query({ since: topId, limit: 200 }), true).then((d) => {
             const n = d.events.length;
             newBar.textContent = '';
             if (!n) return;
@@ -309,7 +309,7 @@
     id: 'explain', label: 'Analyst brief', title: 'Analyst brief',
     async render(root, ctl) {
       const p = ctl.params;
-      const d = (await api.get('/soc/api/brief', { kind: p.kind, value: p.value, hours: SOC.hours })).brief;
+      const d = (await api.get('/socperson/api/brief', { kind: p.kind, value: p.value, hours: SOC.hours })).brief;
       const s = d.stats, ex = SOC.explainHref;
       document.getElementById('title').textContent = d.title;
       document.title = d.title + ' · SOC';
@@ -384,7 +384,7 @@
       const bar = h('form', { class: 'filters', onsubmit: (e) => { e.preventDefault(); go(); } }, kindSel, box, days, h('button', { class: 'btn', type: 'submit' }, 'Look up'));
       root.textContent = ''; root.appendChild(bar);
       if (!value) { root.appendChild(SOC.empty('Enter an IP address or an account identifier to see everything the platform recorded about it.')); return; }
-      const d = (await api.get(kind === 'ip' ? '/soc/api/entity/ip/' + encodeURIComponent(value) : '/soc/api/entity/identifier',
+      const d = (await api.get(kind === 'ip' ? '/socperson/api/entity/ip/' + encodeURIComponent(value) : '/socperson/api/entity/identifier',
         kind === 'ip' ? { days: days.value } : { value, days: days.value })).entity;
       const out = h('div', { class: 'stack' });
       const title = h('div', { class: 'row' }, h('h2', { class: 'mono' }, d.value),
@@ -392,7 +392,7 @@
       const acts = h('div', { class: 'row' });
       if (kind === 'ip' && needs('analyst')) {
         if (d.ban) acts.appendChild(h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-          SOC.confirm('Lift the ban on ' + d.value + '?', { danger: false }).then((ok) => ok && act(api.post('/soc/api/bans/remove', { ip: d.value }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
+          SOC.confirm('Lift the ban on ' + d.value + '?', { danger: false }).then((ok) => ok && act(api.post('/socperson/api/bans/remove', { ip: d.value }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
         } }, 'Lift ban'));
         else if (!d.protected) acts.appendChild(h('button', { class: 'btn danger small', type: 'button', onclick: () => SOC.drawer.open('Ban ' + d.value, SOC.banForm(d.value, () => SOC.reload())) }, 'Ban IP'));
       }
@@ -426,7 +426,7 @@
   /* ============ cases ============ */
   function openCase(id) {
     SOC.drawer.open('Case #' + id, SOC.skeleton());
-    Promise.all([api.get('/soc/api/cases/' + id), api.get('/soc/api/assignees')]).then(([{ case: c }, { assignees }]) => {
+    Promise.all([api.get('/socperson/api/cases/' + id), api.get('/socperson/api/assignees')]).then(([{ case: c }, { assignees }]) => {
       const box = h('div', { class: 'stack' });
       const status = select([['open', 'Open'], ['investigating', 'Investigating'], ['contained', 'Contained'], ['resolved', 'Resolved'], ['false_positive', 'False positive']], c.status, { id: 'cStatus' });
       const sev = select(['critical', 'high', 'medium', 'low', 'info'].map((s) => [s, s]), c.severity, { id: 'cSev2' });
@@ -445,7 +445,7 @@
         e.preventDefault();
         const body = { status: status.value, severity: sev.value, resolution: res.value };
         if (who.value !== (c.assignee || '')) body.assignee = who.value;      // only send a real change
-        act(api.post('/soc/api/cases/' + id, body), 'Case updated')
+        act(api.post('/socperson/api/cases/' + id, body), 'Case updated')
           .then(() => { SOC.refreshPulse(); openCase(id); }).catch(() => {});
       } }, field('Status', status, 'cStatus'), field('Severity', sev, 'cSev2'), field('Assignee', who, 'cWho'), field('Resolution / findings', res, 'cRes'),
         editable ? h('button', { class: 'btn', type: 'submit' }, 'Save changes') : null);
@@ -455,7 +455,7 @@
         c.notes.length ? h('ul', { class: 'list' }, c.notes.map((n) => h('li', null, h('div', { class: 'note' }, n.author + ' · ' + fmt.time(n.created_at)), h('div', null, n.body)))) : SOC.empty('No notes yet.'),
         editable ? h('form', { class: 'stack', onsubmit: (e) => {
           e.preventDefault();
-          act(api.post('/soc/api/cases/' + id + '/notes', { body: note.value }), 'Note added').then(() => openCase(id)).catch(() => {});
+          act(api.post('/socperson/api/cases/' + id + '/notes', { body: note.value }), 'Note added').then(() => openCase(id)).catch(() => {});
         } }, note, h('button', { class: 'btn small', type: 'submit' }, 'Add note')) : null)));
       SOC.drawer.open('Case #' + id, box);
     }).catch((err) => SOC.drawer.open('Case #' + id, SOC.callout(err.message, 'bad')));
@@ -464,7 +464,7 @@
     id: 'cases', label: 'Cases', title: 'Cases',
     async render(root, ctl) {
       const mode = ctl.params.status || 'open';
-      const d = await api.get('/soc/api/cases', mode === 'mine' ? { status: 'open', assignee: SOC.user } : { status: mode === 'all' ? '' : mode });
+      const d = await api.get('/socperson/api/cases', mode === 'mine' ? { status: 'open', assignee: SOC.user } : { status: mode === 'all' ? '' : mode });
       const top = h('div', { class: 'row' },
         SOC.seg([{ value: 'mine', label: 'My open cases' }, { value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }, { value: 'false_positive', label: 'False positive' }, { value: 'all', label: 'All' }], mode, (v) => SOC.go('cases', { status: v })),
         h('span', { class: 'spacer' }),
@@ -489,7 +489,7 @@
         h('button', { role: 'tab', 'aria-selected': String(tab === k), onclick: () => SOC.go('response', { tab: k }) }, l)));
       root.textContent = ''; root.appendChild(tabs);
       if (tab === 'sessions') {
-        const d = await api.get('/soc/api/sessions');
+        const d = await api.get('/socperson/api/sessions');
         root.appendChild(SOC.callout('Sessions the risk engine has scored or flagged, across tenants. Revoking marks a session compromised; the app refuses it on its very next request.'));
         root.appendChild(SOC.table({
           empty: 'No risky sessions right now.', rows: d.sessions,
@@ -497,13 +497,13 @@
             { label: 'Score', num: true, key: 'score' }, { label: 'Status', render: (s) => SOC.chip(s.status, s.status === 'compromised' ? 'bad' : 'plain') },
             { label: 'Reason', cls: 'clip', key: 'reason' }, { label: 'Updated', render: (s) => when(s.updated_at) },
             { label: '', render: (s) => needs('analyst') && s.status !== 'compromised' && s.sid ? h('button', { class: 'btn danger small', type: 'button', onclick: () => {
-              SOC.confirm('Revoke this session for ' + s.identifier + '?').then((ok) => ok && act(api.post('/soc/api/sessions/revoke', { tenant_id: s.tenant_id, sid: s.sid }), 'Session revoked').then(() => SOC.reload()).catch(() => {}));
+              SOC.confirm('Revoke this session for ' + s.identifier + '?').then((ok) => ok && act(api.post('/socperson/api/sessions/revoke', { tenant_id: s.tenant_id, sid: s.sid }), 'Session revoked').then(() => SOC.reload()).catch(() => {}));
             } }, 'Revoke') : null }]
         }));
         if (d.errors && d.errors.length) root.appendChild(h('p', { class: 'note' }, d.errors.length + ' tenant(s) could not be read.'));
         return;
       }
-      const d = await api.get('/soc/api/bans');
+      const d = await api.get('/socperson/api/bans');
       if (needs('analyst')) {
         const ip = h('input', { class: 'input', id: 'nbIp', placeholder: '203.0.113.9', required: true, 'aria-label': 'IP address' });
         const why = h('input', { class: 'input', id: 'nbWhy', placeholder: 'Reason', required: true, maxlength: '240', 'aria-label': 'Reason' });
@@ -511,7 +511,7 @@
         root.appendChild(h('form', { class: 'filters', onsubmit: async (e) => {
           e.preventDefault();
           if (!(await SOC.confirm('Ban ' + ip.value.trim() + '?', { okText: 'Ban' }))) return;
-          act(api.post('/soc/api/bans', { ip: ip.value.trim(), reason: why.value, minutes: Number(dur.value) }), 'Banned').then(() => SOC.reload()).catch(() => {});
+          act(api.post('/socperson/api/bans', { ip: ip.value.trim(), reason: why.value, minutes: Number(dur.value) }), 'Banned').then(() => SOC.reload()).catch(() => {});
         } }, ip, why, dur, h('button', { class: 'btn danger', type: 'submit' }, 'Ban')));
       }
       const shownActive = d.bans.filter((b) => b.active).length;
@@ -524,7 +524,7 @@
           { label: 'Until', render: (b) => b.expires ? fmt.time(b.expires) : 'until lifted' },
           { label: '', render: (b) => needs('analyst') && b.active ? h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
             const where = b.tenant_id == null ? '' : ' for ' + b.company;
-            SOC.confirm('Lift the ban on ' + b.ip + where + '?', { danger: false }).then((ok) => ok && act(api.post('/soc/api/bans/remove', { ip: b.ip, tenant_id: b.tenant_id }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
+            SOC.confirm('Lift the ban on ' + b.ip + where + '?', { danger: false }).then((ok) => ok && act(api.post('/socperson/api/bans/remove', { ip: b.ip, tenant_id: b.tenant_id }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
           } }, 'Lift') : null }]
       }));
       if (d.errors && d.errors.length) root.appendChild(h('p', { class: 'note' }, d.errors.length + ' tenant(s) could not be read.'));
@@ -535,7 +535,7 @@
   SOC.register({
     id: 'tenants', label: 'Tenants', title: 'Tenant risk',
     async render(root) {
-      const d = await api.get('/soc/api/tenants', { hours: SOC.hours });
+      const d = await api.get('/socperson/api/tenants', { hours: SOC.hours });
       root.textContent = '';
       root.append(SOC.callout(d.note), h('div', { class: 'stack' }), SOC.table({
         empty: 'No tenants.', rows: d.tenants,
@@ -552,7 +552,7 @@
     id: 'fraud', label: 'Attendance fraud', title: 'Attendance integrity', icon: 'fraud',
     async render(root, ctl) {
       const days = ctl.params.days || '7';
-      const d = await api.get('/soc/api/attendance', { days });
+      const d = await api.get('/socperson/api/attendance', { days });
       const t = d.totals;
       root.textContent = '';
       root.append(SOC.seg([{ value: '1', label: '24 h' }, { value: '7', label: '7 days' }, { value: '30', label: '30 days' }], days, (v) => SOC.go('fraud', { days: v })),
@@ -572,7 +572,7 @@
   SOC.register({
     id: 'detections', label: 'Detections', title: 'Detection rules',
     async render(root) {
-      const d = await api.get('/soc/api/detections', { hours: Math.max(SOC.hours, 24) });
+      const d = await api.get('/socperson/api/detections', { hours: Math.max(SOC.hours, 24) });
       root.textContent = '';
       root.append(SOC.card('Rule catalogue', SOC.table({
         rows: d.rules,
@@ -602,7 +602,7 @@
   SOC.register({
     id: 'integrity', label: 'Audit integrity', title: 'Audit-log integrity',
     async render(root) {
-      const last = await api.get('/soc/api/integrity');
+      const last = await api.get('/socperson/api/integrity');
       const out = h('div', { class: 'stack' });
       const result = h('div');
       const show = (report, at, by) => {
@@ -619,7 +619,7 @@
       out.append(SOC.callout('Every security event is hash-chained at insert time (migrations/audit_integrity.py). Verification recomputes the chain end to end; any edited, deleted or reordered row breaks it. Anchors are shipped off-box so a database owner cannot rewrite history unnoticed.'),
         needs('analyst') ? h('button', { class: 'btn', type: 'button', id: 'runVerify', onclick: (e) => {
           const b = e.currentTarget; b.disabled = true; b.textContent = 'Verifying…';
-          act(api.post('/soc/api/integrity/verify'), 'Verification finished').then((r) => {
+          act(api.post('/socperson/api/integrity/verify'), 'Verification finished').then((r) => {
             show(r.report, r.at, r.by);
             // The audit write failed: this result exists only on this screen.
             if (r.stored === false) result.prepend(SOC.callout('This result could not be saved to the SOC audit log, so it will not appear after a reload. Copy it now if you need it.', 'warn'));
@@ -634,7 +634,7 @@
   SOC.register({
     id: 'posture', label: 'Posture', title: 'Security posture',
     async render(root) {
-      const d = await api.get('/soc/api/posture');
+      const d = await api.get('/socperson/api/posture');
       const s = d.summary;
       root.textContent = '';
       root.append(h('div', { class: 'grid kpis' }, SOC.kpi('Failing', s.fail, '', s.fail ? 'critical' : 'ok'), SOC.kpi('Needs attention', s.warn, '', s.warn ? 'medium' : 'ok'),
@@ -664,7 +664,7 @@
       const out = h('div');
       const run = () => {
         out.textContent = ''; out.appendChild(SOC.skeleton());
-        api.post('/soc/api/loki/query', { query: q.value, minutes: Number(mins.value), limit: 300 }).then((r) => {
+        api.post('/socperson/api/loki/query', { query: q.value, minutes: Number(mins.value), limit: 300 }).then((r) => {
           out.textContent = '';
           if (!r.lines.length) { out.appendChild(SOC.empty('No log lines matched.')); return; }
           out.appendChild(h('div', { class: 'pre' }, r.lines.map((l) => (new Date(l.ts / 1e6).toISOString().slice(11, 19)) + '  ' + l.line).join('\n')));
@@ -688,7 +688,7 @@
         const rows = [];
         const box = h('div'), more = h('div', { class: 'row' });
         const load = async (before) => {
-          const d = await api.get('/soc/api/audit', { before });
+          const d = await api.get('/socperson/api/audit', { before });
           rows.push(...d.entries);
           box.textContent = ''; box.appendChild(SOC.table({ rows, columns: [{ label: 'Time', render: (r) => when(r.at) }, { label: 'Actor', key: 'actor' }, { label: 'Action', key: 'action' }, { label: 'Target', cls: 'clip', key: 'target' }, { label: 'Detail', cls: 'clip', key: 'detail' }, { label: 'IP', render: (r) => SOC.ipLink(r.ip) }] }));
           more.textContent = '';
@@ -698,41 +698,25 @@
         await load();
         return;
       }
-      const d = await api.get('/soc/api/users');
-      const u = h('input', { class: 'input', id: 'nuName', placeholder: 'username', required: true, 'aria-label': 'Username' });
-      const pw = h('input', { class: 'input', id: 'nuPw', type: 'password', placeholder: 'initial password (12+ chars)', required: true, autocomplete: 'new-password', 'aria-label': 'Password' });
-      const role = select([['viewer', 'Viewer (read only)'], ['analyst', 'Analyst (triage + respond)'], ['admin', 'Admin']], 'viewer', { 'aria-label': 'Role' });
-      const reveal = h('div');
-      const showCode = (title, code) => {
-        reveal.textContent = '';
-        reveal.appendChild(SOC.callout([h('strong', null, title + ' '), h('span', { class: 'mono' }, code), ' ',
-          h('button', { class: 'btn ghost small', type: 'button', onclick: () => SOC.copy(code) }, 'Copy'),
-          h('div', { class: 'note' }, 'Shown once. Give it to the user separately from their password; it is needed to enrol their authenticator.')], 'warn'));
-      };
-      const create = h('form', { class: 'filters', onsubmit: (e) => {
-        e.preventDefault();
-        act(api.post('/soc/api/users', { username: u.value, password: pw.value, role: role.value }), 'Account created').then((r) => { showCode('Setup code:', r.setup_code); u.value = ''; pw.value = ''; return api.get('/soc/api/users'); })
-          .then((n) => table(n.users)).catch(() => {});
-      } }, u, pw, role, h('button', { class: 'btn', type: 'submit' }, 'Create account'));
+      const d = await api.get('/socperson/api/users');
+      // Who may sign in (and as which role) is SOC_LOGIN_EMAILS on the server; this
+      // view shows the accounts and keeps the emergency switches.
       const tableBox = h('div');
-      const call = (id, body, msg) => act(api.post('/soc/api/users/' + id, body), msg);
+      const call = (id, body, msg) => act(api.post('/socperson/api/users/' + id, body), msg);
       const table = (users) => {
         tableBox.textContent = '';
         tableBox.appendChild(SOC.table({ rows: users, columns: [
-          { label: 'User', key: 'username' }, { label: 'Role', key: 'role' }, { label: 'MFA', render: (x) => SOC.chip(x.totp_enabled ? 'enrolled' : 'pending', x.totp_enabled ? 'ok' : 'plain') },
-          { label: 'State', render: (x) => !x.active ? SOC.chip('disabled', 'bad') : x.is_locked ? SOC.chip('locked', 'bad') : SOC.chip('active', 'ok') },
+          { label: 'User', render: (x) => [x.username, x.email && x.email !== x.username ? h('div', { class: 'note mono' }, x.email) : null] },
+          { label: 'Role', key: 'role' },
+          { label: 'Access', render: (x) => !x.listed ? SOC.chip('not listed', 'plain') : !x.active ? SOC.chip('disabled', 'bad') : x.is_locked ? SOC.chip('locked', 'bad') : SOC.chip('active', 'ok') },
           { label: 'Last sign-in', render: (x) => x.last_login_at ? [fmt.time(x.last_login_at), h('div', { class: 'note mono' }, x.last_login_ip || '')] : null },
           { label: '', render: (x) => h('div', { class: 'row' },
-            h('select', { class: 'select', 'aria-label': 'Role for ' + x.username, onchange: (e) => call(x.id, { action: 'set_role', role: e.target.value }, 'Role updated').then(refresh).catch(refresh) },
-              ['viewer', 'analyst', 'admin'].map((r) => h('option', { value: r, selected: r === x.role }, r))),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: x.active ? 'deactivate' : 'activate' }, x.active ? 'Disabled' : 'Enabled').then(refresh).catch(() => {}) }, x.active ? 'Disable' : 'Enable'),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: 'unlock' }, 'Unlocked').then(refresh).catch(() => {}) }, 'Unlock'),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: async () => { if (await SOC.confirm('Remove ' + x.username + "'s authenticator and issue a new setup code?")) call(x.id, { action: 'reset_mfa' }, 'MFA reset').then((r) => { showCode('New setup code for ' + x.username + ':', r.setup_code); refresh(); }).catch(() => {}); } }, 'Reset MFA'),
-            h('button', { class: 'btn ghost small', type: 'button', onclick: async () => { const p = await SOC.prompt('New password for ' + x.username + ' (12+ characters):', { inputType: 'password', okText: 'Set password' }); if (p) call(x.id, { action: 'reset_password', password: p }, 'Password reset').catch(() => {}); } }, 'Set password')) }
+            h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: 'unlock' }, 'Unlocked').then(refresh).catch(() => {}) }, 'Unlock')) }
         ] }));
       };
-      const refresh = () => api.get('/soc/api/users').then((n) => table(n.users));
-      root.append(create, reveal, tableBox);
+      const refresh = () => api.get('/socperson/api/users').then((n) => table(n.users));
+      root.append(SOC.callout('Sign-in is an emailed one-time code. To add or remove someone, or change a role, edit SOC_LOGIN_EMAILS on the server and restart; removing an address ends that person\'s session at once. Disable is the immediate switch for an account.'), tableBox);
       table(d.users);
     }
   });

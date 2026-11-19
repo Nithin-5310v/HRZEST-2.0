@@ -472,10 +472,10 @@ def platform_log_text(hours=24, max_bytes=None, max_events=PLATFORM_LOG_MAX_EVEN
     # is not platform traffic: analysing it would inflate the numbers and could
     # put an analyst's own address among the "block" recommendations.
     # Console traffic also produces non-soc.* events (a 429 or access.denied on
-    # /soc/api/...), so drop events on /soc/ paths from addresses that signed in
-    # to or acted in the console. Strangers probing /soc/ stay in the analysis.
+    # /socperson/api/...), so drop events on /socperson/ paths from addresses that signed in
+    # to or acted in the console. Strangers probing /socperson/ stay in the analysis.
     # The lookback is wider than the window: a session can outlive it.
-    not_soc = (" AND event_type NOT LIKE 'soc.%%' AND NOT (COALESCE(path, '') LIKE '/soc/%%' AND ip IN ("
+    not_soc = (" AND event_type NOT LIKE 'soc.%%' AND NOT (COALESCE(path, '') LIKE '/socperson/%%' AND ip IN ("
                "SELECT ip FROM security_events WHERE event_type IN ('soc.login_success', 'soc.action') "
                "AND ip IS NOT NULL AND created_at >= NOW() - ((%s + 24) * INTERVAL '1 hour')))")
     with read_cursor("public", 20000) as cur:
@@ -947,10 +947,22 @@ def posture():
     add("captcha", "Login / signup CAPTCHA", "pass" if ts else "warn",
         "Cloudflare Turnstile is configured." if ts else "Turnstile keys are not configured.",
         "Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY.")
-    add("socnet", "SOC console network allow-list", "pass" if os.environ.get("SOC_ALLOWED_CIDRS", "").strip() else "warn",
-        "SOC_ALLOWED_CIDRS restricts who can reach /soc." if os.environ.get("SOC_ALLOWED_CIDRS", "").strip()
-        else "/soc is reachable from any address (login still needs password + TOTP).",
-        "Set SOC_ALLOWED_CIDRS to your office / VPN ranges.")
+    from utils.soc_auth import allow_list_state, login_emails
+    socnet = {
+        "restricted": ("pass", "SOC_ALLOWED_CIDRS restricts who can reach /socperson."),
+        "everywhere": ("warn", "SOC_ALLOWED_CIDRS opens /socperson to every address; an emailed code is the only barrier."),
+        "invalid": ("fail", "SOC_ALLOWED_CIDRS cannot be parsed, so /socperson refuses everyone."),
+        "unset_open": ("warn", "SOC_ALLOWED_CIDRS is not set: open here only because APP_ENV=development. "
+                               "Any other environment keeps /socperson closed until it is set."),
+        "unset_closed": ("fail", "SOC_ALLOWED_CIDRS is not set, so /socperson is closed to every address."),
+    }[allow_list_state()]
+    add("socnet", "SOC console network allow-list", socnet[0], socnet[1],
+        "Set SOC_ALLOWED_CIDRS to your office / VPN ranges (0.0.0.0/0,::/0 opens it to everyone on purpose).")
+    logins = len(login_emails())
+    add("soclogin", "SOC console sign-in addresses", "pass" if logins else "fail",
+        f"{logins} address(es) in SOC_LOGIN_EMAILS can request a sign-in code." if logins
+        else "SOC_LOGIN_EMAILS lists no valid address, so nobody can sign in to /socperson.",
+        "List the people who may sign in: SOC_LOGIN_EMAILS=you@example.com,colleague@example.com:analyst.")
     # Alert delivery. With no channel, utils/alerts.send_security_alert skips
     # silently, so this is the one place that can say nobody is being paged.
     # Never shows the webhook URL (it is the credential) or the addresses.

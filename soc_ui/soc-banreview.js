@@ -37,7 +37,7 @@
 
   /* pending count on the nav item; the shared pulse doesn't carry it */
   function updateBadge() {
-    return api.get('/soc/api/ban-reviews', { status: 'pending' }, true).then((d) => {
+    return api.get('/socperson/api/ban-reviews', { status: 'pending' }, true).then((d) => {
       const b = document.getElementById('badge-banreview');
       if (!b) return;
       const n = (d.counts && d.counts.pending) || 0;
@@ -75,7 +75,7 @@
         : action === 'trust' ? 'Trust ' + r.ip + '? Detections from it will stop asking for a ban.'
           : 'Dismiss the review for ' + r.ip + '?';
       if (!(await SOC.confirm(q, { okText: LABEL[action], danger: action === 'ban' }))) return;
-      api.post('/soc/api/ban-reviews/decide', { ip: r.ip, action, minutes: Number(dur.value), days: Number(days.value), note: note.value })
+      api.post('/socperson/api/ban-reviews/decide', { ip: r.ip, action, minutes: Number(dur.value), days: Number(days.value), note: note.value })
         .then(() => { SOC.toast(r.ip + ': ' + LABEL[action].toLowerCase() + ' done', 'good'); SOC.drawer.close(); updateBadge(); SOC.refreshPulse(); if (done) done(); })
         .catch((err) => SOC.toast(err.message, 'bad'));
     } },
@@ -97,7 +97,7 @@
     id: 'banreview', label: 'Ban review', title: 'Ban review', icon: 'alerts',
     async render(root, ctl) {
       const status = TABS.some(([k]) => k === ctl.params.status) ? ctl.params.status : 'pending';
-      const d = await api.get('/soc/api/ban-reviews', { status });
+      const d = await api.get('/socperson/api/ban-reviews', { status });
       root.textContent = '';
       root.appendChild(h('div', { class: 'tabs', role: 'tablist' }, TABS.map(([k, l]) =>
         h('button', { role: 'tab', 'aria-selected': String(status === k), onclick: () => SOC.go('banreview', { status: k }) },

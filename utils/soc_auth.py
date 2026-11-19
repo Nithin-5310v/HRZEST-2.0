@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Authentication, sessions and audit for the SOC console.
+"""Authentication, sessions and audit for the SOC console (/socperson).
 
 Deliberately separate from the tenant admin / employee / platform-admin
 logins: its own accounts (att_master.soc_users), its own session keys
@@ -8,39 +8,46 @@ here, and a SOC session grants nothing anywhere else.
 
 Controls
 --------
-* password (>= 12 chars) + mandatory TOTP; no way to skip the second factor
-* TOTP codes are single-use (the accepted 30 s step is recorded atomically)
-* lockout after 5 consecutive failures for 15 minutes; failures are logged
-* unknown usernames cost the same hashing work as known ones (no timing oracle)
+* passwordless: an email address, then a 6-digit code sent to it
+* only addresses listed in SOC_LOGIN_EMAILS can sign in ("a@x.com, b@y.com:analyst";
+  the role defaults to admin). Any other address gets the same "check your inbox"
+  screen and no email, so the form cannot be used to learn who is authorised
+* codes: 10 minutes, single use (cleared by the statement that accepts them),
+  stored only as an HMAC keyed with the app secret, at most one sent per minute
+* lockout after 5 consecutive wrong codes for 15 minutes; failures are logged
 * session: 15 min idle / 8 h absolute (env-tunable), re-validated against the
-  database on every request so deactivation and role changes bite immediately
-* optional network allow-list (SOC_ALLOWED_CIDRS): other sources get a 404
+  database AND SOC_LOGIN_EMAILS on every request, so deactivation, removal from
+  the list and role changes bite immediately
+* network allow-list (SOC_ALLOWED_CIDRS): other sources get a 404. Unset, the
+  console is closed everywhere except APP_ENV=development
 * roles: viewer < analyst < admin, enforced per route
 * every login, failure and action is written to the append-only soc_audit_log
 """
 import functools
+import hashlib
+import hmac
 import ipaddress
 import os
 import re
 import secrets
 import time
 
-import pyotp
-from flask import g, jsonify, redirect, request, session
+from flask import current_app, g, jsonify, redirect, request, session
 
 from utils.soc_db import read_cursor, write_cursor
 
 ROLE_RANK = {"viewer": 1, "analyst": 2, "admin": 3}
-MIN_PASSWORD_LENGTH = 12
+DEFAULT_ROLE = "admin"
 MAX_FAILURES = 5
 LOCKOUT_SECONDS = 15 * 60
-PENDING_TTL_SECONDS = 5 * 60
-_USERNAME_RE = re.compile(r"^[a-z0-9][a-z0-9_.-]{2,39}$")
-_ISSUER = "HRzest SOC"
-
-# A valid hash of a random value, verified against when the username is unknown
-# so a miss costs the same as a hit.
-_DUMMY_HASH = None
+LOGIN_CODE_TTL_SECONDS = 10 * 60
+RESEND_SECONDS = 60
+PENDING_TTL_SECONDS = LOGIN_CODE_TTL_SECONDS
+_EMAIL_RE = re.compile(r"^[^@\s,:]+@[^@\s,:]+\.[^@\s,:]+$")
+_USERNAME_MAX = 60          # soc_users.username / soc_audit_log.actor
+# Accounts made for SOC_LOGIN_EMAILS never had a password; this value is not a
+# valid hash, so nothing can ever verify against it.
+_NO_PASSWORD = "!email-code-login"
 
 
 def _env_int(name, default, lo, hi):
@@ -58,8 +65,13 @@ def absolute_seconds():
     return _env_int("SOC_SESSION_HOURS", 8, 1, 24) * 3600
 
 
+def _is_development():
+    return os.environ.get("APP_ENV", "production") == "development"
+
+
 # ── network allow-list ───────────────────────────────────────────────
 _NETS_CACHE = (None, [])
+_EVERYWHERE = (ipaddress.ip_network("0.0.0.0/0"), ipaddress.ip_network("::/0"))
 
 
 def _allowed_networks():
@@ -81,11 +93,13 @@ def _allowed_networks():
 
 
 def ip_allowed(ip):
-    """True when no allow-list is configured, or `ip` is inside it. A configured
-    but unparseable list fails CLOSED (nothing allowed) rather than open."""
+    """True when `ip` is inside SOC_ALLOWED_CIDRS. Unset, the console is open only
+    in local development (APP_ENV=development); everywhere else it stays closed
+    until the operator lists the networks -- `0.0.0.0/0,::/0` opens it on purpose.
+    A configured but unparseable list fails CLOSED (nothing allowed)."""
     raw = os.environ.get("SOC_ALLOWED_CIDRS", "").strip()
     if not raw:
-        return True
+        return _is_development()
     nets = _allowed_networks()
     if not nets:
         return False
@@ -96,18 +110,83 @@ def ip_allowed(ip):
     return any(addr in n for n in nets)
 
 
+def allow_list_state():
+    """-> one of: restricted | everywhere | invalid | unset_open (development) |
+    unset_closed. For the posture check; never the ranges themselves."""
+    if not os.environ.get("SOC_ALLOWED_CIDRS", "").strip():
+        return "unset_open" if _is_development() else "unset_closed"
+    nets = _allowed_networks()
+    if not nets:
+        return "invalid"
+    return "everywhere" if any(n in nets for n in _EVERYWHERE) else "restricted"
+
+
 def reachable():
     """False when this request must be answered with a plain 404: it came from outside
-    the allow-list, or under a tenant URL prefix (/<company>/soc -- the tenant middleware
-    would strip the slug and serve the console there). The console exists at /soc only."""
+    the allow-list, or under a tenant URL prefix (/<company>/socperson -- the tenant middleware
+    would strip the slug and serve the console there). The console exists at /socperson only."""
     if request.environ.get("hrz.tenant_slug"):
         return False
     return ip_allowed(request.remote_addr)
 
 
+# ── who may sign in ──────────────────────────────────────────────────
+_EMAILS_CACHE = (None, {})
+
+
+def normalize_email(value):
+    return value.strip().lower()[:200] if isinstance(value, str) else ""
+
+
+def looks_like_email(value):
+    return bool(_EMAIL_RE.match(value or ""))
+
+
+def login_emails():
+    """{address: role} from SOC_LOGIN_EMAILS, e.g. "you@example.com, ana@example.com:analyst".
+    Entries with an unknown role or an address too long to be a username are
+    skipped (and logged), never widened to a default."""
+    global _EMAILS_CACHE
+    raw = os.environ.get("SOC_LOGIN_EMAILS", "").strip()
+    if _EMAILS_CACHE[0] == raw:
+        return _EMAILS_CACHE[1]
+    allowed = {}
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        addr, _, role = entry.partition(":")
+        addr, role = normalize_email(addr), (role.strip().lower() or DEFAULT_ROLE)
+        if not looks_like_email(addr) or len(addr) > _USERNAME_MAX or role not in ROLE_RANK:
+            _log_warning("SOC_LOGIN_EMAILS: ignoring an invalid entry (bad address, longer than "
+                         f"{_USERNAME_MAX} characters, or unknown role)")
+            continue
+        allowed[addr] = role
+    _EMAILS_CACHE = (raw, allowed)
+    return allowed
+
+
+def login_role(email):
+    """The role SOC_LOGIN_EMAILS grants `email`, or None when it is not listed."""
+    return login_emails().get(normalize_email(email))
+
+
+def _log_warning(msg):
+    try:
+        from extensions import app_log
+        app_log.warning(msg)
+    except Exception:
+        pass
+
+
+def _mask(email):
+    local, _, domain = (email or "").partition("@")
+    return (local[:1] + "***@" + domain) if domain else "***"
+
+
 # ── audit ────────────────────────────────────────────────────────────
 _LOGIN_ACTIONS = frozenset({"login", "login_failed", "account_locked", "login_blocked_locked", "login_blocked_disabled",
-                            "logout"})
+                            "login_code_sent", "login_code_undelivered", "logout"})
 
 
 def audit(actor, action, target=None, detail=None, ip=None):
@@ -147,9 +226,8 @@ def event(event_type, message, level="WARNING", **fields):
 
 
 # ── users ────────────────────────────────────────────────────────────
-_USER_COLS = ("id", "username", "email", "password_hash", "role", "totp_secret", "totp_enabled",
-              "totp_last_step", "enroll_code_hash", "active", "failed_count", "locked_until", "last_login_at",
-              "last_login_ip", "password_changed_at", "created_by", "created_at")
+_USER_COLS = ("id", "username", "email", "role", "active", "failed_count", "locked_until", "last_login_at",
+              "last_login_ip", "created_by", "created_at")
 
 
 # `is_locked` is computed by the database (its own clock and timezone), never by
@@ -178,88 +256,52 @@ def get_user_by_id(uid):
         return _row_user(cur.fetchone())
 
 
+def get_user_by_email(email):
+    """The console account for `email`: active accounts first, then the oldest."""
+    email = normalize_email(email)
+    if not email:
+        return None
+    with read_cursor("att_master") as cur:
+        cur.execute("SELECT " + _SELECT + " FROM soc_users WHERE lower(email)=%s "  # nosec B608 -- constant column list
+                    "ORDER BY active DESC, id LIMIT 1", (email,))
+        return _row_user(cur.fetchone())
+
+
 def public_user(u):
     """The fields safe to return to a browser."""
     return {k: (v.isoformat(sep=" ") if hasattr(v, "isoformat") else v) for k, v in u.items()
-            if k in ("id", "username", "email", "role", "totp_enabled", "active", "failed_count",
+            if k in ("id", "username", "email", "role", "active", "failed_count",
                      "locked_until", "is_locked", "last_login_at", "last_login_ip", "created_by", "created_at")}
 
 
 def list_users():
     with read_cursor("att_master") as cur:
         cur.execute("SELECT " + _SELECT + " FROM soc_users ORDER BY username")  # nosec B608 -- constant column list
-        return [public_user(_row_user(r)) for r in cur.fetchall()]
+        users = [public_user(_row_user(r)) for r in cur.fetchall()]
+    for u in users:
+        u["listed"] = login_role(u.get("email")) is not None
+    return users
 
 
-def validate_password(pw, username=""):
-    if not isinstance(pw, str) or len(pw) < MIN_PASSWORD_LENGTH:
-        return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
-    if username and username.lower() in pw.lower():
-        return False, "Password must not contain the username."
-    if len(set(pw)) < 5:
-        return False, "Password is too repetitive."
-    return True, None
-
-
-_SETUP_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"      # no 0/O/1/I
-
-
-def new_setup_code():
-    """12 characters (~60 bits) shown once to whoever creates / resets the
-    account and handed to the user out-of-band with the initial password."""
-    raw = "".join(secrets.choice(_SETUP_ALPHABET) for _ in range(12))
-    return raw[:4] + "-" + raw[4:8] + "-" + raw[8:]
-
-
-def _norm_setup_code(code):
-    return re.sub(r"[^A-Z0-9]", "", code.upper() if isinstance(code, str) else "")
-
-
-def create_user(username, password, role="viewer", email=None, created_by=None):
-    """-> (ok, message, setup_code). The caller audits. `setup_code` is returned
-    exactly once and only its hash is stored: a new account cannot enrol its
-    authenticator without it, so someone who learns only the password cannot
-    claim the second factor first."""
-    from utils.auth import generate_password_hash
-    username = username.strip().lower() if isinstance(username, str) else ""
-    if not _USERNAME_RE.match(username):
-        return False, "Username must be 3-40 characters: lowercase letters, digits, dot, dash, underscore.", None
-    if not isinstance(role, str) or role not in ROLE_RANK:
-        return False, "Unknown role.", None
-    ok, err = validate_password(password, username)
-    if not ok:
-        return False, err, None
-    code = new_setup_code()
-    try:
-        with write_cursor("att_master") as cur:
-            cur.execute(
-                "INSERT INTO soc_users (username, email, password_hash, role, created_by, enroll_code_hash) "
-                "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (username) DO NOTHING RETURNING id",
-                (username, (email[:200] or None) if isinstance(email, str) else None, generate_password_hash(password), role, created_by,
-                 generate_password_hash(_norm_setup_code(code))))
-            if cur.fetchone() is None:
-                return False, "That username already exists.", None
-    except Exception:
-        return False, "Could not create the account.", None
-    return True, "created", code
-
-
-def verify_setup_code(user, code):
-    from utils.auth import check_password_hash
-    if not user.get("enroll_code_hash"):
-        return False
-    return check_password_hash(user["enroll_code_hash"], _norm_setup_code(code))
-
-
-def set_password(uid, new_password, username=""):
-    from utils.auth import generate_password_hash
-    ok, err = validate_password(new_password, username)
-    if not ok:
-        return False, err
-    with write_cursor("att_master") as cur:
-        cur.execute("UPDATE soc_users SET password_hash=%s, password_changed_at=NOW(), failed_count=0, "
-                    "locked_until=NULL WHERE id=%s", (generate_password_hash(new_password), uid))
-    return True, None
+def _ensure_user(email, role):
+    """Find or create the account for an address SOC_LOGIN_EMAILS authorises, with
+    its role brought in line with the list. -> user | None."""
+    user = get_user_by_email(email) or get_user(email)
+    if user is None:
+        try:
+            with write_cursor("att_master") as cur:
+                cur.execute(
+                    "INSERT INTO soc_users (username, email, password_hash, role, created_by) "
+                    "VALUES (%s,%s,%s,%s,'SOC_LOGIN_EMAILS') ON CONFLICT (username) DO NOTHING",
+                    (email, email, _NO_PASSWORD, role))
+        except Exception as exc:    # pragma: no cover - logged for operators
+            _log_warning(f"SOC account for {_mask(email)} could not be created: {exc}")
+            return None
+        user = get_user_by_email(email) or get_user(email)
+    if user is not None and user["role"] != role:
+        update_user(user["id"], role=role)
+        user = get_user_by_id(user["id"])
+    return user
 
 
 def update_user(uid, *, role=None, active=None):
@@ -280,17 +322,6 @@ def update_user(uid, *, role=None, active=None):
         return cur.rowcount == 1
 
 
-def reset_mfa(uid):
-    """Remove the user's authenticator and issue a fresh one-time setup code
-    (returned once; only its hash is stored)."""
-    from utils.auth import generate_password_hash
-    code = new_setup_code()
-    with write_cursor("att_master") as cur:
-        cur.execute("UPDATE soc_users SET totp_secret=NULL, totp_enabled=FALSE, totp_last_step=0, enroll_code_hash=%s "
-                    "WHERE id=%s", (generate_password_hash(_norm_setup_code(code)), uid))
-    return code
-
-
 def unlock(uid):
     with write_cursor("att_master") as cur:
         cur.execute("UPDATE soc_users SET failed_count=0, locked_until=NULL WHERE id=%s", (uid,))
@@ -302,18 +333,9 @@ def active_admin_count():
         return cur.fetchone()[0]
 
 
-# ── password step ────────────────────────────────────────────────────
-def _dummy_hash():
-    global _DUMMY_HASH
-    if _DUMMY_HASH is None:
-        from utils.auth import generate_password_hash
-        _DUMMY_HASH = generate_password_hash(secrets.token_urlsafe(24))
-    return _DUMMY_HASH
-
-
 def register_failure(user, ip, reason):
-    """Count one failed attempt (password, setup code or TOTP) against the account
-    and lock it after MAX_FAILURES. -> True when this failure locked the account."""
+    """Count one failed attempt against the account and lock it after
+    MAX_FAILURES. -> True when this failure locked the account."""
     with write_cursor("att_master") as cur:
         cur.execute(
             "UPDATE soc_users SET failed_count = failed_count + 1, "
@@ -323,6 +345,8 @@ def register_failure(user, ip, reason):
         fails = cur.fetchone()[0]
     audit(user["username"], "login_failed", detail=f"{reason} (failure {fails})", ip=ip)
     if fails >= MAX_FAILURES:
+        # A locked account's outstanding code is void: it cannot be used once the lock lifts.
+        _clear_code(user["id"])
         event("soc.lockout", "SOC account locked after repeated failures", level="ERROR", identifier=user["username"])
         audit(user["username"], "account_locked", ip=ip)
         return True
@@ -330,90 +354,139 @@ def register_failure(user, ip, reason):
     return False
 
 
-def authenticate(username, password, ip):
-    """-> (user | None, code). code in: ok | bad_credentials | locked | disabled.
-    The caller must show the SAME message for bad_credentials and disabled."""
-    from utils.auth import check_password_hash
-    user = get_user(username)
-    stored = user["password_hash"] if user else _dummy_hash()
-    good = check_password_hash(stored, password or "")
+# ── one-time email codes ─────────────────────────────────────────────
+def _code_hash(uid, code):
+    """Codes are stored only as an HMAC keyed with the app's secret: a copy of the
+    table alone is not enough to recover one (6 digits would fall to a plain hash)."""
+    key = current_app.secret_key
+    key = key.encode() if isinstance(key, str) else (key or b"")
+    return hmac.new(key, f"soc-login:{uid}:{code}".encode(), hashlib.sha256).hexdigest()
+
+
+def _clear_code(uid):
+    with write_cursor("att_master") as cur:
+        cur.execute("UPDATE soc_users SET login_code_hash=NULL, login_code_expires_at=NULL WHERE id=%s", (uid,))
+
+
+def deliver_login_code(email, code):
+    """Email the code. -> True once it is queued. Without SMTP the code is written
+    to the log only under APP_ENV=development; in production it is never logged,
+    since anyone who can read the logs would otherwise hold a working sign-in."""
+    import html as _html
+    from extensions import app_log
+    from utils.email_utils import get_email_config, send_email_async
+    cfg = get_email_config()
+    if not cfg:
+        if _is_development():
+            app_log.warning("SOC sign-in code for %s is %s (no SMTP configured; development only)", email, code)
+        else:
+            app_log.error("SOC sign-in code for %s was not sent: SMTP is not configured.", _mask(email))
+        return False
+    minutes = LOGIN_CODE_TTL_SECONDS // 60
+    body = f"""
+<div style="font-family:Segoe UI,sans-serif;max-width:480px;margin:auto;background:#0f172a;border-radius:16px;overflow:hidden;border:1px solid #1e293b;">
+  <div style="background:#1d4ed8;padding:22px 26px;color:#fff;">
+    <div style="font-size:18px;font-weight:700;">Security Operations sign-in</div>
+  </div>
+  <div style="padding:26px;">
+    <p style="color:#cbd5e1;font-size:13px;">Use this code to finish signing in. It expires in {minutes} minutes and can only be used once.</p>
+    <div style="text-align:center;margin:22px 0;padding:16px;background:#090d16;border-radius:12px;">
+      <span style="font-size:32px;font-weight:800;letter-spacing:6px;color:#60a5fa;">{_html.escape(code)}</span>
+    </div>
+    <p style="font-size:12px;color:#64748b;">If you did not just try to sign in, someone else entered your address.
+      They cannot get in without this code; do not share it.</p>
+  </div>
+</div>"""
+    send_email_async(email, "Your Security Operations sign-in code", body, cfg)
+    return True
+
+
+def request_login_code(email, ip):
+    """Step 1. Sends a code when `email` is authorised, the account is usable and no
+    code went out in the last RESEND_SECONDS. Returns nothing on purpose: the
+    caller shows the same screen whatever happened here."""
+    email = normalize_email(email)
+    role = login_role(email)
+    if role is None:
+        audit(email or "-", "login_failed", detail="code requested for an address that is not authorised", ip=ip)
+        event("soc.login_failed", "SOC sign-in code refused (address not authorised)", identifier=email[:60])
+        return
+    user = _ensure_user(email, role)
     if user is None:
-        audit(username or "-", "login_failed", detail="unknown user", ip=ip)
-        event("soc.login_failed", "SOC login failed (unknown user)", identifier=(username or "")[:60])
-        return None, "bad_credentials"
+        return
+    if user["is_locked"]:
+        audit(user["username"], "login_blocked_locked", ip=ip)
+        return
+    if not user["active"]:
+        audit(user["username"], "login_blocked_disabled", ip=ip)
+        return
+    code = f"{secrets.randbelow(10 ** 6):06d}"
+    with write_cursor("att_master") as cur:
+        # One code per RESEND_SECONDS, claimed atomically; a new code replaces the old.
+        cur.execute(
+            "UPDATE soc_users SET login_code_hash=%s, login_code_expires_at=NOW() + (%s * INTERVAL '1 second'), "
+            "login_code_sent_at=NOW() WHERE id=%s "
+            "AND (login_code_sent_at IS NULL OR login_code_sent_at < NOW() - (%s * INTERVAL '1 second'))",
+            (_code_hash(user["id"], code), LOGIN_CODE_TTL_SECONDS, user["id"], RESEND_SECONDS))
+        claimed = cur.rowcount == 1
+    if not claimed:
+        return                      # one went out moments ago and is still valid
+    if deliver_login_code(email, code):
+        audit(user["username"], "login_code_sent", ip=ip)
+        event("soc.login_code_sent", "SOC sign-in code sent", level="INFO", identifier=user["username"])
+    else:
+        audit(user["username"], "login_code_undelivered", detail="email not configured", ip=ip)
+
+
+def verify_login_code(email, code, ip):
+    """Step 2. -> (user | None, status); status in: ok | bad_code | locked.
+    The caller shows the SAME message for every bad_code."""
+    email = normalize_email(email)
+    code = re.sub(r"\s+", "", code or "")
+    role = login_role(email)
+    user = get_user_by_email(email) if role else None
+    if user is None:
+        audit(email or "-", "login_failed", detail="code entered for an address that is not authorised", ip=ip)
+        event("soc.login_failed", "SOC login failed (address not authorised)", identifier=email[:60])
+        return None, "bad_code"
     if user["is_locked"]:
         audit(user["username"], "login_blocked_locked", ip=ip)
         return None, "locked"
-    if not good:
-        return None, ("locked" if register_failure(user, ip, "bad password") else "bad_credentials")
     if not user["active"]:
         audit(user["username"], "login_blocked_disabled", ip=ip)
-        return None, "disabled"
-    return user, "ok"
-
-
-# ── TOTP ─────────────────────────────────────────────────────────────
-def new_totp_secret(uid):
-    """Generate and store (encrypted, not yet enabled) a fresh secret."""
-    from utils.helpers import encrypt_pii
-    secret = pyotp.random_base32()
-    with write_cursor("att_master") as cur:
-        cur.execute("UPDATE soc_users SET totp_secret=%s, totp_enabled=FALSE, totp_last_step=0 WHERE id=%s",
-                    (encrypt_pii(secret), uid))
-    return secret
-
-
-def totp_qr(username, secret):
-    import base64
-    import io
-    import qrcode
-    uri = pyotp.TOTP(secret).provisioning_uri(name=username, issuer_name=_ISSUER)
-    img = qrcode.make(uri)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
-
-
-def verify_totp(user, code, *, enabling=False, now=None):
-    """True once per 30 s step. `enabling` marks the factor active on first success."""
-    from utils.helpers import decrypt_pii
-    code = re.sub(r"\s+", "", code or "")
-    if not re.fullmatch(r"\d{6}", code) or not user.get("totp_secret"):
-        return False
-    secret = decrypt_pii(user["totp_secret"])
-    totp = pyotp.TOTP(secret)
-    t = time.time() if now is None else now
-    current = int(t // 30)
-    for step in (current - 1, current, current + 1):
-        if step <= (user.get("totp_last_step") or 0):
-            continue
-        if secrets.compare_digest(totp.at(step * 30), code):
-            with write_cursor("att_master") as cur:
-                # Atomic claim: two concurrent submissions of one code cannot both win.
-                cur.execute(
-                    "UPDATE soc_users SET totp_last_step=%s" + (", totp_enabled=TRUE, enroll_code_hash=NULL" if enabling else "") +
-                    " WHERE id=%s AND totp_last_step < %s", (step, user["id"], step))
-                return cur.rowcount == 1
-    return False
+        return None, "bad_code"
+    if re.fullmatch(r"\d{6}", code):
+        with write_cursor("att_master") as cur:
+            # Atomic single use: the statement that accepts the code also clears it,
+            # so two submissions of one code cannot both win.
+            cur.execute(
+                "UPDATE soc_users SET login_code_hash=NULL, login_code_expires_at=NULL "
+                "WHERE id=%s AND login_code_hash=%s AND login_code_expires_at > NOW() RETURNING id",
+                (user["id"], _code_hash(user["id"], code)))
+            accepted = cur.fetchone() is not None
+        if accepted:
+            if user["role"] != role:
+                update_user(user["id"], role=role)
+            return get_user_by_id(user["id"]), "ok"
+    return None, ("locked" if register_failure(user, ip, "bad sign-in code") else "bad_code")
 
 
 # ── session ──────────────────────────────────────────────────────────
-_SESSION_KEYS = ("soc_uid", "soc_user", "soc_role", "soc_at", "soc_last", "soc_pwv", "soc_pending",
-                 "soc_pending_at", "soc_setup_ok")
+_SESSION_KEYS = ("soc_uid", "soc_user", "soc_role", "soc_at", "soc_last", "soc_pending_email", "soc_pending_at")
 
 
-def start_pending(user):
+def start_pending(email):
     for k in _SESSION_KEYS:
         session.pop(k, None)
-    session["soc_pending"] = user["id"]
+    session["soc_pending_email"] = normalize_email(email)
     session["soc_pending_at"] = time.time()
 
 
-def pending_user():
-    uid = session.get("soc_pending")
-    if not uid or (time.time() - session.get("soc_pending_at", 0)) > PENDING_TTL_SECONDS:
+def pending_email():
+    email = session.get("soc_pending_email")
+    if not email or (time.time() - session.get("soc_pending_at", 0)) > PENDING_TTL_SECONDS:
         return None
-    return get_user_by_id(uid)
+    return email
 
 
 def establish(user, ip):
@@ -426,9 +499,6 @@ def establish(user, ip):
     session["soc_role"] = user["role"]
     session["soc_at"] = now
     session["soc_last"] = now
-    # Opaque stamp of the credential this session was issued against; a later
-    # password change makes it differ, which ends the session (no clock maths).
-    session["soc_pwv"] = str(user.get("password_changed_at"))
     session["_csrf"] = secrets.token_hex(32)
     session.permanent = False
     with write_cursor("att_master") as cur:
@@ -465,11 +535,9 @@ def _session_user():
     if not user or not user["active"]:
         end_session()
         return None
-    # A role or password change since login ends the session at once.
-    if user["role"] != session.get("soc_role"):
-        end_session()
-        return None
-    if str(user.get("password_changed_at")) != session.get("soc_pwv"):
+    # A role change since login ends the session at once -- in the database or in
+    # SOC_LOGIN_EMAILS -- and so does taking the address off that list.
+    if user["role"] != session.get("soc_role") or login_role(user.get("email")) != user["role"]:
         end_session()
         return None
     # Background polling (X-SOC-Poll) must not count as activity, or an unattended
@@ -485,13 +553,13 @@ def current_user():
 
 
 def soc_required(min_role="viewer"):
-    """Route guard. Pages redirect to /soc/login; API calls get JSON 401/403."""
+    """Route guard. Pages redirect to /socperson/login; API calls get JSON 401/403."""
     need = ROLE_RANK[min_role]
 
     def deco(view):
         @functools.wraps(view)
         def wrapped(*args, **kwargs):
-            api = request.path.startswith("/soc/api/")
+            api = request.path.startswith("/socperson/api/")
             if not reachable():
                 event("soc.ip_denied", "SOC console request refused (outside allow-list or tenant-prefixed)", ip=request.remote_addr)
                 return ("Not found", 404)
@@ -501,7 +569,7 @@ def soc_required(min_role="viewer"):
                     return jsonify({"ok": False, "msg": "SOC datastore unavailable"}), 503
                 if api:
                     return jsonify({"ok": False, "msg": "Sign in required"}), 401
-                return redirect("/soc/login")
+                return redirect("/socperson/login")
             if ROLE_RANK.get(user["role"], 0) < need:
                 audit(user["username"], "forbidden", target=request.path, ip=request.remote_addr)
                 return jsonify({"ok": False, "msg": "Your role cannot do that"}), 403

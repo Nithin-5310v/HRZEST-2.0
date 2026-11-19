@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SOC console -- /soc.
+"""SOC console -- /socperson.
 
 A standalone security-operations console for the platform operator. It is
 deliberately not part of any other dashboard: nothing links to it, it has its
@@ -7,9 +7,9 @@ own accounts and session (utils/soc_auth.py), it is excluded from tenant URL
 routing (utils/tenant_routing.RESERVED_PATH_SEGMENTS), and every response is
 marked no-store / noindex.
 
-  /soc/login      password -> (first time: setup code + enrol authenticator) -> TOTP
-  /soc            the console (single page; data over /soc/api/*)
-  /soc/api/*      JSON, role-gated: viewer < analyst < admin
+  /socperson/login      email address -> 6-digit code emailed to it (SOC_LOGIN_EMAILS only)
+  /socperson            the console (single page; data over /socperson/api/*)
+  /socperson/api/*      JSON, role-gated: viewer < analyst < admin
 
 Data comes from what the product already records (see utils/soc_queries.py);
 actions are in utils/soc_actions.py; log analysis is utils/soc_loganalysis.py.
@@ -18,7 +18,7 @@ import datetime
 import json
 import os
 
-from flask import Blueprint, jsonify, make_response, redirect, render_template, request, send_from_directory, session
+from flask import Blueprint, jsonify, make_response, redirect, render_template, request, send_from_directory
 
 from extensions import limiter
 from utils import soc_actions, soc_auth, soc_geo, soc_queries
@@ -111,89 +111,66 @@ def _guard_network():
 
 
 # ── login ────────────────────────────────────────────────────────────
-def _login_state():
-    """-> (step, pending_user). step: password | setup | enroll | code."""
-    user = soc_auth.pending_user()
-    if user is None:
-        return "password", None
-    if user["totp_enabled"]:
-        return "code", user
-    return ("enroll" if session.get("soc_setup_ok") else "setup"), user
+# Two steps: an email address, then the 6-digit code sent to it. Whether the
+# address is authorised never changes what the page says -- an unlisted one
+# simply never receives a code (utils/soc_auth.request_login_code).
+_LOCKED_MSG = "Too many failed attempts. Try again in 15 minutes."
 
 
-def _render_login(step, user, error=None, status=200):
-    ctx = {"step": step, "error": error, "username": user["username"] if user else "", "qr": None, "secret": None}
-    if step == "enroll" and user:
-        from utils.helpers import decrypt_pii
-        secret = decrypt_pii(user["totp_secret"]) if user.get("totp_secret") else soc_auth.new_totp_secret(user["id"])
-        ctx["secret"] = secret
-        ctx["qr"] = soc_auth.totp_qr(user["username"], secret)
-    return render_template("soc/login.html", **ctx), status
+def _render_login(step, email="", error=None, notice=None, status=200):
+    return render_template("soc/login.html", step=step, email=email, error=error, notice=notice,
+                           minutes=soc_auth.LOGIN_CODE_TTL_SECONDS // 60), status
 
 
-@soc_bp.route("/soc/login", methods=["GET", "POST"])
+@soc_bp.route("/socperson/login", methods=["GET", "POST"])
 @limiter.limit("20 per 15 minutes", methods=["POST"])
 def login():
     blocked = _guard_network()
     if blocked:
         return blocked
     if soc_auth.current_user():
-        return redirect("/soc")
+        return redirect("/socperson")
+    pending = soc_auth.pending_email()
     if request.method == "GET":
-        step, user = _login_state()
-        return _render_login(step, user)
+        return _render_login("code", pending) if pending else _render_login("email")
 
     action = request.form.get("action", "")
     ip = _ip()
     if action == "restart":
         soc_auth.end_session()
-        return redirect("/soc/login", 303)
+        return redirect("/socperson/login", 303)
 
-    if action == "password":
-        user, code = soc_auth.authenticate(request.form.get("username", ""), request.form.get("password", ""), ip)
-        if code == "locked":
-            return _render_login("password", None, "Too many failed attempts. Try again in 15 minutes.", 429)
-        if user is None:
-            return _render_login("password", None, "Invalid username or password.", 401)
-        if code == "disabled":
-            return _render_login("password", None, "Invalid username or password.", 401)
-        soc_auth.start_pending(user)
-        return redirect("/soc/login", 303)
+    if action == "email":
+        email = soc_auth.normalize_email(request.form.get("email", ""))
+        if not soc_auth.looks_like_email(email):
+            return _render_login("email", error="Enter a valid email address.", status=400)
+        soc_auth.request_login_code(email, ip)
+        soc_auth.start_pending(email)
+        return redirect("/socperson/login", 303)
 
-    step, user = _login_state()
-    if user is None:
-        return redirect("/soc/login", 303)
-    fresh = soc_auth.get_user_by_id(user["id"])
-    if not fresh or not fresh["active"] or fresh["is_locked"]:
-        soc_auth.end_session()
-        return _render_login("password", None, "Invalid username or password.", 401)
+    if pending is None:             # no code requested in this browser, or the request expired
+        return _render_login("email", error="That sign-in request expired. Enter your email again.", status=401)
 
-    if action == "setup" and step == "setup":
-        if soc_auth.verify_setup_code(fresh, request.form.get("setup_code", "")):
-            session["soc_setup_ok"] = True
-            return redirect("/soc/login", 303)
-        if soc_auth.register_failure(fresh, ip, "bad setup code"):
+    if action == "resend":
+        soc_auth.request_login_code(pending, ip)
+        soc_auth.start_pending(pending)
+        return _render_login("code", pending, notice="If this address may sign in, a new code is on its way. "
+                                                     "A code can be sent once a minute.")
+
+    if action == "code":
+        user, status = soc_auth.verify_login_code(pending, request.form.get("code", ""), ip)
+        if status == "ok":
+            soc_auth.establish(user, ip)
+            return redirect("/socperson", 303)
+        if status == "locked":
             soc_auth.end_session()
-            return _render_login("password", None, "Too many failed attempts. Try again in 15 minutes.", 429)
-        return _render_login("setup", fresh, "That setup code is not valid.", 401)
+            return _render_login("email", error=_LOCKED_MSG, status=429)
+        return _render_login("code", pending, error="That code is not valid or has expired.", status=401)
 
-    if action == "code" and step in ("code", "enroll"):
-        enabling = step == "enroll"
-        if soc_auth.verify_totp(fresh, request.form.get("code", ""), enabling=enabling):
-            fresh = soc_auth.get_user_by_id(fresh["id"])
-            soc_auth.establish(fresh, ip)
-            if enabling:
-                soc_auth.audit(fresh["username"], "mfa_enrolled", ip=ip)
-            return redirect("/soc", 303)
-        if soc_auth.register_failure(fresh, ip, "bad TOTP code"):
-            soc_auth.end_session()
-            return _render_login("password", None, "Too many failed attempts. Try again in 15 minutes.", 429)
-        return _render_login(step, fresh, "That code is not valid.", 401)
-
-    return redirect("/soc/login", 303)
+    return redirect("/socperson/login", 303)
 
 
-@soc_bp.route("/soc/logout", methods=["POST"])
+@soc_bp.route("/socperson/logout", methods=["POST"])
 def logout():
     blocked = _guard_network()
     if blocked:
@@ -201,7 +178,7 @@ def logout():
     who = soc_auth.end_session()
     if who:
         soc_auth.audit(who, "logout", ip=_ip())
-    return redirect("/soc/login", 303)
+    return redirect("/socperson/login", 303)
 
 
 # ── assets ───────────────────────────────────────────────────────────
@@ -213,7 +190,7 @@ _PUBLIC_ASSETS = frozenset({"login.css"})
 _PRIVATE_ASSETS = frozenset({"soc.css", "soc-core.js", "soc-views.js", "soc-analysis.js", "soc-banreview.js"})
 
 
-@soc_bp.route("/soc/assets/<name>")
+@soc_bp.route("/socperson/assets/<name>")
 def asset(name):
     blocked = _guard_network()
     if blocked:
@@ -224,7 +201,7 @@ def asset(name):
 
 
 # ── console shell ────────────────────────────────────────────────────
-@soc_bp.route("/soc", strict_slashes=False)
+@soc_bp.route("/socperson", strict_slashes=False)
 @soc_required("viewer")
 def console():
     u = soc_auth.current_user()
@@ -233,39 +210,21 @@ def console():
 
 
 # ── API: session ─────────────────────────────────────────────────────
-@soc_bp.route("/soc/api/me")
+@soc_bp.route("/socperson/api/me")
 @soc_required("viewer")
 def api_me():
     u = soc_auth.current_user()
     return _ok(user=soc_auth.public_user(u), idle_seconds=soc_auth.idle_seconds(), loki=soc_queries.loki_status()["configured"])
 
 
-@soc_bp.route("/soc/api/me/password", methods=["POST"])
-@soc_required("viewer")
-def api_change_own_password():
-    from utils.auth import check_password_hash
-    u = soc_auth.current_user()
-    data = _body()
-    current = data.get("current")
-    if not isinstance(current, str) or not check_password_hash(u["password_hash"], current):
-        soc_auth.register_failure(u, _ip(), "bad current password on change")
-        return _err("Current password is incorrect.", 403)
-    ok, err = soc_auth.set_password(u["id"], data.get("new", "") or "", u["username"])
-    if not ok:
-        return _err(err)
-    soc_auth.audit(u["username"], "password_changed", ip=_ip())
-    soc_auth.end_session()
-    return _ok(message="Password changed. Sign in again.")
-
-
 # ── API: read ────────────────────────────────────────────────────────
-@soc_bp.route("/soc/api/pulse")
+@soc_bp.route("/socperson/api/pulse")
 @soc_required("viewer")
 def api_pulse():
     return _ok(**soc_queries.pulse())
 
 
-@soc_bp.route("/soc/api/overview")
+@soc_bp.route("/socperson/api/overview")
 @soc_required("viewer")
 def api_overview():
     return _ok(**soc_queries.overview(request.args.get("hours")))
@@ -279,21 +238,21 @@ def _event_filters():
                 alerts_only=a.get("alerts") == "1", hours=a.get("hours"))
 
 
-@soc_bp.route("/soc/api/events")
+@soc_bp.route("/socperson/api/events")
 @soc_required("viewer")
 def api_events():
     return _ok(**soc_queries.search_events(cursor=request.args.get("cursor"), limit=request.args.get("limit", 100),
                                            since=request.args.get("since"), **_event_filters()))
 
 
-@soc_bp.route("/soc/api/events/<int:event_id>")
+@soc_bp.route("/socperson/api/events/<int:event_id>")
 @soc_required("viewer")
 def api_event(event_id):
     ev = soc_queries.event_detail(event_id)
     return _ok(event=ev) if ev else _err("No such event.", 404)
 
 
-@soc_bp.route("/soc/api/events.csv")
+@soc_bp.route("/socperson/api/events.csv")
 @soc_required("analyst")
 @limiter.limit("10 per hour")
 def api_events_csv():
@@ -315,13 +274,13 @@ def api_events_csv():
     return resp
 
 
-@soc_bp.route("/soc/api/detections")
+@soc_bp.route("/socperson/api/detections")
 @soc_required("viewer")
 def api_detections():
     return _ok(**soc_queries.detections(request.args.get("hours")))
 
 
-@soc_bp.route("/soc/api/entity/ip/<path:ip>")
+@soc_bp.route("/socperson/api/entity/ip/<path:ip>")
 @soc_required("viewer")
 def api_entity_ip(ip):
     from utils.soc_util import looks_like_ip
@@ -332,7 +291,7 @@ def api_entity_ip(ip):
     return _ok(entity=entity)
 
 
-@soc_bp.route("/soc/api/geo")
+@soc_bp.route("/socperson/api/geo")
 @soc_required("viewer")
 @limiter.limit("120 per minute")
 def api_geo():
@@ -343,7 +302,7 @@ def api_geo():
     return _ok(geo=soc_geo.lookup(ips), enabled=soc_geo.enabled())
 
 
-@soc_bp.route("/soc/api/brief")
+@soc_bp.route("/socperson/api/brief")
 @soc_required("viewer")
 def api_brief():
     kind = request.args.get("kind", "")
@@ -355,7 +314,7 @@ def api_brief():
         return _err(str(exc))
 
 
-@soc_bp.route("/soc/api/entity/identifier")
+@soc_bp.route("/socperson/api/entity/identifier")
 @soc_required("viewer")
 def api_entity_identifier():
     value = (request.args.get("value") or "").strip()
@@ -364,13 +323,13 @@ def api_entity_identifier():
     return _ok(entity=soc_queries.entity_identifier(value, request.args.get("days")))
 
 
-@soc_bp.route("/soc/api/bans")
+@soc_bp.route("/socperson/api/bans")
 @soc_required("viewer")
 def api_bans():
     return _ok(**soc_queries.bans())
 
 
-@soc_bp.route("/soc/api/sessions")
+@soc_bp.route("/socperson/api/sessions")
 @soc_required("viewer")
 def api_sessions():
     data = soc_queries.risky_sessions()
@@ -381,32 +340,32 @@ def api_sessions():
     return _ok(**data)
 
 
-@soc_bp.route("/soc/api/tenants")
+@soc_bp.route("/socperson/api/tenants")
 @soc_required("viewer")
 def api_tenants():
     return _ok(**soc_queries.tenants_overview(request.args.get("hours")))
 
 
-@soc_bp.route("/soc/api/attendance")
+@soc_bp.route("/socperson/api/attendance")
 @soc_required("viewer")
 def api_attendance():
     return _ok(**soc_queries.attendance_integrity(request.args.get("days")))
 
 
-@soc_bp.route("/soc/api/posture")
+@soc_bp.route("/socperson/api/posture")
 @soc_required("viewer")
 def api_posture():
     return _ok(**soc_queries.posture())
 
 
-@soc_bp.route("/soc/api/integrity")
+@soc_bp.route("/socperson/api/integrity")
 @soc_required("viewer")
 def api_integrity_last():
     report, at, by = _latest_integrity()
     return _ok(report=report, at=at, by=by)
 
 
-@soc_bp.route("/soc/api/integrity/verify", methods=["POST"])
+@soc_bp.route("/socperson/api/integrity/verify", methods=["POST"])
 @soc_required("analyst")
 @limiter.limit("6 per hour")
 def api_integrity_verify():
@@ -426,7 +385,7 @@ def api_integrity_verify():
 
 
 # ── API: log analysis ────────────────────────────────────────────────
-@soc_bp.route("/soc/api/loganalysis", methods=["POST"])
+@soc_bp.route("/socperson/api/loganalysis", methods=["POST"])
 @soc_required("analyst")
 @limiter.limit("20 per hour")
 def api_loganalysis():
@@ -445,7 +404,7 @@ def api_loganalysis():
     return _ok(report=report)
 
 
-@soc_bp.route("/soc/api/loganalysis/platform", methods=["POST"])
+@soc_bp.route("/socperson/api/loganalysis/platform", methods=["POST"])
 @soc_required("analyst")
 @limiter.limit("30 per hour")
 def api_loganalysis_platform():
@@ -460,13 +419,13 @@ def api_loganalysis_platform():
     return _ok(report=report)
 
 
-@soc_bp.route("/soc/api/loki/status")
+@soc_bp.route("/socperson/api/loki/status")
 @soc_required("viewer")
 def api_loki_status():
     return _ok(**soc_queries.loki_status())
 
 
-@soc_bp.route("/soc/api/loki/query", methods=["POST"])
+@soc_bp.route("/socperson/api/loki/query", methods=["POST"])
 @soc_required("analyst")
 @limiter.limit("30 per minute")
 def api_loki_query():
@@ -482,7 +441,7 @@ def api_loki_query():
 
 
 # ── API: response actions ────────────────────────────────────────────
-@soc_bp.route("/soc/api/bans", methods=["POST"])
+@soc_bp.route("/socperson/api/bans", methods=["POST"])
 @soc_required("analyst")
 def api_ban():
     d = _body()
@@ -490,7 +449,7 @@ def api_ban():
     return _ok(message=msg) if ok else _err(msg)
 
 
-@soc_bp.route("/soc/api/bans/remove", methods=["POST"])
+@soc_bp.route("/socperson/api/bans/remove", methods=["POST"])
 @soc_required("analyst")
 def api_unban():
     d = _body()
@@ -500,7 +459,7 @@ def api_unban():
     return _ok(message=msg) if ok else _err(msg)
 
 
-@soc_bp.route("/soc/api/bans/bulk", methods=["POST"])
+@soc_bp.route("/socperson/api/bans/bulk", methods=["POST"])
 @soc_required("analyst")
 def api_ban_bulk():
     d = _body()
@@ -510,7 +469,7 @@ def api_ban_bulk():
     return _ok(results=soc_actions.bulk_ban(ips, d.get("reason"), d.get("minutes"), _actor(), _ip()))
 
 
-@soc_bp.route("/soc/api/sessions/revoke", methods=["POST"])
+@soc_bp.route("/socperson/api/sessions/revoke", methods=["POST"])
 @soc_required("analyst")
 def api_revoke_session():
     d = _body()
@@ -519,27 +478,27 @@ def api_revoke_session():
 
 
 # ── API: cases ───────────────────────────────────────────────────────
-@soc_bp.route("/soc/api/cases")
+@soc_bp.route("/socperson/api/cases")
 @soc_required("viewer")
 def api_cases():
     return _ok(cases=soc_queries.cases(request.args.get("status") or None, assignee=request.args.get("assignee") or None))
 
 
-@soc_bp.route("/soc/api/assignees")
+@soc_bp.route("/socperson/api/assignees")
 @soc_required("viewer")
 def api_assignees():
     """Who a case can be assigned to (active analysts and admins)."""
     return _ok(assignees=soc_queries.assignees())
 
 
-@soc_bp.route("/soc/api/cases/<int:case_id>")
+@soc_bp.route("/socperson/api/cases/<int:case_id>")
 @soc_required("viewer")
 def api_case(case_id):
     c = soc_queries.case_detail(case_id)
     return _ok(case=c) if c else _err("No such case.", 404)
 
 
-@soc_bp.route("/soc/api/cases", methods=["POST"])
+@soc_bp.route("/socperson/api/cases", methods=["POST"])
 @soc_required("analyst")
 def api_case_create():
     d = _body()
@@ -548,7 +507,7 @@ def api_case_create():
     return _ok(message=msg, id=cid) if ok else _err(msg)
 
 
-@soc_bp.route("/soc/api/cases/<int:case_id>", methods=["POST"])
+@soc_bp.route("/socperson/api/cases/<int:case_id>", methods=["POST"])
 @soc_required("analyst")
 def api_case_update(case_id):
     d = _body()
@@ -557,7 +516,7 @@ def api_case_update(case_id):
     return _ok(message=msg) if ok else _err(msg)
 
 
-@soc_bp.route("/soc/api/cases/<int:case_id>/notes", methods=["POST"])
+@soc_bp.route("/socperson/api/cases/<int:case_id>/notes", methods=["POST"])
 @soc_required("analyst")
 def api_case_note(case_id):
     ok, msg = soc_actions.add_note(case_id, _body().get("body"), _actor(), _ip())
@@ -565,25 +524,16 @@ def api_case_note(case_id):
 
 
 # ── API: administration ──────────────────────────────────────────────
-@soc_bp.route("/soc/api/users")
+@soc_bp.route("/socperson/api/users")
 @soc_required("admin")
 def api_users():
     return _ok(users=soc_auth.list_users())
 
 
-@soc_bp.route("/soc/api/users", methods=["POST"])
-@soc_required("admin")
-def api_user_create():
-    d = _body()
-    ok, msg, setup = soc_auth.create_user(d.get("username"), d.get("password"), d.get("role", "viewer"), d.get("email"), _actor())
-    if not ok:
-        return _err(msg)
-    soc_auth.audit(_actor(), "user_created", target=str(d.get("username")).lower(), detail=f"role={d.get('role', 'viewer')}", ip=_ip())
-    return _ok(message="Account created. Hand over the password and setup code separately; the code is shown once.",
-               setup_code=setup)
-
-
-@soc_bp.route("/soc/api/users/<int:uid>", methods=["POST"])
+# Who may sign in, and with which role, is SOC_LOGIN_EMAILS on the server -- not
+# something the console can change. What stays here is the emergency switch
+# (disable an account at once, without a deploy) and clearing a lockout.
+@soc_bp.route("/socperson/api/users/<int:uid>", methods=["POST"])
 @soc_required("admin")
 def api_user_update(uid):
     d = _body()
@@ -592,16 +542,7 @@ def api_user_update(uid):
         return _err("No such user.", 404)
     me = soc_auth.current_user()
     action = d.get("action")
-    result = {}
-    if action == "set_role":
-        if target["id"] == me["id"]:
-            return _err("You cannot change your own role.")
-        if target["role"] == "admin" and d.get("role") != "admin" and soc_auth.active_admin_count() <= 1:
-            return _err("That is the last administrator.")
-        if not soc_auth.update_user(uid, role=d.get("role")):
-            return _err("Unknown role.")
-        soc_auth.audit(me["username"], "user_role_set", target=target["username"], detail=str(d.get("role")), ip=_ip())
-    elif action in ("deactivate", "activate"):
+    if action in ("deactivate", "activate"):
         if action == "deactivate" and target["id"] == me["id"]:
             return _err("You cannot deactivate your own account.")
         if action == "deactivate" and target["role"] == "admin" and soc_auth.active_admin_count() <= 1:
@@ -611,20 +552,12 @@ def api_user_update(uid):
     elif action == "unlock":
         soc_auth.unlock(uid)
         soc_auth.audit(me["username"], "user_unlocked", target=target["username"], ip=_ip())
-    elif action == "reset_mfa":
-        result["setup_code"] = soc_auth.reset_mfa(uid)
-        soc_auth.audit(me["username"], "user_mfa_reset", target=target["username"], ip=_ip())
-    elif action == "reset_password":
-        ok, err = soc_auth.set_password(uid, d.get("password") or "", target["username"])
-        if not ok:
-            return _err(err)
-        soc_auth.audit(me["username"], "user_password_reset", target=target["username"], ip=_ip())
     else:
         return _err("Unknown action.")
-    return _ok(**result)
+    return _ok()
 
 
-@soc_bp.route("/soc/api/audit")
+@soc_bp.route("/socperson/api/audit")
 @soc_required("admin")
 def api_audit():
     from utils.soc_db import read_cursor
@@ -640,14 +573,14 @@ def api_audit():
 
 # ── ban review: automated detections waiting for an analyst ──────────
 # (utils/soc_ban_review.py; the console view is soc_ui/soc-banreview.js)
-@soc_bp.route("/soc/api/ban-reviews")
+@soc_bp.route("/socperson/api/ban-reviews")
 @soc_required("viewer")
 def api_ban_reviews():
     from utils import soc_ban_review
     return _ok(**soc_ban_review.list_reviews(request.args.get("status", "pending")))
 
 
-@soc_bp.route("/soc/api/ban-reviews/decide", methods=["POST"])
+@soc_bp.route("/socperson/api/ban-reviews/decide", methods=["POST"])
 @soc_required("analyst")
 def api_ban_review_decide():
     from utils import soc_ban_review

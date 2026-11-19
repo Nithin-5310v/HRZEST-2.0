@@ -97,11 +97,11 @@ def test_every_resource_the_templates_load_exists_and_is_served():
     pub, priv = _blueprint_assets()
     for path in TEMPLATES:
         for url in re.findall(r"(?:src|href)=\"(/[^\"#?]+)", _read(path)):
-            if url.startswith("/soc/assets/"):
+            if url.startswith("/socperson/assets/"):
                 assert url.rsplit("/", 1)[1] in pub | priv, f"{path.name}: {url} is not whitelisted"
             elif url.startswith("/static/"):
                 assert (ROOT / url.lstrip("/")).exists(), f"{path.name}: {url} missing"
-            elif url.startswith("/soc/"):
+            elif url.startswith("/socperson/"):
                 pass        # page routes (login) are checked by the route tests
             else:
                 pytest.fail(f"{path.name}: unexpected resource {url}")
@@ -109,7 +109,7 @@ def test_every_resource_the_templates_load_exists_and_is_served():
 
 def _route_regexes():
     rx = []
-    for rule in re.findall(r"@soc_bp\.route\(\"(/soc/[^\"]+)\"", _read(BLUEPRINT)):
+    for rule in re.findall(r"@soc_bp\.route\(\"(/socperson/[^\"]+)\"", _read(BLUEPRINT)):
         parts = re.split(r"(<[^>]+>)", rule)
         rx.append(re.compile("^" + "".join("[^/]+" if x.startswith("<") else re.escape(x) for x in parts) + "$"))
     return rx
@@ -120,9 +120,9 @@ def test_every_api_url_the_js_calls_is_a_real_route():
     assert routes
     seen = set()
     for p in JS_FILES:
-        for url in re.findall(r"['\"`](/soc/api/[^'\"`?]*)", _read(p)):
+        for url in re.findall(r"['\"`](/socperson/api/[^'\"`?]*)", _read(p)):
             probe = re.sub(r"\$\{[^}]*\}", "1", url)
-            probe = probe + "1" if probe.endswith("/") else probe           # '/soc/api/cases/' + id
+            probe = probe + "1" if probe.endswith("/") else probe           # '/socperson/api/cases/' + id
             seen.add(url)
             assert any(r.match(probe) for r in routes), f"{p.name}: {url} has no matching route"
     assert len(seen) >= 20, "expected the console to call the whole API"
@@ -143,8 +143,8 @@ def test_every_nav_entry_is_a_registered_view():
 
 
 def test_nothing_outside_the_console_links_to_it():
-    """The console is reached by typing its URL. No other page, script or app screen may link to /soc."""
-    link = re.compile(r"""(?:href|src|action)\s*=\s*["']/soc\b|["'`]/soc(?:/[^"'`]*)?["'`]\s*[,)]|window\.open\([^)]*/soc""")
+    """The console is reached by typing its URL. No other page, script or app screen may link to /socperson."""
+    link = re.compile(r"""(?:href|src|action)\s*=\s*["']/soc\b|["'`]/soc(?:/[^"'`]*)?["'`]\s*[,)]|window\.open\([^)]*/socperson""")
     offenders = []
     candidates = list((ROOT / "templates").rglob("*.html")) + list((ROOT / "static").rglob("*.js")) + \
         list((ROOT / "static").rglob("*.html")) + list((ROOT / "mobile" / "src").rglob("*.js")) + \
@@ -158,7 +158,7 @@ def test_nothing_outside_the_console_links_to_it():
             continue
         if link.search(text):
             offenders.append(str(p.relative_to(ROOT)))
-    assert offenders == [], f"these files link to /soc: {offenders}"
+    assert offenders == [], f"these files link to /socperson: {offenders}"
 
 
 def test_soc_is_a_reserved_url_segment():
