@@ -94,7 +94,9 @@ ALLOWED_UNGUARDED = {
     "attendance.api_attendance_challenge": (
         "kiosk liveness challenge; only redeemable together with that employee's face + "
         "signed QR; same-shape response, rate-limited"),
-    "employee_portal.api_employee_qr_face_checkin": "kiosk check-in; signed QR + server-decided factors",
+    "employee_portal.api_employee_qr_face_checkin": (
+        "check-in; needs an employee session or a live app token (checked inline), "
+        "then signed QR + server-decided factors"),
     "employee_portal.api_employee_auth_config": "public: which check-in factors are enabled",
     "auth.webauthn_status": "public capability probe",
     "auth.webauthn_registration_options": "gated by _wa_authorize_enrollment",
