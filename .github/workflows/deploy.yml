@@ -427,10 +427,74 @@ jobs:
             exit 1
           fi
 
+  e2e-soc-passkey:
+    # SOC console sign-in in a real browser (tests_e2e/test_soc_passkey.py):
+    # email -> code -> passkey, with Chromium's virtual authenticator, so
+    # soc_ui/login.js and py_webauthn's real signature checks run together.
+    # The rest of tests_e2e/ stays a manual check (see its README); this one
+    # flow is gated because a break in it locks every analyst out of /socperson.
+    name: Browser test (SOC passkey sign-in)
+    runs-on: ubuntu-latest
+    needs: [lint, security, sast, secrets-scan]
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_testpass
+          POSTGRES_DB: att_test_e2e          # tests_e2e/ uses its own database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d att_test_e2e"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        # Same install as the `test` job (see the lint job for why dlib-bin).
+        run: |
+          pip install --no-cache-dir dlib-bin
+          pip install --no-cache-dir --no-deps face-recognition face-recognition-models
+          grep -v '^face-recognition' requirements.txt > /tmp/ci-requirements.txt
+          pip install --no-cache-dir -r /tmp/ci-requirements.txt -r requirements-dev.txt
+          echo "PLAYWRIGHT_VERSION=$(python -m playwright --version | awk '{print $2}')" >> "$GITHUB_ENV"
+
+      - name: Cache the Playwright browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}
+
+      - name: Install Chromium and its system libraries
+        # The browser comes from the cache when present; its OS libraries are
+        # always installed (they live outside the cached directory).
+        run: |
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
+
+      - name: Run the SOC passkey sign-in in Chromium
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASS: ci_testpass
+        run: python -m pytest tests_e2e/test_soc_passkey.py --browser chromium -v --tb=short
+
   podman:
     name: Podman build
     runs-on: ubuntu-latest
-    needs: [test, test-role-split]
+    needs: [test, test-role-split, e2e-soc-passkey]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
