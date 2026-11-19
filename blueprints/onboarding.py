@@ -650,13 +650,19 @@ def onboarding_detail(ob_id):
 def onboarding_admin_task_update():
     db = get_db_connection()
     cursor = db.cursor()
-    task_id = request.form.get("task_id")
+    task_id = int_param(request.form.get("task_id"))
     new_status = request.form.get("status")
     notes = request.form.get("admin_notes", "")
-    ob_id = int_param(request.form.get("ob_id"))
-    cursor.execute("SELECT employee_id FROM employee_onboarding WHERE id=%s", (ob_id,))
+    # The onboarding (and so the employee) comes from the task row itself,
+    # not from the form's ob_id: checking scope on the form's ob_id while
+    # updating the form's task_id let a team-scoped role edit another
+    # person's task (security review route audit, 2026-11).
+    cursor.execute(
+        "SELECT o.id, o.employee_id FROM employee_onboarding_tasks t "
+        "JOIN employee_onboarding o ON o.id = t.onboarding_id WHERE t.id=%s", (task_id,))
     _ob_owner = cursor.fetchone()
-    if not _ob_owner or hr_scope_denied(_ob_owner[0]):
+    ob_id = _ob_owner[0] if _ob_owner else None
+    if not _ob_owner or hr_scope_denied(_ob_owner[1]):
         cursor.close()
         db.close()
         return "Onboarding record not found", 404
@@ -1556,11 +1562,14 @@ def my_onboarding_task_done():
     db = get_db_connection()
     cursor = db.cursor()
     task_id = request.form.get("task_id")
-    ob_id = int_param(request.form.get("ob_id")) if request.form.get("ob_id") else ""
     employee_note = request.form.get("employee_note", "").strip()[:500]
 
-    cursor.execute("SELECT employee_id, requires_document FROM employee_onboarding_tasks WHERE id=%s", (task_id,))
+    cursor.execute("SELECT employee_id, requires_document, onboarding_id FROM employee_onboarding_tasks "
+                   "WHERE id=%s", (task_id,))
     row = cursor.fetchone()
+    # ob_id comes from the employee's own task, never the form, so the
+    # auto-complete below can only close their own onboarding.
+    ob_id = row[2] if row else ""
     if not row or row[0] != emp_id:
         flash("Not authorised.", "error")
         cursor.close()
@@ -1700,15 +1709,16 @@ def api_my_onboarding_task_done(task_id):
     emp_id = _g.api_emp_id
     db = get_db_connection()
     cursor = db.cursor()
-    ob_id = request.form.get("ob_id")
     employee_note = request.form.get("employee_note", "").strip()[:500]
 
-    cursor.execute("SELECT employee_id, requires_document FROM employee_onboarding_tasks WHERE id=%s", (task_id,))
+    cursor.execute("SELECT employee_id, requires_document, onboarding_id FROM employee_onboarding_tasks "
+                   "WHERE id=%s", (task_id,))
     row = cursor.fetchone()
     if not row or row[0] != emp_id:
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Not authorised."}), 403
+    ob_id = row[2]  # from the employee's own task, never the form
 
     doc_path = None
     if 'document' in request.files:

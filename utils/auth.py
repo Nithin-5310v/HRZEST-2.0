@@ -1093,10 +1093,11 @@ def resolve_admin_identity():
     sub-actions, not full page loads.
     """
     if session.get("admin_logged_in"):
-        sid = session.get("_sid")
-        if sid and is_session_compromised(sid):
-            return None
-        if _password_changed_since_login():
+        # session_account_ok() = compromised/revoked session, account still
+        # active, password unchanged since login. Checking only the first and
+        # last let a deactivated admin's still-open session keep using these
+        # routes (security review route audit, 2026-11).
+        if not session_account_ok():
             return None
         return session.get("admin_username", "admin")
     auth = request.headers.get("Authorization", "")
