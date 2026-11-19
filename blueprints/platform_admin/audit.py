@@ -72,15 +72,21 @@ def platform_admin_soc_dashboard():
     `security_events` Postgres table used above by the audit log: that one
     is this Flask app's internal platform-admin action log.
 
-    SOC_ADMIN_TOKEN is read server-side and appended to the iframe URL just
-    once on page load so the SOC dashboard's own token gate never has to be
-    shown to the platform admin -- the token itself never touches this
-    app's own session or database.
+    The frame loads the dashboard's plain address and the admin enters its
+    admin token in the dashboard's own prompt. This app never reads or sends
+    that token: it used to append SOC_ADMIN_TOKEN to the iframe URL, which put
+    a permanent admin credential in the page source, browser history and the
+    dashboard server's access logs.
+
+    Outside APP_ENV=development the address must be https://, because the
+    token is typed into the frame (an http frame on an https console is also
+    blocked by browsers as mixed content, so it would only show a blank box).
     """
-    soc_url = os.environ.get("SOC_DASHBOARD_URL", "").rstrip("/")
+    soc_url = os.environ.get("SOC_DASHBOARD_URL", "").strip().rstrip("/")
     if not soc_url:
         flash("SOC dashboard is not configured. Set SOC_DASHBOARD_URL in the environment.", "error")
         return redirect("/super_admin")
-    soc_token = os.environ.get("SOC_ADMIN_TOKEN", "")
-    iframe_src = f"{soc_url}/?token={soc_token}" if soc_token else soc_url
-    return render_template("super_admin_soc_dashboard.html", iframe_src=iframe_src)
+    if not soc_url.startswith("https://") and os.environ.get("APP_ENV", "production") != "development":
+        flash("SOC_DASHBOARD_URL must start with https:// so the dashboard's admin token is never sent unencrypted.", "error")
+        return redirect("/super_admin")
+    return render_template("super_admin_soc_dashboard.html", iframe_src=soc_url + "/")

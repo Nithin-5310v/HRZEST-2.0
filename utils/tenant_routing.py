@@ -43,9 +43,10 @@ RESERVED_PATH_SEGMENTS = frozenset({
     # `state` param. The signup entry points live under /create_org/...
     # instead, already reserved above.
     "oauth",
-    # operator consoles (excluded from this migration entirely). "soc" is the
-    # security-operations console (blueprints/soc.py): never a company slug.
-    "super_admin", "superadmin", "sp_admin", "soc",
+    # operator consoles (excluded from this migration entirely). "socperson" is
+    # the security-operations console (blueprints/soc.py): never a company slug.
+    # "soc" was its old path and stays reserved so no company can take it over.
+    "super_admin", "superadmin", "sp_admin", "socperson", "soc",
     # legacy reserved words carried over from the subdomain era
     "hrms", "www", "admin", "app", "mail", "master",
     "assets", "cdn", "ns1", "ns2",

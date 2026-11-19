@@ -36,13 +36,30 @@ class TestSocDashboardPage:
         assert resp.status_code == 302
         assert resp.headers["Location"].endswith("/super_admin")
 
-    def test_embeds_the_dashboard_with_the_token(self, client, monkeypatch):
+    def test_embeds_the_dashboard_and_never_its_token(self, client, monkeypatch):
+        # A server that still has the old SOC_ADMIN_TOKEN set must not leak it:
+        # the admin enters the token in the dashboard's own prompt.
         monkeypatch.setenv("SOC_DASHBOARD_URL", SOC_URL + "/")
         monkeypatch.setenv("SOC_ADMIN_TOKEN", SOC_TOKEN)
         _login_platform_admin(client)
         resp = client.get("/super_admin/soc")
+        body = resp.get_data(as_text=True)
         assert resp.status_code == 200
-        assert f'<iframe src="{SOC_URL}/?token={SOC_TOKEN}"' in resp.get_data(as_text=True)
+        assert f'<iframe src="{SOC_URL}/"' in body
+        assert SOC_TOKEN not in body and "token=" not in body
+        assert SOC_TOKEN not in str(resp.headers)
+
+    def test_refuses_plain_http_outside_development(self, client, monkeypatch):
+        monkeypatch.setenv("SOC_DASHBOARD_URL", SOC_URL)
+        _login_platform_admin(client)
+        for env in ("production", "staging"):
+            monkeypatch.setenv("APP_ENV", env)
+            resp = client.get("/super_admin/soc")
+            assert resp.status_code == 302 and resp.headers["Location"].endswith("/super_admin"), env
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.setenv("SOC_DASHBOARD_URL", "https://soc.example.test")
+        resp = client.get("/super_admin/soc")
+        assert resp.status_code == 200 and '<iframe src="https://soc.example.test/"' in resp.get_data(as_text=True)
 
     def test_csp_lets_the_browser_load_only_the_soc_origin(self, client, monkeypatch):
         monkeypatch.setenv("SOC_DASHBOARD_URL", SOC_URL + "/some/path?x=1")

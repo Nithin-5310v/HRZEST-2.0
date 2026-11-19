@@ -19,7 +19,6 @@ let mockSlug = '';
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('../QRScannerModal', () => () => null);
 jest.mock('../../store/AuthContext', () => ({ useAuth: () => ({ signIn: mockSignIn, user: null }) }));
 jest.mock('../../utils/preferences', () => ({ getLastCompanySlug: jest.fn().mockResolvedValue('') }));
 jest.mock('../../api/client', () => ({

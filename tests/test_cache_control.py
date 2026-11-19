@@ -20,7 +20,7 @@ def _assert_no_store(resp):
     "/admin_forgot_password",
     "/employee_forgot_password",
     "/super_admin/login",
-    "/soc/login",
+    "/socperson/login",
     "/",
 ])
 def test_auth_and_signup_pages_are_not_cached(client, path):

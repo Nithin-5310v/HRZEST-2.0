@@ -22,11 +22,9 @@ body {
 .hz-tile { width: 32px; height: 32px; border-radius: 9px; background: #fff; padding: 3px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 0 1px var(--line); }
 .hz-tile img { width: 100%; height: 100%; object-fit: contain; }
 h1 { font-size: 22px; margin: 0 0 6px; }
-.sub { color: var(--muted); margin: 0 0 18px; }
-.sub.small { font-size: 13px; }
-code { background: var(--input); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; word-break: break-all; }
+.sub { color: var(--muted); margin: 0 0 18px; overflow-wrap: anywhere; }
 label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
-input[type=text], input[type=password] {
+input[type=text], input[type=email] {
   width: 100%; padding: 11px 12px; border-radius: 9px; border: 1px solid var(--line);
   background: var(--input); color: var(--text); font: inherit;
 }
@@ -38,8 +36,11 @@ button {
 button:hover { filter: brightness(1.08); }
 button.link { background: none; color: var(--muted); width: auto; margin: 0; padding: 4px 0; font-weight: 500; text-decoration: underline; }
 .restart { margin-top: 16px; text-align: center; }
-.alert {
+.restart + .restart { margin-top: 4px; }
+.alert, .notice {
   background: color-mix(in srgb, var(--danger) 14%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
   color: var(--text); padding: 10px 12px; border-radius: 9px; margin-bottom: 8px; font-size: 14px;
 }
-.qr { display: block; margin: 8px auto 12px; background: #fff; padding: 8px; border-radius: 10px; }
+.notice {
+  background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}

@@ -3,7 +3,6 @@
 import datetime
 import hashlib
 import html as _html
-import secrets
 import uuid
 from io import BytesIO
 from flask import Blueprint, request, session, redirect, render_template, render_template_string, flash, jsonify, send_file
@@ -19,6 +18,7 @@ from utils.helpers import (
 from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
 from extensions import limiter, app_log, app, log_security_event
+from utils.tokens import waf_safe_token
 
 onboarding_bp = Blueprint("onboarding", __name__)
 
@@ -1082,7 +1082,7 @@ def offer_letter_send(letter_id):
         co_email = co.get("email", "")
 
         # Secure one-time token (shared by accept/reject AND pdf view)
-        token = secrets.token_urlsafe(32)
+        token = waf_safe_token(32)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         # The token lives in this company's database: the links name the
         # company (company_url), or they'd open in none and say "invalid".

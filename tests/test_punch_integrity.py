@@ -170,6 +170,30 @@ class TestChallengeStore:
         stored = cur.fetchone()[0]
         assert stored != ch["nonce"] and len(stored) == 64
 
+    def test_issued_values_never_trip_the_waf(self, db_engine):
+        """The client echoes challenge_id and nonce back in the check-in body.
+        urlsafe values occasionally contained "0x<hex>" (CI: nonce with
+        "0x4DdD"), which the WAF's SQLi rule blocks -- a real check-in
+        refused at random. Hex values can never match it."""
+        import re
+        from utils import waf
+        cur = _cur(db_engine)
+        for _ in range(200):
+            ch = pi.issue_challenge(cur, "TST001", None)
+            for field in ("challenge_id", "nonce"):
+                assert re.fullmatch(r"[0-9a-f]+", ch[field]), field
+                assert waf._inspect_value(field, ch[field]) is None, field
+
+    def test_unlucky_random_draw_still_passes_the_waf(self, db_engine, monkeypatch):
+        """Force the draw that failed CI: any urlsafe source returning
+        "...0x4DdD..." must not end up in what the client sends back."""
+        import secrets as _secrets
+        from utils import waf
+        monkeypatch.setattr(_secrets, "token_urlsafe", lambda n=32: "ab0x4DdDcdEFgh0x9fA1" + "z" * 12)
+        ch = pi.issue_challenge(_cur(db_engine), "TST001", None)
+        assert waf._inspect_value("liveness.nonce", ch["nonce"]) is None
+        assert waf._inspect_value("liveness.challenge_id", ch["challenge_id"]) is None
+
     def test_actions_are_server_chosen_and_vary(self, db_engine):
         cur = _cur(db_engine)
         seen = {pi.issue_challenge(cur, "TST001", None)["action"] for _ in range(60)}

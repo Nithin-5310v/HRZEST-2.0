@@ -126,17 +126,22 @@ def _mark(ip, status, actor, note, trusted_until):
 
 
 def list_reviews(status="pending", limit=LIST_LIMIT):
-    """-> {reviews: [...], counts: {status: n}} for the console."""
+    """-> {reviews: [...], counts: {status: n}} for the console. Genuine activity
+    only, like every console view: the server's own addresses and the ranges in
+    SOC_TEST_CIDRS are left out of the list and the counts (utils/soc_scope.py)."""
+    from utils import soc_scope
     status = status if status in STATUSES else "pending"
     limit = clamp_int(limit, LIST_LIMIT, 1, LIST_LIMIT)
     with read_cursor("att_master") as cur:
+        cur.execute("SELECT ip FROM soc_ban_reviews")
+        hidden = [ip for (ip,) in cur.fetchall() if soc_scope.ip_reason(ip)]
         cur.execute(
-            f"SELECT {', '.join(_COLUMNS)} FROM soc_ban_reviews WHERE status=%s "
+            f"SELECT {', '.join(_COLUMNS)} FROM soc_ban_reviews WHERE status=%s AND ip <> ALL(%s) "
             "ORDER BY last_seen DESC LIMIT %s",
-            (status, limit),
+            (status, hidden, limit),
         )
         rows = [{c: iso(v) for c, v in zip(_COLUMNS, r)} for r in cur.fetchall()]
-        cur.execute("SELECT status, COUNT(*) FROM soc_ban_reviews GROUP BY status")
+        cur.execute("SELECT status, COUNT(*) FROM soc_ban_reviews WHERE ip <> ALL(%s) GROUP BY status", (hidden,))
         counts = {s: 0 for s in STATUSES}
         counts.update({s: n for s, n in cur.fetchall()})
     return {"reviews": rows, "counts": counts, "status": status, "auto_ban": auto_ban_enabled()}

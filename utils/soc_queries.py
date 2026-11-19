@@ -11,6 +11,10 @@ Data sources (all already produced by the product -- nothing here invents data):
   <tenant>.punch_evidence  attendance-integrity evidence      (per tenant)
   <tenant>.session_risk    sessions flagged by the risk engine (per tenant)
 
+Genuine activity only: every view reads security_events through
+soc_scope.events_cte() (the CTE `ev`), which leaves out the server's own
+traffic, the console's own use and your listed testing. See utils/soc_scope.py.
+
 All SQL is parameterised; analyst-supplied text only ever reaches a query as a
 bound parameter (LIKE metacharacters escaped). Every call runs in a read-only
 transaction with a statement timeout (utils/soc_db.py). Cross-tenant views
@@ -24,8 +28,8 @@ import re
 import threading
 import time
 
+from utils import soc_scope
 from utils import soc_taxonomy as tax
-from utils.client_ip import is_internal_ip
 from utils.soc_db import each_tenant, list_tenants, read_cursor
 from utils.soc_util import clamp_int, iso, like_escape, looks_like_ip
 
@@ -158,33 +162,32 @@ def overview(hours=24):
     bucket = "5 minutes" if hours <= 3 else "1 hour" if hours <= 48 else "1 day"
     out = {"hours": hours, "bucket": bucket}
     with read_cursor("public") as cur:
+        ev, ep = soc_scope.events_cte(cur, hours)
         k = {name: sql for name, (sql, _) in KPI_SQL.items()}
         cur.execute(
-            "SELECT COUNT(*), COUNT(*) FILTER (WHERE " + k["critical"] + "), COUNT(*) FILTER (WHERE " + k["errors"] + "), "
+            ev + "SELECT COUNT(*), COUNT(*) FILTER (WHERE " + k["critical"] + "), COUNT(*) FILTER (WHERE " + k["errors"] + "), "
             "COUNT(*) FILTER (WHERE level='WARNING'), COUNT(*) FILTER (WHERE " + k["detections"] + "), "
             "COUNT(*) FILTER (WHERE " + k["failed_logins"] + "), "
             "COUNT(*) FILTER (WHERE " + k["waf_blocks"] + "), "
             "COUNT(*) FILTER (WHERE " + k["honeypot_hits"] + "), "
             "COUNT(*) FILTER (WHERE " + k["lockouts"] + "), "
             "MAX(created_at) "
-            "FROM security_events WHERE " + _WINDOW, (hours,))  # nosec B608 -- KPI_SQL is constant
+            "FROM ev WHERE " + _WINDOW, ep + [hours])  # nosec B608 -- KPI_SQL is constant
         (total, crit, err, warn, det, authfail, waf, honey, lock, last_ts) = cur.fetchone()
-        # Unique *internet* sources: the app's own loopback / proxy / LAN
-        # addresses are not visitors, so they are not counted (or listed below).
-        cur.execute("SELECT DISTINCT ip FROM security_events WHERE " + _WINDOW + " AND ip IS NOT NULL", (hours,))
-        ips = sum(1 for (ip,) in cur.fetchall() if not is_internal_ip(ip))
+        cur.execute(ev + "SELECT COUNT(DISTINCT ip) FROM ev WHERE " + _WINDOW + " AND ip IS NOT NULL", ep + [hours])
+        ips = cur.fetchone()[0]
         out["kpi"] = {"events": total, "critical": crit, "error": err, "warning": warn, "detections": det,
                       "failed_logins": authfail, "waf_blocks": waf, "honeypot_hits": honey, "lockouts": lock,
                       "unique_ips": ips, "last_event": iso(last_ts)}
-        cur.execute("SELECT level, COUNT(*) FROM security_events WHERE created_at >= NOW() - INTERVAL '1 hour' GROUP BY level")
+        cur.execute(ev + "SELECT level, COUNT(*) FROM ev WHERE created_at >= NOW() - INTERVAL '1 hour' GROUP BY level", ep)
         lh = {"CRITICAL": 0, "ERROR": 0, "WARNING": 0, "INFO": 0}
         lh.update({lvl: c for lvl, c in cur.fetchall() if lvl in lh})
         out["last_hour"] = lh
         out["threat"] = threat_level(lh)
 
         cur.execute(
-            "SELECT date_bin(%s::interval, created_at, TIMESTAMP '2001-01-01'), level, COUNT(*) "
-            "FROM security_events WHERE " + _WINDOW + " GROUP BY 1, 2 ORDER BY 1", (bucket, hours))
+            ev + "SELECT date_bin(%s::interval, created_at, TIMESTAMP '2001-01-01'), level, COUNT(*) "
+            "FROM ev WHERE " + _WINDOW + " GROUP BY 1, 2 ORDER BY 1", ep + [bucket, hours])
         counted = cur.fetchall()
         # Every bucket in the window, including empty ones, so quiet periods show
         # as gaps on the chart instead of busy periods being drawn side by side.
@@ -198,7 +201,7 @@ def overview(hours=24):
             p[lvl if lvl in p else "INFO"] += c
         out["timeline"] = sorted(pts.values(), key=lambda p: p["t"])
 
-        cur.execute("SELECT event_type, COUNT(*) FROM security_events WHERE " + _WINDOW + " GROUP BY event_type", (hours,))
+        cur.execute(ev + "SELECT event_type, COUNT(*) FROM ev WHERE " + _WINDOW + " GROUP BY event_type", ep + [hours])
         fam, types = {}, []
         for et, c in cur.fetchall():
             f = tax.family_of(et)
@@ -216,25 +219,24 @@ def overview(hours=24):
         out["techniques"] = sorted(tech.values(), key=lambda x: -x["count"])[:12]
 
         cur.execute(
-            "SELECT ip, COUNT(*), COUNT(DISTINCT event_type), MAX(created_at), "
-            "COUNT(*) FILTER (WHERE level IN ('ERROR','CRITICAL')) FROM security_events "
-            "WHERE " + _WINDOW + " AND ip IS NOT NULL GROUP BY ip ORDER BY 5 DESC, 2 DESC LIMIT 40", (hours,))
+            ev + "SELECT ip, COUNT(*), COUNT(DISTINCT event_type), MAX(created_at), "
+            "COUNT(*) FILTER (WHERE level IN ('ERROR','CRITICAL')) FROM ev "
+            "WHERE " + _WINDOW + " AND ip IS NOT NULL GROUP BY ip ORDER BY 5 DESC, 2 DESC LIMIT 10", ep + [hours])
         rows = cur.fetchall()
-        internal = [r for r in rows if is_internal_ip(r[0])]
-        rows = [r for r in rows if not is_internal_ip(r[0])][:10]
-        out["internal_sources"] = {"count": len(internal), "events": sum(r[1] for r in internal)}
         banned = _banned_set(cur, [r[0] for r in rows])
         out["top_ips"] = [{"ip": ip, "events": c, "types": t, "last": iso(ts), "high": hi,
                            "banned": ip in banned, "protected": _protected(ip)} for ip, c, t, ts, hi in rows]
+        # What was left out, so the page can say so instead of hiding it silently.
+        out["excluded"] = soc_scope.excluded_summary(cur, hours)
         # Behind a proxy that is not trusted (TRUSTED_PROXY_HOPS unset/wrong) every
-        # visitor shows up as the proxy's private address, and IP-based analysis --
-        # location included -- is meaningless. Say so instead of showing it quietly.
-        # top_ips is ordered by high-severity count, so its first row is not
-        # necessarily the busiest address; ask for that one directly.
+        # visitor is recorded as the proxy's private address -- and so left out as
+        # the server's own traffic. Look at everything recorded to say so, since
+        # the numbers above would otherwise just look quiet.
         cur.execute("SELECT ip, COUNT(*) FROM security_events WHERE " + _WINDOW +
                     " AND ip IS NOT NULL GROUP BY ip ORDER BY 2 DESC LIMIT 1", (hours,))
         busiest = cur.fetchone()
-        out["proxy_hint"] = bool(busiest and total and _protected(busiest[0]) and busiest[1] * 2 >= total)
+        recorded = out["excluded"]["recorded"]
+        out["proxy_hint"] = bool(busiest and recorded and _protected(busiest[0]) and busiest[1] * 2 >= recorded)
         out["proxy_ip"] = busiest[0] if out["proxy_hint"] else None
         # "Most active accounts": WAF / honeypot / ban-review events put the
         # source *address* in `identifier` (the ip column is always the
@@ -242,13 +244,13 @@ def overview(hours=24):
         # leave address-shaped identifiers out: they are not accounts, and
         # they already appear under the busiest sources.
         cur.execute(
-            "SELECT identifier, COUNT(*), COUNT(DISTINCT ip), MAX(created_at) FROM security_events "
+            ev + "SELECT identifier, COUNT(*), COUNT(DISTINCT ip), MAX(created_at) FROM ev "
             "WHERE " + _WINDOW + " AND identifier IS NOT NULL AND identifier NOT IN ('', 'None') "
             "AND identifier !~ '^[0-9]{1,3}(\\.[0-9]{1,3}){3}$' AND identifier NOT LIKE '%%:%%:%%' "
-            "GROUP BY identifier ORDER BY 2 DESC LIMIT 10", (hours,))
+            "GROUP BY identifier ORDER BY 2 DESC LIMIT 10", ep + [hours])
         out["top_identifiers"] = [{"identifier": i, "events": c, "ips": n, "last": iso(ts)} for i, c, n, ts in cur.fetchall()]
-        cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + _WINDOW + " AND " + ALERT_SQL +
-                    " ORDER BY created_at DESC, id DESC LIMIT 12", (hours,))
+        cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE " + _WINDOW + " AND " + ALERT_SQL +
+                    " ORDER BY created_at DESC, id DESC LIMIT 12", ep + [hours])
         out["recent_alerts"] = [shape_event(r) for r in cur.fetchall()]
         cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
         # Same count as the Response view's active_total (platform + company rows).
@@ -266,15 +268,28 @@ def pulse():
     with read_cursor("public") as cur:
         cur.execute("SELECT NOW()")
         now = cur.fetchone()[0]
-        cur.execute("SELECT level, COUNT(*) FROM security_events WHERE created_at >= NOW() - INTERVAL '1 hour' GROUP BY level")
+        ev, ep = soc_scope.events_cte(cur, 24)
+        cur.execute(ev + "SELECT level, COUNT(*) FROM ev WHERE created_at >= NOW() - INTERVAL '1 hour' GROUP BY level", ep)
         lh = {"CRITICAL": 0, "ERROR": 0, "WARNING": 0, "INFO": 0}
         lh.update({lvl: c for lvl, c in cur.fetchall() if lvl in lh})
-        cur.execute("SELECT COUNT(*) FROM security_events WHERE created_at >= NOW() - INTERVAL '24 hours' AND " + ALERT_SQL)
+        cur.execute(ev + "SELECT COUNT(*) FROM ev WHERE created_at >= NOW() - INTERVAL '24 hours' AND " + ALERT_SQL, ep)
         alerts_24h = cur.fetchone()[0]
     with read_cursor("att_master") as cur:
         cur.execute("SELECT COUNT(*) FROM soc_cases WHERE status IN ('open','investigating','contained')")
         open_cases = cur.fetchone()[0]
     return {"now": iso(now), "threat": threat_level(lh), "last_hour": lh, "alerts_24h": alerts_24h, "open_cases": open_cases}
+
+
+def event_totals(hours=24):
+    """Genuine events in the last `hours` and in the `hours` before that."""
+    hours = hours_arg(hours)
+    with read_cursor("public") as cur:
+        ev, ep = soc_scope.events_cte(cur, hours * 2)
+        cur.execute(ev + "SELECT COUNT(*) FILTER (WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')), "
+                    "COUNT(*) FILTER (WHERE created_at < NOW() - (%s * INTERVAL '1 hour')) "
+                    "FROM ev WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')", ep + [hours, hours, hours * 2])
+        current, previous = cur.fetchone()
+    return {"current": current, "previous": previous}
 
 
 # ── events ───────────────────────────────────────────────────────────
@@ -284,8 +299,9 @@ def search_events(*, q=None, levels=None, family=None, event_type=None, ip=None,
     limit = clamp_int(limit, 100, 1, 200)
     where, params = [_WINDOW], [hours]
     with read_cursor("public") as cur:
+        ev, ep = soc_scope.events_cte(cur, hours)
         if family:
-            cur.execute("SELECT DISTINCT event_type FROM security_events WHERE " + _WINDOW, (hours,))
+            cur.execute(ev + "SELECT DISTINCT event_type FROM ev WHERE " + _WINDOW, ep + [hours])
             types = [t for (t,) in cur.fetchall() if tax.family_of(t) == family]
             if not types:
                 return {"events": [], "next_cursor": None, "hours": hours}
@@ -329,8 +345,8 @@ def search_events(*, q=None, levels=None, family=None, event_type=None, ip=None,
             # "What arrived after the newest row on screen" -- the live-list check.
             where.append("id > %s")
             params.append(clamp_int(since, 0, 0, 2 ** 31 - 1))
-        cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + " AND ".join(where) +  # nosec B608 -- fixed clauses, bound values
-                    " ORDER BY id DESC LIMIT %s", params + [limit + 1])
+        cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE " + " AND ".join(where) +  # nosec B608 -- fixed clauses, bound values
+                    " ORDER BY id DESC LIMIT %s", ep + params + [limit + 1])
         rows = cur.fetchall()
     more = len(rows) > limit
     rows = rows[:limit]
@@ -360,8 +376,10 @@ def event_detail(event_id):
                 continue
             cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + col + " = %s AND id <> %s "  # nosec B608 -- col is a literal above
                         "AND created_at BETWEEN %s - INTERVAL '24 hours' AND %s + INTERVAL '24 hours' "
-                        "ORDER BY created_at DESC LIMIT 25", (val, event_id, ts, ts))
-            related[key] = [shape_event(r) for r in cur.fetchall()]
+                        "ORDER BY created_at DESC LIMIT 100", (val, event_id, ts, ts))
+            # Genuine activity only, as in every list (utils/soc_scope.py).
+            related[key] = [shape_event(r) for r in cur.fetchall()
+                            if soc_scope.is_genuine(r[1], r[5], r[4], r[6])][:25]
         ev["related"] = related
         try:
             cur.execute("SELECT prev_hash, row_hash FROM security_events WHERE id=%s", (event_id,))
@@ -380,19 +398,26 @@ def event_detail(event_id):
 # ── entities ─────────────────────────────────────────────────────────
 def _profile(col, value, days=30):
     days = clamp_int(days, 30, 1, 90)
+    if col == "ip":
+        reason = soc_scope.ip_reason(value)
+    else:
+        reason = "test_account" if soc_scope.is_test_account(value) else None
     with read_cursor("public") as cur:
+        ev, ep = soc_scope.events_cte(cur, days * 24)
         win = "created_at >= NOW() - (%s * INTERVAL '1 day')"
-        cur.execute("SELECT COUNT(*), MIN(created_at), MAX(created_at), COUNT(DISTINCT event_type), "  # nosec B608 -- col is a literal
-                    "COUNT(*) FILTER (WHERE level IN ('ERROR','CRITICAL')) FROM security_events WHERE " + col + "=%s AND " + win,
-                    (value, days))
+        cur.execute(ev + "SELECT COUNT(*), MIN(created_at), MAX(created_at), COUNT(DISTINCT event_type), "  # nosec B608 -- col is a literal
+                    "COUNT(*) FILTER (WHERE level IN ('ERROR','CRITICAL')) FROM ev WHERE " + col + "=%s AND " + win,
+                    ep + [value, days])
         total, first, last, ntypes, high = cur.fetchone()
         prof = {"value": value, "kind": col, "days": days, "events": total, "first_seen": iso(first),
-                "last_seen": iso(last), "event_types": ntypes, "high_severity": high}
+                "last_seen": iso(last), "event_types": ntypes, "high_severity": high,
+                # Why this value shows nothing, when it is one the console leaves out.
+                "excluded": soc_scope.EXCLUDED_NOTES.get(reason) if reason else None}
         if not total:
             prof.update({"types": [], "other": [], "paths": [], "recent": [], "families": [], "techniques": []})
         else:
-            cur.execute("SELECT event_type, COUNT(*) FROM security_events WHERE " + col + "=%s AND " + win +  # nosec B608
-                        " GROUP BY event_type ORDER BY 2 DESC LIMIT 25", (value, days))
+            cur.execute(ev + "SELECT event_type, COUNT(*) FROM ev WHERE " + col + "=%s AND " + win +  # nosec B608
+                        " GROUP BY event_type ORDER BY 2 DESC LIMIT 25", ep + [value, days])
             types = cur.fetchall()
             prof["types"] = [{"event_type": et, "label": tax.classify(et)["label"], "count": c} for et, c in types]
             fam, tech = {}, {}
@@ -404,14 +429,14 @@ def _profile(col, value, days=30):
             prof["families"] = [{"family": f, "label": tax.FAMILIES[f], "count": c} for f, c in sorted(fam.items(), key=lambda x: -x[1])]
             prof["techniques"] = list(tech.values())
             other_col = "identifier" if col == "ip" else "ip"
-            cur.execute("SELECT " + other_col + ", COUNT(*) FROM security_events WHERE " + col + "=%s AND " + win +  # nosec B608
-                        " AND " + other_col + " IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20", (value, days))
+            cur.execute(ev + "SELECT " + other_col + ", COUNT(*) FROM ev WHERE " + col + "=%s AND " + win +  # nosec B608
+                        " AND " + other_col + " IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20", ep + [value, days])
             prof["other"] = [{"value": v, "count": c} for v, c in cur.fetchall()]
-            cur.execute("SELECT path, COUNT(*) FROM security_events WHERE " + col + "=%s AND " + win +  # nosec B608
-                        " AND path IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 15", (value, days))
+            cur.execute(ev + "SELECT path, COUNT(*) FROM ev WHERE " + col + "=%s AND " + win +  # nosec B608
+                        " AND path IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 15", ep + [value, days])
             prof["paths"] = [{"path": p, "count": c} for p, c in cur.fetchall()]
-            cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + col + "=%s AND " + win +  # nosec B608
-                        " ORDER BY id DESC LIMIT 50", (value, days))
+            cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE " + col + "=%s AND " + win +  # nosec B608
+                        " ORDER BY id DESC LIMIT 50", ep + [value, days])
             prof["recent"] = [shape_event(r) for r in cur.fetchall()]
         if col == "ip":
             cur.execute("SELECT reason, banned_by, banned_at, expires_at FROM public.banned_ips "
@@ -434,8 +459,9 @@ def entity_identifier(identifier, days=30):
 def detections(hours=72):
     hours = hours_arg(hours, 72)
     with read_cursor("public") as cur:
-        cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE event_type LIKE 'detection.%%' AND " + _WINDOW +
-                    " ORDER BY id DESC LIMIT 200", (hours,))
+        ev, ep = soc_scope.events_cte(cur, hours)
+        cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE event_type LIKE 'detection.%%' AND " + _WINDOW +
+                    " ORDER BY id DESC LIMIT 200", ep + [hours])
         events = [shape_event(r) for r in cur.fetchall()]
         cur.execute("SELECT rule, MAX(last_fired), SUM(fired) FROM detection_state GROUP BY rule")
         fired = {r[0]: {"last": iso(r[1]), "times": int(r[2] or 0)} for r in cur.fetchall()}
@@ -468,21 +494,16 @@ def platform_log_text(hours=24, max_bytes=None, max_events=PLATFORM_LOG_MAX_EVEN
     from utils import soc_loganalysis
     hours = hours_arg(hours)
     max_bytes = max_bytes or soc_loganalysis.MAX_BYTES
-    # The console's own activity (soc.* -- analysts signing in, banning, exporting)
-    # is not platform traffic: analysing it would inflate the numbers and could
-    # put an analyst's own address among the "block" recommendations.
-    # Console traffic also produces non-soc.* events (a 429 or access.denied on
-    # /soc/api/...), so drop events on /soc/ paths from addresses that signed in
-    # to or acted in the console. Strangers probing /soc/ stay in the analysis.
-    # The lookback is wider than the window: a session can outlive it.
-    not_soc = (" AND event_type NOT LIKE 'soc.%%' AND NOT (COALESCE(path, '') LIKE '/soc/%%' AND ip IN ("
-               "SELECT ip FROM security_events WHERE event_type IN ('soc.login_success', 'soc.action') "
-               "AND ip IS NOT NULL AND created_at >= NOW() - ((%s + 24) * INTERVAL '1 hour')))")
+    # Genuine activity only (utils/soc_scope.py): the console's own use would inflate
+    # the numbers and could put an analyst's own address among the "block"
+    # recommendations; the server's own addresses and your testing are not attacks.
+    # Strangers probing /socperson stay in the analysis.
     with read_cursor("public", 20000) as cur:
-        cur.execute("SELECT COUNT(*) FROM security_events WHERE " + _WINDOW + not_soc, (hours, hours))
+        ev, ep = soc_scope.events_cte(cur, hours)
+        cur.execute(ev + "SELECT COUNT(*) FROM ev WHERE " + _WINDOW, ep + [hours])
         total = cur.fetchone()[0]
-        cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + _WINDOW + not_soc + " ORDER BY id DESC LIMIT %s",
-                    (hours, hours, max_events))
+        cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE " + _WINDOW + " ORDER BY id DESC LIMIT %s",
+                    ep + [hours, max_events])
         rows = cur.fetchall()
     lines, size = [], 0
     for eid, et, level, msg, ident, ip, path, method, extra, ts in rows:      # newest first
@@ -505,9 +526,10 @@ def platform_log_text(hours=24, max_bytes=None, max_events=PLATFORM_LOG_MAX_EVEN
 BRIEF_KINDS = ("kpi", "event_type", "family", "technique", "level")
 
 
-def _slice(cur, kind, value, hours):
+def _slice(cur, kind, value, hours, ev, ep):
     """-> (sql_condition, params, events_view_filter) for one Overview slice.
-    Raises ValueError for anything unknown."""
+    `ev`/`ep` is the genuine-activity CTE (soc_scope.events_cte). Raises
+    ValueError for anything unknown."""
     if kind == "kpi":
         if value not in KPI_SQL:
             raise ValueError("Unknown indicator.")
@@ -528,8 +550,8 @@ def _slice(cur, kind, value, hours):
             raise ValueError("Unknown area.")
         if kind == "technique" and value not in tax.MITRE:
             raise ValueError("Unknown technique.")
-        cur.execute("SELECT DISTINCT event_type FROM security_events "
-                    "WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')", (hours * 2,))
+        cur.execute(ev + "SELECT DISTINCT event_type FROM ev "
+                    "WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')", ep + [hours * 2])
         seen = [t for (t,) in cur.fetchall()]
         if kind == "family":
             types = [t for t in seen if tax.family_of(t) == value]
@@ -546,71 +568,58 @@ def _slice(cur, kind, value, hours):
 def brief(kind, value, hours=24):
     """Everything an analyst needs to understand one Overview item: the playbook
     (what / why / check / respond), live numbers with the trend against the
-    previous window of the same length, who is involved (sources with location
-    and anonymizer flags, accounts, paths), which event types make it up, and
-    recent examples."""
-    from utils import soc_geo, soc_playbooks
+    previous window of the same length, who is involved (sources, accounts,
+    paths), which event types make it up, and recent examples."""
+    from utils import soc_playbooks
     hours = hours_arg(hours)
     if kind == "level":
         value = (value or "").upper()
     cur_w = "created_at >= NOW() - (%s * INTERVAL '1 hour')"
     with read_cursor("public") as cur:
-        cond, cp, filt = _slice(cur, kind, value, hours)
-        base = " FROM security_events WHERE " + cond + " AND "     # nosec B608 -- cond from _slice (constants / bound params)
+        ev, ep = soc_scope.events_cte(cur, hours * 2)
+        cond, cp, filt = _slice(cur, kind, value, hours, ev, ep)
+        base = " FROM ev WHERE " + cond + " AND "     # nosec B608 -- cond from _slice (constants / bound params)
 
-        cur.execute("SELECT COUNT(*) FILTER (WHERE " + cur_w + "), "
+        cur.execute(ev + "SELECT COUNT(*) FILTER (WHERE " + cur_w + "), "
                     "COUNT(*) FILTER (WHERE created_at < NOW() - (%s * INTERVAL '1 hour')), "
                     "COUNT(DISTINCT ip) FILTER (WHERE " + cur_w + "), "
                     "COUNT(DISTINCT identifier) FILTER (WHERE " + cur_w + " AND identifier NOT IN ('', 'None')), "
                     "MIN(created_at) FILTER (WHERE " + cur_w + "), MAX(created_at) FILTER (WHERE " + cur_w + ")"
                     + base + "created_at >= NOW() - (%s * INTERVAL '1 hour')",
-                    [hours, hours, hours, hours, hours, hours] + cp + [hours * 2])
+                    ep + [hours, hours, hours, hours, hours, hours] + cp + [hours * 2])
         now_n, prev_n, n_ips, n_ids, first, last = cur.fetchone()
         stats = {"events": now_n, "previous": prev_n, "unique_ips": n_ips, "accounts": n_ids,
                  "first": iso(first), "last": iso(last),
                  "change_pct": (round(100.0 * (now_n - prev_n) / prev_n) if prev_n else None)}
 
         win = base + cur_w
-        cur.execute("SELECT event_type, COUNT(*)" + win + " GROUP BY 1 ORDER BY 2 DESC LIMIT 30", cp + [hours])
+        cur.execute(ev + "SELECT event_type, COUNT(*)" + win + " GROUP BY 1 ORDER BY 2 DESC LIMIT 30", ep + cp + [hours])
         types = [{"event_type": et, "label": tax.classify(et)["label"], "count": c} for et, c in cur.fetchall()]
-        cur.execute("SELECT level, COUNT(*)" + win + " GROUP BY 1", cp + [hours])
+        cur.execute(ev + "SELECT level, COUNT(*)" + win + " GROUP BY 1", ep + cp + [hours])
         levels = dict(cur.fetchall())
-        cur.execute("SELECT ip, COUNT(*), COUNT(DISTINCT event_type), MAX(created_at), "
+        cur.execute(ev + "SELECT ip, COUNT(*), COUNT(DISTINCT event_type), MAX(created_at), "
                     "COUNT(DISTINCT identifier) FILTER (WHERE identifier NOT IN ('', 'None'))"
-                    + win + " AND ip IS NOT NULL GROUP BY ip ORDER BY 2 DESC LIMIT 15", cp + [hours])
+                    + win + " AND ip IS NOT NULL GROUP BY ip ORDER BY 2 DESC LIMIT 15", ep + cp + [hours])
         ip_rows = cur.fetchall()
         banned = _banned_set(cur, [r[0] for r in ip_rows])
-        cur.execute("SELECT identifier, COUNT(*), COUNT(DISTINCT ip), MAX(created_at)" + win +
+        cur.execute(ev + "SELECT identifier, COUNT(*), COUNT(DISTINCT ip), MAX(created_at)" + win +
                     " AND identifier IS NOT NULL AND identifier NOT IN ('', 'None') GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
-                    cp + [hours])
+                    ep + cp + [hours])
         accounts = [{"identifier": i, "events": c, "ips": n, "last": iso(ts)} for i, c, n, ts in cur.fetchall()]
-        cur.execute("SELECT path, COUNT(*)" + win + " AND path IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
-                    cp + [hours])
+        cur.execute(ev + "SELECT path, COUNT(*)" + win + " AND path IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10",
+                    ep + cp + [hours])
         paths = [{"path": p, "count": c} for p, c in cur.fetchall()]
-        cur.execute("SELECT " + EV_COLS + win + " ORDER BY id DESC LIMIT 15", cp + [hours])
+        cur.execute(ev + "SELECT " + EV_COLS + win + " ORDER BY id DESC LIMIT 15", ep + cp + [hours])
         recent = [shape_event(r) for r in cur.fetchall()]
 
-    geo = soc_geo.lookup([r[0] for r in ip_rows])
-    sources, countries, masked = [], {}, 0
-    for ip, c, t, ts, ids in ip_rows:
-        g = geo.get(ip) or {}
-        sources.append({"ip": ip, "events": c, "types": t, "accounts": ids, "last": iso(ts), "banned": ip in banned,
-                        "protected": _protected(ip), "geo": g})
-        if g.get("scope") == "public":
-            key = g.get("country") or "Unknown"
-            countries[key] = countries.get(key, 0) + c
-            if g.get("anonymizer") or g.get("datacenter"):
-                masked += c
-    located = sum(countries.values())
-
+    sources = [{"ip": ip, "events": c, "types": t, "accounts": ids, "last": iso(ts), "banned": ip in banned,
+                "protected": _protected(ip)} for ip, c, t, ts, ids in ip_rows]
     if kind == "kpi" and value in ("failed_logins", "waf_blocks", "honeypot_hits") and types:
         filt = {"event_type": ",".join(t["event_type"] for t in types)}
     out = soc_playbooks.brief_for(kind, value)
     out.update({
         "kind": kind, "value": value, "hours": hours, "stats": stats, "levels": levels, "types": types,
         "sources": sources, "accounts": accounts, "paths": paths, "recent": recent,
-        "countries": sorted(({"country": k, "events": v} for k, v in countries.items()), key=lambda x: -x["events"]),
-        "masked": {"events": masked, "of": located},
         # None = nothing to open (the UI hides the links); {} = every event.
         "events_filter": None if filt is False else (filt or {}),
     })
@@ -805,11 +814,12 @@ def tenants_overview(hours=24):
     hours = hours_arg(hours)
 
     def build():
-        tenants = list_tenants()
+        tenants = [t for t in list_tenants() if not soc_scope.is_test_company(t["slug"])]
         with read_cursor("public") as cur:
+            ev, ep = soc_scope.events_cte(cur, hours)
             cur.execute(
-                "SELECT split_part(path, '/', 2) AS slug, COUNT(*), COUNT(*) FILTER (WHERE " + ALERT_SQL + ") "
-                "FROM security_events WHERE " + _WINDOW + " AND path LIKE '/%%/%%' GROUP BY 1", (hours,))
+                ev + "SELECT split_part(path, '/', 2) AS slug, COUNT(*), COUNT(*) FILTER (WHERE " + ALERT_SQL + ") "
+                "FROM ev WHERE " + _WINDOW + " AND path LIKE '/%%/%%' GROUP BY 1", ep + [hours])
             counts = {s: (c, a) for s, c, a in cur.fetchall()}
         with read_cursor("att_master") as cur:
             cur.execute("SELECT conflicting_tenant_id, COUNT(*) FROM tenant_duplicate_alerts WHERE acknowledged=0 GROUP BY 1")
@@ -833,6 +843,8 @@ def attendance_integrity(days=7):
 
     def build():
         def per_tenant(t, cur):
+            if soc_scope.is_test_company(t["slug"]):       # your own testing (SOC_TEST_COMPANIES)
+                return None
             # Default company stores its tables in public.
             # Other tenants must have their own schema-specific table.
             default_schema = os.environ.get("DB_NAME", "employee_attendance")
@@ -885,10 +897,12 @@ def risky_sessions():
     The view loads on demand (it does not poll), so there is no refresh storm."""
     def build():
         def per_tenant(t, cur):
+            if soc_scope.is_test_company(t["slug"]):       # your own testing (SOC_TEST_COMPANIES)
+                return None
             cur.execute("SELECT sid, identifier, attempt_type, score, status, last_reason, updated_at FROM session_risk "
                         # A plain logout ('revoked', score 0) isn't risky.
                         "WHERE status NOT IN ('active', 'revoked') OR score > 0 ORDER BY updated_at DESC LIMIT 25")
-            rows = cur.fetchall()
+            rows = [r for r in cur.fetchall() if not soc_scope.is_test_account(r[1])]
             if not rows:
                 return None
             return [{"tenant_id": t["id"], "company": t["company"], "slug": t["slug"],
@@ -948,10 +962,28 @@ def posture():
     add("captcha", "Login / signup CAPTCHA", "pass" if ts else "warn",
         "Cloudflare Turnstile is configured." if ts else "Turnstile keys are not configured.",
         "Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY.")
-    add("socnet", "SOC console network allow-list", "pass" if os.environ.get("SOC_ALLOWED_CIDRS", "").strip() else "warn",
-        "SOC_ALLOWED_CIDRS restricts who can reach /soc." if os.environ.get("SOC_ALLOWED_CIDRS", "").strip()
-        else "/soc is reachable from any address (login still needs password + TOTP).",
-        "Set SOC_ALLOWED_CIDRS to your office / VPN ranges.")
+    from utils.soc_auth import allow_list_state, login_emails
+    socnet = {
+        "restricted": ("pass", "SOC_ALLOWED_CIDRS restricts who can reach /socperson."),
+        "everywhere": ("warn", "SOC_ALLOWED_CIDRS opens /socperson to every address; an emailed code is the only barrier."),
+        "invalid": ("fail", "SOC_ALLOWED_CIDRS cannot be parsed, so /socperson refuses everyone."),
+        "unset_open": ("warn", "SOC_ALLOWED_CIDRS is not set: open here only because APP_ENV=development. "
+                               "Any other environment keeps /socperson closed until it is set."),
+        "unset_closed": ("fail", "SOC_ALLOWED_CIDRS is not set, so /socperson is closed to every address."),
+    }[allow_list_state()]
+    add("socnet", "SOC console network allow-list", socnet[0], socnet[1],
+        "Set SOC_ALLOWED_CIDRS to your office / VPN ranges (0.0.0.0/0,::/0 opens it to everyone on purpose).")
+    logins = len(login_emails())
+    add("soclogin", "SOC console sign-in addresses", "pass" if logins else "fail",
+        f"{logins} address(es) in SOC_LOGIN_EMAILS can request a sign-in code." if logins
+        else "SOC_LOGIN_EMAILS lists no valid address, so nobody can sign in to /socperson.",
+        "List the people who may sign in: SOC_LOGIN_EMAILS=you@example.com,colleague@example.com:analyst.")
+    from utils import soc_passkeys
+    pk_on = soc_passkeys.required()
+    add("socpasskey", "SOC console passkey step", "pass" if pk_on else "fail",
+        "Sign-in needs the emailed code and then the person's passkey." if pk_on
+        else "SOC_PASSKEY=off: the emailed code alone opens the console, so whoever controls a listed inbox can sign in.",
+        "Leave SOC_PASSKEY unset (on). Use off only briefly, to let a sole admin who lost their passkey back in.")
     # Alert delivery. With no channel, utils/alerts.send_security_alert skips
     # silently, so this is the one place that can say nobody is being paged.
     # Never shows the webhook URL (it is the credential) or the addresses.
@@ -975,15 +1007,13 @@ def posture():
             alert_fix)
     add("anchors", "Audit-log anchoring", "info", "Hash-chain heads are written to stdout for off-box shipping.",
         "Confirm Alloy / Promtail ships them to Loki (observability/).")
-    from utils import soc_geo
-    geo_on = soc_geo.enabled()
-    add("geo", "IP location lookups", "info",
-        (f"On: public IPs shown in the console are looked up server-side at {soc_geo.PROVIDER_NAME} and cached "
-         f"for {soc_geo._ttl_days()} days; private / shared addresses never leave the server. "
-         + ("An API key is set." if os.environ.get("SOC_GEO_API_KEY", "").strip()
-            else "No API key: the free tier allows about 1,000 lookups a day.")) if geo_on
-        else "Off: no IP is sent to any lookup service; locations are not shown.",
-        "Set SOC_GEO_API_KEY for a higher daily quota, or SOC_GEO_PROVIDER=off to stop sending IPs out.")
+    n_nets, n_accts, n_cos = (len(soc_scope.test_networks()), len(soc_scope.test_accounts()),
+                              len(soc_scope.test_companies()))
+    add("scope", "Genuine activity only", "info",
+        "The console leaves out the server's own addresses, its own sign-ins and actions, and your testing: "
+        f"{n_nets} address range(s), {n_accts} account(s) and {n_cos} company(ies) listed. "
+        "No address is sent to any outside lookup service.",
+        "List what you test with in SOC_TEST_CIDRS, SOC_TEST_ACCOUNTS and SOC_TEST_COMPANIES.")
     _loki_raw = os.environ.get("LOKI_URL", "").strip()
     if _loki_base():
         add("loki", "Log pipeline (Loki)", "pass", "LOKI_URL is set; the Logs view can query it.",

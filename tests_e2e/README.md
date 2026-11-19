@@ -31,8 +31,8 @@ pytest tests_e2e/ --browser chromium
 ```
 
 Not part of `pytest tests/` or `pytest` with no args -- `pytest.ini`'s
-`testpaths = tests` already excludes this directory, and it isn't wired
-into CI (see below for why).
+`testpaths = tests` already excludes this directory. Only the SOC passkey
+flow runs in CI (see "What runs in CI" below).
 
 `tests_e2e/conftest.py` starts the real app (the same `wsgi.py` entry
 point production/gunicorn use -- full migration bootstrap against
@@ -46,7 +46,7 @@ seeds and cleans up that row itself.
 
 ## What's covered, and what deliberately isn't
 
-Five flows, chosen to be both genuinely critical and achievable without a
+Six flows, chosen to be both genuinely critical and achievable without a
 real detectable face photo (Add Employee's web form and `/api/employees`
 both reject a photo with no detected face via
 `face_recognition.face_encodings()` -- see `blueprints/employees/` --
@@ -62,19 +62,28 @@ external browser-driven test can't do):
 5. Admin changes their own password -> the old password stops working and
    the new one logs in (checked from fresh, cookie-less browser contexts,
    not by trusting this app's own logout redirect/cookie timing).
+6. SOC console sign-in (`test_soc_passkey.py`): email -> emailed code ->
+   create a passkey at the first sign-in, then sign in again with it, and a
+   second device without the passkey is refused. The passkey lives in
+   Chromium's virtual authenticator, so `soc_ui/login.js` and py_webauthn's
+   real signature checks both run; the emailed code is captured in-process.
+   Opened at `http://localhost:<port>` because browsers do not accept an IP
+   address as a passkey's site.
 
 Not covered here: face-recognition check-in/photo upload (see above),
 payment flows (Razorpay has no sandbox reachable from a CI-shaped
 environment without real API keys), and anything requiring a second
 factor (MFA is disabled for this whole suite -- see "Running" above).
 
-## Why this isn't in CI (yet)
+## What runs in CI
 
-Wiring this into `.github/workflows/*.yml` would mean: a Postgres service
-(already true for the main suite), `playwright install chromium
---with-deps` (a real, non-trivial download+install on every run unless
-cached), and a meaningfully slower job (~1-2 minutes for 5 flows vs.
-seconds for the equivalent test-client-based coverage). Left as a manual
-verification step for now rather than a blocking gate on every push --
-revisit if these flows start catching real regressions the main suite
+Only flow 6, the SOC passkey sign-in: `.github/workflows/deploy.yml`, job
+`e2e-soc-passkey`, which the image build waits for. It is the one flow the
+main suite cannot cover at all (the browser half of a passkey), and a break
+in it locks every analyst out of `/socperson`. The job caches the Chromium
+download by Playwright version; its system libraries are installed each run.
+
+The other flows stay a manual check. Wiring them in would mean a meaningfully
+slower job (~1-2 minutes vs. seconds for the equivalent test-client-based
+coverage); revisit if they start catching real regressions the main suite
 misses, which is the actual signal that the CI cost is worth paying.

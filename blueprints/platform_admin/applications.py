@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """platform_admin: gated company-signup review queue (approve/reject, documents)"""
-import secrets
 from database import get_master_db
 from extensions import app_log, log_security_event
 from utils.auth import _hash_token
 from flask import flash, redirect, render_template, request, session
 from . import _platform_admin_required, platform_admin_bp
+from utils.tokens import waf_safe_token
 
 
 # ── Gated company-signup review queue (blueprints/org.py's tenant_applications) ──
@@ -194,7 +194,7 @@ def platform_admin_approve_application(application_id):
         # Rotate the application's access token (same one-live-token model
         # as the rejection email below) so the emailed pay link can carry
         # it -- /create_org/pay/<id> now requires it (blueprints/org.py).
-        access_token = secrets.token_urlsafe(32)
+        access_token = waf_safe_token(32)
         cur.execute(
             "UPDATE tenant_applications SET status='approved_pending_payment', reviewed_by=%s, reviewed_at=NOW(), "
             "access_token_hash=%s, updated_at=NOW() WHERE id=%s",
@@ -230,7 +230,7 @@ def platform_admin_approve_application(application_id):
         # parallel status string every status-aware view would also need
         # to learn -- create_org_status.html branches on payment_option to
         # show trial-appropriate copy for it.
-        access_token = secrets.token_urlsafe(32)
+        access_token = waf_safe_token(32)
         cur.execute(
             "UPDATE tenant_applications SET status='approved_pending_payment', reviewed_by=%s, reviewed_at=NOW(), "
             "access_token_hash=%s, updated_at=NOW() WHERE id=%s",
@@ -325,7 +325,7 @@ def platform_admin_reject_application(application_id):
     # safe: the old token stops working the moment this UPDATE lands,
     # same one-token-live-at-a-time model as every other flow that reuses
     # access_token_hash.
-    new_token = secrets.token_urlsafe(32)
+    new_token = waf_safe_token(32)
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(

@@ -4,7 +4,8 @@ grant_runtime_privileges / scripts/provision_db_roles.py).
 These only mean something when the suite is run with the split configured --
 DB_USER = restricted runtime role, DB_OWNER_USER = owner role (see
 docs/SECURITY_HARDENING.md, "Database roles") -- so they skip otherwise. CI runs
-them in a dedicated job.
+them in a dedicated job (.github/workflows/deploy.yml, `test-role-split`), which
+fails if any of them is skipped.
 """
 import os
 

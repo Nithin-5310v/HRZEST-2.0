@@ -237,8 +237,13 @@ def issue_challenge(cursor, employee_id, ip):
     # scanned QR text and the portal endpoint upper-cases the verified id, so
     # a challenge bound to the raw casing would never be redeemable there.
     employee_id = (employee_id or "").upper()
-    cid = secrets.token_urlsafe(16)
-    nonce = secrets.token_urlsafe(24)
+    # Hex, not token_urlsafe: the client sends both back in the check-in
+    # body, and the WAF's "0x<hex>" SQLi rule (utils/waf.py) blocked any
+    # urlsafe value that happened to contain e.g. "0x4DdD" -- roughly one
+    # challenge in several thousand failed check-in for no reason. Hex has
+    # no "x", so it can never match. Same entropy (128 / 192 bits).
+    cid = secrets.token_hex(16)
+    nonce = secrets.token_hex(24)
     action = secrets.choice(liveness.ACTIONS)
     cursor.execute(
         "INSERT INTO checkin_challenges (id, employee_id, nonce_hash, action, ip, expires_at) "

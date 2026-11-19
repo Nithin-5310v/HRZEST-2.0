@@ -69,7 +69,7 @@ def test_an_idle_super_admin_is_sent_to_login(client):
     assert resp.status_code == 302 and resp.headers["Location"] == "/super_admin/login"
 
 
-@pytest.mark.parametrize("path", ["/super_admin/login", "/super_admin", "/login", "/admin", "/soc/login"])
+@pytest.mark.parametrize("path", ["/super_admin/login", "/super_admin", "/login", "/admin", "/socperson/login"])
 def test_admin_responses_carry_noindex(client, path):
     _as(client)
     assert "noindex" in client.get(path).headers.get("X-Robots-Tag", "")

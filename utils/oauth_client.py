@@ -28,6 +28,7 @@ import urllib.parse
 import urllib.error
 
 from extensions import app_log
+from utils.tokens import waf_safe_token
 
 # One-trial-per-domain (see migrations/master.py's tenants.email_domain
 # partial unique index, which excludes exactly this list) doesn't apply to
@@ -144,7 +145,7 @@ def build_authorize_url(provider, redirect_uri, mode, tenant_db=None):
     if not provider_configured(provider):
         raise RuntimeError(f"{provider} OAuth is not configured")
     cfg = PROVIDERS[provider]
-    state = secrets.token_urlsafe(32)
+    state = waf_safe_token(32)
     code_verifier = secrets.token_urlsafe(64)
     code_challenge = _b64url(hashlib.sha256(code_verifier.encode("ascii")).digest())
     _save_state(state, provider, mode, code_verifier, tenant_db)

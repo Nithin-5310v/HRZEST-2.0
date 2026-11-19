@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """employees: admin actions, edit/delete, employee profile, employee info API"""
 import os
-import secrets
 from database import get_db_connection, transaction
 from extensions import app_log, limiter, log_security_event
 from flask import flash, jsonify, redirect, render_template, request, session
@@ -27,6 +26,7 @@ from utils.helpers import (
 from utils.storage import decrypted_stream, save_upload
 from utils.tenant_files import face_photo_path
 from . import employees_bp
+from utils.tokens import waf_safe_token
 
 
 # Which module's edit access each admin_action needs (Settings -> Roles &
@@ -91,7 +91,7 @@ def admin_action():
             # must_change_password makes the employee replace it at their
             # next login: /force_change_pin on the web, and
             # /api/employee/login refuses to issue a token until then.
-            temp_password = secrets.token_urlsafe(9)
+            temp_password = waf_safe_token(9)
             cursor.execute(
                 "UPDATE employees SET password=%s, must_change_password=1 WHERE employee_id=%s",
                 (generate_password_hash(temp_password), emp_id)

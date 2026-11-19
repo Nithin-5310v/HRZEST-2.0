@@ -136,7 +136,7 @@
     if (method !== 'GET') init.headers['X-CSRF-Token'] = csrf();
     if (poll) init.headers['X-SOC-Poll'] = '1';
     return fetch(url, init).then(function (res) {
-      if (res.status === 401) { window.location.href = '/soc/login'; throw new Error('Signed out'); }
+      if (res.status === 401) { window.location.href = '/socperson/login'; throw new Error('Signed out'); }
       var json = (res.headers.get('content-type') || '').indexOf('json') >= 0;
       return (json ? res.json() : Promise.resolve(null)).then(function (data) {
         if (!res.ok || (data && data.ok === false)) {
@@ -165,56 +165,11 @@
         href: 'https://attack.mitre.org/techniques/' + id.replace('.', '/') + '/' }, id);
     });
   };
-  // An IP link plus its location line. The location is filled in by geoScan()
-  // below, which batches every IP on screen into one server-side lookup.
-  SOC.ipLink = function (ip, opts) {
+  // Only what HRZEST recorded: no address is looked up at an outside service.
+  SOC.ipLink = function (ip) {
     if (!ip) return h('span', { class: 'muted' }, '–');
-    var a = h('a', { class: 'mono', href: '#/entity?ip=' + encodeURIComponent(ip), title: 'Look up ' + ip }, ip);
-    if (opts && opts.geo === false) return a;
-    return h('span', { class: 'iploc' }, a, h('span', { class: 'geo', 'data-ip': ip }));
+    return h('a', { class: 'mono', href: '#/entity?ip=' + encodeURIComponent(ip), title: 'Look up ' + ip }, ip);
   };
-
-  /* ---------- IP location (server-side lookup, cached) ---------- */
-  var geoCache = {}, geoPending = {}, geoTimer = null;
-  SOC.geoPrime = function (map) { Object.keys(map || {}).forEach(function (ip) { if (map[ip]) geoCache[ip] = map[ip]; }); };
-  SOC.geoLabel = function (g) {
-    if (!g) return null;
-    if (g.scope === 'private') return h('span', { class: 'muted', title: g.note || '' }, 'private / proxy address');
-    if (g.scope !== 'public') return null;
-    var bits = [h('span', null, g.location || g.country || 'Unknown location')];
-    if (g.anonymizer) bits.push(SOC.chip(g.anonymizer, 'bad'));
-    else if (g.datacenter) bits.push(SOC.chip('Hosting', 'warn'));
-    return h('span', { title: [g.connection_type, g.provider || g.organisation, g.asn, g.hostname].filter(Boolean).join(' · ') }, bits);
-  };
-  function geoRender(el, g) {
-    el.setAttribute('data-done', '1');
-    el.textContent = '';
-    var lbl = SOC.geoLabel(g);
-    if (lbl) el.appendChild(lbl); else if (g && g.note) el.title = g.note;
-  }
-  function geoScan() {
-    geoTimer = null;
-    var want = [];
-    Array.prototype.forEach.call(document.querySelectorAll('.geo[data-ip]:not([data-done])'), function (el) {
-      var ip = el.getAttribute('data-ip');
-      if (geoCache[ip]) geoRender(el, geoCache[ip]);
-      else if (!geoPending[ip] && want.indexOf(ip) < 0) want.push(ip);
-    });
-    for (var i = 0; i < want.length; i += 50) {
-      (function (chunk) {
-        chunk.forEach(function (ip) { geoPending[ip] = 1; });
-        SOC.api.get('/soc/api/geo', { ips: chunk.join(',') }, true).then(function (d) {
-          chunk.forEach(function (ip) { geoCache[ip] = (d.geo && d.geo[ip]) || { scope: 'unavailable' }; });
-        }).catch(function () {
-          chunk.forEach(function (ip) { geoCache[ip] = { scope: 'unavailable' }; });
-        }).then(function () { chunk.forEach(function (ip) { delete geoPending[ip]; }); geoSoon(); });
-      })(want.slice(i, i + 50));
-    }
-  }
-  function geoSoon() { if (!geoTimer) geoTimer = setTimeout(geoScan, 120); }
-  // Retry addresses that could not be resolved last time (quota, per-request cap).
-  function geoForgetUnavailable() { Object.keys(geoCache).forEach(function (ip) { if (geoCache[ip].scope === 'unavailable') delete geoCache[ip]; }); }
-  if (window.MutationObserver) new MutationObserver(geoSoon).observe(document.body, { childList: true, subtree: true });
   SOC.idLink = function (id) {
     return id && id !== 'None' ? h('a', { href: '#/entity?identifier=' + encodeURIComponent(id), title: 'Look up ' + id }, id) : h('span', { class: 'muted' }, '–');
   };
@@ -388,7 +343,7 @@
   function route() {
     var r = parseHash(), view = SOC.views[r.name];
     if (!view || !SOC.can(view.min || 'viewer')) { SOC.go('overview'); return; }
-    clearTimers(); destroyCharts(); geoForgetUnavailable();
+    clearTimers(); destroyCharts();
     if (SOC.drawer.isOpen()) SOC.drawer.close();
     current = { view: view, params: r.params };
     document.getElementById('title').textContent = view.title || view.label;
@@ -453,7 +408,7 @@
     SOC.pulse = p;
   }
   SOC.refreshPulse = function (poll) {
-    return SOC.api.get('/soc/api/pulse', null, poll).then(applyPulse).catch(function () { /* transient */ });
+    return SOC.api.get('/socperson/api/pulse', null, poll).then(applyPulse).catch(function () { /* transient */ });
   };
 
   function idleWatch() {
@@ -462,11 +417,11 @@
       document.addEventListener(ev, function () { if (!warned) last = Date.now(); }, { passive: true });
     });
     document.getElementById('idleStay').addEventListener('click', function () {
-      SOC.api.get('/soc/api/me').then(function () { warned = false; last = Date.now(); bar.hidden = true; });
+      SOC.api.get('/socperson/api/me').then(function () { warned = false; last = Date.now(); bar.hidden = true; });
     });
     setInterval(function () {
       var idle = (Date.now() - last) / 1000;
-      if (idle >= SOC.idle) { window.location.href = '/soc/login'; }
+      if (idle >= SOC.idle) { window.location.href = '/socperson/login'; }
       else if (idle >= SOC.idle - 60) { warned = true; bar.hidden = false; }
     }, 5000);
   }

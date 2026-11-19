@@ -153,18 +153,18 @@ class TestConsoleApi:
     def test_viewer_can_list_but_not_decide(self, soc):
         soc_ban_review.raise_review(PUBLIC_IP, "honeypot", "Honeypot (/.env)", suggested_minutes=10080)
         c, _ = soc("vic", "viewer")
-        d = c.get("/soc/api/ban-reviews").get_json()
+        d = c.get("/socperson/api/ban-reviews").get_json()
         assert d["ok"] and d["status"] == "pending" and d["counts"]["pending"] >= 1
         assert any(r["ip"] == PUBLIC_IP and r["source"] == "honeypot" for r in d["reviews"])
-        assert c.post("/soc/api/ban-reviews/decide", json={"ip": PUBLIC_IP, "action": "dismiss"}).status_code == 403
+        assert c.post("/socperson/api/ban-reviews/decide", json={"ip": PUBLIC_IP, "action": "dismiss"}).status_code == 403
 
     def test_analyst_decisions_are_audited(self, soc, db_engine):
         soc_ban_review.raise_review(PUBLIC_IP, "ratelimit", "Repeated rate-limit breaches", suggested_minutes=15)
         c, _ = soc("ann", "analyst")
-        r = c.post("/soc/api/ban-reviews/decide", json={"ip": PUBLIC_IP, "action": "trust", "days": 30, "note": "Acme office"})
+        r = c.post("/socperson/api/ban-reviews/decide", json={"ip": PUBLIC_IP, "action": "trust", "days": 30, "note": "Acme office"})
         assert r.status_code == 200 and r.get_json()["message"] == "trusted"
-        assert c.get("/soc/api/ban-reviews?status=trusted").get_json()["reviews"][0]["decided_by"] == "ann"
-        r = c.post("/soc/api/ban-reviews/decide", json={"ip": PUBLIC_IP, "action": "ban", "minutes": 60})
+        assert c.get("/socperson/api/ban-reviews?status=trusted").get_json()["reviews"][0]["decided_by"] == "ann"
+        r = c.post("/socperson/api/ban-reviews/decide", json={"ip": PUBLIC_IP, "action": "ban", "minutes": 60})
         assert r.status_code == 200
         acts = [(a, t) for _, a, t in audit_actions(db_engine)]
         assert ("ban_review_trust", PUBLIC_IP) in acts and ("ban_ip", PUBLIC_IP) in acts
@@ -172,14 +172,14 @@ class TestConsoleApi:
     def test_bad_decision_is_a_400_not_a_500(self, soc):
         c, _ = soc("ann", "analyst")
         for body in ({"ip": PUBLIC_IP, "action": "ban"}, {"ip": 5, "action": "trust"}, {"action": ["x"]}, {}):
-            assert c.post("/soc/api/ban-reviews/decide", json=body).status_code == 400
+            assert c.post("/socperson/api/ban-reviews/decide", json=body).status_code == 400
 
     def test_view_script_is_served_only_when_signed_in(self, soc):
-        assert flask_app.test_client().get("/soc/assets/soc-banreview.js").status_code == 404
+        assert flask_app.test_client().get("/socperson/assets/soc-banreview.js").status_code == 404
         c, _ = soc("vic", "viewer")
-        r = c.get("/soc/assets/soc-banreview.js")
+        r = c.get("/socperson/assets/soc-banreview.js")
         assert r.status_code == 200 and b"SOC.register" in r.data
-        assert b"/soc/assets/soc-banreview.js" in c.get("/soc").data
+        assert b"/socperson/assets/soc-banreview.js" in c.get("/socperson").data
 
 
 class TestOverviewAccounts:

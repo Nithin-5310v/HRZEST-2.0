@@ -128,6 +128,7 @@ else:
         from utils.detections import run_detections
         from utils.privacy_jobs import run_retention_purge
         from utils.audit_jobs import emit_anchors, run_full_verification
+        from utils.soc_digest import JOB_ID as _SOC_DIGEST_JOB, digest_hour, send_daily_digest
     except ImportError as _job_import_err:
         # Deliberately NOT the same except block as "apscheduler missing"
         # above -- that used to be one try/except ImportError covering
@@ -245,6 +246,16 @@ else:
                 trigger="cron",
                 hour=3, minute=30,
                 id="privacy_retention_purge",
+                replace_existing=True,
+            )
+            # SOC daily summary email to SOC_LOGIN_EMAILS (utils/soc_digest.py);
+            # SOC_DIGEST=off turns it off. Company time zone, like the daily report.
+            _scheduler.add_job(
+                func=_scheduled_job(_SOC_DIGEST_JOB, send_daily_digest),
+                trigger="cron",
+                hour=digest_hour(), minute=0,
+                timezone="Asia/Kolkata",
+                id=_SOC_DIGEST_JOB,
                 replace_existing=True,
             )
             _scheduler.start()

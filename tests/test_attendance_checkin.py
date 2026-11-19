@@ -548,10 +548,53 @@ class TestApiEmployeeCheckin:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# /api/employee/qr-face-checkin (public kiosk, multipart/form-data)
+# /api/employee/qr-face-checkin (signed-in app or employee session, multipart/form-data)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+class TestQrFaceCheckinNeedsSignIn:
+    """Nothing may start a check-in without signing in (the app's logged-out
+    QR kiosk was removed; the server refuses it too)."""
+
+    def test_no_session_and_no_token_is_refused(self, client, seed_employee, signed_qr):
+        rv = client.post("/api/employee/qr-face-checkin", data={
+            "employee_id": signed_qr(seed_employee["employee_id"]),
+            "auth_combo":  "qr_face",
+        })
+        assert rv.status_code == 401
+        assert rv.get_json()["ok"] is False
+
+    def test_bad_token_is_refused(self, client, seed_employee, signed_qr):
+        rv = client.post("/api/employee/qr-face-checkin", data={
+            "employee_id": signed_qr(seed_employee["employee_id"]),
+            "auth_combo":  "qr_face",
+        }, headers={"Authorization": "Bearer not-a-real-token"})
+        assert rv.status_code == 401
+
+    def test_nothing_is_written_when_refused(self, client, seed_employee, signed_qr, db_engine):
+        client.post("/api/employee/qr-face-checkin", data={
+            "employee_id": signed_qr(seed_employee["employee_id"]),
+            "auth_combo":  "qr_face",
+        })
+        cur = db_engine.cursor()
+        cur.execute("SELECT COUNT(*) FROM attendance WHERE employee_id=%s", (seed_employee["employee_id"],))
+        assert cur.fetchone()[0] == 0
+        cur.close()
+
+    def test_signed_in_app_gets_past_the_login_check(self, client, seed_employee):
+        token = _emp_token(client, seed_employee)
+        rv = client.post("/api/employee/qr-face-checkin", data={
+            "employee_id": seed_employee["employee_id"],
+            "auth_combo":  "unknown_combo",
+        }, headers={"Authorization": f"Bearer {token}"})
+        assert rv.status_code == 400  # reached the normal checks
+
+
 class TestApiQrFaceCheckin:
+
+    @pytest.fixture(autouse=True)
+    def _signed_in_app(self, client, seed_employee):
+        """The endpoint needs a signed-in caller; use the employee's app token."""
+        client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {_emp_token(client, seed_employee)}"
 
     def test_invalid_auth_combo_returns_400(self, client, seed_employee):
         rv = client.post("/api/employee/qr-face-checkin", data={
