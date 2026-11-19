@@ -37,7 +37,7 @@
     "@react-navigation/bottom-tabs": "^7.19.2",
     "@react-navigation/drawer": "^7.13.5",
     "@react-navigation/native": "^7.3.14",
-    "@react-navigation/stack": "^7.10.17",
+    "@react-navigation/stack": "^7.12.2",
     "@sentry/react-native": "~8.28.0",
     "axios": "^1.21.1",
     "eslint-config-expo": "~58.0.4",
