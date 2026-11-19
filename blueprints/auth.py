@@ -30,7 +30,7 @@ from utils.helpers import (
     self_service_emp_id, self_service_return_path,
 )
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async, notify_if_new_login_ip
-from utils.session_risk import ensure_session_id
+from utils.session_risk import end_session_server_side, ensure_session_id
 from utils.totp import verify_totp_code, send_mfa_login_email, mark_totp_enabled
 from utils.face_utils import verify_uploaded_face
 from utils.webauthn_utils import (
@@ -865,8 +865,9 @@ def mfa_verify():
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
     # POST-only (CSRF-protected form) so another site can't log users out
-    # with an <img src="/logout">.
-    session.clear()
+    # with an <img src="/logout">. Revokes the session id server-side too, so
+    # a copy of this cookie stops working at once (security review Section 9).
+    end_session_server_side(session, session.get("admin_username") or session.get("employee_id"))
     # "/" is the platform operator's own login (see blueprints/core.py's
     # home()), not somewhere a tenant admin logging out should land --
     # send them back to the check-in kiosk instead, same as before "/"
@@ -1279,7 +1280,7 @@ def employee_reset_password(token):
 
 @auth_bp.route("/employee_logout", methods=["POST"])
 def employee_logout():
-    session.clear()
+    end_session_server_side(session, session.get("employee_id") or session.get("admin_username"))
     return redirect(tpath("/login"))
 
 

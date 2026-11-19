@@ -945,30 +945,38 @@ def bulk_leave_action():
     return redirect(tpath("/leave_holidays?tab=leaves"))
 
 
-@leave_bp.route("/api/holidays", methods=["GET", "POST"])
+@leave_bp.route("/api/holidays", methods=["POST"])
 @api_required
-def api_holidays():
-    if request.method == "POST":
-        data = request.get_json() or {}
-        date = data.get("date")
-        name = data.get("name")
-        if not date or not name:
-            return jsonify({"ok": False, "msg": "date and name required"}), 400
-        db = get_db_connection()
-        cursor = db.cursor(buffered=True)
-        try:
-            cursor.execute("INSERT INTO holidays (date, name) VALUES (%s,%s)", (date, name))
-            db.commit()
-        except Exception:
-            app_log.error("API holiday insert failed", exc_info=True)
-            db.rollback()
-            cursor.close()
-            db.close()
-            return jsonify({"ok": False, "msg": "Failed to add holiday. Check for duplicate dates."}), 400
+@api_role_required("admin", "hr")
+def api_add_holiday():
+    """Adding a company holiday changes payroll working days, so only admin
+    and HR tokens may do it -- the same roles DELETE /api/holidays/<id>
+    allows (security review route audit, 2026-11). Listing stays open to
+    every admin-side token (GET below)."""
+    data = request.get_json() or {}
+    date = data.get("date")
+    name = data.get("name")
+    if not date or not name:
+        return jsonify({"ok": False, "msg": "date and name required"}), 400
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        cursor.execute("INSERT INTO holidays (date, name) VALUES (%s,%s)", (date, name))
+        db.commit()
+    except Exception:
+        app_log.error("API holiday insert failed", exc_info=True)
+        db.rollback()
         cursor.close()
         db.close()
-        return jsonify({"ok": True})
+        return jsonify({"ok": False, "msg": "Failed to add holiday. Check for duplicate dates."}), 400
+    cursor.close()
+    db.close()
+    return jsonify({"ok": True})
 
+
+@leave_bp.route("/api/holidays", methods=["GET"])
+@api_required
+def api_holidays():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT id, date, name FROM holidays ORDER BY date")

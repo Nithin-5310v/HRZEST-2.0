@@ -16,6 +16,11 @@ from . import employees_bp
 @employees_bp.route("/update_employee_photo/<emp_id>", methods=["POST"])
 @admin_required
 def update_employee_photo(emp_id):
+    # The enrolled photo is the reference image for face check-in, so a
+    # team-scoped role may only replace it for its own people.
+    if _hr_scope_denied(emp_id):
+        flash("Employee not found.", "error")
+        return redirect(tpath("/employees"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id FROM employees WHERE employee_id=%s", (emp_id,))

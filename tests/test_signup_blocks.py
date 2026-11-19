@@ -41,7 +41,7 @@ def _blocks(db_engine, alert_id):
 class TestBlockFromAlert:
     def test_requires_login(self, client, alert):
         resp = client.post(f"/super_admin/duplicate-alerts/{alert[0]}/block", data={"block_email": "1"})
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_block_email(self, client, db_engine, alert):
         alert_id, email = alert

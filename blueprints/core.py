@@ -213,7 +213,8 @@ def session_risk_stream():
     return Response(
         f"retry: {_RISK_STREAM_RETRY_MS}\nevent: {event}\ndata: {{}}\n\n",
         mimetype="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        # Cache-Control: no-store comes from app_setup/cache_control.py.
+        headers={"X-Accel-Buffering": "no"},
     )
 
 

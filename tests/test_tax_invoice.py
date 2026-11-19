@@ -250,7 +250,8 @@ class TestPages:
 
     def test_super_admin_invoice_download(self, client, db_engine, tenant):
         row_id = _paid_signup(db_engine, tenant, "sa")
-        assert client.get(f"/super_admin/payments/signup/{row_id}/invoice.pdf").status_code in (302, 303, 401, 403)
+        # 404 without a super-admin session (security review OBS-07).
+        assert client.get(f"/super_admin/payments/signup/{row_id}/invoice.pdf").status_code == 404
         with client.session_transaction() as sess:
             sess["platform_admin_logged_in"] = True
             sess["platform_admin_username"] = "root"

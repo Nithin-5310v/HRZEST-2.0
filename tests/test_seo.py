@@ -18,7 +18,9 @@ class TestRobotsTxt:
         body = resp.get_data(as_text=True)
         assert "Sitemap: https://seo.example.test/sitemap.xml" in body
         assert "Disallow: /api/" in body
-        assert "Disallow: /super_admin" in body
+        # OBS-07: a public file must not name the private surfaces.
+        for private in ("super_admin", "/webhooks", "/csp-report"):
+            assert private not in body
 
     def test_login_pages_are_not_blocked_so_their_noindex_is_seen(self, client):
         body = client.get("/robots.txt").get_data(as_text=True)
@@ -34,7 +36,8 @@ class TestRobotsTxt:
     def test_falls_back_to_default_domain_without_app_url(self, client, monkeypatch):
         monkeypatch.delenv("APP_URL", raising=False)
         monkeypatch.setenv("APP_ENV", "production")
-        assert "Sitemap: https://www.hrzest.com/sitemap.xml" in client.get("/robots.txt").get_data(as_text=True)
+        # hrzest.com (no www) is canonical (security review OBS-09).
+        assert "Sitemap: https://hrzest.com/sitemap.xml" in client.get("/robots.txt").get_data(as_text=True)
 
     def test_host_header_cannot_poison_the_sitemap_url(self, client, monkeypatch):
         monkeypatch.setenv("APP_URL", "https://real.example.test")

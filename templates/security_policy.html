@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security &amp; vulnerability disclosure policy | HRZEST</title>
+  <meta name="description" content="How to report a security vulnerability in HRZEST, and what you can expect from us.">
+  <link rel="canonical" href="{{ seo_base_url }}/security-policy">
+  <style>
+    :root { --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --blue: #2563eb; --bg: #ffffff; }
+    @media (prefers-color-scheme: dark) { :root { --ink: #e2e8f0; --muted: #94a3b8; --line: #1e293b; --blue: #60a5fa; --bg: #0b1120; } }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+           font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
+    header a { color: var(--blue); font-weight: 700; text-decoration: none; }
+    h1 { font-size: 30px; line-height: 1.25; margin: 24px 0 8px; }
+    h2 { font-size: 19px; margin: 32px 0 8px; }
+    p, li { color: var(--muted); }
+    strong, code { color: var(--ink); }
+    a { color: var(--blue); }
+    ul { padding-left: 20px; }
+    .lead { font-size: 17px; }
+    footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <header><a href="/">HRZEST</a></header>
+
+  <h1>Security &amp; vulnerability disclosure policy</h1>
+  <p class="lead">We want HRZEST to be safe for the companies and employees who rely on it. If you think you've
+     found a security vulnerability, please tell us. We'll work with you to fix it.</p>
+
+  <h2>How to report</h2>
+  <p>Email <a href="mailto:{{ contact_email }}"><strong>{{ contact_email }}</strong></a> with:</p>
+  <ul>
+    <li>what you found and where (URL, endpoint or screen);</li>
+    <li>steps to reproduce it, and what an attacker could do with it;</li>
+    <li>your name or handle if you'd like to be credited.</li>
+  </ul>
+  <p>Please don't include anyone's personal data in your report beyond what you need to show the problem.</p>
+
+  <h2>What we ask of you</h2>
+  <ul>
+    <li>Test only against your own account or a test company you registered. Never access, change or delete
+        another person's or company's data.</li>
+    <li>Don't run denial-of-service tests, spam, social engineering or physical attacks, and don't run
+        high-volume automated scans against production.</li>
+    <li>Give us a reasonable time to fix the issue before telling anyone else about it.</li>
+    <li>Stop and tell us as soon as you reach data that isn't yours.</li>
+  </ul>
+
+  <h2>What you can expect from us</h2>
+  <ul>
+    <li>We'll acknowledge your report within <strong>3 business days</strong>.</li>
+    <li>We'll keep you updated while we investigate and fix it, and tell you when it's resolved.</li>
+    <li>We won't take legal action against research done in good faith that follows this policy.</li>
+    <li>With your permission, we'll credit you once the fix is live.</li>
+  </ul>
+
+  <h2>In scope</h2>
+  <p><code>hrzest.com</code> and its company portals, the HRZEST mobile app, and the HRZEST API.</p>
+
+  <footer>
+    Machine-readable contact details: <a href="/.well-known/security.txt">/.well-known/security.txt</a>
+  </footer>
+</main>
+</body>
+</html>

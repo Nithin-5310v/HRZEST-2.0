@@ -128,8 +128,8 @@ def send_attachment(ticket_id, attachment_id, inline=False):
     is_image = content_type in _INLINE_IMAGE_TYPES
     resp = send_file(BytesIO(data), mimetype=content_type if is_image else "application/octet-stream",
                      as_attachment=not (inline and is_image), download_name=name)
-    resp.headers["X-Content-Type-Options"] = "nosniff"
-    resp.headers["Cache-Control"] = "private, no-store"
+    # nosniff (app_setup/csrf_csp.py) and no-store (app_setup/cache_control.py)
+    # are added to every response centrally.
     return resp
 
 

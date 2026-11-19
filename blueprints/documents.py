@@ -36,6 +36,9 @@ def upload_document():
     if not validate_emp_id(emp_id):
         flash("Invalid employee ID.", "danger")
         return redirect(tpath("/employees"))
+    if hr_scope_denied(emp_id):  # team-scoped roles: own people only
+        flash("Employee not found.", "danger")
+        return redirect(tpath("/employees"))
     ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
     if not ok:
         flash(err, "danger")
@@ -78,6 +81,11 @@ def delete_document(did):
     cursor.execute("SELECT employee_id, stored_name FROM employee_documents WHERE id=%s", (did,))
     row = cursor.fetchone()
     fallback = "/employees"
+    if row and hr_scope_denied(row[0]):  # team-scoped roles: own people only
+        cursor.close()
+        db.close()
+        flash("Document not found.", "danger")
+        return redirect(tpath(fallback))
     if row:
         _emp_id, stored_ref = row
         fallback = f"/employee_detail/{_emp_id}"
@@ -118,6 +126,11 @@ def download_document(did):
     if not enforce_ownership(doc_emp_id, "document", did):
         flash("Access denied.", "danger")
         return redirect(tpath("/employee_portal"))
+    # enforce_ownership lets every admin session through; a team-scoped role
+    # may only download its own people's documents.
+    if is_admin and hr_scope_denied(doc_emp_id):
+        flash("Document not found.", "danger")
+        return redirect(tpath("/employees"))
     try:
         data = open_private(stored_ref)
     except Exception:
