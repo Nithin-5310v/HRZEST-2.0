@@ -21,7 +21,7 @@ import os
 from flask import Blueprint, jsonify, make_response, redirect, render_template, request, send_from_directory
 
 from extensions import limiter
-from utils import soc_actions, soc_auth, soc_geo, soc_queries
+from utils import soc_actions, soc_auth, soc_queries
 from utils import soc_loganalysis as loganalysis
 from utils.soc_auth import soc_required
 from utils.soc_util import clamp_int, to_csv
@@ -286,20 +286,7 @@ def api_entity_ip(ip):
     from utils.soc_util import looks_like_ip
     if not looks_like_ip(ip):
         return _err("That is not a valid IP address.")
-    entity = soc_queries.entity_ip(ip, request.args.get("days"))
-    entity["geo"] = soc_geo.lookup([ip]).get(ip)
-    return _ok(entity=entity)
-
-
-@soc_bp.route("/socperson/api/geo")
-@soc_required("viewer")
-@limiter.limit("120 per minute")
-def api_geo():
-    """Location / anonymizer info for the IPs on screen (?ips=a,b,c). Server-side
-    only: the browser never contacts the lookup provider."""
-    from utils.soc_util import looks_like_ip
-    ips = [i.strip() for i in (request.args.get("ips") or "").split(",") if looks_like_ip(i.strip())][:soc_geo.MAX_LOOKUPS_PER_CALL]
-    return _ok(geo=soc_geo.lookup(ips), enabled=soc_geo.enabled())
+    return _ok(entity=soc_queries.entity_ip(ip, request.args.get("days")))
 
 
 @soc_bp.route("/socperson/api/brief")

@@ -26,15 +26,12 @@ _REAL_DELIVER = soc_auth.deliver_login_code
 @pytest.fixture(autouse=True)
 def _fresh_soc_state(monkeypatch):
     monkeypatch.delenv("SOC_ALLOWED_CIDRS", raising=False)
-    monkeypatch.delenv("SOC_GEO_PROVIDER", raising=False)
+    for name in ("SOC_TEST_CIDRS", "SOC_TEST_ACCOUNTS", "SOC_TEST_COMPANIES"):
+        monkeypatch.delenv(name, raising=False)
     # Recorded by monkeypatch so whatever allow() adds is undone after the test.
     monkeypatch.setenv("SOC_LOGIN_EMAILS", "")
     OUTBOX.clear()
     monkeypatch.setattr(soc_auth, "deliver_login_code", lambda email, code: OUTBOX.append((email, code)) or True)
-    # Never call the real IP-lookup provider from tests; tests that need answers
-    # replace this with their own fake.
-    from utils import soc_geo
-    monkeypatch.setattr(soc_geo, "_fetch", lambda ips: {})
     soc_queries.clear_cache()
     yield
     soc_queries.clear_cache()
@@ -1208,75 +1205,153 @@ class TestLogAnalysisEndpoint:
 
 
 # ════════════════════════════════════════════════════════════════════
-# IP location / anonymizer intelligence
+# genuine activity only (utils/soc_scope.py)
 # ════════════════════════════════════════════════════════════════════
 TOR_IP = "185.220.101.1"
-_FAKE = {
-    PUBLIC_IP: {"asn": "AS63949", "provider": "Akamai", "country": "United States", "isocode": "US",
-                "region": "California", "city": "Fremont", "latitude": 37.5, "longitude": -121.9,
-                "proxy": "no", "type": "Hosting"},
-    TOR_IP: {"asn": "AS60729", "provider": "Stiftung Erneuerbare Freiheit", "country": "Germany", "isocode": "DE",
-             "city": "Berlin", "region": "State of Berlin", "proxy": "yes", "type": "TOR",
-             "hostname": "berlin01.tor-exit.example"},
-}
+CONSOLE_IP = "198.51.100.77"          # an analyst's public address (has signed in to the console)
+TEST_IP = "151.101.1.10"              # inside SOC_TEST_CIDRS below
 
 
-def _fake_fetch(ips):
-    return {ip: _FAKE[ip] for ip in ips if ip in _FAKE}
+def _views(c):
+    """Every console view that summarises events, as {name: response json}."""
+    return {
+        "overview": c.get("/socperson/api/overview").get_json(),
+        "events": c.get("/socperson/api/events").get_json(),
+        "alerts": c.get("/socperson/api/events", query_string={"alerts": 1}).get_json(),
+        "detections": c.get("/socperson/api/detections").get_json(),
+        "pulse": c.get("/socperson/api/pulse").get_json(),
+        "brief": c.get("/socperson/api/brief", query_string={"kind": "kpi", "value": "events"}).get_json()["brief"],
+        "csv": c.get("/socperson/api/events.csv").get_data(as_text=True),
+        "platform": c.post("/socperson/api/loganalysis/platform", json={"hours": 24}).get_json()["report"],
+    }
 
 
-class TestIpIntel:
-    @pytest.fixture
-    def provider(self, monkeypatch):
-        from utils import soc_geo
-        calls = []
+def _shown(views, marker):
+    """Names of the views where an event whose message contains `marker` shows up."""
+    out = set()
+    for name in ("events", "alerts"):
+        if any(marker in (e["message"] or "") for e in views[name]["events"]):
+            out.add(name)
+    if any(marker in (e["message"] or "") for e in views["overview"]["recent_alerts"]):
+        out.add("overview")
+    if any(marker in (e["message"] or "") for e in views["detections"]["events"]):
+        out.add("detections")
+    if any(marker in (e["message"] or "") for e in views["brief"]["recent"]):
+        out.add("brief")
+    if marker in views["csv"]:
+        out.add("csv")
+    return out
 
-        def fake(ips):
-            calls.append(list(ips))
-            return _fake_fetch(ips)
-        monkeypatch.setattr(soc_geo, "_fetch", fake)
-        return calls
 
-    def test_location_and_anonymizer_flags(self, soc, provider):
+class TestGenuineActivityOnly:
+    def test_the_servers_own_traffic_is_left_out_of_every_view(self, soc, db_engine):
+        c, _ = soc("ann", "analyst")
+        before = _views(c)
+        for ip in ("127.0.0.1", "10.0.0.2", "172.17.0.1", "100.64.3.4", "fd00::7"):
+            add_event(db_engine, "waf.sqli_blocked", "CRITICAL", ip=ip, message="server-own " + ip)
+            add_event(db_engine, "detection.credential_stuffing", "ERROR", ip=ip, message="server-own det " + ip)
+        add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP, message="visitor attack")
+        add_event(db_engine, "detection.credential_stuffing", "ERROR", ip=PUBLIC_IP, message="visitor det")
+        after = _views(c)
+        assert _shown(after, "server-own") == set()
+        assert _shown(after, "visitor") == {"events", "alerts", "overview", "detections", "brief", "csv"}
+        k0, k1 = before["overview"]["kpi"], after["overview"]["kpi"]
+        assert k1["events"] - k0["events"] == 2 and k1["critical"] == k0["critical"] == 0
+        assert k1["detections"] - k0["detections"] == 1 and k1["unique_ips"] == 1
+        assert sum(p["CRITICAL"] for p in after["overview"]["timeline"]) == 0
+        assert after["pulse"]["last_hour"]["CRITICAL"] == 0 and after["pulse"]["threat"]["level"] != "critical"
+        assert after["overview"]["threat"]["level"] != "critical"
+        assert [t["ip"] for t in after["overview"]["top_ips"]] == [PUBLIC_IP]
+        assert after["overview"]["excluded"]["server"] >= 10                     # and the page says so
+        assert after["brief"]["stats"]["events"] - before["brief"]["stats"]["events"] == 2
+        assert after["platform"]["source"]["events"] - before["platform"]["source"]["events"] == 2
+
+    def test_lookup_of_a_left_out_address_says_why(self, soc, db_engine):
         c, _ = soc()
-        g = c.get("/socperson/api/geo", query_string={"ips": f"{PUBLIC_IP},{TOR_IP}"}).get_json()["geo"]
-        assert g[PUBLIC_IP]["location"] == "Fremont, California, United States"
-        assert g[PUBLIC_IP]["datacenter"] is True and g[PUBLIC_IP]["anonymizer"] is None
-        assert g[TOR_IP]["anonymizer"] == "Tor" and g[TOR_IP]["proxy"] is True and "exit" in g[TOR_IP]["verdict"]
+        add_event(db_engine, "auth.failure", ip="10.0.0.9")
+        e = c.get("/socperson/api/entity/ip/10.0.0.9").get_json()["entity"]
+        assert e["events"] == 0 and "server's own addresses" in e["excluded"]
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP)
+        e = c.get(f"/socperson/api/entity/ip/{PUBLIC_IP}").get_json()["entity"]
+        assert e["events"] == 1 and e["excluded"] is None and "geo" not in e
 
-    def test_results_are_cached_so_an_ip_is_sent_once(self, soc, provider):
+    def test_related_events_leave_out_the_same_things(self, soc, db_engine, monkeypatch):
+        monkeypatch.setenv("SOC_TEST_CIDRS", "151.101.0.0/16")
         c, _ = soc()
-        for _ in range(3):
-            c.get("/socperson/api/geo", query_string={"ips": PUBLIC_IP})
-        assert provider == [[PUBLIC_IP]]
+        eid = add_event(db_engine, "auth.failure", ip=PUBLIC_IP, identifier="victim@example.com", message="seed")
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP, identifier="other@example.com", message="genuine related")
+        add_event(db_engine, "auth.failure", ip=TEST_IP, identifier="victim@example.com", message="test related")
+        add_event(db_engine, "auth.failure", ip="10.0.0.3", identifier="victim@example.com", message="internal related")
+        rel = c.get(f"/socperson/api/events/{eid}").get_json()["event"]["related"]
+        msgs = {e["message"] for key in ("same_ip", "same_identifier") for e in rel[key]}
+        assert msgs == {"genuine related"}
 
-    def test_private_addresses_are_never_sent_out(self, soc, provider):
+    def test_the_consoles_own_use_is_left_out_but_attacks_on_it_are_not(self, soc, db_engine):
+        c, _ = soc("ann", "analyst")
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO att_master.soc_audit_log (actor, action, ip) VALUES ('ann', 'login', %s)", (CONSOLE_IP,))
+        cur.close()
+        soc_queries.clear_cache()
+        add_event(db_engine, "soc.action", "INFO", ip=PUBLIC_IP, message="own action")          # always the console's own
+        add_event(db_engine, "soc.login_success", "INFO", ip=PUBLIC_IP, message="own login")
+        add_event(db_engine, "soc.login_failed", ip=CONSOLE_IP, path="/socperson/login", message="own typo")
+        add_event(db_engine, "ratelimit.exceeded", ip=CONSOLE_IP, path="/socperson/api/events", message="own 429")
+        add_event(db_engine, "soc.login_failed", ip=TOR_IP, path="/socperson/login", message="stranger guess")
+        add_event(db_engine, "soc.ip_denied", ip=TOR_IP, path="/socperson", message="stranger probe")
+        add_event(db_engine, "auth.failure", ip=CONSOLE_IP, path="/acme/login", message="analyst on the app")
+        msgs = {e["message"] for e in c.get("/socperson/api/events").get_json()["events"]}
+        assert {"stranger guess", "stranger probe", "analyst on the app"} <= msgs
+        assert not msgs & {"own action", "own login", "own typo", "own 429"}
+        assert c.get("/socperson/api/overview").get_json()["excluded"]["console"] >= 4
+        # The console's own record of itself is still complete.
+        assert ("ann", "login", None) in audit_actions(db_engine)
+
+    def test_listed_testing_is_left_out_everywhere(self, soc, db_engine, monkeypatch):
+        monkeypatch.setenv("SOC_TEST_CIDRS", "151.101.0.0/16, not-a-range")
+        monkeypatch.setenv("SOC_TEST_ACCOUNTS", "QA.Bot@example.com")
+        monkeypatch.setenv("SOC_TEST_COMPANIES", "qa-co")
+        c, _ = soc("ann", "analyst")
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name, status) "
+                    "VALUES ('QA Co', 'qa-co', 'qa_co', 'active'), ('Real Co', 'real-co', 'real_co', 'active')")
+        cur.close()
+        add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=TEST_IP, message="testing from the office")
+        add_event(db_engine, "auth.failure", "ERROR", ip=PUBLIC_IP, identifier="qa.bot@EXAMPLE.com", message="testing account")
+        add_event(db_engine, "auth.failure", "ERROR", ip=PUBLIC_IP, path="/qa-co/login", message="testing company")
+        add_event(db_engine, "auth.failure", "ERROR", ip=PUBLIC_IP, path="/real-co/login", message="real customer")
+        views = _views(c)
+        assert _shown(views, "testing") == set()
+        assert _shown(views, "real customer") == {"events", "alerts", "overview", "brief", "csv"}
+        assert views["overview"]["excluded"]["testing"] == 3
+        tenants = {t["slug"]: t for t in c.get("/socperson/api/tenants").get_json()["tenants"]}
+        assert "qa-co" not in tenants and tenants["real-co"]["events"] == 1
+        e = c.get("/socperson/api/entity/identifier", query_string={"value": "qa.bot@example.com"}).get_json()["entity"]
+        assert e["events"] == 0 and "SOC_TEST_ACCOUNTS" in e["excluded"]
+        e = c.get(f"/socperson/api/entity/ip/{TEST_IP}").get_json()["entity"]
+        assert e["events"] == 0 and "SOC_TEST_CIDRS" in e["excluded"]
+
+    def test_ban_review_leaves_out_the_server_and_testing(self, soc, db_engine, monkeypatch):
+        monkeypatch.setenv("SOC_TEST_CIDRS", "151.101.0.0/16")
+        c, _ = soc("ann", "analyst")
+        cur = db_engine.cursor()
+        for ip in (TEST_IP, "10.0.0.4", PUBLIC_IP):
+            cur.execute("INSERT INTO att_master.soc_ban_reviews (ip, source, reason) VALUES (%s, 'waf', 'x') "
+                        "ON CONFLICT (ip) DO NOTHING", (ip,))
+        cur.close()
+        d = c.get("/socperson/api/ban-reviews").get_json()
+        assert [r["ip"] for r in d["reviews"]] == [PUBLIC_IP] and d["counts"]["pending"] == 1
+
+    def test_nothing_is_looked_up_outside(self, soc, db_engine):
+        import importlib.util
         c, _ = soc()
-        g = c.get("/socperson/api/geo", query_string={"ips": "10.0.0.5,192.168.1.9,127.0.0.1"}).get_json()["geo"]
-        assert provider == [] and all(v["scope"] == "private" for v in g.values())
-        assert "TRUSTED_PROXY_HOPS" in g["10.0.0.5"]["note"]
-
-    def test_turned_off_sends_nothing(self, soc, provider, monkeypatch):
-        monkeypatch.setenv("SOC_GEO_PROVIDER", "off")
-        c, _ = soc()
-        d = c.get("/socperson/api/geo", query_string={"ips": PUBLIC_IP}).get_json()
-        assert provider == [] and d["enabled"] is False and d["geo"][PUBLIC_IP]["scope"] == "unavailable"
-
-    def test_provider_failure_degrades_to_unavailable(self, soc, monkeypatch):
-        from utils import soc_geo
-
-        def boom(ips):
-            raise OSError("network down")
-        monkeypatch.setattr(soc_geo, "_fetch", boom)
-        c, _ = soc()
-        r = c.get("/socperson/api/geo", query_string={"ips": PUBLIC_IP})
-        assert r.status_code == 200 and r.get_json()["geo"][PUBLIC_IP]["scope"] == "unavailable"
-
-    def test_ip_profile_includes_intel(self, soc, provider, db_engine):
-        c, _ = soc()
-        add_event(db_engine, "auth.failure", ip=TOR_IP)
-        e = c.get(f"/socperson/api/entity/ip/{TOR_IP}").get_json()["entity"]
-        assert e["geo"]["anonymizer"] == "Tor" and e["geo"]["country"] == "Germany"
+        assert c.get("/socperson/api/geo", query_string={"ips": PUBLIC_IP}).status_code == 404
+        assert importlib.util.find_spec("utils.soc_geo") is None
+        cur = db_engine.cursor()
+        cur.execute("SELECT to_regclass('att_master.soc_ip_intel')")
+        assert cur.fetchone()[0] is None                      # the cache of outside answers is gone
+        cur.close()
+        checks = {x["id"]: x for x in c.get("/socperson/api/posture").get_json()["checks"]}
+        assert "geo" not in checks and "outside lookup" in checks["scope"]["detail"]
 
     def test_overview_warns_when_only_the_proxy_is_visible(self, soc, db_engine):
         c, _ = soc()
@@ -1290,28 +1365,15 @@ class TestIpIntel:
 
     def test_proxy_hint_looks_at_the_busiest_address_not_the_most_severe(self, soc, db_engine):
         # The proxy carries most traffic at WARNING; one scanner has fewer but
-        # ERROR events, so it sorts first in top_ips. The hint must still fire.
+        # ERROR events. The proxy's events are left out, but the hint must fire.
         c, _ = soc()
         for _ in range(10):
             add_event(db_engine, "auth.failure", ip="10.0.0.2")
         for _ in range(2):
             add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=PUBLIC_IP)
         d = c.get("/socperson/api/overview").get_json()
-        assert d["top_ips"][0]["ip"] == PUBLIC_IP and d["proxy_hint"] is True
+        assert [t["ip"] for t in d["top_ips"]] == [PUBLIC_IP] and d["proxy_hint"] is True
         assert d["proxy_ip"] == "10.0.0.2"
-
-    def test_overview_lists_and_counts_only_internet_sources(self, soc, db_engine):
-        c, _ = soc()
-        for ip in ("127.0.0.1", "127.0.0.1", "10.0.0.2", "172.17.0.1"):
-            add_event(db_engine, "waf.sqli_blocked", "ERROR", ip=ip)
-        add_event(db_engine, "auth.failure", ip=PUBLIC_IP)
-        add_event(db_engine, "auth.failure", ip=TOR_IP)
-        d = c.get("/socperson/api/overview").get_json()
-        assert {t["ip"] for t in d["top_ips"]} == {PUBLIC_IP, TOR_IP}
-        assert d["kpi"]["unique_ips"] == 2
-        # The test client's own SOC login also logs from 127.0.0.1, hence >=.
-        assert d["internal_sources"]["count"] == 3 and d["internal_sources"]["events"] >= 4
-        assert d["proxy_hint"] is True and d["proxy_ip"] == "127.0.0.1"
 
     def test_latest_alerts_are_newest_first(self, soc, db_engine):
         c, _ = soc()
@@ -1327,9 +1389,7 @@ class TestIpIntel:
 # analyst brief (Overview drill-down)
 # ════════════════════════════════════════════════════════════════════
 class TestBrief:
-    def test_kpi_brief_matches_its_tile(self, soc, db_engine, monkeypatch):
-        from utils import soc_geo
-        monkeypatch.setattr(soc_geo, "_fetch", _fake_fetch)
+    def test_kpi_brief_matches_its_tile(self, soc, db_engine):
         c, _ = soc()
         for i in range(4):
             add_event(db_engine, "auth.failure", ip=TOR_IP, identifier=f"user{i}@example.com", path="/acme/login")
@@ -1342,9 +1402,8 @@ class TestBrief:
         assert b["title"] == "Failed logins" and b["what"] and b["why"] and b["check"] and b["respond"]
         assert b["stats"]["unique_ips"] == 2 and b["stats"]["accounts"] == 5
         top = b["sources"][0]
-        assert top["ip"] == TOR_IP and top["events"] == 4 and top["geo"]["anonymizer"] == "Tor"
-        assert {x["country"] for x in b["countries"]} == {"Germany", "United States"}
-        assert b["masked"] == {"events": 5, "of": 5}                                  # Tor + hosting
+        assert top["ip"] == TOR_IP and top["events"] == 4
+        assert not {"countries", "masked"} & set(b) and "geo" not in top          # nothing from outside services
         assert set(b["events_filter"]["event_type"].split(",")) == {"auth.failure", "auth.mfa_failure"}
         assert b["paths"][0] == {"path": "/acme/login", "count": 4}
 

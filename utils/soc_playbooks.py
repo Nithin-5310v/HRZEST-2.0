@@ -26,7 +26,7 @@ KPI = {
         "misbehaving client -- the breakdown below shows which.",
         ["Which area and event type grew compared with the previous window?",
          "Is the rise concentrated on a few source addresses or accounts (top lists below)?",
-         "Do the sources come from hosting ranges, VPNs or Tor (location column)?"],
+         "Are the sources new to the platform, or addresses already seen in earlier windows (Lookup)?"],
         ["Drill into the largest area or event type.",
          "If nothing attack-shaped stands out, check application health (5xx / validation failures)."])),
     "critical": ("Critical events", _b(
@@ -63,8 +63,8 @@ KPI = {
         "Some failures are normal (typos). Attack patterns are many accounts from one source (credential "
         "stuffing), many sources against one account (spraying / distributed brute force) or failures followed "
         "by a success (a guessed password).",
-        ["Top sources: one IP against many accounts? Hosting / VPN / Tor sources?",
-         "Top accounts: one account from many IPs or countries?",
+        ["Top sources: one IP against many accounts?",
+         "Top accounts: one account from many IPs?",
          "Is there an 'Admin login' success from the same source right after the failures?",
          "How many ended in a lockout (sub-count on the tile)?"],
         ["Ban hostile public sources; do not ban shared / private addresses.",
@@ -96,13 +96,13 @@ KPI = {
         ["Ban the source if it is public and not shared.",
          "If it then probed real endpoints, open a case."])),
     "unique_ips": ("Source addresses", _b(
-        "The distinct client addresses that produced security events in the window, with their location and "
-        "network.",
+        "The distinct internet addresses that produced security events in the window. The server's own "
+        "addresses and your listed test addresses are not counted.",
         "Shows who is generating the activity. Many events from few addresses means targeted activity; events "
-        "spread across hosting providers and anonymizers suggest automated attack infrastructure.",
-        ["Countries and networks you do not expect for this customer base.",
-         "Addresses marked VPN / Tor / Hosting.",
-         "A private address at the top means the app is seeing its proxy, not the visitors."],
+        "spread thinly across many addresses suggest distributed, automated attack infrastructure.",
+        ["Few addresses with many events, or many addresses with a few each?",
+         "Addresses hitting many different accounts or paths.",
+         "A proxy warning on the Overview means the app is seeing its proxy, not the visitors."],
         ["Profile the most active sources and ban the hostile ones.",
          "Fix TRUSTED_PROXY_HOPS if real client IPs are not visible."])),
 }
@@ -183,7 +183,7 @@ EVENT_TYPE = {
     "auth.mfa_failure": _b(
         "A second-factor code was rejected after the password was accepted.",
         "The password was correct. Repeated MFA failures mean someone may already have the user's password.",
-        ["Is the source the user's usual location / network?", "Several MFA failures in a row?"],
+        ["Is the source an address this user has signed in from before (Lookup)?", "Several MFA failures in a row?"],
         ["Contact the user; if they did not try to sign in, reset the password immediately."]),
     "auth.injection_attempt": _b(
         "Login input containing SQL / script injection syntax.",
@@ -191,8 +191,8 @@ EVENT_TYPE = {
         ["Source and other activity from it"], ["Ban the source if public."]),
     "auth.admin_login_success": _b(
         "An administrator signed in successfully.",
-        "Normal on its own; suspicious right after failures, or from a new country, VPN or hosting range.",
-        ["Failures from the same source just before?", "Usual location for this admin?"],
+        "Normal on its own; suspicious right after failures, or from an address this admin has never used.",
+        ["Failures from the same source just before?", "Has this admin signed in from this address before (Lookup)?"],
         ["If unexpected, revoke the session and reset the password."]),
     "tenant.session_mismatch": FAMILY["access"],
     "waf.sqli_blocked": _b(

@@ -5,6 +5,25 @@ product already records about attacks and abuse, lets an analyst investigate and
 and analyses raw logs. It is **not** linked from any other dashboard: you reach it by
 typing `https://<host>/socperson`.
 
+## Genuine activity only
+
+Every number, chart and list shows only what HRZEST itself recorded about real activity.
+Nothing is sample data, and no address is looked up at an outside service. Three kinds of
+recorded event are left out everywhere at once (`utils/soc_scope.py`):
+
+* **The server's own traffic**: events whose address is loopback, private, CGNAT or
+  link-local (the app itself, its proxy or container gateway, a LAN).
+* **The console's own use**: analysts signing in and acting here, and any console event from an
+  address that has signed in. Strangers probing `/socperson` stay visible: that is an attack.
+  The console's own record of itself is **Users & audit**.
+* **Your own testing**: addresses, accounts and companies listed in `SOC_TEST_CIDRS`,
+  `SOC_TEST_ACCOUNTS` and `SOC_TEST_COMPANIES`.
+
+The Overview says how many events each rule left out. If most recorded events come from a
+private address, it also warns that the app is seeing its proxy instead of real visitors
+(fix `TRUSTED_PROXY_HOPS`). Not filtered: the audit-chain check (it must see every row), bans
+and cases (enforcement and decisions, not activity), and the Loki view (raw shipped logs).
+
 ## Getting in
 
 There are no passwords and no default accounts. Sign-in is an emailed one-time code, and only
@@ -55,6 +74,9 @@ from it, or deactivation ends that user's console session on their next request.
 | `LOKI_URL` | unset | Enables the **Logs** view (read-only LogQL). Read from the environment only, never from a request. |
 | `SOC_LOG_MAX_MB` | 5 | Largest log the analyser accepts. |
 | `SOC_VERIFY_MAX_ROWS` | 500000 | Above this many `security_events` rows, use `scripts/verify_audit_chain.py` instead of the button. |
+| `SOC_TEST_CIDRS` | unset | Addresses / ranges you test from (office, VPN, CI); their events are left out of every view. |
+| `SOC_TEST_ACCOUNTS` | unset | Identifiers you test with (usernames, emails, employee IDs); left out of every view. |
+| `SOC_TEST_COMPANIES` | unset | Company URL slugs used only for testing; left out of every view, including Tenant risk, Attendance fraud and sessions. |
 | `SOC_AUTO_BAN` | false | `true` bans automated detections at once (the old behaviour) instead of queueing them in **Ban review**. Leave off when an analyst watches the queue: customers often share one office or mobile-network address. |
 
 ## What each view shows
@@ -86,7 +108,7 @@ from it, or deactivation ends that user's console session on their next request.
 ## Limits to know about
 
 * `security_events` has no tenant column; tenant views attribute events by the first segment of the request path, so events outside a tenant URL are not attributed.
-* There is no GeoIP or threat-intelligence enrichment.
+* There is no GeoIP or threat-intelligence enrichment, on purpose: the console shows only what HRZEST recorded. Location, VPN and hosting checks have to be done outside it.
 * The append-only trigger stops the application role from rewriting the SOC audit trail, not a database owner; forward it off-box for that (see `SECURITY_HARDENING.md`).
 * Cross-tenant views read each tenant in turn (cached 45 s, 300 tenants max, short per-tenant timeout); a tenant that errors is skipped and counted.
 * The Loki view has been tested against a stand-in, not a live Loki.

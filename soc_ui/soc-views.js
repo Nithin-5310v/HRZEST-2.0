@@ -116,11 +116,16 @@
           h('span', { class: 'banner-ico' }, SOC.icon(d.threat.level === 'normal' ? 'integrity' : 'alerts')),
           h('div', null, h('strong', null, 'Threat level: ', h('span', { class: 'cap' }, d.threat.level)), h('div', null, d.threat.reasons.join('. ') + '.'))));
         if (d.proxy_hint) {
-          frag.appendChild(SOC.callout(['Most events come from a private address (', h('span', { class: 'mono' }, d.proxy_ip || ''),
-            '). The app is seeing its proxy or container gateway, not the real visitors, so source IPs and locations below are not meaningful. ',
-            'Set TRUSTED_PROXY_HOPS to the number of proxies in front of the app (see Posture).'], 'warn'));
+          frag.appendChild(SOC.callout(['Most recorded events come from a private address (', h('span', { class: 'mono' }, d.proxy_ip || ''),
+            '). The app is seeing its proxy or container gateway instead of the real visitors, and the console leaves the server\'s own addresses out, ',
+            'so the numbers below look quieter than they are. Set TRUSTED_PROXY_HOPS to the number of proxies in front of the app (see Posture).'], 'warn'));
         }
-        frag.appendChild(h('p', { class: 'note' }, 'Click any number, area, event type or technique for an analyst brief: what it means, who is involved, what to check and how to respond.'));
+        const x = d.excluded || {};
+        const left = [[x.server, 'the server\'s own traffic'], [x.console, 'this console\'s own use'], [x.testing, 'your listed testing']]
+          .filter(([n]) => n).map(([n, what]) => fmt.n(n) + ' from ' + what);
+        frag.appendChild(h('p', { class: 'note' }, 'Genuine activity only. ' + (left.length
+          ? 'Left out of every number and list: ' + left.join(', ') + '. '
+          : '') + 'Click any number, area, event type or technique for an analyst brief: what it means, who is involved, what to check and how to respond.'));
         frag.appendChild(h('div', { class: 'grid kpis' },
           SOC.kpi('Events', fmt.n(k.events), 'last ' + d.hours + 'h', 'info', ex('kpi', 'events'), 'events'),
           SOC.kpi('Critical', fmt.n(k.critical), '', k.critical ? 'critical' : 'ok', ex('kpi', 'critical'), 'alerts'),
@@ -153,12 +158,7 @@
           columns: [{ label: 'Account', render: (r) => SOC.idLink(r.identifier) }, { label: 'Events', num: true, key: 'events' },
             { label: 'IPs', num: true, key: 'ips' }, { label: 'Last', render: (r) => when(r.last) }]
         });
-        const hidden = d.internal_sources || { count: 0 };
-        const sources = hidden.count
-          ? h('div', null, ipTable, h('p', { class: 'note' }, fmt.n(hidden.events) + ' event(s) from ' + fmt.n(hidden.count) +
-              ' internal address(es) (this server, its proxy or a private network) are not listed: they are not visitors.'))
-          : ipTable;
-        frag.appendChild(h('div', { class: 'grid cols-2' }, SOC.card('Most active sources', sources), SOC.card('Most active accounts', idTable)));
+        frag.appendChild(h('div', { class: 'grid cols-2' }, SOC.card('Most active sources', ipTable), SOC.card('Most active accounts', idTable)));
 
         const alerts = d.recent_alerts.length
           ? h('ul', { class: 'list' }, d.recent_alerts.map(eventRowLite)) : SOC.empty('No alerts in this window.');
@@ -285,25 +285,6 @@
   eventsView('alerts', 'Alerts', true);
   eventsView('events', 'Events', false);
 
-  /* ============ IP intelligence card (location, network, anonymizer) ============ */
-  function ipIntel(g) {
-    if (g.scope === 'private') return SOC.card('IP intelligence', SOC.callout(g.note, 'warn'));
-    if (g.scope !== 'public') return SOC.card('IP intelligence', SOC.empty(g.note || 'Location is not available for this address.'));
-    const coords = g.lat != null && g.lon != null
-      ? h('a', { href: 'https://www.openstreetmap.org/?mlat=' + g.lat + '&mlon=' + g.lon + '#map=9/' + g.lat + '/' + g.lon, target: '_blank', rel: 'noopener noreferrer' }, g.lat + ', ' + g.lon + ' (map)')
-      : null;
-    const kind = g.anonymizer ? SOC.chip(g.anonymizer, 'bad') : g.datacenter ? SOC.chip('Hosting / datacenter', 'warn') : SOC.chip('No anonymizer detected', 'ok');
-    return SOC.card('IP intelligence', h('div', { class: 'stack' },
-      g.verdict ? SOC.callout(g.verdict, g.anonymizer ? 'bad' : 'warn') : null,
-      SOC.kv([
-        ['Location', g.location], ['Coordinates', coords], ['Time zone', g.timezone],
-        ['Network (ASN)', [g.asn, g.provider ? ' · ' + g.provider : ''].join('')], ['Organisation', g.organisation],
-        ['Hostname', g.hostname ? h('span', { class: 'mono' }, g.hostname) : null], ['Address range', g.range ? h('span', { class: 'mono' }, g.range) : null],
-        ['Connection type', g.connection_type], ['Anonymizer', kind]
-      ]),
-      h('p', { class: 'note' }, 'Source: ' + g.source + (g.fetched_at ? ', looked up ' + fmt.time(g.fetched_at) : '') + '. IP geolocation is approximate: country is reliable, city is a best guess.')));
-  }
-
   /* ============ analyst brief (Overview drill-down) ============ */
   SOC.register({
     id: 'explain', label: 'Analyst brief', title: 'Analyst brief',
@@ -313,7 +294,6 @@
       const s = d.stats, ex = SOC.explainHref;
       document.getElementById('title').textContent = d.title;
       document.title = d.title + ' · SOC';
-      SOC.geoPrime(Object.fromEntries(d.sources.map((x) => [x.ip, x.geo])));
       root.textContent = '';
       const out = h('div', { class: 'stack' });
 
@@ -339,25 +319,17 @@
 
       if (!s.events) { out.appendChild(SOC.empty('Nothing matched in the selected window. Widen the time window (top bar) to look further back.')); root.appendChild(out); return; }
 
-      if (d.masked.of && d.masked.events) {
-        const pct = Math.round(100 * d.masked.events / d.masked.of);
-        out.appendChild(SOC.callout(pct + '% of the located activity comes from VPN, Tor, proxy or hosting addresses. For those, the location shown is the relay or datacenter, not the person behind it.', pct >= 50 ? 'bad' : 'warn'));
-      }
       out.appendChild(SOC.card('Who is involved: source addresses', SOC.table({
         empty: 'No source addresses recorded.', rows: d.sources, onRow: (r) => SOC.go('entity', { ip: r.ip }),
         columns: [
-          { label: 'Source IP / location', render: (r) => SOC.ipLink(r.ip) },
-          { label: 'Network', render: (r) => r.geo && r.geo.scope === 'public' ? [r.geo.provider || r.geo.organisation || '', h('div', { class: 'note mono' }, [r.geo.asn, r.geo.connection_type].filter(Boolean).join(' · '))] : null },
+          { label: 'Source IP', render: (r) => SOC.ipLink(r.ip) },
           { label: 'Events', num: true, key: 'events' }, { label: 'Kinds', num: true, key: 'types' }, { label: 'Accounts', num: true, key: 'accounts' },
           { label: 'Last', render: (r) => when(r.last) },
           { label: '', render: (r) => r.banned ? SOC.chip('banned', 'bad') : r.protected ? SOC.chip('shared', 'plain')
             : (needs('analyst') ? h('button', { class: 'btn danger small', type: 'button', onclick: () => SOC.drawer.open('Ban ' + r.ip, SOC.banForm(r.ip, () => SOC.reload())) }, 'Ban') : null) }]
       })));
-      out.appendChild(h('div', { class: 'grid cols-2' },
-        SOC.card('Where it comes from (by country)', d.countries.length ? SOC.bars(d.countries.map((c) => ({ label: c.country, value: c.events })))
-          : SOC.empty('No public source addresses with a known location.')),
-        SOC.card('Accounts involved', SOC.table({ empty: 'No accounts recorded.', rows: d.accounts, onRow: (r) => SOC.go('entity', { identifier: r.identifier }),
-          columns: [{ label: 'Account', render: (r) => SOC.idLink(r.identifier) }, { label: 'Events', num: true, key: 'events' }, { label: 'IPs', num: true, key: 'ips' }, { label: 'Last', render: (r) => when(r.last) }] }))));
+      out.appendChild(SOC.card('Accounts involved', SOC.table({ empty: 'No accounts recorded.', rows: d.accounts, onRow: (r) => SOC.go('entity', { identifier: r.identifier }),
+        columns: [{ label: 'Account', render: (r) => SOC.idLink(r.identifier) }, { label: 'Events', num: true, key: 'events' }, { label: 'IPs', num: true, key: 'ips' }, { label: 'Last', render: (r) => when(r.last) }] })));
       out.appendChild(h('div', { class: 'grid cols-2' },
         SOC.card('Made up of these event types', SOC.bars(d.types.map((t) => ({ label: t.label, value: t.count, href: d.kind === 'event_type' ? null : ex('event_type', t.event_type) })))),
         SOC.card('Targeted paths', d.paths.length ? SOC.table({ rows: d.paths, columns: [{ label: 'Path', cls: 'mono clip', key: 'path' }, { label: 'Hits', num: true, key: 'count' }] }) : SOC.empty('No request paths recorded.'))));
@@ -399,7 +371,7 @@
       if (needs('analyst')) acts.appendChild(h('button', { class: 'btn small', type: 'button', onclick: () => SOC.drawer.open('New case', SOC.caseForm({ title: 'Investigate ' + d.value, severity: d.high_severity ? 'high' : 'medium', summary: d.events + ' events in ' + d.days + ' days', source_type: kind === 'ip' ? 'ip' : 'manual' })) }, 'Open case'));
       acts.appendChild(h('a', { class: 'btn ghost small', href: '#/events?' + (kind === 'ip' ? 'ip=' : 'identifier=') + encodeURIComponent(d.value) }, 'All events'));
       out.append(title, acts);
-      if (kind === 'ip' && d.geo) { SOC.geoPrime({ [d.value]: d.geo }); out.appendChild(ipIntel(d.geo)); }
+      if (d.excluded) out.appendChild(SOC.callout(d.excluded, 'warn'));
       if (d.ban) out.appendChild(SOC.callout('Banned by ' + d.ban.by + ' on ' + fmt.time(d.ban.at) + ' — ' + (d.ban.reason || 'no reason recorded') + (d.ban.expires ? ' (until ' + fmt.time(d.ban.expires) + ')' : ' (until lifted)'), 'bad'));
       out.appendChild(h('div', { class: 'grid kpis' },
         SOC.kpi('Events', fmt.n(d.events), 'last ' + d.days + ' days', 'info'), SOC.kpi('High severity', fmt.n(d.high_severity), '', d.high_severity ? 'high' : 'ok'),
