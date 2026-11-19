@@ -27,8 +27,7 @@ class TestSocDashboardPage:
     def test_requires_platform_admin_login(self, client, monkeypatch):
         monkeypatch.setenv("SOC_DASHBOARD_URL", SOC_URL)
         resp = client.get("/super_admin/soc")
-        assert resp.status_code == 302
-        assert resp.headers["Location"].endswith("/super_admin/login")
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_redirects_to_console_when_not_configured(self, client, monkeypatch):
         monkeypatch.delenv("SOC_DASHBOARD_URL", raising=False)

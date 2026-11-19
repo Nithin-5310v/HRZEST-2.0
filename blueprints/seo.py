@@ -33,8 +33,12 @@ INDEXABLE_PATHS = ("/", "/create_org", "/security-policy")
 _UNTAGGED_PATHS = ("/robots.txt", "/sitemap.xml", "/.well-known/security.txt")
 _UNTAGGED_PREFIXES = ("/static/",)
 
-# Never useful to crawl: JSON APIs, payment/webhook callbacks, the operator console.
-_ROBOTS_DISALLOW = ("/api/", "/webhooks/", "/csp-report", "/super_admin")
+# Never useful to crawl: the JSON APIs. robots.txt is public, so it must not
+# name anything private (security review OBS-07 removed /super_admin,
+# /webhooks/ and /csp-report). Private pages are kept out of search results
+# by the X-Robots-Tag: noindex header below, and the operator console
+# answers 404 to anyone without a super-admin session.
+_ROBOTS_DISALLOW = ("/api/",)
 
 
 def _base_url():

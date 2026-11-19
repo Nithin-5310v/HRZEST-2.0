@@ -198,8 +198,7 @@ class TestLoginFlow:
 class TestPlatformAdminRequiredGuard:
     def test_dashboard_requires_login(self, client):
         resp = client.get("/super_admin", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_idle_timeout_clears_session_and_redirects(self, client):
         _login_platform_admin(client)
@@ -346,8 +345,7 @@ class TestDashboard:
 class TestSetCosts:
     def test_requires_login(self, client):
         resp = client.post("/super_admin/costs", data={}, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_valid_costs_update(self, client, db_engine):
         _login_platform_admin(client)
@@ -405,8 +403,7 @@ class TestSetLeadStatus:
     def test_requires_login(self, client, lead_row):
         resp = client.post(f"/super_admin/leads/{lead_row}/status", data={"status": "contacted"},
                            follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_valid_status_update(self, client, db_engine, lead_row):
         _login_platform_admin(client)
@@ -469,8 +466,7 @@ class TestTenantStatus:
     def test_requires_login(self, client, tenant_row):
         resp = client.post(f"/super_admin/tenants/{tenant_row}/status", data={"status": "suspended"},
                            follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_suspend_and_reactivate(self, client, db_engine, tenant_row):
         _login_platform_admin(client)
@@ -520,8 +516,7 @@ class TestBulkTenantStatus:
         resp = client.post("/super_admin/tenants/bulk-status",
                            data={"status": "suspended", "tenant_ids": [str(i) for i in two_tenant_rows]},
                            follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_bulk_deactivate_and_reactivate(self, client, db_engine, two_tenant_rows):
         _login_platform_admin(client)
@@ -589,8 +584,7 @@ class TestDeleteTenant:
         tenant_id, subdomain, _schema = deletable_tenant
         resp = client.post(f"/super_admin/tenants/{tenant_id}/delete",
                            data={"confirm_subdomain": subdomain}, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_wrong_confirmation_text_is_refused(self, client, db_engine, deletable_tenant):
         tenant_id, subdomain, schema = deletable_tenant
@@ -726,8 +720,7 @@ class TestDashboardSearchPaginationAndExport:
 
     def test_export_payments_csv_requires_login(self, client):
         resp = client.get("/super_admin/export/payments.csv", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_export_payments_csv(self, client):
         _login_platform_admin(client)
@@ -760,8 +753,7 @@ class TestApplicationsQueueAndDetail:
 
     def test_queue_requires_login(self, client):
         resp = client.get("/super_admin/applications", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_queue_lists_pending_application(self, client, application_row):
         _login_platform_admin(client)
@@ -795,8 +787,7 @@ class TestApplicationsQueueAndDetail:
 
     def test_detail_requires_login(self, client, application_row):
         resp = client.get(f"/super_admin/applications/{application_row}", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_detail_shows_application(self, client, application_row):
         _login_platform_admin(client)
@@ -839,8 +830,7 @@ class TestApplicationDocument:
         app_id, _path = application_with_doc
         resp = client.get(f"/super_admin/applications/{app_id}/documents/registration_cert",
                           follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_valid_doc_kind_streams_file_from_db_row(self, client, application_with_doc):
         _login_platform_admin(client)
@@ -952,8 +942,7 @@ class TestDuplicateAlerts:
 
     def test_list_requires_login(self, client):
         resp = client.get("/super_admin/duplicate-alerts", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_list_shows_alert(self, client, alert_row):
         _login_platform_admin(client)
@@ -964,8 +953,7 @@ class TestDuplicateAlerts:
 
     def test_acknowledge_requires_login(self, client, alert_row):
         resp = client.post(f"/super_admin/duplicate-alerts/{alert_row}/acknowledge", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_acknowledge_marks_alert(self, client, db_engine, alert_row):
         _login_platform_admin(client, username="ack_platform_admin")
@@ -1004,8 +992,7 @@ class TestBulkAcknowledgeDuplicateAlerts:
     def test_requires_login(self, client, two_alert_rows):
         resp = client.post("/super_admin/duplicate-alerts/bulk-acknowledge",
                            data={"alert_ids": [str(i) for i in two_alert_rows]}, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_bulk_acknowledge_marks_all_selected(self, client, db_engine, two_alert_rows):
         _login_platform_admin(client, username="bulk_ack_admin")
@@ -1051,8 +1038,7 @@ class TestChat:
 
     def test_messages_requires_login(self, client, tenant_row):
         resp = client.get(f"/super_admin/chat/{tenant_row}/messages", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_messages_unknown_tenant_404s(self, client):
         _login_platform_admin(client)
@@ -1154,8 +1140,7 @@ class TestAuditLog:
 
     def test_requires_login(self, client):
         resp = client.get("/super_admin/audit-log", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_shows_platform_admin_scoped_events_only(self, client, audit_events):
         _login_platform_admin(client)
@@ -1225,8 +1210,7 @@ class TestCompanyProfile:
 
     def test_requires_login(self, client, crm_tenant):
         resp = client.get(f"/super_admin/companies/{crm_tenant}", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_unknown_company_flashes_not_found(self, client):
         _login_platform_admin(client)
@@ -1288,8 +1272,7 @@ class TestTenantNotes:
     def test_requires_login(self, client, crm_tenant):
         resp = client.post(f"/super_admin/companies/{crm_tenant}/notes", data={"note": "hi"},
                            follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_add_note(self, client, db_engine, crm_tenant):
         _login_platform_admin(client, username="notes_admin")
@@ -1359,8 +1342,7 @@ class TestSupportTickets:
     def test_create_ticket_requires_login(self, client, ticket_tenant):
         resp = client.post(f"/super_admin/companies/{ticket_tenant}/tickets",
                            data={"subject": "x", "description": "y"}, follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_create_ticket(self, client, db_engine, ticket_tenant):
         _login_platform_admin(client, username="ticket_creator_admin")
@@ -1408,8 +1390,7 @@ class TestSupportTickets:
 
     def test_queue_requires_login(self, client):
         resp = client.get("/super_admin/tickets", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_queue_default_filter_shows_open_ticket(self, client, open_ticket):
         _login_platform_admin(client)
@@ -1434,8 +1415,7 @@ class TestSupportTickets:
 
     def test_detail_requires_login(self, client, open_ticket):
         resp = client.get(f"/super_admin/tickets/{open_ticket}", follow_redirects=False)
-        assert resp.status_code in (301, 302)
-        assert resp.headers["Location"] == "/super_admin/login"
+        assert resp.status_code == 404  # OBS-07: no sign the console exists
 
     def test_detail_shows_ticket(self, client, open_ticket):
         _login_platform_admin(client)

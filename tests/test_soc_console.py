@@ -327,8 +327,7 @@ class TestIsolation:
     def test_a_console_session_opens_nothing_else(self, soc):
         c, _ = soc("alice", "admin")
         assert c.get("/admin").status_code in (302, 401)
-        r = c.get("/super_admin")
-        assert r.status_code == 302 and "/super_admin/login" in r.headers["Location"]
+        assert c.get("/super_admin").status_code == 404  # OBS-07
         assert c.get("/employee_portal").status_code in (302, 401)
         assert c.get("/api/employees").status_code == 401
 

@@ -18,7 +18,9 @@ class TestRobotsTxt:
         body = resp.get_data(as_text=True)
         assert "Sitemap: https://seo.example.test/sitemap.xml" in body
         assert "Disallow: /api/" in body
-        assert "Disallow: /super_admin" in body
+        # OBS-07: a public file must not name the private surfaces.
+        for private in ("super_admin", "/webhooks", "/csp-report"):
+            assert private not in body
 
     def test_login_pages_are_not_blocked_so_their_noindex_is_seen(self, client):
         body = client.get("/robots.txt").get_data(as_text=True)
