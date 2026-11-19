@@ -46,7 +46,7 @@ seeds and cleans up that row itself.
 
 ## What's covered, and what deliberately isn't
 
-Five flows, chosen to be both genuinely critical and achievable without a
+Six flows, chosen to be both genuinely critical and achievable without a
 real detectable face photo (Add Employee's web form and `/api/employees`
 both reject a photo with no detected face via
 `face_recognition.face_encodings()` -- see `blueprints/employees/` --
@@ -62,6 +62,13 @@ external browser-driven test can't do):
 5. Admin changes their own password -> the old password stops working and
    the new one logs in (checked from fresh, cookie-less browser contexts,
    not by trusting this app's own logout redirect/cookie timing).
+6. SOC console sign-in (`test_soc_passkey.py`): email -> emailed code ->
+   create a passkey at the first sign-in, then sign in again with it, and a
+   second device without the passkey is refused. The passkey lives in
+   Chromium's virtual authenticator, so `soc_ui/login.js` and py_webauthn's
+   real signature checks both run; the emailed code is captured in-process.
+   Opened at `http://localhost:<port>` because browsers do not accept an IP
+   address as a passkey's site.
 
 Not covered here: face-recognition check-in/photo upload (see above),
 payment flows (Razorpay has no sandbox reachable from a CI-shaped
