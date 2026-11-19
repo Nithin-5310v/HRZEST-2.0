@@ -331,3 +331,12 @@ def inject_admin_avatar():
 @app.context_processor
 def inject_company():
     return {"co": get_company_settings()}
+
+
+@app.context_processor
+def inject_trial_days():
+    """The free-trial length, for every page that states it (create_org,
+    create_org_status, create_org_setup_trial), so the wording can't drift
+    from what blueprints/trial_billing.TRIAL_DURATION_DAYS actually grants."""
+    from blueprints.trial_billing import TRIAL_DURATION_DAYS
+    return {"trial_days": TRIAL_DURATION_DAYS}

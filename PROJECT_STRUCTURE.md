@@ -134,7 +134,7 @@ HRZEST/
 ├── .github/                        CI workflows, Dependabot
 ├── observability/                  logs + alerts (Alloy → Loki → Grafana)
 ├── nginx/, nginx.conf, nginx.conf.example, init-letsencrypt.sh
-├── Containerfile, compose*.yaml, entrypoint.sh, deploy.sh, gunicorn.conf.py, Procfile
+├── Containerfile, compose*.yaml, entrypoint.sh, deploy.sh, gunicorn.conf.py
 ├── requirements.txt, requirements.lock, .python-version
 │
 │ ═══ 13. Docs ══════════════════════════════════════════════════════════════════════
@@ -373,7 +373,7 @@ More detail: `SECURITY.md`, `docs/SECURITY_HARDENING.md`.
 | Host & backups | `scripts/host_hardening.sh`, `scripts/backup_db.sh`, `hrzest-backup.service` / `.timer`, `scripts/provision_db_roles.py` |
 | Logs & monitoring | `observability/` (Grafana Alloy → Loki → Grafana, security alert rules) |
 | Dependencies | `requirements.txt`, `requirements.lock` (hash-pinned), `requirements-dev.txt`, `docs/DEPENDENCIES.txt`; `mobile/package.json` |
-| Other | `desktop_agent/wifi_posture_agent.py` (office Wi-Fi check for the employee portal), `Procfile` (PaaS hosts) |
+| Other | `desktop_agent/wifi_posture_agent.py` (office Wi-Fi check for the employee portal) |
 
 ---
 

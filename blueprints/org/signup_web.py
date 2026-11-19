@@ -332,7 +332,7 @@ def _save_company_profile(application, fields, logo_file):
             return False, f"Company logo: {logo_err}", None, None
 
     from utils.razorpay_utils import accepting_online_payments, payments_enabled
-    # "trial" is only ever chosen explicitly (the "2-Day Free Trial" option,
+    # "trial" is only ever chosen explicitly (the "30-Day Free Trial" option,
     # blueprints/trial_billing.TRIAL_DURATION_DAYS long, beside "Pay now").
     # A platform admin's free registration has no payment step and is
     # billed by manual invoice -- as is everyone while online payments are

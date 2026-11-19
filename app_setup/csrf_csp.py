@@ -418,9 +418,6 @@ def _security_headers(response):
     return response
 
 
-# csp_report migrated to blueprints/core.py
-
-
 @app.after_request
 def _bust_settings_cache(response):
     if request.method == "POST" and request.path in _SETTINGS_PATHS:

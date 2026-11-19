@@ -261,7 +261,7 @@
       {% if oauth_providers and not free_registration %}
       <div class="trial-badge">
         <i class="ti ti-gift"></i>
-        With {{ oauth_names }}: no card, no waiting — you're set up on a 1-month free trial once you verify your email.
+        With {{ oauth_names }}: no card, no waiting — you're set up on a {{ trial_days }}-day free trial once you verify your email.
       </div>
 
       {% if 'google' in oauth_providers %}
@@ -407,13 +407,13 @@
             <div class="plan-option-sub">Activate immediately, billed this month.</div>
           </div>
           <div class="plan-option" id="planOptionTrial" data-signup-plan="trial">
-            <div class="plan-option-title"><i class="ti ti-gift"></i> 2-Day Free Trial</div>
+            <div class="plan-option-title"><i class="ti ti-gift"></i> {{ trial_days }}-Day Free Trial</div>
             <div class="plan-option-sub">Full access, card required, cancel anytime.</div>
           </div>
         </div>
         <div class="plan-disclosure" id="trialDisclosure" style="display:none;">
           <i class="ti ti-info-circle"></i>
-          You'll authorize a payment method after approval. Your 1-month trial starts the first time you log in,
+          You'll authorize a payment method after approval. Your {{ trial_days }}-day trial starts the first time you log in,
           and billing starts automatically when it ends unless you cancel before then.
         </div>
         {% endif %}
