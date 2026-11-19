@@ -24,6 +24,20 @@ private address, it also warns that the app is seeing its proxy instead of real 
 (fix `TRUSTED_PROXY_HOPS`). Not filtered: the audit-chain check (it must see every row), bans
 and cases (enforcement and decisions, not activity), and the Loki view (raw shipped logs).
 
+## Daily summary email
+
+Every morning (08:00 Asia/Kolkata by default) everyone in `SOC_LOGIN_EMAILS` gets one email
+covering the last 24 hours (`utils/soc_digest.py`):
+* the threat level and the Overview numbers, with total events against the day before,
+* which detection rules fired and how often, and the busiest source addresses,
+* what is waiting in **Ban review** and for how long (nothing is banned until someone decides),
+* open cases, and how many events the genuine-activity rules left out.
+
+It is sent on quiet days too, so a summary that stops arriving is itself a warning. Account
+names and event details are left out: email is outside the console's network allow-list and
+sign-in. It needs working SMTP; with `APP_URL` set it links to the console. Disabled accounts
+are skipped. `SOC_DIGEST=off` turns it off; `SOC_DIGEST_HOUR` moves it.
+
 ## Getting in
 
 There are no passwords and no default accounts. Sign-in is an emailed one-time code, and only
@@ -77,6 +91,8 @@ from it, or deactivation ends that user's console session on their next request.
 | `SOC_TEST_CIDRS` | unset | Addresses / ranges you test from (office, VPN, CI); their events are left out of every view. |
 | `SOC_TEST_ACCOUNTS` | unset | Identifiers you test with (usernames, emails, employee IDs); left out of every view. |
 | `SOC_TEST_COMPANIES` | unset | Company URL slugs used only for testing; left out of every view, including Tenant risk, Attendance fraud and sessions. |
+| `SOC_DIGEST` | on | `off` stops the daily summary email. |
+| `SOC_DIGEST_HOUR` | 8 | Hour (0–23, Asia/Kolkata) the daily summary is sent. |
 | `SOC_AUTO_BAN` | false | `true` bans automated detections at once (the old behaviour) instead of queueing them in **Ban review**. Leave off when an analyst watches the queue: customers often share one office or mobile-network address. |
 
 ## What each view shows

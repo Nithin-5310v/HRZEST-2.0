@@ -280,6 +280,18 @@ def pulse():
     return {"now": iso(now), "threat": threat_level(lh), "last_hour": lh, "alerts_24h": alerts_24h, "open_cases": open_cases}
 
 
+def event_totals(hours=24):
+    """Genuine events in the last `hours` and in the `hours` before that."""
+    hours = hours_arg(hours)
+    with read_cursor("public") as cur:
+        ev, ep = soc_scope.events_cte(cur, hours * 2)
+        cur.execute(ev + "SELECT COUNT(*) FILTER (WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')), "
+                    "COUNT(*) FILTER (WHERE created_at < NOW() - (%s * INTERVAL '1 hour')) "
+                    "FROM ev WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')", ep + [hours, hours, hours * 2])
+        current, previous = cur.fetchone()
+    return {"current": current, "previous": previous}
+
+
 # ── events ───────────────────────────────────────────────────────────
 def search_events(*, q=None, levels=None, family=None, event_type=None, ip=None, identifier=None, tenant=None,
                   alerts_only=False, hours=24, cursor=None, limit=100, since=None):
