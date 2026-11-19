@@ -63,8 +63,8 @@ class TestWebLoginByEmail:
         resp = client.post("/login", data={"identifier": employee_email, "password": "Wrong-Pass-1"})
         assert b"Check your email and password." in resp.data
 
-    def test_landing_page_login_finds_the_company_from_the_email(self, client, seed_employee, employee_email,
-                                                                monkeypatch):
+    def test_landing_page_login_finds_the_company_from_the_email(
+            self, client, seed_employee, employee_email, monkeypatch):
         monkeypatch.setenv("LOGIN_ASKS_FOR_COMPANY", "true")
         resp = client.post("/login", data={"identifier": employee_email, "password": seed_employee["password"]})
         assert resp.status_code == 302
@@ -81,8 +81,8 @@ class TestWebLoginByEmail:
 class TestAppSigninByEmail:
     def test_employee_email_signs_in_as_employee(self, client, seed_employee, employee_email, monkeypatch):
         monkeypatch.setenv("LOGIN_ASKS_FOR_COMPANY", "true")
-        resp = client.post("/api/signin", json={"identifier": employee_email,
-                                                 "password": seed_employee["password"]})
+        resp = client.post("/api/signin", json={
+            "identifier": employee_email, "password": seed_employee["password"]})
         body = resp.get_json()
         assert resp.status_code == 200, body
         assert body["account"] == "employee" and body["employee_id"] == seed_employee["employee_id"]
@@ -104,8 +104,8 @@ class TestForgotPasswordByEmail:
         assert resp.status_code == 200
         assert b'name="email"' in resp.data
 
-    def test_known_employee_email_sends_the_link_and_says_so(self, client, seed_employee, employee_email,
-                                                              sent, monkeypatch, db_engine):
+    def test_known_employee_email_sends_the_link_and_says_so(
+            self, client, seed_employee, employee_email, sent, monkeypatch, db_engine):
         monkeypatch.setenv("LOGIN_ASKS_FOR_COMPANY", "true")
         resp = client.post("/forgot_password", data={"email": employee_email})
         assert resp.status_code == 200
