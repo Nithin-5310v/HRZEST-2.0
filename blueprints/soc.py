@@ -73,8 +73,8 @@ def _latest_integrity():
 
 @soc_bp.after_request
 def _headers(resp):
-    resp.headers["Cache-Control"] = "no-store, max-age=0"
-    resp.headers["Pragma"] = "no-cache"
+    # Cache-Control/Pragma/Expires: no-store comes from app_setup/cache_control.py
+    # for every SOC response, like the rest of the site.
     resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
     resp.headers["Referrer-Policy"] = "no-referrer"
     return resp
