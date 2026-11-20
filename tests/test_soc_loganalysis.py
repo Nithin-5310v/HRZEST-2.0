@@ -131,6 +131,19 @@ def test_possible_success_after_many_attempts():
     assert r["sources"][0]["verdict"] == "block"
 
 
+def test_a_sources_score_is_exactly_the_parts_it_shows():
+    lines = [nginx("45.33.32.21", "/login", 200, "POST", ts=ts_at(i)) for i in range(12)]
+    lines.append(nginx("45.33.32.21", "/login", 302, "POST", ts=ts_at(13)))
+    lines += [nginx("45.33.32.40", "/", 200)]
+    r = run(lines)
+    for s in r["sources"]:
+        assert s["score"] == min(100, sum(p["points"] for p in s["score_parts"]))
+        assert all(p["what"] and p["points"] > 0 for p in s["score_parts"])
+    attacker = next(s for s in r["sources"] if s["ip"] == "45.33.32.21")
+    assert {"what": "possible_success", "severity": "critical", "points": 40} in attacker["score_parts"]
+    assert next(s for s in r["sources"] if s["ip"] == "45.33.32.40")["score_parts"] == []
+
+
 def test_a_single_normal_login_redirect_is_not_flagged():
     r = run([nginx("45.33.32.22", "/login", 302, "POST")])
     assert "possible_success" not in ids(r) and "bruteforce" not in ids(r)
@@ -200,6 +213,16 @@ def test_timeline_bucket_scales_with_span():
     assert short["timeline"]["bucket"] == "minute"
     long_ = run([nginx("45.33.33.1", "/", ts="01/Oct/2026:10:00:00 +0000"), nginx("45.33.33.1", "/", ts="16/Oct/2026:10:00:00 +0000")])
     assert long_["timeline"]["bucket"] == "day"
+
+
+def test_quiet_stretches_are_on_the_timeline_at_zero():
+    """Only recorded counts: a quiet minute is a 0, not a line drawn across it."""
+    r = run([nginx("45.33.33.1", "/", ts=ts_at(0)), nginx("45.33.33.1", "/", ts=ts_at(30))])
+    pts = r["timeline"]["points"]
+    assert len(pts) == 31 and [p["t"] for p in pts] == sorted(p["t"] for p in pts)
+    assert [p["requests"] for p in pts] == [1] + [0] * 29 + [1]
+    long_ = run([nginx("45.33.33.1", "/", ts="01/Oct/2026:10:00:00 +0000"), nginx("45.33.33.1", "/", ts="16/Oct/2026:10:00:00 +0000")])
+    assert len(long_["timeline"]["points"]) == 16 and sum(p["requests"] for p in long_["timeline"]["points"]) == 2
 
 
 # ── hostile input / limits ──────────────────────────────────────────

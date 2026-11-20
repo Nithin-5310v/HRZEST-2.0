@@ -282,6 +282,7 @@ class _Finding:
 
 _SEV_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 _SEV_POINTS = {"critical": 40, "high": 25, "medium": 12, "low": 4, "info": 0}
+TIMELINE_MAX_BUCKETS = 2000
 
 
 def analyze(text, *, brute_force_min=10, enumeration_min=20, flood_per_minute=120):
@@ -543,17 +544,21 @@ def analyze(text, *, brute_force_min=10, enumeration_min=20, flood_per_minute=12
     sev_of = {fid: f.severity for fid, f in findings.items()}
     sources = []
     for ip, s in ip_stats.items():
-        score = 0
+        # The score is only these parts added up (capped at 100); they go out
+        # with it so the page shows exactly how a source got its number.
+        parts = []
         for flag, c in s["flags"].items():
             sev = sev_of.get(flag) or sev_of.get("app_event:" + flag) or "medium"
-            score += _SEV_POINTS[sev] if c else 0
+            if c and _SEV_POINTS[sev]:
+                parts.append({"what": flag, "severity": sev, "points": _SEV_POINTS[sev]})
         if s["requests"] >= 20 and s["errors"] / s["requests"] >= 0.6:
-            score += 8
-        score = min(100, score)
+            parts.append({"what": "60%+ of its 20+ requests failed", "severity": None, "points": 8})
+        score = min(100, sum(p["points"] for p in parts))
         sources.append({
             "ip": ip, "requests": s["requests"], "errors": s["errors"], "bytes": s["bytes"],
             "distinct_paths": len(s["paths"]), "login_posts": s["login_posts"], "accounts": len(s["users"]),
-            "flags": sorted(s["flags"]), "score": score, "non_public": _ip_is_non_public(ip),
+            "flags": sorted(s["flags"]), "score": score, "score_parts": sorted(parts, key=lambda p: -p["points"]),
+            "non_public": _ip_is_non_public(ip),
             "verdict": ("block" if score >= 60 else "watch" if score >= 25 else "ok"),
             "first": s["first"].isoformat(sep=" ") if s["first"] else None,
             "last": s["last"].isoformat(sep=" ") if s["last"] else None})
@@ -574,6 +579,20 @@ def analyze(text, *, brute_force_min=10, enumeration_min=20, flood_per_minute=12
     timeline = collections.OrderedDict()
     attack_ips = {src["ip"] for src in sources if src["flags"]}
     if bucket:
+        # Every bucket from the first record to the last, quiet ones at zero:
+        # without them a quiet stretch vanished and the chart drew a line across
+        # it as if there had been traffic. (Bounded: a log whose dates are far
+        # apart keeps only its busy buckets rather than thousands of empty ones.)
+        step = {"minute": datetime.timedelta(minutes=1), "hour": datetime.timedelta(hours=1),
+                "day": datetime.timedelta(days=1)}[bucket]
+        zero = {"minute": {"second": 0, "microsecond": 0}, "hour": {"minute": 0, "second": 0, "microsecond": 0},
+                "day": {"hour": 0, "minute": 0, "second": 0, "microsecond": 0}}[bucket]
+        t = first_ts.replace(**zero)
+        if (last_ts - t) / step <= TIMELINE_MAX_BUCKETS:
+            while t <= last_ts:
+                key = t.strftime(fmt)
+                timeline[key] = {"t": key, "requests": 0, "errors5xx": 0, "attack": 0}
+                t += step
         # re-walk the per-minute totals (already aggregated) instead of the lines
         for minute in sorted(minute_tot):
             key = minute.strftime(fmt)

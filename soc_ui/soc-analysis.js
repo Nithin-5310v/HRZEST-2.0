@@ -110,7 +110,7 @@
 
       /* sources */
       const canAct = SOC.can('analyst');
-      results.appendChild(SOC.card('Sources', SOC.table({
+      results.appendChild(SOC.card('Sources', [SOC.table({
         empty: 'No source addresses were found.', rows: r.sources,
         columns: [
           { label: 'Source', render: (x) => [SOC.ipLink(x.ip), x.non_public ? SOC.chip(' non-public', 'plain') : null] },
@@ -118,11 +118,17 @@
           { label: 'Paths', num: true, key: 'distinct_paths' }, { label: 'Login POSTs', num: true, key: 'login_posts' }, { label: 'Accounts', num: true, key: 'accounts' },
           { label: 'Sent', num: true, render: (x) => fmt.bytes(x.bytes) },
           { label: 'Flags', render: (x) => x.flags.map((f) => SOC.chip(f, 'plain')) },
-          { label: 'Score', render: (x) => { const i = h('i'); i.style.width = Math.max(2, x.score) + '%'; return h('div', { class: 'row' }, h('span', { class: 'bar ' + (x.score >= 60 ? 'crit' : x.score >= 25 ? 'warn' : '') }, i), h('span', { class: 'mono' }, x.score)); } },
+          { label: 'Score', render: (x) => {
+            const i = h('i'); i.style.width = Math.max(2, x.score) + '%';
+            // The score is nothing but these parts added up; say so on hover and for screen readers.
+            const how = (x.score_parts || []).map((p) => p.what + (p.severity ? ' (' + p.severity + ')' : '') + ' +' + p.points).join(', ') || 'no findings';
+            return h('div', { class: 'row', title: how, 'aria-label': 'Score ' + x.score + ': ' + how },
+              h('span', { class: 'bar ' + (x.score >= 60 ? 'crit' : x.score >= 25 ? 'warn' : '') }, i), h('span', { class: 'mono' }, x.score));
+          } },
           { label: 'Verdict', render: (x) => SOC.chip(x.verdict, x.verdict === 'block' ? 'bad' : x.verdict === 'watch' ? 'plain' : 'ok') },
           { label: '', render: (x) => canAct && x.verdict !== 'ok' && !x.non_public ? h('button', { class: 'btn danger small', type: 'button', onclick: () => SOC.drawer.open('Ban ' + x.ip, SOC.banForm(x.ip)) }, 'Ban') : null }
         ]
-      })));
+      }), h('p', { class: 'note' }, 'Score = points for each kind of finding the source took part in (critical 40, high 25, medium 12, low 4), plus 8 when 60% or more of its 20+ requests failed, capped at 100. Hover a score for its parts. 60+ = block, 25+ = watch.')]));
 
       /* charts */
       const tl = h('canvas', { role: 'img', 'aria-label': 'Requests over time' }), st = h('canvas', { role: 'img', 'aria-label': 'HTTP status classes' }), hr = h('canvas', { role: 'img', 'aria-label': 'Requests by hour of day' });
@@ -132,9 +138,9 @@
       results.appendChild(SOC.card('Requests by hour of day', h('div', { class: 'chart short' }, hr)));
       if (r.timeline.points.length) {
         SOC.chart(tl, { type: 'line', data: { labels: r.timeline.points.map((p) => p.t.slice(r.timeline.bucket === 'day' ? 5 : 5, r.timeline.bucket === 'day' ? 10 : 16)), datasets: [
-          { label: 'Requests', data: r.timeline.points.map((p) => p.requests), borderColor: SOC.cssVar('--accent'), backgroundColor: SOC.cssVar('--accent'), tension: .25, pointRadius: 0 },
-          { label: 'From flagged sources', data: r.timeline.points.map((p) => p.attack), borderColor: SOC.cssVar('--critical'), backgroundColor: SOC.cssVar('--critical'), tension: .25, pointRadius: 0 },
-          { label: '5xx', data: r.timeline.points.map((p) => p.errors5xx), borderColor: SOC.cssVar('--medium'), backgroundColor: SOC.cssVar('--medium'), tension: .25, pointRadius: 0 }] },
+          { label: 'Requests', data: r.timeline.points.map((p) => p.requests), borderColor: SOC.cssVar('--accent'), backgroundColor: SOC.cssVar('--accent'), tension: 0, pointRadius: 0 },
+          { label: 'From flagged sources', data: r.timeline.points.map((p) => p.attack), borderColor: SOC.cssVar('--critical'), backgroundColor: SOC.cssVar('--critical'), tension: 0, pointRadius: 0 },
+          { label: '5xx', data: r.timeline.points.map((p) => p.errors5xx), borderColor: SOC.cssVar('--medium'), backgroundColor: SOC.cssVar('--medium'), tension: 0, pointRadius: 0 }] },
           options: { scales: { x: { ticks: { maxTicksLimit: 10 } }, y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { position: 'bottom' } } } });
       }
       if (Object.keys(r.status).length) {

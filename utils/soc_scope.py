@@ -2,7 +2,7 @@
 """Which recorded events the SOC console shows: genuine activity only.
 
 Every data view -- Overview, the top-bar threat level, Alerts / Events and their
-CSV export, Lookup, Analyst brief, Detections, Tenant risk, Attendance fraud,
+CSV export, Lookup, Analyst brief, Detections, Tenant activity, Attendance fraud,
 Response sessions, Ban review and Log analysis of platform activity -- reads
 security_events through `events_cte()`, so these are left out everywhere at once:
 
@@ -22,6 +22,10 @@ security_events through `events_cte()`, so these are left out everywhere at once
 Not filtered: the audit-chain verification (it must see every row), bans and
 cases (enforcement and analyst decisions, not activity), and the Loki view
 (raw shipped logs).
+
+An event's address, in every view, is the address it is about (SOURCE_SQL):
+usually the requester, but a TCP-decoy hit, a ban review and a detection are
+about the address in `identifier`. The rules above apply to that address.
 """
 import ipaddress
 import os
@@ -35,7 +39,33 @@ OWN_EVENT_TYPES = ("soc.login_success", "soc.login_code_sent", "soc.action")
 CONSOLE_PATH = "/socperson"
 
 
-def _per_request(key, producer):
+# ── the address an event is about ────────────────────────────────────
+# `ip` is whoever made the request that wrote the event (extensions.
+# log_security_event), which for most events is the actor. These are about
+# another address, written by someone else's request -- the TCP-decoy
+# honeypot's report webhook, or the request that raised a ban review -- or by
+# no request at all (the detection scheduler: `ip` empty). The address they are
+# about is `identifier`. Without this a decoy hit counted for the honeypot
+# container that reported it and, that being a private address, was left out
+# as the server's own traffic; and a detection on your own test address showed.
+ABOUT_ADDRESS_TYPES = ("honeypot.tcp_decoy_hit", "secops.ban_review_raised", "secops.ban_review_failed",
+                       "secops.honeypot_ban_withheld", "waf.auto_ban")
+_ADDRESS_RE = r"^([0-9]{1,3}(\.[0-9]{1,3}){3}|[0-9A-Fa-f.]*:[0-9A-Fa-f:.]*)$"
+_ABOUT_SQL = ("(event_type IN (" + ",".join("'" + t + "'" for t in ABOUT_ADDRESS_TYPES) + ") "
+              "OR (COALESCE(ip, '') = '' AND event_type LIKE 'detection.%%')) "
+              "AND identifier ~ '" + _ADDRESS_RE + "'")
+# security_events with `ip` = the address each event is about. The requester
+# stays as request_ip; IP_MATCH_SQL uses it so a lookup by address keeps its index.
+SOURCE_SQL = ("SELECT id, event_type, level, message, identifier, "
+              "CASE WHEN " + _ABOUT_SQL + " THEN identifier ELSE ip END AS ip, ip AS request_ip, "
+              "path, method, extra_json, created_at, tenant FROM security_events")
+# "The event is about address %s" over SOURCE_SQL rows; bind the address 3 times.
+# The first part is a superset the (ip, created_at) and (identifier, created_at)
+# indexes can answer; `ip = %s` then decides.
+IP_MATCH_SQL = "(request_ip = %s OR identifier = %s) AND ip = %s"
+
+
+def per_request(key, producer):
     """Computed at most once per request and never reused by a later one: a list
     kept across requests would let an address first seen since then slip through
     (the lookups are indexed: security_events (ip, created_at), (event_type))."""
@@ -84,10 +114,15 @@ def ip_reason(ip):
         return None
     if is_internal_ip(ip):
         return "internal"
-    addr = parse_ip(ip)
-    if addr is not None and any(addr.version == n.version and addr in n for n in test_networks()):
+    if is_test_ip(ip):
         return "test"
     return None
+
+
+def is_test_ip(ip):
+    """In one of the SOC_TEST_CIDRS ranges you test from."""
+    addr = parse_ip(ip) if ip else None
+    return addr is not None and any(addr.version == n.version and addr in n for n in test_networks())
 
 
 EXCLUDED_NOTES = {
@@ -105,8 +140,12 @@ def _hidden_ips(cur, hours):
     Classified in Python by the same rules as the rest of the app, so a value the
     database could not cast to inet can never break a query."""
     def build():
+        # Requesters, plus the addresses events are about (SOURCE_SQL): a few
+        # extra requesters classified is harmless, a missed address is not.
         cur.execute("SELECT DISTINCT ip FROM security_events WHERE ip IS NOT NULL "
-                    "AND created_at >= NOW() - (%s * INTERVAL '1 hour')", (hours,))
+                    "AND created_at >= NOW() - (%s * INTERVAL '1 hour') "
+                    "UNION SELECT DISTINCT identifier FROM security_events WHERE " + _ABOUT_SQL +
+                    " AND created_at >= NOW() - (%s * INTERVAL '1 hour')", (hours, hours))
         internal, test = [], []
         for (ip,) in cur.fetchall():
             reason = ip_reason(ip)
@@ -115,7 +154,7 @@ def _hidden_ips(cur, hours):
             elif reason == "test":
                 test.append(ip)
         return internal, test
-    return _per_request(("hidden_ips", int(hours), os.environ.get("SOC_TEST_CIDRS", "")), build)
+    return per_request(("hidden_ips", int(hours), os.environ.get("SOC_TEST_CIDRS", "")), build)
 
 
 def console_ips():
@@ -132,7 +171,7 @@ def console_ips():
                         "AND created_at >= NOW() - INTERVAL '90 days'", (list(OWN_EVENT_TYPES),))
             ips |= {ip for (ip,) in cur.fetchall()}
         return sorted(ips)
-    return _per_request(("console_ips",), build)
+    return per_request(("console_ips",), build)
 
 
 def _console_event(event_type, path):
@@ -162,8 +201,9 @@ def _genuine_params(cur, hours):
 def events_cte(cur, hours):
     """-> (sql, params). Prefix a query with `sql` and read FROM ev instead of
     security_events; `params` go before the query's own. `hours` is the widest
-    look-back the query uses (only addresses seen in it need classifying)."""
-    return ("WITH ev AS NOT MATERIALIZED (SELECT * FROM security_events WHERE " + _GENUINE_SQL + ") ",
+    look-back the query uses (only addresses seen in it need classifying).
+    `ev.ip` is the address each event is about (SOURCE_SQL)."""
+    return ("WITH ev AS NOT MATERIALIZED (SELECT * FROM (" + SOURCE_SQL + ") src WHERE " + _GENUINE_SQL + ") ",
             _genuine_params(cur, hours))
 
 
@@ -179,14 +219,15 @@ def excluded_summary(cur, hours):
         "OR COALESCE(path, '') LIKE '" + CONSOLE_PATH + "/%%'))), "
         "COUNT(*) FILTER (WHERE COALESCE(ip, '') = ANY(%s) OR lower(COALESCE(identifier, '')) = ANY(%s) "
         "OR " + _COMPANY_SQL + " = ANY(%s)) "
-        "FROM security_events WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')",
+        "FROM (" + SOURCE_SQL + ") src WHERE created_at >= NOW() - (%s * INTERVAL '1 hour')",
         (internal, list(OWN_EVENT_TYPES), consoles, test, test_accounts(), test_companies(), hours))
     raw, server, console, testing = cur.fetchone()
     return {"recorded": raw, "server": server, "console": console, "testing": testing}
 
 
 def is_genuine(event_type, ip, identifier, path, tenant=None):
-    """The same rules for one row (lists filtered in Python)."""
+    """The same rules for one row (lists filtered in Python). `ip` is the address
+    the event is about: read the row through SOURCE_SQL."""
     if event_type in OWN_EVENT_TYPES:
         return False
     if ip and ip in console_ips() and _console_event(event_type, path):
