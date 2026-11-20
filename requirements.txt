@@ -7,14 +7,14 @@ flask-cors>=6.0.5
 flask-limiter>=4.1.1
 limits>=5.8.0
 werkzeug>=3.1.9
-gunicorn>=26.2.0
+gunicorn>=27.0.1
 
 # ── Database ───────────────────────────────────────────────────────────────────
 psycopg2-binary>=2.9.13
 
 # ── Face recognition & image processing ───────────────────────────────────────
 face-recognition>=1.3.0
-numpy>=2.5.4
+numpy>=2.5.5
 pillow>=13.0.0
 
 # ── QR codes ──────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ bcrypt>=5.0.0
 # Argon2id password hashing (utils/auth.py); bcrypt above stays for verifying
 # and upgrading existing hashes on login.
 argon2-cffi>=25.1.0
-pyotp>=2.10.0
+pyotp>=2.12.0
 
 # ── Cache / rate-limit backend ────────────────────────────────────────────────
 redis>=8.1.0
