@@ -3,7 +3,7 @@
 {% block title %}Company Verification{% endblock %}
 
 {% block page_css %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .cv-wrap { max-width: 640px; margin: 0 auto; padding: 8px 0 32px; }
   .cv-header { margin-bottom: 22px; }
   .cv-header h1 { font-size: 23px; font-weight: 800; }

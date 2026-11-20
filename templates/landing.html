@@ -19,7 +19,7 @@
   <meta name="twitter:title" content="HRzest.com - HR, Attendance & Payroll Platform">
   <meta name="twitter:description" content="Lead your workforce with clarity. HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.">
 
-  <script type="application/ld+json">
+  <script nonce="{{ csp_nonce }}" type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -44,7 +44,7 @@
   <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script src="{{ static_url('ui-motion.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
 
@@ -653,7 +653,7 @@
               </div>
               <small id="regPwHint" style="display:none;"></small>
             </div>
-            <script>
+            <script nonce="{{ csp_nonce }}">
               (function () {
                 var pw = document.getElementById('regAdminPassword');
                 var cf = document.getElementById('regConfirmPassword');
@@ -682,7 +682,7 @@
 
             {% if show_captcha %}
             <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom: 1.25rem;"></div>
-            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+            <script nonce="{{ csp_nonce }}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
             {% endif %}
 
             <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.9rem;">
@@ -991,6 +991,6 @@
   </div>
 
   {# App JavaScript Logic #}
-  <script src="{{ static_url('landing_v2.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('landing_v2.js') }}"></script>
 </body>
 </html>

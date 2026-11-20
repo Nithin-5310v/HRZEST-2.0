@@ -3,7 +3,7 @@
 {% block title %}Onboarding Template{% endblock %}
 
 {% block page_css %}
-  <style>
+  <style nonce="{{ csp_nonce }}">
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
     body{background:#f1f5f9;min-height:100vh;display:flex}
     .sidebar{width:240px;height:100vh;position:sticky;top:0;overflow-y:auto;background:linear-gradient(180deg,#0f2460 0%,#1a3a8f 100%);padding:22px 14px;color:white;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,0.18)}
@@ -208,7 +208,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal').forEach(m=>{

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <script>
+  <script nonce="{{ csp_nonce }}">
     (function(){
       // Light theme only (the dark theme was removed).
       // The sidebar collapse button was removed: always show the full sidebar
@@ -16,13 +16,13 @@
   <title>{% block title %}Admin{% endblock %} — {{ co.company_name }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
   <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
-  <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('hz-icons.css') }}" />
   <link rel="stylesheet" href="{{ static_url('toast.css') }}" />
   <link rel="stylesheet" href="{{ static_url('chat.css') }}" />
-  <script src="{{ static_url('toast.js') }}"></script>
-  <style>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('toast.js') }}"></script>
+  <style nonce="{{ csp_nonce }}">
     /* ── Font: Inter, self-hosted (CSP is font-src 'self') ── */
     @font-face {
       font-family: 'Inter';
@@ -280,7 +280,7 @@
   <link rel="stylesheet" href="{{ static_url('admin-theme.css') }}" />
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script src="{{ static_url('ui-motion.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
   <link rel="stylesheet" href="{{ static_url('dashboard-unify.css') }}" />
 </head>
 <body>
@@ -526,8 +526,8 @@
 </div>
 </div>{# /.app-col #}
 
-<script src="{{ static_url('darkmode.min.js') }}"></script>
-<script src="{{ static_url('admin-topbar.js') }}"></script><script>
+<script nonce="{{ csp_nonce }}" src="{{ static_url('darkmode.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ static_url('admin-topbar.js') }}"></script><script nonce="{{ csp_nonce }}">
   (function() {
     let _lastLate = null;
     let _lastPresent = null;

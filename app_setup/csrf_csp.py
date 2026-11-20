@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 """CSRF enforcement, CSP nonces and security headers, and the
-response rewriting that injects CSRF fields/meta.
+response rewriting that injects CSRF fields/meta. (CSP nonces are not
+added to rendered responses: templates write them -- see utils/csp.py.)
 
 Split out of app.py; registered on the shared Flask app at import time.
 app.py imports the app_setup modules in a fixed order because Flask runs
 before_request hooks in registration order (after_request in reverse).
 """
-import base64
-import hashlib
-import html as _html
 import os
 import re
 import secrets
@@ -17,6 +15,7 @@ from flask import current_app, flash, jsonify, redirect, request, session, url_f
 from urllib.parse import urlsplit
 from utils.helpers import invalidate_settings_cache, static_url as _static_url
 from app_setup.templating import _csrf_token
+import utils.csp as _csp
 
 
 _CSRF_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -159,13 +158,11 @@ def _add_csrf_fields(html, token):
     return b"".join(parts)
 
 
-# Matches <script>/<style> tags without a nonce -- used to inject CSP nonces
-_SCRIPT_TAG_RE = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
-_STYLE_TAG_RE = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
-# Inline style="" attribute values, hashed so style-src-attr can drop
-# 'unsafe-inline' in favor of per-response sha256 hashes.
-_CSP_STYLE_DQ = re.compile(rb'\bstyle\s*=\s*"([^"]*)"', re.IGNORECASE)
-_CSP_STYLE_SQ = re.compile(rb"\bstyle\s*=\s*'([^']*)'", re.IGNORECASE)
+# Security audit P1 (2026-11-20): nothing adds CSP nonces to the rendered
+# response any more, and style="" attributes are no longer hashed from it.
+# Templates write nonce="{{ csp_nonce }}" on their own tags, and style hashes
+# are registered while a template renders (utils/csp.py). The scripts below
+# are this module's own, so they get the nonce where they are injected.
 _CSRF_SCRIPT = (
     b'<script>(function(){'
     b'var m=document.querySelector(\'meta[name="csrf-token"]\');'
@@ -318,28 +315,13 @@ def _security_headers(response):
         # Templates use data-on-<event>="fn(...)" instead, bound by
         # static/hz-actions.js; tests/test_csp_inline_handlers.py keeps
         # templates free of inline handlers, which the browser would block.
-        try:
-            data = response.get_data()
-        except Exception:
-            data = b""
-        # Same treatment for inline style="" attribute values, so
-        # style-src-attr can drop 'unsafe-inline' -- every remaining
-        # dynamic style/cssText write in app JS was migrated to
-        # el.style.setProperty()/Object.assign(el.style, ...), which CSP
-        # doesn't restrict, so only these server-rendered attributes need
-        # hashing.
-        try:
-            _style_hashes: set = set()
-            for _pat in (_CSP_STYLE_DQ, _CSP_STYLE_SQ):
-                for _m in _pat.finditer(data):
-                    _body = _html.unescape(_m.group(1).decode("utf-8", errors="replace"))
-                    _style_hashes.add(
-                        "'sha256-" + base64.b64encode(
-                            hashlib.sha256(_body.encode("utf-8")).digest()
-                        ).decode() + "'"
-                    )
-        except Exception:
-            _style_hashes = set()
+        # Inline style="" attributes: only the ones written in template source
+        # (or passed through utils.csp.trusted_html()) are hashed, while the
+        # page renders. A style attribute injected into the output was never
+        # registered, so the browser blocks it (security audit P1). Dynamic
+        # style/cssText writes in app JS use el.style.setProperty() /
+        # Object.assign(el.style, ...), which CSP doesn't restrict.
+        _style_hashes = _csp.style_attr_hashes()
         _style_unsafe_hashes = " 'unsafe-hashes'" if _style_hashes else ""
         _style_hash_src = (" " + " ".join(sorted(_style_hashes))) if _style_hashes else ""
         # Cloudflare Turnstile (admin_login CAPTCHA; the home page's company
@@ -432,47 +414,45 @@ def _bust_settings_cache(response):
 
 @app.after_request
 def _inject_csrf_meta(response):
-    """Inject CSRF meta tag and auto-inject script into every HTML page.
+    """Inject the CSRF meta tag, hidden fields and helper scripts into every
+    successful (status<300) HTML page.
 
-    CSP nonce injection (the second half below) must run for EVERY
-    text/html response regardless of status code -- _security_headers sets
-    a nonce-requiring CSP header unconditionally, including on error pages
-    (404/403/500). This function used to skip everything for status>=300,
-    which meant every error page shipped a <style> tag with no nonce while
-    the CSP header demanded one -- the browser correctly blocked it, which
-    is the "Applying inline style violates CSP" error seen on any page that
-    hit an error handler. CSRF meta-tag/script injection still only makes
-    sense on normal (status<300) pages, so that part stays gated.
+    CSP nonces are no longer added here (security audit P1, 2026-11-20).
+    Error pages carry their own nonce: templates write nonce="{{ csp_nonce }}"
+    and utils/helpers/http.py's _error_page() goes through
+    utils.csp.trusted_html().
     """
     if not response.content_type.startswith("text/html"):
         return response
+    if response.status_code >= 300:
+        return response
     try:
-        from flask import g
         data = response.get_data()
-        if response.status_code < 300:
-            token = _csrf_token()
-            meta = f'<meta name="csrf-token" content="{token}" />'.encode()
-            data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
-            data = _add_csrf_fields(data, token)
-            # hz-actions.js binds the templates' data-on-<event>="fn(...)"
-            # attributes -- the CSP-safe stand-in for inline onclick=""
-            # handlers, which script-src no longer allows (see
-            # _security_headers).
-            _actions_src = _static_url("hz-actions.js").encode()
-            _body_scripts = (_CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
-                             + b'<script src="' + _actions_src + b'"></script>')
-            if session.get("admin_logged_in") or session.get("employee_id"):
-                _body_scripts += _KILLSWITCH_SCRIPT
-            data = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
-        nonce = getattr(g, "csp_nonce", None)
+        token = _csrf_token()
+        meta = f'<meta name="csrf-token" content="{token}" />'.encode()
+        data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
+        data = _add_csrf_fields(data, token)
+        # hz-actions.js binds the templates' data-on-<event>="fn(...)"
+        # attributes -- the CSP-safe stand-in for inline onclick=""
+        # handlers, which script-src no longer allows (see
+        # _security_headers).
+        _actions_src = _static_url("hz-actions.js").encode()
+        _body_scripts = (_CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
+                         + b'<script src="' + _actions_src + b'"></script>')
+        if session.get("admin_logged_in") or session.get("employee_id"):
+            _body_scripts += _KILLSWITCH_SCRIPT
+        # These are this module's own fixed scripts, so they are given the
+        # nonce here, explicitly. Nothing else in the response is touched:
+        # a <script> that reached the page any other way gets no nonce and
+        # the browser refuses to run it (security audit P1).
+        nonce = _csp.csp_nonce().encode()
         if nonce:
-            nb = nonce.encode()
-            data = _SCRIPT_TAG_RE.sub(b'<script nonce="' + nb + b'"', data)
-            data = _STYLE_TAG_RE.sub(b'<style nonce="' + nb + b'"', data)
+            _body_scripts = _body_scripts.replace(b"<script", b'<script nonce="' + nonce + b'"')
+        data = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
         response.set_data(data)
     except Exception as exc:
-        # Silent failure here means CSRF-token/killswitch injection and CSP
-        # nonce rewriting both silently no-op on this response -- worth
-        # knowing about even though the response still goes out.
-        app_log.warning("Response HTML injection (CSRF token/CSP nonce) failed: %s", exc, exc_info=True)
+        # Silent failure here means CSRF-token/killswitch injection silently
+        # no-ops on this response -- worth knowing about even though the
+        # response still goes out.
+        app_log.warning("Response HTML injection (CSRF token) failed: %s", exc, exc_info=True)
     return response

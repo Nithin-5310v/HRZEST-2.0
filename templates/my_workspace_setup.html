@@ -10,7 +10,7 @@
 {% block title %}My Workspace{% endblock %}
 
 {% block page_css %}
-    <style>
+    <style nonce="{{ csp_nonce }}">
       {% include "_my_workspace_header_css.html" %}
 
       .wsu-card { background: var(--wk-card); border: 1px solid var(--wk-line); border-radius: 16px; padding: 24px 26px;

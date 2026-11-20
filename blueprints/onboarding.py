@@ -10,6 +10,7 @@ from database import get_db_connection
 from werkzeug.utils import secure_filename
 from utils.attendance_utils import standard_working_days_per_month
 from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required, require_access
+from utils.csp import trusted_html
 from utils.helpers import (
     tpath, get_company_settings, company_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
     company_today, company_now, _create_notification, int_param, encrypt_amount, amount,
@@ -1396,9 +1397,10 @@ def offer_letter_pdf(token):
     cursor.close()
     db.close()
     if not letter:
-        return "<html><body style='font-family:Segoe UI,sans-serif;padding:60px;text-align:center;'>" \
-               "<h2 style='color:#dc2626;'>Invalid or expired link.</h2>" \
-               "<p>Please contact HR for a copy of your offer letter.</p></body></html>", 404
+        return trusted_html(
+            "<html><body style='font-family:Segoe UI,sans-serif;padding:60px;text-align:center;'>"
+            "<h2 style='color:#dc2626;'>Invalid or expired link.</h2>"
+            "<p>Please contact HR for a copy of your offer letter.</p></body></html>"), 404
     co = get_company_settings()
     pdf_bytes = _generate_offer_letter_pdf(letter, co)
     emp_name = letter[17]
@@ -1432,18 +1434,18 @@ def offer_letter_respond(token, action):
     if not row:
         cursor.close()
         db.close()
-        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+        return trusted_html("""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <h2 style="color:#dc2626;">Invalid or expired link.</h2>
-          <p>This offer letter link is not valid. Please contact HR.</p></body></html>""", 404
+          <p>This offer letter link is not valid. Please contact HR.</p></body></html>"""), 404
     letter_id, emp_id, existing_response, status = row
     if existing_response:
         label = "accepted" if existing_response == "accept" else "declined"
         color = "#16a34a" if existing_response == "accept" else "#dc2626"
         cursor.close()
         db.close()
-        return f"""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+        return trusted_html(f"""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <h2 style="color:{color};">You have already {label} this offer.</h2>
-          <p>Please contact HR if you wish to change your response.</p></body></html>"""
+          <p>Please contact HR if you wish to change your response.</p></body></html>""")
     if request.method == "GET":
         cursor.close()
         db.close()
@@ -1468,17 +1470,17 @@ def offer_letter_respond(token, action):
     cursor.close()
     db.close()
     if action == "accept":
-        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+        return trusted_html("""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <div style="font-size:56px;">&#127881;</div>
           <h2 style="color:#16a34a;margin-top:16px;">Offer Accepted!</h2>
           <p style="font-size:15px;margin-top:8px;">Thank you for accepting the offer. HR will reach out to you with next steps.</p>
-          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>"""
+          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>""")
     else:
-        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+        return trusted_html("""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <div style="font-size:56px;">&#128533;</div>
           <h2 style="color:#dc2626;margin-top:16px;">Offer Declined</h2>
           <p style="font-size:15px;margin-top:8px;">We have noted your decision. Thank you for considering us. We wish you the best.</p>
-          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>"""
+          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>""")
 
 
 def _build_onboarding_context(emp_id):

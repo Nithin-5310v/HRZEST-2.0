@@ -3,7 +3,7 @@
 {% block title %}Company Details{% endblock %}
 
 {% block page_css %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .cd-wrap { max-width: 640px; margin: 0 auto; padding: 8px 0 32px; }
   .cd-header { margin-bottom: 22px; }
   .cd-header h1 { font-size: 23px; font-weight: 800; }
@@ -61,7 +61,7 @@
     </form>
   </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
   // Not an inline oninput attribute: such a handler forces 'unsafe-hashes' into script-src.
   (function () {
     var gst = document.getElementById('cdGstNumber');

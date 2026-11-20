@@ -2,7 +2,7 @@
    `recent_payments` is given, the latest payments with their tax invoices.
    Used by the admin dashboard and the Profile page's Payment history tab. #}
 {% if plan %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .plan-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px 22px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
   .plan-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
   .plan-card-eyebrow { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }

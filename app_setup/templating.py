@@ -9,6 +9,7 @@ import datetime
 import os
 import secrets
 import utils.config as cfg
+import utils.csp as _csp
 from database import get_db_connection, get_master_db
 from extensions import app, app_log
 from flask import g as _g, session
@@ -155,6 +156,30 @@ app.jinja_env.globals["timedelta"] = datetime.timedelta
 
 app.jinja_env.globals["tpath"] = _tpath
 app.jinja_env.globals["static_url"] = _static_url
+
+
+class _CspNonce:
+    """``{{ csp_nonce }}`` in a template renders this request's CSP nonce.
+
+    A global rather than a context-processor value so it also works inside
+    macros imported without context. Outside a request (e-mail rendering) it
+    renders as "". Security audit P1: every <script>/<style> tag in a
+    template must carry ``nonce="{{ csp_nonce }}"``, because nothing adds
+    nonces to the rendered response any more (see utils/csp.py).
+    """
+
+    def __str__(self):
+        return _csp.csp_nonce()
+
+    def __html__(self):
+        return _csp.csp_nonce()
+
+
+app.jinja_env.globals["csp_nonce"] = _CspNonce()
+# style="" attributes written in template source are allowed by hash while the
+# template renders; markup that arrives through a variable is not (utils/csp.py).
+app.jinja_env.filters["csp_style_attr"] = _csp.csp_style_attr_filter
+app.jinja_env.add_extension(_csp.CspStyleAttrExtension)
 
 
 @app.context_processor

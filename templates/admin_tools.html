@@ -3,7 +3,7 @@
 {% block title %}Admin Tools{% endblock %}
 
 {% block page_css %}
-  <style>
+  <style nonce="{{ csp_nonce }}">
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
     body{background:#f0f4ff;min-height:100vh;display:flex}
 
@@ -261,7 +261,7 @@
 
 {% block scripts %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Tab switching
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));

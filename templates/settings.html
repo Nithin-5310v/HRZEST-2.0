@@ -91,13 +91,13 @@
 
 {% block scripts %}
 
-  <script src="{{ static_url('a11y-tabs.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('a11y-tabs.js') }}"></script>
 
 {% include "settings/_modal_company_pin.html" %}
 
 {% include "settings/_modal_add_company.html" %}
 
-  <script src="{{ static_url('js/settings.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('js/settings.js') }}"></script>
 
 
 

@@ -3,7 +3,7 @@
 {% block title %}HR Dashboard{% endblock %}
 
 {% block page_css %}
-    <style>
+    <style nonce="{{ csp_nonce }}">
       .main { padding: 28px; }
       .page-header { margin-bottom: 20px; }
       .page-header h1 { font-size: 26px; color: #1e293b; display: flex; align-items: center; gap: 10px; }
@@ -85,7 +85,7 @@
              data-role="{{ 'manager' if session.admin_role == 'manager' else 'hr' }}" />
       <div class="admin-search-results" id="adminSearchResults" role="listbox"></div>
     </div>
-    <script src="{{ static_url('portal-search.js') }}" defer></script>
+    <script nonce="{{ csp_nonce }}" src="{{ static_url('portal-search.js') }}" defer></script>
   </div>
 
   <div class="hr-tabs">
@@ -369,8 +369,8 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ static_url('chart.umd.min.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}" src="{{ static_url('chart.umd.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}">
 (function() {
   var API = {
     employees: "{{ tpath('/api/hr_dashboard/employees') }}",

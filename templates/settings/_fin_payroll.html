@@ -14,7 +14,7 @@
               <input type="hidden" name="holiday_pay"            id="hid_holiday"     value="{{ holiday_pay }}">
               <input type="hidden" name="leave_pay"              id="hid_leave"       value="{{ leave_pay }}">
 
-              <style>
+              <style nonce="{{ csp_nonce }}">
                 /* ── Payroll Rules  Professional ── */
                 .py-wrap { display:flex; flex-direction:column; gap:18px; }
 
@@ -339,7 +339,7 @@
                 <i class="ti ti-device-floppy" style="font-size:15px;"></i> Save Payroll Rules
               </button>
             </form>
-            <script>
+            <script nonce="{{ csp_nonce }}">
               function pSeg(btn, grpId, hidId) {
                 var grp   = document.getElementById(grpId);
                 var track = grp.querySelector('.py-seg-track');

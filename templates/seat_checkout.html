@@ -3,7 +3,7 @@
 {% block title %}Seats & Billing{% endblock %}
 
 {% block page_css %}
-  <style>
+  <style nonce="{{ csp_nonce }}">
     .main { flex: 1; padding: 28px; min-width: 0; overflow-x: hidden; background: #f0f4f8; }
     .seats-card { max-width: 640px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); margin-bottom: 20px; }
     .seats-card h2 { font-size: 20px; color: #0f172a; margin-bottom: 6px; }
@@ -204,8 +204,8 @@
   </div>
 </div>
 
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script>
+<script nonce="{{ csp_nonce }}" src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script nonce="{{ csp_nonce }}">
 const PER_EMPLOYEE_PAISE = {{ per_employee_paise }};
 let currentOrder = null;
 let currentSubscription = null;

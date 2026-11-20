@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
     <link rel="stylesheet" href="{{ static_url('auth_split.css') }}" />
-    <style>
+    <style nonce="{{ csp_nonce }}">
       /* Same design system as templates/create_org.html -- landing_v2.css's
          tokens (--bg-card, --accent-cyan, --text-main, --shadow-*,
          --radius-*, the Inter @font-face) so Login and Register read as one
@@ -169,7 +169,7 @@
   <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script src="{{ static_url('ui-motion.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
 </head>
   <body>
     <header class="top-nav">
@@ -284,7 +284,7 @@
 
         {% if show_captcha %}
         <div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}" style="margin-bottom:20px;"></div>
-        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        <script nonce="{{ csp_nonce }}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
         {% endif %}
 
         <button type="submit" class="btn-submit">
@@ -303,7 +303,7 @@
       {% endif %}
     </div>
     </main>
-    <script>
+    <script nonce="{{ csp_nonce }}">
       // Company logo that fails to load falls back to the shield icon. Not
       // an inline onerror attribute: such a handler forces 'unsafe-hashes' into script-src.
       // The image may already have failed before this runs, so check that too.

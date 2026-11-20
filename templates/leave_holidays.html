@@ -3,7 +3,7 @@
 {% block title %}{{ {'leaves':'Leaves & Holidays','announcements':'Announcements','tickets':'Tickets','resignations':'Resignations'}[page] }}{% endblock %}
 
 {% block page_css %}
-  <style>
+  <style nonce="{{ csp_nonce }}">
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
     body{background:#eff6ff;min-height:100vh;display:flex}
 
@@ -745,7 +745,7 @@
 </div>
 <form class="u-d-none" id="delForm" method="POST"><input type="hidden" name="year" value="{{ year }}"></form>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Module tab switching
 function switchModule(name) {
   document.querySelectorAll('.mtab-btn').forEach(b => b.classList.remove('active'));

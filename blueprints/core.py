@@ -564,7 +564,8 @@ def api_mobile_web_session_link():
 
 
 def _bridge_link_expired_response():
-    return (
+    from utils.csp import trusted_html
+    page = (
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
         "<title>Link Expired</title>"
@@ -575,9 +576,10 @@ def _bridge_link_expired_response():
         "h1{font-size:17px;color:#0f172a;margin:0 0 8px;}"
         "p{font-size:13px;color:#64748b;margin:0;}</style></head><body>"
         "<div class='card'><h1>This link has expired</h1>"
-        "<p>Go back to the app and try again.</p></div></body></html>",
-        403,
+        "<p>Go back to the app and try again.</p></div></body></html>"
     )
+    # Fixed text only; its own <style> gets this response's nonce (security audit P1).
+    return trusted_html(page), 403
 
 
 @core_bp.route("/mobile_bridge_login/<token>", methods=["GET"])

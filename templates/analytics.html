@@ -3,7 +3,7 @@
 {% block title %}Analytics{% endblock %}
 
 {% block page_css %}
-  <style>
+  <style nonce="{{ csp_nonce }}">
     /* This page extends admin_base.html -- its real sidebar, .main layout
        and page scrolling come from there. A leftover standalone-page CSS
        block used to live here too (own *, html/body, .sidebar, .nav-item,
@@ -344,14 +344,14 @@
 {% block scripts %}
 
 {# Moved here from <head> -- this 205KB library was previously loaded via
-     a blocking <script src> in <head>, which held up parsing of the ENTIRE
+     a blocking <script nonce="{{ csp_nonce }}" src> in <head>, which held up parsing of the ENTIRE
      page (including everything above the charts) until it finished
      downloading and executing. The chart-init code below needs it loaded
      synchronously first, but nothing above this point does, so loading it
      here instead lets the rest of the page render immediately. #}
-<script src="{{ static_url('chart.umd.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ static_url('chart.umd.min.js') }}"></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Heatmap tooltip
 function showHeatmapTooltip(el, date, present, absent, pct) {
   const tip = document.getElementById('hmTooltip');

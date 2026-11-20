@@ -4,7 +4,7 @@
 
 {% block page_css %}
 {% from "_ticket_files.html" import ticket_files_style %}{{ ticket_files_style() }}
-<style>
+<style nonce="{{ csp_nonce }}">
   .back-link { display: inline-flex; align-items: center; gap: 6px; color: #1e3a8a; text-decoration: none; font-weight: 600; font-size: 15px; margin-bottom: 16px; }
   .p-card { max-width: 780px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); margin-bottom: 20px; }
   .p-card h2 { font-size: 19px; color: #0f172a; margin-bottom: 4px; }

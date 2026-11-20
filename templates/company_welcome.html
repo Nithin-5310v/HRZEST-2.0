@@ -7,8 +7,8 @@
   <title>Setting up your workspace — HRzest</title>
   <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
   <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
-  <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
-  <style>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
+  <style nonce="{{ csp_nonce }}">
     :root { --hz-blue: #2563eb; --hz-text: #101828; --hz-muted: #667085; --hz-ring: #e4e7ec; --hz-bg: #f5f7fb; }
     html, body { height: 100%; margin: 0; }
     body { display: flex; align-items: center; justify-content: center; background: var(--hz-bg); color: var(--hz-text); font-family: Inter, "Segoe UI", system-ui, sans-serif; }
@@ -31,6 +31,6 @@
       <p class="hz-sub">Taking you to your organization profile…</p>
     </div>
   </main>
-  <script>window.hrzLoaderThen({{ next_url|tojson }});</script>
+  <script nonce="{{ csp_nonce }}">window.hrzLoaderThen({{ next_url|tojson }});</script>
 </body>
 </html>

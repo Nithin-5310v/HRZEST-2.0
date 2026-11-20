@@ -116,7 +116,7 @@
               {% endif %}
             </div>
 
-            <script>
+            <script nonce="{{ csp_nonce }}">
               // Idle re-lock, same pattern as Email Settings' gate below --
               // only starts once payoutLoadBankConfig() actually unlocks the
               // form, and clears itself on payoutLock()/page reload.

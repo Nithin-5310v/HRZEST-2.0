@@ -6,7 +6,7 @@
     <title>Pay Overdue Bill — {{ company_name }}</title>
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
-    <style>
+    <style nonce="{{ csp_nonce }}">
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
       body { background: #f5f7fb; color: #0f172a; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
       .card {
@@ -80,8 +80,8 @@
       {% endif %}
     </div>
 
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script>
+    <script nonce="{{ csp_nonce }}" src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script nonce="{{ csp_nonce }}">
       const payBtn = document.getElementById('payBtn');
       const errorBox = document.getElementById('errorBox');
       const successBox = document.getElementById('successBox');

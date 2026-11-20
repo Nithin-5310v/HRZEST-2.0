@@ -3,7 +3,7 @@
 {% block title %}Leave Balance{% endblock %}
 
 {% block page_css %}
-  <style>
+  <style nonce="{{ csp_nonce }}">
     /* This page extends admin_base.html -- its real sidebar, .main layout
        and page scrolling come from there. A leftover standalone-page CSS
        block used to live here too, from before this template was converted
@@ -197,7 +197,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function openEdit(empId, empName, ltId, ltName, total, year) {
   document.getElementById('m_emp_id').value = empId;
   document.getElementById('m_emp_name').value = empName + ' (' + empId + ')';

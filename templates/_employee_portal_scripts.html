@@ -2,11 +2,11 @@
    and the small page scripts. Shared by employee_portal.html and
    my_workspace.html, which sets window.HZ_VIEW_STORAGE_KEY /
    HZ_DEFAULT_VIEW before including it. #}
-    <script type="application/json" id="portal-data">{{ {'emp': {'id': emp[0], 'name': emp[1] or '', 'role': ((emp[2] if emp|length > 2 else '') or '')}, 'cal': {'data': cal_data, 'holNames': cal_hol_names, 'firstDow': cal_first_dow, 'year': cal_year, 'month': cal_month}, 'attCfg': attendance_auth_cfg, 'base': portal_base_path} | tojson }}</script>
-    <script src="{{ static_url('js/photo-check.js') }}"></script>
-    <script src="{{ static_url('js/employee-portal.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" type="application/json" id="portal-data">{{ {'emp': {'id': emp[0], 'name': emp[1] or '', 'role': ((emp[2] if emp|length > 2 else '') or '')}, 'cal': {'data': cal_data, 'holNames': cal_hol_names, 'firstDow': cal_first_dow, 'year': cal_year, 'month': cal_month}, 'attCfg': attendance_auth_cfg, 'base': portal_base_path} | tojson }}</script>
+    <script nonce="{{ csp_nonce }}" src="{{ static_url('js/photo-check.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" src="{{ static_url('js/employee-portal.js') }}"></script>
 
-    <script>
+    <script nonce="{{ csp_nonce }}">
       /* Auto-set High priority for Harassment / Misconduct tickets */
       (function() {
         var cat = document.getElementById('ticket-category');
@@ -49,7 +49,7 @@
           <div class="u-d-none u-pos-absolute u-bot-0 u-lft-0 u-rgt-0 u-bg-rgba255_255_255_0d93 u-p-9 u-fs-12 u-fw-700 u-bdt-1-solid-e2e8f0" id="wfhPhaseLabel"></div>
         </div>
 
-        <style>
+        <style nonce="{{ csp_nonce }}">
           @keyframes wfhScan { 0%,100% { top:0; } 50% { top:calc(100% - 3px); } }
         </style>
 
@@ -78,10 +78,10 @@
         </div>
       </div>
     </div>
-    <style>
+    <style nonce="{{ csp_nonce }}">
       @keyframes breakPop { from { transform:scale(0.7); opacity:0; } to { transform:scale(1); opacity:1; } }
     </style>
-    <script>
+    <script nonce="{{ csp_nonce }}">
     (function() {
       var NOTIFIED = {};   // key = "breakId_YYYY-MM-DD" → true when shown today
       var snoozeUntil = {}; // key = breakId → Date when snooze expires

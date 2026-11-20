@@ -29,8 +29,8 @@
   </form>
 </div>
 
-<script src="{{ static_url('chat.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}" src="{{ static_url('chat.js') }}"></script>
+<script nonce="{{ csp_nonce }}">
 (function() {
   var pollTimer = null;
   var isOpen = false;

@@ -4,7 +4,7 @@
       al_url  -- page the filter form / pagination links point at
       al_tab  -- optional ?tab= value to keep (admin_tools: "activity_log") -#}
 {% set _al_tab_q = ('tab=' ~ al_tab ~ '&') if al_tab else '' %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .al-intro { font-size: 14.5px; color: #64748b; margin: 0 0 16px; line-height: 1.6; }
   .al-filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
   .al-filter-bar input[type="search"] {

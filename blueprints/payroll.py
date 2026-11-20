@@ -15,6 +15,7 @@ import calendar
 import io as _io
 import openpyxl
 from markupsafe import escape
+from utils.csp import trusted_html
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template,
@@ -834,7 +835,7 @@ def my_attendance_pdf():
     <div class="sub">{escape(emp[1])} &nbsp;·&nbsp; {escape(emp[0])} &nbsp;·&nbsp; {escape(emp[2] or 'Employee')}</div>
     <div class="sub">{month_name}</div></div>
   <div class="meta">Generated: {company_today().strftime('%d %b %Y')}<br>
-    <button onclick="window.print()" style="margin-top:8px;padding:8px 16px;background:#1e3a8a;color:white;
+    <button type="button" data-on-click="print()" style="margin-top:8px;padding:8px 16px;background:#1e3a8a;color:white;
       border:none;border-radius:8px;cursor:pointer;font-size:13px;">🖨️ Print / Save PDF</button>
   </div>
 </div>
@@ -850,7 +851,9 @@ def my_attendance_pdf():
 <tbody>{rows_html}</tbody></table>
 <div class="footer">HRzest.com &nbsp;·&nbsp; {escape(emp[1])} &nbsp;·&nbsp; {month_name}</div>
 </body></html>"""
-    return html
+    # Built here with every DB value escaped, so its own <style> and style=""
+    # attributes are allowed explicitly (security audit P1).
+    return trusted_html(html)
 
 
 @payroll_bp.route("/apply_hike", methods=["POST"])
@@ -1224,7 +1227,10 @@ def view_payslip(emp_id, year, month):
             resource_type="payslip", resource_id=f"{emp_id}:{year}-{month:02d}",
         )
         return redirect(tpath("/login"))
-    return _render_payslip_html(emp_id, year, month)
+    html = _render_payslip_html(emp_id, year, month)
+    # build_salary_slip_html() escapes every employee value; its <style> and
+    # style="" attributes are allowed explicitly (security audit P1).
+    return trusted_html(html) if isinstance(html, str) else html
 
 
 def _render_payslip_html(emp_id, year, month):
@@ -1491,7 +1497,7 @@ def download_tax_statement(emp_id, year):
     </body>
     </html>
     """
-    return html_content, 200, {"Content-Type": "text/html"}
+    return trusted_html(html_content), 200, {"Content-Type": "text/html"}
 
 
 # ---------------- API: SHIFTS (JSON) ----------------

@@ -146,7 +146,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('#doneModal.modal').forEach(m=>{

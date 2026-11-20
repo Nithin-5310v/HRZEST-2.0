@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
     <link rel="stylesheet" href="{{ static_url('auth_split.css') }}" />
-    <style>
+    <style nonce="{{ csp_nonce }}">
       /* Same design system as templates/admin_login.html -- see that file's
          comment. Locked to light theme. */
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-body); }
@@ -80,7 +80,7 @@
   <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script src="{{ static_url('ui-motion.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
 </head>
   <body>
     <main class="auth-split">

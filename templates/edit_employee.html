@@ -3,7 +3,7 @@
 {% block title %}Edit Employee{% endblock %}
 
 {% block page_css %}
-<style>
+<style nonce="{{ csp_nonce }}">
   .edit-employee-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 56px); }
   .card {
     background: rgba(255,255,255,0.12);

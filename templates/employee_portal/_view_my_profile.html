@@ -584,7 +584,7 @@
           </div>
         </div>
 
-        <script>
+        <script nonce="{{ csp_nonce }}">
         (function() {
           function toBytes(b64url) {
             const b64 = b64url.replace(/-/g,'+').replace(/_/g,'/');

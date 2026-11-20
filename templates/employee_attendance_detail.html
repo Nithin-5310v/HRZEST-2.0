@@ -3,7 +3,7 @@
 {% block title %}Attendance Detail{% endblock %}
 
 {% block page_css %}
-    <style>
+    <style nonce="{{ csp_nonce }}">
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
@@ -194,7 +194,7 @@
         <span class="u-fs-13 u-c-64748b u-fw-600">{{ month_name }}</span>
         <button class="u-bg-f1f5f9 u-c-475569 u-bd-1-solid-e2e8f0" type="button" data-on-click="window.print()"><i class="ti ti-printer hz-ico" aria-hidden="true"></i> Print</button>
       </div>
-      <script>
+      <script nonce="{{ csp_nonce }}">
         function goMonth() {
           var y = document.getElementById('selYear').value;
           var m = document.getElementById('selMonth').value;
@@ -326,7 +326,7 @@
         </div>
       </div>
 
-      <script>
+      <script nonce="{{ csp_nonce }}">
         (function() {
           var rows = document.querySelectorAll('#att-tbody .att-row');
           var total = rows.length;
@@ -408,7 +408,7 @@
     </div>
   </div>
 
-  <script>
+  <script nonce="{{ csp_nonce }}">
     function openEdit(dateIso, login, logout, attType) {
       var d = new Date(dateIso);
       var label = d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
