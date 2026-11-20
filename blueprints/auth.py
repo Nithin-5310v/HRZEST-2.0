@@ -1320,8 +1320,6 @@ def force_change_pin():
             error = _pw_err
         elif new_pwd != confirm:
             error = "Passwords do not match."
-        elif new_pwd in ("1234", "12345678", "password", "admin123"):
-            error = "That password is too common. Please choose a stronger one."
         else:
             db = get_db_connection()
             cursor = db.cursor(buffered=True)

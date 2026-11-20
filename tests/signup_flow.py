@@ -14,7 +14,7 @@ from tests.conftest import patch_package  # noqa: E402
 FAKE_PDF = b"%PDF-1.4\n" + b"x" * 20
 FAKE_PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 20
 MOBILE = "+91 98765 43210"
-PASSWORD = "password123"
+PASSWORD = "password-1234"
 
 
 def random_gst():

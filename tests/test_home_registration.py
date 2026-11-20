@@ -62,7 +62,7 @@ class TestHomeRegistrationErrors:
         assert resp.status_code == 302
         assert resp.headers["Location"] == "/?registration=failed#register"
         page = client.get("/?registration=failed").get_data(as_text=True)
-        assert "at least 8 characters" in page
+        assert "at least 12 characters" in page
 
     def test_without_return_to_still_goes_to_create_org(self, client):
         resp = client.post("/create_org", data=dict(_SHORT_PASSWORD))
@@ -95,7 +95,7 @@ class TestHomeRegistrationSuccess:
             "company_name": "Home Form Valid Co",
             "admin_email": "hf@homeformvalid.test",
             "admin_mobile": "9876543210",
-            "admin_password": "password123",
+            "admin_password": "password-1234",
             "return_to": "home",
         })
 

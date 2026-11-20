@@ -12,7 +12,7 @@ from tests.signup_flow import FAKE_PDF, FAKE_PNG, MOBILE, capture_codes, random_
 from tests.test_org import _drop_schema
 
 _SIGNUP = {"company_name": "Mobile Signup Co", "admin_email": "Owner@MobileSignup.test", "admin_mobile": MOBILE,
-           "admin_password": "password123"}
+           "admin_password": "password-1234"}
 _SLUG = "mobile-signup-co"
 _SCHEMA = "att_mobile_signup_co"
 
@@ -98,7 +98,7 @@ class TestCodeCreatesTheCompanyAndSignsIn:
             # The app's own login, under the company's prefix, takes the
             # email as the username, capitals and all.
             login = client.post(f"/{_SLUG}/api/login", json={
-                "username": "Owner@MobileSignup.test", "password": "password123"}).get_json()
+                "username": "Owner@MobileSignup.test", "password": "password-1234"}).get_json()
             assert login["ok"] and login["username"] == "owner@mobilesignup.test"
         finally:
             _drop_schema(db_engine, _SCHEMA)
@@ -191,7 +191,7 @@ class TestOlderAppBuilds:
             codes = capture_codes(monkeypatch)
             resp = client.post("/api/create_org", json={
                 "company_name": "Old App Co", "subdomain": "old-app-co", "admin_username": "oldapp",
-                "admin_email": "owner@oldapp.test", "admin_password": "password123",
+                "admin_email": "owner@oldapp.test", "admin_password": "password-1234",
                 "email_domain": "oldapp.test", "gst_number": random_gst(),
             })
             body = resp.get_json()

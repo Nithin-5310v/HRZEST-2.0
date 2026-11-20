@@ -94,6 +94,9 @@ for _name in _EXTERNAL_SERVICE_VARS + tuple(k for k in os.environ if k.startswit
 # Online payments on (blank = on), whatever the developer's .env says;
 # tests/test_payments_switch.py switches them off per test.
 os.environ["PAYMENTS_ENABLED"] = ""
+# No network calls from the breached-password check (utils/password_breach.py);
+# tests/test_password_policy.py exercises it with the HTTP call faked.
+os.environ["PASSWORD_BREACH_CHECK"] = "0"
 
 # The mobile/API check-in routes now refuse a punch that omits coordinates when
 # the company's location setting is on (MOBILE_REQUIRE_LOCATION, default true in

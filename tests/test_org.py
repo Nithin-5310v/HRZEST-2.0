@@ -205,7 +205,7 @@ class TestSignupValidation:
     def test_bad_field_rejected(self, client, monkeypatch, field, value):
         codes = capture_codes(monkeypatch)
         data = {"company_name": "Valid Account Co", "admin_email": "valid@account.test", "admin_mobile": MOBILE,
-                "admin_password": "password123"}
+                "admin_password": "password-1234"}
         data[field] = value
         resp = client.post("/create_org", data=data, follow_redirects=False)
         assert resp.headers["Location"] == "/create_org"
@@ -548,7 +548,7 @@ class TestSignupFlow:
             with client.session_transaction() as sess:
                 sess.clear()
             resp = client.post(f"/{subdomain}/login", data={
-                "identifier": "Owner@EmailLogin.test", "password": "password123",
+                "identifier": "Owner@EmailLogin.test", "password": "password-1234",
             }, follow_redirects=False)
             assert resp.status_code == 302 and resp.headers["Location"] == f"/{subdomain}/admin"
             with client.session_transaction() as sess:

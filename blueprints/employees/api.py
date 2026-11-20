@@ -5,7 +5,7 @@ from database import get_db_connection, transaction
 from extensions import app_log, limiter
 from flask import jsonify, request
 from qr_generator import generate_qr
-from utils.auth import api_required, api_role_required, generate_password_hash
+from utils.auth import api_required, api_role_required, generate_password_hash, validate_new_password
 from utils.billing_notices import notify_employee_added
 from utils.face_utils import _face_recognition_available, face_recognition, detection_array
 from utils.helpers import (
@@ -20,6 +20,7 @@ from utils.helpers import (
     validate_employee_email_domain,
 )
 from utils.storage import decrypted_stream, save_upload
+from utils.tokens import waf_safe_token
 from utils.tenant_files import face_photo_path
 from . import employees_bp
 from .registration import _send_welcome_credentials_email
@@ -78,6 +79,18 @@ def api_register_employee():
     _domain_error = validate_employee_email_domain(email)
     if _domain_error:
         return jsonify({"ok": False, "msg": _domain_error}), 400
+    # The starting password: the admin's choice must meet the same rule as
+    # any password (security audit P4.2). With none given it is random, as on
+    # the web form -- it used to default to the employee ID itself, which
+    # anyone who knew the ID could use to sign in first and take the account.
+    # force_pin_change=1 below makes the employee replace it either way.
+    init_pass = request.form.get("password", "").strip()
+    if init_pass:
+        _pw_ok, _pw_err = validate_new_password(init_pass)
+        if not _pw_ok:
+            return jsonify({"ok": False, "msg": _pw_err}), 400
+    else:
+        init_pass = waf_safe_token(12)
     _seat_error = add_employee_seat_cap_check()
     if _seat_error:
         return jsonify({"ok": False, "msg": _seat_error}), 403
@@ -107,7 +120,6 @@ def api_register_employee():
             os.remove(filepath)
             return jsonify({"ok": False, "msg": "No face detected in uploaded photo."}), 400
     qr_path = generate_qr(emp_id)
-    init_pass = request.form.get("password", "").strip() or emp_id
     hashed_pwd = generate_password_hash(init_pass)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

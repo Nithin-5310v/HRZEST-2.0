@@ -75,8 +75,8 @@ export default function CompanySignupScreen({ navigation }) {
       Alert.alert("Invalid Mobile Number", "Enter 10 to 15 digits, optionally starting with +.");
       return;
     }
-    if (password.length < 8) {
-      Alert.alert("Weak Password", "Password must be at least 8 characters.");
+    if (password.length < 12) {
+      Alert.alert("Weak Password", "Password must be at least 12 characters.");
       return;
     }
 
@@ -252,7 +252,7 @@ export default function CompanySignupScreen({ navigation }) {
                   <View>
                     <TextInput
                       style={[webAuthStyles.input, styles.passwordInput]}
-                      placeholder="At least 8 characters"
+                      placeholder="At least 12 characters"
                       placeholderTextColor={WEB.textSubtle}
                       value={adminPassword}
                       onChangeText={setAdminPassword}

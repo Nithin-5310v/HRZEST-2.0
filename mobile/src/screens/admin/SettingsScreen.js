@@ -283,8 +283,8 @@ export default function SettingsScreen({ navigation, route }) {
       Alert.alert("Error", "New password and confirmation do not match.");
       return;
     }
-    if (newPass.length < 8) {
-      Alert.alert("Error", "New password must be at least 8 characters.");
+    if (newPass.length < 12) {
+      Alert.alert("Error", "New password must be at least 12 characters.");
       return;
     }
     setChangingPassword(true);

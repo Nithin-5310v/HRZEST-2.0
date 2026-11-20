@@ -377,14 +377,14 @@ class TestChangeAdminPassword:
         _admin_session(client, seed_admin["username"])
         resp = client.post("/change_admin_password", data={
             "current_password": seed_admin["password"],
-            "new_password": "NewPass1", "confirm_password": "Different1",
+            "new_password": "NewPass12345", "confirm_password": "Different1",
         }, follow_redirects=False)
         assert "pwd_error=mismatch" in resp.headers["Location"]
 
     def test_wrong_current_password_redirects_with_error(self, client, seed_admin):
         _admin_session(client, seed_admin["username"])
         resp = client.post("/change_admin_password", data={
-            "current_password": "NotTheRealOne1", "new_password": "NewPass1", "confirm_password": "NewPass1",
+            "current_password": "NotTheRealOne1", "new_password": "NewPass12345", "confirm_password": "NewPass12345",
         }, follow_redirects=False)
         assert "pwd_error=wrong" in resp.headers["Location"]
 
@@ -505,12 +505,12 @@ class TestAdminResetPassword:
         token = self._make_token(db_engine, seed_admin)
         resp = client.post(f"/admin_reset_password/{token}", data={
             "new_password": "short", "confirm_password": "short"})
-        assert b"at least 8 characters" in resp.data
+        assert b"at least 12 characters" in resp.data
 
     def test_mismatched_passwords_rejected(self, client, seed_admin, db_engine):
         token = self._make_token(db_engine, seed_admin)
         resp = client.post(f"/admin_reset_password/{token}", data={
-            "new_password": "LongEnough1", "confirm_password": "Different1"})
+            "new_password": "LongEnough12", "confirm_password": "Different1"})
         assert b"do not match" in resp.data
 
     def test_valid_reset_updates_password(self, client, seed_admin, db_engine):
@@ -595,17 +595,17 @@ class TestEmployeeResetPassword:
         token = self._make_token(db_engine, seed_employee)
         resp = client.post(f"/employee_reset_password/{token}", data={
             "new_password": "short", "confirm_password": "short"})
-        assert b"at least 8 characters" in resp.data
+        assert b"at least 12 characters" in resp.data
 
     def test_valid_reset_updates_password_and_audits(self, client, seed_employee, db_engine):
         from utils.auth import check_password_hash
         token = self._make_token(db_engine, seed_employee)
         resp = client.post(f"/employee_reset_password/{token}", data={
-            "new_password": "EmpReset123", "confirm_password": "EmpReset123"})
+            "new_password": "EmpReset12345", "confirm_password": "EmpReset12345"})
         assert resp.status_code == 200
         cur = db_engine.cursor()
         cur.execute("SELECT password FROM employees WHERE employee_id=%s", (seed_employee["employee_id"],))
-        assert check_password_hash(cur.fetchone()[0], "EmpReset123")
+        assert check_password_hash(cur.fetchone()[0], "EmpReset12345")
         cur.close()
 
 
@@ -622,7 +622,7 @@ class TestChangePassword:
     def test_wrong_current_password(self, client, seed_employee):
         _employee_session(client, seed_employee["employee_id"])
         resp = client.post("/change_password", data={
-            "current_password": "WrongOne1", "new_password": "NewPass123", "confirm_password": "NewPass123",
+            "current_password": "WrongOne1", "new_password": "NewPass12345", "confirm_password": "NewPass12345",
         }, follow_redirects=False)
         assert "pwd_error=wrong" in resp.headers["Location"]
 
@@ -636,7 +636,7 @@ class TestChangePassword:
     def test_mismatched_new_password(self, client, seed_employee):
         _employee_session(client, seed_employee["employee_id"])
         resp = client.post("/change_password", data={
-            "current_password": seed_employee["password"], "new_password": "NewPass123",
+            "current_password": seed_employee["password"], "new_password": "NewPass12345",
             "confirm_password": "Different123",
         }, follow_redirects=False)
         assert "pwd_error=mismatch" in resp.headers["Location"]
@@ -663,19 +663,21 @@ class TestForceChangePin:
     def test_short_password_rejected(self, client, seed_employee):
         _employee_session(client, seed_employee["employee_id"])
         resp = client.post("/force_change_pin", data={"new_password": "short", "confirm_password": "short"})
-        assert b"at least 8 characters" in resp.data
+        assert b"at least 12 characters" in resp.data
 
     def test_mismatched_rejected(self, client, seed_employee):
         _employee_session(client, seed_employee["employee_id"])
         resp = client.post("/force_change_pin", data={
-            "new_password": "LongEnough1", "confirm_password": "Different1"})
+            "new_password": "LongEnough12", "confirm_password": "Different1"})
         assert b"do not match" in resp.data
 
     def test_common_password_rejected(self, client, seed_employee):
         _employee_session(client, seed_employee["employee_id"])
         resp = client.post("/force_change_pin", data={
             "new_password": "password", "confirm_password": "password"})
-        assert b"too common" in resp.data
+        # Common passwords are refused by length (12+) and the breached-password
+        # check in validate_new_password (security audit P4.2).
+        assert b"at least 12 characters" in resp.data
 
     def test_valid_change_clears_flag_and_redirects(self, client, seed_employee, db_engine):
         _employee_session(client, seed_employee["employee_id"])

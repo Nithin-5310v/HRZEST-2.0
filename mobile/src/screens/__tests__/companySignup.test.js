@@ -35,7 +35,7 @@ const fillSignup = async (screen, mobile = '+91 98765-43210') => {
   await fireEvent.changeText(screen.getByPlaceholderText('e.g. Acme Corporation'), '  Acme   Corp ');
   await fireEvent.changeText(screen.getByPlaceholderText('you@company.com'), ' Owner@Acme.TEST ');
   await fireEvent.changeText(screen.getByPlaceholderText('+91 98765 43210'), mobile);
-  await fireEvent.changeText(screen.getByPlaceholderText('At least 8 characters'), 'password123');
+  await fireEvent.changeText(screen.getByPlaceholderText('At least 12 characters'), 'Signup-Pass-2026');
 };
 
 describe('CompanySignupScreen', () => {
@@ -55,11 +55,11 @@ describe('CompanySignupScreen', () => {
     await waitFor(() => expect(screen.getByText('Verify & Open My Dashboard')).toBeTruthy());
     expect(api.startCompanySignup).toHaveBeenCalledWith({
       company_name: 'Acme Corp', admin_email: 'owner@acme.test', admin_mobile: '+919876543210',
-      admin_password: 'password123',
+      admin_password: 'Signup-Pass-2026',
     });
     expect(screen.getByText('Acme Corp')).toBeTruthy();
     expect(screen.getByText('owner@acme.test')).toBeTruthy();
-    expect(screen.queryByPlaceholderText('At least 8 characters')).toBeNull();
+    expect(screen.queryByPlaceholderText('At least 12 characters')).toBeNull();
   });
 
   it('signs the admin into the new company once the code checks out', async () => {

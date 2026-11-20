@@ -84,13 +84,28 @@ def dummy_password_check(pw: str) -> None:
 # reset endpoint (admin, employee, platform admin seed script) must call
 # this instead of its own inline `len(pw) < N` check, so the floor can't
 # silently drift to something weaker on one path.
-MIN_PASSWORD_LENGTH = 8
+# 12 since security audit P4.2 (2026-11-20; was 8), in line with current NIST
+# SP 800-63B guidance for passwords that guard payroll and identity data.
+# Applies to new passwords only: existing ones keep working until changed.
+MIN_PASSWORD_LENGTH = 12
+# Argon2 hashes any length; this only stops absurd inputs.
+MAX_PASSWORD_LENGTH = 256
 
 
 def validate_new_password(pw: str):
-    """Return (True, None) if pw meets the minimum bar, else (False, error_message)."""
+    """Return (True, None) if pw meets the minimum bar, else (False, error_message).
+
+    The bar: at least MIN_PASSWORD_LENGTH characters, and not a password
+    known from a data breach (utils/password_breach.py; security audit P4.2).
+    """
     if not pw or len(pw) < MIN_PASSWORD_LENGTH:
         return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
+    if len(pw) > MAX_PASSWORD_LENGTH:
+        return False, f"Password must be at most {MAX_PASSWORD_LENGTH} characters."
+    from utils.password_breach import password_is_breached
+    if password_is_breached(pw):
+        return False, ("This password has appeared in a known data breach, so it is easy to guess. "
+                       "Please choose a different one.")
     return True, None
 
 
