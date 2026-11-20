@@ -21,6 +21,9 @@
   };
   const field = (label, control, id) => h('div', { class: 'field' }, h('label', { for: id }, label), control);
   const when = (ts) => ts ? h('span', { class: 'when', title: ts }, fmt.time(ts), h('div', { class: 'note' }, fmt.ago(ts))) : null;
+  // For the Overview's half-width cards: "10m ago", exact time on hover, so the
+  // row's Ban button fits instead of sitting past the card's edge.
+  const whenShort = (ts) => ts ? h('span', { class: 'when', title: fmt.time(ts) }, fmt.ago(ts)) : null;
   const act = (p, ok) => p.then((r) => { if (ok) SOC.toast(ok, 'good'); return r; }).catch((e) => { SOC.toast(e.message, 'bad'); throw e; });
   const needs = (role) => SOC.can(role);
 
@@ -56,7 +59,7 @@
   const eventRowLite = (e) => h('li', null,
     h('div', { class: 'row' }, SOC.level(e.level), h('a', { href: '#', onclick: (ev) => { ev.preventDefault(); SOC.openEvent(e.id); } }, e.label),
       h('span', { class: 'spacer' }), h('span', { class: 'note' }, fmt.time(e.created_at))),
-    e.path ? h('div', { class: 'mono note' }, (e.method || '') + ' ' + e.path) : null);
+    e.path ? h('div', { class: 'mono note wrap' }, (e.method || '') + ' ' + e.path) : null);
 
   SOC.openEvent = function (id) {
     SOC.drawer.open('Event #' + id, SOC.skeleton());
@@ -70,7 +73,7 @@
         ['Source IP', e.ip ? [SOC.ipLink(e.ip), e.banned ? SOC.chip(' banned', 'bad') : null, e.protected ? SOC.chip(' shared/private', 'plain') : null] : null],
         ['Account', SOC.idLink(e.identifier)],
         ['Request', e.path ? h('span', { class: 'mono' }, (e.method || '') + ' ' + e.path) : null],
-        ['Tenant (from URL)', e.tenant],
+        ['Company', e.tenant],
         ['Chain hash', e.chain && e.chain.row_hash ? h('span', { class: 'mono', title: e.chain.row_hash }, e.chain.row_hash.slice(0, 16) + '…') : null]
       ]));
       if (e.mitre_detail && e.mitre_detail.length) {
@@ -148,7 +151,7 @@
           columns: [
             { label: 'Source IP', render: (r) => SOC.ipLink(r.ip) },
             { label: 'Events', num: true, key: 'events' }, { label: 'High', num: true, key: 'high' },
-            { label: 'Kinds', num: true, key: 'types' }, { label: 'Last', render: (r) => when(r.last) },
+            { label: 'Kinds', num: true, key: 'types' }, { label: 'Last', render: (r) => whenShort(r.last) },
             { label: '', render: (r) => r.banned ? SOC.chip('banned', 'bad') : r.protected ? SOC.chip('shared', 'plain')
               : (needs('analyst') ? h('button', { class: 'btn danger small', type: 'button', onclick: () => SOC.drawer.open('Ban ' + r.ip, SOC.banForm(r.ip, () => SOC.reload())) }, 'Ban') : null) }
           ]
@@ -156,7 +159,7 @@
         const idTable = SOC.table({
           empty: 'No accounts in this window.', rows: d.top_identifiers, onRow: (r) => SOC.go('entity', { identifier: r.identifier }),
           columns: [{ label: 'Account', render: (r) => SOC.idLink(r.identifier) }, { label: 'Events', num: true, key: 'events' },
-            { label: 'IPs', num: true, key: 'ips' }, { label: 'Last', render: (r) => when(r.last) }]
+            { label: 'IPs', num: true, key: 'ips' }, { label: 'Last', render: (r) => whenShort(r.last) }]
         });
         frag.appendChild(h('div', { class: 'grid cols-2' }, SOC.card('Most active sources', ipTable), SOC.card('Most active accounts', idTable)));
 
@@ -375,8 +378,8 @@
       if (d.ban) out.appendChild(SOC.callout('Banned by ' + d.ban.by + ' on ' + fmt.time(d.ban.at) + ' — ' + (d.ban.reason || 'no reason recorded') + (d.ban.expires ? ' (until ' + fmt.time(d.ban.expires) + ')' : ' (until lifted)'), 'bad'));
       out.appendChild(h('div', { class: 'grid kpis' },
         SOC.kpi('Events', fmt.n(d.events), 'last ' + d.days + ' days', 'info'), SOC.kpi('High severity', fmt.n(d.high_severity), '', d.high_severity ? 'high' : 'ok'),
-        SOC.kpi('Kinds of event', fmt.n(d.event_types), '', 'info'), SOC.kpi('First seen', d.first_seen ? fmt.time(d.first_seen).slice(0, 10) : '–', fmt.ago(d.first_seen), 'info'),
-        SOC.kpi('Last seen', d.last_seen ? fmt.time(d.last_seen).slice(0, 10) : '–', fmt.ago(d.last_seen), 'info')));
+        SOC.kpi('Kinds of event', fmt.n(d.event_types), '', 'info'), SOC.kpi('First seen', d.first_seen ? fmt.time(d.first_seen).slice(5, 16) : '–', fmt.ago(d.first_seen), 'info'),
+        SOC.kpi('Last seen', d.last_seen ? fmt.time(d.last_seen).slice(5, 16) : '–', fmt.ago(d.last_seen), 'info')));
       if (!d.events) { out.appendChild(SOC.empty('The platform has recorded nothing for this value in the window.')); root.appendChild(out); return; }
       out.appendChild(h('div', { class: 'grid cols-2' },
         SOC.card('What it did', SOC.bars(d.types.map((t) => ({ label: t.label, value: t.count, href: '#/events?event_type=' + encodeURIComponent(t.event_type) + '&' + (kind === 'ip' ? 'ip=' : 'identifier=') + encodeURIComponent(d.value) })))),
@@ -684,7 +687,8 @@
           { label: 'Passkey', render: (x) => x.passkeys ? SOC.chip(x.passkeys + ' set up', 'ok') : SOC.chip('none yet', 'plain') },
           { label: 'Last sign-in', render: (x) => x.last_login_at ? [fmt.time(x.last_login_at), h('div', { class: 'note mono' }, x.last_login_ip || '')] : null },
           { label: '', render: (x) => h('div', { class: 'row' },
-            h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: x.active ? 'deactivate' : 'activate' }, x.active ? 'Disabled' : 'Enabled').then(refresh).catch(() => {}) }, x.active ? 'Disable' : 'Enable'),
+            x.username === SOC.user ? null      // you cannot disable yourself (the server refuses it)
+              : h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: x.active ? 'deactivate' : 'activate' }, x.active ? 'Disabled' : 'Enabled').then(refresh).catch(() => {}) }, x.active ? 'Disable' : 'Enable'),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: 'unlock' }, 'Unlocked').then(refresh).catch(() => {}) }, 'Unlock'),
             x.passkeys && x.username !== SOC.user ? h('button', { class: 'btn ghost small', type: 'button', onclick: async () => {
               if (await SOC.confirm('Remove ' + x.username + '\'s passkeys and sign them out everywhere? They will create a new passkey at their next sign-in, after the emailed code.')) call(x.id, { action: 'reset_passkey' }, 'Passkey reset').then(refresh).catch(() => {});

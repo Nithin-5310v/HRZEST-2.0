@@ -250,8 +250,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .banner-ico { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--tone);
               background: color-mix(in srgb, var(--tone) 18%, transparent); }
 .list { list-style: none; margin: 0; padding: 0; }
-.list li { padding: 8px 0; border-bottom: 1px solid var(--grid); }
+.list li { padding: 8px 0; border-bottom: 1px solid var(--grid); min-width: 0; }
 .list li:last-child { border-bottom: 0; }
+/* Attacker-controlled values (a 400-character path) wrap inside their card
+   instead of widening it -- and with it the whole page on a phone. */
+.wrap { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 
 /* overlays */
 .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 40; }

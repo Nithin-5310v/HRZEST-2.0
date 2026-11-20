@@ -31,8 +31,8 @@ pytest tests_e2e/ --browser chromium
 ```
 
 Not part of `pytest tests/` or `pytest` with no args -- `pytest.ini`'s
-`testpaths = tests` already excludes this directory. Only the SOC passkey
-flow runs in CI (see "What runs in CI" below).
+`testpaths = tests` already excludes this directory. Only the SOC console
+flows run in CI (see "What runs in CI" below).
 
 `tests_e2e/conftest.py` starts the real app (the same `wsgi.py` entry
 point production/gunicorn use -- full migration bootstrap against
@@ -46,7 +46,7 @@ seeds and cleans up that row itself.
 
 ## What's covered, and what deliberately isn't
 
-Six flows, chosen to be both genuinely critical and achievable without a
+Seven flows, chosen to be both genuinely critical and achievable without a
 real detectable face photo (Add Employee's web form and `/api/employees`
 both reject a photo with no detected face via
 `face_recognition.face_encodings()` -- see `blueprints/employees/` --
@@ -69,6 +69,12 @@ external browser-driven test can't do):
    real signature checks both run; the emailed code is captured in-process.
    Opened at `http://localhost:<port>` because browsers do not accept an IP
    address as a passkey's site.
+7. Every SOC console view (`test_soc_console_views.py`), with realistic data
+   including a 400-character attack path, at desktop (1366px) and phone
+   (390px) width: fails on a JavaScript or console error, a failed
+   `/socperson` request, or a page wider than the screen, and opens an event's
+   detail drawer. `SOC_AUDIT_SHOTS=<dir>` also saves a screenshot of every view
+   for a human look.
 
 Not covered here: face-recognition check-in/photo upload (see above),
 payment flows (Razorpay has no sandbox reachable from a CI-shaped
@@ -77,11 +83,12 @@ factor (MFA is disabled for this whole suite -- see "Running" above).
 
 ## What runs in CI
 
-Only flow 6, the SOC passkey sign-in: `.github/workflows/deploy.yml`, job
-`e2e-soc-passkey`, which the image build waits for. It is the one flow the
-main suite cannot cover at all (the browser half of a passkey), and a break
-in it locks every analyst out of `/socperson`. The job caches the Chromium
-download by Playwright version; its system libraries are installed each run.
+Flows 6 and 7, the SOC console: `.github/workflows/deploy.yml`, job
+`e2e-soc-passkey`, which the image build waits for. The main suite cannot
+cover either (the browser half of a passkey; a view that renders badly or
+throws), and a break in sign-in locks every analyst out of `/socperson`. The
+job caches the Chromium download by Playwright version; its system libraries
+are installed each run.
 
 The other flows stay a manual check. Wiring them in would mean a meaningfully
 slower job (~1-2 minutes vs. seconds for the equivalent test-client-based
