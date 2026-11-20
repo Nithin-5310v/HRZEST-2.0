@@ -40,8 +40,8 @@ are skipped. `SOC_DIGEST=off` turns it off; `SOC_DIGEST_HOUR` moves it.
 
 ## Getting in
 
-There are no passwords and no default accounts. Sign-in is an emailed one-time code followed by
-your passkey, and only the addresses you list on the server can get a code.
+There are no default accounts. Sign-in is an emailed one-time code followed by your password,
+which you set yourself the first time, and only the addresses you list on the server can get a code.
 
 **Before going live (and after any change to the server's `.env`)**, run on that server:
 
@@ -50,7 +50,7 @@ python scripts/soc_preflight.py        # add --db if email is set in the app's s
 ```
 
 It reports every setting the console depends on as PASS / WARN / FAIL with the fix (the app
-starting at all, who can sign in, the network allow-list, the passkey site, email, alerts, the
+starting at all, who can sign in, the network allow-list, email, alerts, the
 proxy setting, the external dashboard), using the app's own rules, and never prints a secret or
 an address. Exit code 1 means something would lock you out: fix it before approving the release.
 
@@ -65,10 +65,10 @@ an address. Exit code 1 means something would lock you out: fix it before approv
    No role means `admin`. Keep the addresses in `.env`, not in the repository.
 2. Open `/socperson/login`, enter your address, and enter the 6-digit code from the email.
    Codes last 10 minutes, work once, and at most one is sent per minute ("Send a new code").
-3. Then confirm with your passkey: fingerprint, face or device PIN, your phone, or a security
-   key. The first time, you create one instead (`utils/soc_passkeys.py`). The console stays
-   closed until this step is done, and a failed passkey counts toward the same lockout as a
-   wrong code.
+3. Then enter your password. **The first time there is none yet: you choose one right there**
+   (12 characters or more, typed twice) and you are in. The console stays closed until this
+   step is done, and a wrong password counts toward the same lockout as a wrong code (5 in a
+   row locks the account for 15 minutes).
 4. The account is created on your first sign-in; its role always follows `SOC_LOGIN_EMAILS`.
 
 Any address gets the same "check your email" screen, so the form does not reveal who is
@@ -76,16 +76,21 @@ authorised; addresses that are not listed simply never receive a code. Email mus
 without SMTP the code is sent nowhere (with `APP_ENV=development` only, it is written to the
 application log so the flow can be tried locally).
 
-Passkeys need HTTPS and the site's own domain: the passkey is tied to the first entry in
-`ALLOWED_ORIGINS` (opening the console by IP address cannot work). Only public keys are stored.
-Note that whoever completes the first sign-in after the email code creates the passkey, so sign
-in yourself soon after listing an address.
+Passwords are stored only as Argon2id hashes (`utils/auth.py`). The step after the code can only
+*set* a password when the account has none, never replace one, so someone who gets into a listed
+inbox still cannot get past a password that is already set. The flip side: whoever completes the
+first sign-in after the email code chooses the password, so sign in yourself soon after listing
+an address (and soon after a reset).
 
-**Lost device:** another admin uses **Users & audit → Reset passkey**, which also ends every open
-session of that person, so a stolen device that was signed in is out at once; you create a new
-passkey at your next sign-in. **Left signed in somewhere?** **Sign out everywhere** (bottom of the
-sidebar) ends your sessions in every browser. **Sole admin locked out:** set `SOC_PASSKEY=off` on the server, restart, sign
-in with the code, then turn it back on (the Posture page flags it while it is off).
+**Forgot your password:** another admin uses **Users & audit → Reset password**, which also ends
+every open session of that person; you set a new password at your next sign-in, after the code.
+**Sole admin:** on the server, `python scripts/soc_reset_password.py you@example.com` does the same
+(and clears a lockout). **Left signed in somewhere?** **Sign out everywhere** (bottom of the
+sidebar) ends your sessions in every browser.
+
+Accounts from the earlier username + password + authenticator login keep their role and history,
+but their old password and authenticator are voided on upgrade: you set a new password at your
+first sign-in.
 
 To remove someone, take their address out of `SOC_LOGIN_EMAILS` and restart: their open session
 ends on its next request. **Users & audit → Disable** is the immediate switch that needs no restart.
@@ -98,10 +103,10 @@ ends on its next request. **Users & audit → Disable** is the immediate switch 
 | Open / update cases, add notes | | ✔ | ✔ |
 | Ban / unban IPs, decide Ban review items, revoke sessions | | ✔ | ✔ |
 | Log analysis, CSV export, audit-chain verification, Loki search | | ✔ | ✔ |
-| Disable / enable / unlock SOC accounts, read the SOC audit trail | | | ✔ |
+| Disable / enable / unlock SOC accounts, reset passwords, read the SOC audit trail | | | ✔ |
 
 Viewers never receive raw session identifiers. A role change in `SOC_LOGIN_EMAILS`, removal
-from it, deactivation, a passkey reset or "Sign out everywhere" ends that user's console sessions
+from it, deactivation, a password reset or "Sign out everywhere" ends that user's console sessions
 on their next request.
 
 ## Settings (`.env`)
@@ -119,7 +124,6 @@ on their next request.
 | `SOC_TEST_COMPANIES` | unset | Company URL slugs used only for testing; left out of every view, including Tenant risk, Attendance fraud and sessions. |
 | `SOC_DIGEST` | on | `off` stops the daily summary email. |
 | `SOC_DIGEST_HOUR` | 8 | Hour (0–23, Asia/Kolkata) the daily summary is sent. |
-| `SOC_PASSKEY` | on | The passkey step after the emailed code. `off` only to let a sole admin who lost their passkey back in. |
 | `SOC_AUTO_BAN` | false | `true` bans automated detections at once (the old behaviour) instead of queueing them in **Ban review**. Leave off when an analyst watches the queue: customers often share one office or mobile-network address. |
 
 ## What each view shows

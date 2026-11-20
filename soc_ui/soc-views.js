@@ -684,21 +684,21 @@
           { label: 'User', render: (x) => [x.username, x.email && x.email !== x.username ? h('div', { class: 'note mono' }, x.email) : null] },
           { label: 'Role', key: 'role' },
           { label: 'Access', render: (x) => !x.listed ? SOC.chip('not listed', 'plain') : !x.active ? SOC.chip('disabled', 'bad') : x.is_locked ? SOC.chip('locked', 'bad') : SOC.chip('active', 'ok') },
-          { label: 'Passkey', render: (x) => x.passkeys ? SOC.chip(x.passkeys + ' set up', 'ok') : SOC.chip('none yet', 'plain') },
+          { label: 'Password', render: (x) => x.has_password ? SOC.chip('set', 'ok') : SOC.chip('not set yet', 'plain') },
           { label: 'Last sign-in', render: (x) => x.last_login_at ? [fmt.time(x.last_login_at), h('div', { class: 'note mono' }, x.last_login_ip || '')] : null },
           { label: '', render: (x) => h('div', { class: 'row' },
             x.username === SOC.user ? null      // you cannot disable yourself (the server refuses it)
               : h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: x.active ? 'deactivate' : 'activate' }, x.active ? 'Disabled' : 'Enabled').then(refresh).catch(() => {}) }, x.active ? 'Disable' : 'Enable'),
             h('button', { class: 'btn ghost small', type: 'button', onclick: () => call(x.id, { action: 'unlock' }, 'Unlocked').then(refresh).catch(() => {}) }, 'Unlock'),
-            x.passkeys && x.username !== SOC.user ? h('button', { class: 'btn ghost small', type: 'button', onclick: async () => {
-              if (await SOC.confirm('Remove ' + x.username + '\'s passkeys and sign them out everywhere? They will create a new passkey at their next sign-in, after the emailed code.')) call(x.id, { action: 'reset_passkey' }, 'Passkey reset').then(refresh).catch(() => {});
-            } }, 'Reset passkey') : null) }
+            x.has_password && x.username !== SOC.user ? h('button', { class: 'btn ghost small', type: 'button', onclick: async () => {
+              if (await SOC.confirm('Reset ' + x.username + '\'s password and sign them out everywhere? They will set a new password at their next sign-in, after the emailed code.')) call(x.id, { action: 'reset_password' }, 'Password reset').then(refresh).catch(() => {});
+            } }, 'Reset password') : null) }
         ] }));
       };
       const refresh = () => api.get('/socperson/api/users').then((n) => table(n.users));
-      root.append(SOC.callout('Sign-in is an emailed one-time code followed by a passkey' + (d.passkey_required ? '' : ' (currently OFF: SOC_PASSKEY=off)') +
-        '. To add or remove someone, or change a role, edit SOC_LOGIN_EMAILS on the server and restart; removing an address ends that person\'s session at once. ' +
-        'Disable is the immediate switch for an account. Reset passkey is for a lost device.', d.passkey_required ? '' : 'warn'), tableBox);
+      root.append(SOC.callout('Sign-in is an emailed one-time code followed by the person\'s password, which they set at their first sign-in. ' +
+        'To add or remove someone, or change a role, edit SOC_LOGIN_EMAILS on the server and restart; removing an address ends that person\'s session at once. ' +
+        'Disable is the immediate switch for an account. Reset password is for a forgotten or leaked password.'), tableBox);
       table(d.users);
     }
   });

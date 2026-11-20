@@ -1,8 +1,9 @@
 """SOC console: authentication, isolation, roles, data endpoints and response actions.
 
-These walk the REAL login flow (email address -> one-time code emailed to it), because
-that flow is the console's front door and the part most worth proving. Only the email
-delivery itself is replaced: codes land in OUTBOX instead of an inbox.
+These walk the REAL login flow (email address -> one-time code emailed to it -> password,
+set at the first sign-in), because that flow is the console's front door and the part
+most worth proving. Only the email delivery itself is replaced: codes land in OUTBOX
+instead of an inbox. The password step has its own tests (tests/test_soc_password.py).
 """
 import csv
 import io
@@ -21,6 +22,7 @@ from utils.soc_db import write_cursor
 PUBLIC_IP = "45.33.32.156"        # routable (not private / documentation / reserved)
 OUTBOX = []                       # (email, code) for every code the console sent
 _REAL_DELIVER = soc_auth.deliver_login_code
+TEST_PASSWORD = "correct horse battery staple"     # what sign_in() sets / enters after the code
 
 
 @pytest.fixture(autouse=True)
@@ -30,9 +32,6 @@ def _fresh_soc_state(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     # Recorded by monkeypatch so whatever allow() adds is undone after the test.
     monkeypatch.setenv("SOC_LOGIN_EMAILS", "")
-    # Sign-in here is the emailed code alone; the passkey step after it has its
-    # own tests (tests/test_soc_passkeys.py), which turn it back on.
-    monkeypatch.setenv("SOC_PASSKEY", "off")
     OUTBOX.clear()
     monkeypatch.setattr(soc_auth, "deliver_login_code", lambda email, code: OUTBOX.append((email, code)) or True)
     soc_queries.clear_cache()
@@ -82,12 +81,31 @@ def request_code(client, email):
     return codes_for(email)[-1] if codes_for(email) else None
 
 
-def sign_in(client, email):
+def enter_code(client, email):
     """Ask for a code, read it from the captured email, enter it. -> the code response."""
     allow_resend(email)
     code = request_code(client, email)
     assert code, "no code was sent to " + email
     return client.post("/socperson/login", data={"action": "code", "code": code})
+
+
+def password_step(client, password=TEST_PASSWORD):
+    """After a correct code: set the first password, or enter it. -> the response."""
+    page = client.get("/socperson/login").get_data(as_text=True)
+    if "Set your password" in page:
+        return client.post("/socperson/login", data={"action": "set_password", "password": password,
+                                                      "confirm": password})
+    assert "Enter your password" in page, page
+    return client.post("/socperson/login", data={"action": "password", "password": password})
+
+
+def sign_in(client, email, password=TEST_PASSWORD):
+    """The whole sign-in: code, then password. -> the last response (303 to /socperson
+    when it worked), or the code response when the code was refused."""
+    r = enter_code(client, email)
+    if r.status_code != 303 or not r.headers["Location"].endswith("/socperson/login"):
+        return r
+    return password_step(client, password)
 
 
 def alert_text(r):
@@ -195,12 +213,16 @@ class TestLoginFlow:
         assert len(code) == 6 and code.isdigit()
         assert client.get("/socperson").status_code == 302          # nothing yet without the code
         r = client.post("/socperson/login", data={"action": "code", "code": code[:3] + " " + code[3:]})
+        assert r.status_code == 303 and r.headers["Location"].endswith("/socperson/login")
+        assert client.get("/socperson").status_code == 302          # nor with the code alone
+        r = password_step(client)                                    # first time: sets the password
         assert r.status_code == 303 and r.headers["Location"].endswith("/socperson")
         assert client.get("/socperson").status_code == 200
         me = client.get("/socperson/api/me").get_json()["user"]
-        assert me["username"] == "owner@example.com" and me["role"] == "admin"
+        assert me["username"] == "owner@example.com" and me["role"] == "admin" and me["has_password"] is True
         acts = audit_actions(db_engine)
         assert ("owner@example.com", "login_code_sent", None) in acts and ("owner@example.com", "login", None) in acts
+        assert ("owner@example.com", "password_set", None) in acts
 
     def test_an_unlisted_address_sees_the_same_screens_and_gets_nothing(self, client, db_engine):
         allow("owner@example.com")
@@ -605,10 +627,11 @@ class TestRoles:
         assert users["alice"]["listed"] is True and users["bob"]["listed"] is False
         secret_cols = ("password_hash", "totp_secret", "enroll_code_hash", "login_code_hash")
         assert all(k not in u for u in users.values() for k in secret_cols)
-        # Accounts, passwords, authenticators and roles are no longer managed in the console.
+        # Accounts, authenticators and roles are not managed in the console (a forgotten
+        # password is: tests/test_soc_password.py).
         bob = users["bob"]["id"]
         assert admin.post("/socperson/api/users", json={"username": "newbie", "role": "admin"}).status_code == 405
-        for action in ("set_role", "reset_mfa", "reset_password"):
+        for action in ("set_role", "reset_mfa", "reset_passkey"):
             assert admin.post(f"/socperson/api/users/{bob}", json={"action": action, "role": "admin"}).status_code == 400, action
         assert admin.post("/socperson/api/me/password", json={"current": "x", "new": "y"}).status_code == 404
         assert admin.post(f"/socperson/api/users/{bob}", json={"action": "deactivate"}).status_code == 200

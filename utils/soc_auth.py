@@ -8,7 +8,13 @@ here, and a SOC session grants nothing anywhere else.
 
 Controls
 --------
-* passwordless: an email address, then a 6-digit code sent to it
+* an email address, then a 6-digit code sent to it, then the person's password.
+  The first sign-in has no password yet: after the code, the person sets one
+  (MIN_PASSWORD_LENGTH+). The console stays closed until that step is done, and
+  a wrong password counts toward the same lockout as a wrong code
+* a forgotten password: another admin uses Users & audit -> Reset password, or on
+  the server `python scripts/soc_reset_password.py <email>`; the person sets a new
+  one at their next sign-in, after the emailed code
 * only addresses listed in SOC_LOGIN_EMAILS can sign in ("a@x.com, b@y.com:analyst";
   the role defaults to admin). Any other address gets the same "check your inbox"
   screen and no email, so the form cannot be used to learn who is authorised
@@ -45,9 +51,13 @@ RESEND_SECONDS = 60
 PENDING_TTL_SECONDS = LOGIN_CODE_TTL_SECONDS
 _EMAIL_RE = re.compile(r"^[^@\s,:]+@[^@\s,:]+\.[^@\s,:]+$")
 _USERNAME_MAX = 60          # soc_users.username / soc_audit_log.actor
-# Accounts made for SOC_LOGIN_EMAILS never had a password; this value is not a
-# valid hash, so nothing can ever verify against it.
+# "No password yet": a new account, or one an admin reset. Any stored value that
+# starts with "!" is not a valid hash, so nothing can ever verify against it, and
+# the next sign-in asks the person to set a password after the emailed code.
 _NO_PASSWORD = "!email-code-login"
+MIN_PASSWORD_LENGTH = 12
+MAX_PASSWORD_LENGTH = 128   # caps the hashing work one request can ask for
+PASSWORD_STEP_SECONDS = 5 * 60
 
 
 def _env_int(name, default, lo, hi):
@@ -231,8 +241,11 @@ _USER_COLS = ("id", "username", "email", "role", "active", "failed_count", "lock
 
 
 # `is_locked` is computed by the database (its own clock and timezone), never by
-# comparing a naive TIMESTAMP with time.time() in the app's timezone.
-_SELECT = ", ".join(_USER_COLS) + ", (locked_until IS NOT NULL AND locked_until > NOW())"
+# comparing a naive TIMESTAMP with time.time() in the app's timezone. The password
+# hash itself is never selected here: only whether there is one (see _NO_PASSWORD).
+_HAS_PASSWORD_SQL = "(password_hash IS NOT NULL AND left(password_hash, 1) <> '!')"
+_SELECT = (", ".join(_USER_COLS) + ", (locked_until IS NOT NULL AND locked_until > NOW()), "
+           + _HAS_PASSWORD_SQL)
 
 
 def _row_user(row):
@@ -240,6 +253,7 @@ def _row_user(row):
         return None
     d = dict(zip(_USER_COLS, row))
     d["is_locked"] = bool(row[len(_USER_COLS)])
+    d["has_password"] = bool(row[len(_USER_COLS) + 1])
     return d
 
 
@@ -270,8 +284,8 @@ def get_user_by_email(email):
 def public_user(u):
     """The fields safe to return to a browser."""
     return {k: (v.isoformat(sep=" ") if hasattr(v, "isoformat") else v) for k, v in u.items()
-            if k in ("id", "username", "email", "role", "active", "failed_count",
-                     "locked_until", "is_locked", "last_login_at", "last_login_ip", "created_by", "created_at")}
+            if k in ("id", "username", "email", "role", "active", "failed_count", "locked_until", "is_locked",
+                     "has_password", "last_login_at", "last_login_ip", "created_by", "created_at")}
 
 
 def list_users():
@@ -479,26 +493,83 @@ def verify_login_code(email, code, ip):
     return None, ("locked" if register_failure(user, ip, "bad sign-in code") else "bad_code")
 
 
+# ── password: the step after the emailed code ────────────────────────
+# The code proves access to the inbox; the password is something only the person
+# knows, so a stolen inbox alone does not open the console. Hashing is the app's
+# own (utils/auth.py: Argon2id; older bcrypt/pbkdf2 hashes still verify and are
+# upgraded on the next sign-in).
+def password_problem(password, email=""):
+    """Why `password` cannot be this person's new password, or None."""
+    if not isinstance(password, str) or len(password) < MIN_PASSWORD_LENGTH:
+        return f"Use at least {MIN_PASSWORD_LENGTH} characters."
+    if len(password) > MAX_PASSWORD_LENGTH:
+        return f"Use at most {MAX_PASSWORD_LENGTH} characters."
+    email = normalize_email(email)
+    if email and password.strip().lower() in (email, email.partition("@")[0]):
+        return "Do not use your email address as your password."
+    return None
+
+
+def set_first_password(uid, password):
+    """Store the password of an account that has none (new, or reset by an admin).
+    Refuses -- returns False -- once one is set, so the step after the emailed code
+    can never replace an existing password: whoever holds only the inbox cannot."""
+    from utils.auth import generate_password_hash
+    pw_hash = generate_password_hash(password)
+    with write_cursor("att_master") as cur:
+        cur.execute("UPDATE soc_users SET password_hash=%s, password_changed_at=NOW() "
+                    "WHERE id=%s AND NOT " + _HAS_PASSWORD_SQL, (pw_hash, uid))  # nosec B608 -- constant SQL
+        return cur.rowcount == 1
+
+
+def check_password(user, password):
+    """True when `password` is this person's. An account without one never matches."""
+    from utils.auth import check_password_hash, generate_password_hash, password_needs_rehash
+    if not isinstance(password, str) or not password or len(password) > MAX_PASSWORD_LENGTH:
+        return False
+    with read_cursor("att_master") as cur:
+        cur.execute("SELECT password_hash FROM soc_users WHERE id=%s AND " + _HAS_PASSWORD_SQL,  # nosec B608 -- constant SQL
+                    (user["id"],))
+        row = cur.fetchone()
+    if not row or not check_password_hash(row[0], password):
+        return False
+    if password_needs_rehash(row[0]):
+        with write_cursor("att_master") as cur:
+            cur.execute("UPDATE soc_users SET password_hash=%s WHERE id=%s AND password_hash=%s",
+                        (generate_password_hash(password), user["id"], row[0]))
+    return True
+
+
+def reset_password(uid):
+    """Forget the password (a forgotten one, or a suspected leak) and end every open
+    session of that person. They set a new one at their next sign-in, after the code."""
+    with write_cursor("att_master") as cur:
+        cur.execute("UPDATE soc_users SET password_hash=%s WHERE id=%s", (_NO_PASSWORD, uid))
+        found = cur.rowcount == 1
+    if found:
+        end_all_sessions(uid)
+    return found
+
+
 # ── session ──────────────────────────────────────────────────────────
 _SESSION_KEYS = ("soc_uid", "soc_user", "soc_role", "soc_at", "soc_last", "soc_epoch", "soc_pending_email",
-                 "soc_pending_at", "soc_pk_uid", "soc_pk_at", "soc_pk_challenge", "soc_pk_mode")
-PASSKEY_STEP_SECONDS = 5 * 60
+                 "soc_pending_at", "soc_pw_uid", "soc_pw_at")
 
 
-def start_passkey_step(user):
-    """The emailed code was right: the passkey (utils/soc_passkeys.py) is all that
-    stands between this browser and a session. Nothing else carries over."""
+def start_password_step(user):
+    """The emailed code was right: the password (set now, the first time) is all
+    that stands between this browser and a session. Nothing else carries over."""
     for k in _SESSION_KEYS:
         session.pop(k, None)
-    session["soc_pk_uid"] = user["id"]
-    session["soc_pk_at"] = time.time()
+    session["soc_pw_uid"] = user["id"]
+    session["soc_pw_at"] = time.time()
 
 
-def passkey_step_user():
-    """The user half-way through sign-in (code done, passkey not yet), still
+def password_step_user():
+    """The user half-way through sign-in (code done, password not yet), still
     active, unlocked and listed -- or None."""
-    uid = session.get("soc_pk_uid")
-    if not uid or time.time() - session.get("soc_pk_at", 0) > PASSKEY_STEP_SECONDS:
+    uid = session.get("soc_pw_uid")
+    if not uid or time.time() - session.get("soc_pw_at", 0) > PASSWORD_STEP_SECONDS:
         return None
     user = get_user_by_id(uid)
     if not user or not user["active"] or user["is_locked"] or login_role(user.get("email")) is None:
@@ -586,7 +657,7 @@ def _session_user():
     if user["role"] != session.get("soc_role") or login_role(user.get("email")) != user["role"]:
         end_session()
         return None
-    # A passkey reset or "Sign out everywhere" since login ends it too.
+    # A password reset or "Sign out everywhere" since login ends it too.
     if (user.get("session_epoch") or 0) != session.get("soc_epoch"):
         end_session()
         return None
