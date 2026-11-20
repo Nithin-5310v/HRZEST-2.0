@@ -83,6 +83,21 @@ class TestBreachCheck:
         assert requests == []
 
 
+class TestSocConsolePasswords:
+    """The SOC console keeps its own rules (utils/soc_auth.password_problem:
+    12+ characters, not the email) and shares the leaked-password check."""
+
+    def test_breached_password_is_refused(self, hibp):
+        from utils.soc_auth import password_problem
+        known, _ = hibp
+        known["Correct-Horse-Battery-1"] = 9120
+        assert "data breach" in password_problem("Correct-Horse-Battery-1", "analyst@example.com")
+
+    def test_unknown_long_password_is_fine(self, hibp):
+        from utils.soc_auth import password_problem
+        assert password_problem("kettle-orbit-Planet-81", "analyst@example.com") is None
+
+
 class TestLocalRules:
     def test_too_short(self):
         assert check_new_password("Ab1!xyz") == (False, "short")
