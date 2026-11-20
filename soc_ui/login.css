@@ -24,7 +24,7 @@ body {
 h1 { font-size: 22px; margin: 0 0 6px; }
 .sub { color: var(--muted); margin: 0 0 18px; overflow-wrap: anywhere; }
 label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
-input[type=text], input[type=email] {
+input[type=text], input[type=email], input[type=password] {
   width: 100%; padding: 11px 12px; border-radius: 9px; border: 1px solid var(--line);
   background: var(--input); color: var(--text); font: inherit;
 }
@@ -44,3 +44,4 @@ button.link { background: none; color: var(--muted); width: auto; margin: 0; pad
 .notice {
   background: color-mix(in srgb, var(--accent) 12%, transparent); border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
+.hint { color: var(--muted); font-size: 13px; text-align: center; margin: 12px 0 0; }

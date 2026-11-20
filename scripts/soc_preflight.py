@@ -13,7 +13,6 @@ It never prints a secret or an address: only whether a setting is present and
 what kind of value it holds.
 """
 import argparse
-import ipaddress
 import os
 import sys
 from urllib.parse import urlparse
@@ -32,23 +31,11 @@ def _https(url):
     return urlparse(url).scheme == "https" and bool(urlparse(url).hostname)
 
 
-def _is_ip(host):
-    try:
-        ipaddress.ip_address(host or "")
-        return True
-    except ValueError:
-        return False
-
-
-# The same rules as utils/soc_passkeys.required() and utils/soc_digest.enabled() /
-# digest_hour() (tests/test_soc_preflight.py holds them equal). Read here directly
-# because importing those modules runs the app's start-up checks, which raise on a
+# The same rules as utils/soc_digest.enabled() / digest_hour()
+# (tests/test_soc_preflight.py holds them equal). Read here directly because
+# importing that module runs the app's start-up checks, which raise on a
 # misconfigured server -- and saying so is this script's job, not crashing.
 _OFF = ("0", "off", "false", "no")
-
-
-def _passkey_required():
-    return os.environ.get("SOC_PASSKEY", "on").strip().lower() not in _OFF
 
 
 def _digest():
@@ -101,25 +88,9 @@ def checks(with_db=False):
                        "Set SOC_ALLOWED_CIDRS before going live."),
     }[state])
 
-    if _passkey_required():
-        add(PASS, "Passkey step", "Sign-in needs the emailed code and then the person's passkey.")
-    else:
-        add(FAIL, "Passkey step", "SOC_PASSKEY=off: the emailed code alone opens the console.",
-            "Remove SOC_PASSKEY (or set it to on) unless a sole admin is recovering a lost passkey right now.")
-
-    origins = [o.strip() for o in _env("ALLOWED_ORIGINS").split(",") if o.strip()]
-    first = origins[0] if origins else ""
-    host = urlparse(first).hostname if first and first != "*" else None
-    if not host:
-        add(WARN, "Passkey site (ALLOWED_ORIGINS)",
-            "ALLOWED_ORIGINS is not set, so a passkey is tied to whatever host name the browser used.",
-            "Set ALLOWED_ORIGINS=https://<your domain> so passkeys always belong to the real domain.")
-    elif not _https(first) or _is_ip(host):
-        add(FAIL, "Passkey site (ALLOWED_ORIGINS)",
-            "The first ALLOWED_ORIGINS entry is not an https:// domain name; browsers refuse passkeys for it.",
-            "Put https://<your domain> first in ALLOWED_ORIGINS.")
-    else:
-        add(PASS, "Passkey site (ALLOWED_ORIGINS)", f"Passkeys belong to {host}.")
+    if _env("SOC_PASSKEY"):
+        add(WARN, "Old passkey setting", "SOC_PASSKEY is still set; nothing reads it any more "
+            "(sign-in is the emailed code, then the person's password).", "Remove SOC_PASSKEY from .env.")
 
     smtp_env = all(_env(k) for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASS"))
     smtp_db = None

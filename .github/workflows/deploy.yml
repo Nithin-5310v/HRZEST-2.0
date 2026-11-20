@@ -428,7 +428,7 @@ jobs:
           fi
 
       - name: Run the SOC console tests as the restricted runtime role
-        # The SOC console as a hardened production host runs it: sign-in, passkeys,
+        # The SOC console as a hardened production host runs it: sign-in, passwords,
         # bans across company schemas, the audit trail and the daily summary all
         # under the runtime role, which cannot alter schema or rewrite audit rows.
         env:
@@ -440,15 +440,14 @@ jobs:
           FLASK_ENV: testing
         run: >-
           python -m pytest -v --tb=short
-          tests/test_soc_console.py tests/test_soc_ban_review.py tests/test_soc_passkeys.py
+          tests/test_soc_console.py tests/test_soc_ban_review.py tests/test_soc_password.py
           tests/test_soc_digest.py tests/test_soc_posture_alerts.py tests/test_platform_admin_soc.py
           tests/test_soc_loganalysis.py tests/test_soc_taxonomy.py
 
-  e2e-soc-passkey:
+  e2e-soc:
     # The SOC console in a real browser:
-    # - tests_e2e/test_soc_passkey.py: email -> code -> passkey, with Chromium's
-    #   virtual authenticator, so soc_ui/login.js and py_webauthn's real
-    #   signature checks run together (a break locks every analyst out);
+    # - tests_e2e/test_soc_password.py: email -> code -> set a password, then
+    #   sign in again with it (a break locks every analyst out);
     # - tests_e2e/test_soc_console_views.py: every view at desktop and phone
     #   width, failing on a JS error, a failed /socperson call or a page wider
     #   than the screen (none of which the API tests can see).
@@ -503,7 +502,7 @@ jobs:
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
-      - name: Run the SOC passkey sign-in and every console view in Chromium
+      - name: Run the SOC sign-in and every console view in Chromium
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 5432
@@ -511,12 +510,12 @@ jobs:
           DB_PASS: ci_testpass
         run: >-
           python -m pytest --browser chromium -v --tb=short
-          tests_e2e/test_soc_passkey.py tests_e2e/test_soc_console_views.py
+          tests_e2e/test_soc_password.py tests_e2e/test_soc_console_views.py
 
   podman:
     name: Podman build
     runs-on: ubuntu-latest
-    needs: [test, test-role-split, e2e-soc-passkey]
+    needs: [test, test-role-split, e2e-soc]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
