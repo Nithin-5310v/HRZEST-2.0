@@ -195,7 +195,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | A11Y-05 | Accessibility | Low | templates/leave_holidays.html (10) | Same | Same | Same | S | Open |
 | DUP-01 | Duplication | Low | admin_login, force_change_pin, mfa_verify, admin/employee reset & forgot, admin_mfa_required (.html) | Each repeats the whole `<head>` plus an 80–170-line CSS block | 11% template duplication; style drift | `auth_base.html` that the pages extend | M | Open |
 | DUP-02 | Duplication | Low | create_org, create_org_{verify_otp,upload_documents,status,pay,setup_trial}.html | Same | Same | `create_org_base.html` | M | Open |
-| DUP-03 | Duplication | Low | super_admin_{audit_log,tickets,ticket_detail,applications,application_detail,duplicate_alerts,company_profile,soc_dashboard}.html | Same | Same | `super_admin_base.html` | M | Open |
+| DUP-03 | Duplication | Low | super_admin_{audit_log,tickets,ticket_detail,applications,application_detail,duplicate_alerts,company_profile}.html | Same | Same | `super_admin_base.html` | M | Open |
 | DUP-04 | Duplication | Low | my_onboarding, my_performance, my_compoff (.html) | Same | Same | Extend the employee base | M | Open |
 | DUP-07 | Duplication | Low | billing.py:288-300, seats.py:109-121, billing_dunning.py:278-286 | Payment-verify blocks copied | Drift in payment code | Shared helper | M | Open |
 | DUP-08 | Duplication | Low | mobile Admin/Employee/ManagerDrawerContent.js | ~200 lines duplicated across drawers | Drift | Shared drawer component | M | Open |

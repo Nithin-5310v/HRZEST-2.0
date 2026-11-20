@@ -14,7 +14,6 @@ import re
 import secrets
 from extensions import app, app_log
 from flask import current_app, flash, jsonify, redirect, request, session, url_for
-from urllib.parse import urlsplit
 from utils.helpers import invalidate_settings_cache, static_url as _static_url
 from app_setup.templating import _csrf_token
 
@@ -362,24 +361,12 @@ def _security_headers(response):
         _razorpay_script_src = " https://checkout.razorpay.com https://cdn.razorpay.com" if _is_razorpay_page else ""
         _razorpay_frame_src = "https://checkout.razorpay.com https://api.razorpay.com" if _is_razorpay_page else ""
         _razorpay_connect_src = " https://api.razorpay.com https://lumberjack.razorpay.com" if _is_razorpay_page else ""
-        # /super_admin/soc (blueprints/platform_admin.py) embeds the standalone
-        # SOC dashboard in an iframe. Without this, the default frame-src 'none'
-        # makes the browser refuse to load it and the page shows an empty box.
-        # Only that service's own origin (scheme://host:port of SOC_DASHBOARD_URL,
-        # never the path or the token) is allowed, and only on this one page.
-        _soc_frame_src = ""
-        if request.path == "/super_admin/soc":
-            _soc_url = urlsplit(os.environ.get("SOC_DASHBOARD_URL", ""))
-            if _soc_url.scheme in ("http", "https") and _soc_url.netloc:
-                _soc_frame_src = f"{_soc_url.scheme}://{_soc_url.netloc}"
         if _is_turnstile_page and _is_razorpay_page:
             _frame_src = "https://challenges.cloudflare.com " + _razorpay_frame_src
         elif _is_turnstile_page:
             _frame_src = "https://challenges.cloudflare.com"
         elif _is_razorpay_page:
             _frame_src = _razorpay_frame_src
-        elif _soc_frame_src:
-            _frame_src = _soc_frame_src
         else:
             _frame_src = "'none'"
         _is_employee_portal_page = request.path == "/employee_portal"
