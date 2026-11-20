@@ -1142,19 +1142,111 @@ def resolve_bearer_identity_any():
     Extracted from blueprints/ai_hrms.py's _resolve_bearer_identity(),
     which needed the same lookup and now delegates here.
     """
+    hit = _live_bearer_identity(("employee", "admin"))
+    return hit[0] if hit else None
+
+
+_BEARER_TOKEN_TYPES = ("admin", "employee")
+
+
+def _live_bearer_identity(token_types):
+    """(identity, token_type) for the request's Bearer token if it is live,
+    else None.
+
+    Live means what api_required/employee_api_required check on every
+    request: the token exists with one of ``token_types``, is unexpired, was
+    issued after the account's last password change, the account is still
+    active (is_active, a missing account row counting as active exactly like
+    api_required's LEFT JOIN), and the person's employment has not ended.
+    The is_active part is new for resolve_bearer_identity_any(): before
+    security audit P2 a deactivated admin's unexpired token still passed it.
+    """
+    token_types = tuple(t for t in token_types if t in _BEARER_TOKEN_TYPES)
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
+    if not token_types or not auth.startswith("Bearer "):
         return None
     token_hash = _hash_token(auth[7:])
+    type_placeholders = ",".join(["%s"] * len(token_types))
     with _db() as (cursor, _conn):
         cursor.execute(
-            "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type IN ('employee','admin') "
+            "SELECT t.identity, t.token_type FROM api_tokens t "
+            "LEFT JOIN admin_users u ON t.token_type='admin' AND u.username=t.identity "
+            "LEFT JOIN employees e ON t.token_type='employee' AND e.employee_id=t.identity "
+            f"WHERE t.token=%s AND t.token_type IN ({type_placeholders}) "
             f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL} "
-            f"AND NOT {_employment_ended_sql('t.identity')}",  # nosec B608 -- fixed module constants
-            (token_hash, access_cutoff_date())
+            "AND COALESCE(CASE WHEN t.token_type='admin' THEN u.is_active ELSE e.is_active END, 1) = 1 "
+            f"AND NOT {_employment_ended_sql('t.identity')}",  # nosec B608 -- fixed module constants and %s placeholders only
+            (token_hash, *token_types, access_cutoff_date())
         )
         row = cursor.fetchone()
-    return row[0] if row else None
+    return (row[0], row[1]) if row else None
+
+
+def session_or_bearer_required(session_kinds=("admin", "employee"), token_types=("admin", "employee"),
+                               msg="Unauthorized"):
+    """The one guard for JSON routes that both the website (session cookie)
+    and the mobile app (Bearer token) call.
+
+    Security audit P2 (2026-11-20). These routes used to check auth inline,
+    each in its own way, and the inline checks drifted: /api/breaks accepted
+    any open session without the per-request account checks, so a session
+    the kill switch had flagged, or whose account had been deactivated,
+    kept working there.
+
+    A session counts only if it is one of ``session_kinds`` ("admin" for an
+    admin-side session, "employee" for an employee session) and passes
+    session_account_ok(): not flagged by the kill switch, account still
+    active, password unchanged since login. Otherwise a Bearer token of one
+    of ``token_types`` must be live (_live_bearer_identity). Anything else
+    gets a JSON 401 with ``msg``.
+
+    On success the route can read
+      g.auth_identity  employee_id or admin username,
+      g.auth_kind      "admin" or "employee",
+      g.auth_via       "session" or "bearer".
+    For an admin-side session that also carries an employee_id (an HR
+    employee using the admin panel), the admin side wins when "admin" is
+    allowed, as the routes' inline checks did.
+    """
+    session_kinds = tuple(session_kinds)
+    token_types = tuple(token_types)
+
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            identity = kind = via = None
+            is_admin = bool(session.get("admin_logged_in"))
+            session_emp = session.get("employee_id")
+            if is_admin and "admin" in session_kinds:
+                candidate = ("admin", session.get("admin_username") or "admin")
+            elif session_emp and "employee" in session_kinds:
+                candidate = ("employee", session_emp)
+            else:
+                candidate = None
+            if candidate:
+                if session_account_ok():
+                    kind, identity = candidate
+                    via = "session"
+                else:
+                    log_security_event(
+                        "access.denied", "Session refused: flagged, deactivated or password changed since login",
+                        level="WARNING", identifier=candidate[1], required="session_or_bearer")
+            if identity is None:
+                hit = _live_bearer_identity(token_types)
+                if hit:
+                    identity, kind = hit
+                    via = "bearer"
+            if identity is None:
+                log_security_event("access.denied", "Request without a valid session or Bearer token",
+                                   level="INFO", required="session_or_bearer")
+                return jsonify({"ok": False, "msg": msg}), 401
+            _flask_g.auth_identity = identity
+            _flask_g.auth_kind = kind
+            _flask_g.auth_via = via
+            return f(*args, **kwargs)
+        wrapper._hrz_auth_guard = "session_or_bearer"  # read by tests/test_route_auth_guards.py
+        return wrapper
+    return decorator
 
 
 # ── Email Settings 2FA step-up gate ───────────────────────────────────────────

@@ -98,9 +98,6 @@ ALLOWED_UNGUARDED = {
     "attendance.api_attendance_challenge": (
         "kiosk liveness challenge; only redeemable together with that employee's face + "
         "signed QR; same-shape response, rate-limited"),
-    "employee_portal.api_employee_qr_face_checkin": (
-        "check-in; needs an employee session or a live app token (checked inline), "
-        "then signed QR + server-decided factors"),
     "employee_portal.api_employee_auth_config": "public: which check-in factors are enabled",
     "auth.webauthn_status": "public capability probe",
     "auth.webauthn_registration_options": "gated by _wa_authorize_enrollment",
@@ -111,15 +108,9 @@ ALLOWED_UNGUARDED = {
     "auth.webauthn_unenroll": "checks session inline",
     "auth.webauthn_register_kiosk": "requires prior kiosk face match + challenge",
 
-    # ── session OR Bearer, checked inline (session_account_ok / token lookup) ──
-    "auth.get_employee_webauthn_credential": "session (session_account_ok) or Bearer, ownership-checked",
-    "employee_portal.api_employee_portal": "session (session_account_ok) or employee Bearer",
-    "employees.generate_emp_id": "admin session + session_account_ok, JSON 401",
-    "attendance.api_breaks": "session or Bearer (resolve_bearer_identity_any)",
-    "ai_hrms.api_hr_helpdesk": "session (session_account_ok) or Bearer",
-    "ai_hrms.api_evaluate_interview": "resolve_admin_identity",
-    "ai_hrms.api_attrition_analytics": "resolve_admin_identity",
-    "email_blast.api_email_blast": "resolve_admin_identity",
+    # ── checks the session inline ──
+    # (Routes taking a session OR a Bearer token use
+    # utils.auth.session_or_bearer_required since security audit P2.)
     "core.session_risk_stream": "per-session kill-switch SSE stream",
 
     # ── redirects only ──

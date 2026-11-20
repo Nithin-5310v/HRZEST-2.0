@@ -19,7 +19,7 @@ from utils.attendance_utils import (
     is_within_range,
     record_attendance_failure,
 )
-from utils.auth import employee_api_required, resolve_bearer_identity_any
+from utils.auth import employee_api_required, session_or_bearer_required
 from utils.face_utils import _face_recognition_available, _get_known_face_encoding, face_recognition
 from utils.helpers import (
     _audit,
@@ -328,6 +328,7 @@ def api_employee_auth_config():
 
 @employee_portal_bp.route("/api/employee/qr-face-checkin", methods=["POST"])
 @limiter.limit("20 per minute")
+@session_or_bearer_required(session_kinds=("employee",), msg="Please sign in to mark attendance.")
 def api_employee_qr_face_checkin():
     """QR / face / fingerprint check-in -- auth_combo: qr_face | qr_fingerprint | face_fingerprint.
 
@@ -342,9 +343,11 @@ def api_employee_qr_face_checkin():
     under a different employee_id. A token caller is checked exactly as
     before: the signed QR / face / fingerprint combo proves whose
     attendance it is."""
-    _session_emp_id = session.get("employee_id")
-    if not _session_emp_id and not resolve_bearer_identity_any():
-        return jsonify({"ok": False, "msg": "Please sign in to mark attendance."}), 401
+    # The guard above admits an employee session only if it passes the
+    # per-request checks (kill switch, account active, password unchanged);
+    # it used to be taken as-is (security audit P2).
+    from flask import g as _g
+    _session_emp_id = session.get("employee_id") if _g.auth_via == "session" else None
 
     lat = request.form.get("lat")
     lon = request.form.get("lon")

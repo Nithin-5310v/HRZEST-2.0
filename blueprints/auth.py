@@ -15,14 +15,14 @@ from flask import (
 from extensions import app, limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import (
-    generate_password_hash, check_password_hash, password_needs_rehash, _hash_token,
+    generate_password_hash, check_password_hash, password_needs_rehash,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     admin_required, role_required, employee_required, any_user_required, employee_api_required,
     _get_failed_count, verify_turnstile, turnstile_enabled,
     CAPTCHA_AFTER_ATTEMPTS, _TURNSTILE_SITE_KEY, HR_ROLE, MANAGER_ROLE,
     api_required, validate_new_password, verify_and_update_password, _mask_identifier,
-    dummy_password_check, record_password_change, stamp_password_version, _TOKEN_NOT_STALE_SQL,
-    session_account_ok, employment_ended_on, access_ended_message,
+    dummy_password_check, record_password_change, stamp_password_version,
+    session_or_bearer_required, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
 from utils.helpers import (
@@ -1703,43 +1703,17 @@ def webauthn_unenroll():
 
 @auth_bp.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
 @limiter.limit("30 per minute")
+@session_or_bearer_required()
 def get_employee_webauthn_credential(emp_id):
-    """Return the stored WebAuthn credential_id -- requires an active admin or employee session."""
-    is_admin = session.get("admin_logged_in")
-    session_emp = session.get("employee_id")
-    if (is_admin or session_emp) and not session_account_ok():
-        is_admin = session_emp = None  # stale/flagged session -- fall through to Bearer check
-    token_emp = None  # set below only for an employee-type Bearer token
-    if not (is_admin or session_emp):
-        # Also accept a valid Bearer token (kiosk uses admin token)
-        auth = request.headers.get("Authorization", "")
-        if auth.startswith("Bearer "):
-            token_hash = _hash_token(auth[7:])
-            with _db() as (cursor, _):
-                cursor.execute(
-                    "SELECT t.identity, t.token_type FROM api_tokens t WHERE t.token=%s AND t.expires_at > NOW() "
-                    f"AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
-                    (token_hash,)
-                )
-                token_row = cursor.fetchone()
-                if not token_row:
-                    return jsonify({"ok": False, "msg": "Unauthorized"}), 401
-                # Same ownership rule as a real employee session below --
-                # this path previously only checked the token was valid,
-                # never binding its identity to `emp_id` at all, so any
-                # employee's own token could fetch any OTHER employee's
-                # credential_id. An admin-type token (kiosk) is still
-                # unrestricted, matching the comment above.
-                if token_row[1] == "employee":
-                    token_emp = token_row[0]
-        else:
-            return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    """Return the stored WebAuthn credential_id -- for a signed-in admin or
+    employee (session or app token; the kiosk uses an admin token)."""
+    from flask import g as _g
     emp_id = emp_id.strip().upper()
     # Employees (session- or token-based) may only retrieve their own
     # credential; admins and admin-type Bearer tokens can retrieve any.
-    if session_emp and not is_admin and session_emp.upper() != emp_id:
-        return jsonify({"ok": False, "msg": "Unauthorized"}), 403
-    if token_emp and token_emp.upper() != emp_id:
+    # The token path once skipped this binding and leaked other employees'
+    # credential IDs; the guard is now the standard decorator (audit P2).
+    if _g.auth_kind != "admin" and str(_g.auth_identity).upper() != emp_id:
         return jsonify({"ok": False, "msg": "Unauthorized"}), 403
     try:
         db = get_db_connection()

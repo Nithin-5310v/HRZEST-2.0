@@ -18,7 +18,7 @@ from flask import (
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import (
-    admin_required, api_required, api_role_required, resolve_bearer_identity_any, HR_ROLE, require_access,
+    admin_required, api_required, api_role_required, session_or_bearer_required, HR_ROLE, require_access,
     role_required,
 )
 from utils.helpers import (
@@ -278,16 +278,12 @@ def assign_shift():
 
 @attendance_bp.route("/api/breaks")
 @limiter.limit("30 per minute")
+@session_or_bearer_required()
 def api_breaks():
-    # Was checking only that an Authorization header starts with "Bearer "
-    # -- never looked the token up against api_tokens at all, so literally
-    # any string ("Bearer x") passed for an unauthenticated caller. Now
-    # shares the same real token lookup blueprints/ai_hrms.py's helpdesk
-    # route uses (identity for either an employee or admin token, expiry
-    # checked) instead of a session cookie OR a merely-shaped header.
-    if not (session.get("admin_logged_in") or session.get("employee_id")
-            or resolve_bearer_identity_any()):
-        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    # Any signed-in admin or employee, on the web (session) or in the app
+    # (Bearer). This used to check auth inline: first any string after
+    # "Bearer " passed, then any open session did, skipping the kill switch
+    # and the account-still-active check (security audit P2, 2026-11-20).
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT id, break_name, break_time, duration_minutes FROM break_config WHERE is_active=1 ORDER BY break_time")

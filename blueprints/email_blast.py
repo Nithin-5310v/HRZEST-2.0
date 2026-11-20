@@ -15,7 +15,7 @@ from psycopg2.extras import execute_values
 from database import get_db_connection, transaction
 from utils.email_utils import get_email_config
 from utils.helpers import contact_lookup_keys
-from utils.auth import resolve_admin_identity
+from utils.auth import session_or_bearer_required
 from extensions import app_log, log_security_event, limiter
 
 email_blast_bp = Blueprint("email_blast", __name__)
@@ -23,11 +23,11 @@ email_blast_bp = Blueprint("email_blast", __name__)
 
 @email_blast_bp.route("/api/admin/email-blast", methods=["POST"])
 @limiter.limit("10 per hour")
+@session_or_bearer_required(session_kinds=("admin",), token_types=("admin",), msg="Unauthorized access.")
 def api_email_blast():
     """Broadcast target-selected emails out-of-band and return immediate 202."""
-    admin_username = resolve_admin_identity()
-    if not admin_username:
-        return jsonify({"ok": False, "msg": "Unauthorized access."}), 401
+    from flask import g
+    admin_username = g.auth_identity
 
     data = request.get_json(silent=True) or request.form
     target_type = data.get("target_type", "").strip()  # 'all', 'department', 'individual'
