@@ -43,6 +43,17 @@ are skipped. `SOC_DIGEST=off` turns it off; `SOC_DIGEST_HOUR` moves it.
 There are no passwords and no default accounts. Sign-in is an emailed one-time code followed by
 your passkey, and only the addresses you list on the server can get a code.
 
+**Before going live (and after any change to the server's `.env`)**, run on that server:
+
+```
+python scripts/soc_preflight.py        # add --db if email is set in the app's settings, not .env
+```
+
+It reports every setting the console depends on as PASS / WARN / FAIL with the fix (the app
+starting at all, who can sign in, the network allow-list, the passkey site, email, alerts, the
+proxy setting, the external dashboard), using the app's own rules, and never prints a secret or
+an address. Exit code 1 means something would lock you out: fix it before approving the release.
+
 1. In the server's `.env`, list who may sign in and allow your networks, then restart:
 
    ```
