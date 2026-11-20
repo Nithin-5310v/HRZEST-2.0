@@ -966,7 +966,9 @@ class TestMyAttendancePdf:
     def test_print_button_present(self, client, seed_employee):
         _emp_session(client, seed_employee)
         rv = client.get("/my_attendance_pdf")
-        assert b"window.print()" in rv.data
+        # Bound by static/hz-actions.js: an inline onclick is blocked by the CSP.
+        assert b'data-on-click="print()"' in rv.data
+        assert b"onclick=" not in rv.data
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
