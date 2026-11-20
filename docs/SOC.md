@@ -116,7 +116,7 @@ on their next request.
 | `SOC_LOG_MAX_MB` | 5 | Largest log the analyser accepts. |
 | `SOC_TEST_CIDRS` | unset | Addresses / ranges you test from (office, VPN, CI); their events are left out of every view. |
 | `SOC_TEST_ACCOUNTS` | unset | Identifiers you test with (usernames, emails, employee IDs); left out of every view. |
-| `SOC_TEST_COMPANIES` | unset | Company URL slugs used only for testing; left out of every view, including Tenant risk, Attendance fraud and sessions. |
+| `SOC_TEST_COMPANIES` | unset | Company URL slugs used only for testing; left out of every view, including Tenant activity, Attendance fraud and sessions. |
 | `SOC_DIGEST` | on | `off` stops the daily summary email. |
 | `SOC_DIGEST_HOUR` | 8 | Hour (0–23, Asia/Kolkata) the daily summary is sent. |
 | `SOC_PASSKEY` | on | The passkey step after the emailed code. `off` only to let a sole admin who lost their passkey back in. |
@@ -124,16 +124,18 @@ on their next request.
 
 ## What each view shows
 
+Every number is a count, time or state as recorded; where the console draws a conclusion (the threat level, a log-analysis score) it shows how. An event counts for the address it is about: usually whoever made the request, but a TCP-decoy hit, a ban review and a detection are about the address the honeypot, the WAF or the rule named, not the honeypot container or scheduler that wrote them.
+
 * **Overview** – KPIs, events over time by severity, the busiest sources and accounts, the latest alerts and the MITRE ATT&CK techniques observed. The *threat level* is rule-based and lists its reasons.
 * **Alerts / Events** – search and filter `security_events` (text, level, area, IP, account, tenant); open any event for its fields, related activity from the same source/account, its audit-chain hash and ATT&CK mapping; open a case or ban the source from there.
-* **Lookup** – everything recorded about an IP or an account: what it did, who/what it touched, paths requested, recent events.
-* **Log analysis** – drop in an nginx/Apache access log, JSON lines (including this app's own) or sshd/auth log. Finds SQL injection, XSS, path traversal, command injection, SSRF, scanner user agents, sensitive-file probes, login brute force, credential stuffing, "possible success after many attempts", path enumeration, request floods and 5xx spikes; scores each source and recommends block/watch; exports IOCs and can ban every recommended public address in one step. Nothing is stored.
+* **Lookup** – everything recorded about an IP or an account: what it did, who/what it touched, paths requested, recent events, and whether it is banned (on the platform list or a company's own list, lifted from the list it is on).
+* **Log analysis** – drop in an nginx/Apache access log, JSON lines (including this app's own) or sshd/auth log. Finds SQL injection, XSS, path traversal, command injection, SSRF, scanner user agents, sensitive-file probes, login brute force, credential stuffing, "possible success after many attempts", path enumeration, request floods and 5xx spikes; scores each source (points per kind of finding, shown on hover) and recommends block/watch; exports IOCs and can ban every recommended public address in one step. Nothing is stored.
 * **Logs (Loki)** – optional LogQL search of shipped logs.
 * **Cases** – open / investigating / contained / resolved / false positive, assignee, notes timeline.
 * **Ban review** – addresses the WAF (repeated attack payloads), the rate limiter (repeated 429s) and the HTTP/TCP honeypots want banned. Nothing is banned automatically: each address waits here with its source, latest reason, hit count and a suggested duration, and an analyst chooses **Ban** (for a chosen time, through the same path and guards as a manual ban), **Dismiss** (false positive; the next detection re-opens it) or **Trust** (known-good address such as a customer office or an authorised scanner; further detections only add to its hit count until the trust ends). The offending requests themselves are still rejected. Every decision is in the SOC audit trail. `SOC_AUTO_BAN=true` restores immediate bans, still listed here.
 * **Response** – current IP bans (add, lift) and risky sessions across tenants (revoke).
-* **Tenant risk**, **Attendance fraud** – per-company activity and punch-integrity signals (mock location, replayed photos, shared devices, liveness failures).
-* **Detections** – the correlation rules, their thresholds and when each last fired.
+* **Tenant activity**, **Attendance fraud** – per-company counts as recorded (events, alerts, unacknowledged duplicate-signup alerts; most alerts first) and punch-integrity signals (mock location, replayed photos, shared devices, liveness failures). No weighted risk score.
+* **Detections** – the correlation rules, their thresholds, and when each last fired and how often in the last 90 days, counted from the same genuine detection events the view lists.
 * **Audit integrity** – verifies the hash chain over `security_events` on demand. The verifier streams the table, so memory stays flat at any size; a button press stops after 45 seconds on a very long chain, and the scheduled check (03:45 nightly) verifies all of it.
 * **Posture** – live configuration checks with the setting to change. Reports whether a control is on, never a secret.
 * **Users & audit** (admin) – accounts (whether each is still listed in `SOC_LOGIN_EMAILS`, disable / enable, unlock) and the append-only record of everything done in the console.

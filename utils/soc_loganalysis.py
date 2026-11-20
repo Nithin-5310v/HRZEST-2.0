@@ -543,17 +543,21 @@ def analyze(text, *, brute_force_min=10, enumeration_min=20, flood_per_minute=12
     sev_of = {fid: f.severity for fid, f in findings.items()}
     sources = []
     for ip, s in ip_stats.items():
-        score = 0
+        # The score is only these parts added up (capped at 100); they go out
+        # with it so the page shows exactly how a source got its number.
+        parts = []
         for flag, c in s["flags"].items():
             sev = sev_of.get(flag) or sev_of.get("app_event:" + flag) or "medium"
-            score += _SEV_POINTS[sev] if c else 0
+            if c and _SEV_POINTS[sev]:
+                parts.append({"what": flag, "severity": sev, "points": _SEV_POINTS[sev]})
         if s["requests"] >= 20 and s["errors"] / s["requests"] >= 0.6:
-            score += 8
-        score = min(100, score)
+            parts.append({"what": "60%+ of its 20+ requests failed", "severity": None, "points": 8})
+        score = min(100, sum(p["points"] for p in parts))
         sources.append({
             "ip": ip, "requests": s["requests"], "errors": s["errors"], "bytes": s["bytes"],
             "distinct_paths": len(s["paths"]), "login_posts": s["login_posts"], "accounts": len(s["users"]),
-            "flags": sorted(s["flags"]), "score": score, "non_public": _ip_is_non_public(ip),
+            "flags": sorted(s["flags"]), "score": score, "score_parts": sorted(parts, key=lambda p: -p["points"]),
+            "non_public": _ip_is_non_public(ip),
             "verdict": ("block" if score >= 60 else "watch" if score >= 25 else "ok"),
             "first": s["first"].isoformat(sep=" ") if s["first"] else None,
             "last": s["last"].isoformat(sep=" ") if s["last"] else None})

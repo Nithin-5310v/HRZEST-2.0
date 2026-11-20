@@ -5,7 +5,6 @@ Data sources (all already produced by the product -- nothing here invents data):
 
   public.security_events   every log_security_event(): auth, WAF, honeypot, detections, ...
   public.banned_ips        platform-wide IP bans
-  public.detection_state   when each correlation rule last fired
   att_master.tenants       company registry
   att_master.soc_*         the console's own cases / users / audit trail
   <tenant>.punch_evidence  attendance-integrity evidence      (per tenant)
@@ -14,6 +13,8 @@ Data sources (all already produced by the product -- nothing here invents data):
 Genuine activity only: every view reads security_events through
 soc_scope.events_cte() (the CTE `ev`), which leaves out the server's own
 traffic, the console's own use and your listed testing. See utils/soc_scope.py.
+No number here is a made-up score: counts, times and states as recorded, and
+where the console draws a conclusion (the threat level) it returns its reasons.
 
 All SQL is parameterised; analyst-supplied text only ever reaches a query as a
 bound parameter (LIKE metacharacters escaped). Every call runs in a read-only
@@ -84,13 +85,24 @@ def _extra(raw, limit=4000):
         return {"raw": raw[:500]}
 
 
+def _path_company(path):
+    """For rows recorded before security_events.tenant: the company named by the
+    path's first segment -- only when a company with that URL slug exists, so a
+    platform route ('/employees') is never shown as a company."""
+    hint = tax.tenant_hint(path)
+    if not hint:
+        return None
+    slugs = soc_scope.per_request(("company_slugs",), lambda: {(t["slug"] or "").lower() for t in list_tenants()})
+    return hint if hint in slugs else None
+
+
 def shape_event(row, detail=False):
     eid, et, level, msg, ident, ip, path, method, extra, ts, tenant = row
     cls = tax.classify(et, level)
     d = {"id": eid, "event_type": et, "level": level, "message": msg, "identifier": ident, "ip": ip,
          "path": path, "method": method, "created_at": iso(ts), "family": cls["family"], "label": cls["label"],
          "mitre": [m["id"] for m in cls["mitre"]], "severity": tax.severity_of(et, level),
-         "alert": tax.is_alert(et, level), "tenant": tenant or tax.tenant_hint(path)}
+         "alert": tax.is_alert(et, level), "tenant": tenant or _path_company(path)}
     if detail:
         d["extra"] = _extra(extra)
         d["mitre_detail"] = cls["mitre"]
@@ -323,8 +335,8 @@ def search_events(*, q=None, levels=None, family=None, event_type=None, ip=None,
                 where.append("event_type = ANY(%s)")
                 params.append(types)
         if ip:
-            where.append("ip = %s")
-            params.append(ip[:64])
+            where.append(soc_scope.IP_MATCH_SQL)
+            params += [ip[:64]] * 3
         if identifier:
             where.append("identifier = %s")
             params.append(identifier[:150])
@@ -366,21 +378,23 @@ def search_events(*, q=None, levels=None, family=None, event_type=None, ip=None,
 
 
 def event_detail(event_id):
+    src = " FROM (" + soc_scope.SOURCE_SQL + ") src WHERE "       # `ip` = the address each event is about
     with read_cursor("public") as cur:
-        cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE id=%s", (event_id,))
+        cur.execute("SELECT " + EV_COLS + src + "id=%s", (event_id,))  # nosec B608 -- constant SQL
         row = cur.fetchone()
         if not row:
             return None
         ev = shape_event(row, detail=True)
         ts = row[9]
         related = {}
-        for key, col, val in (("same_ip", "ip", ev["ip"]), ("same_identifier", "identifier", ev["identifier"])):
+        for key, val in (("same_ip", ev["ip"]), ("same_identifier", ev["identifier"])):
             if not val or val in ("None", ""):
                 related[key] = []
                 continue
-            cur.execute("SELECT " + EV_COLS + " FROM security_events WHERE " + col + " = %s AND id <> %s "  # nosec B608 -- col is a literal above
+            cond, cp = (soc_scope.IP_MATCH_SQL, [val] * 3) if key == "same_ip" else ("identifier = %s", [val])
+            cur.execute("SELECT " + EV_COLS + src + cond + " AND id <> %s "  # nosec B608 -- constant SQL, bound values
                         "AND created_at BETWEEN %s - INTERVAL '24 hours' AND %s + INTERVAL '24 hours' "
-                        "ORDER BY created_at DESC LIMIT 100", (val, event_id, ts, ts))
+                        "ORDER BY created_at DESC LIMIT 100", cp + [event_id, ts, ts])
             # Genuine activity only, as in every list (utils/soc_scope.py).
             related[key] = [shape_event(r) for r in cur.fetchall()
                             if soc_scope.is_genuine(r[1], r[5], r[4], r[6], r[10])][:25]
@@ -406,12 +420,14 @@ def _profile(col, value, days=30):
         reason = soc_scope.ip_reason(value)
     else:
         reason = "test_account" if soc_scope.is_test_account(value) else None
+    # ev.ip is the address each event is about (soc_scope.SOURCE_SQL).
+    match, mp = (soc_scope.IP_MATCH_SQL, [value] * 3) if col == "ip" else ("identifier = %s", [value])
     with read_cursor("public") as cur:
         ev, ep = soc_scope.events_cte(cur, days * 24)
         win = "created_at >= NOW() - (%s * INTERVAL '1 day')"
-        cur.execute(ev + "SELECT COUNT(*), MIN(created_at), MAX(created_at), COUNT(DISTINCT event_type), "  # nosec B608 -- col is a literal
-                    "COUNT(*) FILTER (WHERE level IN ('ERROR','CRITICAL')) FROM ev WHERE " + col + "=%s AND " + win,
-                    ep + [value, days])
+        cur.execute(ev + "SELECT COUNT(*), MIN(created_at), MAX(created_at), COUNT(DISTINCT event_type), "  # nosec B608 -- constant SQL
+                    "COUNT(*) FILTER (WHERE level IN ('ERROR','CRITICAL')) FROM ev WHERE " + match + " AND " + win,
+                    ep + mp + [days])
         total, first, last, ntypes, high = cur.fetchone()
         prof = {"value": value, "kind": col, "days": days, "events": total, "first_seen": iso(first),
                 "last_seen": iso(last), "event_types": ntypes, "high_severity": high,
@@ -420,8 +436,8 @@ def _profile(col, value, days=30):
         if not total:
             prof.update({"types": [], "other": [], "paths": [], "recent": [], "families": [], "techniques": []})
         else:
-            cur.execute(ev + "SELECT event_type, COUNT(*) FROM ev WHERE " + col + "=%s AND " + win +  # nosec B608
-                        " GROUP BY event_type ORDER BY 2 DESC LIMIT 25", ep + [value, days])
+            cur.execute(ev + "SELECT event_type, COUNT(*) FROM ev WHERE " + match + " AND " + win +  # nosec B608
+                        " GROUP BY event_type ORDER BY 2 DESC LIMIT 25", ep + mp + [days])
             types = cur.fetchall()
             prof["types"] = [{"event_type": et, "label": tax.classify(et)["label"], "count": c} for et, c in types]
             fam, tech = {}, {}
@@ -433,22 +449,51 @@ def _profile(col, value, days=30):
             prof["families"] = [{"family": f, "label": tax.FAMILIES[f], "count": c} for f, c in sorted(fam.items(), key=lambda x: -x[1])]
             prof["techniques"] = list(tech.values())
             other_col = "identifier" if col == "ip" else "ip"
-            cur.execute(ev + "SELECT " + other_col + ", COUNT(*) FROM ev WHERE " + col + "=%s AND " + win +  # nosec B608
-                        " AND " + other_col + " IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20", ep + [value, days])
+            # Not the value itself: WAF, honeypot and ban-review events name their
+            # source address in `identifier`, and an address is not its own account.
+            cur.execute(ev + "SELECT " + other_col + ", COUNT(*) FROM ev WHERE " + match + " AND " + win +  # nosec B608
+                        " AND " + other_col + " IS NOT NULL AND " + other_col + " NOT IN ('', 'None', %s) "
+                        "GROUP BY 1 ORDER BY 2 DESC LIMIT 20", ep + mp + [days, value])
             prof["other"] = [{"value": v, "count": c} for v, c in cur.fetchall()]
-            cur.execute(ev + "SELECT path, COUNT(*) FROM ev WHERE " + col + "=%s AND " + win +  # nosec B608
-                        " AND path IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 15", ep + [value, days])
+            cur.execute(ev + "SELECT path, COUNT(*) FROM ev WHERE " + match + " AND " + win +  # nosec B608
+                        " AND path IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 15", ep + mp + [days])
             prof["paths"] = [{"path": p, "count": c} for p, c in cur.fetchall()]
-            cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE " + col + "=%s AND " + win +  # nosec B608
-                        " ORDER BY id DESC LIMIT 50", ep + [value, days])
+            cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE " + match + " AND " + win +  # nosec B608
+                        " ORDER BY id DESC LIMIT 50", ep + mp + [days])
             prof["recent"] = [shape_event(r) for r in cur.fetchall()]
         if col == "ip":
             cur.execute("SELECT reason, banned_by, banned_at, expires_at FROM public.banned_ips "
                         "WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())", (value,))
             b = cur.fetchone()
-            prof["ban"] = {"reason": b[0], "by": b[1], "at": iso(b[2]), "expires": iso(b[3])} if b else None
+            prof["ban"] = ({"reason": b[0], "by": b[1], "at": iso(b[2]), "expires": iso(b[3]), "company": None,
+                            "tenant_id": None} if b else None)
             prof["protected"] = _protected(value)
+    if col == "ip" and prof["ban"] is None and value in _tenant_active_bans():
+        # Still enforced from a company's own list (app.py's ban hook): banned all
+        # the same, and lifted from that list.
+        prof["ban"] = _company_ban(value)
     return prof
+
+
+def _company_ban(ip):
+    """The still-enforced ban on `ip` in a company's own banned_ips, as Lookup
+    shows it (with the company, so it can be lifted there), or None."""
+    def per_tenant(t, cur):
+        if t["schema"] == "public":
+            return None
+        table = banned_ips_table(t["schema"])
+        cur.execute("SELECT to_regclass(%s)", (table,))
+        if cur.fetchone()[0] is None:
+            return None
+        cur.execute("SELECT reason, banned_by, banned_at, expires_at FROM " + table +  # nosec B608 -- validated schema name
+                    " WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())", (ip,))
+        b = cur.fetchone()
+        return ({"reason": b[0], "by": b[1], "at": iso(b[2]), "expires": iso(b[3]), "company": t["company"],
+                 "tenant_id": t["id"]} if b else None)
+    found = each_tenant(per_tenant)[0]
+    if not found:
+        return None
+    return dict(found[0], other_companies=len(found) - 1)
 
 
 def entity_ip(ip, days=30):
@@ -460,15 +505,24 @@ def entity_identifier(identifier, days=30):
 
 
 # ── detections ───────────────────────────────────────────────────────
+# How far back the rule catalogue counts firings (the longest look-back of any view).
+DETECTION_HISTORY_DAYS = 90
+
+
 def detections(hours=72):
     hours = hours_arg(hours, 72)
     with read_cursor("public") as cur:
-        ev, ep = soc_scope.events_cte(cur, hours)
+        ev, ep = soc_scope.events_cte(cur, DETECTION_HISTORY_DAYS * 24)
         cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE event_type LIKE 'detection.%%' AND " + _WINDOW +
                     " ORDER BY id DESC LIMIT 200", ep + [hours])
         events = [shape_event(r) for r in cur.fetchall()]
-        cur.execute("SELECT rule, MAX(last_fired), SUM(fired) FROM detection_state GROUP BY rule")
-        fired = {r[0]: {"last": iso(r[1]), "times": int(r[2] or 0)} for r in cur.fetchall()}
+        # Counted from the same genuine events as the list above -- not from
+        # detection_state, the engine's cooldown table, which also counts rules
+        # fired by the server's own addresses and your testing.
+        cur.execute(ev + "SELECT substr(event_type, 11), MAX(created_at), COUNT(*) FROM ev "
+                    "WHERE event_type LIKE 'detection.%%' AND created_at >= NOW() - (%s * INTERVAL '1 day') "
+                    "GROUP BY 1", ep + [DETECTION_HISTORY_DAYS])
+        fired = {r: {"last": iso(ts), "times": n} for r, ts, n in cur.fetchall()}
     from utils.detections import RULES
     outcomes = detection_case_outcomes()
     catalog = []
@@ -483,7 +537,7 @@ def detections(hours=72):
                         "mitre": [tax._technique(t) for t in techniques], "thresholds": thresholds,
                         "last_fired": fired.get(r.name, {}).get("last"), "times_fired": fired.get(r.name, {}).get("times", 0),
                         "case_outcomes": outcomes.get(r.name)})
-    return {"hours": hours, "events": events, "rules": catalog}
+    return {"hours": hours, "events": events, "rules": catalog, "history_days": DETECTION_HISTORY_DAYS}
 
 
 # ── platform activity as log lines (Log analysis without an upload) ──
@@ -832,12 +886,12 @@ def tenants_overview(hours=24):
         out = []
         for t in tenants:
             ev, al = counts.get(t["slug"], (0, 0))
-            d = dupes.get(t["id"], 0)
-            score = min(100, al * 8 + min(ev, 200) // 10 + d * 10 + (15 if t["status"] != "active" else 0))
             out.append({"id": t["id"], "company": t["company"], "slug": t["slug"], "status": t["status"],
-                        "billing_state": t["billing_state"], "events": ev, "alerts": al, "duplicate_alerts": d,
-                        "risk": score, "created_at": iso(t["created_at"])})
-        out.sort(key=lambda x: (-x["risk"], x["company"].lower()))
+                        "billing_state": t["billing_state"], "events": ev, "alerts": al,
+                        "duplicate_alerts": dupes.get(t["id"], 0), "created_at": iso(t["created_at"])})
+        # Counts as recorded, no weighted score: most alerts first, then the
+        # unacknowledged duplicate-signup alerts, then the most activity.
+        out.sort(key=lambda x: (-x["alerts"], -x["duplicate_alerts"], -x["events"], x["company"].lower()))
         return {"hours": hours, "tenants": out, "note": "Each event counts for the company its request ran as "
                 "(recorded with the event). Events from before that was recorded fall back to the company named "
                 "in the request path; events of the platform itself belong to no company."}

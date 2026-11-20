@@ -367,7 +367,7 @@
       const acts = h('div', { class: 'row' });
       if (kind === 'ip' && needs('analyst')) {
         if (d.ban) acts.appendChild(h('button', { class: 'btn ghost small', type: 'button', onclick: () => {
-          SOC.confirm('Lift the ban on ' + d.value + '?', { danger: false }).then((ok) => ok && act(api.post('/socperson/api/bans/remove', { ip: d.value }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
+          SOC.confirm('Lift the ban on ' + d.value + (d.ban.company ? ' in ' + d.ban.company + '\'s list' : '') + '?', { danger: false }).then((ok) => ok && act(api.post('/socperson/api/bans/remove', { ip: d.value, tenant_id: d.ban.tenant_id }), 'Ban lifted').then(() => SOC.reload()).catch(() => {}));
         } }, 'Lift ban'));
         else if (!d.protected) acts.appendChild(h('button', { class: 'btn danger small', type: 'button', onclick: () => SOC.drawer.open('Ban ' + d.value, SOC.banForm(d.value, () => SOC.reload())) }, 'Ban IP'));
       }
@@ -375,7 +375,7 @@
       acts.appendChild(h('a', { class: 'btn ghost small', href: '#/events?' + (kind === 'ip' ? 'ip=' : 'identifier=') + encodeURIComponent(d.value) }, 'All events'));
       out.append(title, acts);
       if (d.excluded) out.appendChild(SOC.callout(d.excluded, 'warn'));
-      if (d.ban) out.appendChild(SOC.callout('Banned by ' + d.ban.by + ' on ' + fmt.time(d.ban.at) + ' — ' + (d.ban.reason || 'no reason recorded') + (d.ban.expires ? ' (until ' + fmt.time(d.ban.expires) + ')' : ' (until lifted)'), 'bad'));
+      if (d.ban) out.appendChild(SOC.callout((d.ban.company ? 'Banned in ' + d.ban.company + '\'s own list' + (d.ban.other_companies ? ' (and ' + d.ban.other_companies + ' other compan' + (d.ban.other_companies === 1 ? 'y' : 'ies') + ')' : '') + ' by ' : 'Banned by ') + (d.ban.by || 'unknown') + ' on ' + fmt.time(d.ban.at) + ' — ' + (d.ban.reason || 'no reason recorded') + (d.ban.expires ? ' (until ' + fmt.time(d.ban.expires) + ')' : ' (until lifted)'), 'bad'));
       out.appendChild(h('div', { class: 'grid kpis' },
         SOC.kpi('Events', fmt.n(d.events), 'last ' + d.days + ' days', 'info'), SOC.kpi('High severity', fmt.n(d.high_severity), '', d.high_severity ? 'high' : 'ok'),
         SOC.kpi('Kinds of event', fmt.n(d.event_types), '', 'info'), SOC.kpi('First seen', d.first_seen ? fmt.time(d.first_seen).slice(5, 16) : '–', fmt.ago(d.first_seen), 'info'),
@@ -508,7 +508,7 @@
 
   /* ============ tenants ============ */
   SOC.register({
-    id: 'tenants', label: 'Tenants', title: 'Tenant risk',
+    id: 'tenants', label: 'Tenants', title: 'Tenant activity',
     async render(root) {
       const d = await api.get('/socperson/api/tenants', { hours: SOC.hours });
       root.textContent = '';
@@ -516,9 +516,10 @@
         empty: 'No tenants.', rows: d.tenants,
         columns: [{ label: 'Company', key: 'company' }, { label: 'Slug', render: (t) => h('a', { class: 'mono', href: '#/events?tenant=' + encodeURIComponent(t.slug) }, t.slug) },
           { label: 'Status', render: (t) => SOC.chip(t.status, t.status === 'active' ? 'ok' : 'bad') }, { label: 'Billing', key: 'billing_state' },
-          { label: 'Events', num: true, key: 'events' }, { label: 'Alerts', num: true, key: 'alerts' }, { label: 'Dup. signups', num: true, key: 'duplicate_alerts' },
-          { label: 'Risk', render: (t) => { const f = h('i'); f.style.width = Math.max(2, t.risk) + '%'; return h('div', { class: 'row' }, h('span', { class: 'bar ' + (t.risk >= 60 ? 'crit' : t.risk >= 30 ? 'warn' : '') }, f), h('span', { class: 'mono' }, t.risk)); } }]
-      }));
+          { label: 'Events', num: true, key: 'events' },
+          { label: 'Alerts', num: true, render: (t) => t.alerts ? h('a', { class: 'mono', href: '#/alerts?tenant=' + encodeURIComponent(t.slug) }, fmt.n(t.alerts)) : '0' },
+          { label: 'Dup. signups', num: true, key: 'duplicate_alerts' }]
+      }), h('p', { class: 'note' }, 'Counts as recorded in the selected window, most alerts first. Dup. signups = unacknowledged alerts that this company\'s signup matched an existing company.'));
     }
   });
 
@@ -555,7 +556,8 @@
           { label: 'Scope', key: 'scope' }, { label: 'Cooldown', render: (r) => r.cooldown_minutes + ' min' },
           { label: 'Thresholds', render: (r) => r.thresholds.length ? h('span', { class: 'mono' }, r.thresholds.join(' / ')) : null },
           { label: 'ATT&CK', render: (r) => SOC.mitre(r.mitre.map((m) => m.id)) },
-          { label: 'Last fired', render: (r) => r.last_fired ? when(r.last_fired) : h('span', { class: 'muted' }, 'never') }, { label: 'Times', num: true, key: 'times_fired' },
+          { label: 'Last fired', render: (r) => r.last_fired ? when(r.last_fired) : h('span', { class: 'muted' }, 'not in ' + d.history_days + ' days') },
+          { label: 'Fired (' + d.history_days + ' d)', num: true, key: 'times_fired' },
           { label: 'Case outcomes', render: (r) => {
             const o = r.case_outcomes;
             if (!o) return h('span', { class: 'muted' }, 'no cases');

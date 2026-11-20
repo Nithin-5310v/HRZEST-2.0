@@ -131,6 +131,19 @@ def test_possible_success_after_many_attempts():
     assert r["sources"][0]["verdict"] == "block"
 
 
+def test_a_sources_score_is_exactly_the_parts_it_shows():
+    lines = [nginx("45.33.32.21", "/login", 200, "POST", ts=ts_at(i)) for i in range(12)]
+    lines.append(nginx("45.33.32.21", "/login", 302, "POST", ts=ts_at(13)))
+    lines += [nginx("45.33.32.40", "/", 200)]
+    r = run(lines)
+    for s in r["sources"]:
+        assert s["score"] == min(100, sum(p["points"] for p in s["score_parts"]))
+        assert all(p["what"] and p["points"] > 0 for p in s["score_parts"])
+    attacker = next(s for s in r["sources"] if s["ip"] == "45.33.32.21")
+    assert {"what": "possible_success", "severity": "critical", "points": 40} in attacker["score_parts"]
+    assert next(s for s in r["sources"] if s["ip"] == "45.33.32.40")["score_parts"] == []
+
+
 def test_a_single_normal_login_redirect_is_not_flagged():
     r = run([nginx("45.33.32.22", "/login", 302, "POST")])
     assert "possible_success" not in ids(r) and "bruteforce" not in ids(r)

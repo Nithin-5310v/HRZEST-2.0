@@ -669,7 +669,8 @@ class TestOverviewAndEvents:
         fam = {f["family"]: f["count"] for f in d["families"]}
         assert fam["auth"] >= 5 and fam["waf"] == 1 and fam["detection"] == 1 and fam["honeypot"] == 1 and fam["audit"] == 1
         top = d["top_ips"][0]
-        assert top["ip"] == PUBLIC_IP and top["events"] == 5 and top["banned"] is False
+        # 5 requests from it + the credential-stuffing detection about it (scheduler-written: ip empty)
+        assert top["ip"] == PUBLIC_IP and top["events"] == 6 and top["banned"] is False
         assert {"T1190", "T1110", "T1595", "T1070"} <= {t["id"] for t in d["techniques"]}
         assert d["timeline"] and {"t", "CRITICAL", "ERROR", "WARNING", "INFO"} <= set(d["timeline"][0])
         assert {a["event_type"] for a in d["recent_alerts"]} >= {"waf.sqli_blocked", "audit.chain_violation"}
@@ -709,7 +710,9 @@ class TestOverviewAndEvents:
         get = lambda **q: c.get("/socperson/api/events", query_string=q).get_json()["events"]   # noqa: E731
         assert {e["event_type"] for e in get(level="CRITICAL")} == {"audit.chain_violation", "secops.honeypot_triggered"}
         assert [e["event_type"] for e in get(family="detection")] == ["detection.credential_stuffing"]
-        assert len(get(ip=PUBLIC_IP)) == 5
+        # The address's own 5 requests and the detection about it (its ip is empty; the address is the identifier)
+        assert len(get(ip=PUBLIC_IP)) == 6
+        assert "detection.credential_stuffing" in {e["event_type"] for e in get(ip=PUBLIC_IP)}
         assert len(get(identifier="user2@example.com")) == 1
         assert len(get(event_type="auth.failure")) == 4
         assert [e["event_type"] for e in get(tenant="att-test-suite")] == ["waf.sqli_blocked"]
@@ -903,6 +906,13 @@ class TestResponseActions:
         cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE ip='44.4.4.4'")
         assert cur.fetchone()[0] == 1
         assert c.post("/socperson/api/bans/remove", json={"ip": PUBLIC_IP, "tenant_id": 999999}).status_code == 400
+        # Lookup says it is banned, and where, so "Lift ban" lifts it there.
+        ban = c.get(f"/socperson/api/entity/ip/{PUBLIC_IP}").get_json()["entity"]["ban"]
+        assert (ban["company"], ban["tenant_id"], ban["reason"], ban["by"]) == ("Ban Co", tid, "legacy", "admin")
+        assert c.post("/socperson/api/bans/remove", json={"ip": PUBLIC_IP, "tenant_id": ban["tenant_id"]}).status_code == 200
+        assert c.get(f"/socperson/api/entity/ip/{PUBLIC_IP}").get_json()["entity"]["ban"] is None
+        e = c.get("/socperson/api/entity/ip/44.4.4.4").get_json()["entity"]
+        assert e["ban"]["company"] is None and e["ban"]["reason"] == "platform"
         assert ("unban_ip", f"ban-co:{PUBLIC_IP}") in [(a, t) for _, a, t in audit_actions(db_engine)]
         cur.close()
 
@@ -1020,8 +1030,13 @@ class TestAssessmentViews:
         add_event(db_engine, "access.denied", "WARNING", path="/att-test-suite/admin")
         add_event(db_engine, "waf.sqli_blocked", "ERROR", path="/att-test-suite/search")
         add_event(db_engine, "access.denied", "WARNING", path="/login")
-        t = {x["slug"]: x for x in c.get("/socperson/api/tenants").get_json()["tenants"]}["att-test-suite"]
-        assert t["events"] == 2 and t["alerts"] == 1 and t["risk"] >= 8
+        tenants = c.get("/socperson/api/tenants").get_json()["tenants"]
+        t = {x["slug"]: x for x in tenants}["att-test-suite"]
+        assert t["events"] == 2 and t["alerts"] == 1
+        # Counts as recorded, no invented score; most alerts first.
+        assert all("risk" not in x for x in tenants)
+        alerts = [x["alerts"] for x in tenants]
+        assert alerts == sorted(alerts, reverse=True)
 
     def test_a_real_company_request_is_recorded_with_its_company(self, soc, client, db_engine):
         """The app takes the /<company>/ prefix out of the path before it runs, so
@@ -1468,6 +1483,76 @@ class TestGenuineActivityOnly:
         d = c.get("/socperson/api/overview").get_json()
         assert [t["ip"] for t in d["top_ips"]] == [PUBLIC_IP] and d["proxy_hint"] is True
         assert d["proxy_ip"] == "10.0.0.2"
+
+    def test_a_decoy_hit_counts_for_the_attacker_not_the_honeypot_that_reported_it(self, soc, client, db_engine,
+                                                                                   monkeypatch):
+        """The TCP-decoy honeypot reports over a webhook from its own private
+        address, and an event records whoever made the request. The hit and its
+        ban review used to count for the honeypot -- and, that being a private
+        address, vanish from every view as the server's own traffic."""
+        from utils import honeypot_report
+        monkeypatch.setenv("HONEYPOT_REPORT_SECRET", "soc-test-secret")
+        monkeypatch.delenv("SOC_AUTO_BAN", raising=False)
+        c, _ = soc("ann", "analyst")
+        body = json.dumps({"event": honeypot_report.EVENT_NAME, "ip": TOR_IP, "port": 3306, "protocol": "mysql",
+                           "captured_bytes": 0}).encode()
+        ts = str(int(time.time()))
+        r = client.post("/webhooks/honeypot", data=body, environ_overrides={"REMOTE_ADDR": "172.18.0.5"},
+                        headers={"Content-Type": "application/json", honeypot_report.TIMESTAMP_HEADER: ts,
+                                 honeypot_report.SIGNATURE_HEADER: "sha256=" + honeypot_report.sign(
+                                     body, ts, "soc-test-secret")})
+        assert r.status_code == 200
+        cur = db_engine.cursor()
+        cur.execute("SELECT event_type, ip FROM public.security_events WHERE identifier=%s", (TOR_IP,))
+        recorded = dict(cur.fetchall())
+        cur.close()
+        assert recorded["honeypot.tcp_decoy_hit"] == "172.18.0.5"          # as written: the reporter
+        shown = c.get("/socperson/api/events", query_string={"ip": TOR_IP}).get_json()["events"]
+        assert {e["event_type"] for e in shown} == {"honeypot.tcp_decoy_hit", "secops.ban_review_raised"}
+        assert {e["ip"] for e in shown} == {TOR_IP}
+        ov = c.get("/socperson/api/overview").get_json()
+        assert [t["ip"] for t in ov["top_ips"]] == [TOR_IP] and ov["kpi"]["honeypot_hits"] == 1
+        e = c.get(f"/socperson/api/entity/ip/{TOR_IP}").get_json()["entity"]
+        assert e["events"] == 2 and e["other"] == []             # an address is not its own account
+        detail = c.get(f"/socperson/api/events/{shown[0]['id']}").get_json()["event"]
+        assert detail["ip"] == TOR_IP and [x["ip"] for x in detail["related"]["same_ip"]] == [TOR_IP]
+        report = c.post("/socperson/api/loganalysis/platform", json={"hours": 1}).get_json()["report"]
+        assert [s["ip"] for s in report["sources"]] == [TOR_IP]
+
+    def test_a_detection_about_your_own_address_is_left_out(self, soc, db_engine, monkeypatch):
+        """Detections are written by the scheduler, outside any request: `ip` is
+        empty and the address the rule fired on is in `identifier`."""
+        monkeypatch.setenv("SOC_TEST_CIDRS", "151.101.0.0/16")
+        c, _ = soc()
+        rule = "credential_stuffing"
+
+        def fired():
+            d = c.get("/socperson/api/detections").get_json()
+            return next(r for r in d["rules"] if r["name"] == rule)["times_fired"], d
+        before, _ = fired()
+        for ident, msg in ((TEST_IP, "det testing"), ("10.0.0.8", "det server"), (PUBLIC_IP, "det visitor")):
+            add_event(db_engine, "detection." + rule, "ERROR", identifier=ident, message=msg)
+        cur = db_engine.cursor()
+        # The engine's cooldown table counts every firing, testing included; the console counts events.
+        cur.execute("INSERT INTO public.detection_state (rule, key, fired) VALUES (%s, %s, 50)", (rule, TEST_IP))
+        cur.close()
+        after, d = fired()
+        assert after - before == 1 and d["history_days"] == 90
+        assert next(r for r in d["rules"] if r["name"] == rule)["last_fired"]
+        views = _views(c)
+        assert _shown(views, "det testing") == _shown(views, "det server") == set()
+        assert _shown(views, "det visitor") == {"events", "alerts", "overview", "detections", "brief", "csv"}
+        assert c.get(f"/socperson/api/entity/ip/{PUBLIC_IP}").get_json()["entity"]["events"] == 1
+
+    def test_an_old_event_names_a_company_only_if_it_exists(self, soc, db_engine):
+        """Rows from before security_events.tenant: the path's first segment is a
+        company only when a company has that slug, never a platform route."""
+        c, _ = soc()
+        add_event(db_engine, "access.denied", ip=PUBLIC_IP, path="/att-test-suite/admin", message="old company row")
+        add_event(db_engine, "access.denied", ip=PUBLIC_IP, path="/employees/list", message="old platform row")
+        ev = {e["message"]: e for e in c.get("/socperson/api/events").get_json()["events"]}
+        assert ev["old company row"]["tenant"] == "att-test-suite"
+        assert ev["old platform row"]["tenant"] is None
 
     def test_latest_alerts_are_newest_first(self, soc, db_engine):
         c, _ = soc()
