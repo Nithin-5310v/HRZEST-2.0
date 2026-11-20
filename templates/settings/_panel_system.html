@@ -146,6 +146,10 @@
                 <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> New passwords do not match.</div>
               {% elif request.args.get('pwd_error') == 'weak' %}
                 <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> Password must be at least 8 characters.</div>
+              {% elif request.args.get('pwd_error') == 'personal' %}
+                <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> Password must not contain your name, username, email, company name or &#39;HRzest&#39;.</div>
+              {% elif request.args.get('pwd_error') == 'breached' %}
+                <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> This password has appeared in a known data breach, so attackers try it first. Please choose a different one.</div>
               {% endif %}
 
               <div class="u-d-grid u-gtc-1fr-1fr u-gap-24 u-ai-start">

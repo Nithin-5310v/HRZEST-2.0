@@ -1,7 +1,30 @@
 # -*- coding: utf-8 -*-
 """helpers: response helpers: JSON-vs-HTML negotiation, the error page renderer"""
-from flask import jsonify, request, session
+from flask import g, has_app_context, jsonify, request, session
 from .urls import static_url
+
+
+# ── CSP nonce ─────────────────────────────────────────────────────────────────
+# app_setup/csrf_csp.py mints one nonce per request (g.csp_nonce) and lists it
+# in the Content-Security-Policy header. Only tags WE write may carry it:
+# Jinja templates get it added at compile time (app_setup/templating.py), and
+# HTML built in Python adds it with csp_nonce_attr(). Nothing stamps it onto
+# the finished response any more -- that also blessed any <script> an
+# attacker managed to inject, leaving the CSP no defence against injection.
+
+def csp_nonce():
+    """This request's CSP nonce, or "" outside a request (an email body built
+    by a background job, say -- where a nonce has no meaning anyway)."""
+    if not has_app_context():
+        return ""
+    return getattr(g, "csp_nonce", "") or ""
+
+
+def csp_nonce_attr():
+    """' nonce="..."' for a <script>/<style> tag in HTML built outside Jinja,
+    or "" when there is no nonce."""
+    nonce = csp_nonce()
+    return f' nonce="{nonce}"' if nonce else ""
 
 
 # ── Error page renderer ───────────────────────────────────────────────────────
@@ -51,7 +74,7 @@ def _error_page(code, icon, title, subtitle, hint):
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
 <link rel="stylesheet" href="{static_url('shared.min.css')}" />
 <link rel="stylesheet" href="{static_url('landing_v2.css')}" />
-<style>
+<style{csp_nonce_attr()}>
   * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-body); }}
   html, body {{ min-height: 100vh; color: var(--text-main); }}
   body {{

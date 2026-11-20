@@ -159,9 +159,6 @@ def _add_csrf_fields(html, token):
     return b"".join(parts)
 
 
-# Matches <script>/<style> tags without a nonce -- used to inject CSP nonces
-_SCRIPT_TAG_RE = re.compile(rb'<script(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
-_STYLE_TAG_RE = re.compile(rb'<style(?!\s[^>]*\bnonce\b)(?=[\s>])', re.IGNORECASE)
 # Inline style="" attribute values, hashed so style-src-attr can drop
 # 'unsafe-inline' in favor of per-response sha256 hashes.
 _CSP_STYLE_DQ = re.compile(rb'\bstyle\s*=\s*"([^"]*)"', re.IGNORECASE)
@@ -432,47 +429,46 @@ def _bust_settings_cache(response):
 
 @app.after_request
 def _inject_csrf_meta(response):
-    """Inject CSRF meta tag and auto-inject script into every HTML page.
+    """Inject CSRF meta tag and auto-inject script into every normal
+    (status<300) HTML page.
 
-    CSP nonce injection (the second half below) must run for EVERY
-    text/html response regardless of status code -- _security_headers sets
-    a nonce-requiring CSP header unconditionally, including on error pages
-    (404/403/500). This function used to skip everything for status>=300,
-    which meant every error page shipped a <style> tag with no nonce while
-    the CSP header demanded one -- the browser correctly blocked it, which
-    is the "Applying inline style violates CSP" error seen on any page that
-    hit an error handler. CSRF meta-tag/script injection still only makes
-    sense on normal (status<300) pages, so that part stays gated.
+    This no longer touches CSP nonces on the rest of the page: it used to
+    stamp the nonce onto every <script>/<style> tag in the finished HTML,
+    which also blessed any tag an attacker had injected, so the CSP stopped
+    nothing. Templates now get the nonce at compile time
+    (app_setup/templating.py's CspNonceExtension) and Python-built pages add
+    it themselves (utils.helpers.csp_nonce_attr). Only the scripts this
+    function adds get it here.
     """
     if not response.content_type.startswith("text/html"):
+        return response
+    if response.status_code >= 300:
         return response
     try:
         from flask import g
         data = response.get_data()
-        if response.status_code < 300:
-            token = _csrf_token()
-            meta = f'<meta name="csrf-token" content="{token}" />'.encode()
-            data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
-            data = _add_csrf_fields(data, token)
-            # hz-actions.js binds the templates' data-on-<event>="fn(...)"
-            # attributes -- the CSP-safe stand-in for inline onclick=""
-            # handlers, which script-src no longer allows (see
-            # _security_headers).
-            _actions_src = _static_url("hz-actions.js").encode()
-            _body_scripts = (_CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
-                             + b'<script src="' + _actions_src + b'"></script>')
-            if session.get("admin_logged_in") or session.get("employee_id"):
-                _body_scripts += _KILLSWITCH_SCRIPT
-            data = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
+        token = _csrf_token()
+        meta = f'<meta name="csrf-token" content="{token}" />'.encode()
+        data = _CSRF_HEAD_RE.sub(meta + b'</head>', data, count=1)
+        data = _add_csrf_fields(data, token)
+        # hz-actions.js binds the templates' data-on-<event>="fn(...)"
+        # attributes -- the CSP-safe stand-in for inline onclick=""
+        # handlers, which script-src no longer allows (see
+        # _security_headers).
+        _actions_src = _static_url("hz-actions.js").encode()
+        _body_scripts = (_CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
+                         + b'<script src="' + _actions_src + b'"></script>')
+        if session.get("admin_logged_in") or session.get("employee_id"):
+            _body_scripts += _KILLSWITCH_SCRIPT
         nonce = getattr(g, "csp_nonce", None)
         if nonce:
-            nb = nonce.encode()
-            data = _SCRIPT_TAG_RE.sub(b'<script nonce="' + nb + b'"', data)
-            data = _STYLE_TAG_RE.sub(b'<style nonce="' + nb + b'"', data)
+            # Only our own constants above -- never page content.
+            _body_scripts = _body_scripts.replace(b"<script", b'<script nonce="' + nonce.encode() + b'"')
+        data = _CSRF_BODY_RE.sub(lambda _m: _body_scripts + b'</body>', data, count=1)
         response.set_data(data)
     except Exception as exc:
-        # Silent failure here means CSRF-token/killswitch injection and CSP
-        # nonce rewriting both silently no-op on this response -- worth
-        # knowing about even though the response still goes out.
-        app_log.warning("Response HTML injection (CSRF token/CSP nonce) failed: %s", exc, exc_info=True)
+        # Silent failure here means CSRF-token/killswitch injection silently
+        # no-ops on this response -- worth knowing about even though the
+        # response still goes out.
+        app_log.warning("Response HTML injection (CSRF token) failed: %s", exc, exc_info=True)
     return response
