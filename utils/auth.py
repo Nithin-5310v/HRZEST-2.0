@@ -2,6 +2,7 @@
 """Authentication decorators, login lockout, and password hashing."""
 import os
 import json
+import re
 import time
 import threading
 import datetime
@@ -85,13 +86,71 @@ def dummy_password_check(pw: str) -> None:
 # this instead of its own inline `len(pw) < N` check, so the floor can't
 # silently drift to something weaker on one path.
 MIN_PASSWORD_LENGTH = 8
+# Shorter context words ("ltd", "pvt", a 3-letter name) are too generic to block.
+_MIN_CONTEXT_WORD_LEN = 4
+
+# check_new_password()'s codes -> what the user is told. Pages that redirect
+# with ?pwd_error=<code> show the same text (templates/settings/_panel_system
+# .html, templates/employee_portal/_view_my_profile.html).
+PASSWORD_ERRORS = {
+    "short": f"Password must be at least {MIN_PASSWORD_LENGTH} characters.",
+    "personal": "Password must not contain your name, username, email, company name or 'HRzest'.",
+    "breached": ("This password has appeared in a known data breach, so attackers try it first. "
+                 "Please choose a different one."),
+}
 
 
-def validate_new_password(pw: str):
-    """Return (True, None) if pw meets the minimum bar, else (False, error_message)."""
+def _context_words(context):
+    """Lower-cased words a password must not contain: each context value
+    whole and with punctuation removed, its separate words, and 'hrzest'.
+    Only an email's local part counts (blocking 'gmail' would help nobody)."""
+    words = {"hrzest"}
+    for item in context or ():
+        value = str(item or "").strip().lower()
+        if "@" in value:
+            value = value.split("@", 1)[0]
+        if not value:
+            continue
+        words.add(value)
+        words.add(re.sub(r"[^a-z0-9]", "", value))
+        words.update(re.split(r"[^a-z0-9]+", value))
+    return {w for w in words if len(w) >= _MIN_CONTEXT_WORD_LEN}
+
+
+def check_new_password(pw, context=()):
+    """(True, None) if pw is acceptable as a new password, else (False, code)
+    with code one of PASSWORD_ERRORS. `context` is the account's own words:
+    username, email, employee id, name, company name."""
     if not pw or len(pw) < MIN_PASSWORD_LENGTH:
-        return False, f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
+        return False, "short"
+    lowered = pw.lower()
+    squashed = re.sub(r"[^a-z0-9]", "", lowered)
+    if any(w in lowered or w in squashed for w in _context_words(context)):
+        return False, "personal"
+    from utils.pwned_passwords import is_pwned_password
+    if is_pwned_password(pw):
+        return False, "breached"
     return True, None
+
+
+def validate_new_password(pw: str, context=()):
+    """Return (True, None) if pw meets the bar, else (False, error_message).
+    See check_new_password()."""
+    ok, code = check_new_password(pw, context)
+    return (True, None) if ok else (False, PASSWORD_ERRORS[code])
+
+
+def own_company_name():
+    """This request's company name, for a password context -- "" if unknown
+    or still the 'My Company' placeholder every company starts with. Only
+    meaningful where the tenant is already resolved (a signed-in session,
+    a token, a company-named reset link); signup passes the typed name."""
+    try:
+        from utils.helpers import get_company_settings
+        name = (get_company_settings().get("company_name") or "").strip()
+    except Exception:
+        return ""
+    return "" if name.lower() == "my company" else name
 
 
 def verify_and_update_password(table, id_column, id_value, current_pw, new_pw):

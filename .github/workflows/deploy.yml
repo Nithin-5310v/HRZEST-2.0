@@ -162,7 +162,6 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 1
-          trivyignores: .trivyignore
 
   sast:
     name: Static analysis (Bandit + Semgrep)

@@ -103,6 +103,10 @@ os.environ["PAYMENTS_ENABLED"] = ""
 # default. tests/test_punch_integrity.py::TestMobileCheckin turns it back on
 # explicitly to cover the rule itself.
 os.environ.setdefault("MOBILE_REQUIRE_LOCATION", "false")
+# No network calls from the suite: the Have I Been Pwned lookup on new
+# passwords (utils/pwned_passwords.py) stays off unless a test turns it on.
+# tests/test_password_policy.py covers it with the HTTP call mocked.
+os.environ.setdefault("PASSWORD_BREACH_CHECK", "false")
 
 # Windows can refuse face_recognition's dlib DLL (Smart App Control blocks
 # unsigned DLLs -- it does on the Jenkins PC), leaving the app without face

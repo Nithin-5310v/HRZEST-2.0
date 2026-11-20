@@ -280,7 +280,7 @@ class TestSeatCapConcurrency:
             with flask_app.test_client() as c:
                 resp = c.post("/api/employee/signup", json={
                     "employee_id": emp_id, "name": "Race Test",
-                    "password": "RacePass@1",
+                    "password": "Kettle#Orbit1",
                 }, headers={"Authorization": f"Bearer {token}"})
                 results[emp_id] = (resp.status_code, resp.get_json())
 

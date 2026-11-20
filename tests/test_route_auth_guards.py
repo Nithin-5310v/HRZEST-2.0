@@ -115,7 +115,7 @@ ALLOWED_UNGUARDED = {
     "auth.get_employee_webauthn_credential": "session (session_account_ok) or Bearer, ownership-checked",
     "employee_portal.api_employee_portal": "session (session_account_ok) or employee Bearer",
     "employees.generate_emp_id": "admin session + session_account_ok, JSON 401",
-    "attendance.api_breaks": "session or Bearer (resolve_bearer_identity_any)",
+    "attendance.api_breaks": "session (session_account_ok) or Bearer (resolve_bearer_identity_any)",
     "ai_hrms.api_hr_helpdesk": "session (session_account_ok) or Bearer",
     "ai_hrms.api_evaluate_interview": "resolve_admin_identity",
     "ai_hrms.api_attrition_analytics": "resolve_admin_identity",

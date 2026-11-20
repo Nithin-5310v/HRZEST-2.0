@@ -98,7 +98,7 @@ def _validate_new_tenant_fields(company_name, subdomain, admin_username, admin_p
         return "Subdomain may only contain lowercase letters, digits, and hyphens."
     if subdomain in _RESERVED_SUBDOMAINS:
         return f"Subdomain '{subdomain}' is reserved. Choose another."
-    _pw_ok, _pw_err = validate_new_password(admin_password)
+    _pw_ok, _pw_err = validate_new_password(admin_password, (company_name, subdomain, admin_username, admin_email))
     if not _pw_ok:
         return _pw_err
     domain_error = validate_email_domain_format(clean_email_domain(email_domain))
@@ -137,7 +137,7 @@ def _validate_signup_account(company_name, admin_email, admin_mobile, admin_pass
         return f"Use an email address of at most {_MAX_SIGNUP_EMAIL_LEN} characters -- it's also your login username."
     if not _MOBILE_RE.match(admin_mobile):
         return "Enter a valid mobile number: 10 to 15 digits, optionally starting with +."
-    _pw_ok, _pw_err = validate_new_password(admin_password)
+    _pw_ok, _pw_err = validate_new_password(admin_password, (company_name, admin_email))
     if not _pw_ok:
         return _pw_err
     return validate_email_domain_format(clean_email_domain(admin_email))

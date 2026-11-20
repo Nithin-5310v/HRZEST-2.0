@@ -176,6 +176,26 @@ class TestApiBreaks:
         resp = client.get("/api/breaks")
         assert resp.status_code == 200
 
+    def test_logged_out_session_copy_returns_401(self, client, db_engine, seed_employee):
+        """A copy of the session cookie taken before logout (its id revoked
+        server-side) must stop working. The route used to check only
+        session.get("employee_id"), not session_account_ok(), so it kept
+        answering a revoked, kill-switched or deactivated session."""
+        from utils.session_risk import revoke_session_id
+        sid = "api-breaks-revoked-sid"
+        _employee_session(client, seed_employee["employee_id"])
+        with client.session_transaction() as sess:
+            sess["_sid"] = sid
+        try:
+            assert revoke_session_id(sid, seed_employee["employee_id"])
+            resp = client.get("/api/breaks")
+            assert resp.status_code == 401
+        finally:
+            cur = db_engine.cursor()
+            cur.execute("DELETE FROM session_risk WHERE sid=%s", (sid,))
+            db_engine.commit()
+            cur.close()
+
     def test_garbage_bearer_token_returns_401(self, client):
         """Regression test: this route used to accept ANY string starting
         with "Bearer " with no lookup against api_tokens at all -- a
