@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-"""platform_admin: audit log over security_events, SOC dashboard link"""
-import os
+"""platform_admin: audit log over security_events"""
 from database import get_db_connection
-from flask import flash, redirect, render_template, request
+from flask import render_template, request
 from . import _AUDIT_LOG_PER_PAGE, _AUDIT_LOG_PREFIXES, _platform_admin_required, platform_admin_bp
 
 
@@ -57,36 +56,3 @@ def platform_admin_audit_log():
         "super_admin_audit_log.html", events=events, q=q, level_filter=level_filter,
         page=page, total_pages=total_pages, total=total,
     )
-
-
-@platform_admin_bp.route("/super_admin/soc", methods=["GET"])
-@_platform_admin_required
-def platform_admin_soc_dashboard():
-    """Embeds the standalone cross-app SOC dashboard (soc-dashboard/, a
-    separate Node/Express + React service -- see its README) in an iframe.
-
-    That service aggregates security events (login attempts, failed
-    logins, unauthorized access, suspicious activity) from the 4 separate
-    apps -- HRMS Portal, Job Portal, Gradzest Portal, Food Delivery App --
-    into one shared MongoDB collection. It is unrelated to this app's own
-    `security_events` Postgres table used above by the audit log: that one
-    is this Flask app's internal platform-admin action log.
-
-    The frame loads the dashboard's plain address and the admin enters its
-    admin token in the dashboard's own prompt. This app never reads or sends
-    that token: it used to append SOC_ADMIN_TOKEN to the iframe URL, which put
-    a permanent admin credential in the page source, browser history and the
-    dashboard server's access logs.
-
-    Outside APP_ENV=development the address must be https://, because the
-    token is typed into the frame (an http frame on an https console is also
-    blocked by browsers as mixed content, so it would only show a blank box).
-    """
-    soc_url = os.environ.get("SOC_DASHBOARD_URL", "").strip().rstrip("/")
-    if not soc_url:
-        flash("SOC dashboard is not configured. Set SOC_DASHBOARD_URL in the environment.", "error")
-        return redirect("/super_admin")
-    if not soc_url.startswith("https://") and os.environ.get("APP_ENV", "production") != "development":
-        flash("SOC_DASHBOARD_URL must start with https:// so the dashboard's admin token is never sent unencrypted.", "error")
-        return redirect("/super_admin")
-    return render_template("super_admin_soc_dashboard.html", iframe_src=soc_url + "/")

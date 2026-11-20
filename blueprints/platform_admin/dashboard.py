@@ -362,12 +362,6 @@ def platform_admin_dashboard():
         # else just gets a connection timeout, same as typing the URL in
         # directly would.
         grafana_url=os.environ.get("GRAFANA_URL", "").rstrip("/") or None,
-        # Gates the "SOC Dashboard" nav button -- points at the standalone
-        # cross-app SOC service (soc-dashboard/, see its README) that
-        # aggregates security events from the 4 separate apps into one
-        # MongoDB collection. Distinct from this table's own
-        # security_events (Postgres, platform-admin-only audit log above).
-        soc_dashboard_configured=bool(os.environ.get("SOC_DASHBOARD_URL")),
     )
 
 
