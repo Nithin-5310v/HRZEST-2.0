@@ -229,7 +229,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | NV-04 | Performance | Medium | check-in (face match), uploads (ClamAV) | Synchronous CPU/IO-heavy work in request threads | Load test on check-in |
 | NV-05 | Correctness | Medium | blueprints/leave.py (approval path) | Does approving a multi-day leave deduct balance for Sundays/holidays (BUG-07)? | **Resolved: yes, confirmed by reading leave_action; see BUG-07** -- **Resolved for new requests by BUG-07** (Sundays/holidays no longer get leave rows); existing rows are unchanged |
 | NV-06 | Mobile | Medium | mobile/src (18 `react-hooks/exhaustive-deps`) | Each could be a stale-closure bug | Review each hook |
-| NV-07 | Dead code | Low | utils/ai_resume_parser.py | Used only by tests; is this a planned feature? | Your input |
+| NV-07 | Dead code | Low | utils/ai_resume_parser.py | Used only by tests; is this a planned feature? | **Resolved: removed** (with `utils/task_queue.py`, `templates/seat_checkout.html` and other unused code) |
 | NV-08 | Dead code | Low | assets/{mobile_app,waving_avatar,hero_dashboard}.jpg (~1.9 MB) | No reference in the repo; maybe used by an external hosted page | Your input |
 | NV-09 | Security | Medium | SEC-01 | Are production images ever built from a working copy rather than a clean clone? | Your input / `deploy.sh` check |
 | NV-10 | Correctness | Low | utils/salary_utils.py:263-299 | Money computed in `float` with `round(…, 2)`; what is the payroll rounding policy (paise vs rupee)? | Your input |

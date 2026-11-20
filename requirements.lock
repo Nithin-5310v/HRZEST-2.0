@@ -476,15 +476,10 @@ click==8.5.1 \
     # via
     #   face-recognition
     #   flask
-    #   rq
 colorama==0.4.6 ; sys_platform == 'win32' \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
     # via qrcode
-croniter==6.2.4 \
-    --hash=sha256:8ef3d544107a5c05a150a2d78f8bf5a8eb9c5c4d93405a736b824109574e3f4d \
-    --hash=sha256:fc124f751b1b04805c2a04b061898b436b45ab2320b045e1e052ea895de65189
-    # via rq
 cryptography==50.0.2 \
     --hash=sha256:0ddc924c04591c2811ca024d62ecad4f7f6f08af8939c211438f48a16bd23602 \
     --hash=sha256:0ec5f09541743261e66e291b4a0cbf0fb2997aeaab6d9e9c740b9dba1b58d1c2 \
@@ -1017,10 +1012,6 @@ pyotp==2.10.0 \
     --hash=sha256:1df2f6a1bcc3bb0716172a5215ddc2f8c7c7fd26a13df9927d52e1746934836c \
     --hash=sha256:d01e9703443616b03c57c700b5cbffd56a1f929c1b0f8f03131bc78c1fca9d3f
     # via -r requirements.txt
-python-dateutil==4.0.0 \
-    --hash=sha256:a5e246f79eb80475e691bf93862cead98decd8a498cf53ba0516fcdc0f50dc1c \
-    --hash=sha256:d7295ff14fdc0f92f662100bfb6c551d160ca090f2939f1ec5b9794265c03f06
-    # via croniter
 python-dotenv==1.2.4 \
     --hash=sha256:42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc \
     --hash=sha256:f0d53e69935a851c0dcc78f3ab7aaccd8cabef0b92382b576b824212902873c0
@@ -1040,16 +1031,10 @@ qrcode==8.2 \
 redis==8.1.0 \
     --hash=sha256:6e1a19beef9225c83efd689c7e6b7da2d5215b1f42cd13b7fc3714d0a09c7b25 \
     --hash=sha256:a4fe1aac3d3b3cc791d4b3d5931c5a956045dc951ee74d1c913ee3ac4d2ee9fb
-    # via
-    #   -r requirements.txt
-    #   rq
+    # via -r requirements.txt
 reportlab==5.1.0 \
     --hash=sha256:59fdbaec5efe437095ad1d7292ec9a271c8ca2d3ec75e889c6e61400929b90df \
     --hash=sha256:6878200464527e87672d19e9f7cfc6bb890e3a6931e74ac6a1a8d1754aa55671
-    # via -r requirements.txt
-rq==3.0.0 \
-    --hash=sha256:71b92cb7b2880e0d0ac2a462945e3f09243122f61465cec4238689d8ddf2abf4 \
-    --hash=sha256:b41e39b3c36ec3faf9e2402c638a0b25fe18ebb93a1cb15193bc69694f054618
     # via -r requirements.txt
 setuptools==84.2.1 \
     --hash=sha256:3ff8b3b5492a0aa66960f4419365a86b84e013070d4313e4d4a6894f5d64d6bc \
@@ -1062,12 +1047,10 @@ typing-extensions==4.16.0 \
     #   -r requirements.txt
     #   flask-limiter
     #   limits
-tzdata==2026.6 \
+tzdata==2026.6 ; sys_platform == 'win32' \
     --hash=sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec \
     --hash=sha256:85d2cd9c09f81f0bb29db27759fc83af4f1e620efb814f8c5bf8b4cc4feece6d
-    # via
-    #   python-dateutil
-    #   tzlocal
+    # via tzlocal
 tzlocal==5.4.5 \
     --hash=sha256:ba976898bad27945178c9ca25c222c19e322b30c10342b9f40b46714f70d2d5f \
     --hash=sha256:ecab534f6d65d9deb4c4ea52c121ab6dd5958e9b878e71dcb102578269752454

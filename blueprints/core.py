@@ -456,8 +456,8 @@ def api_dashboard():
 @api_required
 def api_billing_status():
     """Mobile equivalent of the web's employee-count/seat-limit banner
-    (templates/employees.html) and Seats & Billing page
-    (templates/seat_checkout.html) -- same underlying data, same tables,
+    (templates/employees.html) and Settings -> Billing
+    (templates/settings/_fin_billing.html) -- same underlying data, same tables,
     just JSON instead of server-rendered HTML."""
     co = get_company_settings()
     employee_count = get_tenant_employee_count(g.tenant_db)

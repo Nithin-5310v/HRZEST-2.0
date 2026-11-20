@@ -37,7 +37,6 @@ from .urls import (  # noqa: E402,F401
     _safe_redirect,
     _safe_referrer_redirect,
     company_url,
-    employee_login_url,
     self_service_emp_id,
     self_service_return_path,
     static_url,

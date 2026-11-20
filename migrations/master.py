@@ -515,7 +515,7 @@ def _init_master_db_impl():
         # auto-debit charge -- written by the Razorpay webhook
         # (subscription.charged / payment.failed) in real mode, or by the
         # simulated monthly cron in demo mode. Visible to the tenant
-        # (templates/seat_checkout.html billing history) and to the
+        # (Settings -> Billing history, templates/settings/_fin_billing.html) and to the
         # Platform Admin dashboard (recurring-billing feed).
         cur.execute("""
             CREATE TABLE IF NOT EXISTS monthly_invoices (
