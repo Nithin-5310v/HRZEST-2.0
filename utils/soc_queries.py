@@ -1078,12 +1078,6 @@ def posture():
         f"{logins} address(es) in SOC_LOGIN_EMAILS can request a sign-in code." if logins
         else "SOC_LOGIN_EMAILS lists no valid address, so nobody can sign in to /socperson.",
         "List the people who may sign in: SOC_LOGIN_EMAILS=you@example.com,colleague@example.com:analyst.")
-    from utils import soc_passkeys
-    pk_on = soc_passkeys.required()
-    add("socpasskey", "SOC console passkey step", "pass" if pk_on else "fail",
-        "Sign-in needs the emailed code and then the person's passkey." if pk_on
-        else "SOC_PASSKEY=off: the emailed code alone opens the console, so whoever controls a listed inbox can sign in.",
-        "Leave SOC_PASSKEY unset (on). Use off only briefly, to let a sole admin who lost their passkey back in.")
     # Alert delivery. With no channel, utils/alerts.send_security_alert skips
     # silently, so this is the one place that can say nobody is being paged.
     # Never shows the webhook URL (it is the credential) or the addresses.

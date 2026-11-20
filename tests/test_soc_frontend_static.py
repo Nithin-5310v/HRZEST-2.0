@@ -90,15 +90,14 @@ def test_assets_are_exactly_the_whitelisted_files():
     pub, priv = _blueprint_assets()
     on_disk = {p.name for p in UI.iterdir() if p.is_file()}
     assert on_disk == pub | priv, f"on disk only: {sorted(on_disk - pub - priv)}; whitelisted only: {sorted((pub | priv) - on_disk)}"
-    assert pub == {"login.css", "login.js"}, "only the sign-in page's own files may be served without a session"
+    assert pub == {"login.css"}, "only the sign-in page's own stylesheet may be served without a session"
 
 
-def test_the_public_sign_in_script_knows_nothing_of_the_console_api():
-    """login.js is served before sign-in, so it must not document the console's API."""
-    src = _read(UI / "login.js")
-    assert "/socperson/api/" not in src
-    assert set(re.findall(r"['\"](/socperson(?:/[^'\"]*)?)['\"]", src)) == {
-        "/socperson", "/socperson/login/passkey/options", "/socperson/login/passkey/verify"}
+def test_the_sign_in_page_runs_no_script():
+    """The sign-in page is plain forms: nothing served before sign-in can document the
+    console's API or be swapped for a script that reads the password field."""
+    src = _read(TPL / "login.html")
+    assert "<script" not in src.lower()
 
 
 def test_every_resource_the_templates_load_exists_and_is_served():

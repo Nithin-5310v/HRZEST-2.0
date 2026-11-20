@@ -62,13 +62,10 @@ external browser-driven test can't do):
 5. Admin changes their own password -> the old password stops working and
    the new one logs in (checked from fresh, cookie-less browser contexts,
    not by trusting this app's own logout redirect/cookie timing).
-6. SOC console sign-in (`test_soc_passkey.py`): email -> emailed code ->
-   create a passkey at the first sign-in, then sign in again with it, and a
-   second device without the passkey is refused. The passkey lives in
-   Chromium's virtual authenticator, so `soc_ui/login.js` and py_webauthn's
-   real signature checks both run; the emailed code is captured in-process.
-   Opened at `http://localhost:<port>` because browsers do not accept an IP
-   address as a passkey's site.
+6. SOC console sign-in (`test_soc_password.py`): email -> emailed code ->
+   set a password at the first sign-in (a mistyped repeat and a too-short
+   password are refused), then sign in again with it; a wrong password keeps
+   the console shut. The emailed code is captured in-process.
 7. Every SOC console view (`test_soc_console_views.py`), with realistic data
    including a 400-character attack path, at desktop (1366px) and phone
    (390px) width: fails on a JavaScript or console error, a failed
@@ -84,9 +81,9 @@ factor (MFA is disabled for this whole suite -- see "Running" above).
 ## What runs in CI
 
 Flows 6 and 7, the SOC console: `.github/workflows/deploy.yml`, job
-`e2e-soc-passkey`, which the image build waits for. The main suite cannot
-cover either (the browser half of a passkey; a view that renders badly or
-throws), and a break in sign-in locks every analyst out of `/socperson`. The
+`e2e-soc`, which the image build waits for. The main suite cannot cover
+either (the sign-in forms as a browser submits them; a view that renders badly
+or throws), and a break in sign-in locks every analyst out of `/socperson`. The
 job caches the Chromium download by Playwright version; its system libraries
 are installed each run.
 

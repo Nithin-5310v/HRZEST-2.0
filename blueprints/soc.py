@@ -8,6 +8,7 @@ routing (utils/tenant_routing.RESERVED_PATH_SEGMENTS), and every response is
 marked no-store / noindex.
 
   /socperson/login      email address -> 6-digit code emailed to it (SOC_LOGIN_EMAILS only)
+                        -> password (set at the first sign-in, entered after that)
   /socperson            the console (single page; data over /socperson/api/*)
   /socperson/api/*      JSON, role-gated: viewer < analyst < admin
 
@@ -18,10 +19,10 @@ import datetime
 import json
 import os
 
-from flask import Blueprint, jsonify, make_response, redirect, render_template, request, send_from_directory, session
+from flask import Blueprint, jsonify, make_response, redirect, render_template, request, send_from_directory
 
-from extensions import app_log, limiter
-from utils import soc_actions, soc_auth, soc_passkeys, soc_queries
+from extensions import limiter
+from utils import soc_actions, soc_auth, soc_queries
 from utils import soc_loganalysis as loganalysis
 from utils.soc_auth import soc_required
 from utils.soc_util import clamp_int, to_csv
@@ -111,25 +112,60 @@ def _guard_network():
 
 
 # ── login ────────────────────────────────────────────────────────────
-# An email address, the 6-digit code sent to it, then a passkey (utils/
-# soc_passkeys.py; created at the first sign-in). Whether the address is
-# authorised never changes what the email and code steps say -- an unlisted
-# one simply never receives a code (utils/soc_auth.request_login_code).
+# An email address, the 6-digit code sent to it, then the person's password --
+# set right there at the first sign-in (and after an admin resets it). Whether
+# the address is authorised never changes what the email and code steps say --
+# an unlisted one simply never receives a code (utils/soc_auth.request_login_code).
 _LOCKED_MSG = "Too many failed attempts. Try again in 15 minutes."
-_PASSKEY_EXPIRED = "Your sign-in expired. Start again."
+_STEP_EXPIRED = "Your sign-in expired. Start again."
 
 
 def _render_login(step, email="", error=None, notice=None, status=200, mode=None):
     return render_template("soc/login.html", step=step, email=email, error=error, notice=notice, mode=mode,
-                           minutes=soc_auth.LOGIN_CODE_TTL_SECONDS // 60), status
+                           minutes=soc_auth.LOGIN_CODE_TTL_SECONDS // 60,
+                           min_password=soc_auth.MIN_PASSWORD_LENGTH,
+                           max_password=soc_auth.MAX_PASSWORD_LENGTH), status
 
 
-def _render_passkey_step(user, error=None, status=200):
-    if not soc_passkeys.available():
-        error = error or ("Passkeys are not available on this server. An operator can set SOC_PASSKEY=off "
-                          "to sign in with the emailed code alone.")
-    mode = "verify" if soc_passkeys.credentials(user["id"]) else "register"
-    return _render_login("passkey", user.get("email") or user["username"], error=error, status=status, mode=mode)
+def _render_password_step(user, error=None, status=200):
+    mode = "verify" if user["has_password"] else "set"
+    return _render_login("password", user.get("email") or user["username"], error=error, status=status, mode=mode)
+
+
+def _password_step(action, ip):
+    """The step after a correct code: set a first password, or enter it."""
+    user = soc_auth.password_step_user()
+    if user is None:
+        soc_auth.end_session()
+        return _render_login("email", error=_STEP_EXPIRED, status=401)
+
+    if action == "set_password":
+        if user["has_password"]:            # set only ever fills an empty password, never replaces one
+            return redirect("/socperson/login", 303)
+        password = request.form.get("password", "")
+        problem = soc_auth.password_problem(password, user.get("email") or "")
+        if problem is None and password != request.form.get("confirm", ""):
+            problem = "The two passwords do not match."
+        if problem:
+            return _render_password_step(user, error=problem, status=400)
+        if not soc_auth.set_first_password(user["id"], password):
+            return redirect("/socperson/login", 303)       # someone set it a moment ago: enter it instead
+        soc_auth.audit(user["username"], "password_set", ip=ip)
+        soc_auth.establish(soc_auth.get_user_by_id(user["id"]), ip)
+        return redirect("/socperson", 303)
+
+    if action == "password":
+        if not user["has_password"]:
+            return redirect("/socperson/login", 303)
+        if soc_auth.check_password(user, request.form.get("password", "")):
+            soc_auth.establish(soc_auth.get_user_by_id(user["id"]), ip)
+            return redirect("/socperson", 303)
+        if soc_auth.register_failure(user, ip, "wrong password"):
+            soc_auth.end_session()
+            return _render_login("email", error=_LOCKED_MSG, status=429)
+        return _render_password_step(user, error="That password is not correct.", status=401)
+
+    return redirect("/socperson/login", 303)
 
 
 @soc_bp.route("/socperson/login", methods=["GET", "POST"])
@@ -142,9 +178,9 @@ def login():
         return redirect("/socperson")
     pending = soc_auth.pending_email()
     if request.method == "GET":
-        pk_user = soc_auth.passkey_step_user()
-        if pk_user:
-            return _render_passkey_step(pk_user)
+        pw_user = soc_auth.password_step_user()
+        if pw_user:
+            return _render_password_step(pw_user)
         return _render_login("code", pending) if pending else _render_login("email")
 
     action = request.form.get("action", "")
@@ -152,6 +188,9 @@ def login():
     if action == "restart":
         soc_auth.end_session()
         return redirect("/socperson/login", 303)
+
+    if action in ("password", "set_password"):
+        return _password_step(action, ip)
 
     if action == "email":
         email = soc_auth.normalize_email(request.form.get("email", ""))
@@ -173,79 +212,14 @@ def login():
     if action == "code":
         user, status = soc_auth.verify_login_code(pending, request.form.get("code", ""), ip)
         if status == "ok":
-            if soc_passkeys.required():
-                soc_auth.start_passkey_step(user)           # the console stays closed until the passkey
-                return redirect("/socperson/login", 303)
-            soc_auth.establish(user, ip)
-            return redirect("/socperson", 303)
+            soc_auth.start_password_step(user)              # the console stays closed until the password
+            return redirect("/socperson/login", 303)
         if status == "locked":
             soc_auth.end_session()
             return _render_login("email", error=_LOCKED_MSG, status=429)
         return _render_login("code", pending, error="That code is not valid or has expired.", status=401)
 
     return redirect("/socperson/login", 303)
-
-
-@soc_bp.route("/socperson/login/passkey/options", methods=["POST"])
-@limiter.limit("20 per 15 minutes")
-def login_passkey_options():
-    """Options for navigator.credentials: create a first passkey, or use one."""
-    blocked = _guard_network()
-    if blocked:
-        return blocked
-    user = soc_auth.passkey_step_user()
-    if user is None:
-        return jsonify({"ok": False, "msg": _PASSKEY_EXPIRED, "restart": True}), 401
-    if not soc_passkeys.available():
-        return _err("Passkeys are not available on this server.", 503)
-    problem = soc_passkeys.rp_problem()
-    if problem:
-        return _err(problem, 422)
-    existing = soc_passkeys.credentials(user["id"])
-    if existing:
-        options, challenge = soc_passkeys.authentication_options(existing)
-        mode = "verify"
-    else:
-        options, challenge = soc_passkeys.registration_options(user, existing)
-        mode = "register"
-    session["soc_pk_challenge"] = challenge
-    session["soc_pk_mode"] = mode
-    return _ok(mode=mode, options=options)
-
-
-@soc_bp.route("/socperson/login/passkey/verify", methods=["POST"])
-@limiter.limit("20 per 15 minutes")
-def login_passkey_verify():
-    """Check the passkey; on success this is where the session starts."""
-    blocked = _guard_network()
-    if blocked:
-        return blocked
-    ip = _ip()
-    user = soc_auth.passkey_step_user()
-    challenge, mode = session.pop("soc_pk_challenge", None), session.pop("soc_pk_mode", None)  # single use
-    if user is None:
-        return jsonify({"ok": False, "msg": _PASSKEY_EXPIRED, "restart": True}), 401
-    credential = _body().get("credential")
-    if not challenge or not isinstance(credential, dict):
-        return _err("Start the passkey step again.", 400)
-    existing = soc_passkeys.credentials(user["id"])
-    ok, enrolled = False, False
-    try:
-        if mode == "register" and not existing:
-            ok = enrolled = soc_passkeys.verify_registration(user, credential, challenge)
-        elif mode == "verify":
-            ok = soc_passkeys.verify_authentication(user, credential, challenge, existing)
-    except Exception as exc:
-        app_log.warning("SOC passkey %s failed for %s: %s", mode, user["username"], exc)
-    if ok:
-        soc_auth.establish(soc_auth.get_user_by_id(user["id"]), ip)
-        if enrolled:
-            soc_auth.audit(user["username"], "passkey_enrolled", ip=ip)
-        return _ok()
-    if soc_auth.register_failure(user, ip, "passkey not verified"):
-        soc_auth.end_session()
-        return jsonify({"ok": False, "msg": _LOCKED_MSG, "restart": True}), 429
-    return _err("That passkey could not be verified. Try again.", 401)
 
 
 @soc_bp.route("/socperson/logout", methods=["POST"])
@@ -273,10 +247,10 @@ def logout_everywhere():
 # ── assets ───────────────────────────────────────────────────────────
 # The console's own JS/CSS live in soc_ui/ (not static/) and are served only to a
 # signed-in session, so the page code -- which documents every API route -- is
-# not downloadable by anonymous visitors. Only the login page's own stylesheet and
-# its passkey script (which knows nothing beyond /socperson/login/passkey/*) are public.
+# not downloadable by anonymous visitors. Only the login page's own stylesheet is
+# public (the sign-in page itself runs no script).
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "soc_ui")
-_PUBLIC_ASSETS = frozenset({"login.css", "login.js"})
+_PUBLIC_ASSETS = frozenset({"login.css"})
 _PRIVATE_ASSETS = frozenset({"soc.css", "soc-core.js", "soc-views.js", "soc-analysis.js", "soc-banreview.js"})
 
 
@@ -604,15 +578,13 @@ def api_case_note(case_id):
 @soc_bp.route("/socperson/api/users")
 @soc_required("admin")
 def api_users():
-    users, passkeys = soc_auth.list_users(), soc_passkeys.counts()
-    for u in users:
-        u["passkeys"] = passkeys.get(u["id"], 0)
-    return _ok(users=users, passkey_required=soc_passkeys.required())
+    return _ok(users=soc_auth.list_users())
 
 
 # Who may sign in, and with which role, is SOC_LOGIN_EMAILS on the server -- not
 # something the console can change. What stays here is the emergency switch
-# (disable an account at once, without a deploy) and clearing a lockout.
+# (disable an account at once, without a deploy), clearing a lockout, and
+# resetting a forgotten password.
 @soc_bp.route("/socperson/api/users/<int:uid>", methods=["POST"])
 @soc_required("admin")
 def api_user_update(uid):
@@ -632,16 +604,16 @@ def api_user_update(uid):
     elif action == "unlock":
         soc_auth.unlock(uid)
         soc_auth.audit(me["username"], "user_unlocked", target=target["username"], ip=_ip())
-    elif action == "reset_passkey":
-        # For a lost device: the person creates a new passkey at their next sign-in.
-        # Not your own -- that is a second person's decision (or SOC_PASSKEY=off).
+    elif action == "reset_password":
+        # A forgotten (or leaked) password: the person sets a new one at their next
+        # sign-in, after the emailed code. Not your own -- that is a second person's
+        # decision (or scripts/soc_reset_password.py on the server). It also ends
+        # every open session of theirs, in case the password was the leak.
         if target["id"] == me["id"]:
-            return _err("Another admin has to reset your passkey.")
-        removed = soc_passkeys.reset(uid)
-        # A lost or stolen device may still hold an open session: end them all.
-        soc_auth.end_all_sessions(uid)
-        soc_auth.audit(me["username"], "user_passkey_reset", target=target["username"],
-                       detail=f"{removed} removed; all sessions ended", ip=_ip())
+            return _err("Another admin has to reset your password.")
+        soc_auth.reset_password(uid)
+        soc_auth.audit(me["username"], "user_password_reset", target=target["username"],
+                       detail="all sessions ended", ip=_ip())
     else:
         return _err("Unknown action.")
     return _ok()

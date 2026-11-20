@@ -6,9 +6,10 @@ staff are platform operators, and nothing a tenant admin can reach should be
 able to read or write these rows.
 
   soc_users       analyst accounts. Sign-in is an emailed one-time code for the
-                  addresses in SOC_LOGIN_EMAILS (utils/soc_auth.py); the
-                  password / TOTP columns are left over from the earlier
-                  password + authenticator login and are no longer read
+                  addresses in SOC_LOGIN_EMAILS, then the person's password,
+                  set at their first sign-in (utils/soc_auth.py). The TOTP /
+                  enroll-code columns are left over from the earlier
+                  username + password + authenticator login and are no longer read
   soc_cases       triage / incident cases opened from events, detections or logs
   soc_case_notes  analyst notes on a case
   soc_audit_log   every SOC login and action. Append-only: a trigger rejects
@@ -73,23 +74,19 @@ STATEMENTS = [
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_hash TEXT",
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_expires_at TIMESTAMP",
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS login_code_sent_at TIMESTAMP",
-    # Bumped to end every open session of that person at once (passkey reset,
+    # Bumped to end every open session of that person at once (password reset,
     # "Sign out everywhere"); each session remembers the value it started with.
     "ALTER TABLE soc_users ADD COLUMN IF NOT EXISTS session_epoch INT NOT NULL DEFAULT 0",
-    # Passkeys (utils/soc_passkeys.py): the step after the emailed code. Public
-    # keys only -- the private key never leaves the person's device.
+    # Accounts from the old username + password + authenticator login: their
+    # password was set from the command line, not by the person after an emailed
+    # code, so it is voided (the person sets their own at the next sign-in) and
+    # the authenticator secret, which nothing reads any more, is erased. Nothing
+    # writes these columns now, so this matches only once per old account.
     """
-    CREATE TABLE IF NOT EXISTS soc_passkeys (
-        id             SERIAL PRIMARY KEY,
-        user_id        INT          NOT NULL,
-        credential_id  TEXT         NOT NULL UNIQUE,
-        public_key     TEXT         NOT NULL,
-        sign_count     BIGINT       NOT NULL DEFAULT 0,
-        created_at     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-        last_used_at   TIMESTAMP
-    )
+    UPDATE soc_users SET password_hash='!email-code-login', totp_secret=NULL, totp_enabled=FALSE,
+           enroll_code_hash=NULL
+     WHERE totp_secret IS NOT NULL OR totp_enabled OR enroll_code_hash IS NOT NULL
     """,
-    "CREATE INDEX IF NOT EXISTS idx_soc_passkeys_user ON soc_passkeys (user_id)",
     "CREATE INDEX IF NOT EXISTS idx_soc_cases_status ON soc_cases (status, updated_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_soc_cases_event ON soc_cases (source_event_id)",
     """

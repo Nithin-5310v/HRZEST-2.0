@@ -6,8 +6,8 @@ person would hit: a JavaScript error, a console error, a failed /socperson/api
 call, a page wider than the phone screen, or a view that never finishes loading.
 
 SOC_AUDIT_SHOTS=<dir> also saves a screenshot of every view (for a human review).
-Sign-in here is the emailed code alone (SOC_PASSKEY=off); the passkey step has
-its own browser test (test_soc_passkey.py).
+Sign-in here is the emailed code, then setting the account's first password; the
+password step has its own browser test (test_soc_password.py).
 """
 import os
 import re
@@ -69,7 +69,6 @@ SEED_EVENTS = [
 def soc(monkeypatch, db_conn, base_url):
     codes = []
     monkeypatch.setenv("SOC_LOGIN_EMAILS", EMAIL)
-    monkeypatch.setenv("SOC_PASSKEY", "off")
     monkeypatch.delenv("SOC_ALLOWED_CIDRS", raising=False)
     monkeypatch.setattr(soc_auth, "deliver_login_code", lambda email, code: codes.append(code) or True)
     cur = db_conn.cursor()
@@ -103,7 +102,10 @@ def _sign_in(page, soc):
     page.fill('input[name="email"]', EMAIL)
     page.click("button:has-text('Send sign-in code')")
     page.fill('input[name="code"]', soc["codes"][-1])
-    page.click("button:has-text('Sign in')")
+    page.click("button:has-text('Continue')")
+    page.fill('input[name="password"]', "e2e long passphrase 4 soc")     # each test starts with a new account
+    page.fill('input[name="confirm"]', "e2e long passphrase 4 soc")
+    page.click("button:has-text('Set password and sign in')")
     expect(page).to_have_url(soc["url"] + "/socperson")
 
 

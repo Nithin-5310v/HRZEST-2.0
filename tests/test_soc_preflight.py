@@ -1,7 +1,7 @@
 """scripts/soc_preflight.py: the SOC console's go-live check.
 
 Why: going live needs about a dozen settings right at once (who may sign in,
-which networks, email, the passkey site, alerts). A wrong one shows up only
+which networks, email, alerts). A wrong one shows up only
 when someone is locked out of /socperson. The check says which, with the fix,
 before the release is approved -- using the app's own rules, never printing a
 secret or an address.
@@ -50,9 +50,6 @@ def test_a_ready_server_passes(env, capsys):
     ({"SOC_LOGIN_EMAILS": "not-an-address"}, "Who can sign in"),
     ({"SOC_ALLOWED_CIDRS": ""}, "Network allow-list"),
     ({"SOC_ALLOWED_CIDRS": "office-network"}, "Network allow-list"),
-    ({"SOC_PASSKEY": "off"}, "Passkey step"),
-    ({"ALLOWED_ORIGINS": "http://hrzest.example"}, "Passkey site (ALLOWED_ORIGINS)"),
-    ({"ALLOWED_ORIGINS": "https://203.0.113.10"}, "Passkey site (ALLOWED_ORIGINS)"),
     ({"SOC_DASHBOARD_URL": "http://soc.example:4500"}, "External SOC dashboard"),
 ])
 def test_each_blocker_fails_with_its_fix(env, change, title, capsys):
@@ -66,7 +63,7 @@ def test_each_blocker_fails_with_its_fix(env, change, title, capsys):
 
 @pytest.mark.parametrize("change, title", [
     ({"SOC_ALLOWED_CIDRS": "0.0.0.0/0,::/0"}, "Network allow-list"),
-    ({"ALLOWED_ORIGINS": ""}, "Passkey site (ALLOWED_ORIGINS)"),
+    ({"SOC_PASSKEY": "off"}, "Old passkey setting"),
     ({"SMTP_PASS": ""}, "Email for sign-in codes"),
     ({"APP_URL": "http://hrzest.example"}, "Link in the daily summary"),
     ({"SECURITY_ALERT_WEBHOOK_URL": ""}, "Real-time alerts"),
@@ -89,11 +86,9 @@ def test_a_server_the_app_would_refuse_to_start_says_so_instead_of_crashing(env,
 
 @pytest.mark.parametrize("raw", ["", "on", "off", "OFF", "0", "false", "no", "yes", "garbage"])
 def test_reads_the_switches_exactly_as_the_app_does(env, raw):
-    from utils import soc_digest, soc_passkeys
-    for name in ("SOC_PASSKEY", "SOC_DIGEST"):
-        env.setenv(name, raw)
+    from utils import soc_digest
+    env.setenv("SOC_DIGEST", raw)
     env.setenv("SOC_DIGEST_HOUR", raw or "6")
-    assert pf._passkey_required() == soc_passkeys.required()
     assert pf._digest() == (soc_digest.enabled(), soc_digest.digest_hour())
 
 
