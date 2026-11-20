@@ -74,23 +74,26 @@ def write_cursor(schema="att_master", timeout_ms=DEFAULT_TIMEOUT_MS):
             conn.close()
 
 
-def list_tenants(limit=500):
-    """Active tenants (id, name, slug, schema, status, billing_state)."""
+def list_tenants():
+    """Every company (id, name, slug, schema, status, billing_state). All of them:
+    a cap here silently dropped the newest companies from every cross-company
+    view and made their bans and sessions impossible to lift or revoke."""
     with read_cursor("att_master") as cur:
         cur.execute(
             "SELECT id, company_name, subdomain, db_name, status, COALESCE(billing_state, 'ok'), created_at "
-            "FROM tenants ORDER BY id LIMIT %s", (int(limit),))
+            "FROM tenants ORDER BY id")
         cols = ("id", "company", "slug", "schema", "status", "billing_state", "created_at")
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
-def each_tenant(fn, limit=300, timeout_ms=3000):
-    """Run `fn(tenant_dict, cursor)` read-only inside each tenant schema.
+def each_tenant(fn, timeout_ms=3000):
+    """Run `fn(tenant_dict, cursor)` read-only inside each tenant schema -- every
+    company, so a cross-company total is never silently partial.
 
     A tenant that errors (missing table, timeout) is skipped and reported
     instead of failing the whole view. -> (results:list, errors:list)."""
     results, errors = [], []
-    for t in list_tenants(limit):
+    for t in list_tenants():
         if t["status"] not in ("active", "suspended", "locked"):
             continue
         try:

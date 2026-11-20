@@ -138,7 +138,7 @@
           SOC.kpi('WAF blocks', fmt.n(k.waf_blocks), '', k.waf_blocks ? 'medium' : 'ok', ex('kpi', 'waf_blocks'), 'response'),
           SOC.kpi('Honeypot hits', fmt.n(k.honeypot_hits), '', k.honeypot_hits ? 'medium' : 'ok', ex('kpi', 'honeypot_hits'), 'target'),
           SOC.kpi('Unique IPs', fmt.n(k.unique_ips), 'internet sources', 'info', ex('kpi', 'unique_ips'), 'globe'),
-          SOC.kpi('Active bans', fmt.n(d.active_bans), '', 'info', '#/response', 'ban'),
+          SOC.kpi('Active bans', fmt.n(d.active_bans), d.active_bans_testing ? '+' + fmt.n(d.active_bans_testing) + ' on your test addresses' : '', 'info', '#/response', 'ban'),
           SOC.kpi('Open cases', fmt.n(d.cases.open), '', d.cases.open ? 'medium' : 'ok', '#/cases', 'cases')));
 
         const canvas = h('canvas', { role: 'img', 'aria-label': 'Events over time by severity' });
@@ -353,7 +353,7 @@
       const kind = p.identifier ? 'identifier' : 'ip';
       const value = p.identifier || p.ip || '';
       const kindSel = select([['ip', 'IP address'], ['identifier', 'Account']], kind, { 'aria-label': 'Lookup type' });
-      const box = h('input', { class: 'input', 'aria-label': 'Value', placeholder: 'e.g. 45.33.32.156 or alice@example.com', value });
+      const box = h('input', { class: 'input', 'aria-label': 'Value', placeholder: 'IP address, or account (email, username, ID)', value });
       const days = select([['7', '7 days'], ['30', '30 days'], ['90', '90 days']], p.days || '30', { 'aria-label': 'Look-back' });
       const go = () => { if (box.value.trim()) SOC.go('entity', { [kindSel.value]: box.value.trim(), days: days.value }); };
       const bar = h('form', { class: 'filters', onsubmit: (e) => { e.preventDefault(); go(); } }, kindSel, box, days, h('button', { class: 'btn', type: 'submit' }, 'Look up'));
@@ -466,6 +466,7 @@
       if (tab === 'sessions') {
         const d = await api.get('/socperson/api/sessions');
         root.appendChild(SOC.callout('Sessions the risk engine has scored or flagged, across tenants. Revoking marks a session compromised; the app refuses it on its very next request.'));
+        if (d.total > d.sessions.length) root.appendChild(h('p', { class: 'note' }, 'Showing the newest ' + fmt.n(d.sessions.length) + ' of ' + fmt.n(d.total) + ' risky sessions.'));
         root.appendChild(SOC.table({
           empty: 'No risky sessions right now.', rows: d.sessions,
           columns: [{ label: 'Tenant', key: 'company' }, { label: 'Account', render: (s) => SOC.idLink(s.identifier) }, { label: 'Type', key: 'type' },
@@ -480,7 +481,7 @@
       }
       const d = await api.get('/socperson/api/bans');
       if (needs('analyst')) {
-        const ip = h('input', { class: 'input', id: 'nbIp', placeholder: '203.0.113.9', required: true, 'aria-label': 'IP address' });
+        const ip = h('input', { class: 'input', id: 'nbIp', placeholder: 'IP address', required: true, 'aria-label': 'IP address' });
         const why = h('input', { class: 'input', id: 'nbWhy', placeholder: 'Reason', required: true, maxlength: '240', 'aria-label': 'Reason' });
         const dur = select(DURATIONS, '1440', { 'aria-label': 'Duration' });
         root.appendChild(h('form', { class: 'filters', onsubmit: async (e) => {
@@ -489,11 +490,12 @@
           act(api.post('/socperson/api/bans', { ip: ip.value.trim(), reason: why.value, minutes: Number(dur.value) }), 'Banned').then(() => SOC.reload()).catch(() => {});
         } }, ip, why, dur, h('button', { class: 'btn danger', type: 'submit' }, 'Ban')));
       }
-      const shownActive = d.bans.filter((b) => b.active).length;
+      const shownActive = d.bans.filter((b) => b.active && !b.testing).length;
       if (d.active_total > shownActive) root.appendChild(h('p', { class: 'note' }, 'Showing ' + fmt.n(shownActive) + ' of ' + fmt.n(d.active_total) + ' active bans.'));
+      if (d.testing_active) root.appendChild(h('p', { class: 'note' }, fmt.n(d.testing_active) + ' active ban' + (d.testing_active === 1 ? ' is' : 's are') + ' on your own test addresses (SOC_TEST_CIDRS): listed so you can lift them, marked "your testing", and not counted as attacks stopped.'));
       root.appendChild(SOC.table({
         empty: 'No bans recorded.', rows: d.bans,
-        columns: [{ label: 'IP', render: (b) => SOC.ipLink(b.ip) }, { label: 'Status', render: (b) => SOC.chip(b.active ? 'active' : 'expired', b.active ? 'bad' : 'plain') },
+        columns: [{ label: 'IP', render: (b) => SOC.ipLink(b.ip) }, { label: 'Status', render: (b) => [SOC.chip(b.active ? 'active' : 'expired', b.active ? 'bad' : 'plain'), b.testing ? SOC.chip('your testing', 'plain') : null] },
           { label: 'Scope', render: (b) => b.tenant_id == null ? 'Platform' : h('span', { title: 'Older ban stored in this company’s own list; still enforced on its pages' }, b.company) },
           { label: 'Reason', cls: 'clip', key: 'reason' }, { label: 'By', key: 'by' }, { label: 'Since', render: (b) => when(b.at) },
           { label: 'Until', render: (b) => b.expires ? fmt.time(b.expires) : 'until lifted' },
@@ -533,6 +535,7 @@
       root.textContent = '';
       root.append(SOC.seg([{ value: '1', label: '24 h' }, { value: '7', label: '7 days' }, { value: '30', label: '30 days' }], days, (v) => SOC.go('fraud', { days: v })),
         h('div', { class: 'stack' }),
+        t.testing ? h('p', { class: 'note' }, fmt.n(t.testing) + ' punch' + (t.testing === 1 ? '' : 'es') + ' by your own testing (SOC_TEST_ACCOUNTS / SOC_TEST_CIDRS) left out.') : null,
         h('div', { class: 'grid kpis' }, SOC.kpi('Punches', fmt.n(t.punches), '', 'info'), SOC.kpi('Rejected', fmt.n(t.rejected), fmt.pct(t.rejected, t.punches), t.rejected ? 'high' : 'ok'),
           SOC.kpi('Mock location', fmt.n(t.mock_location), '', t.mock_location ? 'medium' : 'ok'), SOC.kpi('Flagged', fmt.n(t.flagged), fmt.pct(t.flagged, t.punches), t.flagged ? 'medium' : 'ok')),
         h('div', { class: 'grid cols-21' },

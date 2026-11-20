@@ -215,6 +215,16 @@ def test_timeline_bucket_scales_with_span():
     assert long_["timeline"]["bucket"] == "day"
 
 
+def test_quiet_stretches_are_on_the_timeline_at_zero():
+    """Only recorded counts: a quiet minute is a 0, not a line drawn across it."""
+    r = run([nginx("45.33.33.1", "/", ts=ts_at(0)), nginx("45.33.33.1", "/", ts=ts_at(30))])
+    pts = r["timeline"]["points"]
+    assert len(pts) == 31 and [p["t"] for p in pts] == sorted(p["t"] for p in pts)
+    assert [p["requests"] for p in pts] == [1] + [0] * 29 + [1]
+    long_ = run([nginx("45.33.33.1", "/", ts="01/Oct/2026:10:00:00 +0000"), nginx("45.33.33.1", "/", ts="16/Oct/2026:10:00:00 +0000")])
+    assert len(long_["timeline"]["points"]) == 16 and sum(p["requests"] for p in long_["timeline"]["points"]) == 2
+
+
 # ── hostile input / limits ──────────────────────────────────────────
 def test_caps_are_reported_not_silent(monkeypatch):
     monkeypatch.setattr(la, "MAX_LINES", 50)

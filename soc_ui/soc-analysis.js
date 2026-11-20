@@ -138,9 +138,9 @@
       results.appendChild(SOC.card('Requests by hour of day', h('div', { class: 'chart short' }, hr)));
       if (r.timeline.points.length) {
         SOC.chart(tl, { type: 'line', data: { labels: r.timeline.points.map((p) => p.t.slice(r.timeline.bucket === 'day' ? 5 : 5, r.timeline.bucket === 'day' ? 10 : 16)), datasets: [
-          { label: 'Requests', data: r.timeline.points.map((p) => p.requests), borderColor: SOC.cssVar('--accent'), backgroundColor: SOC.cssVar('--accent'), tension: .25, pointRadius: 0 },
-          { label: 'From flagged sources', data: r.timeline.points.map((p) => p.attack), borderColor: SOC.cssVar('--critical'), backgroundColor: SOC.cssVar('--critical'), tension: .25, pointRadius: 0 },
-          { label: '5xx', data: r.timeline.points.map((p) => p.errors5xx), borderColor: SOC.cssVar('--medium'), backgroundColor: SOC.cssVar('--medium'), tension: .25, pointRadius: 0 }] },
+          { label: 'Requests', data: r.timeline.points.map((p) => p.requests), borderColor: SOC.cssVar('--accent'), backgroundColor: SOC.cssVar('--accent'), tension: 0, pointRadius: 0 },
+          { label: 'From flagged sources', data: r.timeline.points.map((p) => p.attack), borderColor: SOC.cssVar('--critical'), backgroundColor: SOC.cssVar('--critical'), tension: 0, pointRadius: 0 },
+          { label: '5xx', data: r.timeline.points.map((p) => p.errors5xx), borderColor: SOC.cssVar('--medium'), backgroundColor: SOC.cssVar('--medium'), tension: 0, pointRadius: 0 }] },
           options: { scales: { x: { ticks: { maxTicksLimit: 10 } }, y: { beginAtZero: true, ticks: { precision: 0 } } }, plugins: { legend: { position: 'bottom' } } } });
       }
       if (Object.keys(r.status).length) {

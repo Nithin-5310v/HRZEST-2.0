@@ -268,9 +268,10 @@ def overview(hours=24):
         cur.execute(ev + "SELECT " + EV_COLS + " FROM ev WHERE " + _WINDOW + " AND " + ALERT_SQL +
                     " ORDER BY created_at DESC, id DESC LIMIT 12", ep + [hours])
         out["recent_alerts"] = [shape_event(r) for r in cur.fetchall()]
-        cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
-        # Same count as the Response view's active_total (platform + company rows).
-        out["active_bans"] = cur.fetchone()[0] + sum(_tenant_active_bans().values())
+        # Same count as the Response view's active_total (platform + company rows,
+        # bans on your own test addresses apart).
+        ips = _active_platform_bans(cur) + [ip for ip, n in _tenant_active_bans().items() for _ in range(n)]
+        out["active_bans"], out["active_bans_testing"] = _count_bans(ips)
     with read_cursor("att_master") as cur:
         cur.execute("SELECT status, COUNT(*) FROM soc_cases GROUP BY status")
         cases = dict(cur.fetchall())
@@ -718,8 +719,7 @@ def bans():
     liftable here. -> {"bans": [...], "errors": [...]}"""
     with read_cursor("public") as cur:
         rows = _ban_rows(cur, "public", {"tenant_id": None, "company": None})
-        cur.execute("SELECT COUNT(*) FROM public.banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
-        active_total = cur.fetchone()[0]
+        active_ips = _active_platform_bans(cur)
 
     def per_tenant(t, cur):
         if t["schema"] == "public":         # same table as the platform list above
@@ -727,11 +727,27 @@ def bans():
         return _ban_rows(cur, t["schema"], {"tenant_id": t["id"], "company": t["company"]}) or None
     groups, errors = each_tenant(per_tenant)
     tenant_rows = [b for g in groups for b in g]
-    active_total += sum(1 for b in tenant_rows if b["active"])
+    active_ips += [b["ip"] for b in tenant_rows if b["active"]]
     rows += tenant_rows
+    for b in rows:
+        b["testing"] = soc_scope.is_test_ip(b["ip"])          # listed (and liftable), not counted
     rows.sort(key=lambda b: b["at"] or "", reverse=True)    # newest first ...
     rows.sort(key=lambda b: not b["active"])                # ... within active, then expired (stable)
-    return {"bans": rows[:BANS_LIMIT], "active_total": active_total, "errors": errors}
+    active_total, testing = _count_bans(active_ips)
+    return {"bans": rows[:BANS_LIMIT], "active_total": active_total, "testing_active": testing, "errors": errors}
+
+
+def _active_platform_bans(cur):
+    cur.execute("SELECT ip FROM public.banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
+    return [ip for (ip,) in cur.fetchall()]
+
+
+def _count_bans(active_ips):
+    """-> (counted, testing). A ban on one of your own SOC_TEST_CIDRS addresses is
+    real and stays listed so it can be lifted, but it is your testing, not an
+    attacker stopped, so it is counted apart (as the Overview does)."""
+    testing = sum(1 for ip in active_ips if soc_scope.is_test_ip(ip))
+    return len(active_ips) - testing, testing
 
 
 # ── cases ────────────────────────────────────────────────────────────
@@ -919,27 +935,39 @@ def attendance_integrity(days=7):
             cur.execute("SELECT to_regclass(%s)", (f'"{evidence_schema}".punch_evidence',))
             if cur.fetchone()[0] is None:
                 return None
+            win = "created_at >= NOW() - (%s * INTERVAL '1 day')"
+            # Your own testing, as everywhere: punches by a SOC_TEST_ACCOUNTS
+            # employee ID or from a SOC_TEST_CIDRS address. (Not private
+            # addresses: behind an untrusted proxy every real punch has one.)
+            accounts = soc_scope.test_accounts()
+            test_ips = []
+            if soc_scope.test_networks():
+                cur.execute("SELECT DISTINCT ip FROM punch_evidence WHERE ip IS NOT NULL AND " + win, (days,))
+                test_ips = [ip for (ip,) in cur.fetchall() if soc_scope.is_test_ip(ip)]
+            mine = "(lower(employee_id) = ANY(%s) OR COALESCE(ip, '') = ANY(%s))"
+            keep, kp = win + " AND NOT " + mine, [days, accounts, test_ips]
             cur.execute(
                 "SELECT COUNT(*), COUNT(*) FILTER (WHERE outcome <> 'accepted'), COUNT(*) FILTER (WHERE mocked), "
                 "COUNT(*) FILTER (WHERE flags IS NOT NULL AND flags <> ''), "
                 # `liveness` is the outcome (passed / failed / challenge_invalid / missing /
                 # not_required); `liveness_action` is only the challenge asked (blink, turn...).
                 "COUNT(*) FILTER (WHERE liveness IN ('failed','challenge_invalid','missing')) "
-                "FROM punch_evidence WHERE created_at >= NOW() - (%s * INTERVAL '1 day')", (days,))
+                "FROM punch_evidence WHERE " + keep, kp)
             total, rejected, mocked, flagged, live = cur.fetchone()
-            cur.execute("SELECT flags FROM punch_evidence WHERE flags IS NOT NULL AND flags <> '' "
-                        "AND created_at >= NOW() - (%s * INTERVAL '1 day') LIMIT 5000", (days,))
-            flags = {}
-            for (f,) in cur.fetchall():
-                for part in f.split(","):
-                    part = part.strip()
-                    if part:
-                        flags[part] = flags.get(part, 0) + 1
-            if not total:
+            # Every flagged punch, counted in the database (not a sample of rows).
+            cur.execute("SELECT trim(f), COUNT(*) FROM punch_evidence, unnest(string_to_array(flags, ',')) AS f "
+                        "WHERE flags IS NOT NULL AND flags <> '' AND " + keep + " GROUP BY 1", kp)
+            flags = {f: n for f, n in cur.fetchall() if f}
+            cur.execute("SELECT COUNT(*) FROM punch_evidence WHERE " + win + " AND " + mine, kp)
+            testing = cur.fetchone()[0]
+            if not total and not testing:
                 return None
             return {"id": t["id"], "company": t["company"], "slug": t["slug"], "punches": total, "rejected": rejected,
-                    "mock_location": mocked, "flagged": flagged, "liveness_issues": live, "flags": flags}
+                    "mock_location": mocked, "flagged": flagged, "liveness_issues": live, "flags": flags,
+                    "testing": testing}
         rows, errors = each_tenant(per_tenant)
+        testing = sum(r.pop("testing") for r in rows)
+        rows = [r for r in rows if r["punches"]]
         agg = {}
         for r in rows:
             for k, v in r["flags"].items():
@@ -947,6 +975,7 @@ def attendance_integrity(days=7):
         rows.sort(key=lambda r: (-(r["flagged"] + r["rejected"]), r["company"].lower()))
         flags = sorted(({"flag": k, "count": v} for k, v in agg.items()), key=lambda x: -x["count"])
         totals = {k: sum(r[k] for r in rows) for k in ("punches", "rejected", "mock_location", "flagged")}
+        totals["testing"] = testing                 # left out, so the page can say so
         return {"days": days, "tenants": rows, "flags": flags, "errors": errors, "totals": totals}
     return _cached(("attendance", days), build)
 
@@ -955,25 +984,36 @@ def risky_sessions():
     """Not cached: a revoke clears the cache only in the worker that handled it,
     so a cached copy in another worker would keep showing the session as live.
     The view loads on demand (it does not poll), so there is no refresh storm."""
+    # A plain logout ('revoked', score 0) isn't risky. Your test accounts are left
+    # out in the query, so they can never push real sessions off the list.
+    risky = ("(status NOT IN ('active', 'revoked') OR score > 0) "
+             "AND lower(identifier) <> ALL(%s)")
+
     def build():
+        accounts = soc_scope.test_accounts()
+
         def per_tenant(t, cur):
             if soc_scope.is_test_company(t["slug"]):       # your own testing (SOC_TEST_COMPANIES)
                 return None
-            cur.execute("SELECT sid, identifier, attempt_type, score, status, last_reason, updated_at FROM session_risk "
-                        # A plain logout ('revoked', score 0) isn't risky.
-                        "WHERE status NOT IN ('active', 'revoked') OR score > 0 ORDER BY updated_at DESC LIMIT 25")
-            rows = [r for r in cur.fetchall() if not soc_scope.is_test_account(r[1])]
-            if not rows:
+            cur.execute("SELECT COUNT(*) FROM session_risk WHERE " + risky, (accounts,))
+            count = cur.fetchone()[0]
+            if not count:
                 return None
-            return [{"tenant_id": t["id"], "company": t["company"], "slug": t["slug"],
-                     "sid_hint": sid[:6] + "…" + sid[-4:], "sid": sid, "identifier": ident, "type": typ, "score": score,
-                     "status": status, "reason": reason, "updated_at": iso(ts)}
-                    for sid, ident, typ, score, status, reason, ts in rows]
+            cur.execute("SELECT sid, identifier, attempt_type, score, status, last_reason, updated_at FROM session_risk "
+                        "WHERE " + risky + " ORDER BY updated_at DESC LIMIT %s", (accounts, SESSIONS_LIMIT))
+            return count, [{"tenant_id": t["id"], "company": t["company"], "slug": t["slug"],
+                            "sid_hint": sid[:6] + "…" + sid[-4:], "sid": sid, "identifier": ident, "type": typ,
+                            "score": score, "status": status, "reason": reason, "updated_at": iso(ts)}
+                           for sid, ident, typ, score, status, reason, ts in cur.fetchall()]
         groups, errors = each_tenant(per_tenant)
-        flat = [s for g in groups for s in g]
+        flat = [s for _, g in groups for s in g]
         flat.sort(key=lambda s: s["updated_at"] or "", reverse=True)
-        return {"sessions": flat[:200], "errors": errors}
+        # The newest SESSIONS_LIMIT across companies, and how many there are in all.
+        return {"sessions": flat[:SESSIONS_LIMIT], "total": sum(n for n, _ in groups), "errors": errors}
     return build()
+
+
+SESSIONS_LIMIT = 200
 
 
 # ── posture ──────────────────────────────────────────────────────────

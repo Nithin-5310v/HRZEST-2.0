@@ -114,10 +114,15 @@ def ip_reason(ip):
         return None
     if is_internal_ip(ip):
         return "internal"
-    addr = parse_ip(ip)
-    if addr is not None and any(addr.version == n.version and addr in n for n in test_networks()):
+    if is_test_ip(ip):
         return "test"
     return None
+
+
+def is_test_ip(ip):
+    """In one of the SOC_TEST_CIDRS ranges you test from."""
+    addr = parse_ip(ip) if ip else None
+    return addr is not None and any(addr.version == n.version and addr in n for n in test_networks())
 
 
 EXCLUDED_NOTES = {

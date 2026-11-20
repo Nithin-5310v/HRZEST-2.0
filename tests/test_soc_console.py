@@ -1085,9 +1085,26 @@ class TestAssessmentViews:
                         "VALUES (%s,'mobile',%s,%s,%s)", (emp, outcome, mocked, flags))
         cur.close()
         d = c.get("/socperson/api/attendance", query_string={"days": 7}).get_json()
-        assert d["totals"] == {"punches": 3, "rejected": 1, "mock_location": 1, "flagged": 2}
+        assert d["totals"] == {"punches": 3, "rejected": 1, "mock_location": 1, "flagged": 2, "testing": 0}
         assert {f["flag"]: f["count"] for f in d["flags"]} == {"photo_replay": 1, "shared_device": 1, "mock_location": 1}
         assert d["tenants"][0]["slug"] == "att-test-suite"
+
+    def test_attendance_leaves_out_your_testing_and_counts_every_flag(self, soc, db_engine, monkeypatch):
+        monkeypatch.setenv("SOC_TEST_ACCOUNTS", "QA-EMP")
+        monkeypatch.setenv("SOC_TEST_CIDRS", "151.101.0.0/16")
+        c, _ = soc()
+        cur = db_engine.cursor()
+        for emp, ip, flags in [("E1", None, "photo_replay"), ("qa-emp", None, "mock_location"),
+                               ("E2", TEST_IP, "shared_device"), ("E3", PUBLIC_IP, "photo_replay, liveness")]:
+            cur.execute("INSERT INTO public.punch_evidence (employee_id, channel, ip, flags) VALUES (%s,'mobile',%s,%s)",
+                        (emp, ip, flags))
+        # A busy week: more flagged punches than the 5000 rows the breakdown used to read.
+        cur.execute("INSERT INTO public.punch_evidence (employee_id, channel, flags) "
+                    "SELECT 'E9', 'mobile', 'mock_location' FROM generate_series(1, 5100)")
+        cur.close()
+        d = c.get("/socperson/api/attendance", query_string={"days": 7}).get_json()
+        assert d["totals"]["punches"] == 5102 and d["totals"]["flagged"] == 5102 and d["totals"]["testing"] == 2
+        assert {f["flag"]: f["count"] for f in d["flags"]} == {"photo_replay": 2, "liveness": 1, "mock_location": 5100}
 
     def test_liveness_issues_count_outcomes_not_challenges(self, soc, db_engine):
         c, _ = soc()
@@ -1438,6 +1455,45 @@ class TestGenuineActivityOnly:
         assert e["events"] == 0 and "SOC_TEST_ACCOUNTS" in e["excluded"]
         e = c.get(f"/socperson/api/entity/ip/{TEST_IP}").get_json()["entity"]
         assert e["events"] == 0 and "SOC_TEST_CIDRS" in e["excluded"]
+
+    def test_a_ban_on_your_own_test_address_is_listed_but_not_counted(self, soc, db_engine, monkeypatch):
+        monkeypatch.setenv("SOC_TEST_CIDRS", "151.101.0.0/16")
+        c, _ = soc("ann", "analyst")
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO public.banned_ips (ip, reason, banned_by) VALUES (%s,'waf','system:auto'), "
+                    "('44.5.5.5','waf','system:auto')", (TEST_IP,))
+        cur.close()
+        d = c.get("/socperson/api/bans").get_json()
+        assert (d["active_total"], d["testing_active"]) == (1, 1)
+        assert {b["ip"]: b["testing"] for b in d["bans"]} == {TEST_IP: True, "44.5.5.5": False}
+        ov = c.get("/socperson/api/overview").get_json()
+        assert (ov["active_bans"], ov["active_bans_testing"]) == (1, 1)
+
+    def test_risky_sessions_leave_out_test_accounts_before_the_limit(self, soc, db_engine, monkeypatch):
+        """The newest sessions are your testing; real ones must still fill the list."""
+        monkeypatch.setenv("SOC_TEST_ACCOUNTS", "qa.bot@example.com")
+        monkeypatch.setattr(soc_queries, "SESSIONS_LIMIT", 3)
+        c, _ = soc()
+        cur = db_engine.cursor()
+        for i in range(5):
+            cur.execute("INSERT INTO public.session_risk (sid, identifier, attempt_type, score, status, updated_at) "
+                        "VALUES (%s,'QA.Bot@example.com','admin',5,'active',NOW())", (f"t{i:031d}",))
+        for i in range(4):
+            cur.execute("INSERT INTO public.session_risk (sid, identifier, attempt_type, score, status, updated_at) "
+                        "VALUES (%s,%s,'admin',5,'active',NOW() - INTERVAL '1 hour')", (f"r{i:031d}", f"real{i}@example.com"))
+        cur.close()
+        d = c.get("/socperson/api/sessions").get_json()
+        assert len(d["sessions"]) == 3 and d["total"] == 4
+        assert all(s["identifier"].startswith("real") for s in d["sessions"])
+
+    def test_every_company_is_read(self, db_engine):
+        """No cap: the 501st company is in every cross-company view and its bans and sessions can be acted on."""
+        cur = db_engine.cursor()
+        cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name, status) "
+                    "SELECT 'Co ' || g, 'cap-co-' || g, 'cap_co_' || g, 'closed' FROM generate_series(1, 520) g")
+        cur.close()
+        slugs = {t["slug"] for t in soc_queries.list_tenants()}
+        assert {"cap-co-1", "cap-co-520"} <= slugs
 
     def test_ban_review_leaves_out_the_server_and_testing(self, soc, db_engine, monkeypatch):
         monkeypatch.setenv("SOC_TEST_CIDRS", "151.101.0.0/16")

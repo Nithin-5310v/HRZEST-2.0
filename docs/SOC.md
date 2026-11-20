@@ -115,7 +115,7 @@ on their next request.
 | `LOKI_URL` | unset | Enables the **Logs** view (read-only LogQL). Read from the environment only, never from a request. |
 | `SOC_LOG_MAX_MB` | 5 | Largest log the analyser accepts. |
 | `SOC_TEST_CIDRS` | unset | Addresses / ranges you test from (office, VPN, CI); their events are left out of every view. |
-| `SOC_TEST_ACCOUNTS` | unset | Identifiers you test with (usernames, emails, employee IDs); left out of every view. |
+| `SOC_TEST_ACCOUNTS` | unset | Identifiers you test with (usernames, emails, employee IDs); left out of every view, including attendance punches and risky sessions. |
 | `SOC_TEST_COMPANIES` | unset | Company URL slugs used only for testing; left out of every view, including Tenant activity, Attendance fraud and sessions. |
 | `SOC_DIGEST` | on | `off` stops the daily summary email. |
 | `SOC_DIGEST_HOUR` | 8 | Hour (0–23, Asia/Kolkata) the daily summary is sent. |
@@ -133,8 +133,8 @@ Every number is a count, time or state as recorded; where the console draws a co
 * **Logs (Loki)** – optional LogQL search of shipped logs.
 * **Cases** – open / investigating / contained / resolved / false positive, assignee, notes timeline.
 * **Ban review** – addresses the WAF (repeated attack payloads), the rate limiter (repeated 429s) and the HTTP/TCP honeypots want banned. Nothing is banned automatically: each address waits here with its source, latest reason, hit count and a suggested duration, and an analyst chooses **Ban** (for a chosen time, through the same path and guards as a manual ban), **Dismiss** (false positive; the next detection re-opens it) or **Trust** (known-good address such as a customer office or an authorised scanner; further detections only add to its hit count until the trust ends). The offending requests themselves are still rejected. Every decision is in the SOC audit trail. `SOC_AUTO_BAN=true` restores immediate bans, still listed here.
-* **Response** – current IP bans (add, lift) and risky sessions across tenants (revoke).
-* **Tenant activity**, **Attendance fraud** – per-company counts as recorded (events, alerts, unacknowledged duplicate-signup alerts; most alerts first) and punch-integrity signals (mock location, replayed photos, shared devices, liveness failures). No weighted risk score.
+* **Response** – current IP bans (add, lift) and risky sessions across tenants (revoke). A ban on one of your own `SOC_TEST_CIDRS` addresses is listed (so it can be lifted) and marked *your testing*, but not counted among active bans here or on the Overview. Your test accounts never take a place in the sessions list, and the page says when it shows only the newest 200.
+* **Tenant activity**, **Attendance fraud** – per-company counts as recorded (events, alerts, unacknowledged duplicate-signup alerts; most alerts first) and punch-integrity signals (mock location, replayed photos, shared devices, liveness failures), counted over every punch in the window, with punches by your `SOC_TEST_ACCOUNTS` employee IDs or from `SOC_TEST_CIDRS` left out (the page says how many). No weighted risk score. Every company is read: there is no cap on how many.
 * **Detections** – the correlation rules, their thresholds, and when each last fired and how often in the last 90 days, counted from the same genuine detection events the view lists.
 * **Audit integrity** – verifies the hash chain over `security_events` on demand. The verifier streams the table, so memory stays flat at any size; a button press stops after 45 seconds on a very long chain, and the scheduled check (03:45 nightly) verifies all of it.
 * **Posture** – live configuration checks with the setting to change. Reports whether a control is on, never a secret.
