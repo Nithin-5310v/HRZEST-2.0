@@ -20,25 +20,17 @@ Package layout (split from one module; routes register in this order):
   dashboard      dashboard, tenant list/status/delete, costs, rate, leads, CSV exports
   applications   gated company-signup review queue (approve/reject, documents)
   alerts         duplicate-signup alerts
-  audit          audit log over security_events, SOC dashboard link
+  audit          audit log over security_events
   crm            mini-CRM: company profile, notes, ticket creation
   tickets        support ticket queue, detail, updates, comments
   chat           internal chat with a company's admin/HR
 """
 import functools
-import os
 import time
 from database import get_master_db
 from flask import Blueprint, abort, flash, redirect, session
 
 platform_admin_bp = Blueprint("platform_admin", __name__)
-
-
-@platform_admin_bp.context_processor
-def _inject_soc_flag():
-    """templates/_platform_sidebar.html is on every console page, and only
-    links the SOC page when it's configured."""
-    return {"soc_dashboard_configured": bool(os.environ.get("SOC_DASHBOARD_URL"))}
 
 
 _MFA_OTP_TTL_SEC = 300  # 5 minutes, same window every other emailed-OTP login uses
@@ -176,7 +168,6 @@ from .alerts import (  # noqa: E402,F401
 )
 from .audit import (  # noqa: E402,F401
     platform_admin_audit_log,
-    platform_admin_soc_dashboard,
 )
 from .crm import (  # noqa: E402,F401
     _fetch_tenant,

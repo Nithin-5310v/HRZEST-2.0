@@ -50,7 +50,6 @@ def test_a_ready_server_passes(env, capsys):
     ({"SOC_LOGIN_EMAILS": "not-an-address"}, "Who can sign in"),
     ({"SOC_ALLOWED_CIDRS": ""}, "Network allow-list"),
     ({"SOC_ALLOWED_CIDRS": "office-network"}, "Network allow-list"),
-    ({"SOC_DASHBOARD_URL": "http://soc.example:4500"}, "External SOC dashboard"),
 ])
 def test_each_blocker_fails_with_its_fix(env, change, title, capsys):
     for k, v in change.items():
@@ -68,7 +67,8 @@ def test_each_blocker_fails_with_its_fix(env, change, title, capsys):
     ({"APP_URL": "http://hrzest.example"}, "Link in the daily summary"),
     ({"SECURITY_ALERT_WEBHOOK_URL": ""}, "Real-time alerts"),
     ({"TRUSTED_PROXY_HOPS": ""}, "Real visitor addresses"),
-    ({"SOC_ADMIN_TOKEN": "old-token"}, "Old dashboard token"),
+    ({"SOC_ADMIN_TOKEN": "old-token"}, "Old SOC dashboard setting"),
+    ({"SOC_DASHBOARD_URL": "https://soc.example:4500"}, "Old SOC dashboard setting"),
 ])
 def test_risky_but_working_settings_warn(env, change, title):
     for k, v in change.items():

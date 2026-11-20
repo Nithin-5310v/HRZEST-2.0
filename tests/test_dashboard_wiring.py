@@ -21,7 +21,7 @@ from tests.dashboard_audit import ROOT, audit
 
 DASHBOARDS = [
     "admin.html", "hr_dashboard.html", "employee_portal.html", "analytics.html",
-    "super_admin_dashboard.html", "super_admin_soc_dashboard.html", "super_admin_audit_log.html",
+    "super_admin_dashboard.html", "super_admin_audit_log.html",
     "super_admin_applications.html", "super_admin_application_detail.html", "super_admin_tickets.html",
     "super_admin_ticket_detail.html", "super_admin_company_profile.html", "super_admin_duplicate_alerts.html",
 ]
