@@ -93,8 +93,8 @@ def password_step(client, password=TEST_PASSWORD):
     """After a correct code: set the first password, or enter it. -> the response."""
     page = client.get("/socperson/login").get_data(as_text=True)
     if "Set your password" in page:
-        return client.post("/socperson/login", data={"action": "set_password", "password": password,
-                                                      "confirm": password})
+        return client.post("/socperson/login",
+                           data={"action": "set_password", "password": password, "confirm": password})
     assert "Enter your password" in page, page
     return client.post("/socperson/login", data={"action": "password", "password": password})
 
