@@ -124,12 +124,33 @@ def log_security_event(event_type: str, message: str, level: str = "WARNING", **
     # same circularity reason as utils.alerts above: utils/async_writer.py
     # imports app_log from this module.
     from utils.async_writer import enqueue_write
+    tenant = _request_tenant()
+    extra = {k: v for k, v in fields.items() if k != "identifier"}
+    if tenant and "tenant" not in extra:
+        extra["tenant"] = tenant        # in extra_json too: that column is hash-chained
     enqueue_write(_persist_security_event, event_type, level.upper(), message,
-                  fields.get("identifier"), ip, path, method,
-                  {k: v for k, v in fields.items() if k != "identifier"})
+                  fields.get("identifier"), ip, path, method, extra, tenant)
 
 
-def _persist_security_event(event_type, level, message, identifier, ip, path, method, extra_fields):
+def _request_tenant():
+    """The company this request ran as, by URL slug, or None. The recorded path
+    cannot say: utils/tenant_routing.py moves the /<company>/ prefix into
+    SCRIPT_NAME before the app sees it. Taken from what the app itself resolved
+    -- the middleware's slug, or app_setup/tenant.py's / the sign-in's g.tenant_slug
+    -- never straight from the session, which a platform page (the SOC console)
+    may share with a company login."""
+    try:
+        from flask import g as _g, has_request_context, request as _req
+        if not has_request_context():
+            return None
+        slug = _req.environ.get("hrz.tenant_slug") or getattr(_g, "tenant_slug", None)
+    except Exception:
+        return None
+    slug = str(slug).strip().lower()[:100] if slug else ""
+    return slug or None
+
+
+def _persist_security_event(event_type, level, message, identifier, ip, path, method, extra_fields, tenant=None):
     """Runs on the background writer thread only — see utils/async_writer.py.
     Never let a persistence failure here affect the caller; log_security_event
     has already done its real job (the log line + any webhook) by the time
@@ -140,10 +161,10 @@ def _persist_security_event(event_type, level, message, identifier, ip, path, me
         cur = db.cursor()
         try:
             cur.execute(
-                "INSERT INTO security_events (event_type, level, message, identifier, ip, path, method, extra_json) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                "INSERT INTO security_events (event_type, level, message, identifier, ip, path, method, extra_json, tenant) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (event_type[:80], level[:10], message[:500], identifier, ip, path, method,
-                 json.dumps(extra_fields, default=str)[:4000] if extra_fields else None),
+                 json.dumps(extra_fields, default=str)[:4000] if extra_fields else None, tenant),
             )
             db.commit()
         finally:

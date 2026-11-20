@@ -22,7 +22,10 @@ _fresh_soc_state = _console._fresh_soc_state
 
 
 @pytest.fixture(autouse=True)
-def _passkeys_on(_fresh_soc_state, monkeypatch):
+def _passkeys_on(_fresh_soc_state, client, monkeypatch):
+    # `client` for its TESTING config (CSRF off, as for the rest of the suite):
+    # without it, a test here that only makes its own test clients fails with a
+    # CSRF 403 whenever random ordering runs it first.
     monkeypatch.setenv("SOC_PASSKEY", "on")
 
 

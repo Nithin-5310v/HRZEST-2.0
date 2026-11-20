@@ -33,7 +33,11 @@ from utils import soc_taxonomy as tax
 from utils.soc_db import each_tenant, list_tenants, read_cursor
 from utils.soc_util import clamp_int, iso, like_escape, looks_like_ip
 
-EV_COLS = "id, event_type, level, message, identifier, ip, path, method, extra_json, created_at"
+EV_COLS = "id, event_type, level, message, identifier, ip, path, method, extra_json, created_at, tenant"
+# The company an event belongs to: the `tenant` the request ran as, recorded at
+# write time (extensions.log_security_event); rows from before that column fall
+# back to the first path segment.
+TENANT_SQL = "lower(COALESCE(NULLIF(tenant, ''), split_part(COALESCE(path, ''), '/', 2)))"
 _WINDOW = "created_at >= NOW() - (%s * INTERVAL '1 hour')"
 ALERT_SQL = "(event_type LIKE 'detection.%%' OR level IN ('ERROR','CRITICAL'))"
 
@@ -81,12 +85,12 @@ def _extra(raw, limit=4000):
 
 
 def shape_event(row, detail=False):
-    eid, et, level, msg, ident, ip, path, method, extra, ts = row
+    eid, et, level, msg, ident, ip, path, method, extra, ts, tenant = row
     cls = tax.classify(et, level)
     d = {"id": eid, "event_type": et, "level": level, "message": msg, "identifier": ident, "ip": ip,
          "path": path, "method": method, "created_at": iso(ts), "family": cls["family"], "label": cls["label"],
          "mitre": [m["id"] for m in cls["mitre"]], "severity": tax.severity_of(et, level),
-         "alert": tax.is_alert(et, level), "tenant": tax.tenant_hint(path)}
+         "alert": tax.is_alert(et, level), "tenant": tenant or tax.tenant_hint(path)}
     if detail:
         d["extra"] = _extra(extra)
         d["mitre_detail"] = cls["mitre"]
@@ -325,7 +329,7 @@ def search_events(*, q=None, levels=None, family=None, event_type=None, ip=None,
             where.append("identifier = %s")
             params.append(identifier[:150])
         if tenant:
-            where.append("split_part(path, '/', 2) = %s")
+            where.append(TENANT_SQL + " = %s")
             params.append(tenant[:100].lower())
         if alerts_only:
             where.append(ALERT_SQL)
@@ -379,7 +383,7 @@ def event_detail(event_id):
                         "ORDER BY created_at DESC LIMIT 100", (val, event_id, ts, ts))
             # Genuine activity only, as in every list (utils/soc_scope.py).
             related[key] = [shape_event(r) for r in cur.fetchall()
-                            if soc_scope.is_genuine(r[1], r[5], r[4], r[6])][:25]
+                            if soc_scope.is_genuine(r[1], r[5], r[4], r[6], r[10])][:25]
         ev["related"] = related
         try:
             cur.execute("SELECT prev_hash, row_hash FROM security_events WHERE id=%s", (event_id,))
@@ -506,7 +510,7 @@ def platform_log_text(hours=24, max_bytes=None, max_events=PLATFORM_LOG_MAX_EVEN
                     ep + [hours, max_events])
         rows = cur.fetchall()
     lines, size = [], 0
-    for eid, et, level, msg, ident, ip, path, method, extra, ts in rows:      # newest first
+    for eid, et, level, msg, ident, ip, path, method, extra, ts, _tenant in rows:      # newest first
         rec = {"created_at": iso(ts), "ip": ip, "method": method, "path": path, "event_type": et,
                "level": level, "identifier": ident if ident not in (None, "", "None") else None, "message": msg}
         x = _extra(extra)           # parse whole: cutting first breaks the JSON and loses the UA
@@ -767,20 +771,20 @@ def audit_integrity(timeout_ms=45000):
     from database import owner_privileges
     from utils import audit_chain
     started = time.monotonic()
-    cap = clamp_int(os.environ.get("SOC_VERIFY_MAX_ROWS", 500000), 500000, 1000, 50000000)
     # Under the owner/runtime role split the runtime role has no access to
     # audit_chain_head (by design), so verify as the owner like
     # utils/audit_jobs.py and scripts/verify_audit_chain.py do. The block is a
     # single READ ONLY transaction, so the owner connection cannot write here.
+    # The verifier streams (flat memory at any table size); what bounds a button
+    # press is time, so the whole run gets the same budget as one statement.
     with owner_privileges(), read_cursor("public", timeout_ms) as cur:
-        # verify_table holds every chained row in memory; on a very large table run the
-        # scheduled job / scripts/verify_audit_chain.py instead of a button.
-        cur.execute("SELECT COUNT(*) FROM security_events")
-        rows = cur.fetchone()[0]
-        if rows > cap:
-            raise ValueError(f"security_events has {rows:,} rows (console limit {cap:,}). "
-                             "Run scripts/verify_audit_chain.py, or raise SOC_VERIFY_MAX_ROWS.")
-        report = audit_chain.verify_table(cur, "public", "security_events")
+        try:
+            report = audit_chain.verify_table(cur, "public", "security_events",
+                                              deadline=started + timeout_ms / 1000)
+        except audit_chain.VerificationTimeout as exc:
+            raise ValueError(f"The chain is too long to verify within {timeout_ms // 1000} s from the console "
+                             f"({exc}). The scheduled check verifies all of it every night at 03:45; "
+                             "scripts/verify_audit_chain.py runs it on demand.") from exc
     report = {k: (iso(v) if not isinstance(v, (int, float, str, bool, list, dict, type(None))) else v)
               for k, v in report.items()}
     report["elapsed_ms"] = int((time.monotonic() - started) * 1000)
@@ -818,8 +822,9 @@ def tenants_overview(hours=24):
         with read_cursor("public") as cur:
             ev, ep = soc_scope.events_cte(cur, hours)
             cur.execute(
-                ev + "SELECT split_part(path, '/', 2) AS slug, COUNT(*), COUNT(*) FILTER (WHERE " + ALERT_SQL + ") "
-                "FROM ev WHERE " + _WINDOW + " AND path LIKE '/%%/%%' GROUP BY 1", ep + [hours])
+                ev + "SELECT " + TENANT_SQL + " AS slug, COUNT(*), COUNT(*) FILTER (WHERE " + ALERT_SQL + ") "
+                "FROM ev WHERE " + _WINDOW + " AND (NULLIF(tenant, '') IS NOT NULL OR path LIKE '/%%/%%') "
+                "GROUP BY 1", ep + [hours])
             counts = {s: (c, a) for s, c, a in cur.fetchall()}
         with read_cursor("att_master") as cur:
             cur.execute("SELECT conflicting_tenant_id, COUNT(*) FROM tenant_duplicate_alerts WHERE acknowledged=0 GROUP BY 1")
@@ -833,8 +838,9 @@ def tenants_overview(hours=24):
                         "billing_state": t["billing_state"], "events": ev, "alerts": al, "duplicate_alerts": d,
                         "risk": score, "created_at": iso(t["created_at"])})
         out.sort(key=lambda x: (-x["risk"], x["company"].lower()))
-        return {"hours": hours, "tenants": out, "note": "Event counts attribute events to a tenant by the first URL "
-                "segment of the request path; events without a tenant URL are not attributed."}
+        return {"hours": hours, "tenants": out, "note": "Each event counts for the company its request ran as "
+                "(recorded with the event). Events from before that was recorded fall back to the company named "
+                "in the request path; events of the platform itself belong to no company."}
     return _cached(("tenants", hours), build)
 
 

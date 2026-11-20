@@ -427,6 +427,23 @@ jobs:
             exit 1
           fi
 
+      - name: Run the SOC console tests as the restricted runtime role
+        # The SOC console as a hardened production host runs it: sign-in, passkeys,
+        # bans across company schemas, the audit trail and the daily summary all
+        # under the runtime role, which cannot alter schema or rewrite audit rows.
+        env:
+          DB_USER: hrzest_app
+          DB_PASS: app_ci_pass
+          DB_OWNER_USER: hrzest_owner
+          DB_OWNER_PASS: owner_ci_pass
+          SECRET_KEY: ci-test-secret-key-not-used-in-prod
+          FLASK_ENV: testing
+        run: >-
+          python -m pytest -v --tb=short
+          tests/test_soc_console.py tests/test_soc_ban_review.py tests/test_soc_passkeys.py
+          tests/test_soc_digest.py tests/test_soc_posture_alerts.py tests/test_platform_admin_soc.py
+          tests/test_soc_loganalysis.py tests/test_soc_taxonomy.py
+
   e2e-soc-passkey:
     # SOC console sign-in in a real browser (tests_e2e/test_soc_passkey.py):
     # email -> code -> passkey, with Chromium's virtual authenticator, so

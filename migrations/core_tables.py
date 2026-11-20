@@ -543,6 +543,13 @@ def _init_core_tables(cursor, db):
     # address did" and "everything about this account" over a time window.
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_ip ON security_events (ip, created_at DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_ident ON security_events (identifier, created_at DESC)")
+    # The company the request ran as (extensions.log_security_event). The path
+    # cannot say: utils/tenant_routing.py moves the /<company>/ prefix out of it
+    # before the app sees the request. Not part of the hash chain's column list
+    # (migrations/audit_integrity.py), so the value is also written into
+    # extra_json, which is hashed.
+    cursor.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS tenant VARCHAR(100)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_security_events_tenant ON security_events (tenant, created_at DESC)")
 
     # Immutable + tamper-evident audit trail: audit_logs (data/config
     # changes) and security_events (auth/access events) are append-only

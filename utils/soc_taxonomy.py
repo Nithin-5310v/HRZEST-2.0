@@ -281,8 +281,9 @@ def severity_of(event_type, level):
 
 def tenant_hint(path):
     """Best-effort tenant slug from a request path ('/acme/admin' -> 'acme').
-    Returns None for the platform's own top-level routes. security_events has no
-    tenant column, so this is a hint, never an authorisation decision."""
+    Returns None for the platform's own top-level routes. Only the fallback for
+    rows recorded before security_events.tenant existed; a hint, never an
+    authorisation decision."""
     if not path or not path.startswith("/"):
         return None
     seg = path.split("/", 2)[1].lower() if len(path) > 1 else ""

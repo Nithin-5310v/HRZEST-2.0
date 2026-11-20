@@ -109,15 +109,29 @@ def soc(client):
 
 
 def add_event(db, event_type, level="WARNING", ip=None, identifier=None, path=None, method="GET",
-              message="test event", extra=None, minutes_ago=5):
+              message="test event", extra=None, minutes_ago=5, tenant=None):
     cur = db.cursor()
     cur.execute(
-        "INSERT INTO public.security_events (event_type, level, message, identifier, ip, path, method, extra_json, created_at) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s, NOW() - (%s * INTERVAL '1 minute')) RETURNING id",
-        (event_type, level, message, identifier, ip, path, method, json.dumps(extra) if extra else None, minutes_ago))
+        "INSERT INTO public.security_events (event_type, level, message, identifier, ip, path, method, extra_json, "
+        "created_at, tenant) VALUES (%s,%s,%s,%s,%s,%s,%s,%s, NOW() - (%s * INTERVAL '1 minute'), %s) RETURNING id",
+        (event_type, level, message, identifier, ip, path, method, json.dumps(extra) if extra else None, minutes_ago,
+         tenant))
     eid = cur.fetchone()[0]
     cur.close()
     return eid
+
+
+def _grant_runtime_access(cur, *schemas):
+    """What real company provisioning does after creating a schema: give the
+    restricted runtime role its grants (database.grant_runtime_privileges). A
+    no-op unless the suite runs with the owner / runtime split (CI's
+    test-role-split job), where the app could not read the schema otherwise."""
+    import database
+    if not database.owner_role_configured():
+        return
+    for schema in schemas:
+        for stmt in database.runtime_grant_statements(schema, os.environ["DB_USER"]):
+            cur.execute(stmt)
 
 
 def audit_actions(db):
@@ -865,6 +879,7 @@ class TestResponseActions:
         cur.execute('CREATE SCHEMA "soc_noban_co"')
         cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name, status) "
                     "VALUES ('No Ban Co','noban-co','soc_noban_co','active')")
+        _grant_runtime_access(cur, schema, "soc_noban_co")
         cur.execute("INSERT INTO public.banned_ips (ip, reason, banned_by) VALUES ('44.4.4.4','platform','t')")
         c, _ = soc("ann", "analyst")
         bans = c.get("/socperson/api/bans").get_json()["bans"]
@@ -1000,12 +1015,50 @@ class TestCases:
 
 class TestAssessmentViews:
     def test_tenants_attribute_events_by_url_prefix(self, soc, db_engine):
+        """Rows from before security_events.tenant existed: the path is the fallback."""
         c, _ = soc()
         add_event(db_engine, "access.denied", "WARNING", path="/att-test-suite/admin")
         add_event(db_engine, "waf.sqli_blocked", "ERROR", path="/att-test-suite/search")
         add_event(db_engine, "access.denied", "WARNING", path="/login")
         t = {x["slug"]: x for x in c.get("/socperson/api/tenants").get_json()["tenants"]}["att-test-suite"]
         assert t["events"] == 2 and t["alerts"] == 1 and t["risk"] >= 8
+
+    def test_a_real_company_request_is_recorded_with_its_company(self, soc, client, db_engine):
+        """The app takes the /<company>/ prefix out of the path before it runs, so
+        the path alone never named the company: Tenant risk counted almost nothing.
+        The event now records the company the request ran as -- in its own column
+        and inside the hash-chained extra_json."""
+        c, _ = soc()
+        sqli = "1' UNION SELECT username,password FROM users--"
+        visitor = {"REMOTE_ADDR": PUBLIC_IP}         # not the server's own address, which the console leaves out
+        assert client.get("/att-test-suite/admin", query_string={"q": sqli}, environ_base=visitor).status_code == 403
+        cur = db_engine.cursor()
+        cur.execute("SELECT id, path, tenant, extra_json FROM public.security_events "
+                    "WHERE event_type LIKE 'waf.%%blocked' ORDER BY id DESC LIMIT 1")
+        eid, path, tenant, extra = cur.fetchone()
+        cur.close()
+        assert tenant == "att-test-suite" and not path.startswith("/att-test-suite")
+        assert json.loads(extra)["tenant"] == "att-test-suite"
+        # Every console view now sees which company it was ...
+        t = {x["slug"]: x for x in c.get("/socperson/api/tenants").get_json()["tenants"]}["att-test-suite"]
+        assert t["events"] >= 1 and t["alerts"] >= 1
+        found = c.get("/socperson/api/events", query_string={"tenant": "att-test-suite"}).get_json()["events"]
+        assert eid in [e["id"] for e in found]
+        assert c.get(f"/socperson/api/events/{eid}").get_json()["event"]["tenant"] == "att-test-suite"
+        # ... and a request that names no company belongs to none.
+        assert flask_app.test_client().get("/admin", query_string={"q": sqli}, environ_base=visitor).status_code == 403
+        cur = db_engine.cursor()
+        cur.execute("SELECT tenant FROM public.security_events WHERE event_type LIKE 'waf.%%blocked' ORDER BY id DESC LIMIT 1")
+        assert cur.fetchone()[0] is None
+        cur.close()
+
+    def test_a_listed_test_company_is_left_out_by_its_recorded_company(self, soc, db_engine, monkeypatch):
+        monkeypatch.setenv("SOC_TEST_COMPANIES", "att-test-suite")
+        c, _ = soc()
+        add_event(db_engine, "auth.failure", "ERROR", ip=PUBLIC_IP, path="/login", tenant="att-test-suite",
+                  message="from the test company")
+        msgs = {e["message"] for e in c.get("/socperson/api/events").get_json()["events"]}
+        assert "from the test company" not in msgs
 
     def test_attendance_integrity_aggregates_punch_evidence(self, soc, db_engine):
         c, _ = soc()
@@ -1112,11 +1165,20 @@ class TestAssessmentViews:
         stored = json.loads(soc_blueprint._integrity_detail(report))
         assert stored["ok"] is False and stored["violations_total"] == 500 and len(stored["violations"]) < 500
 
-    def test_verification_refuses_a_table_too_large_to_hold_in_memory(self, soc, monkeypatch):
+    def test_verification_that_outruns_its_time_budget_says_where_it_runs_instead(self, soc, monkeypatch):
+        """No row cap any more (the verifier streams); a press is bounded by time."""
+        from utils import audit_chain
         c, _ = soc("ann", "analyst")
-        monkeypatch.setattr(soc_queries, "clamp_int", lambda *a, **k: 0)          # cap of zero rows
+        seen = {}
+
+        def too_slow(cur, schema, table, anchors=None, deadline=None):
+            seen["deadline"] = deadline                  # the console passes a time budget ...
+            raise audit_chain.VerificationTimeout("public.security_events: stopped after 5,000,000 rows")
+        monkeypatch.setattr(audit_chain, "verify_table", too_slow)
         r = c.post("/socperson/api/integrity/verify")
+        assert seen["deadline"] is not None              # ... and the verifier enforces it (test_audit_integrity.py)
         assert r.status_code == 400 and "verify_audit_chain.py" in r.get_json()["msg"]
+        assert "03:45" in r.get_json()["msg"]
 
 
 class TestLoki:
