@@ -16,6 +16,20 @@ from utils.client_ip import is_protected_ip, warn_if_client_ip_collapsed
 from utils.helpers import get_company_settings, tpath as _tpath
 from app_setup.config import _SESSION_MAX_AGE
 
+# Image decompression bombs (security review 2026-11-20): a PNG of a few
+# hundred KB can decode to hundreds of megapixels (~1 GB of RAM each), and the
+# kiosk /attendance endpoint decodes images without a login. Pillow raises
+# DecompressionBombError past 2x this limit; the warning between 1x and 2x is
+# made an error too, so nothing over ~24 MP (far above any camera photo used
+# here) is ever decoded.
+try:
+    import warnings as _warnings
+    from PIL import Image as _PILImage
+    _PILImage.MAX_IMAGE_PIXELS = 24_000_000
+    _warnings.simplefilter("error", _PILImage.DecompressionBombWarning)
+except Exception:  # pragma: no cover -- Pillow missing
+    pass
+
 
 @app.before_request
 def _enforce_ip_ban():

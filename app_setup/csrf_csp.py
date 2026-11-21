@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 """CSRF enforcement, CSP nonces and security headers, and the
-response rewriting that injects CSRF fields/meta.
+response rewriting that injects CSRF fields/meta. (CSP nonces are not
+added to rendered responses: templates write them -- see utils/csp.py.)
 
 Split out of app.py; registered on the shared Flask app at import time.
 app.py imports the app_setup modules in a fixed order because Flask runs
 before_request hooks in registration order (after_request in reverse).
 """
-import base64
-import hashlib
-import html as _html
 import os
 import re
 import secrets
@@ -16,6 +14,7 @@ from extensions import app, app_log
 from flask import current_app, flash, jsonify, redirect, request, session, url_for
 from utils.helpers import invalidate_settings_cache, static_url as _static_url
 from app_setup.templating import _csrf_token
+import utils.csp as _csp
 
 
 _CSRF_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -158,10 +157,12 @@ def _add_csrf_fields(html, token):
     return b"".join(parts)
 
 
-# Inline style="" attribute values, hashed so style-src-attr can drop
-# 'unsafe-inline' in favor of per-response sha256 hashes.
-_CSP_STYLE_DQ = re.compile(rb'\bstyle\s*=\s*"([^"]*)"', re.IGNORECASE)
-_CSP_STYLE_SQ = re.compile(rb"\bstyle\s*=\s*'([^']*)'", re.IGNORECASE)
+# Nothing adds CSP nonces to the rendered response (security audit P1): template
+# tags get them at compile time (app_setup/templating.py's CspNonceExtension),
+# and style="" hashes are registered while a template renders, from its source
+# (utils/csp.py) -- the response is no longer scanned for style attributes, so an
+# injected one gets no hash. The scripts below are this module's own, so they
+# get the nonce where they are injected.
 _CSRF_SCRIPT = (
     b'<script>(function(){'
     b'var m=document.querySelector(\'meta[name="csrf-token"]\');'
@@ -314,28 +315,13 @@ def _security_headers(response):
         # Templates use data-on-<event>="fn(...)" instead, bound by
         # static/hz-actions.js; tests/test_csp_inline_handlers.py keeps
         # templates free of inline handlers, which the browser would block.
-        try:
-            data = response.get_data()
-        except Exception:
-            data = b""
-        # Same treatment for inline style="" attribute values, so
-        # style-src-attr can drop 'unsafe-inline' -- every remaining
-        # dynamic style/cssText write in app JS was migrated to
-        # el.style.setProperty()/Object.assign(el.style, ...), which CSP
-        # doesn't restrict, so only these server-rendered attributes need
-        # hashing.
-        try:
-            _style_hashes: set = set()
-            for _pat in (_CSP_STYLE_DQ, _CSP_STYLE_SQ):
-                for _m in _pat.finditer(data):
-                    _body = _html.unescape(_m.group(1).decode("utf-8", errors="replace"))
-                    _style_hashes.add(
-                        "'sha256-" + base64.b64encode(
-                            hashlib.sha256(_body.encode("utf-8")).digest()
-                        ).decode() + "'"
-                    )
-        except Exception:
-            _style_hashes = set()
+        # Inline style="" attributes: only the ones written in template source
+        # (or passed through utils.csp.trusted_html()) are hashed, while the
+        # page renders. A style attribute injected into the output was never
+        # registered, so the browser blocks it (security audit P1). Dynamic
+        # style/cssText writes in app JS use el.style.setProperty() /
+        # Object.assign(el.style, ...), which CSP doesn't restrict.
+        _style_hashes = _csp.style_attr_hashes()
         _style_unsafe_hashes = " 'unsafe-hashes'" if _style_hashes else ""
         _style_hash_src = (" " + " ".join(sorted(_style_hashes))) if _style_hashes else ""
         # Cloudflare Turnstile (admin_login CAPTCHA; the home page's company
@@ -426,13 +412,14 @@ def _inject_csrf_meta(response):
     (app_setup/templating.py's CspNonceExtension) and Python-built pages add
     it themselves (utils.helpers.csp_nonce_attr). Only the scripts this
     function adds get it here.
+    style="" attribute hashes likewise come only from template source
+    (utils/csp.py), never from scanning the response.
     """
     if not response.content_type.startswith("text/html"):
         return response
     if response.status_code >= 300:
         return response
     try:
-        from flask import g
         data = response.get_data()
         token = _csrf_token()
         meta = f'<meta name="csrf-token" content="{token}" />'.encode()
@@ -447,7 +434,7 @@ def _inject_csrf_meta(response):
                          + b'<script src="' + _actions_src + b'"></script>')
         if session.get("admin_logged_in") or session.get("employee_id"):
             _body_scripts += _KILLSWITCH_SCRIPT
-        nonce = getattr(g, "csp_nonce", None)
+        nonce = _csp.csp_nonce()
         if nonce:
             # Only our own constants above -- never page content.
             _body_scripts = _body_scripts.replace(b"<script", b'<script nonce="' + nonce.encode() + b'"')

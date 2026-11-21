@@ -558,6 +558,9 @@ def _save_application_documents(application, files):
     # A re-upload after a rejection stays suspended until that review
     # approves it -- _approve_application_reviewed() reinstates the tenant
     # then, rather than corrected documents reinstating themselves unseen.
+    # Until approved the company works in restricted mode: no payout setup,
+    # no salary disbursement, no bulk email (utils/kyc_gate.py; security
+    # review 2026-11-20, audit P3 option B).
     application["doc_review_status"] = "pending_review"
     return True, None
 

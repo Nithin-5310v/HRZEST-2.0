@@ -252,7 +252,7 @@ def logout_everywhere():
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "soc_ui")
 _PUBLIC_ASSETS = frozenset({"login.css"})
 _PRIVATE_ASSETS = frozenset({"soc.css", "soc-core.js", "soc-views.js", "soc-analysis.js", "soc-banreview.js",
-                             "soc-traffic.js"})
+                             "soc-traffic.js", "soc-health.js"})
 
 
 @soc_bp.route("/socperson/assets/<name>")
@@ -295,6 +295,14 @@ def api_traffic():
     """Request counts, status codes and response times (utils/http_telemetry.py)."""
     from utils import http_telemetry
     return _ok(**http_telemetry.traffic(request.args.get("hours")))
+
+
+@soc_bp.route("/socperson/api/health")
+@soc_required("viewer")
+def api_system_health():
+    """Server, database and app-service readings (utils/health_telemetry.py)."""
+    from utils import health_telemetry
+    return _ok(**health_telemetry.health(request.args.get("hours")))
 
 
 @soc_bp.route("/socperson/api/overview")

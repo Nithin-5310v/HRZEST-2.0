@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""att_master tables behind request telemetry (utils/http_telemetry.py).
+"""att_master tables behind request telemetry (utils/http_telemetry.py) and
+server / database health (utils/health_telemetry.py).
 
   http_minute_stats      per minute x route pattern x method x status x company:
                          request count, total and slowest duration, and a
@@ -8,6 +9,8 @@
                          own counts to the same row, so the totals are exact.
   http_telemetry_flushes one row per worker process: when it last wrote. Tells a
                          quiet site apart from a collector that stopped.
+  health_snapshots       one row per source (host, postgres, app) per minute: the
+                         readings as JSON, or ok = false and a generic reason.
 
 Platform-wide like the SOC tables, never per company: a company admin has no
 business reading other companies' traffic.
@@ -37,6 +40,18 @@ STATEMENTS = [
         PRIMARY KEY (host, pid)
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS health_snapshots (
+        id        BIGSERIAL    PRIMARY KEY,
+        taken_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+        host      VARCHAR(64)  NOT NULL,
+        source    VARCHAR(20)  NOT NULL CHECK (source IN ('host', 'postgres', 'app')),
+        ok        BOOLEAN      NOT NULL,
+        metrics   JSONB        NOT NULL DEFAULT '{}'::jsonb,
+        error     VARCHAR(300)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_health_snapshots_source ON health_snapshots (source, taken_at DESC)",
 ]
 
 

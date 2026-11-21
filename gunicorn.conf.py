@@ -47,6 +47,25 @@ errorlog = "-"             # stderr
 loglevel = os.environ.get("LOG_LEVEL", "info")
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)sµs'
 
+# Reset / bridge / offer-letter tokens never reach the access log (they sit in
+# the URL and in the next request's Referer). Security review 2026-11-20.
+try:
+    from gunicorn.glogging import Logger as _GunicornLogger
+    from utils.log_redaction import redact_url as _redact_url
+
+    class RedactingLogger(_GunicornLogger):
+        def atoms(self, resp, req, environ, request_time):
+            atoms = super().atoms(resp, req, environ, request_time)
+            for _key in ("r", "U", "q", "f"):
+                if isinstance(atoms.get(_key), str):
+                    atoms[_key] = _redact_url(atoms[_key])
+            return atoms
+
+    logger_class = RedactingLogger
+except Exception as _exc:  # pragma: no cover -- only when gunicorn/utils can't be imported
+    import sys as _sys
+    print(f"gunicorn.conf.py: access-log token redaction NOT active ({_exc!r})", file=_sys.stderr)
+
 # ── Process naming ───────────────────────────────────────────────────────────
 proc_name = "hrms-attendance"
 

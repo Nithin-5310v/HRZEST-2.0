@@ -65,6 +65,21 @@ def _paginate(items, page, per_page):
     return items[start:start + per_page], page, total_pages
 
 
+def _platform_admin_still_exists(username):
+    if not username:
+        return False
+    try:
+        conn = get_master_db()
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM platform_admins WHERE username=%s", (username,))
+        found = cur.fetchone() is not None
+        cur.close()
+        conn.close()
+        return found
+    except Exception:
+        return True
+
+
 def _platform_admin_required(view):
     @functools.wraps(view)
     def wrapped(*args, **kwargs):
@@ -78,6 +93,13 @@ def _platform_admin_required(view):
         # someone kept a copy of its cookie (security review Section 9).
         from utils.session_risk import is_session_compromised
         if is_session_compromised(session.get("_sid")):
+            session.clear()
+            abort(404)
+        # A deleted operator's session ends on its next request, not at the
+        # 30-minute idle / 8-hour absolute timeout (security review
+        # 2026-11-20). Fails open on a DB error, like the other per-request
+        # account checks, so an outage doesn't lock the console.
+        if not _platform_admin_still_exists(session.get("platform_admin_username")):
             session.clear()
             abort(404)
         last_activity = session.get("platform_admin_last_activity", 0)

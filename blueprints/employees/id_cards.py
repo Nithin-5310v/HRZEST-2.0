@@ -12,6 +12,7 @@ from utils.auth import HR_ROLE, admin_required, api_required, api_role_required
 from utils.helpers import decrypt_pii, get_company_settings, hr_scope_denied
 from utils.storage import open_image, open_private
 from utils.tenant_files import resolve_face_photo
+from utils.data_cache import data_cache
 from . import employees_bp
 
 
@@ -772,6 +773,7 @@ def admin_view_id_card(emp_id):
 @employees_bp.route("/api/employees/<emp_id>/id_card")
 @api_required
 @api_role_required("admin", HR_ROLE)
+@data_cache("employees")
 def api_employee_id_card(emp_id):
     """Bearer-token twin of admin_view_id_card() above, for the mobile
     app -- admin_required/employee_required are session-cookie-only (see

@@ -244,7 +244,7 @@ export default function SeatsBillingScreen() {
             </TouchableOpacity>
           </View>
           {webviewSource && (
-            <WebView source={webviewSource} startInLoadingState renderLoading={() => (
+            <WebView source={webviewSource} incognito startInLoadingState renderLoading={() => (
               <View style={styles.centerFill}>
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>

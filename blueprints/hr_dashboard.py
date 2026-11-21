@@ -28,6 +28,7 @@ from utils.helpers import (
     audit_read,
 )
 from utils.attendance_utils import attendance_pct_series
+from utils.data_cache import data_cache
 
 hr_dashboard_bp = Blueprint("hr_dashboard", __name__)
 
@@ -108,6 +109,7 @@ def hr_dashboard():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/employees")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_employees():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -137,6 +139,7 @@ def api_hr_dashboard_employees():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/attendance/today")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_attendance_today():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -172,6 +175,7 @@ def api_hr_dashboard_attendance_today():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/leave/pending")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_leave_pending():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -260,6 +264,7 @@ def api_hr_dashboard_payslip(emp_id, year, month):
 
 @hr_dashboard_bp.route("/api/hr_dashboard/payroll/overtime")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_overtime():
     today = company_today()
     year = int_param(request.args.get("year", today.year))
@@ -285,6 +290,7 @@ def api_hr_dashboard_overtime():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/reports")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_reports():
     """Scoped analytics for an HR session's assigned employees only --
     same metric shapes as blueprints/admin_views.py's admin-only /analytics
@@ -349,6 +355,7 @@ def api_hr_dashboard_reports():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/onboarding")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_onboarding():
     """New-joiner checklist/progress for this HR session's assigned
     employees -- same scoped query shape as blueprints/onboarding.py's own
@@ -391,6 +398,7 @@ def api_hr_dashboard_onboarding():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/performance")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_performance():
     """Current-quarter review status for this HR session's assigned
     employees -- same scoped query shape as blueprints/performance.py's
@@ -422,6 +430,7 @@ def api_hr_dashboard_performance():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/tickets")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_tickets():
     """Open/in-progress support tickets for this HR session's assigned
     employees -- same scoped query shape as blueprints/leave.py's
@@ -449,6 +458,7 @@ def api_hr_dashboard_tickets():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/policies")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_policies():
     """Company-wide, not per-assigned-employee (see blueprints/policies.py's
     own docstring) -- every policy, published or not, since this is the
@@ -471,6 +481,7 @@ def api_hr_dashboard_policies():
 
 @hr_dashboard_bp.route("/api/hr_dashboard/holidays")
 @role_required(HR_ROLE)
+@data_cache("hr_dashboard")
 def api_hr_dashboard_holidays():
     """Company-wide by nature -- add_holiday()/delete_holiday()/
     import_indian_holidays() (blueprints/leave.py) are already HR-reachable

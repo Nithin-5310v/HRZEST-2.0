@@ -15,6 +15,7 @@ from utils.auth import (
 )
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.helpers import decrypt_pii, encrypt_pii
+from utils.data_cache import data_cache
 from utils.totp import (
     get_or_create_admin_totp_secret,
     mark_totp_enabled,
@@ -34,6 +35,7 @@ from . import admin_views_bp
 
 @admin_views_bp.route("/api/settings/2fa/setup")
 @admin_required
+@data_cache("admin_views")
 def api_email_2fa_setup():
     """Called when the admin has no TOTP enrolled yet -- returns a QR code to
     scan with an authenticator app. Idempotent: re-generates the same secret
@@ -159,6 +161,7 @@ def api_settings_lock():
 @admin_views_bp.route("/api/settings/email")
 @role_required("admin")
 @require_email_2fa
+@data_cache("admin_views")
 def api_get_email_settings():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -202,6 +205,10 @@ def api_save_email_settings():
         port = int(port)
     except (TypeError, ValueError):
         return jsonify({"ok": False, "msg": "Port must be a number"}), 400
+    from utils.email_utils import smtp_host_problem
+    _host_err = smtp_host_problem(host, port)
+    if _host_err:
+        return jsonify({"ok": False, "msg": _host_err}), 400
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

@@ -9,6 +9,7 @@ SOC_AUDIT_SHOTS=<dir> also saves a screenshot of every view (for a human review)
 Sign-in here is the emailed code, then setting the account's first password; the
 password step has its own browser test (test_soc_password.py).
 """
+import json
 import os
 import re
 
@@ -27,6 +28,7 @@ ROUTES = [
     ("events", "#/events"),
     ("events-filtered", "#/events?ip=185.220.101.1"),
     ("traffic", "#/traffic"),
+    ("health", "#/health"),
     ("brief-kpi", "#/explain?kind=kpi&value=failed_logins"),
     ("brief-family", "#/explain?kind=family&value=waf"),
     ("lookup-empty", "#/entity"),
@@ -91,6 +93,7 @@ def soc(monkeypatch, db_conn, base_url):
         cur.execute("DELETE FROM public.banned_ips WHERE ip='45.33.32.156'")
         cur.execute("DELETE FROM att_master.http_minute_stats WHERE tenant='e2e-co'")
         cur.execute("DELETE FROM att_master.http_telemetry_flushes WHERE host='e2e-seed'")
+        cur.execute("DELETE FROM att_master.health_snapshots WHERE host='e2e-seed'")
     clean()
     cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name, status) "
                 "VALUES ('E2E Co', 'e2e-co', %s, 'active')", (os.environ["DB_NAME"],))
@@ -105,6 +108,22 @@ def soc(monkeypatch, db_conn, base_url):
                     "max_ms, buckets) VALUES (date_trunc('minute', NOW() - (%s * INTERVAL '1 minute')), %s, %s, %s, "
                     "'e2e-co', %s, %s, %s, %s)", (ago, ep, method, status, hits, total_ms, max_ms, buckets))
     cur.execute("INSERT INTO att_master.http_telemetry_flushes (host, pid, flushed_at) VALUES ('e2e-seed', 1, NOW())")
+    for ago in range(30, -1, -1):          # half an hour of one-a-minute readings
+        host = {"cpu_percent": 20 + ago % 7 * 5, "cpu_count": 4, "load1": 0.8, "load5": 0.6, "load15": 0.5,
+                "mem_total": 8 << 30, "mem_available": 3 << 30, "mem_used_percent": 62.5, "uptime_seconds": 864000,
+                "disks": [{"path": "/", "total": 100 << 30, "used": 61 << 30, "free": 39 << 30, "used_percent": 61.0},
+                          {"path": "/home/ubuntu/apps/HRZEST/private_uploads/a/very/long/path/to/show/wrapping",
+                           "total": 500 << 30, "used": 100 << 30, "free": 400 << 30, "used_percent": 20.0}]}
+        pg = {"latency_ms": 1.2 + ago % 3, "max_connections": 100, "connections": 12 + ago % 4, "active": 2,
+              "idle_in_transaction": 0, "longest_query_seconds": 0.4, "longest_transaction_seconds": 1.5,
+              "waiting_locks": 0, "db_size_bytes": 750 << 20, "in_recovery": False, "server_uptime_seconds": 1209600,
+              "sees_all_sessions": True, "xact_commit": 100000 + (30 - ago) * 420, "xact_rollback": 50 + (30 - ago),
+              "deadlocks": 0, "blks_hit": 990000, "blks_read": 10000, "temp_bytes": 0}
+        app = {"pid": 4242, "threads": 9, "python": "3.14.0", "rss_bytes": 210 << 20, "worker_uptime_seconds": 3600,
+               "server": "gunicorn", "service_uptime_seconds": 86400}
+        for source, metrics in (("host", host), ("postgres", pg), ("app", app)):
+            cur.execute("INSERT INTO att_master.health_snapshots (taken_at, host, source, ok, metrics) VALUES "
+                        "(NOW() - (%s * INTERVAL '1 minute'), 'e2e-seed', %s, TRUE, %s)", (ago, source, json.dumps(metrics)))
     cur.execute("INSERT INTO att_master.soc_cases (title, severity, status, created_by, summary) "
                 "VALUES ('Credential stuffing against Acme', 'high', 'investigating', 'e2e', 'Three accounts tried')")
     cur.execute("INSERT INTO att_master.soc_ban_reviews (ip, source, reason, hits) VALUES "

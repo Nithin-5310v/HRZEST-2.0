@@ -7,6 +7,7 @@ from utils.auth import (
     api_role_required, require_access,
 )
 from utils.email_utils import get_email_config, send_email_async
+from utils.data_cache import data_cache
 from utils.helpers import (
     tpath, _create_notification, hr_scope_denied, manager_scope_denied, invalidate_pending_counts_cache,
     self_service_emp_id, self_service_return_path,
@@ -157,6 +158,7 @@ def ticket_action(tid):
 
 @tickets_bp.route("/api/employee/tickets", methods=["GET"])
 @employee_api_required
+@data_cache("tickets")
 def api_employee_tickets():
     from flask import g as _g
     emp_id = _g.api_emp_id
@@ -207,17 +209,22 @@ def api_employee_raise_ticket():
 @tickets_bp.route("/api/tickets", methods=["GET"])
 @api_required
 @api_role_required(*_TICKET_ADMIN_ROLES)
+@data_cache("tickets")
 def api_tickets():
+    # A team-scoped token sees only its team's tickets (security review 2026-11-20).
+    from utils.helpers import hr_scope_subquery
+    _scope_sql, _scope_args = hr_scope_subquery("t")
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT t.id, t.employee_id, e.name, t.category, t.subject, t.description,
                t.priority, t.status, t.admin_response, t.created_at, t.updated_at
         FROM tickets t
         JOIN employees e ON t.employee_id = e.employee_id
+        WHERE 1=1 {_scope_sql}
         ORDER BY CASE WHEN t.status='Open' THEN 0 WHEN t.status='In Progress' THEN 1 WHEN t.status='Resolved' THEN 2 WHEN t.status='Closed' THEN 3 ELSE 4 END,
                  CASE WHEN t.priority='High' THEN 0 WHEN t.priority='Medium' THEN 1 WHEN t.priority='Low' THEN 2 ELSE 3 END, t.created_at DESC
-    """)
+    """, _scope_args)  # nosec B608 -- _scope_sql is a fixed fragment
     rows = cursor.fetchall()
     cursor.close()
     db.close()
@@ -244,6 +251,11 @@ def api_ticket_action(tid):
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT subject, employee_id FROM tickets WHERE id=%s", (tid,))
     row = cursor.fetchone()
+    from utils.helpers import hr_scope_denied
+    if not row or hr_scope_denied(row[1]):
+        cursor.close()
+        db.close()
+        return jsonify({"ok": False, "msg": "Ticket not found."}), 404
     cursor.execute(
         "UPDATE tickets SET status=%s, admin_response=%s WHERE id=%s",
         (new_status, admin_response or None, tid)

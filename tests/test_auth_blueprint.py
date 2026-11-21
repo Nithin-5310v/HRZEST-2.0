@@ -113,7 +113,7 @@ class TestChangeAdminPassword:
         _admin_session(client, seed_admin)
         rv = client.post("/change_admin_password", data={
             "current_password": seed_admin["password"],
-            "new_password":     "NewPass@123",
+            "new_password":     "NewPass@12345",
             "confirm_password": "DifferentPass@456",
         })
         assert rv.status_code == 302
@@ -123,8 +123,8 @@ class TestChangeAdminPassword:
         _admin_session(client, seed_admin)
         rv = client.post("/change_admin_password", data={
             "current_password": "wrong_password",
-            "new_password":     "NewPass@123",
-            "confirm_password": "NewPass@123",
+            "new_password":     "NewPass@12345",
+            "confirm_password": "NewPass@12345",
         })
         assert rv.status_code == 302
         assert "pwd_error=wrong" in rv.headers["Location"]
@@ -179,10 +179,11 @@ class TestAdminForgotPassword:
         assert rv.status_code == 200
 
     def test_post_unknown_email_says_no_account(self, client):
-        """Owner's decision (2026-11-19): an unknown email is told so plainly."""
+        """Security review 2026-11-20: the same answer as for a known account (this
+        reverses the 2026-11-19 decision to say so plainly, which enumerated accounts)."""
         rv = client.post("/admin_forgot_password", data={"email": "nobody@example.com"})
         assert rv.status_code == 200
-        assert b"No account found with this email address." in rv.data
+        assert b"If an account matches" in rv.data
 
     def test_post_known_email_no_email_config_shows_error(self, client, seed_admin, db_engine, mocker):
         """Email configured for admin but email service not set up → error message."""
@@ -245,7 +246,7 @@ class TestAdminResetPassword:
             "new_password": "short", "confirm_password": "short",
         })
         assert rv.status_code == 200
-        assert b"8 characters" in rv.data
+        assert b"12 characters" in rv.data
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET reset_token=NULL, reset_token_expiry=NULL WHERE username=%s",
                     (seed_admin["username"],))
@@ -254,7 +255,7 @@ class TestAdminResetPassword:
     def test_valid_token_post_mismatch(self, client, seed_admin, db_engine):
         token, _ = self._seed_reset_token(db_engine, seed_admin)
         rv = client.post(f"/admin_reset_password/{token}", data={
-            "new_password": "NewPass@123", "confirm_password": "Different@456",
+            "new_password": "NewPass@12345", "confirm_password": "Different@456",
         })
         assert rv.status_code == 200
         assert b"not match" in rv.data or b"do not match" in rv.data
@@ -367,8 +368,8 @@ class TestChangePassword:
         _emp_session(client, seed_employee)
         rv = client.post("/change_password", data={
             "current_password": "wrongpass",
-            "new_password": "NewEmp@123",
-            "confirm_password": "NewEmp@123",
+            "new_password": "NewEmp@12345",
+            "confirm_password": "NewEmp@12345",
         })
         assert rv.status_code == 302
         assert "pwd_error=wrong" in rv.headers["Location"]
@@ -387,7 +388,7 @@ class TestChangePassword:
         _emp_session(client, seed_employee)
         rv = client.post("/change_password", data={
             "current_password": seed_employee["password"],
-            "new_password": "NewEmp@123",
+            "new_password": "NewEmp@12345",
             "confirm_password": "Diff@456",
         })
         assert rv.status_code == 302
@@ -436,12 +437,12 @@ class TestForceChangePin:
             "new_password": "short", "confirm_password": "short",
         })
         assert rv.status_code == 200
-        assert b"8 characters" in rv.data
+        assert b"12 characters" in rv.data
 
     def test_post_mismatch_shows_error(self, client, seed_employee):
         self._fpc_session(client, seed_employee)
         rv = client.post("/force_change_pin", data={
-            "new_password": "ValidPass@1", "confirm_password": "Diff@2",
+            "new_password": "ValidPass@123", "confirm_password": "Diff@2",
         })
         assert rv.status_code == 200
         assert b"do not match" in rv.data or b"not match" in rv.data
@@ -452,7 +453,8 @@ class TestForceChangePin:
             "new_password": "12345678", "confirm_password": "12345678",
         })
         assert rv.status_code == 200
-        assert b"too common" in rv.data or b"common" in rv.data.lower()
+        # Refused by the shared rule (12+ characters, not breached; audit P4.2).
+        assert b"at least 12 characters" in rv.data
 
     def test_post_success_clears_fpc_and_redirects(self, client, seed_employee, db_engine):
         self._fpc_session(client, seed_employee)
@@ -478,4 +480,5 @@ class TestWebAuthnStatus:
         assert rv.status_code == 200
         data = rv.get_json()
         assert "webauthn_available" in data
-        assert "request_host" in data
+        # Internal configuration is no longer exposed (security review 2026-11-20).
+        assert "request_host" not in data and "expected_origins" not in data

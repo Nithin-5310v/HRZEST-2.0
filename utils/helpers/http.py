@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """helpers: response helpers: JSON-vs-HTML negotiation, the error page renderer"""
 from flask import g, has_app_context, jsonify, request, session
+from markupsafe import escape
+from utils.csp import trusted_html
 from .urls import static_url
 
 
@@ -65,10 +67,13 @@ def _error_page(code, icon, title, subtitle, hint):
     back_emp = session.get("employee_id")
     back_link = "/admin" if back_admin else ("/employee_portal" if back_emp else "/")
     back_label = "Go to Admin Dashboard" if back_admin else ("Go to My Portal" if back_emp else "Go to Home")
+    # Escaped although every caller passes fixed text: trusted_html() below
+    # requires that nothing unescaped reaches the page (security audit P1).
+    icon, title, subtitle, hint = (escape(v) for v in (icon, title, subtitle, hint))
     # Same landing_v2.css design system as admin_login.html/create_org.html
     # (see admin_login.html's header comment) -- this page used to be the
     # last one still on the old plain blue-and-white style.
-    return f"""<!doctype html>
+    return trusted_html(f"""<!doctype html>
 <html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{code} – {title}</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
@@ -128,4 +133,4 @@ def _error_page(code, icon, title, subtitle, hint):
     <a href="javascript:history.back()" class="sec">← Go Back</a>
   </div>
 </div>
-</body></html>""", code
+</body></html>"""), code

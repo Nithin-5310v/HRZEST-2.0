@@ -94,6 +94,8 @@ _EXACT = {
     "tenant.session_mismatch": ("access", "Session used on another tenant's URL", ["T1078"]),
     # --- session ---
     "session.compromised": ("session", "Session flagged compromised", ["T1539"]),
+    "session.browser_changed": ("session", "Session changed browser", ["T1539"]),
+    "session.network_changed": ("session", "Session changed network", []),
     "session.rejected": ("session", "Session rejected", ["T1539"]),
     # --- WAF / rate limit ---
     "waf.sqli_blocked": ("waf", "SQL injection blocked", ["T1190"]),
@@ -212,6 +214,14 @@ DETECTIONS = {
                              "Repeated punches flagged as GPS-spoofed."),
     "photo_replay": ("Photo replay", [],
                      "The same punch photo reused across punches or employees (replayed image)."),
+    "payroll_off_hours": ("Payroll access out of hours", ["T1078", "T1213"],
+                          "Salary, payslip or bank data opened or changed outside the company's "
+                          "working hours, on a non-working day or on a holiday."),
+    "session_browser_switch": ("Session moved to another browser", ["T1539"],
+                               "A signed-in session used from a different browser family: a copied "
+                               "session cookie, or DevTools device emulation."),
+    "session_network_hopping": ("Session network hopping", ["T1539"],
+                                "One account's session moving across several networks in a short time."),
     "http_error_spike": ("HTTP error spike", ["T1595", "T1190"],
                          "Far more 401 / 403 / 404 / 429 or server-error responses than usual: "
                          "scanning, a brute-force run, or a failing part of the app."),

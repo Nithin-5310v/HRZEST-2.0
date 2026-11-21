@@ -46,6 +46,7 @@ from utils.tax_invoice import build_tax_invoice_pdf, invoice_filename, issue_inv
 from utils.ticket_constants import TICKET_STATUSES, TICKET_PRIORITIES
 from utils import support_tickets
 from utils.csv_export import csv_response
+from utils.data_cache import data_cache
 from blueprints.org import _MOBILE_RE, _clean_mobile, _load_own_tenant_application
 from migrations.column_migrations import _POLICY_SEED_CONTENT
 
@@ -559,6 +560,7 @@ def profile_update_organization():
 @company_profile_bp.route("/api/admin/organization", methods=["GET"])
 @api_required
 @api_role_required("admin")
+@data_cache("company_profile")
 def api_admin_organization():
     application = _load_own_tenant_application()
     return jsonify({

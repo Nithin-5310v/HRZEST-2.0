@@ -17,6 +17,7 @@ from utils.auth import (
     HR_ROLE,
 )
 from utils.helpers import tpath
+from utils.data_cache import data_cache
 
 policies_bp = Blueprint("policies", __name__)
 
@@ -146,6 +147,7 @@ def _published_policies():
 
 @policies_bp.route("/api/employee/policies")
 @any_user_required
+@data_cache("policies")
 def api_employee_policies():
     """Read-only, published-only list for the employee portal's Policies view."""
     return jsonify({"ok": True, "policies": _published_policies()})
@@ -157,6 +159,7 @@ def api_employee_policies():
 
 @policies_bp.route("/api/employee/company_policies")
 @employee_api_required
+@data_cache("policies")
 def api_app_employee_policies():
     """Plus how to reach the company, for the screen's "Need help?" card."""
     from utils.helpers import get_company_settings
@@ -202,6 +205,7 @@ def _all_policies(cursor):
 @policies_bp.route("/api/admin/policies", methods=["GET"])
 @api_required
 @api_role_required("admin", HR_ROLE)
+@data_cache("policies")
 def api_admin_policies():
     """Every policy, drafts included, plus the built-in categories and the
     ready-made templates the web Policies tab offers."""

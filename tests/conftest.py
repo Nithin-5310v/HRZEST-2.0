@@ -640,6 +640,28 @@ def _clear_process_caches():
 TEST_OFFICE = {"lat": 17.494664737165042, "lon": 78.40496618113566}
 
 
+@pytest.fixture(autouse=True)
+def _platform_admin_rows_not_required(request, monkeypatch):
+    """Most tests build a super-admin session for a username that has no
+    platform_admins row. The per-request "operator still exists" check
+    (security review 2026-11-20) is stubbed for them; tests marked
+    real_platform_admin_check exercise the real one."""
+    if request.node.get_closest_marker("real_platform_admin_check"):
+        return
+    import blueprints.platform_admin as _pa
+    monkeypatch.setattr(_pa, "_platform_admin_still_exists", lambda _u: True)
+
+
+def bind_oauth_state(client, state):
+    """Give the test client the browser-binding cookie that /oauth_login and
+    /create_org/<provider> set at the start of a real flow (security review
+    2026-11-20: the callback refuses a state its browser didn't start)."""
+    from utils.oauth_client import BIND_COOKIE, state_binding
+    with flask_app.app_context():
+        value = state_binding(state)
+    client.set_cookie(BIND_COOKIE, value)
+
+
 @pytest.fixture
 def razorpay_demo_mode(monkeypatch):
     """No Razorpay keys for this test, whatever the developer's local .env

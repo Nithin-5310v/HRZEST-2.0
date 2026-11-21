@@ -525,7 +525,7 @@
           {% elif request.args.get('pwd_error') == 'wrong' %}
             <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Current password is incorrect.</div>
           {% elif request.args.get('pwd_error') == 'short' %}
-            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> New password must be at least 8 characters.</div>
+            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> New password must be at least 12 characters.</div>
           {% elif request.args.get('pwd_error') == 'personal' %}
             <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Password must not contain your name, username, email, company name or &#39;HRzest&#39;.</div>
           {% elif request.args.get('pwd_error') == 'breached' %}
