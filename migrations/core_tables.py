@@ -563,11 +563,11 @@ def _init_core_tables(cursor, db):
     init_audit_integrity(cursor, db)
 
     # Application-layer IP ban list -- the SOC dashboard's "one-click ban"
-    # tactical mitigation. Not a substitute for a real edge/WAF ban (e.g.
-    # Cloudflare), since a request still costs a TLS handshake + one Python
-    # request cycle before _enforce_ip_ban rejects it -- but it needs no
-    # cloud API credentials and takes effect immediately app-wide, with no
-    # redeploy needed.
+    # tactical mitigation. It takes effect here at once, app-wide, with no
+    # redeploy; the firewall agent (scripts/firewall_agent/) copies the
+    # platform-wide rows to the host firewall and, when the AWS edge exists,
+    # to its WAF block list within seconds, so a banned source stops costing
+    # a TLS handshake and a Python request too (docs/FIREWALL.md).
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS banned_ips (
             ip         VARCHAR(45) PRIMARY KEY,
@@ -577,6 +577,21 @@ def _init_core_tables(cursor, db):
             expires_at TIMESTAMP DEFAULT NULL
         )
     """)
+    # Network (CIDR) bans: a whole range, e.g. the hosting block a botnet is
+    # rotating through. Platform-wide only, hence always `public`. Typed CIDR
+    # on purpose: _enforce_ip_ban matches every request against it, and a
+    # malformed text value there would be a cast error -- a 500 for every
+    # visitor -- instead of a ban. The GiST index serves `inet <<= cidr`.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS public.banned_cidrs (
+            cidr       CIDR PRIMARY KEY,
+            reason     VARCHAR(300),
+            banned_by  VARCHAR(150),
+            banned_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP DEFAULT NULL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_banned_cidrs_gist ON public.banned_cidrs USING gist (cidr inet_ops)")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS email_queue (

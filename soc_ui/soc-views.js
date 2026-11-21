@@ -481,7 +481,7 @@
       }
       const d = await api.get('/socperson/api/bans');
       if (needs('analyst')) {
-        const ip = h('input', { class: 'input', id: 'nbIp', placeholder: 'IP address', required: true, 'aria-label': 'IP address' });
+        const ip = h('input', { class: 'input', id: 'nbIp', placeholder: 'IP address or range (203.0.113.0/24)', required: true, 'aria-label': 'IP address or CIDR range' });
         const why = h('input', { class: 'input', id: 'nbWhy', placeholder: 'Reason', required: true, maxlength: '240', 'aria-label': 'Reason' });
         const dur = select(DURATIONS, '1440', { 'aria-label': 'Duration' });
         root.appendChild(h('form', { class: 'filters', onsubmit: async (e) => {

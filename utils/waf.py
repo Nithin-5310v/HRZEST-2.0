@@ -23,6 +23,7 @@ from collections import defaultdict, deque
 
 from extensions import log_security_event, redis_client
 from utils.client_ip import is_protected_ip
+from utils.scanner_signatures import jndi_lookup, scanner_user_agent
 
 _SQLI_PATTERNS = [
     # UNION-based exfiltration
@@ -232,6 +233,46 @@ def inspect_request(request):
     return None
 
 
+# ── Headers ────────────────────────────────────────────────────────────────
+# Only the two headers whose values are free text a tool controls and a
+# server is likely to log or reflect. Cookie, Authorization and the rest are
+# opaque tokens here (a signed session, a bearer token) and are left to their
+# own verification.
+_INSPECTED_HEADERS = ("User-Agent", "Referer")
+_MAX_HEADER_CHARS = 4096
+
+
+def block_scanner_user_agents():
+    """WAF_BLOCK_SCANNER_UA (default on): refuse requests from tools that name
+    themselves in User-Agent (sqlmap, nikto, nuclei, ...). The ban that may
+    follow still goes to an analyst, since a customer's authorised scan looks
+    the same."""
+    return os.environ.get("WAF_BLOCK_SCANNER_UA", "true").strip().lower() not in ("0", "false", "no", "off")
+
+
+def inspect_headers(request):
+    """-> (event_type, field, matched) for the first hit, or None:
+      * a JNDI lookup in ANY header (Log4Shell probes go wherever a kit
+        guesses a server logs);
+      * an attack tool's User-Agent (WAF_BLOCK_SCANNER_UA);
+      * an SQLi / XSS / path-traversal shape in User-Agent or Referer."""
+    for name, value in request.headers.items():
+        hit = jndi_lookup(value[:_MAX_HEADER_CHARS])
+        if hit:
+            return "waf.jndi_blocked", f"headers.{name}", hit
+    ua = request.headers.get("User-Agent", "")[:_MAX_HEADER_CHARS]
+    if block_scanner_user_agents():
+        tool = scanner_user_agent(ua)
+        if tool:
+            return "waf.scanner_ua_blocked", "headers.User-Agent", tool
+    for name in _INSPECTED_HEADERS:
+        value = request.headers.get(name, "")[:_MAX_HEADER_CHARS]
+        hit = _inspect_value(f"headers.{name}", value)
+        if hit:
+            return hit
+    return None
+
+
 # ── Progressive auto-ban on repeated breaches ──────────────────────────────
 # Per-worker in-memory counter -- same documented limitation as extensions.py's
 # Flask-Limiter storage (no Redis in this stack). Under multiple gunicorn
@@ -350,7 +391,10 @@ def ban_ip(ip, reason, banned_by="system:auto", minutes=None):
     automated ban into whichever tenant URL the attacker happened to be on,
     leaving every other tenant URL open to them (app.py's _enforce_ip_ban
     checks both). minutes=None bans until manually lifted. Returns True when
-    a ban row was written."""
+    a ban row was written. A range ("203.0.113.0/24") goes to
+    public.banned_cidrs instead -- see ban_cidr()."""
+    if ip and "/" in ip:
+        return ban_cidr(ip, reason, banned_by=banned_by, minutes=minutes)
     if not ip or is_protected_ip(ip):
         return False
     expires_at = (datetime.datetime.now() + datetime.timedelta(minutes=minutes)) if minutes else None
@@ -380,6 +424,76 @@ def ban_ip(ip, reason, banned_by="system:auto", minutes=None):
         log_security_event(
             "waf.ban_write_failed", f"Failed to write IP ban: {e}",
             level="ERROR", identifier=ip,
+        )
+        return False
+
+
+# ── Range (CIDR) bans ──────────────────────────────────────────────────────
+# Narrowest prefix allowed: a /16 is 65,536 IPv4 addresses, a /32 an entire
+# provider's IPv6 allocation. Anything wider is almost always a mistake made
+# in a hurry, and would block real customers along with the attacker.
+MIN_CIDR_PREFIX_V4 = 16
+MIN_CIDR_PREFIX_V6 = 32
+
+
+def cidr_ban_problem(cidr, actor_ip=None):
+    """-> (ipaddress network, None) when `cidr` may be banned, else
+    (None, reason). Refuses ranges that are too wide, that touch a private /
+    shared / never-ban range (the shared-address rule, as for single IPs), or
+    that contain the address of whoever is banning."""
+    import ipaddress
+    from utils.client_ip import never_ban_networks, parse_ip
+    if not isinstance(cidr, str) or "/" not in cidr:
+        return None, "Give a range in CIDR form, e.g. 203.0.113.0/24."
+    try:
+        net = ipaddress.ip_network(cidr.strip(), strict=False)
+    except ValueError:
+        return None, "That is not a valid address range (CIDR)."
+    floor = MIN_CIDR_PREFIX_V4 if net.version == 4 else MIN_CIDR_PREFIX_V6
+    if net.prefixlen < floor:
+        return None, f"That range is wider than /{floor}; ban a narrower one."
+    if any(net.version == p.version and net.overlaps(p) for p in never_ban_networks()):
+        return None, ("That range includes private, shared or never-ban addresses; banning it would block every "
+                      "visitor behind them.")
+    actor = parse_ip(actor_ip) if actor_ip else None
+    if actor is not None and actor.version == net.version and actor in net:
+        return None, "That range includes the address you are connected from."
+    return net, None
+
+
+def ban_cidr(cidr, reason, banned_by="system:auto", minutes=None):
+    """Insert/extend a range ban in public.banned_cidrs, with ban_ip's rules:
+    never shortens a longer or permanent ban, never touches a protected range.
+    A single-address range (/32, /128) is stored as an ordinary IP ban."""
+    net, problem = cidr_ban_problem(cidr)
+    if problem:
+        return False
+    if net.num_addresses == 1:
+        return ban_ip(str(net.network_address), reason, banned_by=banned_by, minutes=minutes)
+    expires_at = (datetime.datetime.now() + datetime.timedelta(minutes=minutes)) if minutes else None
+    from database import get_db_connection
+    try:
+        db = get_db_connection()
+        cursor = db.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO public.banned_cidrs (cidr, reason, banned_by, expires_at) VALUES (%s::cidr,%s,%s,%s) "
+                "ON CONFLICT (cidr) DO UPDATE SET reason=EXCLUDED.reason, banned_by=EXCLUDED.banned_by, "
+                "banned_at=CURRENT_TIMESTAMP, "
+                "expires_at=CASE WHEN banned_cidrs.expires_at IS NULL THEN NULL "
+                "WHEN EXCLUDED.expires_at IS NULL THEN NULL "
+                "ELSE GREATEST(banned_cidrs.expires_at, EXCLUDED.expires_at) END",
+                (str(net), (reason or "")[:300], (banned_by or "")[:150], expires_at),
+            )
+            db.commit()
+        finally:
+            cursor.close()
+            db.close()
+        return True
+    except Exception as e:
+        log_security_event(
+            "waf.ban_write_failed", f"Failed to write range ban: {e}",
+            level="ERROR", identifier=str(net),
         )
         return False
 

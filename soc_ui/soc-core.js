@@ -376,7 +376,7 @@
 
   /* ---------- shell ---------- */
   var GROUPS = [
-    ['Monitor', ['overview', 'alerts', 'events', 'traffic', 'health']],
+    ['Monitor', ['overview', 'alerts', 'events', 'traffic', 'health', 'firewall']],
     ['Investigate', ['entity', 'analysis', 'logs', 'cases']],
     ['Respond', ['banreview', 'response']],
     ['Assess', ['tenants', 'fraud', 'detections', 'integrity', 'posture']],

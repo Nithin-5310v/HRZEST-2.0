@@ -720,6 +720,9 @@ def bans():
     with read_cursor("public") as cur:
         rows = _ban_rows(cur, "public", {"tenant_id": None, "company": None})
         active_ips = _active_platform_bans(cur)
+        ranges = _cidr_ban_rows(cur)
+    rows += ranges
+    active_ips += [b["ip"] for b in ranges if b["active"]]
 
     def per_tenant(t, cur):
         if t["schema"] == "public":         # same table as the platform list above
@@ -740,6 +743,20 @@ def bans():
 def _active_platform_bans(cur):
     cur.execute("SELECT ip FROM public.banned_ips WHERE expires_at IS NULL OR expires_at > NOW()")
     return [ip for (ip,) in cur.fetchall()]
+
+
+def _cidr_ban_rows(cur):
+    """Platform-wide range bans (public.banned_cidrs), listed with the address
+    bans; `ip` holds the CIDR, which the console's lift action accepts."""
+    cur.execute("SELECT to_regclass('public.banned_cidrs')")
+    if cur.fetchone()[0] is None:
+        return []
+    cur.execute("SELECT cidr::text, reason, banned_by, banned_at, expires_at, "
+                "(expires_at IS NULL OR expires_at > NOW()) AS act "
+                "FROM public.banned_cidrs ORDER BY act DESC, banned_at DESC LIMIT %s", (BANS_LIMIT,))
+    return [{"ip": c, "reason": r, "by": by, "at": iso(at), "expires": iso(ex), "active": bool(act),
+             "tenant_id": None, "company": None, "range": True}
+            for c, r, by, at, ex, act in cur.fetchall()]
 
 
 def _count_bans(active_ips):
@@ -1119,9 +1136,37 @@ def posture():
     else:
         add("loki", "Log pipeline (Loki)", "info", "LOKI_URL is not set; the Logs view is disabled.",
             "Set LOKI_URL to query shipped logs from the console.")
+    _firewall_check(add)
     order = {"fail": 0, "warn": 1, "info": 2, "pass": 3}
     checks.sort(key=lambda c: order[c["status"]])
     return {"checks": checks, "summary": {s: sum(1 for c in checks if c["status"] == s) for s in order}}
+
+
+def _firewall_check(add):
+    """Are the firewall layers outside the app reporting (docs/FIREWALL.md)?"""
+    from utils import firewall_events
+    title, fix = "Firewall layers reporting", "Install the firewall agent: docs/FIREWALL.md, Rollout step 5."
+    if not firewall_events.secret():
+        add("firewall", title, "warn",
+            "FIREWALL_AGENT_SECRET is not set (or shorter than 32 characters): the host firewall, ModSecurity, "
+            "fail2ban and the AWS edge cannot report here or receive the ban list.", fix)
+        return
+    try:
+        with read_cursor("att_master") as cur:
+            cur.execute("SELECT source, last_seen < NOW() - make_interval(mins => %s) FROM firewall_sources "
+                        "WHERE source <> 'app'", (firewall_events.reporter_stale_minutes(),))
+            rows = cur.fetchall()
+    except Exception:
+        add("firewall", title, "warn", "The firewall reporters could not be read.", fix)
+        return
+    stale = sorted(s for s, old in rows if old)
+    if not rows:
+        add("firewall", title, "warn", "The agent channel is configured but no firewall agent has reported yet.", fix)
+    elif stale:
+        add("firewall", title, "warn", f"{len(stale)} of {len(rows)} firewall agent(s) stopped reporting: "
+            + ", ".join(stale) + ".", "On that host: systemctl status hrzest-fw-agent; journalctl -u hrzest-fw-agent.")
+    else:
+        add("firewall", title, "pass", f"{len(rows)} firewall agent(s) reporting.", fix)
 
 
 # ── Loki (optional) ──────────────────────────────────────────────────

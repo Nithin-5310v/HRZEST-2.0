@@ -46,6 +46,7 @@ BLUEPRINTS = (
     ("oauth_signup", "oauth_signup_bp"),
     ("privacy", "privacy_bp"),
     ("soc", "soc_bp"),
+    ("firewall_ingest", "firewall_ingest_bp"),
 )
 
 

@@ -71,6 +71,13 @@ def set_synchronous_mode(enabled: bool = True):
     _SYNCHRONOUS_MODE = enabled
 
 
+def is_synchronous_mode() -> bool:
+    """True under the test suite (see set_synchronous_mode). Callers that
+    batch writes themselves (utils/firewall_events.py) flush at once then,
+    so a test sees the row as soon as the request returns."""
+    return _SYNCHRONOUS_MODE
+
+
 def enqueue_write(fn, *args, **kwargs):
     """Hand a DB-writing callable off to the background writer thread.
     Never blocks the caller -- this is the entire point. On a full queue
