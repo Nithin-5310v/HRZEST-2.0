@@ -130,6 +130,7 @@ else:
         from utils.audit_jobs import emit_anchors, run_full_verification
         from utils.soc_digest import JOB_ID as _SOC_DIGEST_JOB, digest_hour, send_daily_digest
         from utils.http_telemetry import purge_old as purge_http_telemetry
+        from utils.health_telemetry import purge_old as purge_health_snapshots, take_snapshot as take_health_snapshot
     except ImportError as _job_import_err:
         # Deliberately NOT the same except block as "apscheduler missing"
         # above -- that used to be one try/except ImportError covering
@@ -255,6 +256,24 @@ else:
                 trigger="cron",
                 hour=3, minute=40,
                 id="http_telemetry_purge",
+                replace_existing=True,
+            )
+            # Server / database / app-service readings for the SOC console's Health
+            # view (utils/health_telemetry.py): every minute, one worker per minute.
+            _scheduler.add_job(
+                func=_scheduled_job("health_snapshot", take_health_snapshot),
+                trigger="cron",
+                minute="*",
+                id="health_snapshot",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
+            _scheduler.add_job(
+                func=_scheduled_job("health_snapshot_purge", purge_health_snapshots),
+                trigger="cron",
+                hour=3, minute=50,
+                id="health_snapshot_purge",
                 replace_existing=True,
             )
             # SOC daily summary email to SOC_LOGIN_EMAILS (utils/soc_digest.py);
