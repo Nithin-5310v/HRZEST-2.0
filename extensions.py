@@ -2,6 +2,7 @@
 import os
 import json
 import logging
+import re
 import sys
 import secrets
 import warnings
@@ -24,6 +25,36 @@ if not app_log.handlers:
     app_log.addHandler(_log_handler)
 app_log.setLevel(logging.INFO)
 app_log.propagate = False
+
+# ── Request IDs ──────────────────────────────────────────────────────────────
+# Every request gets an ID (see _assign_request_id below). It is added to each
+# JSON log line written while that request runs, to the security events it
+# records (extra_json.request_id, shown in the SOC console's event detail) and
+# to the X-Request-ID response header, so one request can be followed from a
+# browser or support ticket to the logs and the SOC console.
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
+
+
+def current_request_id():
+    """The ID of the request being handled, or None outside a request."""
+    try:
+        from flask import g as _g, has_request_context
+        if has_request_context():
+            return getattr(_g, "request_id", None)
+    except Exception:
+        return None  # a log call must never fail because of the request ID
+    return None
+
+
+class _RequestIdLogFilter(logging.Filter):
+    def filter(self, record):
+        rid = current_request_id()
+        if rid and not hasattr(record, "request_id"):
+            record.request_id = rid
+        return True
+
+
+_log_handler.addFilter(_RequestIdLogFilter())
 
 # ── Structured security-event logging ──────────────────────────────────────
 # Distinct from routine app_log.info/warning/error calls: every event logged
@@ -128,6 +159,9 @@ def log_security_event(event_type: str, message: str, level: str = "WARNING", **
     extra = {k: v for k, v in fields.items() if k != "identifier"}
     if tenant and "tenant" not in extra:
         extra["tenant"] = tenant        # in extra_json too: that column is hash-chained
+    request_id = current_request_id()
+    if request_id and "request_id" not in extra:
+        extra["request_id"] = request_id
     enqueue_write(_persist_security_event, event_type, level.upper(), message,
                   fields.get("identifier"), ip, path, method, extra, tenant)
 
@@ -379,6 +413,27 @@ check_redis_requirement(os.environ.get("APP_ENV", "production"),
 
 # ── Flask app ─────────────────────────────────────────────────────────────────
 app = Flask(__name__, template_folder="templates", static_folder="static")
+
+
+# Registered here, before every other hook, so even the earliest log line of a
+# request carries the ID; the after_request below runs last for the same reason.
+@app.before_request
+def _assign_request_id():
+    """nginx sets X-Request-ID from its own $request_id (overwriting anything
+    the client sent), so the access log and the app agree. A request that
+    reaches the app without one, or with a malformed one, gets a new ID."""
+    from flask import g as _g, request as _req
+    incoming = _req.headers.get("X-Request-ID", "")
+    _g.request_id = incoming if _REQUEST_ID_RE.match(incoming) else secrets.token_hex(16)
+
+
+@app.after_request
+def _send_request_id(response):
+    request_id = current_request_id()
+    if request_id:
+        response.headers["X-Request-ID"] = request_id
+    return response
+
 
 # Without this, Werkzeug's send_file() defaults max_age to None, which makes
 # it emit "Cache-Control: no-cache" on every static asset -- forcing the
