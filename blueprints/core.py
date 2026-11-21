@@ -28,6 +28,7 @@ from utils.plan_limits import get_tenant_employee_count, calculate_price, format
 from utils.email_utils import public_contact_email
 from utils.billing_notices import notify_employee_added
 from utils.session_risk import is_session_compromised, ensure_session_id
+from utils.data_cache import data_cache
 
 core_bp = Blueprint("core", __name__)
 
@@ -356,6 +357,7 @@ def api_login_verify():
 
 @core_bp.route("/api/admin/me", methods=["GET"])
 @api_required
+@data_cache("core")
 def api_admin_me():
     """The signed-in admin's own employee profile, if any: what the app's
     "Me" tab needs (utils/own_profile.py). Asked on each app focus rather
@@ -387,6 +389,7 @@ def api_logout():
 
 @core_bp.route("/api/dashboard", methods=["GET"])
 @api_required
+@data_cache("core")
 def api_dashboard():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -454,6 +457,7 @@ def api_dashboard():
 
 @core_bp.route("/api/billing_status", methods=["GET"])
 @api_required
+@data_cache("core")
 def api_billing_status():
     """Mobile equivalent of the web's employee-count/seat-limit banner
     (templates/employees.html) and Settings -> Billing
@@ -649,6 +653,7 @@ def api_settings_update():
 
 @core_bp.route("/api/admin/profile", methods=["GET"])
 @api_required
+@data_cache("core")
 def api_admin_profile():
     """The logged-in admin/HR account's own real username/email/role --
     mobile/src/screens/admin/SettingsScreen.js's Admin Profile tab used to

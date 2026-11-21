@@ -8,6 +8,7 @@ from utils.ai_attrition_analytics import compute_attrition_and_burnout_analytics
 from extensions import limiter
 from flask import g
 from utils.auth import session_or_bearer_required
+from utils.data_cache import data_cache
 
 ai_hrms_bp = Blueprint("ai_hrms", __name__)
 
@@ -81,6 +82,7 @@ def api_evaluate_interview():
 @ai_hrms_bp.route("/api/ai/attrition-analytics")
 @limiter.limit("10 per minute")
 @session_or_bearer_required(**_ADMIN_ONLY)
+@data_cache("ai_hrms")
 def api_attrition_analytics():
     """API Endpoint: Predict turnover trends and burnout risk indicators."""
     if not _role_may("reports", "view"):

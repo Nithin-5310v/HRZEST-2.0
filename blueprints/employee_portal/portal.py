@@ -22,6 +22,7 @@ from utils.helpers import (
 )
 from utils.leave_utils import assign_leave_balances_for_employee
 from utils.tenant_files import resolve_face_photo
+from utils.data_cache import data_cache
 from . import _fmt_t, employee_portal_bp
 
 
@@ -540,6 +541,7 @@ def api_employee_change_password():
 
 @employee_portal_bp.route("/api/employee/portal", methods=["GET"])
 @session_or_bearer_required(session_kinds=("employee",), token_types=("employee",))
+@data_cache("employee_portal")
 def api_employee_portal():
     # An employee session that passes the per-request checks, or a live
     # employee app token (security audit P2: standard guard, not inline).

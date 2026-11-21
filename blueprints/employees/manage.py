@@ -28,6 +28,7 @@ from utils.storage import decrypted_stream, save_upload
 from utils.tenant_files import face_photo_path
 from . import employees_bp
 from utils.tokens import waf_safe_token
+from utils.data_cache import data_cache
 
 
 # Which module's edit access each admin_action needs (Settings -> Roles &
@@ -522,6 +523,7 @@ def edit_employee():
 
 @employees_bp.route("/api/employee_info/<emp_id>")
 @admin_required
+@data_cache("employees")
 def api_employee_info(emp_id):
     if _hr_scope_denied(emp_id):
         return jsonify({"error": "not found"}), 404

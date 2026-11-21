@@ -35,6 +35,7 @@ from utils.tenant_files import face_photo_path
 from utils.webauthn_utils import _enroll_fingerprint_from_form
 from . import employees_bp
 from utils.tokens import waf_safe_token
+from utils.data_cache import data_cache
 
 
 def _send_welcome_credentials_email(emp_id, name, email, password=None, must_change=True):
@@ -418,6 +419,7 @@ def add_employee_page():
 
 @employees_bp.route("/api/generate_emp_id")
 @session_or_bearer_required(session_kinds=("admin",), token_types=(), msg="not logged in")
+@data_cache("employees")
 def generate_emp_id():
     company_id_raw = request.args.get("company_id", "").strip()
     if not company_id_raw.isdigit() and session.get("active_company_id"):

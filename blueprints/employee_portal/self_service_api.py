@@ -15,11 +15,13 @@ from utils.helpers import (
 )
 from utils.storage import save_image
 from utils.tenant_files import face_photo_path
+from utils.data_cache import data_cache
 from . import _fmt_t, employee_portal_bp
 
 
 @employee_portal_bp.route("/api/employee/salary", methods=["GET"])
 @employee_api_required
+@data_cache("employee_portal")
 def api_employee_salary():
     from flask import g as _g
     emp_id = _g.api_emp_id
@@ -61,6 +63,7 @@ def api_employee_salary():
 
 @employee_portal_bp.route("/api/employee/attendance", methods=["GET"])
 @employee_api_required
+@data_cache("employee_portal")
 def api_employee_attendance():
     from flask import g as _g
     emp_id = _g.api_emp_id
@@ -111,6 +114,7 @@ def api_employee_attendance():
 
 @employee_portal_bp.route("/api/employee/profile", methods=["GET"])
 @employee_api_required
+@data_cache("employee_portal")
 def api_employee_profile():
     from flask import g as _g
     emp_id = _g.api_emp_id
@@ -254,6 +258,7 @@ def api_update_my_bank_details():
 
 @employee_portal_bp.route("/api/employee/experience", methods=["GET"])
 @employee_api_required
+@data_cache("employee_portal")
 def api_list_my_experience():
     from flask import g as _g
     emp_id = _g.api_emp_id
@@ -320,6 +325,7 @@ def api_delete_my_experience(entry_id):
 
 @employee_portal_bp.route("/api/employee/education", methods=["GET"])
 @employee_api_required
+@data_cache("employee_portal")
 def api_list_my_education():
     from flask import g as _g
     emp_id = _g.api_emp_id

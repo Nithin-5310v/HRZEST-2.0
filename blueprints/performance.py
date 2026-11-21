@@ -19,6 +19,7 @@ from utils.helpers import (
     self_service_emp_id, self_service_return_path, audit_read,
 )
 from utils.csv_export import spreadsheet_safe
+from utils.data_cache import data_cache
 from extensions import limiter, log_security_event
 
 performance_bp = Blueprint("performance", __name__)
@@ -132,6 +133,7 @@ def _hr_write_denied(emp_id):
 
 @performance_bp.route("/api/performance", methods=["GET"])
 @_admin_session_or_api_role_required(*_PERFORMANCE_ROLES)
+@data_cache("performance")
 def api_performance():
     """JSON API endpoint for employee performance reviews from database.
 
@@ -615,6 +617,7 @@ def performance_employee_comment():
 
 @performance_bp.route("/api/employee/performance", methods=["GET"])
 @employee_api_required
+@data_cache("performance")
 def api_my_performance():
     """Bearer-token twin of my_performance() -- same query shape, JSON
     instead of a rendered template."""

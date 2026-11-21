@@ -7,6 +7,7 @@ from flask import flash, jsonify, redirect, render_template, request, session
 from utils.attendance_utils import _td_to_time
 from utils.auth import HR_ROLE, admin_required, api_required, require_access
 from utils.dlp import has_pii_clearance, mask_tail
+from utils.data_cache import data_cache
 from utils.helpers import (
     _db,
     amount,
@@ -243,6 +244,7 @@ def view_employees():
 
 @employees_bp.route("/api/departments", methods=["GET"])
 @api_required
+@data_cache("employees")
 def api_departments():
     """API endpoint to fetch real departments and headcounts from database."""
     with _db() as (cursor, conn):

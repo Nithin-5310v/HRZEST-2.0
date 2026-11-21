@@ -34,6 +34,7 @@ from utils.email_utils import get_email_config, send_email_smtp, send_email_asyn
 from utils.session_risk import end_session_server_side, ensure_session_id
 from utils.totp import verify_totp_code, send_mfa_login_email, mark_totp_enabled
 from utils.face_utils import verify_uploaded_face
+from utils.data_cache import data_cache
 from utils.webauthn_utils import (
     webauthn, _webauthn_available, _wa_rp_id, _wa_check_rp_id, _wa_origins,
     _wa_b64url_encode, _wa_b64url_decode, _wa_verify_and_store_registration,
@@ -1733,6 +1734,7 @@ def webauthn_unenroll():
 @auth_bp.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
 @limiter.limit("30 per minute")
 @session_or_bearer_required()
+@data_cache("auth")
 def get_employee_webauthn_credential(emp_id):
     """Return the stored WebAuthn credential_id -- for a signed-in admin or
     employee (session or app token; the kiosk uses an admin token)."""

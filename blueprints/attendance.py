@@ -38,6 +38,7 @@ from utils.attendance_utils import (
 from utils.face_utils import face_recognition, _face_recognition_available, _get_known_face_encoding
 from utils.webauthn_utils import _wa_fingerprint_recently_verified
 from utils import punch_integrity as pi
+from utils.data_cache import data_cache
 
 attendance_bp = Blueprint("attendance", __name__)
 
@@ -280,6 +281,7 @@ def assign_shift():
 @attendance_bp.route("/api/breaks")
 @limiter.limit("30 per minute")
 @session_or_bearer_required()
+@data_cache("attendance")
 def api_breaks():
     # Any signed-in admin or employee, on the web (session) or in the app
     # (Bearer). This used to check auth inline: first any string after
@@ -1525,6 +1527,7 @@ def api_attendance_challenge():
 
 @attendance_bp.route("/api/admin/attendance/flagged", methods=["GET"])
 @admin_required
+@data_cache("attendance")
 def api_admin_flagged_punches():
     """Punch attempts that tripped an integrity rule (flags set) or were
     rejected by one, newest first -- the HR review queue for spoofing."""
@@ -1720,6 +1723,7 @@ def api_checkin():
 
 @attendance_bp.route("/api/shifts", methods=["GET"])
 @api_required
+@data_cache("attendance")
 def api_shifts_get():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

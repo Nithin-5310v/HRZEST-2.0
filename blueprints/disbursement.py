@@ -33,6 +33,7 @@ from utils.helpers import tpath, _audit, encrypt_pii, decrypt_pii, company_today
 from utils.helpers import amount as _amt
 from utils.email_utils import send_email_async
 from utils.salary_utils import build_salary_slip_html
+from utils.data_cache import data_cache
 from utils.payout_utils import (
     get_payout_bank_config, validate_ifsc, mask_account_number,
     execute_payout, payout_provider_configured,
@@ -46,6 +47,7 @@ disbursement_bp = Blueprint("disbursement", __name__)
 @disbursement_bp.route("/api/payout/bank_config")
 @role_required("admin")
 @require_payout_2fa
+@data_cache("disbursement")
 def api_get_payout_bank_config():
     cfg = get_payout_bank_config()
     if not cfg:

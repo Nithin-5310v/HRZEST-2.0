@@ -32,6 +32,7 @@ from utils.helpers import (
 from utils.email_utils import send_email_async, get_email_config, get_admin_emails
 from utils.leave_utils import get_indian_holidays
 import utils.config as cfg
+from utils.data_cache import data_cache
 
 leave_bp = Blueprint("leave", __name__)
 
@@ -976,6 +977,7 @@ def api_add_holiday():
 
 @leave_bp.route("/api/holidays", methods=["GET"])
 @api_required
+@data_cache("leave")
 def api_holidays():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1059,6 +1061,7 @@ def _api_approving_own_record(emp_id):
 @leave_bp.route("/api/leave_requests", methods=["GET"])
 @api_required
 @api_role_required(*_LEAVE_APPROVER_ROLES)
+@data_cache("leave")
 def api_leave_requests():
     _mgr_join, _mgr_args = _api_manager_scope_subquery(alias="lr")
     db = get_db_connection()
@@ -1128,6 +1131,7 @@ def api_leave_action(lid):
 @leave_bp.route("/api/resignation_requests", methods=["GET"])
 @api_required
 @api_role_required(*_LEAVE_APPROVER_ROLES)
+@data_cache("leave")
 def api_resignation_requests():
     _mgr_join, _mgr_args = _api_manager_scope_subquery(alias="rr")
     db = get_db_connection()
@@ -1324,6 +1328,7 @@ def api_employee_resign():
 
 @leave_bp.route("/api/employee/leaves", methods=["GET"])
 @employee_api_required
+@data_cache("leave")
 def api_employee_leaves():
     emp_id = g.api_emp_id
     db = get_db_connection()
@@ -1456,6 +1461,7 @@ def api_employee_request_overtime():
 
 @leave_bp.route("/api/employee/my_overtime", methods=["GET"])
 @employee_api_required
+@data_cache("leave")
 def api_employee_my_overtime():
     emp_id = g.api_emp_id
     db = get_db_connection()
@@ -1479,6 +1485,7 @@ def api_employee_my_overtime():
 
 @leave_bp.route("/api/employee/holidays", methods=["GET"])
 @employee_api_required
+@data_cache("leave")
 def api_employee_holidays():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1498,6 +1505,7 @@ def api_employee_holidays():
 
 @leave_bp.route("/api/overtime", methods=["GET"])
 @api_required
+@data_cache("leave")
 def api_overtime():
     """API endpoint for fetching real overtime records from database.
 
@@ -1600,6 +1608,7 @@ def api_overtime_action(oid):
 
 @leave_bp.route("/api/compoff", methods=["GET"])
 @api_required
+@data_cache("leave")
 def api_compoff():
     """API endpoint for fetching real comp-off balances from the database.
 

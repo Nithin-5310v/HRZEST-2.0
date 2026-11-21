@@ -5,6 +5,7 @@ from database import get_db_connection
 from flask import jsonify, render_template, request, session
 from utils.auth import admin_required, require_access, role_required
 from utils.helpers import get_company_settings, get_pending_action_counts
+from utils.data_cache import data_cache
 from . import admin_views_bp
 from .dashboard import _load_activity_log
 
@@ -67,6 +68,7 @@ def admin_tools():
 
 @admin_views_bp.route("/api/org_chart_data")
 @admin_required
+@data_cache("admin_views")
 def api_org_chart_data():
     dept_filter = request.args.get("dept", "")
     active_cid = session.get("active_company_id")

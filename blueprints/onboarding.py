@@ -23,6 +23,7 @@ from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
 from extensions import limiter, app_log, app, log_security_event
 from utils.tokens import waf_safe_token
+from utils.data_cache import data_cache
 
 onboarding_bp = Blueprint("onboarding", __name__)
 
@@ -117,6 +118,7 @@ def download_onboarding_document(task_id):
 @onboarding_bp.route("/api/onboarding", methods=["GET"])
 @api_required
 @api_require_access("onboarding", "view")
+@data_cache("onboarding")
 def api_onboarding():
     """API endpoint to fetch real onboarding records from database."""
     _scope_sql, _scope_args = hr_scope_column("e")   # team-scoped token: its team only
@@ -158,6 +160,7 @@ def api_onboarding():
 @onboarding_bp.route("/api/onboarding/<int:ob_id>/tasks", methods=["GET"])
 @api_required
 @api_require_access("onboarding", "view")
+@data_cache("onboarding")
 def api_onboarding_tasks(ob_id):
     """Bearer-token twin of the task list half of onboarding_detail() below
     -- lets mobile show and update an individual onboarding's checklist,
@@ -1675,6 +1678,7 @@ def my_onboarding_task_done():
 
 @onboarding_bp.route("/api/employee/onboarding", methods=["GET"])
 @employee_api_required
+@data_cache("onboarding")
 def api_my_onboarding():
     """Bearer-token twin of my_onboarding() -- same query shape, JSON
     instead of a rendered template. Optional ?ob_id= selects a specific

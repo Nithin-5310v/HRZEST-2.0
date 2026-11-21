@@ -25,6 +25,7 @@ from utils.helpers import (
 from utils.storage import decrypted_stream, save_upload
 from utils.tokens import waf_safe_token
 from utils.tenant_files import face_photo_path
+from utils.data_cache import data_cache
 from . import employees_bp
 from .registration import _send_welcome_credentials_email
 
@@ -33,6 +34,7 @@ from .registration import _send_welcome_credentials_email
 @api_required
 @api_role_required("admin")
 @limiter.limit("10 per minute")
+@data_cache("employees")
 def api_employees():
     page = max(1, int_param(request.args.get("page", 1)))
     # Up to 500 a page: the app loads the whole staff list (it used to get
@@ -175,6 +177,7 @@ def api_register_employee():
 @api_required
 @api_role_required("admin", "hr")
 @limiter.limit("30 per minute")
+@data_cache("employees")
 def api_employee_detail(emp_id):
     # Team scope: this returns salary_per_day (security review 2026-11-20).
     from utils.helpers import hr_scope_denied
@@ -317,6 +320,7 @@ def api_delete_employee(emp_id):
 
 @employees_bp.route("/api/org_chart", methods=["GET"])
 @api_required
+@data_cache("employees")
 def api_org_chart():
     """Bearer-token twin of blueprints/admin_views.py's api_org_chart_data()
     -- same manager_id-based tree, same shape -- so mobile's Organization

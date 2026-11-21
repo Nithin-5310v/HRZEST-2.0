@@ -44,6 +44,7 @@ from utils.salary_utils import (
     apply_statutory_deductions,
 )
 import utils.config as cfg
+from utils.data_cache import data_cache
 
 payroll_bp = Blueprint("payroll", __name__)
 
@@ -680,6 +681,7 @@ def api_unlock_payroll():
 @payroll_bp.route("/api/payroll/status", methods=["GET"])
 @api_required
 @api_role_required("admin", "hr")
+@data_cache("payroll")
 def api_payroll_status():
     """Whether a given year/month's payroll run is locked -- lets mobile
     show the same locked/unlocked state the web page's own query drives."""
@@ -1094,6 +1096,7 @@ def save_hike_config():
 @api_required
 @api_role_required("admin")
 @limiter.limit("10 per minute")
+@data_cache("payroll")
 def api_salary_config_get():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1146,6 +1149,7 @@ def api_salary_config_post():
 @payroll_bp.route("/api/monthly_report", methods=["GET"])
 @api_required
 @api_require_access("attendance", "view")
+@data_cache("payroll")
 def api_monthly_report():
     year = int_param(request.args.get("year", company_today().year))
     month = int_param(request.args.get("month", company_today().month))

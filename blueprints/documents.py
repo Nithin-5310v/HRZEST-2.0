@@ -16,6 +16,7 @@ from utils.helpers import (
     self_service_emp_id, self_service_return_path, audit_read,
 )
 from utils.storage import save_private, open_private, delete_private
+from utils.data_cache import data_cache
 
 documents_bp = Blueprint("documents", __name__)
 
@@ -219,6 +220,7 @@ def _fmt_doc(row):
 @documents_bp.route("/api/documents", methods=["GET"])
 @api_required
 @api_role_required("admin", "hr")
+@data_cache("documents")
 def api_documents_list():
     emp_id = request.args.get("emp_id", "").strip()
     # Team scope for a team-scoped token (security review 2026-11-20).
@@ -318,6 +320,7 @@ def api_documents_delete(did):
 
 @documents_bp.route("/api/employee/documents", methods=["GET"])
 @employee_api_required
+@data_cache("documents")
 def api_my_documents_list():
     emp_id = _g.api_emp_id
     db = get_db_connection()

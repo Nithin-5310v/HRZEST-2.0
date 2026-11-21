@@ -9,6 +9,7 @@ from utils.auth import admin_required, any_user_required, role_required, require
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.helpers import _validate_upload, int_param, post_announcement, tpath
 from utils.storage import delete_private, open_private, save_private
+from utils.data_cache import data_cache
 from werkzeug.utils import secure_filename
 from . import _ANN_ALLOWED_EXT, admin_views_bp
 
@@ -158,6 +159,7 @@ def test_email():
 
 @admin_views_bp.route("/api/admin/expiring_documents", methods=["GET"])
 @admin_required
+@data_cache("admin_views")
 def api_expiring_documents():
     days = int_param(request.args.get("days", 30))
     db = get_db_connection()

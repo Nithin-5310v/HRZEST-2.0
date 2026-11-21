@@ -19,6 +19,7 @@ from utils.helpers import (
     parse_finite_float,
     tpath,
 )
+from utils.data_cache import data_cache
 from utils.helpers.rbac import (
     RBAC_MODULES,
     VALID_BASE_TYPES,
@@ -661,6 +662,7 @@ def save_geo_radius():
 
 @admin_views_bp.route("/api/settings", methods=["GET"])
 @api_required
+@data_cache("admin_views")
 def api_settings_get():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

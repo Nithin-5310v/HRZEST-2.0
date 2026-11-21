@@ -7,6 +7,7 @@ from utils.auth import (
     api_role_required, require_access,
 )
 from utils.email_utils import get_email_config, send_email_async
+from utils.data_cache import data_cache
 from utils.helpers import (
     tpath, _create_notification, hr_scope_denied, manager_scope_denied, invalidate_pending_counts_cache,
     self_service_emp_id, self_service_return_path,
@@ -157,6 +158,7 @@ def ticket_action(tid):
 
 @tickets_bp.route("/api/employee/tickets", methods=["GET"])
 @employee_api_required
+@data_cache("tickets")
 def api_employee_tickets():
     from flask import g as _g
     emp_id = _g.api_emp_id
@@ -207,6 +209,7 @@ def api_employee_raise_ticket():
 @tickets_bp.route("/api/tickets", methods=["GET"])
 @api_required
 @api_role_required(*_TICKET_ADMIN_ROLES)
+@data_cache("tickets")
 def api_tickets():
     # A team-scoped token sees only its team's tickets (security review 2026-11-20).
     from utils.helpers import hr_scope_subquery
