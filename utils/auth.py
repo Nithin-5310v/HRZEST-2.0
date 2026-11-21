@@ -292,10 +292,7 @@ def _reject_if_password_changed(login_endpoint: str):
                            level="WARNING", identifier=_mask_identifier(
                                str(session.get("admin_username") or session.get("employee_id") or "")))
         session.clear()
-        if _is_ajax_request():
-            return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
-                            "redirect": url_for(login_endpoint)}), 401
-        return redirect(url_for(login_endpoint, locked="1"))
+        return _reject(url_for(login_endpoint, locked="1"), "Session expired. Please log in again.")
     return None
 
 
@@ -333,6 +330,17 @@ def _is_ajax_request() -> bool:
         or request.headers.get("Content-Type", "").startswith("application/json")
         or request.is_json
     )
+
+
+def _reject(login_path: str, msg: str = "Your session has ended. Please sign in again.", status: int = 401):
+    """How a guard turns a request away. A page gets a redirect to
+    `login_path`; an /api/ or background (fetch/AJAX) request gets JSON with
+    that path under "redirect" -- a redirect there is followed by the
+    browser to an HTML page the caller can't parse, and the employee
+    portal's HR Assistant showed that as "Couldn't reach the server"."""
+    if request.path.startswith("/api/") or _is_ajax_request():
+        return jsonify({"ok": False, "msg": msg, "redirect": login_path}), status
+    return redirect(login_path)
 
 
 # Expired-token cleanup used to be a DELETE on EVERY API request -- a write
@@ -574,7 +582,7 @@ def _reject_if_compromised(login_endpoint: str):
                            level="WARNING", identifier=session.get("admin_username")
                            or session.get("employee_id"))
         session.clear()
-        return redirect(url_for(login_endpoint, locked="1"))
+        return _reject(url_for(login_endpoint, locked="1"))
     return None
 
 
@@ -728,7 +736,7 @@ def _reject_if_account_deactivated(table: str, id_column: str, id_value, login_e
             level="WARNING", identifier=id_value,
         )
         session.clear()
-        return redirect(url_for(login_endpoint, locked="1"))
+        return _reject(url_for(login_endpoint, locked="1"))
     return None
 
 
@@ -751,16 +759,7 @@ def admin_required(f):
             _level = "WARNING" if session.get("employee_id") else "INFO"
             log_security_event("access.denied", "Unauthenticated request to admin-only route",
                                level=_level, required="admin")
-            is_ajax = (
-                request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                or request.headers.get("Accept", "").startswith("application/json")
-                or request.headers.get("Content-Type", "").startswith("application/json")
-                or request.is_json
-            )
-            if is_ajax:
-                return jsonify({"ok": False, "msg": "Session expired. Please log in again.",
-                                "redirect": url_for("auth.admin_login")}), 401
-            return redirect(url_for("auth.admin_login"))
+            return _reject(url_for("auth.admin_login"), "Session expired. Please log in again.")
         _prime_guard_state("admin_users", "username", session.get("admin_username"))
         _killed = _reject_if_compromised("auth.admin_login")
         if _killed:
@@ -786,7 +785,8 @@ def employee_required(f):
             session.pop("employee_id", None)
             session.pop("employee_name", None)
             session.pop("employee_role", None)
-            return redirect("/admin")
+            return _reject("/admin", "You're signed in as an admin in this browser. "
+                                     "Sign out and sign in again as the employee to continue.", 409)
         if not session.get("employee_id"):
             log_security_event("access.denied", "Unauthenticated request to employee-only route",
                                level="INFO", required="employee")
@@ -795,7 +795,7 @@ def employee_required(f):
             # unified /login page. The literal "/employee_login" path this
             # used to redirect to 404s (dead route); auth.admin_login is
             # also what url_for(...) resolves to a build error for below.
-            return redirect(url_for("auth.admin_login"))
+            return _reject(url_for("auth.admin_login"))
         _prime_guard_state("employees", "employee_id", session.get("employee_id"))
         _killed = _reject_if_compromised("auth.admin_login")
         if _killed:
@@ -809,7 +809,7 @@ def employee_required(f):
         # Prevent bypassing forced password change by navigating directly to portal
         from flask import request as _req
         if session.get("_fpc") and _req.endpoint not in ("auth.force_change_pin", "force_change_pin"):
-            return redirect("/force_change_pin")
+            return _reject("/force_change_pin", "Please set a new password before continuing.", 403)
         return f(*args, **kwargs)
     wrapper._hrz_auth_guard = "employee"  # read by tests/test_route_auth_guards.py
     return wrapper
