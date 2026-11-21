@@ -170,7 +170,9 @@ def set_binding_cookie(response, authorize_url):
 def binding_ok(request, state):
     import hmac as _hmac
     cookie = request.cookies.get(BIND_COOKIE) or ""
-    return bool(state) and bool(cookie) and _hmac.compare_digest(cookie, state_binding(state))
+    if not state or not cookie:
+        return False
+    return _hmac.compare_digest(cookie, state_binding(state))
 
 
 def build_authorize_url(provider, redirect_uri, mode, tenant_db=None):
