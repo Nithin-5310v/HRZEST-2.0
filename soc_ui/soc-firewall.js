@@ -77,9 +77,10 @@
         { label: 'Layer', render: (e) => LAYER_LABEL[e.layer] || e.layer },
         { label: 'Decision', render: (e) => SOC.chip(e.action, ACTION_CLS[e.action] || 'plain') },
         { label: 'Source', render: (e) => SOC.ipLink(e.src_ip) },
+        // Count before the long text columns, so it never ends up behind the table's scroll.
+        { label: 'Count', num: true, render: (e) => fmt.n(e.hits) },
         { label: 'Rule', cls: 'clip mono', key: 'rule' },
-        { label: 'Request', cls: 'clip mono', render: (e) => (e.method ? e.method + ' ' : '') + (e.path || (e.dst_port != null ? ':' + e.dst_port + (e.protocol ? '/' + e.protocol : '') : '')) },
-        { label: 'Count', num: true, render: (e) => fmt.n(e.hits) }
+        { label: 'Request', cls: 'clip mono', render: (e) => (e.method ? e.method + ' ' : '') + (e.path || (e.dst_port != null ? ':' + e.dst_port + (e.protocol ? '/' + e.protocol : '') : '')) }
       ]
     });
   }
