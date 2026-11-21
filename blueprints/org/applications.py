@@ -477,10 +477,9 @@ def _reject_application_reviewed(application, reviewed_by, reason):
 def _save_application_documents(application, files):
     """Shared document-upload logic for both web and mobile. `files` is a
     dict-like of {doc_kind: FileStorage} (request.files works directly).
-    Returns (True, None) on success -- documents are saved and the
-    application is auto-approved in the same call (see the
-    _approve_application_reviewed() call at the end of this function),
-    unblocking login immediately rather than waiting on a review -- or
+    Returns (True, None) on success -- documents are saved and queued for
+    review (automated check, or a platform admin); login is not blocked
+    meanwhile, only payouts and bulk email (utils/kyc_gate.py) -- or
     (False, error_message).
 
     'rejected' is deliberately allowed back in here -- re-uploading
@@ -542,22 +541,15 @@ def _save_application_documents(application, files):
     mcur.close()
     mconn.close()
 
-    # Auto-approve immediately on submission -- KYC review no longer
-    # gates login (matches the OAuth signup path in
-    # blueprints/oauth_signup.py, which never collects documents at all).
-    # verification_job_status stays 'pending' above, so
-    # utils/document_verification.py's automated Claude-vision worker
-    # still runs afterward and can still suspend the tenant via
-    # _reject_application_reviewed() if it finds fraud (duplicate GST/PAN/
-    # CIN) -- this removes the WAIT for a human/AI reviewer before access,
-    # not the fraud check itself, which now runs as a retroactive safety
-    # net instead of a precondition. Mutate the in-memory dict to match
-    # what the UPDATE above just wrote (doc_review_status='pending_review')
-    # -- _approve_application_reviewed()'s own guard reads this cached
-    # field, not a fresh row, and the caller's `application` here still
-    # holds whatever it looked like before this function ran.
+    # No approval here (security audit P3, 2026-11-20). The documents stay
+    # 'pending_review' with verification_job_status='pending', so
+    # utils/document_verification.py's automated check (or a platform admin)
+    # decides. They used to be approved right here, and because that worker
+    # skips anything not 'pending_review', the duplicate GST/PAN/CIN check
+    # never ran for a self-serve company. Login is not gated on this; the
+    # company works in restricted mode (utils/kyc_gate.py: no payouts, no
+    # bulk email) until the review approves it.
     application["doc_review_status"] = "pending_review"
-    _approve_application_reviewed(application, "system:auto_approved_on_submit")
     return True, None
 
 

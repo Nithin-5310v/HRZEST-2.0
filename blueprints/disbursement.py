@@ -27,6 +27,7 @@ from utils.auth import (
     role_required, require_payout_2fa, payout_settings_step_up_refresh,
     payout_settings_step_up_clear,
 )
+from utils.kyc_gate import kyc_verified_required
 from utils.totp import verify_totp_code, mark_totp_enabled
 from utils.helpers import tpath, _audit, encrypt_pii, decrypt_pii, company_today, encrypt_amount
 from utils.helpers import amount as _amt
@@ -64,6 +65,7 @@ def api_get_payout_bank_config():
 @disbursement_bp.route("/api/payout/bank_config", methods=["POST"])
 @role_required("admin")
 @require_payout_2fa
+@kyc_verified_required()
 def api_save_payout_bank_config():
     data = request.get_json(silent=True) or {}
     holder = (data.get("account_holder_name") or "").strip()
@@ -190,6 +192,7 @@ def api_payout_lock():
 @disbursement_bp.route("/disbursement/<int:run_id>/approve", methods=["POST"])
 @role_required("admin")
 @require_payout_2fa
+@kyc_verified_required(redirect_path="/settings?tab=payroll")
 def approve_disbursement_run(run_id):
     """Authorizes real money movement -- the one explicit human click the
     plan requires before anything executes.
