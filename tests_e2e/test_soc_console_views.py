@@ -220,14 +220,25 @@ def test_every_view_renders_cleanly(browser, soc, viewport):
         page.wait_for_load_state("networkidle")
         page.locator("#view tbody tr").first.locator("td").first.click()     # the row, not its IP link
         expect(page.locator("#drawer")).to_be_visible()
+        # The drawer opens with a placeholder and again once the event has loaded;
+        # "Event type" is only there in the loaded one.
+        expect(page.locator("#drawer")).to_contain_text("Event type")
         page.wait_for_load_state("networkidle")
         if SHOTS:
             page.screenshot(path=os.path.join(SHOTS, f"{viewport}-event-drawer.png"), full_page=True)
-        # A firewall decision: the last table on the Firewall view is "Recent decisions".
+        # A firewall decision, from the Firewall view's "Recent decisions". Close the
+        # event drawer first: a hash change keeps the page, and an open drawer's
+        # overlay would take the click.
         where["view"] = "firewall-drawer"
+        page.keyboard.press("Escape")
+        expect(page.locator("#scrim")).to_be_hidden()
         page.goto(soc["url"] + "/socperson#/firewall?layer=proxy")
         page.wait_for_load_state("networkidle")
-        page.locator("#view table").last.locator("tbody tr").first.locator("td").first.click()
+        # A hash change returns before the view has replaced the previous one's
+        # table: wait for this view's own row before clicking it.
+        decisions = page.locator("#view section", has_text="Recent decisions").locator("tbody tr")
+        expect(decisions.first).to_contain_text("949110")
+        decisions.first.locator("td").first.click()
         expect(page.locator("#drawer")).to_be_visible()
         expect(page.locator("#drawer")).to_contain_text("949110")
         if page.evaluate("document.documentElement.scrollWidth - window.innerWidth") > 1:
