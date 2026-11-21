@@ -129,6 +129,7 @@ else:
         from utils.privacy_jobs import run_retention_purge
         from utils.audit_jobs import emit_anchors, run_full_verification
         from utils.soc_digest import JOB_ID as _SOC_DIGEST_JOB, digest_hour, send_daily_digest
+        from utils.http_telemetry import purge_old as purge_http_telemetry
     except ImportError as _job_import_err:
         # Deliberately NOT the same except block as "apscheduler missing"
         # above -- that used to be one try/except ImportError covering
@@ -246,6 +247,14 @@ else:
                 trigger="cron",
                 hour=3, minute=30,
                 id="privacy_retention_purge",
+                replace_existing=True,
+            )
+            # Request telemetry older than HTTP_TELEMETRY_RETENTION_DAYS (utils/http_telemetry.py).
+            _scheduler.add_job(
+                func=_scheduled_job("http_telemetry_purge", purge_http_telemetry),
+                trigger="cron",
+                hour=3, minute=40,
+                id="http_telemetry_purge",
                 replace_existing=True,
             )
             # SOC daily summary email to SOC_LOGIN_EMAILS (utils/soc_digest.py);

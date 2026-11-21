@@ -802,3 +802,19 @@ def _init_master_soc_tables():
         db.close()
     except Exception as _e:
         app_log.warning("init_master_db SOC tables failed: %s", _e, exc_info=True)
+    _init_master_telemetry_tables()
+
+
+def _init_master_telemetry_tables():
+    """Request telemetry tables (migrations/telemetry_tables.py), in their own
+    try block: the app must still boot without them."""
+    from migrations.telemetry_tables import ensure_telemetry_tables
+    try:
+        db = get_master_db()
+        cur = db.cursor()
+        ensure_telemetry_tables(cur)
+        db.commit()
+        cur.close()
+        db.close()
+    except Exception as _e:
+        app_log.warning("init_master_db telemetry tables failed: %s", _e, exc_info=True)
