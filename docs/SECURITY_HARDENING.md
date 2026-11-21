@@ -282,6 +282,7 @@ atomic upsert, so every gunicorn worker can schedule it.
 | `impossible_travel` | one employee's accepted punches ≥200 km apart within 60 min |
 | `shared_device` | one device id punched for ≥3 employees in 24 h |
 | `repeat_mock_location` / `repeat_liveness_failure` / `photo_replay` | repeated spoofing signals per employee |
+| `http_error_spike` | one status (401, 403, 404, 429, or any 5xx) answered ≥100 times in 10 min **and** ≥5× its average 10 minutes over the day before (request telemetry, `utils/http_telemetry.py`) |
 
 Every threshold is an env var (`DETECT_*`). Loki rules for the dead-man's switch,
 detections, honeypot hits and "non-routable client IP" are in

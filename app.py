@@ -55,7 +55,7 @@ from extensions import app, app_log, limiter, log_security_event  # noqa: E402,F
 # Import ORDER matters: Flask runs before_request hooks in registration order
 # (and after_request hooks in reverse), and each module registers its hooks
 # on the shared app as it is imported.
-from app_setup import config, templating, tenant, security, csrf_csp, cache_control, errors  # noqa: E402,F401
+from app_setup import telemetry, config, templating, tenant, security, csrf_csp, cache_control, errors  # noqa: E402,F401,E501
 
 # Re-exported so existing `from app import X` call sites and tests keep working.
 from app_setup.csrf_csp import _add_csrf_fields, _csrf_exempt, _CSRF_METHODS  # noqa: E402,F401
