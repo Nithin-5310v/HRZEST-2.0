@@ -304,7 +304,7 @@ class TestSendWeeklyEmployeeDigests:
 class TestTriggerDailyReportRoute:
     def test_requires_admin_session(self, client):
         resp = client.post("/api/admin/trigger_daily_report")
-        assert resp.status_code == 302
+        assert resp.status_code == 401 and resp.get_json()["ok"] is False   # an API call gets JSON, not a redirect
 
     def test_admin_triggers_report_generation(self, client, seed_admin, monkeypatch):
         monkeypatch.setattr(daily_report_module.threading, "Thread", _SyncThread)
@@ -321,7 +321,7 @@ class TestTriggerDailyReportRoute:
 class TestTriggerWeeklyDigestRoute:
     def test_requires_admin_session(self, client):
         resp = client.post("/api/admin/trigger_weekly_digest")
-        assert resp.status_code == 302
+        assert resp.status_code == 401 and resp.get_json()["ok"] is False   # an API call gets JSON, not a redirect
 
     def test_admin_triggers_weekly_digest(self, client, seed_admin, monkeypatch):
         monkeypatch.setattr(daily_report_module.threading, "Thread", _SyncThread)

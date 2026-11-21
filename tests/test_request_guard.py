@@ -68,8 +68,10 @@ class TestBatchedAdminGuard:
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET is_active=0 WHERE username=%s", (seed_admin["username"],))
         r = client.get("/api/admin/attendance/flagged")
-        assert r.status_code == 302            # session killed, bounced to login
-        assert client.get("/api/admin/attendance/flagged").status_code in (302, 401)
+        # Session killed. An /api/ call gets JSON 401 pointing at the login
+        # page (a redirect there reached fetch() callers as an HTML page).
+        assert r.status_code == 401 and "login" in r.get_json()["redirect"]
+        assert client.get("/api/admin/attendance/flagged").status_code == 401
 
     def test_compromised_session_is_rejected(self, client, seed_admin, db_engine):
         _admin_login(client, seed_admin)
@@ -78,7 +80,7 @@ class TestBatchedAdminGuard:
         cur = db_engine.cursor()
         cur.execute("INSERT INTO session_risk (sid, identifier, attempt_type, score, status) "
                     "VALUES (%s,%s,'admin',100,'compromised')", (sid, seed_admin["username"]))
-        assert client.get("/api/admin/attendance/flagged").status_code == 302
+        assert client.get("/api/admin/attendance/flagged").status_code == 401
 
     def test_password_change_invalidates_older_sessions(self, client, seed_admin, db_engine):
         _admin_login(client, seed_admin)
@@ -86,13 +88,13 @@ class TestBatchedAdminGuard:
         cur = db_engine.cursor()
         cur.execute("UPDATE admin_users SET password_changed_at = NOW() + INTERVAL '5 seconds' WHERE username=%s",
                     (seed_admin["username"],))
-        assert client.get("/api/admin/attendance/flagged").status_code == 302
+        assert client.get("/api/admin/attendance/flagged").status_code == 401
 
     def test_deleted_account_is_rejected(self, client, seed_admin, db_engine):
         _admin_login(client, seed_admin)
         cur = db_engine.cursor()
         cur.execute("DELETE FROM admin_users WHERE username=%s", (seed_admin["username"],))
-        assert client.get("/api/admin/attendance/flagged").status_code == 302
+        assert client.get("/api/admin/attendance/flagged").status_code == 401
 
 
 class TestFallbackWhenPasswordStampIsForAnotherTable:
@@ -110,7 +112,7 @@ class TestFallbackWhenPasswordStampIsForAnotherTable:
         cur = db_engine.cursor()
         cur.execute("UPDATE employees SET password_changed_at = NOW() + INTERVAL '5 seconds' WHERE employee_id=%s",
                     (seed_employee["employee_id"],))
-        assert client.get("/api/admin/attendance/flagged").status_code == 302
+        assert client.get("/api/admin/attendance/flagged").status_code == 401
 
 
 class TestCacheIsPerRequestAndFailsSafe:
@@ -146,7 +148,7 @@ class TestCacheIsPerRequestAndFailsSafe:
         not make that a no-op."""
         _admin_login(client, seed_admin)
         monkeypatch.setattr(auth_module, "is_session_compromised", lambda sid: True)
-        assert client.get("/api/admin/attendance/flagged").status_code == 302
+        assert client.get("/api/admin/attendance/flagged").status_code == 401
 
 
 class TestEmployeeSessionGuard:

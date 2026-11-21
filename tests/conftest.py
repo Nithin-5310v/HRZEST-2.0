@@ -624,6 +624,8 @@ def _clear_process_caches():
     import blueprints.platform_admin as platform_admin
     from utils import helpers, plan_limits
     from utils.totp import clear_totp_cache_for_tests
+    from utils.ai_assistant import reset_backend_health
+    reset_backend_health()
     helpers.invalidate_settings_cache()
     helpers.invalidate_pending_counts_cache()
     helpers.invalidate_companies_cache()
