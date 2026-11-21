@@ -65,7 +65,8 @@ class TestCustomRoleCannotUseUnrelatedModules:
         _role_session(client, custom_role)
         resp = client.post(path, data={"year": "2026", "month": "10"},
                            headers={"Accept": "application/json"})
-        assert resp.status_code in (302, 403)
+        # Refused either way: a redirect, 403, or 401 for a JSON caller.
+        assert resp.status_code in (302, 401, 403)
 
     def test_cannot_send_email_blast(self, client, custom_role):
         _role_session(client, custom_role)
