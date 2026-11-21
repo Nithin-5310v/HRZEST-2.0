@@ -27,6 +27,28 @@
   const act = (p, ok) => p.then((r) => { if (ok) SOC.toast(ok, 'good'); return r; }).catch((e) => { SOC.toast(e.message, 'bad'); throw e; });
   const needs = (role) => SOC.can(role);
 
+  // "Right now" on the Overview: fixed 1 h / 24 h numbers from the live feed
+  // (utils/live_feed.py), redrawn in place every few seconds.
+  function liveStrip(box, p) {
+    const k = p && p.kpis;
+    box.textContent = '';
+    box.appendChild(h('p', { class: 'note' }, h('strong', null, 'Right now'),
+      SOC.streaming ? ' · updates every 5 seconds' : ' · updates every 30 seconds'));
+    if (!k) { box.appendChild(SOC.skeleton()); return; }
+    const d = k.denied_1h;
+    const denied = d.source === 'never' ? ['–', 'No telemetry recorded yet']
+      : d.source === 'offline' ? [fmt.n(d.s401) + ' / ' + fmt.n(d.s403), 'Source offline since ' + fmt.time(d.last_write)]
+        : [fmt.n(d.s401) + ' / ' + fmt.n(d.s403), 'not signed in / forbidden'];
+    box.appendChild(h('div', { class: 'grid kpis' },
+      SOC.kpi('Failed sign-ins (1 h)', fmt.n(k.failed_logins_1h), fmt.n(k.failed_logins_24h) + ' in 24 h · ' + fmt.n(k.lockouts_24h) + ' lockouts',
+        k.failed_logins_1h > 20 ? 'medium' : 'info', SOC.explainHref('kpi', 'failed_logins'), 'lock'),
+      SOC.kpi('Alerts (1 h)', fmt.n(k.alerts_1h), fmt.n(k.alerts_24h) + ' in 24 h', k.alerts_1h ? 'high' : 'ok', '#/alerts', 'alerts'),
+      SOC.kpi('401 / 403 (1 h)', denied[0], denied[1], d.source !== 'ok' ? 'info' : d.s401 + d.s403 > 100 ? 'medium' : 'ok', '#/traffic', 'traffic'),
+      SOC.kpi('Blocked IPs', fmt.n(k.blocked_ips), k.blocked_ips_testing ? '+' + fmt.n(k.blocked_ips_testing) + ' on your test addresses' : 'banned now',
+        'info', '#/response', 'ban'),
+      SOC.kpi('Open cases', fmt.n(p.open_cases), 'open, investigating or contained', p.open_cases ? 'medium' : 'ok', '#/cases', 'cases')));
+  }
+
   /* ============ shared: event detail drawer, ban form, case form ============ */
   SOC.banForm = function (ip, done) {
     const reason = h('input', { class: 'input', id: 'banReason', maxlength: '240', placeholder: 'Why? (shown in the ban list and audit trail)', required: true });
@@ -110,9 +132,13 @@
   SOC.register({
     id: 'overview', label: 'Overview', title: 'Overview',
     async render(root, ctl) {
+      const strip = h('section', { class: 'live-strip', 'aria-live': 'off' });
+      liveStrip(strip, SOC.pulse);
+      ctl.onPulse((p) => liveStrip(strip, p));
       const draw = async (initial) => {
         const d = await api.get('/socperson/api/overview', { hours: SOC.hours }, !initial);
         const k = d.kpi, frag = h('div'), ex = SOC.explainHref;
+        frag.appendChild(strip);
         // Same tone as the header badge: orange for high, red only for critical.
         const tone = { normal: 'good', elevated: 'warn', high: 'high', critical: 'bad' }[d.threat.level] || 'warn';
         frag.appendChild(h('div', { class: 'callout banner ' + tone },
@@ -196,6 +222,8 @@
       };
       await draw(true);
       ctl.poll(() => { if (!SOC.drawer.isOpen()) draw(false).catch(() => {}); }, 15000);
+      // New events redraw it straight away (the feed delivers at most one batch per few seconds).
+      ctl.onEvents(() => { if (!SOC.drawer.isOpen()) draw(false).catch(() => {}); });
     }
   });
 
@@ -268,9 +296,10 @@
           filters, newBar, tableBox, more);
         root.textContent = ''; root.appendChild(out);
         await load(true);
-        // Live list: every 30 s, count what arrived after the newest row on screen and
-        // offer to show it -- never reshuffle the list under an analyst who is reading it.
-        ctl.poll(() => {
+        // Live list: when the live feed brings new events (and every 30 s as a fallback),
+        // count what arrived after the newest row on screen that matches these filters
+        // and offer to show it -- never reshuffle the list under an analyst who is reading it.
+        const checkNew = () => {
           if (SOC.drawer.isOpen()) return;
           api.get('/socperson/api/events', query({ since: topId, limit: 200 }), true).then((d) => {
             const n = d.events.length;
@@ -281,7 +310,9 @@
               h('button', { class: 'btn small', type: 'button', onclick: () => load(true).catch((e) => SOC.toast(e.message, 'bad')) }, 'Show them')],
               alertsOnly ? 'bad' : 'warn'));
           }).catch(() => { /* transient; next tick retries */ });
-        }, 30000);
+        };
+        ctl.poll(checkNew, 30000);
+        ctl.onEvents(checkNew);
       }
     });
   }

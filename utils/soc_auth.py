@@ -668,7 +668,8 @@ def _session_user():
         return None
     # Background polling (X-SOC-Poll) must not count as activity, or an unattended
     # open tab would keep the session alive forever and defeat the idle timeout.
-    if request.headers.get("X-SOC-Poll") != "1":
+    # The live feed is background too, and EventSource cannot send that header.
+    if request.headers.get("X-SOC-Poll") != "1" and request.path != "/socperson/api/stream":
         session["soc_last"] = now
     g._soc_user = user
     return user

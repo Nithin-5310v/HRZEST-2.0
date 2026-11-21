@@ -330,6 +330,7 @@
 
   /* ---------- router ---------- */
   var current = null, viewRoot = document.getElementById('view');
+  var liveSubs = { events: [], pulse: [] };
   function parseHash() {
     var raw = (location.hash || '#/overview').replace(/^#\/?/, '');
     var parts = raw.split('?'), params = {};
@@ -341,7 +342,7 @@
     return { name: parts[0] || 'overview', params: params };
   }
   SOC.go = function (name, params) { location.hash = '#/' + name + SOC.api.qs(params); };
-  function clearTimers() { SOC.timers.forEach(clearInterval); SOC.timers = []; }
+  function clearTimers() { SOC.timers.forEach(clearInterval); SOC.timers = []; liveSubs = { events: [], pulse: [] }; }
   function route() {
     var r = parseHash(), view = SOC.views[r.name];
     if (!view || !SOC.can(view.min || 'viewer')) { SOC.go('overview'); return; }
@@ -360,7 +361,10 @@
       params: r.params,
       poll: function (fn, ms) {
         SOC.timers.push(setInterval(function () { if (!document.hidden) fn(); }, ms));
-      }
+      },
+      // Live feed: fn(events) when new security events arrive, fn(pulse) every few seconds.
+      onEvents: function (fn) { liveSubs.events.push(fn); },
+      onPulse: function (fn) { liveSubs.pulse.push(fn); }
     };
     Promise.resolve().then(function () { return view.render(viewRoot, ctl); }).then(function () {
       viewRoot.focus({ preventScroll: true });
@@ -413,6 +417,57 @@
     return SOC.api.get('/socperson/api/pulse', null, poll).then(applyPulse).catch(function () { /* transient */ });
   };
 
+  /* ---------- live feed: Server-Sent Events from /socperson/api/stream ----------
+   * Every response is short and ends with "retry: 5000", so the browser
+   * reconnects every five seconds and sends the last event id it saw. It does not
+   * count as activity for the idle sign-out. Closed while the tab is hidden; on a
+   * refused connection it checks the session (a sign-out goes to the login page)
+   * and tries again later; without EventSource it falls back to polling. */
+  var stream = null, streamFailures = 0, fallbackTimer = null, seenIds = new Set();
+  function notify(kind, payload) {
+    liveSubs[kind].slice().forEach(function (fn) { try { fn(payload); } catch (e) { /* a view's own problem */ } });
+  }
+  function onStreamEvents(e) {
+    var d;
+    try { d = JSON.parse(e.data); } catch (x) { return; }
+    var fresh = (d.events || []).filter(function (ev) { return !seenIds.has(ev.id); });
+    fresh.forEach(function (ev) { seenIds.add(ev.id); });
+    if (seenIds.size > 5000) seenIds = new Set(Array.from(seenIds).slice(-1000));
+    if (fresh.length) notify('events', fresh);
+  }
+  function onStreamPulse(e) {
+    var p;
+    try { p = JSON.parse(e.data); } catch (x) { return; }
+    streamFailures = 0;
+    applyPulse(p);
+    SOC.lastSync = Date.now();
+    SOC.streaming = true;
+    notify('pulse', p);
+  }
+  function stopStream() {
+    if (stream) { stream.close(); stream = null; }
+    SOC.streaming = false;
+  }
+  function startStream() {
+    if (stream || document.hidden) return;
+    if (!window.EventSource) {
+      if (!fallbackTimer) fallbackTimer = setInterval(function () { if (!document.hidden) SOC.refreshPulse(true).then(function () { notify('pulse', SOC.pulse); }); }, 30000);
+      return;
+    }
+    stream = new EventSource('/socperson/api/stream');
+    stream.addEventListener('events', onStreamEvents);
+    stream.addEventListener('pulse', onStreamPulse);
+    stream.onerror = function () {
+      if (!stream || stream.readyState !== 2) return;          // 2 = CLOSED; otherwise it is reconnecting by itself
+      stopStream();
+      streamFailures += 1;
+      SOC.api.get('/socperson/api/me').then(function () {
+        setTimeout(startStream, Math.min(60000, 5000 * streamFailures));
+      }).catch(function () { setTimeout(startStream, 60000); });
+    };
+  }
+  document.addEventListener('visibilitychange', function () { if (document.hidden) stopStream(); else startStream(); });
+
   function idleWatch() {
     var last = Date.now(), warned = false, bar = document.getElementById('idleWarn');
     ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (ev) {
@@ -444,7 +499,6 @@
       txt.textContent = (stale ? 'Updated ' : 'Live · updated ') + (s < 5 ? 'just now' : s < 60 ? s + 's ago' : Math.floor(s / 60) + 'm ago');
     }
     setInterval(tick, 1000);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) SOC.refreshPulse(true); });
   }
 
   SOC.start = function () {
@@ -468,7 +522,7 @@
     else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) document.documentElement.dataset.theme = 'light';
     window.addEventListener('hashchange', route);
     SOC.refreshPulse().then(route);
-    setInterval(function () { if (!document.hidden) SOC.refreshPulse(true); }, 30000);
+    startStream();
     idleWatch(); liveWatch();
   };
 
