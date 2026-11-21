@@ -46,7 +46,10 @@
       SOC.kpi('401 / 403 (1 h)', denied[0], denied[1], d.source !== 'ok' ? 'info' : d.s401 + d.s403 > 100 ? 'medium' : 'ok', '#/traffic', 'traffic'),
       SOC.kpi('Blocked IPs', fmt.n(k.blocked_ips), k.blocked_ips_testing ? '+' + fmt.n(k.blocked_ips_testing) + ' on your test addresses' : 'banned now',
         'info', '#/response', 'ban'),
-      SOC.kpi('Open cases', fmt.n(p.open_cases), 'open, investigating or contained', p.open_cases ? 'medium' : 'ok', '#/cases', 'cases')));
+      SOC.kpi('Open cases', fmt.n(p.open_cases), 'open, investigating or contained', p.open_cases ? 'medium' : 'ok', '#/cases', 'cases'),
+      SOC.kpi('Signed in', k.signed_in ? fmt.n(k.signed_in.count) : '–',
+        k.signed_in && k.signed_in.errors ? k.signed_in.errors + ' compan' + (k.signed_in.errors === 1 ? 'y' : 'ies') + ' could not be read' : 'company sessions now',
+        'info', '#/response?tab=signedin', 'admin')));
   }
 
   /* ============ shared: event detail drawer, ban form, case form ============ */
@@ -491,9 +494,27 @@
     id: 'response', label: 'Response', title: 'Response actions',
     async render(root, ctl) {
       const tab = ctl.params.tab || 'bans';
-      const tabs = h('div', { class: 'tabs', role: 'tablist' }, [['bans', 'IP bans'], ['sessions', 'Risky sessions']].map(([k, l]) =>
+      const tabs = h('div', { class: 'tabs', role: 'tablist' }, [['bans', 'IP bans'], ['signedin', 'Signed in'], ['sessions', 'Risky sessions']].map(([k, l]) =>
         h('button', { role: 'tab', 'aria-selected': String(tab === k), onclick: () => SOC.go('response', { tab: k }) }, l)));
       root.textContent = ''; root.appendChild(tabs);
+      if (tab === 'signedin') {
+        const d = await api.get('/socperson/api/signed_in');
+        const dur = (s) => (s < 90 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : Math.floor(s / 3600) + ' h ' + Math.round((s % 3600) / 60) + ' min ago');
+        root.appendChild(SOC.callout('Every signed-in company session right now, across tenants: not logged out, within the 8-hour limit and used ' +
+          'within the company\'s idle timeout. Revoking ends it on its very next request. Your test accounts and companies are left out.'));
+        root.appendChild(h('p', { class: 'note' }, fmt.n(d.total) + ' signed in' + (d.total > d.sessions.length ? '; showing the ' + fmt.n(d.sessions.length) + ' most recently active' : '') + '.'));
+        root.appendChild(SOC.table({
+          empty: 'Nobody is signed in right now.', rows: d.sessions,
+          columns: [{ label: 'Tenant', key: 'company' }, { label: 'Account', render: (s) => SOC.idLink(s.identifier) }, { label: 'Type', key: 'type' },
+            { label: 'Browser', key: 'browser' }, { label: 'Network', render: (s) => h('span', { class: 'mono' }, s.network || '') },
+            { label: 'Signed in', render: (s) => dur(s.started_seconds_ago) }, { label: 'Last active', render: (s) => dur(s.active_seconds_ago) },
+            { label: '', render: (s) => needs('analyst') && s.sid ? h('button', { class: 'btn danger small', type: 'button', onclick: () => {
+              SOC.confirm('Revoke this session for ' + s.identifier + '?').then((ok) => ok && act(api.post('/socperson/api/sessions/revoke', { tenant_id: s.tenant_id, sid: s.sid }), 'Session revoked').then(() => SOC.reload()).catch(() => {}));
+            } }, 'Revoke') : null }]
+        }));
+        if (d.errors && d.errors.length) root.appendChild(h('p', { class: 'note' }, d.errors.length + ' tenant(s) could not be read.'));
+        return;
+      }
       if (tab === 'sessions') {
         const d = await api.get('/socperson/api/sessions');
         root.appendChild(SOC.callout('Sessions the risk engine has scored or flagged, across tenants. Revoking marks a session compromised; the app refuses it on its very next request.'));

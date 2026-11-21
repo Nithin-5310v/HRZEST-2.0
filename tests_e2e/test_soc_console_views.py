@@ -41,6 +41,7 @@ ROUTES = [
     ("logs", "#/logs"),
     ("cases", "#/cases"),
     ("response", "#/response"),
+    ("response-signed-in", "#/response?tab=signedin"),
     ("banreview", "#/banreview"),
     ("tenants", "#/tenants"),
     ("fraud", "#/fraud"),
