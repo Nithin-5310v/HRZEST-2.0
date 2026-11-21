@@ -66,6 +66,7 @@
     logs: 'M4 5h16v14H4zM8 10l3 2-3 2M13 14h4',
     admin: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
     traffic: 'M3 12h4l3 7 4-14 3 7h4',
+    health: 'M3 5h18v10H3zM8 21h8M12 15v6M7 10h2l1.5-3 2 6 1.5-3h3',
     // stat-tile icons
     error: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 9l6 6M15 9l-6 6',
     lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
@@ -375,7 +376,7 @@
 
   /* ---------- shell ---------- */
   var GROUPS = [
-    ['Monitor', ['overview', 'alerts', 'events', 'traffic']],
+    ['Monitor', ['overview', 'alerts', 'events', 'traffic', 'health']],
     ['Investigate', ['entity', 'analysis', 'logs', 'cases']],
     ['Respond', ['banreview', 'response']],
     ['Assess', ['tenants', 'fraud', 'detections', 'integrity', 'posture']],

@@ -99,7 +99,7 @@ ends on its next request. **Users & audit → Disable** is the immediate switch 
 
 | | viewer | analyst | admin |
 |---|:-:|:-:|:-:|
-| Overview, events, alerts, traffic, lookups, cases (read), tenants, posture, detections | ✔ | ✔ | ✔ |
+| Overview, events, alerts, traffic, health, lookups, cases (read), tenants, posture, detections | ✔ | ✔ | ✔ |
 | Open / update cases, add notes | | ✔ | ✔ |
 | Ban / unban IPs, decide Ban review items, revoke sessions | | ✔ | ✔ |
 | Log analysis, CSV export, audit-chain verification, Loki search | | ✔ | ✔ |
@@ -126,6 +126,7 @@ on their next request.
 | `SOC_DIGEST_HOUR` | 8 | Hour (0–23, Asia/Kolkata) the daily summary is sent. |
 | `HTTP_TELEMETRY` | on | `off` stops counting requests for the **Traffic** view and the `http_error_spike` detection. |
 | `HTTP_TELEMETRY_RETENTION_DAYS` | 14 | How long per-minute request counts are kept (purged nightly at 03:40). |
+| `HEALTH_RETENTION_DAYS` | 30 | How long the per-minute server / database readings for the **Health** view are kept (purged nightly at 03:50). |
 | `SOC_AUTO_BAN` | false | `true` bans automated detections at once (the old behaviour) instead of queueing them in **Ban review**. Leave off when an analyst watches the queue: customers often share one office or mobile-network address. |
 
 ## What each view shows
@@ -135,6 +136,7 @@ Every number is a count, time or state as recorded; where the console draws a co
 * **Overview** – KPIs, events over time by severity, the busiest sources and accounts, the latest alerts and the MITRE ATT&CK techniques observed. The *threat level* is rule-based and lists its reasons.
 * **Alerts / Events** – search and filter `security_events` (text, level, area, IP, account, tenant); open any event for its fields, related activity from the same source/account, its audit-chain hash and ATT&CK mapping; open a case or ban the source from there.
 * **Traffic** – every request the app answered, counted per minute by route pattern (`/view_payslip/<emp_id>/...`, never the raw URL), method, status and company (`utils/http_telemetry.py`): requests and 4xx / 5xx over time, the 95th-percentile response time, counts per status code, and per route the request count, 50th / 95th / 99th percentile and slowest time and its 401 / 403 / 404 / 429 / 5xx answers. Response times come from a histogram, so they are shown as upper bounds ("≤ 250 ms"). Each worker writes its counts once a minute: with nothing written yet the view says *No telemetry recorded yet*, and if no worker has written for 3 minutes it says *Source offline* with the time of the last write. This console's own requests, static files and health checks are left out.
+* **Health** – readings taken once a minute (`utils/health_telemetry.py`) from three sources: the **server** (CPU busy %, load average, memory and swap, uptime, disk use of the root and app filesystems), **PostgreSQL** (round-trip time of `SELECT 1`, connections against `max_connections`, active and idle-in-transaction sessions, the longest running query and open transaction, waiting locks, database size, commits / rollbacks per minute, deadlocks and cache-hit ratio) and the **app service** (how long the service and the snapshot's worker have been up, worker memory and threads), with trends over the window. CPU, memory, load and uptime need Linux `/proc`; on another OS the view says which readings could not be taken. Each source shows *No telemetry recorded yet* before its first reading, *Source offline since …* when its newest reading is over 3 minutes old, and the kind of failure (never its message) when a reading failed. Session states in PostgreSQL are only complete when the app's database role can read all statistics (`pg_read_all_stats`); the view says when it cannot.
 * **Lookup** – everything recorded about an IP or an account: what it did, who/what it touched, paths requested, recent events, and whether it is banned (on the platform list or a company's own list, lifted from the list it is on).
 * **Log analysis** – drop in an nginx/Apache access log, JSON lines (including this app's own) or sshd/auth log. Finds SQL injection, XSS, path traversal, command injection, SSRF, scanner user agents, sensitive-file probes, login brute force, credential stuffing, "possible success after many attempts", path enumeration, request floods and 5xx spikes; scores each source (points per kind of finding, shown on hover) and recommends block/watch; exports IOCs and can ban every recommended public address in one step. Nothing is stored.
 * **Logs (Loki)** – optional LogQL search of shipped logs.
