@@ -652,15 +652,44 @@ class TestOnboardingAssign:
             cur.execute("DELETE FROM employee_onboarding WHERE id=%s", (row[0],))
         cur.close()
 
-    def test_assign_missing_employee_known_bug(self, client, seed_admin, onboarding_template):
-        """App crashes with TypeError when employee not found — known bug in onboarding_assign."""
+    def test_assign_missing_employee_is_refused_cleanly(self, client, seed_admin, onboarding_template, db_engine):
+        """Roadmap HR-06: an unknown employee ID used to reach the INSERT and
+        fail with a ForeignKeyViolation (500). It is now a controlled refusal."""
         _admin_session(client, seed_admin)
         resp = client.post("/onboarding_assign", data={
             "employee_id": "NONEXIST_XYZ",
             "template_id": str(onboarding_template["id"]),
-        }, follow_redirects=True)
-        # 500 is a known bug: NoneType not subscriptable when employee not found
-        assert resp.status_code in (200, 302, 500)
+        }, follow_redirects=False)
+        assert resp.status_code == 302
+        cur = db_engine.cursor()
+        cur.execute("SELECT 1 FROM employee_onboarding WHERE employee_id='NONEXIST_XYZ'")
+        assert cur.fetchone() is None
+        cur.close()
+
+    def test_assign_inactive_employee_is_refused(
+            self, client, seed_admin, seed_employee, onboarding_template, db_engine):
+        cur = db_engine.cursor()
+        cur.execute("UPDATE employees SET is_active=0 WHERE employee_id=%s", (seed_employee["employee_id"],))
+        _admin_session(client, seed_admin)
+        resp = client.post("/onboarding_assign", data={
+            "employee_id": seed_employee["employee_id"], "template_id": str(onboarding_template["id"])})
+        assert resp.status_code == 302
+        cur.execute("SELECT 1 FROM employee_onboarding WHERE employee_id=%s AND template_id=%s",
+                    (seed_employee["employee_id"], onboarding_template["id"]))
+        assert cur.fetchone() is None
+        cur.close()
+
+    def test_assign_unknown_template_is_refused(self, client, seed_admin, seed_employee):
+        _admin_session(client, seed_admin)
+        resp = client.post("/onboarding_assign", data={
+            "employee_id": seed_employee["employee_id"], "template_id": "999999"})
+        assert resp.status_code == 302
+
+    def test_bulk_assign_skips_unknown_ids_without_error(self, client, seed_admin, onboarding_template):
+        _admin_session(client, seed_admin)
+        resp = client.post("/bulk_assign_onboarding", data={
+            "template_id": str(onboarding_template["id"]), "employee_ids": ["NONEXIST_A", "NONEXIST_B"]})
+        assert resp.status_code in (200, 302)
 
 
 # ---------------------------------------------------------------------------
