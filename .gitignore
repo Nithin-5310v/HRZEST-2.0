@@ -46,3 +46,12 @@ face_models/
 .claude/
 terraform/tfplan*
 backups/
+
+# Terraform (infra/terraform/): state holds resource details and secrets; tfvars holds this deployment's ids
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan*
+terraform.tfvars
+.terraform.lock.hcl.bak
