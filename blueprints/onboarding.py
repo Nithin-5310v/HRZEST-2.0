@@ -333,6 +333,7 @@ def onboarding_template_save():
 
 @onboarding_bp.route("/bulk_assign_onboarding", methods=["POST"])
 @admin_required
+@require_access("onboarding", "edit")
 def bulk_assign_onboarding():
     db = get_db_connection()
     cursor = db.cursor()
@@ -350,8 +351,14 @@ def bulk_assign_onboarding():
     template_tasks = cursor.fetchall()
     cursor.execute("SELECT name FROM onboarding_templates WHERE id=%s", (tid,))
     _tr = cursor.fetchone()
+    if not _template_exists(cursor, tid):
+        cursor.close()
+        db.close()
+        flash("Onboarding template not found.", "error")
+        return redirect(tpath("/onboarding?tab=active"))
     for emp_id in emp_ids:
-        if hr_scope_denied(emp_id):
+        emp_id = (emp_id or "").strip()
+        if not _assignable_employee(cursor, emp_id) or hr_scope_denied(emp_id):
             continue
         cursor.execute(
             "SELECT id FROM employee_onboarding WHERE employee_id=%s AND template_id=%s AND status='In Progress'",
@@ -552,20 +559,47 @@ def onboarding_template_detail(tid):
                            )
 
 
+def _assignable_employee(cursor, emp_id):
+    """True if emp_id is an active employee of this company (the tenant
+    schema the cursor runs in). Roadmap HR-06 (2026-11-21): an unknown ID
+    used to reach the INSERT and fail with a ForeignKeyViolation (a 500)."""
+    if not emp_id:
+        return False
+    cursor.execute("SELECT 1 FROM employees WHERE employee_id=%s AND COALESCE(is_active, 1)=1", (emp_id,))
+    return cursor.fetchone() is not None
+
+
+def _template_exists(cursor, tid):
+    try:
+        tid = int(tid)
+    except (TypeError, ValueError):
+        return False
+    cursor.execute("SELECT 1 FROM onboarding_templates WHERE id=%s", (tid,))
+    return cursor.fetchone() is not None
+
+
 @onboarding_bp.route("/onboarding_assign", methods=["POST"])
 @admin_required
+@require_access("onboarding", "edit")
 def onboarding_assign():
     db = get_db_connection()
     cursor = db.cursor()
-    emp_id = request.form.get("employee_id")
+    emp_id = (request.form.get("employee_id") or "").strip()
     tid = request.form.get("template_id")
     due_date = request.form.get("due_date") or None
     today = company_today()
 
-    if hr_scope_denied(emp_id):
+    # Unknown, inactive, other-company or out-of-team IDs all get the same
+    # controlled answer -- never a database error (roadmap HR-06).
+    if not _assignable_employee(cursor, emp_id) or hr_scope_denied(emp_id):
         cursor.close()
         db.close()
         flash("Employee not found.", "error")
+        return redirect(tpath("/onboarding?tab=active"))
+    if not _template_exists(cursor, tid):
+        cursor.close()
+        db.close()
+        flash("Onboarding template not found.", "error")
         return redirect(tpath("/onboarding?tab=active"))
 
     # Check not already assigned same template
