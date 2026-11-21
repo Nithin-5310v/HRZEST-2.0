@@ -202,6 +202,10 @@ def api_save_email_settings():
         port = int(port)
     except (TypeError, ValueError):
         return jsonify({"ok": False, "msg": "Port must be a number"}), 400
+    from utils.email_utils import smtp_host_problem
+    _host_err = smtp_host_problem(host, port)
+    if _host_err:
+        return jsonify({"ok": False, "msg": _host_err}), 400
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

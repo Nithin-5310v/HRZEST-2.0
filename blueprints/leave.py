@@ -20,11 +20,11 @@ from database import get_db_connection
 from utils.attendance_utils import is_company_working_day
 from utils.auth import (
     admin_required, employee_required, any_user_required, api_required, employee_api_required, api_role_required,
-    require_access, MANAGER_ROLE, HR_ROLE,
+    require_access, MANAGER_ROLE,
 )
 from utils.helpers import (
     tpath, _audit, _create_notification, get_company_settings, co_scope_subquery, co_scope_column,
-    hr_scope_subquery, hr_scope_column, hr_scope_denied, get_pending_counts, company_today,
+    hr_scope_subquery, hr_scope_column, hr_scope_denied, admin_actor, get_pending_counts, company_today,
     get_employee_sidebar_info, coerce_datetime, invalidate_pending_counts_cache, int_param,
     notify_new_holiday, encrypt_amount, self_service_emp_id, self_service_return_path,
     manager_scope_subquery, manager_scope_column, manager_scope_denied, can_access,
@@ -996,6 +996,14 @@ def api_holidays():
 # leave_holidays()/leave_action()/etc, without changing existing HR
 # mobile behavior, which is a separate, pre-existing gap.
 def _api_manager_scope_subquery(alias=""):
+    """The token caller's team scope (security review 2026-11-20): any
+    team-scoped role (Settings -> Roles & Access), HR included, through the
+    shared token-aware helper; plus the legacy built-in manager's direct
+    reports. Before, only the built-in manager was scoped, so a team-scoped
+    HR's token saw and acted on the whole company."""
+    frag, params = hr_scope_subquery(alias)
+    if frag:
+        return frag, params
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT role FROM admin_users WHERE username=%s", (g.api_user,))
@@ -1009,6 +1017,8 @@ def _api_manager_scope_subquery(alias=""):
 
 
 def _api_manager_scope_denied(emp_id):
+    if hr_scope_denied(emp_id):
+        return True
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT role FROM admin_users WHERE username=%s", (g.api_user,))
@@ -1029,29 +1039,21 @@ def _api_manager_scope_denied(emp_id):
 
 
 def _approving_own_record(emp_id):
-    """Block the self-approval loophole hr_scope_denied()/manager_scope_denied()
-    leave open by design: both intentionally return False (not denied) when
-    emp_id is the acting session's own employee_id, so an HR/manager session
-    can still see its own request in a shared list. That exemption must never
-    extend to actually approving/rejecting it -- only the action routes
-    (leave/resignation/overtime, web) need this extra check on top of the
-    existing scope check. Not applied to 'admin' -- that role isn't
-    auto-provisioned from (and 1:1 tied to) an employee record the way hr/
-    manager are, so admin_username matching an employee_id isn't the same
-    self-approval scenario."""
-    return (session.get("admin_role") in (HR_ROLE, MANAGER_ROLE)
+    """Block self-approval: the scope helpers deliberately let a role-holder
+    see their own request in a shared list, but nobody may approve/reject
+    their own leave, resignation or overtime. Applies to every role except
+    the owner Administrator (security review 2026-11-20: it used to cover only
+    the built-in hr/manager keys, so any custom role such as a "Team Lead"
+    with leaves:edit could approve its own leave or credit its own comp-off).
+    """
+    return (session.get("admin_role") not in ("admin", "superadmin")
             and emp_id == session.get("admin_username"))
 
 
 def _api_approving_own_record(emp_id):
     """Bearer-token twin of _approving_own_record() -- see its docstring."""
-    db = get_db_connection()
-    cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT role FROM admin_users WHERE username=%s", (g.api_user,))
-    row = cursor.fetchone()
-    cursor.close()
-    db.close()
-    return bool(row) and row[0] in (HR_ROLE, MANAGER_ROLE) and emp_id == g.api_user
+    username, role = admin_actor()
+    return bool(username) and role not in ("admin", "superadmin") and emp_id == username
 
 
 @leave_bp.route("/api/leave_requests", methods=["GET"])
@@ -1609,6 +1611,7 @@ def api_compoff():
     query the real table and apply the same minutes -> days conversion the
     session-only /overtime page uses (company_settings.compoff_minutes_per_day),
     so mobile and web show identical numbers for the same employee."""
+    _scope_sql, _scope_args = hr_scope_column("e")   # team-scoped token: its team only
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
@@ -1621,9 +1624,9 @@ def api_compoff():
                COALESCE(cb.earned_minutes,0), COALESCE(cb.used_minutes,0)
         FROM employees e
         LEFT JOIN compoff_balance cb ON cb.employee_id = e.employee_id
-        WHERE e.is_active=1
+        WHERE e.is_active=1 {_scope_sql}
         ORDER BY e.name ASC
-    """)
+    """.format(_scope_sql=_scope_sql), _scope_args)  # nosec B608 -- fixed fragment
     rows = cursor.fetchall()
     cursor.close()
     db.close()

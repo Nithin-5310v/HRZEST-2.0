@@ -15,10 +15,12 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template, flash, g,
 )
+from utils.csv_export import spreadsheet_safe
 from extensions import limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import (
     admin_required, api_required, api_role_required, session_or_bearer_required, HR_ROLE, require_access,
+    api_require_access,
     role_required,
 )
 from utils.helpers import (
@@ -144,8 +146,8 @@ def add_shift():
     start = request.form.get("start_time", "").strip()
     half = request.form.get("half_time", "").strip()
     end = request.form.get("end_time", "").strip()
-    dest = request.form.get("redirect") or (
-        "/settings?tab=shifts" if request.form.get("redirect_to") == "settings" else "/settings?tab=shifts")
+    # Relative, same-site paths only (open-redirect guard; security review 2026-11-20).
+    dest = _safe_redirect(request.form.get("redirect") or "", "/settings?tab=shifts")
     cid_raw = request.form.get("company_id", "").strip()
     company_id = int(cid_raw) if cid_raw.isdigit() else None
     if not all([name, start, half, end]):
@@ -185,7 +187,7 @@ def delete_shift(sid):
     db.commit()
     cursor.close()
     db.close()
-    dest = request.form.get("redirect") or "/settings?tab=shifts"
+    dest = _safe_redirect(request.form.get("redirect") or "", "/settings?tab=shifts")
     return redirect(dest)
 
 
@@ -196,7 +198,7 @@ def edit_shift(sid):
     start = request.form.get("start_time", "").strip()
     half = request.form.get("half_time", "").strip()
     end = request.form.get("end_time", "").strip()
-    dest = request.form.get("redirect") or "/settings?tab=shifts"
+    dest = _safe_redirect(request.form.get("redirect") or "", "/settings?tab=shifts")
     if not all([name, start, half, end]):
         return redirect(dest)
     db = get_db_connection()
@@ -217,7 +219,7 @@ def bulk_assign_shift():
     shift_id = request.form.get("shift_id", "").strip()
     emp_ids = request.form.getlist("emp_ids")
     dept_filter = request.form.get("dept_filter", "").strip()
-    dest = request.form.get("redirect") or "/employees?tab=schedule"
+    dest = _safe_redirect(request.form.get("redirect") or "", "/employees?tab=schedule")
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     if emp_ids:
@@ -382,7 +384,7 @@ def update_break(bid):
 @attendance_bp.route("/delete_break/<int:bid>", methods=["POST"])
 @admin_required
 def delete_break(bid):
-    dest = request.form.get("redirect") or "/employees?tab=schedule"
+    dest = _safe_redirect(request.form.get("redirect") or "", "/employees?tab=schedule")
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("DELETE FROM break_config WHERE id=%s", (bid,))
@@ -600,6 +602,7 @@ def employee_attendance_detail(emp_id, year, month):
 
 @attendance_bp.route("/correct_attendance", methods=["POST"])
 @admin_required
+@require_access("attendance", "edit")
 def correct_attendance():
     emp_id = request.form.get("emp_id", "").strip()
     date_str = request.form.get("date", "").strip()
@@ -614,6 +617,17 @@ def correct_attendance():
         flash("Missing required fields.", "error")
         back = _safe_referrer_redirect(request.referrer or "", "/monthly_report")  # same-site only
         return redirect(back)
+    if att_type not in MANUAL_ATTENDANCE_TYPES:
+        flash("Unknown attendance type.", "error")
+        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
+    # Attendance decides pay: nobody below the owner corrects their own
+    # (security review 2026-11-20; hr_scope_denied lets a role-holder reach
+    # their own record by design, which made self-correction possible).
+    if session.get("admin_role") not in ("admin", "superadmin") and emp_id == session.get("admin_username"):
+        log_security_event("access.denied", "Role-holder tried to correct their own attendance",
+                           level="WARNING", identifier=emp_id)
+        flash("You can't correct your own attendance. Ask the Administrator.", "error")
+        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
 
     if hr_scope_denied(emp_id):
         flash("Employee not found.", "error")
@@ -685,7 +699,7 @@ def bulk_mark_attendance():
         rows = []
         for eid in emp_ids:
             att_type = request.form.get(f"att_{eid}", "").strip()
-            if not att_type:
+            if not att_type or att_type not in MANUAL_ATTENDANCE_TYPES:
                 continue
             login_t = request.form.get(f"login_{eid}", "").strip() or None
             logout_t = request.form.get(f"logout_{eid}", "").strip() or None
@@ -821,6 +835,13 @@ def _api_hr_username():
 
 # Attendance types with no working hours: stored without check-in/out times.
 _NO_TIME_TYPES = ("Absent", "Leave", "Holiday", "Week Off")
+# Every attendance type a person may set by hand (web forms and the app).
+# Anything else is refused: the value is shown on pages and reports, and a
+# free-text one was a stored-XSS path (security review 2026-11-20).
+MANUAL_ATTENDANCE_TYPES = frozenset({
+    "Full Day", "Late - Full Day", "Half Day", "Absent", "Leave", "Approved Leave",
+    "Holiday", "Week Off", "Work From Home", "Present", "Late",
+})
 
 
 def _clean_hhmm(value):
@@ -881,7 +902,7 @@ def api_bulk_mark_attendance():
         for r in records:
             eid = r.get("emp_id") or r.get("employee_id")
             att_type = (r.get("attendance_type") or "").strip()
-            if not eid or not att_type or eid not in allowed_ids:
+            if not eid or att_type not in MANUAL_ATTENDANCE_TYPES or eid not in allowed_ids:
                 continue
             login_t = _clean_hhmm(r.get("login_time"))
             logout_t = _clean_hhmm(r.get("logout_time"))
@@ -1075,7 +1096,7 @@ def monthly_report_export():
         values = [r["emp_id"], r["name"], r["full_days"], r["late_days"],
                   r["half_days"], r["absent"], r["billable"], r["pct"]]
         for col, val in enumerate(values, 1):
-            cell = ws.cell(row=i, column=col, value=val)
+            cell = ws.cell(row=i, column=col, value=spreadsheet_safe(val))
             cell.fill = row_fill
             cell.alignment = center if col != 2 else Alignment(horizontal="left", vertical="center")
             cell.border = border
@@ -1185,6 +1206,10 @@ def attendance():
     data = request.get_json() or {}
     emp_id = data.get("employee_id", "").strip()
     face_b64 = data.get("face_image", "")
+    # A base64 face photo is ~100-500 KB; anything over 3 MB is refused before
+    # decoding (this endpoint has no login; security review 2026-11-20).
+    if isinstance(face_b64, str) and len(face_b64) > 3 * 1024 * 1024:
+        return jsonify({"ok": False, "msg": "Face image is too large."}), 413
     user_lat = data.get("lat")
     user_lon = data.get("lon")
     auth_combo = data.get("auth_combo", "qr_face")
@@ -1720,6 +1745,7 @@ def api_shifts_get():
 
 @attendance_bp.route("/api/shifts", methods=["POST"])
 @api_required
+@api_require_access("attendance", "edit")
 def api_shifts_create():
     data = request.get_json(silent=True) or {}
     name = data.get("name", "").strip()
@@ -1749,6 +1775,7 @@ def api_shifts_create():
 
 @attendance_bp.route("/api/shifts/<int:sid>", methods=["DELETE"])
 @api_required
+@api_require_access("attendance", "edit")
 def api_shifts_delete(sid):
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1762,6 +1789,7 @@ def api_shifts_delete(sid):
 
 @attendance_bp.route("/api/shifts/assign", methods=["POST"])
 @api_required
+@api_require_access("attendance", "edit")
 def api_shifts_assign():
     data = request.get_json(silent=True) or {}
     emp_id = data.get("emp_id", "").strip()

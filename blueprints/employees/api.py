@@ -5,7 +5,9 @@ from database import get_db_connection, transaction
 from extensions import app_log, limiter
 from flask import jsonify, request
 from qr_generator import generate_qr
-from utils.auth import api_required, api_role_required, generate_password_hash, validate_new_password
+from utils.auth import (
+    api_required, api_require_access, api_role_required, generate_password_hash, validate_new_password,
+)
 from utils.billing_notices import notify_employee_added
 from utils.face_utils import _face_recognition_available, face_recognition, detection_array
 from utils.helpers import (
@@ -67,6 +69,7 @@ def api_employees():
 
 @employees_bp.route("/api/employees", methods=["POST"])
 @api_required
+@api_require_access("employees", "edit")
 def api_register_employee():
     name = request.form.get("name", "").strip()
     emp_id = request.form.get("emp_id", "").strip()
@@ -172,6 +175,10 @@ def api_register_employee():
 @api_role_required("admin", "hr")
 @limiter.limit("30 per minute")
 def api_employee_detail(emp_id):
+    # Team scope: this returns salary_per_day (security review 2026-11-20).
+    from utils.helpers import hr_scope_denied
+    if hr_scope_denied(emp_id):
+        return jsonify({"ok": False, "msg": "Employee not found"}), 404
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("""

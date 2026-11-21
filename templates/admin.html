@@ -634,6 +634,9 @@
     let lastRefresh = Date.now(), prevRowKeys = new Set();
 
     function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
+    // jsEsc makes a JS string literal; inside an HTML attribute it must also be
+    // HTML-escaped (esc(jsEsc(x))), or a '"' in a name ends the attribute and
+    // lets injected markup add its own data-on-* handler (security review 2026-11-20).
     function jsEsc(s) { return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/</g,'\\x3c').replace(/>/g,'\\x3e'); }
     function badge(cls, text) { return `<span class="badge ${cls}">${esc(text)}</span>`; }
     function buildLoginBadge(s) {
@@ -683,8 +686,8 @@
             <td>${buildLogoutBadge(r)}</td>
             <td>${buildAttTypeBadge(r)}</td>
             <td>
-              <button class="tbl-btn tbl-btn-edit" data-on-click="openEdit('${jsEsc(r.emp_id)}')"><i class="ti ti-edit"></i> Edit</button>
-              <button class="tbl-btn tbl-btn-delete" data-on-click="confirmDelete('${jsEsc(r.emp_id)}','${jsEsc(r.name)}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
+              <button class="tbl-btn tbl-btn-edit" data-on-click="openEdit('${esc(jsEsc(r.emp_id))}')"><i class="ti ti-edit"></i> Edit</button>
+              <button class="tbl-btn tbl-btn-delete" data-on-click="confirmDelete('${esc(jsEsc(r.emp_id))}','${esc(jsEsc(r.name))}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>Delete</button>
             </td>
           </tr>`;
         });

@@ -21,7 +21,8 @@ Now only markup the developers wrote gets through:
   blocks them.
 * **HTML built in Python** (a few error pages and printable reports) goes
   through ``trusted_html()``, which the developer calls explicitly on markup
-  the server assembled itself, with every interpolated value escaped.
+  the server assembled itself, with every interpolated value escaped. It
+  stamps only <style> tags; a <script> in such a page never gets a nonce.
 """
 import base64
 import hashlib
@@ -37,8 +38,12 @@ from markupsafe import Markup
 # form is rewritten.
 _SRC_STYLE_ATTR_RE = re.compile(r'(\bstyle\s*=\s*")([^"]*)(")', re.IGNORECASE)
 
-# For trusted_html(): tags without a nonce, and style attributes in either quote style.
-_TAG_WITHOUT_NONCE_RE = re.compile(r'<(script|style)(?![^>]*\bnonce\s*=)(?=[\s>])', re.IGNORECASE)
+# For trusted_html(): <style> tags without a nonce, and style attributes in
+# either quote style. <script> is deliberately NOT matched: none of the
+# Python-built pages needs an inline script, so a <script> that slipped into
+# one through an unescaped value must stay blocked (security review
+# 2026-11-20 found exactly that path in the attendance report).
+_TAG_WITHOUT_NONCE_RE = re.compile(r'<(style)(?![^>]*\bnonce\s*=)(?=[\s>])', re.IGNORECASE)
 _STYLE_ATTR_DQ_RE = re.compile(r'\bstyle\s*=\s*"([^"]*)"', re.IGNORECASE)
 _STYLE_ATTR_SQ_RE = re.compile(r"\bstyle\s*=\s*'([^']*)'", re.IGNORECASE)
 
@@ -109,9 +114,9 @@ def trusted_html(markup):
 
     Call it only on markup built from fixed strings plus values that have
     already been escaped (``html.escape``/``markupsafe.escape``). It adds the
-    nonce to the <script>/<style> tags and allows the style="" attributes in
-    it. It is the explicit equivalent of writing ``nonce="{{ csp_nonce }}"``
-    in a template, for the few pages built as Python strings.
+    nonce to its <style> tags (never to <script>: these pages have none, so
+    any script in them is an injection and stays blocked) and allows the
+    style="" attributes in it.
     """
     text = str(markup)
     for pattern in (_STYLE_ATTR_DQ_RE, _STYLE_ATTR_SQ_RE):

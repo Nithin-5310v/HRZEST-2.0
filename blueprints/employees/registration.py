@@ -13,7 +13,7 @@ from html import escape as _html_escape
 from qr_generator import generate_qr
 from urllib.parse import urlencode
 from utils.attendance_utils import standard_working_days_per_month
-from utils.auth import HR_ROLE, admin_required, generate_password_hash, session_or_bearer_required
+from utils.auth import HR_ROLE, admin_required, generate_password_hash, require_access, session_or_bearer_required
 from utils.billing_notices import notify_employee_added
 from utils.email_utils import _mask_email, get_email_config, send_email_smtp
 from utils.helpers import (
@@ -167,6 +167,7 @@ def assign_default_onboarding(cursor, db, emp_id):
 
 @employees_bp.route("/add_employee_page", methods=["POST"])
 @admin_required
+@require_access("employees", "edit")
 def add_employee_page():
     name = request.form.get("name", "").strip()
     emp_id = request.form.get("emp_id", "").strip()

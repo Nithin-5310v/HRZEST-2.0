@@ -1038,6 +1038,31 @@ def api_role_required(*allowed_roles):
     return decorator
 
 
+def api_require_access(module, action="view"):
+    """require_access's counterpart for Bearer-token admin API routes: the
+    token owner's role must have ``module`` at ``action`` level in Settings ->
+    Roles & Access. Sits UNDER @api_required (which sets g.api_user).
+
+    Security review 2026-11-20: the API twins of the web routes checked only
+    that the token was valid, so any custom role's token (e.g. one with only
+    announcements access) could add employees, approve leave or read pay."""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            from utils.helpers import admin_actor
+            from utils.helpers.rbac import can_access
+            username, role = admin_actor()
+            if not role or not can_access(module, action, role=role):
+                log_security_event("access.denied", "API token's role lacks module access",
+                                   level="ERROR", required="%s:%s" % (module, action),
+                                   actual_role=role, identifier=username)
+                return jsonify({"ok": False, "msg": "Insufficient permissions."}), 403
+            return f(*args, **kwargs)
+        wrapper._hrz_auth_guard = "admin_api_module"  # read by tests/test_route_auth_guards.py
+        return wrapper
+    return decorator
+
+
 def _owner_token_as_own_employee(cursor, token_hash):
     """The owner admin's Bearer token standing in for its own employee
     profile (utils/own_profile.py), which is how the app's "Me" tab checks
@@ -1258,6 +1283,12 @@ def session_or_bearer_required(session_kinds=("admin", "employee"), token_types=
             _flask_g.auth_identity = identity
             _flask_g.auth_kind = kind
             _flask_g.auth_via = via
+            if via == "bearer" and kind == "admin":
+                # Same as api_required, so the role/team-scope helpers
+                # (utils.helpers.admin_actor) see the token's owner.
+                _flask_g.api_user = identity
+            elif via == "bearer":
+                _flask_g.api_emp_id = identity
             return f(*args, **kwargs)
         wrapper._hrz_auth_guard = "session_or_bearer"  # read by tests/test_route_auth_guards.py
         return wrapper

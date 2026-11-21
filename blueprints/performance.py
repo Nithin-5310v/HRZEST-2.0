@@ -18,6 +18,7 @@ from utils.helpers import (
     get_employee_sidebar_info, company_today, int_param, emp_id_param,
     self_service_emp_id, self_service_return_path,
 )
+from utils.csv_export import spreadsheet_safe
 from extensions import limiter, log_security_event
 
 performance_bp = Blueprint("performance", __name__)
@@ -779,7 +780,7 @@ def performance_export():
         row_data = [emp_id, name, role, dept, kpi_counts.get(emp_id, 0),
                     rating if rating else "--", status, feedback]
         for c_idx, val in enumerate(row_data, 1):
-            cell = ws1.cell(row=r_idx, column=c_idx, value=val)
+            cell = ws1.cell(row=r_idx, column=c_idx, value=spreadsheet_safe(val))
             style_data_cell(cell, r_idx)
             if c_idx == 6 and isinstance(val, (int, float)) and val > 0:
                 if val >= 4:
@@ -809,7 +810,7 @@ def performance_export():
 
     for r_idx, (emp_id, name, title, desc, target, achievement, weight, rating, comments) in enumerate(kpis, 2):
         for c_idx, val in enumerate([emp_id, name, title, desc, target, achievement, weight, rating or "--", comments], 1):
-            cell = ws2.cell(row=r_idx, column=c_idx, value=val)
+            cell = ws2.cell(row=r_idx, column=c_idx, value=spreadsheet_safe(val))
             style_data_cell(cell, r_idx)
         ws2.row_dimensions[r_idx].height = 20
     ws2.freeze_panes = "A2"
@@ -854,7 +855,7 @@ def performance_export():
     ]
     for r_idx, row in enumerate(sample_rows, 3):
         for c_idx, val in enumerate(row, 1):
-            cell = ws3.cell(row=r_idx, column=c_idx, value=val)
+            cell = ws3.cell(row=r_idx, column=c_idx, value=spreadsheet_safe(val))
             cell.border = border
             cell.alignment = Alignment(vertical="center")
             if r_idx % 2 == 0:

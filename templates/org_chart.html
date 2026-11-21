@@ -248,8 +248,11 @@ function getColor(dept, idx) {
 }
 
 function initials(name) {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  return esc(String(name || '').split(' ').map(w => w[0] || '').join('').toUpperCase().slice(0, 2));
 }
+// Names, roles and departments are editable by HR; escaped before innerHTML
+// so they can't inject markup or data-on-* handlers (security review 2026-11-20).
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;'); }
 
 // ─── RENDER ───────────────────────────────────────────
 function render() {
@@ -305,14 +308,14 @@ function render() {
         ${childCount > 0 ? `<div class="reports-badge">${childCount}</div>` : ''}
         <div class="avatar-wrap">
           ${n.has_photo
-            ? `<img class="avatar-img" src="/dataset/${n.id}.jpg" data-on-error="HZ.showNextOnError(this)" /><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
+            ? `<img class="avatar-img" src="/dataset/${encodeURIComponent(n.id)}.jpg" data-on-error="HZ.showNextOnError(this)" /><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
             : `<div class="avatar-placeholder u-bg-color">${initials(n.name)}</div>`
           }
         </div>
-        <div class="node-name" title="${n.name}">${n.name}</div>
-        <div class="node-role" title="${n.role}">${n.role}</div>
-        ${n.department ? `<div class="node-dept">${n.department}</div>` : ''}
-        <div class="node-id">${n.id}</div>
+        <div class="node-name" title="${esc(n.name)}">${esc(n.name)}</div>
+        <div class="node-role" title="${esc(n.role)}">${esc(n.role)}</div>
+        ${n.department ? `<div class="node-dept">${esc(n.department)}</div>` : ''}
+        <div class="node-id">${esc(n.id)}</div>
       </div>`;
 
     nodesLayer.appendChild(div);

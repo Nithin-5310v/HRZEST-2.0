@@ -23,14 +23,16 @@ from flask import (
 )
 
 from database import get_db_connection
+from utils.csv_export import spreadsheet_safe
 from extensions import app_log, limiter, log_security_event
 from utils.auth import (
     admin_required, employee_required, api_required, enforce_ownership, role_required, api_role_required, require_access,
-    email_settings_step_up_valid, any_user_required,
+    email_settings_step_up_valid, any_user_required, api_require_access,
 )
 from utils.helpers import (
     tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime,
     hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount, self_service_emp_id,
+    hr_scope_denied,
 )
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
 from utils.attendance_utils import (
@@ -85,6 +87,12 @@ def update_salary():
     emp_id = request.form["emp_id"]
     salary = request.form["salary"]
     hike_date = request.form.get("hike_date") or None
+    # Team scope, and no self-raise for anyone below the owner (security
+    # review 2026-11-20).
+    if session.get("admin_role") not in ("admin", "superadmin") and (
+            hr_scope_denied(emp_id) or emp_id == session.get("admin_username")):
+        flash("You can't change this salary.", "error")
+        return redirect(tpath("/settings?tab=salary"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
@@ -300,7 +308,7 @@ def _build_salary_report_workbook(year, month, active_cid=None):
         ]
         fill = alt_fill if idx % 2 == 0 else None
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=idx + 1, column=col, value=val)
+            cell = ws.cell(row=idx + 1, column=col, value=spreadsheet_safe(val))
             cell.border = thin_border
             cell.alignment = center
             if fill:
@@ -574,6 +582,7 @@ def send_all_salary_emails():
 
 @payroll_bp.route("/lock_payroll", methods=["POST"])
 @admin_required
+@require_access("payroll", "edit")
 def lock_payroll():
     year = int_param(request.form["year"])
     month = int_param(request.form["month"])
@@ -594,6 +603,7 @@ def lock_payroll():
 
 @payroll_bp.route("/unlock_payroll", methods=["POST"])
 @admin_required
+@require_access("payroll", "edit")
 def unlock_payroll():
     year = int_param(request.form["year"])
     month = int_param(request.form["month"])
@@ -801,7 +811,7 @@ def my_attendance_pdf():
                  "Half Day": "#dc2626", "Present": "#d97706"}.get(final, "#6b7280")
         rows_html += (
             f"<tr><td>{d.strftime('%d %b %Y')}</td><td>{d.strftime('%A')}</td><td>{fmt(lt)}</td>"
-            f"<td>{fmt(lot)}</td><td style='color:{color};font-weight:600;'>{final or 'Absent'}</td></tr>"
+            f"<td>{fmt(lot)}</td><td style='color:{color};font-weight:600;'>{escape(final or 'Absent')}</td></tr>"
         )
 
     billable = len(billable_past)
@@ -1032,6 +1042,7 @@ def award_performance_bonus():
 
 @payroll_bp.route("/save_hike_config", methods=["POST"])
 @admin_required
+@require_access("payroll", "edit")
 def save_hike_config():
     q = int_param(request.form.get("quarter", 1))
     yr = int_param(request.form.get("year", company_today().year))
@@ -1118,12 +1129,15 @@ def api_salary_config_post():
 
 @payroll_bp.route("/api/monthly_report", methods=["GET"])
 @api_required
+@api_require_access("attendance", "view")
 def api_monthly_report():
     year = int_param(request.args.get("year", company_today().year))
     month = int_param(request.args.get("month", company_today().month))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
+    _scope_sql, _scope_args = hr_scope_column()   # a team-scoped token sees only its team
+    cursor.execute(f"SELECT employee_id, name FROM employees WHERE 1=1 {_scope_sql} ORDER BY name",  # nosec B608
+                   _scope_args)
     employees = cursor.fetchall()
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""

@@ -1,7 +1,34 @@
 # -*- coding: utf-8 -*-
 """helpers: company / HR / manager scoping WHERE fragments and ownership checks"""
-from flask import session
+from flask import g, has_request_context, session
 from .db import _db
+
+
+def admin_actor():
+    """(username, role) of the admin-side caller: the web session, else an
+    admin API token (utils.auth.api_required sets g.api_user).
+
+    Security review 2026-11-20: the team scope used to read only the
+    session, so a team-scoped HR using the app (Bearer token) was treated as
+    whole-company on every API route. Returns (None, None) for no caller."""
+    if session.get("admin_logged_in"):
+        return session.get("admin_username"), session.get("admin_role")
+    if not has_request_context():
+        return None, None
+    api_user = getattr(g, "api_user", None)
+    if not api_user:
+        return None, None
+    role = getattr(g, "_api_user_role", None)
+    if role is None:
+        try:
+            with _db() as (cursor, _conn):
+                cursor.execute("SELECT COALESCE(role, 'admin') FROM admin_users WHERE username=%s", (api_user,))
+                row = cursor.fetchone()
+            role = row[0] if row else ""
+        except Exception:
+            role = ""
+        g._api_user_role = role
+    return api_user, (role or None)
 
 
 # ── Company-scoping WHERE fragments ─────────────────────────────────────────
@@ -55,7 +82,7 @@ TEAM_SUBQUERY = (
 def team_scope_active():
     """True if the admin-side session is limited to its own team. (A session
     with no admin role -- anonymous, or a plain employee -- never is.)"""
-    role = session.get("admin_role")
+    _me, role = admin_actor()
     if not role or role in ("admin", "superadmin"):
         return False
     from .rbac import role_data_scope
@@ -63,7 +90,7 @@ def team_scope_active():
 
 
 def _team_params():
-    me = session.get("admin_username")
+    me = admin_actor()[0]
     return (me, me)
 
 
@@ -93,7 +120,7 @@ def hr_scope_denied(emp_id):
     Re-queries on every call rather than trusting anything cached."""
     if not team_scope_active():
         return False
-    if emp_id == session.get("admin_username"):
+    if emp_id == admin_actor()[0]:
         return False
     with _db() as (cursor, _conn):
         cursor.execute(f"SELECT 1 WHERE %s IN ({TEAM_SUBQUERY})", (emp_id,) + _team_params())  # nosec B608

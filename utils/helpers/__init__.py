@@ -120,6 +120,7 @@ from .uploads import (  # noqa: E402,F401
     save_uploaded_logo,
 )
 from .scoping import (  # noqa: E402,F401
+    admin_actor,
     co_scope_column,
     co_scope_subquery,
     get_pending_action_counts,

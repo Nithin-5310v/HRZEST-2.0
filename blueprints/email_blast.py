@@ -16,6 +16,7 @@ from database import get_db_connection, transaction
 from utils.email_utils import get_email_config
 from utils.helpers import contact_lookup_keys
 from utils.auth import session_or_bearer_required
+from utils.kyc_gate import kyc_verified_required
 from extensions import app_log, log_security_event, limiter
 
 email_blast_bp = Blueprint("email_blast", __name__)
@@ -24,10 +25,17 @@ email_blast_bp = Blueprint("email_blast", __name__)
 @email_blast_bp.route("/api/admin/email-blast", methods=["POST"])
 @limiter.limit("10 per hour")
 @session_or_bearer_required(session_kinds=("admin",), token_types=("admin",), msg="Unauthorized access.")
+@kyc_verified_required()
 def api_email_blast():
     """Broadcast target-selected emails out-of-band and return immediate 202."""
     from flask import g
+    from utils.helpers import admin_actor
     admin_username = g.auth_identity
+    # Company-wide mail from the company's own sender is a phishing tool in
+    # the wrong hands: owner Administrator only (security review 2026-11-20).
+    _username, _role = admin_actor()
+    if _role not in ("admin", "superadmin"):
+        return jsonify({"ok": False, "msg": "Only the Administrator can send company-wide email."}), 403
 
     data = request.get_json(silent=True) or request.form
     target_type = data.get("target_type", "").strip()  # 'all', 'department', 'individual'
