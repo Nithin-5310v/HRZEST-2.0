@@ -188,10 +188,15 @@ def _persist_security_event(event_type, level, message, identifier, ip, path, me
     """Runs on the background writer thread only — see utils/async_writer.py.
     Never let a persistence failure here affect the caller; log_security_event
     has already done its real job (the log line + any webhook) by the time
-    this runs."""
-    from database import get_db_connection
+    this runs.
+
+    Always public.security_events, whichever company the request belonged to
+    (the `tenant` column says which): the SOC console and utils/detections.py
+    read it there. Opened explicitly because utils/async_writer.py now runs
+    queued writes with the queuing request's company schema."""
+    from database import get_tenant_db
     try:
-        db = get_db_connection()
+        db = get_tenant_db("public")
         cur = db.cursor()
         try:
             cur.execute(
