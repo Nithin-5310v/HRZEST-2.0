@@ -135,6 +135,44 @@ def _consume_state(state, provider):
     return row
 
 
+# ── Browser binding (security review 2026-11-20) ────────────────────────────
+# The state lives in the database, so on its own it doesn't prove that the
+# browser coming back is the one that started the flow: an attacker could
+# start a sign-in, then lure a victim to the callback with the attacker's
+# code+state and sign the victim into the attacker's account (login CSRF).
+# The start sets a short-lived cookie holding an HMAC of the state; the
+# callback refuses a state its browser doesn't hold the cookie for. SameSite
+# Lax (not Strict like the session cookie) so it survives the provider's
+# top-level redirect back.
+BIND_COOKIE = "hz_oauth_bind"
+
+
+def state_binding(state):
+    import hmac as _hmac
+    from flask import current_app
+    key = current_app.secret_key
+    key = key.encode() if isinstance(key, str) else (key or b"")
+    return _hmac.new(key, b"oauth-bind:" + state.encode(), hashlib.sha256).hexdigest()
+
+
+def state_from_authorize_url(url):
+    return urllib.parse.parse_qs(urllib.parse.urlsplit(url).query).get("state", [""])[0]
+
+
+def set_binding_cookie(response, authorize_url):
+    from flask import current_app
+    state = state_from_authorize_url(authorize_url)
+    response.set_cookie(BIND_COOKIE, state_binding(state), max_age=_STATE_TTL_SECONDS, httponly=True,
+                        secure=bool(current_app.config.get("SESSION_COOKIE_SECURE")), samesite="Lax", path="/")
+    return response
+
+
+def binding_ok(request, state):
+    import hmac as _hmac
+    cookie = request.cookies.get(BIND_COOKIE) or ""
+    return bool(state) and bool(cookie) and _hmac.compare_digest(cookie, state_binding(state))
+
+
 def build_authorize_url(provider, redirect_uri, mode, tenant_db=None):
     """Starts an authorization-code+PKCE flow. `mode` is 'signup' or
     'login'; `tenant_db` is required for 'login' (which tenant's

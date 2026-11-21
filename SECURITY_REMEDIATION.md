@@ -301,16 +301,9 @@ Don't add security headers to the www block. They're set once, by the app, and H
 - **Sessions:** the change is additive. Rows marked `revoked` in `session_risk` are harmless if the code is rolled back.
 - **Host and DNS:** see the rollback notes in each runbook above. For DNSSEC, remove the DS record first.
 
-## Still open
+## Open items
 
-These came out of the route audit and need a decision or a larger change, so they weren't bundled into this branch:
-
-1. **Mobile (Bearer) admin APIs don't apply team scope for HR or custom team roles.** Leave, overtime and resignation lists and actions, tickets, documents, `/api/employees/<id>` (which returns `salary_per_day`), onboarding, `/api/monthly_report`, `/api/compoff` and `/api/shifts/assign` all give an HR or team-role **token** the whole company, while the website versions are scoped. The fix is a Bearer version of `hr_scope_denied`, keyed on the token's role `data_scope`, applied to about 15 routes. This should be its own PR with mobile testing.
-2. **Company-wide actions for team-scoped roles:** `/api/admin/email-blast` (`target_type=all`), `/api/ai/attrition-analytics` and `/api/ai/evaluate-interview` work for any admin-side role. **Decision needed:** which roles may email the whole company or see company-wide attrition risk?
-3. **OAuth login:**
-   - `state` isn't tied to the browser that started the flow, which allows login CSRF. The fix is a short-lived nonce cookie stored with the state.
-   - The OAuth login skips the password login's MFA step, the KYC-rejection block and the employment-ended check. **Confirm** whether that's intended.
-4. **Super-admin sessions** don't re-read `platform_admins`, so a deleted operator stays signed in until the 30-minute idle or 8-hour absolute timeout. Logout now revokes the session. Deletion could do the same.
-5. **`/api/employee/auth-config`** (public) returns the office latitude, longitude and geofence radius, which helps someone spoofing GPS.
-6. **"QR only" check-in mode**, if a company enables it, accepts a photo of someone's ID-card QR. That's by design, but worth a warning in Settings.
-7. **Razorpay webhooks** have no replay window. The handlers are idempotent, so this is low risk.
+Findings that are still open are no longer listed in this public repository:
+a list of unfixed weaknesses, with route names, is a map for an attacker.
+They are tracked in the private security report of 20 Nov 2026 (shared with
+the security team) and on the local Git server.

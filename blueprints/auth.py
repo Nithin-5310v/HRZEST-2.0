@@ -1161,6 +1161,21 @@ def _request_password_reset(login):
     return "send_failed", _RESET_SEND_FAILED
 
 
+# One answer whatever happened (security review 2026-11-20). The specific
+# outcomes ("no account", "no email on file") told anyone which emails and
+# employee IDs exist in every company on the platform; they now go only to
+# the server log.
+_RESET_UNIFORM_MSG = (f"If an account matches, a password reset link has been sent to the email address on file. "
+                      f"It expires in {RESET_TOKEN_VALID_HOURS} hours. No email? Contact your HR or administrator.")
+
+
+def _log_reset_outcome(outcome):
+    if outcome in ("send_failed", "not_configured"):
+        app_log.error("Password reset email not sent: %s", outcome)
+    else:
+        app_log.info("Password reset request: %s", outcome)
+
+
 @auth_bp.route("/forgot_password", methods=["GET", "POST"])
 @auth_bp.route("/admin_forgot_password", methods=["GET", "POST"])
 @auth_bp.route("/employee_forgot_password", methods=["GET", "POST"])
@@ -1174,10 +1189,9 @@ def forgot_password():
     if not login:
         return render_template("forgot_password.html", sent=False, message=None, email="",
                                error="Please enter your email address.")
-    outcome, msg = _request_password_reset(login)
-    if outcome == "sent":
-        return render_template("forgot_password.html", sent=True, message=msg, error=None, email=login)
-    return render_template("forgot_password.html", sent=False, message=None, error=msg, email=login)
+    outcome, _msg = _request_password_reset(login)
+    _log_reset_outcome(outcome)
+    return render_template("forgot_password.html", sent=True, message=_RESET_UNIFORM_MSG, error=None, email=login)
 
 
 @auth_bp.route("/api/forgot_password", methods=["POST"])
@@ -1185,16 +1199,15 @@ def forgot_password():
 @limiter.limit("20 per hour")
 def api_forgot_password():
     """The app's "Forgot password?": the same search and email as the web
-    form. 200 when a link was sent, 404 when no account has this email, 422
-    when it has no email on file, 400 for an empty box, 503 when the email
-    couldn't be sent."""
+    form. Always 200 with the same message (no account enumeration), 400 for
+    an empty box."""
     data = request.get_json(silent=True) or {}
     login = str(data.get("email") or "").strip()
     if not login:
         return jsonify({"ok": False, "code": "empty", "msg": "Please enter your email address."}), 400
-    outcome, msg = _request_password_reset(login)
-    status = {"sent": 200, "not_found": 404, "no_email": 422}.get(outcome, 503)
-    return jsonify({"ok": outcome == "sent", "code": outcome, "msg": msg}), status
+    outcome, _msg = _request_password_reset(login)
+    _log_reset_outcome(outcome)
+    return jsonify({"ok": True, "code": "sent", "msg": _RESET_UNIFORM_MSG}), 200
 
 
 @auth_bp.route("/admin_reset_password/<token>", methods=["GET", "POST"])
@@ -1352,15 +1365,11 @@ def force_change_pin():
 
 @auth_bp.route("/webauthn/status", methods=["GET"])
 def webauthn_status():
-    """Diagnostic endpoint -- shows WebAuthn config without exposing sensitive data."""
-    return jsonify({
-        "webauthn_available": _webauthn_available,
-        "rp_id": _wa_rp_id() if _webauthn_available else None,
-        "expected_origins": _wa_origins() if _webauthn_available else [],
-        "challenge_in_session": bool(session.get("wa_reg_challenge")),
-        "request_host": request.host,
-        "request_scheme": request.scheme,
-    })
+    """Public capability probe: only whether fingerprint/passkey sign-in is
+    available. The RP id, expected origins and the request's host/scheme
+    are no longer returned -- internal configuration an outsider has no need
+    for (security review 2026-11-20); they are in the server log at boot."""
+    return jsonify({"webauthn_available": _webauthn_available})
 
 
 def _wa_has_credential(emp_id):
@@ -1429,7 +1438,9 @@ def api_kiosk_enroll_face_verify():
     cursor.close()
     db.close()
     if not row:
-        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+        # Same answer as a failed face match, so this unauthenticated kiosk
+        # endpoint can't be used to test which employee IDs exist.
+        return jsonify({"ok": False, "msg": "Face not recognised. Please try again."}), 401
 
     from utils.tenant_files import face_logs_dir
     face_dir = face_logs_dir()
@@ -1500,7 +1511,18 @@ def webauthn_registration_options():
         return jsonify({"ok": False, "error": "Could not start WebAuthn registration. Please try again."}), 500
 
 
+def _wa_decoy_credential_id(emp_id):
+    """A stable, fake credential id for an employee ID with no passkey (or
+    no such employee), so the response looks the same either way and can't
+    be used to enumerate employees (security review 2026-11-20)."""
+    import hmac as _hmac
+    import hashlib as _hashlib
+    key = (app.secret_key or "").encode() if isinstance(app.secret_key, str) else (app.secret_key or b"")
+    return _hmac.new(key, b"wa-decoy:" + emp_id.encode(), _hashlib.sha256).digest()[:32]
+
+
 @auth_bp.route("/webauthn/authentication-options", methods=["GET"])
+@limiter.limit("20 per minute")
 def webauthn_authentication_options():
     """Server-generated WebAuthn authentication options with challenge stored in session."""
     if not _webauthn_available:
@@ -1527,6 +1549,10 @@ def webauthn_authentication_options():
                     )]
             except Exception as db_exc:
                 app_log.warning("WebAuthn auth-options: DB lookup failed for emp=%s: %s", emp_id, db_exc)
+            if not allow_creds:
+                allow_creds = [PublicKeyCredentialDescriptor(
+                    id=_wa_decoy_credential_id(emp_id), transports=[AuthenticatorTransport.INTERNAL]
+                )]
 
         options = webauthn.generate_authentication_options(
             rp_id=rp_id, allow_credentials=allow_creds, user_verification=UserVerificationRequirement.REQUIRED,

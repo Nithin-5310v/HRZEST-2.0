@@ -152,8 +152,12 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
         tconn.commit()
         tcur.close()
         tconn.close()
-    except Exception as exc:
-        return False, f"Failed to seed tenant data: {exc}", None, None
+    except Exception:
+        # Details stay in the server log; database error text (table,
+        # column, key values) must never reach a client (security review
+        # 2026-11-20).
+        app_log.error("Tenant data seeding failed", exc_info=True)
+        return False, "We couldn't finish setting up your company", None, None
 
     try:
         from database import get_master_db
@@ -207,8 +211,9 @@ def provision_tenant(company_name, subdomain, admin_username, admin_password_has
         mconn.commit()
         mcur.close()
         mconn.close()
-    except Exception as exc:
-        return False, f"Tenant registered in DB but master registry failed: {exc}", None, None
+    except Exception:
+        app_log.error("Tenant registered but the master registry write failed", exc_info=True)
+        return False, "We couldn't finish setting up your company", None, None
 
     # NOTE: the live tenant-admin login route is "/login" (auth.py's
     # admin_login() view) -- "/admin_login" hasn't been a real route since

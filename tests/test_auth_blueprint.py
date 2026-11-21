@@ -479,4 +479,5 @@ class TestWebAuthnStatus:
         assert rv.status_code == 200
         data = rv.get_json()
         assert "webauthn_available" in data
-        assert "request_host" in data
+        # Internal configuration is no longer exposed (security review 2026-11-20).
+        assert "request_host" not in data and "expected_origins" not in data

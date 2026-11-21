@@ -696,8 +696,7 @@ class TestWebauthnStatus:
     def test_returns_expected_shape(self, client):
         resp = client.get("/webauthn/status")
         data = resp.get_json()
-        assert "webauthn_available" in data
-        assert "expected_origins" in data
+        assert set(data) == {"webauthn_available"}
 
 
 class TestWebauthnAuthenticationOptions:

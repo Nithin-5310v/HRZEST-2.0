@@ -119,9 +119,13 @@ def api_create_org():
             "access_token": access_token,
             "step": "otp",
         })
-    except Exception as global_exc:
-        app_log.error("api_create_org global exception: %s", global_exc)
-        return jsonify({"ok": False, "msg": f"Server error: {global_exc}"}), 500
+    except Exception:
+        import secrets as _secrets
+        ref = _secrets.token_hex(4)
+        app_log.error("api_create_org failed (ref %s)", ref, exc_info=True)
+        # Never the exception text: it carried database error details to an
+        # unauthenticated caller (security review 2026-11-20).
+        return jsonify({"ok": False, "msg": f"Something went wrong. Please try again (reference {ref})."}), 500
 
 
 def _api_start_account(data):
