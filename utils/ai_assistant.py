@@ -44,7 +44,9 @@ n8n workflow contract (see .env.example for the two env vars):
 """
 import os
 import json
+import time
 import datetime
+import threading
 import urllib.request
 import urllib.error
 from extensions import app_log
@@ -55,6 +57,35 @@ _MODEL = "claude-sonnet-5"
 _MAX_TOKENS = 500
 _TIMEOUT_SECONDS = 20
 _N8N_TIMEOUT_SECONDS = 25  # workflows can chain several steps; a bit more slack than the direct Claude call
+# Speed. One question used to wait for each configured service in turn, each
+# with its full timeout (25 + 20 + 20 = 65 s): past nginx's 60 s gateway
+# limit, so the employee saw "Couldn't reach the server" while a gunicorn
+# thread stayed busy. Now the whole question gets one budget that every
+# service shares, and a service that just failed is skipped for a while
+# instead of being waited on again by every following question.
+_TOTAL_TIMEOUT_SECONDS = 40
+_SKIP_AFTER_FAILURE_SECONDS = 120
+# Claude: low effort for a short chat answer (less thinking before it
+# replies); thinking tokens count against max_tokens, hence the headroom.
+_CLAUDE_EFFORT = "low"
+_CLAUDE_MAX_TOKENS = 1024
+_deadline = threading.local()
+_failed_at = {}  # service name -> time.monotonic() of its last failure
+
+
+def _timeout(own_seconds):
+    """A call's timeout: the service's own limit, cut to what is left of the
+    current question's shared budget (never under 1 s)."""
+    end = getattr(_deadline, "at", None)
+    if end is None:
+        return own_seconds
+    return max(1.0, min(own_seconds, end - time.monotonic()))
+
+
+def reset_backend_health():
+    """Forget recent service failures (tests; also safe to call anytime)."""
+    _failed_at.clear()
+
 
 _GEMINI_MODEL = "gemini-3.6-flash"
 _GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{_GEMINI_MODEL}:generateContent"
@@ -324,9 +355,10 @@ def _call_claude(system_prompt, messages):
     api_key = _api_key()
     body = json.dumps({
         "model": _MODEL,
-        "max_tokens": _MAX_TOKENS,
+        "max_tokens": _CLAUDE_MAX_TOKENS,
         "system": system_prompt,
         "messages": messages,
+        "output_config": {"effort": _CLAUDE_EFFORT},
     }).encode("utf-8")
     headers = {
         "Content-Type": "application/json",
@@ -335,7 +367,7 @@ def _call_claude(system_prompt, messages):
     }
     req = urllib.request.Request(_API_URL, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:  # nosec B310
+        with urllib.request.urlopen(req, timeout=_timeout(_TIMEOUT_SECONDS)) as resp:  # nosec B310
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         try:
@@ -375,7 +407,7 @@ def _call_gemini(system_prompt, messages):
     }
     req = urllib.request.Request(_GEMINI_API_URL, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=_TIMEOUT_SECONDS) as resp:  # nosec B310
+        with urllib.request.urlopen(req, timeout=_timeout(_TIMEOUT_SECONDS)) as resp:  # nosec B310
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         try:
@@ -414,7 +446,7 @@ def _call_n8n(webhook_url, emp_id, context, message, turns):
         headers["X-Webhook-Secret"] = secret
     req = urllib.request.Request(webhook_url, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=_N8N_TIMEOUT_SECONDS) as resp:  # nosec B310
+        with urllib.request.urlopen(req, timeout=_timeout(_N8N_TIMEOUT_SECONDS)) as resp:  # nosec B310
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         return None, f"HTTP {e.code}"
@@ -457,24 +489,34 @@ def ask_assistant(context: str, message: str, history: list = None, emp_id: str 
     turns.append({"role": "user", "content": message})
     full_system_prompt = _SYSTEM_PROMPT + "\n\n--- Employee data ---\n" + context
 
+    services = []
     if n8n_url:
-        text, err = _call_n8n(n8n_url, emp_id, context, message, turns)
-        if err is None:
-            return True, text
-        app_log.warning("n8n webhook call failed, falling back: %s", err)
-        if not has_gemini and not has_anthropic:
-            return False, "Sorry, I couldn't reach the AI assistant right now. Please try again shortly."
-
+        services.append(("n8n", lambda: _call_n8n(n8n_url, emp_id, context, message, turns)))
     if has_gemini:
-        text, err = _call_gemini(full_system_prompt, turns)
-        if err is None:
-            return True, text or "I couldn't come up with a response -- please try rephrasing."
-        app_log.warning("Gemini call failed, falling back: %s", err)
-        if not has_anthropic:
-            return False, "Sorry, I couldn't reach the AI assistant right now. Please try again shortly."
+        services.append(("Gemini", lambda: _call_gemini(full_system_prompt, turns)))
+    if has_anthropic:
+        services.append(("Claude", lambda: _call_claude(full_system_prompt, turns)))
 
-    text, err = _call_claude(full_system_prompt, turns)
-    if err is not None:
-        app_log.warning("AI assistant call failed: %s", err)
-        return False, "Sorry, I couldn't reach the AI assistant right now. Please try again shortly."
-    return True, text or "I couldn't come up with a response -- please try rephrasing."
+    # Skip a service that failed in the last few minutes -- unless every one
+    # did, in which case try them all rather than give up without asking.
+    now = time.monotonic()
+    healthy = [svc for svc in services if now - _failed_at.get(svc[0], float("-inf")) > _SKIP_AFTER_FAILURE_SECONDS]
+    for name, _call in services:
+        if healthy and (name, _call) not in healthy:
+            app_log.info("AI assistant: skipping %s, which failed recently", name)
+
+    _deadline.at = now + _TOTAL_TIMEOUT_SECONDS
+    try:
+        for name, call in healthy or services:
+            if time.monotonic() >= _deadline.at:
+                app_log.warning("AI assistant: out of time before trying %s", name)
+                break
+            text, err = call()
+            if err is None:
+                _failed_at.pop(name, None)
+                return True, text or "I couldn't come up with a response -- please try rephrasing."
+            _failed_at[name] = time.monotonic()
+            app_log.warning("AI assistant: %s call failed, falling back: %s", name, err)
+    finally:
+        _deadline.at = None
+    return False, "Sorry, I couldn't reach the AI assistant right now. Please try again shortly."

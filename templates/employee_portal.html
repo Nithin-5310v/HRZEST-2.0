@@ -200,30 +200,92 @@
       sendBtn.disabled = true;
       var typing = addMessage('Typing…', 'bot typing');
 
+      // Give up after 70 s: the server stops trying the AI services after
+      // 40 s, so anything longer means the request itself is stuck.
+      var controller = ('AbortController' in window) ? new AbortController() : null;
+      var timer = controller ? setTimeout(function() { controller.abort(); }, 70000) : null;
+
       fetch('/api/employee/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, history: history }),
+        signal: controller ? controller.signal : undefined,
       })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
+        .then(function(r) {
+          // Anything but JSON is not an answer from the chat itself: a
+          // redirect the browser followed to a login page (session ended), or
+          // the gateway's own error page while the server restarts or is busy.
+          var type = r.headers.get('content-type') || '';
+          if (type.indexOf('application/json') === -1) {
+            var err = new Error('not JSON');
+            err.kind = r.redirected ? 'signedout' : (r.status >= 500 ? 'busy' : 'other');
+            throw err;
+          }
+          return r.json().then(function(data) { return { status: r.status, data: data || {} }; });
+        })
+        .then(function(res) {
           typing.remove();
-          addMessage(data.reply || 'Something went wrong.', data.ok ? 'bot' : 'bot error');
+          var data = res.data;
           if (data.ok) {
+            addMessage(data.reply, 'bot');
             history.push({ role: 'user', content: text });
             history.push({ role: 'assistant', content: data.reply });
             if (history.length > 12) history = history.slice(-12);
+            return;
+          }
+          // The server's reason is in "reply" (chat errors) or "msg" (session,
+          // rate limit, security filter, server error) -- show whichever it sent.
+          var reason = data.reply || data.msg || 'Something went wrong. Please try again.';
+          if (res.status >= 500) {
+            reason = 'Something went wrong on our side. Please try again in a moment.';
+          } else if (res.status === 403 && /security policy/i.test(data.msg || '')) {
+            // The site's security filter matched something in this question or
+            // in the earlier conversation (which is sent along with it). Start
+            // the conversation afresh so the next question isn't blocked too.
+            history = [];
+            reason = "That message was blocked by the site's security filter. Please rephrase it " +
+                     "(for example, leave out codes like 0x1234 or phrases like \"or true\").";
+          }
+          var el = addMessage(reason, 'bot error');
+          if (data.redirect && (res.status === 401 || res.status === 403 || res.status === 409)) {
+            addLink(el, data.redirect, res.status === 409 ? 'Go to the admin dashboard'
+                                     : res.status === 403 ? 'Continue' : 'Sign in again');
           }
         })
-        .catch(function() {
+        .catch(function(err) {
           typing.remove();
-          addMessage("Couldn't reach the server — please try again.", 'bot error');
+          if (err && err.name === 'AbortError') {
+            addMessage('The assistant is taking too long to answer. Please try again in a moment.', 'bot error');
+          } else if (err && err.kind === 'signedout') {
+            addLink(addMessage('Your session has ended. Please sign in again to keep using the assistant.', 'bot error'),
+                    '{{ tpath("/login") }}', 'Sign in again');
+          } else if (err && err.kind === 'busy') {
+            addMessage('The server is busy or restarting. Please try again in a minute.', 'bot error');
+          } else if (navigator.onLine === false) {
+            addMessage("You're offline. Check your internet connection and try again.", 'bot error');
+          } else {
+            addMessage("Couldn't reach the server. Please check your connection and try again.", 'bot error');
+          }
         })
         .finally(function() {
+          if (timer) clearTimeout(timer);
           busy = false;
           sendBtn.disabled = false;
           input.focus();
         });
+    }
+
+    // A link under an error message, e.g. back to the sign-in page. Only
+    // same-site paths the server named ("/login", "/admin", ...).
+    function addLink(el, path, label) {
+      if (typeof path !== 'string' || path.charAt(0) !== '/' || path.charAt(1) === '/') return;
+      el.appendChild(document.createElement('br'));
+      var a = document.createElement('a');
+      a.href = path;
+      a.textContent = label;
+      a.style.fontWeight = '700';
+      a.style.color = 'inherit';
+      el.appendChild(a);
     }
 
     sendBtn.addEventListener('click', send);
