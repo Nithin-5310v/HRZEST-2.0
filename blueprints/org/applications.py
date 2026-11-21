@@ -478,9 +478,9 @@ def _save_application_documents(application, files):
     """Shared document-upload logic for both web and mobile. `files` is a
     dict-like of {doc_kind: FileStorage} (request.files works directly).
     Returns (True, None) on success -- documents are saved and the
-    application is auto-approved in the same call (see the
-    _approve_application_reviewed() call at the end of this function),
-    unblocking login immediately rather than waiting on a review -- or
+    application left at doc_review_status='pending_review' for
+    utils/document_verification.py's worker (then, if it can't decide, the
+    platform-admin queue) to review; login isn't blocked meanwhile -- or
     (False, error_message).
 
     'rejected' is deliberately allowed back in here -- re-uploading
@@ -542,22 +542,23 @@ def _save_application_documents(application, files):
     mcur.close()
     mconn.close()
 
-    # Auto-approve immediately on submission -- KYC review no longer
-    # gates login (matches the OAuth signup path in
-    # blueprints/oauth_signup.py, which never collects documents at all).
-    # verification_job_status stays 'pending' above, so
-    # utils/document_verification.py's automated Claude-vision worker
-    # still runs afterward and can still suspend the tenant via
-    # _reject_application_reviewed() if it finds fraud (duplicate GST/PAN/
-    # CIN) -- this removes the WAIT for a human/AI reviewer before access,
-    # not the fraud check itself, which now runs as a retroactive safety
-    # net instead of a precondition. Mutate the in-memory dict to match
-    # what the UPDATE above just wrote (doc_review_status='pending_review')
-    # -- _approve_application_reviewed()'s own guard reads this cached
-    # field, not a fresh row, and the caller's `application` here still
-    # holds whatever it looked like before this function ran.
+    # Deliberately NOT approved here. KYC review doesn't gate login
+    # ('pending_review' never blocks it -- blueprints/auth.py's
+    # _kyc_verification_blocks_login), so a new company is already live;
+    # the review just has to actually happen. This used to call
+    # _approve_application_reviewed() straight away, which flipped the row
+    # to 'approved' before utils/document_verification.py's worker ever
+    # saw it -- the worker skips anything not 'pending_review', so the
+    # duplicate GST/PAN/CIN fraud check never ran and the platform-admin
+    # queue (which lists 'pending_review') stayed empty. Leaving it pending
+    # hands it to the worker: a confident pass is approved automatically,
+    # a confident duplicate is rejected (tenant suspended), anything
+    # unclear waits in the platform-admin queue.
+    #
+    # A re-upload after a rejection stays suspended until that review
+    # approves it -- _approve_application_reviewed() reinstates the tenant
+    # then, rather than corrected documents reinstating themselves unseen.
     application["doc_review_status"] = "pending_review"
-    _approve_application_reviewed(application, "system:auto_approved_on_submit")
     return True, None
 
 

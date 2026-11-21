@@ -223,6 +223,82 @@ class TestRunAutomatedVerification:
             _cleanup(db_engine, [tenant_id], [app_id])
 
 
+def _submit_documents(application_id):
+    """Documents through _save_application_documents(), the function every
+    upload route (signup web/API, dashboard, app) calls."""
+    from io import BytesIO
+    from werkzeug.datastructures import FileStorage, MultiDict
+    from blueprints.org.applications import _fetch_application_row, _save_application_documents
+    from tests.signup_flow import FAKE_PDF, FAKE_PNG
+    files = MultiDict({
+        "registration_cert": FileStorage(BytesIO(FAKE_PDF), filename="cert.pdf"),
+        "address_proof": FileStorage(BytesIO(FAKE_PDF), filename="address.pdf"),
+        "visiting_card": FileStorage(BytesIO(FAKE_PNG), filename="card.png"),
+        "name_board_photo": FileStorage(BytesIO(FAKE_PNG), filename="board.png"),
+    })
+    with flask_app.test_request_context():
+        return _save_application_documents(_fetch_application_row(application_id), files)
+
+
+def _review_state(db_engine, app_id, tenant_id):
+    cur = db_engine.cursor()
+    cur.execute("SELECT doc_review_status FROM att_master.tenant_applications WHERE id=%s", (app_id,))
+    doc_status = cur.fetchone()[0]
+    cur.execute("SELECT status FROM att_master.tenants WHERE id=%s", (tenant_id,))
+    tenant_status = cur.fetchone()[0]
+    cur.close()
+    return doc_status, tenant_status
+
+
+class TestSubmittedDocumentsAreReviewed:
+    """Regression: _save_application_documents() used to approve the row in
+    the same call, so run_automated_verification() skipped every real
+    submission ("not awaiting review") -- the duplicate GST/PAN/CIN check
+    never ran, and the platform-admin queue never listed anything."""
+
+    def test_upload_waits_for_review_and_the_duplicate_check_runs(self, db_engine, monkeypatch):
+        import utils.document_verification as dv
+        owner_id = _insert_tenant(db_engine, "Real Owner Co", "real-owner-co", gst="27CCCCC0000C1Z5")
+        tenant_id = _insert_tenant(db_engine, "Fresh Upload Co", "fresh-upload-co")
+        app_id = _insert_application(db_engine, tenant_id, "Fresh Upload Co", "fresh_admin", "fresh@test.local",
+                                     doc_review_status="pending_documents")
+        try:
+            assert _submit_documents(app_id) == (True, None)
+            # Live while it waits: pending review doesn't block anything.
+            assert _review_state(db_engine, app_id, tenant_id) == ("pending_review", "active")
+
+            monkeypatch.setattr(dv, "extract_kyc_fields", lambda application: (
+                {"gst_number": "27CCCCC0000C1Z5", "pan": None, "cin": None,
+                 "company_name": "Fresh Upload Co", "address": "1 Copy Rd", "legible": True,
+                 "confidence": "high", "notes": ""},
+                None,
+            ))
+            assert "auto-rejected" in dv.run_automated_verification(app_id)
+            assert _review_state(db_engine, app_id, tenant_id) == ("rejected", "suspended")
+        finally:
+            _cleanup(db_engine, [owner_id, tenant_id], [app_id])
+
+    def test_reupload_after_rejection_stays_suspended_until_approved(self, db_engine, monkeypatch):
+        import utils.document_verification as dv
+        tenant_id = _insert_tenant(db_engine, "Second Try Co", "second-try-co", status="suspended")
+        app_id = _insert_application(db_engine, tenant_id, "Second Try Co", "second_admin", "second@test.local",
+                                     doc_review_status="rejected")
+        try:
+            assert _submit_documents(app_id) == (True, None)
+            assert _review_state(db_engine, app_id, tenant_id) == ("pending_review", "suspended")
+
+            monkeypatch.setattr(dv, "extract_kyc_fields", lambda application: (
+                {"gst_number": None, "pan": None, "cin": None,
+                 "company_name": "Second Try Co", "address": "2 Fixed St", "legible": True,
+                 "confidence": "high", "notes": ""},
+                None,
+            ))
+            assert "auto-approved" in dv.run_automated_verification(app_id)
+            assert _review_state(db_engine, app_id, tenant_id) == ("approved", "active")
+        finally:
+            _cleanup(db_engine, [tenant_id], [app_id])
+
+
 class TestLoginGateBlocksOnlyRejectedDocuments:
     """A new company's admin logs straight into its dashboard and uploads
     the documents from its registration checklist, so documents not yet

@@ -19,8 +19,8 @@ import { useTheme } from "../../store/ThemeContext";
 import { fetchBillingStatus, getWebSessionLink } from "../../api/client";
 
 // Same data/limits the web app shows on templates/employees.html (the
-// seat-usage banner) and templates/seat_checkout.html (Seats & Billing
-// page) -- this screen is the mobile read of the same
+// seat-usage banner) and templates/settings/_fin_billing.html (Settings
+// -> Billing) -- this screen is the mobile read of the same
 // company_settings.paid_employee_slots / auto_debit_mandates /
 // monthly_invoices rows, via GET /api/billing_status. Buying seats or
 // enabling auto-debit needs Razorpay Checkout, which isn't embedded

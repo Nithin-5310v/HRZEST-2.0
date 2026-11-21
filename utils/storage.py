@@ -160,13 +160,6 @@ def open_image(path):
     return img
 
 
-def load_face_image(path, mode="RGB"):
-    """Drop-in for face_recognition.load_image_file(path) on an encrypted
-    file: a numpy array in `mode`."""
-    import numpy as np
-    return np.array(open_image(path).convert(mode))
-
-
 def send_image(path, mimetype="image/jpeg", **kwargs):
     """Flask response for an encrypted image -- replaces send_file(path) /
     send_from_directory(dir, name). Callers still do their own auth and

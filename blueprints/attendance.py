@@ -19,7 +19,7 @@ from extensions import limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import (
     admin_required, api_required, api_role_required, resolve_bearer_identity_any, HR_ROLE, require_access,
-    role_required,
+    role_required, session_account_ok,
 )
 from utils.helpers import (
     tpath, get_auth_config, allowed_checkin_combos, get_company_settings, _safe_redirect, _safe_referrer_redirect,
@@ -285,8 +285,10 @@ def api_breaks():
     # shares the same real token lookup blueprints/ai_hrms.py's helpdesk
     # route uses (identity for either an employee or admin token, expiry
     # checked) instead of a session cookie OR a merely-shaped header.
-    if not (session.get("admin_logged_in") or session.get("employee_id")
-            or resolve_bearer_identity_any()):
+    # The session side goes through session_account_ok(), like every other
+    # session-OR-Bearer route: a bare session.get() let a logged-out,
+    # kill-switched or deactivated session keep reading this.
+    if not (session_account_ok() or resolve_bearer_identity_any()):
         return jsonify({"ok": False, "msg": "Unauthorized"}), 401
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

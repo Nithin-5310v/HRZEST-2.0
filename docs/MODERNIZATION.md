@@ -123,8 +123,8 @@ it refuses unless `DB_NAME` contains `test`). Run it again with
    A maintained ONNX-runtime embedding model would be faster and more accurate,
    and removes the toolchain from the image. It changes the matching distance
    scale, so it needs a bake-off on **your** enrolled photos and re-tuned
-   thresholds — not a blind swap. Short of that: move verification to the `rq`
-   worker already in `requirements.txt`.
+   thresholds — not a blind swap. Short of that: move verification off the
+   request thread to a background worker.
 3. **PostgreSQL 16 → 17/18.** No pressing reason (16 is supported to Nov 2028).
    When you do: new major in a second container, `pg_dump | pg_restore` (or
    `pg_upgrade`) rehearsed on a restored backup, `scripts/restore_test.sh` to

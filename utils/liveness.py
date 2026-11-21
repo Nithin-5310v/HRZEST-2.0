@@ -74,7 +74,6 @@ class LivenessResult:
     ok: bool
     reason: str
     action: str = ""
-    frames_used: int = 0
     metrics: dict = field(default_factory=dict)
 
 
@@ -172,9 +171,9 @@ def evaluate(metrics_seq, action):
         return LivenessResult(False, "unknown_action", action)
     usable = [m for m in metrics_seq if m]
     if len(usable) < MIN_FRAMES:
-        return LivenessResult(False, "too_few_faces", action, len(usable))
+        return LivenessResult(False, "too_few_faces", action)
     if median(m["iod"] for m in usable) < MIN_INTER_OCULAR_PX:
-        return LivenessResult(False, "face_too_small", action, len(usable))
+        return LivenessResult(False, "face_too_small", action)
     ok, reason = _CHECKS[action](usable)
     summary = {
         "ear_min": round(min(m["ear"] for m in usable), 3),
@@ -182,7 +181,7 @@ def evaluate(metrics_seq, action):
         "yaw_span": round(max(m["yaw"] for m in usable) - min(m["yaw"] for m in usable), 3),
         "smile_span": round(max(m["smile"] for m in usable) - min(m["smile"] for m in usable), 3),
     }
-    return LivenessResult(ok, reason, action, len(usable), summary)
+    return LivenessResult(ok, reason, action, metrics=summary)
 
 
 # ── dlib-backed extraction (only part needing face_recognition) ─────────────
@@ -214,11 +213,11 @@ def analyze_frames(frames, action, face_recognition_mod):
     """frames: list of RGB numpy arrays. Runs landmark extraction and the
     action decision. Rejects any burst that contains a multi-face frame."""
     if not (MIN_FRAMES <= len(frames) <= MAX_FRAMES):
-        return LivenessResult(False, "bad_frame_count", action, len(frames))
+        return LivenessResult(False, "bad_frame_count", action)
     metrics = []
     for img in frames:
         lm, count = extract_landmarks(img, face_recognition_mod)
         if count > 1:
-            return LivenessResult(False, "multiple_faces", action, len(metrics))
+            return LivenessResult(False, "multiple_faces", action)
         metrics.append(frame_metrics(lm) if lm else None)
     return evaluate(metrics, action)

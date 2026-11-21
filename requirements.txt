@@ -43,10 +43,6 @@ pyotp>=2.12.0
 # ── Cache / rate-limit backend ────────────────────────────────────────────────
 redis>=8.1.0
 
-# ── Background job queue (utils/task_queue.py) -- only used once REDIS_URL
-# is set; a no-op dependency otherwise (sync fallback needs no import at all)
-rq>=3.0.0
-
 # ── Scheduled cron jobs (wsgi.py: daily attendance report, auto-debit sync,
 # billing dunning, salary disbursement prep) -- wsgi.py already imported this
 # behind a try/except ImportError, but it was never actually declared here,

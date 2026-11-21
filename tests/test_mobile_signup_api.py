@@ -149,8 +149,10 @@ class TestCodeCreatesTheCompanyAndSignsIn:
 
             checklist = client.get(url, headers=_bearer(token)).get_json()
             assert checklist["gst_number"] == gst
+            # Submitted documents wait for review (the automated check, then
+            # the platform-admin queue) -- they're never approved on upload.
             assert [(s["key"], s["status"]) for s in checklist["steps"]] == [
-                ("company", "done"), ("documents", "done"), ("payment", "todo")]
+                ("company", "done"), ("documents", "review"), ("payment", "todo")]
         finally:
             _drop_schema(db_engine, _SCHEMA)
 

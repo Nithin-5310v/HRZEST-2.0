@@ -76,7 +76,7 @@ def company_verification_upload():
     if not ok:
         flash(error, "error")
     else:
-        flash("Documents submitted -- your account is fully active again.", "success")
+        flash("Documents submitted -- we'll review them shortly.", "success")
     return redirect(tpath("/settings/company_verification"))
 
 

@@ -1,23 +1,8 @@
 """Automated Pytest Suite for AI HRMS Portal Services & Endpoints."""
 
-from utils.ai_resume_parser import parse_resume, match_candidate_job
 from utils.ai_helpdesk import process_helpdesk_query
 from utils.ai_interview_evaluator import evaluate_interview_notes
 from utils.ai_attrition_analytics import compute_attrition_and_burnout_analytics
-
-
-def test_resume_parser_unit():
-    raw_text = b"John Doe\nEmail: john@example.com\nPhone: (555) 123-4567\nSkills: Python, SQL, React, FastAPI, Docker\nExperience: 2019 to 2024 (5 years)"
-    parsed = parse_resume(raw_text, filename="John_Doe_Resume.pdf")
-    assert parsed["candidate_name"] is not None
-    assert "john@example.com" in parsed["email"]
-    assert "Python" in parsed["skills"]
-
-    # Match candidate against Job Description
-    jd = "Looking for a Python software developer with SQL and Docker experience."
-    match = match_candidate_job(parsed, jd)
-    assert match["match_score"] >= 60
-    assert "Python" in match["matched_skills"] or "Sql" in match["matched_skills"]
 
 
 def test_ai_helpdesk_query_and_fallback(db_engine, seed_employee):

@@ -820,7 +820,7 @@ def my_attendance_pdf():
 
     html = f"""<!doctype html><html><head><meta charset="UTF-8">
 <title>Attendance Report -- {escape(emp[1])} -- {month_name}</title>
-<style>
+<style{csp_nonce_attr()}>
   body {{ font-family: "Segoe UI", sans-serif; margin: 0; padding: 32px; color: #1e293b; background: white; }}
   .header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px;
              border-bottom: 2px solid #1e3a8a; padding-bottom: 18px; }}
@@ -1298,7 +1298,7 @@ def _render_payslip_html(emp_id, year, month):
         company_name=company_name,
         emp_designation=designation, emp_dept=dept,
         pan=pan, uan=uan, bank_account=bank_acct, bank_name=bank_nm,
-        payroll_cfg=payroll_cfg
+        payroll_cfg=payroll_cfg, style_nonce=csp_nonce(),
     )
 
 
@@ -1489,7 +1489,7 @@ def download_tax_statement(emp_id, year):
     <html>
     <head>
       <title>Form 16 / Tax Statement - {year}</title>
-      <style>
+      <style{csp_nonce_attr()}>
         body {{ font-family: Arial, sans-serif; padding: 30px; color: #0f172a; }}
         .header {{ border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px; }}
         .box {{ background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; margin-bottom: 16px; }}

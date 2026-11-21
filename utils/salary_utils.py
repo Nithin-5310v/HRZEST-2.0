@@ -101,7 +101,11 @@ def apply_statutory_deductions(entry, payroll_cfg=None, standard_days=26):
 def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data,
                            company_name="", emp_designation="", emp_dept="",
                            pan="", uan="", bank_account="", bank_name="",
-                           payroll_cfg=None, standard_days=26):
+                           payroll_cfg=None, standard_days=26, style_nonce=""):
+    # style_nonce: the response's CSP nonce, passed only when this HTML is
+    # served as a page (payroll.py's payslip view). Emailed payslips get
+    # none -- a nonce means nothing in an email and differs per request.
+    style_attr = f' nonce="{style_nonce}"' if style_nonce else ""
     # Every figure comes from the one net-pay calculation (QA BUG-05):
     # callers pass an entry from compute_salary_data_for_month(), which has
     # already applied it; a bare dict (unit tests) gets it applied here.
@@ -154,7 +158,7 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 <html>
 <head>
 <meta charset="UTF-8">
-<style>
+<style{style_attr}>
   *{{box-sizing:border-box;margin:0;padding:0}}
   body{{font-family:"Segoe UI",Arial,sans-serif;background:#f0f4ff;color:#1e293b}}
   .wrap{{max-width:800px;margin:20px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.12)}}

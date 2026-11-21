@@ -555,8 +555,8 @@ export const deleteDepartment = (deptId) =>
 
 // ── Seats & Billing ───────────────────────────────────────────────
 // Employee-count-vs-plan-limit + monthly auto-debit status -- same
-// underlying data as the web app's Seats & Billing page
-// (templates/seat_checkout.html), served here as JSON.
+// underlying data as the web app's Settings -> Billing section
+// (templates/settings/_fin_billing.html), served here as JSON.
 export const fetchBillingStatus = () => client.get('/api/billing_status');
 
 // Buying seats / enabling auto-debit needs Razorpay Checkout, which this
