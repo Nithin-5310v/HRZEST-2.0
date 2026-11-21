@@ -212,6 +212,9 @@ DETECTIONS = {
                              "Repeated punches flagged as GPS-spoofed."),
     "photo_replay": ("Photo replay", [],
                      "The same punch photo reused across punches or employees (replayed image)."),
+    "http_error_spike": ("HTTP error spike", ["T1595", "T1190"],
+                         "Far more 401 / 403 / 404 / 429 or server-error responses than usual: "
+                         "scanning, a brute-force run, or a failing part of the app."),
 }
 
 

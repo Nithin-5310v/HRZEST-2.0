@@ -57,6 +57,8 @@ def _rules():
     stuff_n = _int("DETECT_STUFFING_ATTEMPTS", 8)
     spray_ips = _int("DETECT_SPRAY_IPS", 5)
     mass_n = _int("DETECT_MASS_EXPORT_COUNT", 5)
+    spike_n = _int("DETECT_HTTP_ERROR_SPIKE_COUNT", 100)
+    spike_x = _int("DETECT_HTTP_ERROR_SPIKE_FACTOR", 5)
     reveal_n = _int("DETECT_PII_REVEAL_COUNT", 20)
     travel_km = _int("DETECT_TRAVEL_KM", 200)
     travel_min = _int("DETECT_TRAVEL_MINUTES", 60)
@@ -154,6 +156,23 @@ def _rules():
             lambda: (csp_n, csp_sources),
             lambda r: (r[0], f"{r[1]} Content-Security-Policy violations on {r[0]} from {r[2]} different "
                        f"sources in 10 minutes (possible script injection)", {"path": r[0]}),
+        ),
+        # Request telemetry (utils/http_telemetry.py): one status code (or all 5xx)
+        # answered far more often in the last 10 minutes than in an average 10
+        # minutes of the day before, and at least DETECT_HTTP_ERROR_SPIKE_COUNT times.
+        Rule(
+            "http_error_spike", "WARNING", 60, "global",
+            "WITH coded AS (SELECT CASE WHEN status >= 500 THEN '5xx' ELSE status::text END AS code, minute, hits "
+            "  FROM att_master.http_minute_stats WHERE (status IN (401, 403, 404, 429) OR status >= 500) "
+            "  AND minute >= NOW() - INTERVAL '24 hours 10 minutes'), "
+            "recent AS (SELECT code, SUM(hits) AS n FROM coded WHERE minute >= NOW() - INTERVAL '10 minutes' GROUP BY code), "
+            "usual AS (SELECT code, SUM(hits) / 144.0 AS per10 FROM coded "
+            "  WHERE minute < NOW() - INTERVAL '10 minutes' GROUP BY code) "
+            "SELECT r.code, r.n, COALESCE(u.per10, 0) FROM recent r LEFT JOIN usual u ON u.code = r.code "
+            "WHERE r.n >= %s AND r.n >= %s * GREATEST(COALESCE(u.per10, 0), 1) ORDER BY r.n DESC",
+            lambda: (spike_n, spike_x),
+            lambda r: (f"http_{r[0]}", f"{int(r[1])} HTTP {r[0]} responses in 10 minutes "
+                       f"(usually about {round(float(r[2]))})", {"reason": f"http_{r[0]}", "count": int(r[1])}),
         ),
         # ── tenant-scoped ──
         Rule(

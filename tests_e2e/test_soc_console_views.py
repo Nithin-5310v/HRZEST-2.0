@@ -26,6 +26,7 @@ ROUTES = [
     ("alerts", "#/alerts"),
     ("events", "#/events"),
     ("events-filtered", "#/events?ip=185.220.101.1"),
+    ("traffic", "#/traffic"),
     ("brief-kpi", "#/explain?kind=kpi&value=failed_logins"),
     ("brief-family", "#/explain?kind=family&value=waf"),
     ("lookup-empty", "#/entity"),
@@ -45,6 +46,15 @@ ROUTES = [
     ("admin-audit", "#/admin?tab=audit"),
 ]
 VIEWPORTS = {"desktop": {"width": 1366, "height": 900}, "phone": {"width": 390, "height": 844}}
+
+SEED_TRAFFIC = [
+    # (route pattern, method, status, hits, total ms, slowest ms, minutes ago)
+    ("/login", "POST", 200, 40, 3200, 180, 30),
+    ("/login", "POST", 401, 8, 400, 60, 29),
+    ("/employees", "GET", 200, 25, 2500, 240, 20),
+    ("/view_payslip/<emp_id>/<int:year>/<int:month>", "GET", 200, 5, 900, 310, 15),
+    ("/api/attendance", "GET", 500, 2, 2600, 1900, 10),
+]
 
 SEED_EVENTS = [
     # (event_type, level, ip, identifier, path, tenant, minutes_ago, message)
@@ -79,6 +89,8 @@ def soc(monkeypatch, db_conn, base_url):
         cur.execute("DELETE FROM att_master.soc_cases WHERE created_by='e2e'")
         cur.execute("DELETE FROM att_master.soc_ban_reviews WHERE ip IN ('185.220.101.1', '45.33.32.156')")
         cur.execute("DELETE FROM public.banned_ips WHERE ip='45.33.32.156'")
+        cur.execute("DELETE FROM att_master.http_minute_stats WHERE tenant='e2e-co'")
+        cur.execute("DELETE FROM att_master.http_telemetry_flushes WHERE host='e2e-seed'")
     clean()
     cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name, status) "
                 "VALUES ('E2E Co', 'e2e-co', %s, 'active')", (os.environ["DB_NAME"],))
@@ -86,6 +98,13 @@ def soc(monkeypatch, db_conn, base_url):
         cur.execute("INSERT INTO public.security_events (event_type, level, message, identifier, ip, path, method, "
                     "tenant, created_at) VALUES (%s,%s,%s,%s,%s,%s,'GET',%s, NOW() - (%s * INTERVAL '1 minute'))",
                     (et, level, msg, ident, ip, path, tenant, ago))
+    for ep, method, status, hits, total_ms, max_ms, ago in SEED_TRAFFIC:
+        buckets = [0] * 10
+        buckets[5 if max_ms <= 250 else 6 if max_ms <= 500 else 8] = hits
+        cur.execute("INSERT INTO att_master.http_minute_stats (minute, endpoint, method, status, tenant, hits, total_ms, "
+                    "max_ms, buckets) VALUES (date_trunc('minute', NOW() - (%s * INTERVAL '1 minute')), %s, %s, %s, "
+                    "'e2e-co', %s, %s, %s, %s)", (ago, ep, method, status, hits, total_ms, max_ms, buckets))
+    cur.execute("INSERT INTO att_master.http_telemetry_flushes (host, pid, flushed_at) VALUES ('e2e-seed', 1, NOW())")
     cur.execute("INSERT INTO att_master.soc_cases (title, severity, status, created_by, summary) "
                 "VALUES ('Credential stuffing against Acme', 'high', 'investigating', 'e2e', 'Three accounts tried')")
     cur.execute("INSERT INTO att_master.soc_ban_reviews (ip, source, reason, hits) VALUES "
