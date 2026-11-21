@@ -213,7 +213,18 @@ def api_employee_sync_punches():
         return jsonify({"ok": False, "msg": "Employee not found"}), 404
     _work_mode, _work_lat, _work_lon = _emp_row[1], _emp_row[2], _emp_row[3]
     s_start, s_half, s_end, _shift_name = get_employee_shift(emp_id, cur2)
-    location_enforced = _mobile_location_enforced(get_auth_config())
+    _auth_cfg = get_auth_config()
+    # An offline punch carries only the login token and GPS, so it obeys the
+    # same policy as /api/employee/checkin: refused when the company requires
+    # QR, face or fingerprint. It used to bypass that policy entirely, so a
+    # token holder could post an on-time punch with no verification at all
+    # (security review 2026-11-20, QA NV-18).
+    if not app_gps_checkin_allowed(_auth_cfg):
+        cur2.close()
+        db2.close()
+        return jsonify({"ok": False, "msg": "Offline check-in isn't allowed for your organisation. "
+                                            "Please check in with QR or face verification when you're online."}), 403
+    location_enforced = _mobile_location_enforced(_auth_cfg)
     _device_id = pi.sanitize_device_id(payload.get("device_id"))
 
     results = []
@@ -322,8 +333,13 @@ def api_employee_sync_punches():
 
 @employee_portal_bp.route("/api/employee/auth-config", methods=["GET"])
 def api_employee_auth_config():
-    """Return all authentication method flags (public, no token required)."""
-    return jsonify({"ok": True, **get_auth_config()})
+    """Return the check-in method flags (public, no token required).
+
+    The office coordinates and geofence radius are left out: an outsider
+    spoofing GPS would otherwise be told exactly where to fake being
+    (security review 2026-11-20). The server keeps using them internally."""
+    cfg = {k: v for k, v in get_auth_config().items() if k not in ("office_lat", "office_lon", "geo_radius")}
+    return jsonify({"ok": True, **cfg})
 
 
 @employee_portal_bp.route("/api/employee/qr-face-checkin", methods=["POST"])
@@ -381,6 +397,17 @@ def api_employee_qr_face_checkin():
     if not employee_id:
         return jsonify({"ok": False, "msg": "employee_id required"}), 400
 
+    # An employee's own app token marks only that employee. Without this, A
+    # could scan B's badge QR (a static signature) with A's phone and mark B
+    # present ("buddy punching"). An admin token (the shared kiosk) may still
+    # check in anyone, with the QR / face / fingerprint proof below.
+    if (not _session_emp_id and _g.auth_kind == "employee"
+            and employee_id != str(_g.auth_identity).strip().upper()):
+        log_security_event("attendance.identity_mismatch",
+                           "App check-in for a different employee than the signed-in one",
+                           level="WARNING", identifier=_g.auth_identity, target=employee_id)
+        return jsonify({"ok": False, "msg": "You can only mark your own attendance from your account."}), 403
+
     auth_cfg = get_auth_config()
 
     # Same server-side policy as the web kiosk (/attendance): the client's
@@ -437,6 +464,13 @@ def api_employee_qr_face_checkin():
         _d = pi.check_biometric_consent(ctx, cursor, log_security_event)
         if not _d.allow:
             return _reject(_d)
+    # Same rule as /api/employee/checkin and offline sync: with location
+    # enforced, leaving the coordinates out no longer skips the geofence.
+    if _mobile_location_enforced(auth_cfg) and not (lat and lon):
+        ctx.flag("location_missing")
+        return _reject(pi.Decision(False, 400,
+                                   "Location not captured. Please allow location access and try again.",
+                                   "location_required"))
 
     if lat and lon:
         try:
