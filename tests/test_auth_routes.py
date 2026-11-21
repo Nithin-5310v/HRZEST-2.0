@@ -421,7 +421,7 @@ class TestAdminForgotPassword:
     def test_unknown_email_says_no_account(self, client):
         resp = client.post("/admin_forgot_password", data={"email": "nobody@nowhere.test"})
         assert resp.status_code == 200
-        assert b"No account found with this email address." in resp.data
+        assert b"If an account matches" in resp.data
 
     def test_known_email_without_smtp_config_shows_error(self, client, seed_admin, db_engine, monkeypatch):
         cur = db_engine.cursor()
@@ -430,7 +430,7 @@ class TestAdminForgotPassword:
         monkeypatch.setattr(auth_bp_module, "get_email_config", lambda: None)
         try:
             resp = client.post("/admin_forgot_password", data={"email": "fp_admin@test.local"})
-            assert b"Email service not configured" in resp.data
+            assert b"If an account matches" in resp.data
         finally:
             cur.execute("UPDATE admin_users SET email=NULL WHERE username=%s", (seed_admin["username"],))
             cur.close()
@@ -466,7 +466,7 @@ class TestAdminForgotPassword:
         monkeypatch.setattr(auth_bp_module, "send_email_smtp", _boom)
         try:
             resp = client.post("/admin_forgot_password", data={"email": "fp_admin3@test.local"})
-            assert b"Failed to send email" in resp.data
+            assert b"If an account matches" in resp.data
         finally:
             cur.execute("UPDATE admin_users SET email=NULL, reset_token=NULL, reset_token_expiry=NULL "
                         "WHERE username=%s", (seed_admin["username"],))
@@ -550,7 +550,7 @@ class TestEmployeeForgotPassword:
         monkeypatch.setattr(auth_bp_module, "get_email_config", lambda: None)
         try:
             resp = client.post("/employee_forgot_password", data={"employee_id": seed_employee["employee_id"]})
-            assert b"contact HR" in resp.data
+            assert b"If an account matches" in resp.data
         finally:
             cur.close()
 

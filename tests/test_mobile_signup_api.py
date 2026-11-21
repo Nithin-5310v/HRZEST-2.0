@@ -150,7 +150,7 @@ class TestCodeCreatesTheCompanyAndSignsIn:
             checklist = client.get(url, headers=_bearer(token)).get_json()
             assert checklist["gst_number"] == gst
             assert [(s["key"], s["status"]) for s in checklist["steps"]] == [
-                ("company", "done"), ("documents", "done"), ("payment", "todo")]
+                ("company", "done"), ("documents", "review"), ("payment", "todo")]  # reviewed, not auto-approved
         finally:
             _drop_schema(db_engine, _SCHEMA)
 

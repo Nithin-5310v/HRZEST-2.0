@@ -667,7 +667,9 @@ class TestApiQrFaceCheckin:
             "employee_id": signed_qr("GHOST99"),
             "auth_combo":  "qr_face",
         })
-        assert rv.status_code == 404
+        # The signed-in employee's own token can't check in a different ID
+        # (security review 2026-11-20: buddy-punching guard), so this stops at 403.
+        assert rv.status_code == 403
 
     def test_qr_fingerprint_login_with_verified_fingerprint(
             self, client, seed_employee, db_engine, mocker, signed_qr):

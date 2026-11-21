@@ -619,7 +619,8 @@ def correct_attendance():
         return redirect(back)
     if att_type not in MANUAL_ATTENDANCE_TYPES:
         flash("Unknown attendance type.", "error")
-        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
+        back = _safe_referrer_redirect(request.referrer or "", "/monthly_report")  # same-site only
+        return redirect(back)
     # Attendance decides pay: nobody below the owner corrects their own
     # (security review 2026-11-20; hr_scope_denied lets a role-holder reach
     # their own record by design, which made self-correction possible).
@@ -627,7 +628,8 @@ def correct_attendance():
         log_security_event("access.denied", "Role-holder tried to correct their own attendance",
                            level="WARNING", identifier=emp_id)
         flash("You can't correct your own attendance. Ask the Administrator.", "error")
-        return redirect(_safe_referrer_redirect(request.referrer or "", "/monthly_report"))
+        back = _safe_referrer_redirect(request.referrer or "", "/monthly_report")  # same-site only
+        return redirect(back)
 
     if hr_scope_denied(emp_id):
         flash("Employee not found.", "error")

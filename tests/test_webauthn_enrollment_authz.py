@@ -117,7 +117,8 @@ class TestKioskFaceVerifyGate:
             "employee_id": "NOPE_NOT_REAL",
             "face_photo": (io.BytesIO(_fake_jpeg_bytes()), "f.jpg"),
         })
-        assert resp.status_code == 404
+        # Same answer as a face mismatch, so IDs can't be enumerated (security review 2026-11-20).
+        assert resp.status_code == 401
 
     def test_face_mismatch_rejected(self, client, seed_employee_with_face, monkeypatch):
         _mock_face_match(monkeypatch, False)

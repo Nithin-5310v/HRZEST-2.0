@@ -11,7 +11,7 @@ def admin_actor():
     Security review 2026-11-20: the team scope used to read only the
     session, so a team-scoped HR using the app (Bearer token) was treated as
     whole-company on every API route. Returns (None, None) for no caller."""
-    if session.get("admin_logged_in"):
+    if session.get("admin_logged_in") or session.get("admin_role"):
         return session.get("admin_username"), session.get("admin_role")
     if not has_request_context():
         return None, None

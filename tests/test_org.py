@@ -420,13 +420,13 @@ class TestSignupFlow:
             app_row = cur.fetchone()
             assert app_row[0] == "provisioned"
             assert app_row[1] is not None
-            # Documents were uploaded (inside signup_company) and
-            # auto-approved in that same call.
-            assert app_row[2] == "approved"
+            # Documents were uploaded (inside signup_company) and wait for
+            # review: no longer auto-approved, so the automated fraud check
+            # actually runs (security review 2026-11-20, audit P3).
+            assert app_row[2] == "pending_review"
             assert app_row[3] == gst
 
-            # A platform-admin "approve" click against an application
-            # that's already auto-approved is a harmless no-op -- it must
+            # The platform admin approves the pending documents; it must
             # NOT attempt to re-provision or change tenants.status.
             self._login_platform_admin(client)
             resp = client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
@@ -470,7 +470,12 @@ class TestSignupFlow:
             assert save_company_details(client, slug).headers["Location"] == f"/{slug}/profile"
             assert "1 of 3 done" in client.get(f"/{slug}/profile").get_data(as_text=True)
 
-            upload_documents(client, slug)   # auto-approved in tests
+            upload_documents(client, slug)   # now waits for review (security review 2026-11-20)
+            cur = db_engine.cursor()
+            cur.execute("UPDATE att_master.tenant_applications SET doc_review_status='approved' "
+                        "WHERE tenant_id=(SELECT id FROM att_master.tenants WHERE db_name=%s)", (schema_name,))
+            cur.close()
+            db_engine.commit()
             assert "2 of 3 done" in client.get(f"/{slug}/profile").get_data(as_text=True)
 
             # Payment: an active auto-debit mandate finishes the checklist.

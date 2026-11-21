@@ -122,13 +122,13 @@ class TestForgotPasswordByEmail:
     def test_unknown_email_says_there_is_no_such_account(self, client, sent, monkeypatch):
         monkeypatch.setenv("LOGIN_ASKS_FOR_COMPANY", "true")
         resp = client.post("/forgot_password", data={"email": "nobody@nowhere.test"})
-        assert b"No account found with this email address." in resp.data
-        assert b"<dialog open" in resp.data
+        # Same answer as a known account (security review 2026-11-20: no enumeration).
+        assert b"If an account matches" in resp.data
         assert sent == []
 
     def test_known_admin_email(self, client, seed_admin, sent):
         resp = client.post("/forgot_password", data={"email": "admin@test.local"})
-        assert b"A password reset link has been sent to admin@test.local" in resp.data
+        assert b"If an account matches" in resp.data
         assert len(sent) == 1 and "/admin_reset_password/" in sent[0][1]
 
     def test_empty_box(self, client):
@@ -149,11 +149,11 @@ class TestAppForgotPassword:
         assert resp.status_code == 200 and body["ok"] and body["code"] == "sent"
         assert len(sent) == 1
 
-    def test_unknown_email_is_404(self, client, sent):
+    def test_unknown_email_gets_the_same_answer(self, client, sent):
         resp = client.post("/api/forgot_password", json={"email": "ghost@nowhere.test"})
-        assert resp.status_code == 404
-        assert resp.get_json() == {"ok": False, "code": "not_found",
-                                   "msg": "No account found with this email address."}
+        assert resp.status_code == 200
+        assert "If an account matches" in resp.get_json()["msg"]
+        assert sent == []
 
     def test_empty_is_400(self, client):
         assert client.post("/api/forgot_password", json={}).status_code == 400
@@ -161,7 +161,8 @@ class TestAppForgotPassword:
     def test_email_service_missing_is_503(self, client, seed_admin, monkeypatch):
         monkeypatch.setattr(auth, "get_email_config", lambda: None)
         resp = client.post("/api/forgot_password", json={"email": "admin@test.local"})
-        assert resp.status_code == 503 and resp.get_json()["code"] == "not_configured"
+        # Not revealed to the caller (it would confirm the account); logged server-side.
+        assert resp.status_code == 200 and "If an account matches" in resp.get_json()["msg"]
 
 
 def test_request_context_company_is_restored(client, seed_employee, employee_email, sent, monkeypatch):

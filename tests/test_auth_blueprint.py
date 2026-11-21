@@ -179,10 +179,11 @@ class TestAdminForgotPassword:
         assert rv.status_code == 200
 
     def test_post_unknown_email_says_no_account(self, client):
-        """Owner's decision (2026-11-19): an unknown email is told so plainly."""
+        """Security review 2026-11-20: the same answer as for a known account (this
+        reverses the 2026-11-19 decision to say so plainly, which enumerated accounts)."""
         rv = client.post("/admin_forgot_password", data={"email": "nobody@example.com"})
         assert rv.status_code == 200
-        assert b"No account found with this email address." in rv.data
+        assert b"If an account matches" in rv.data
 
     def test_post_known_email_no_email_config_shows_error(self, client, seed_admin, db_engine, mocker):
         """Email configured for admin but email service not set up → error message."""

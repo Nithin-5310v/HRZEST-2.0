@@ -37,8 +37,8 @@ class TestCustomRoleCannotUseUnrelatedModules:
     def test_cannot_edit_employee_email(self, client, custom_role, seed_employee, db_engine):
         """Account takeover: change the email, then reset the password."""
         _role_session(client, custom_role)
-        client.post("/edit_employee", data={"emp_id": seed_employee["employee_id"], "name": "Test Employee",
-                                             "email": "attacker@example.com"})
+        client.post("/edit_employee", data={
+            "emp_id": seed_employee["employee_id"], "name": "Test Employee", "email": "attacker@example.com"})
         cur = db_engine.cursor()
         cur.execute("SELECT email FROM employees WHERE employee_id=%s", (seed_employee["employee_id"],))
         from utils.helpers import decrypt_pii
@@ -190,3 +190,17 @@ def test_oauth_callback_without_the_browser_binding_is_refused(client, monkeypat
     resp = client.get("/oauth/callback/google?code=c&state=attacker-state")
     assert resp.status_code == 302
     assert not called
+
+
+# ── Super-admin sessions ─────────────────────────────────────────────────────
+
+@pytest.mark.real_platform_admin_check
+def test_deleted_super_admin_loses_the_console_at_once(client):
+    with client.session_transaction() as sess:
+        sess["platform_admin_logged_in"] = True
+        sess["platform_admin_username"] = "operator-who-was-deleted"
+        import time
+        sess["platform_admin_last_activity"] = time.time()
+    assert client.get("/super_admin").status_code == 404
+    with client.session_transaction() as sess:
+        assert not sess.get("platform_admin_logged_in")

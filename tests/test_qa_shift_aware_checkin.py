@@ -131,7 +131,7 @@ def test_employee_app_login_uses_assigned_shift(client, seed_employee, early_shi
     assert _employee_checkin(client, seed_employee, mocker, 8, 0)["status"] == "Half Day Login"
 
 
-def test_offline_sync_login_uses_assigned_shift(client, seed_employee, early_shift, mocker):
+def test_offline_sync_login_uses_assigned_shift(client, seed_employee, early_shift, mocker, app_gps_checkin_on):
     assert _offline_sync(client, seed_employee, mocker, 8, 0)["status"] == "Half Day Login"
 
 
@@ -155,7 +155,7 @@ def test_employee_app_logout_uses_assigned_shift(client, seed_employee, logged_i
     assert (data["action"], data["status"]) == ("logout", "Completed")
 
 
-def test_offline_sync_logout_uses_assigned_shift(client, seed_employee, logged_in_at_six, mocker):
+def test_offline_sync_logout_uses_assigned_shift(client, seed_employee, logged_in_at_six, mocker, app_gps_checkin_on):
     data = _offline_sync(client, seed_employee, mocker, 15, 30)
     assert (data["action"], data["status"]) == ("logout", "Completed")
 
