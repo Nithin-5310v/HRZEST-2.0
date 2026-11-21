@@ -16,7 +16,7 @@ from utils.auth import (
 from utils.helpers import (
     tpath, co_scope_column, hr_scope_column, hr_scope_denied, _db, get_pending_counts, get_company_settings,
     get_employee_sidebar_info, company_today, int_param, emp_id_param,
-    self_service_emp_id, self_service_return_path,
+    self_service_emp_id, self_service_return_path, audit_read,
 )
 from extensions import limiter, log_security_event
 
@@ -865,6 +865,7 @@ def performance_export():
     wb.save(buf)
     buf.seek(0)
     filename = f"performance_Q{q}_{yr}.xlsx"
+    audit_read("export_performance_reviews", "performance_reviews", f"Q{q} {yr}", format="xlsx")
     from flask import send_file
     return send_file(buf, as_attachment=True, download_name=filename,
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

@@ -7,6 +7,7 @@ from flask import g, jsonify, render_template, request, session
 from utils.auth import admin_required, require_access, role_required
 from utils.helpers import (
     co_scope_column,
+    describe_audit_detail,
     co_scope_subquery,
     company_today,
     contact_lookup_keys,
@@ -442,7 +443,7 @@ def _load_activity_log():
     db.close()
     entries = [
         {"actor": r[0], "actor_type": r[1], "action": r[2], "target_table": r[3],
-         "target_id": r[4], "detail": r[5], "ip_address": r[6], "created_at": r[7]}
+         "target_id": r[4], "detail": describe_audit_detail(r[5]), "ip_address": r[6], "created_at": r[7]}
         for r in rows
     ]
     return dict(

@@ -24,7 +24,7 @@ from utils.auth import (
 from utils.helpers import (
     tpath, get_auth_config, allowed_checkin_combos, get_company_settings, _safe_redirect, _safe_referrer_redirect,
     co_scope_column, hr_scope_column, hr_scope_denied, decrypt_pii, get_pending_action_counts,
-    company_today, company_now, invalidate_settings_cache, int_param,
+    company_today, company_now, invalidate_settings_cache, int_param, audit_read,
 )
 from utils.email_utils import get_email_config, send_email_smtp
 from utils.attendance_utils import (
@@ -1102,6 +1102,7 @@ def monthly_report_export():
     buf.seek(0)
 
     filename = f"attendance_{year}_{month:02d}.xlsx"
+    audit_read("export_attendance_report", "attendance", f"{year}-{month:02d}", format="xlsx")
     return send_file(buf, as_attachment=True, download_name=filename,
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
