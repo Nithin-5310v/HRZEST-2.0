@@ -3,6 +3,11 @@
 # which previously existed only as comments (the terraform/ directory and the
 # "deploy.sh ufw block" they cited are not in this repository).
 #
+# FOR THE ROOTLESS-PODMAN CONTAINER STACK ONLY. The production host today is
+# bare metal (distro nginx on 80/443, gunicorn on loopback): there, use
+# scripts/harden_host_firewall.sh (docs/FIREWALL.md). The 80->8080 / 443->8443
+# redirects below would send its traffic to ports nothing listens on.
+#
 #   sudo bash scripts/host_hardening.sh [--user attendance] [--dry-run]
 #
 # Idempotent: re-running converges instead of duplicating rules. Run as root
