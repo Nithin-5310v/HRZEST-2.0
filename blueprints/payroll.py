@@ -29,7 +29,7 @@ from utils.auth import (
 )
 from utils.helpers import (
     tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime,
-    hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount, self_service_emp_id,
+    hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount, self_service_emp_id, csp_nonce, csp_nonce_attr,
     audit_changes, audit_read,
 )
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
