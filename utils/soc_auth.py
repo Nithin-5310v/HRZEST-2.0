@@ -507,6 +507,11 @@ def password_problem(password, email=""):
     email = normalize_email(email)
     if email and password.strip().lower() in (email, email.partition("@")[0]):
         return "Do not use your email address as your password."
+    # Same leaked-password check as every other account (utils/auth.py's
+    # check_new_password): HIBP range API, 5-char hash prefix, fails open.
+    from utils.pwned_passwords import is_pwned_password
+    if is_pwned_password(password):
+        return "This password has appeared in a known data breach. Choose a different one."
     return None
 
 

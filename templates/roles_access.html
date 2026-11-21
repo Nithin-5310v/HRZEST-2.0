@@ -80,7 +80,7 @@
 {% endblock %}
 
 {% block scripts %}
-    <script nonce="{{ csp_nonce }}">
+    <script>
       /* Colour each cell by its value as it changes (blue = Edit, light blue = View). */
       document.querySelectorAll('select[data-mx]').forEach(function (sel) {
         sel.addEventListener('change', function () { sel.className = 'mx-sel mx-' + sel.value; });

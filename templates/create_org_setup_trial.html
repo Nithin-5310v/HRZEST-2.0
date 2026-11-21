@@ -6,12 +6,12 @@
   <title>Start Your Free Trial — HRzest Enterprise Platform</title>
   <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
   <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
+  <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
   <link rel="stylesheet" href="{{ static_url('auth_split.css') }}" />
-  <style nonce="{{ csp_nonce }}">
+  <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-body); }
     html, body { min-height: 100vh; color: var(--text-main); }
     body {
@@ -62,7 +62,7 @@
   <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
   <main class="auth-split auth-split--top">
@@ -118,8 +118,8 @@
     </div>
   </div>
 
-  <script nonce="{{ csp_nonce }}" src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script nonce="{{ csp_nonce }}">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
   const APPLICATION_ID = {{ application_id }};
   let currentSubscription = null;
 

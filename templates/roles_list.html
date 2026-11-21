@@ -141,7 +141,7 @@
 {% endblock %}
 
 {% block scripts %}
-    <script nonce="{{ csp_nonce }}">
+    <script>
       (function () {
         var dlg = document.getElementById('rlDialog');
         var open = function () { if (dlg && dlg.showModal) { dlg.showModal(); document.getElementById('rc-name').focus(); } };

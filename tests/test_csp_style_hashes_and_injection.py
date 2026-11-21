@@ -5,7 +5,8 @@ The app used to add the request's nonce to every <script>/<style> tag in a
 finished response and hash every style="" attribute it found there, so
 anything injected into a page was signed too. These tests pin the fix:
 
-* every <script>/<style> tag in a page template writes nonce="{{ csp_nonce }}";
+* every <script>/<style> tag in a template gets the nonce from its source
+  (CspNonceExtension; see also tests/test_csp_source_nonce.py);
 * a <script> that reaches the response any other way gets no nonce;
 * a style="" attribute that arrives through a variable gets no hash, while
   one written in the template does;
@@ -27,7 +28,6 @@ from utils import csp
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 _TAG_RE = re.compile(r"<(script|style)(?=[\s>])[^>]*>", re.IGNORECASE)
-_EXPLICIT_NONCE = 'nonce="{{ csp_nonce }}"'
 
 
 def _sha(value):
@@ -58,18 +58,6 @@ def _process(body):
 
 
 # --- template source ------------------------------------------------------------
-
-def test_every_template_tag_writes_the_nonce_explicitly():
-    missing = {}
-    for path in _page_templates():
-        text = path.read_text(encoding="utf-8")
-        bad = [m.group(0)[:100] for m in _TAG_RE.finditer(text) if _EXPLICIT_NONCE not in m.group(0)]
-        if bad:
-            missing[path.relative_to(TEMPLATES).as_posix()] = bad
-    assert not missing, (
-        "nothing adds CSP nonces to responses any more: write "
-        f'<script {_EXPLICIT_NONCE}> / <style {_EXPLICIT_NONCE}> in the template: {missing}')
-
 
 def test_templates_use_only_double_quoted_style_attributes():
     """utils.csp.CspStyleAttrExtension allows style="..." attributes; a
@@ -143,10 +131,10 @@ def test_style_attribute_hash_is_over_the_decoded_value():
 def test_csp_nonce_global_renders_the_request_nonce():
     with flask_app.test_request_context("/csp-probe"):
         flask_app.preprocess_request()
-        assert render_template_string("{{ csp_nonce }}") == g.csp_nonce
+        assert render_template_string("{{ csp_nonce() }}") == g.csp_nonce
     # Outside a request (e-mail rendering) it renders as "".
     with flask_app.app_context():
-        assert flask_app.jinja_env.from_string("{{ csp_nonce }}").render() == ""
+        assert flask_app.jinja_env.from_string("{{ csp_nonce() }}").render() == ""
 
 
 def test_trusted_html_marks_only_the_markup_it_is_given():

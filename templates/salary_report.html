@@ -3,7 +3,7 @@
 {% block title %}Salary Report{% endblock %}
 
 {% block page_css %}
-    <style nonce="{{ csp_nonce }}">
+    <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
@@ -476,7 +476,7 @@
 
 {% block scripts %}
 
-    <script nonce="{{ csp_nonce }}">
+    <script>
       const YEAR  = {{ year }};
       const MONTH = {{ month }};
 
@@ -556,7 +556,7 @@
           .then(d => { showToast(d.msg, d.ok ? 'success' : 'error'); if (d.ok) setTimeout(() => location.reload(), 1000); });
       }
     </script>
-  <script nonce="{{ csp_nonce }}">
+  <script>
   function filterEmpTable(q) {
     q = q.toLowerCase();
     var rows = document.querySelectorAll('#salaryTbody tr');

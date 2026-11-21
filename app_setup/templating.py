@@ -7,14 +7,19 @@ before_request hooks in registration order (after_request in reverse).
 """
 import datetime
 import os
+import re
 import secrets
 import utils.config as cfg
 import utils.csp as _csp
 from database import get_db_connection, get_master_db
 from extensions import app, app_log
 from flask import g as _g, session
+from jinja2.ext import Extension
 from utils.auth import HR_ROLE, MANAGER_ROLE
-from utils.helpers import coerce_datetime, get_companies_list, get_company_settings, get_overdue_onboarding_count, static_url as _static_url, tpath as _tpath
+from utils.helpers import (
+    coerce_datetime, csp_nonce, get_companies_list, get_company_settings, get_overdue_onboarding_count,
+    static_url as _static_url, tpath as _tpath,
+)
 
 
 @app.context_processor
@@ -158,26 +163,35 @@ app.jinja_env.globals["tpath"] = _tpath
 app.jinja_env.globals["static_url"] = _static_url
 
 
-class _CspNonce:
-    """``{{ csp_nonce }}`` in a template renders this request's CSP nonce.
-
-    A global rather than a context-processor value so it also works inside
-    macros imported without context. Outside a request (e-mail rendering) it
-    renders as "". Security audit P1: every <script>/<style> tag in a
-    template must carry ``nonce="{{ csp_nonce }}"``, because nothing adds
-    nonces to the rendered response any more (see utils/csp.py).
-    """
-
-    def __str__(self):
-        return _csp.csp_nonce()
-
-    def __html__(self):
-        return _csp.csp_nonce()
+# A <script>/<style> tag in a template's own source, not yet carrying a nonce.
+_SOURCE_NONCE_TAG_RE = re.compile(r"<(script|style)(?![^>]*\bnonce\b)(?=[\s>])", re.IGNORECASE)
 
 
-app.jinja_env.globals["csp_nonce"] = _CspNonce()
+class CspNonceExtension(Extension):
+    """Gives every <script>/<style> tag written in a template's source this
+    request's CSP nonce. preprocess() runs on the template SOURCE, before
+    compilation, so only markup we wrote gets one: anything that reaches the
+    page through a variable at render time (a DB value, a |safe string) is
+    never source and can't pick up a nonce, which is what makes the CSP a
+    real second line of defence against HTML injection. This replaced an
+    after_request pass that stamped the nonce onto every tag in the finished
+    response, injected ones included.
+
+    HTML built in Python rather than Jinja adds it itself with
+    utils.helpers.csp_nonce_attr()."""
+
+    def preprocess(self, source, name, filename=None):
+        # name is None for render_template_string(); otherwise HTML templates only.
+        if name is not None and not name.endswith((".html", ".htm")):
+            return source
+        return _SOURCE_NONCE_TAG_RE.sub(r'<\1 nonce="{{ csp_nonce() }}"', source)
+
+
+app.jinja_env.add_extension(CspNonceExtension)
+app.jinja_env.globals["csp_nonce"] = csp_nonce
 # style="" attributes written in template source are allowed by hash while the
-# template renders; markup that arrives through a variable is not (utils/csp.py).
+# template renders; markup that arrives through a variable is not (utils/csp.py;
+# security review 2026-11-20 -- the response used to hash every style="" in it).
 app.jinja_env.filters["csp_style_attr"] = _csp.csp_style_attr_filter
 app.jinja_env.add_extension(_csp.CspStyleAttrExtension)
 

@@ -133,8 +133,8 @@ class TestChangeAdminPassword:
         _admin_session(client, seed_admin)
         rv = client.post("/change_admin_password", data={
             "current_password": seed_admin["password"],
-            "new_password":     "NewAdminPass@99",
-            "confirm_password": "NewAdminPass@99",
+            "new_password":     "Kettle#Orbit99",
+            "confirm_password": "Kettle#Orbit99",
         })
         assert rv.status_code == 302
         assert "pwd_ok=1" in rv.headers["Location"]

@@ -3,7 +3,7 @@
 {% block title %}Payslips{% endblock %}
 
 {% block page_css %}
-    <style nonce="{{ csp_nonce }}">
+    <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
@@ -216,7 +216,7 @@
 
 {% block scripts %}
 
-    <script nonce="{{ csp_nonce }}">
+    <script>
       function updateLinks() {
         const month = document.getElementById("selMonth").value;
         const year  = document.getElementById("selYear").value;
@@ -231,7 +231,7 @@
         });
       }
     </script>
-  <script nonce="{{ csp_nonce }}">
+  <script>
   function filterEmpTable(q) {
     q = q.toLowerCase();
     document.querySelectorAll('#payslipTbody tr').forEach(function(r) {

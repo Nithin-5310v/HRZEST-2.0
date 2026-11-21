@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
-    <style nonce="{{ csp_nonce }}">
+    <style>
       /* Same design system as templates/admin_login.html -- see that file's
          comment. Locked to light theme. */
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-body); }
@@ -70,7 +70,7 @@
   <link rel="stylesheet" href="{{ static_url('public-theme.css') }}" />
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
   <body>
     <div class="card">
@@ -90,7 +90,7 @@
       </form>
     </div>
 
-    <script nonce="{{ csp_nonce }}">
+    <script>
       var qrEl     = document.getElementById('mfa-qr');
       var secretEl = document.getElementById('mfa-secret');
       var codeEl   = document.getElementById('mfa-code');

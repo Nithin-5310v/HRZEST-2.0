@@ -195,7 +195,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | A11Y-05 | Accessibility | Low | templates/leave_holidays.html (10) | Same | Same | Same | S | Open |
 | DUP-01 | Duplication | Low | admin_login, force_change_pin, mfa_verify, admin/employee reset & forgot, admin_mfa_required (.html) | Each repeats the whole `<head>` plus an 80–170-line CSS block | 11% template duplication; style drift | `auth_base.html` that the pages extend | M | Open |
 | DUP-02 | Duplication | Low | create_org, create_org_{verify_otp,upload_documents,status,pay,setup_trial}.html | Same | Same | `create_org_base.html` | M | Open |
-| DUP-03 | Duplication | Low | super_admin_{audit_log,tickets,ticket_detail,applications,application_detail,duplicate_alerts,company_profile,soc_dashboard}.html | Same | Same | `super_admin_base.html` | M | Open |
+| DUP-03 | Duplication | Low | super_admin_{audit_log,tickets,ticket_detail,applications,application_detail,duplicate_alerts,company_profile}.html | Same | Same | `super_admin_base.html` | M | Open |
 | DUP-04 | Duplication | Low | my_onboarding, my_performance, my_compoff (.html) | Same | Same | Extend the employee base | M | Open |
 | DUP-07 | Duplication | Low | billing.py:288-300, seats.py:109-121, billing_dunning.py:278-286 | Payment-verify blocks copied | Drift in payment code | Shared helper | M | Open |
 | DUP-08 | Duplication | Low | mobile Admin/Employee/ManagerDrawerContent.js | ~200 lines duplicated across drawers | Drift | Shared drawer component | M | Open |
@@ -229,7 +229,7 @@ Rows marked **[security-fixes]** are being handled by the other session on branc
 | NV-04 | Performance | Medium | check-in (face match), uploads (ClamAV) | Synchronous CPU/IO-heavy work in request threads | Load test on check-in |
 | NV-05 | Correctness | Medium | blueprints/leave.py (approval path) | Does approving a multi-day leave deduct balance for Sundays/holidays (BUG-07)? | **Resolved: yes, confirmed by reading leave_action; see BUG-07** -- **Resolved for new requests by BUG-07** (Sundays/holidays no longer get leave rows); existing rows are unchanged |
 | NV-06 | Mobile | Medium | mobile/src (18 `react-hooks/exhaustive-deps`) | Each could be a stale-closure bug | Review each hook |
-| NV-07 | Dead code | Low | utils/ai_resume_parser.py | Used only by tests; is this a planned feature? | Your input |
+| NV-07 | Dead code | Low | utils/ai_resume_parser.py | Used only by tests; is this a planned feature? | **Resolved: removed** (with `utils/task_queue.py`, `templates/seat_checkout.html` and other unused code) |
 | NV-08 | Dead code | Low | assets/{mobile_app,waving_avatar,hero_dashboard}.jpg (~1.9 MB) | No reference in the repo; maybe used by an external hosted page | Your input |
 | NV-09 | Security | Medium | SEC-01 | Are production images ever built from a working copy rather than a clean clone? | Your input / `deploy.sh` check |
 | NV-10 | Correctness | Low | utils/salary_utils.py:263-299 | Money computed in `float` with `round(…, 2)`; what is the payroll rounding policy (paise vs rupee)? | Your input |

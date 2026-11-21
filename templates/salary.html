@@ -3,7 +3,7 @@
 {% block title %}Salary{% endblock %}
 
 {% block page_css %}
-    <style nonce="{{ csp_nonce }}">
+    <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       body { background: #eff6ff; min-height: 100vh; display: flex; }
 
@@ -277,7 +277,7 @@
 
 {% block scripts %}
 
-    <script nonce="{{ csp_nonce }}">
+    <script>
       var WD = 26; // working days per month
 
       function r2(v) { return Math.round(v * 100) / 100; }
@@ -341,7 +341,7 @@
         btn.addEventListener("click", function() { cancelEdit(btn.dataset.idx); });
       });
     </script>
-  <script nonce="{{ csp_nonce }}">
+  <script>
   function filterEmpTable(q) {
     q = q.toLowerCase();
     document.querySelectorAll('#salaryConfTbody tr').forEach(function(r) {

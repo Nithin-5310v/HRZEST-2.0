@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('employee_sidebar.css') }}" />
-  <style nonce="{{ csp_nonce }}">
+  <style>
 
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
       html, body { height: 100%; }
@@ -78,7 +78,7 @@
   <link rel="stylesheet" href="{{ static_url('employee-theme.css') }}" />
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
 <body>
 
@@ -101,7 +101,7 @@
       {% include "_my_performance_content.html" %}
     </div>{# /app-content #}
   </div>{# /main-area #}
-<script nonce="{{ csp_nonce }}" src="{{ static_url('darkmode.min.js') }}"></script>
-<script nonce="{{ csp_nonce }}" src="{{ static_url('employee_sidebar.js') }}"></script>
+<script src="{{ static_url('darkmode.min.js') }}"></script>
+<script src="{{ static_url('employee_sidebar.js') }}"></script>
 </body>
 </html>

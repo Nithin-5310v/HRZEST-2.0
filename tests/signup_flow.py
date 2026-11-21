@@ -114,16 +114,6 @@ def upload_documents(client, slug, **extra):
                        follow_redirects=False)
 
 
-def upload_application_documents(client, application_id, **extra):
-    """Documents through the pre-login page (/create_org/upload_documents),
-    still reached from a rejection email's re-upload link."""
-    data = {"application_id": str(application_id)}
-    data.update(_document_files())
-    data.update(extra)
-    return client.post("/create_org/upload_documents", data=data, content_type="multipart/form-data",
-                       follow_redirects=False)
-
-
 def submit_profile(client, application_id, company_name, subdomain, gst_number=None, **extra):
     """The old company-profile step, still served for an application whose
     email was verified before step 1 asked for the company name."""

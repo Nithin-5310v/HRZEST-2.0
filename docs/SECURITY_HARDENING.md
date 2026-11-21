@@ -282,6 +282,10 @@ atomic upsert, so every gunicorn worker can schedule it.
 | `impossible_travel` | one employee's accepted punches ≥200 km apart within 60 min |
 | `shared_device` | one device id punched for ≥3 employees in 24 h |
 | `repeat_mock_location` / `repeat_liveness_failure` / `photo_replay` | repeated spoofing signals per employee |
+| `payroll_off_hours` | pay, payslip or bank data viewed, exported or changed outside the company's working hours (its time zone, shift start/end ± `DETECT_OFF_HOURS_GRACE_MINUTES` (120), working days, holidays) |
+| `session_browser_switch` | a signed-in session is used from a different browser family (`utils/session_context.py`) |
+| `session_network_hopping` | one account's session moves across ≥`DETECT_SESSION_NETWORKS` (4) networks (IPv4 /24, IPv6 /48) in 30 min |
+| `http_error_spike` | one status (401, 403, 404, 429, or any 5xx) answered ≥100 times in 10 min **and** ≥5× its average 10 minutes over the day before (request telemetry, `utils/http_telemetry.py`) |
 
 Every threshold is an env var (`DETECT_*`). Loki rules for the dead-man's switch,
 detections, honeypot hits and "non-routable client IP" are in

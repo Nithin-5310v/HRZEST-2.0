@@ -3,7 +3,7 @@
 {% block title %}Employee Detail{% endblock %}
 
 {% block page_css %}
-  <style nonce="{{ csp_nonce }}">
+  <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
     body{background:#eff6ff;min-height:100vh;display:flex}
 
@@ -422,7 +422,7 @@
         <a class="u-d-inline-flex u-ai-center u-gap-6 u-mt-12 u-p-7-14 u-bd-1d5-solid-dbeafe u-br-8 u-c-1e3a8a u-fs-12 u-fw-700 u-tdec-none" id="taxStatementLink" href="#">
           <i class="ti ti-file-invoice"></i> Download Tax Statement
         </a>
-        <script nonce="{{ csp_nonce }}">document.getElementById('taxStatementLink').href = '/download_tax_statement/{{ emp_id }}/' + new Date().getFullYear();</script>
+        <script>document.getElementById('taxStatementLink').href = '/download_tax_statement/{{ emp_id }}/' + new Date().getFullYear();</script>
       {% elif salary_hidden %}
         <div class="u-c-94a3b8 u-fs-13 u-p-8-0 u-fst-italic"><i class="ti ti-lock"></i> Restricted — requires finance/HR clearance.</div>
       {% else %}
@@ -738,7 +738,7 @@
 </div>
 {% endif %}
 
-<script nonce="{{ csp_nonce }}">
+<script>
   function openLb(){var e=document.getElementById('lb');if(e){e.classList.add('open');document.body.style.overflow='hidden'}}
   function closeLb(){var e=document.getElementById('lb');if(e){e.classList.remove('open');document.body.style.overflow=''}}
   var lb=document.getElementById('lb');

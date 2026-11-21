@@ -972,9 +972,8 @@ def get_tenant_db(schema_name: str):
 def create_tenant_schema(schema_name: str):
     """Create a new tenant schema in the shared Postgres database.
 
-    Validates schema_name before use. Replaces the old create_tenant_database()
-    -- tenants are now schemas within one database, not separate MySQL
-    databases (Postgres can't switch databases mid-connection the way MySQL's
+    Validates schema_name before use. Tenants are schemas within one
+    database, not separate MySQL databases (Postgres can't switch databases mid-connection the way MySQL's
     USE did, so schema-per-tenant is the equivalent isolation model).
     """
     if not re.match(r'^[a-zA-Z0-9_]+$', schema_name):
@@ -989,15 +988,6 @@ def create_tenant_schema(schema_name: str):
             _log.info('"Created tenant schema: %s"', schema_name)
         finally:
             pool.putconn(conn)
-
-
-# Kept as an alias so any not-yet-updated call sites fail loudly and
-# obviously rather than silently doing the wrong thing.
-def create_tenant_database(db_name: str):
-    raise RuntimeError(
-        "create_tenant_database() was replaced by create_tenant_schema() -- "
-        "tenants are Postgres schemas now, not separate databases."
-    )
 
 
 @contextmanager

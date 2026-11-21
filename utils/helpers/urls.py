@@ -127,27 +127,6 @@ def static_url(filename: str) -> str:
     return f"/static/{filename}?v={cached[1]}"
 
 
-def employee_login_url() -> str:
-    """Absolute URL to the current tenant's own login page (e.g.
-    "https://www.hrzest.com/acme/login") -- used in employee-welcome-email
-    templates so a new hire has a clickable link straight to their
-    company's portal, not just credentials with nowhere to use them.
-
-    Built from session["tenant_slug"] rather than tpath()/request.script_root:
-    the admin registering this employee may have reached the page via a
-    bare, slug-less URL (an already-resolved tenant session cached from an
-    earlier request -- the same edge case blueprints/core.py's home()
-    documents), in which case tpath() would silently drop the slug and
-    hand a brand-new employee, who has no session of their own yet, a
-    link the WSGI tenant-prefix middleware can't resolve to any company."""
-    try:
-        slug = session.get("tenant_slug")
-        base = request.host_url.rstrip("/")
-    except RuntimeError:
-        return "/login"
-    return f"{base}/{slug}/login" if slug else f"{base}/login"
-
-
 _APP_URL = os.environ.get("APP_URL", "").rstrip("/")
 
 

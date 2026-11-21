@@ -87,16 +87,13 @@ _EXTERNAL_SERVICE_VARS = (
     "SECURITY_ALERT_EMAIL", "SMTP_HOST", "SMTP_USER", "SMTP_PASS",
     "EMAIL_PROVIDER", "MICROSOFT_TENANT_ID", "MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET",
     "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY", "REDIS_URL", "REDIS_HOST", "REDIS_PASSWORD",
-    "SOC_ADMIN_TOKEN", "SOC_DASHBOARD_URL", "GRAFANA_URL",
+    "GRAFANA_URL",
 )
 for _name in _EXTERNAL_SERVICE_VARS + tuple(k for k in os.environ if k.startswith("HEARTBEAT_URL_")):
     os.environ[_name] = ""
 # Online payments on (blank = on), whatever the developer's .env says;
 # tests/test_payments_switch.py switches them off per test.
 os.environ["PAYMENTS_ENABLED"] = ""
-# No network calls from the breached-password check (utils/password_breach.py);
-# tests/test_password_policy.py exercises it with the HTTP call faked.
-os.environ["PASSWORD_BREACH_CHECK"] = "0"
 
 # The mobile/API check-in routes now refuse a punch that omits coordinates when
 # the company's location setting is on (MOBILE_REQUIRE_LOCATION, default true in
@@ -106,6 +103,10 @@ os.environ["PASSWORD_BREACH_CHECK"] = "0"
 # default. tests/test_punch_integrity.py::TestMobileCheckin turns it back on
 # explicitly to cover the rule itself.
 os.environ.setdefault("MOBILE_REQUIRE_LOCATION", "false")
+# No network calls from the suite: the Have I Been Pwned lookup on new
+# passwords (utils/pwned_passwords.py) stays off unless a test turns it on.
+# tests/test_password_policy.py covers it with the HTTP call mocked.
+os.environ.setdefault("PASSWORD_BREACH_CHECK", "false")
 
 # Windows can refuse face_recognition's dlib DLL (Smart App Control blocks
 # unsigned DLLs -- it does on the Jenkins PC), leaving the app without face

@@ -8,8 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}"/>
   <link rel="stylesheet" href="{{ static_url('toast.css') }}"/>
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('toast.js') }}"></script>
-  <style nonce="{{ csp_nonce }}">
+  <script src="{{ static_url('toast.js') }}"></script>
+  <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family: 'Inter', 'Segoe UI', sans-serif;
@@ -324,6 +324,6 @@
   <div class="bot-line"></div>
 </div>
 
-<script nonce="{{ csp_nonce }}" src="{{ static_url('darkmode.min.js') }}"></script>
+<script src="{{ static_url('darkmode.min.js') }}"></script>
 </body>
 </html>

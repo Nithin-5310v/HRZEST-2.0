@@ -3,7 +3,7 @@
 {% block title %}Performance Review{% endblock %}
 
 {% block page_css %}
-  <style nonce="{{ csp_nonce }}">
+  <style>
     /* This page extends admin_base.html -- its real sidebar, .main layout
        and page scrolling come from there. A leftover standalone-page CSS
        block used to live here too, from before this template was converted
@@ -345,7 +345,7 @@
 
 {% block scripts %}
 
-<script nonce="{{ csp_nonce }}">
+<script>
 const LABELS = {{ rating_labels|tojson }};
 
 function setRating(kpiId, val) {

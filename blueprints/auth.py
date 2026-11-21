@@ -20,7 +20,8 @@ from utils.auth import (
     admin_required, role_required, employee_required, any_user_required, employee_api_required,
     _get_failed_count, verify_turnstile, turnstile_enabled,
     CAPTCHA_AFTER_ATTEMPTS, _TURNSTILE_SITE_KEY, HR_ROLE, MANAGER_ROLE,
-    api_required, validate_new_password, verify_and_update_password, _mask_identifier,
+    api_required, validate_new_password, check_new_password, own_company_name,
+    verify_and_update_password, _mask_identifier,
     dummy_password_check, record_password_change, stamp_password_version,
     session_or_bearer_required, employment_ended_on, access_ended_message,
 )
@@ -887,9 +888,11 @@ def change_admin_password():
     logged_in_as = session.get("admin_username", "admin")
     if not new_pw or new_pw != confirm_pw:
         return redirect(tpath("/settings?tab=email&pwd_error=mismatch"))
-    _pw_ok, _pw_err = validate_new_password(new_pw)
+    _pw_ok, _pw_code = check_new_password(new_pw, (logged_in_as, own_company_name()))
     if not _pw_ok:
-        return redirect(tpath("/settings?tab=email&pwd_error=weak"))
+        # 'weak' is this page's long-standing code for too short.
+        _pw_code = "weak" if _pw_code == "short" else _pw_code
+        return redirect(tpath(f"/settings?tab=email&pwd_error={_pw_code}"))
     if not verify_and_update_password("admin_users", "username", logged_in_as, current_pw, new_pw):
         return redirect(tpath("/settings?tab=email&pwd_error=wrong"))
     return redirect(tpath("/settings?tab=email&pwd_ok=1"))
@@ -913,7 +916,7 @@ def api_change_admin_password():
 
     if not new_pw or new_pw != confirm_pw:
         return jsonify({"ok": False, "msg": "New password and confirmation must match."}), 400
-    _pw_ok, _pw_err = validate_new_password(new_pw)
+    _pw_ok, _pw_err = validate_new_password(new_pw, (username, own_company_name()))
     if not _pw_ok:
         return jsonify({"ok": False, "msg": _pw_err}), 400
 
@@ -1226,7 +1229,9 @@ def admin_reset_password(token):
         return render_template("admin_reset_password.html", valid=True, done=False, token=token, error=None)
     new_pw = request.form.get("new_password", "").strip()
     confirm_pw = request.form.get("confirm_password", "").strip()
-    _pw_ok, _pw_err = validate_new_password(new_pw)
+    cursor.execute("SELECT username FROM admin_users WHERE id=%s", (row[0],))
+    _reset_user = cursor.fetchone()
+    _pw_ok, _pw_err = validate_new_password(new_pw, (_reset_user[0] if _reset_user else "", own_company_name()))
     if not _pw_ok:
         cursor.close()
         db.close()
@@ -1268,7 +1273,7 @@ def employee_reset_password(token):
         return render_template("employee_reset_password.html", valid=True, done=False, token=token, error=None)
     new_pw = request.form.get("new_password", "").strip()
     confirm_pw = request.form.get("confirm_password", "").strip()
-    _pw_ok, _pw_err = validate_new_password(new_pw)
+    _pw_ok, _pw_err = validate_new_password(new_pw, (row[0], own_company_name()))
     if not _pw_ok:
         cursor.close()
         db.close()
@@ -1306,9 +1311,9 @@ def change_password():
     current = request.form.get("current_password", "").strip()
     new_pwd = request.form.get("new_password", "").strip()
     confirm = request.form.get("confirm_password", "").strip()
-    _pw_ok, _pw_err = validate_new_password(new_pwd)
+    _pw_ok, _pw_code = check_new_password(new_pwd, (emp_id, own_company_name()))
     if not _pw_ok:
-        return redirect(self_service_return_path("?pwd_error=short#my-profile"))
+        return redirect(self_service_return_path(f"?pwd_error={_pw_code}#my-profile"))
     if new_pwd != confirm:
         return redirect(self_service_return_path("?pwd_error=mismatch#my-profile"))
     # Note: a role-holder's REAL credential is always employees.password --
@@ -1328,7 +1333,7 @@ def force_change_pin():
     if request.method == "POST":
         new_pwd = request.form.get("new_password", "").strip()
         confirm = request.form.get("confirm_password", "").strip()
-        _pw_ok, _pw_err = validate_new_password(new_pwd)
+        _pw_ok, _pw_err = validate_new_password(new_pwd, (emp_id, own_company_name()))
         if not _pw_ok:
             error = _pw_err
         elif new_pwd != confirm:

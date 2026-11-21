@@ -6,7 +6,10 @@ import os
 from database import get_db_connection
 from flask import jsonify, redirect, render_template, request, session
 from utils.attendance_utils import fetch_holidays_set, get_billable_past_days, infer_type_legacy, is_company_working_day
-from utils.auth import employee_api_required, employee_required, session_or_bearer_required, validate_new_password
+from utils.auth import (
+    employee_api_required, employee_required, own_company_name,
+    session_or_bearer_required, validate_new_password,
+)
 from utils.helpers import (
     amount,
     coerce_datetime,
@@ -519,17 +522,17 @@ def employee_portal():
 @employee_portal_bp.route("/api/employee/change-password", methods=["POST"])
 @employee_api_required
 def api_employee_change_password():
+    from flask import g as _g
+    from utils.auth import verify_and_update_password
     data = request.get_json() or {}
     current_password = data.get("current_password", "").strip()
     new_password = data.get("new_password", "").strip()
     if not current_password or not new_password:
         return jsonify({"ok": False, "msg": "current_password and new_password required"}), 400
-    _pw_ok, _pw_err = validate_new_password(new_password)
+    emp_id = _g.api_emp_id
+    _pw_ok, _pw_err = validate_new_password(new_password, (emp_id, own_company_name()))
     if not _pw_ok:
         return jsonify({"ok": False, "msg": _pw_err}), 400
-    from flask import g as _g
-    from utils.auth import verify_and_update_password
-    emp_id = _g.api_emp_id
     if not verify_and_update_password("employees", "employee_id", emp_id, current_password, new_password):
         return jsonify({"ok": False, "msg": "Current password is incorrect"}), 401
     return jsonify({"ok": True, "msg": "Password changed successfully"})

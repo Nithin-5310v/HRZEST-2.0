@@ -23,7 +23,6 @@ against a database owner; for that, ship these rows off-box with the rest of
 the audit stream (see docs/SECURITY_HARDENING.md).
 """
 
-SOC_ROLES = ("viewer", "analyst", "admin")
 CASE_STATUSES = ("open", "investigating", "contained", "resolved", "false_positive")
 
 STATEMENTS = [

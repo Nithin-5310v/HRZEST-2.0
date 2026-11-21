@@ -13,7 +13,7 @@ from utils.auth import (
 from utils.helpers import (
     tpath, _audit, _validate_upload, _safe_referrer_redirect, hr_scope_denied, _create_notification, validate_emp_id,
     hr_scope_subquery,
-    self_service_emp_id, self_service_return_path,
+    self_service_emp_id, self_service_return_path, audit_read,
 )
 from utils.storage import save_private, open_private, delete_private
 
@@ -137,6 +137,8 @@ def download_document(did):
     except Exception:
         flash("Document file is missing or unreadable.", "danger")
         return redirect(tpath(f"/employee_detail/{doc_emp_id}") if is_admin else tpath("/employee_portal"))
+    if is_admin:
+        audit_read("download_employee_document", "employee_documents", did, employee=doc_emp_id)
     return send_file(BytesIO(data), as_attachment=True, download_name=original_name)
 
 

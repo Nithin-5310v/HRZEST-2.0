@@ -273,11 +273,14 @@ def api_create_org_upload_documents():
     if not application:
         return jsonify({"ok": False, "msg": "Application not found."}), 404
 
+    # A rejected company is suspended; its re-upload stays suspended until
+    # the review approves it (see _save_application_documents).
+    was_rejected = application.get("doc_review_status") == "rejected"
     ok, error = _save_application_documents(application, request.files)
     if not ok:
         return jsonify({"ok": False, "msg": error}), 400
 
-    if application["status"] == "provisioned":
+    if application["status"] == "provisioned" and not was_rejected:
         portal_url = f"{_safe_app_url()}/{application['subdomain']}/login"
         return jsonify({"ok": True, "step": "provisioned", "portal_url": portal_url,
                         "msg": "Documents submitted -- your company is live. Log in below."})

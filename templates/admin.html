@@ -4,7 +4,7 @@
 
 {% block page_css %}
 {% if registration_checklist %}<link rel="stylesheet" href="{{ static_url('registration-popup.css') }}" />{% endif %}
-<style nonce="{{ csp_nonce }}">
+<style>
   /* ── PAGE HEADER ── */
   .page-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -231,7 +231,7 @@
              data-role="{{ _srch_role }}" />
       <div class="admin-search-results" id="adminSearchResults" role="listbox"></div>
     </div>
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('portal-search.js') }}" defer></script>
+    <script src="{{ static_url('portal-search.js') }}" defer></script>
     {# Every section below shows only what the logged-in role can use
        (Settings -> Roles & Access); the owner Administrator passes every
        can_access() check. Holiday and salary quick actions post to
@@ -575,8 +575,8 @@
        only runs after scheduleChartRefresh() executes near the end of this
        same script block, so loading it here instead lets the rest of the
        dashboard render immediately. #}
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('chart.umd.min.js') }}"></script>
-  <script nonce="{{ csp_nonce }}">
+  <script src="{{ static_url('chart.umd.min.js') }}"></script>
+  <script>
     /* ── EMAIL ABSENTEES ── */
     async function sendAbsenteeReport() {
       const btn = event.currentTarget;

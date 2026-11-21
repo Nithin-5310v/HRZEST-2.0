@@ -31,8 +31,8 @@ from utils.auth import (
 )
 from utils.helpers import (
     tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime,
-    hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount, self_service_emp_id,
-    hr_scope_denied,
+    hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount, self_service_emp_id, csp_nonce, csp_nonce_attr,
+    audit_changes, audit_read, hr_scope_denied,
 )
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
 from utils.attendance_utils import (
@@ -76,6 +76,7 @@ def view_salary():
     data = [(r[0], r[1], amount(r[2])) + tuple(r[3:]) for r in cursor.fetchall()]
     cursor.close()
     db.close()
+    audit_read("view_salary_list", "salary_config", None, employees=len(data))
     return render_template("salary.html", salaries=data, active_nav="salary")
 
 
@@ -95,8 +96,10 @@ def update_salary():
         return redirect(tpath("/settings?tab=salary"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
-    if cursor.fetchone():
+    cursor.execute("SELECT salary_per_day, last_revised FROM salary_config WHERE employee_id=%s", (emp_id,))
+    prev = cursor.fetchone()
+    before = {"salary_per_day": amount(prev[0]), "last_revised": prev[1]} if prev else {}
+    if prev:
         cursor.execute(
             "UPDATE salary_config SET salary_per_day=%s, last_revised=%s WHERE employee_id=%s",
             (encrypt_amount(salary), hike_date or company_today(), emp_id)
@@ -109,7 +112,10 @@ def update_salary():
     db.commit()
     cursor.close()
     db.close()
-    _audit("update_salary", "salary_config", emp_id, "salary_per_day updated")  # amount omitted: pay is encrypted
+    # Pay is encrypted at rest: the log says it changed, never the amount.
+    audit_changes("update_salary", "salary_config", emp_id, before,
+                  {"salary_per_day": amount(salary), "last_revised": hike_date or company_today()},
+                  hidden=("salary_per_day",))
     return redirect(tpath("/settings?tab=salary"))
 
 # ---------------- MONTHLY ATTENDANCE REPORT ----------------
@@ -250,6 +256,7 @@ def salary_report():
     email_cfg = get_email_config()
     rules = cfg.salary_rules()
 
+    audit_read("view_salary_report", "payroll", f"{year}-{month:02d}", employees=len(salary_data))
     return render_template("salary_report.html",
                            salary_data=salary_data,
                            month_name=datetime.date(year, month, 1).strftime("%B %Y"),
@@ -333,6 +340,7 @@ def salary_report_export():
     year = int_param(request.args.get("year", company_today().year))
     month = int_param(request.args.get("month", company_today().month))
     buf, filename = _build_salary_report_workbook(year, month, session.get("active_company_id"))
+    audit_read("export_salary_report", "payroll", f"{year}-{month:02d}", format="xlsx")
     return send_file(buf, as_attachment=True, download_name=filename, mimetype=_SALARY_XLSX_MIME)
 
 
@@ -346,6 +354,7 @@ def api_salary_report_export():
     month = int_param(request.args.get("month", company_today().month))
     buf, filename = _build_salary_report_workbook(year, month)
     content_b64 = _base64.b64encode(buf.read()).decode("ascii")
+    audit_read("export_salary_report", "payroll", f"{year}-{month:02d}", format="xlsx", via="api")
     return jsonify({"ok": True, "filename": filename, "mime_type": _SALARY_XLSX_MIME,
                     "content_base64": content_b64})
 
@@ -821,7 +830,7 @@ def my_attendance_pdf():
 
     html = f"""<!doctype html><html><head><meta charset="UTF-8">
 <title>Attendance Report -- {escape(emp[1])} -- {month_name}</title>
-<style>
+<style{csp_nonce_attr()}>
   body {{ font-family: "Segoe UI", sans-serif; margin: 0; padding: 32px; color: #1e293b; background: white; }}
   .header {{ display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px;
              border-bottom: 2px solid #1e3a8a; padding-bottom: 18px; }}
@@ -902,6 +911,7 @@ def apply_hike():
 
     today = company_today()
     updated = 0
+    hiked = []
     for emp_id in emp_ids:
         rating = ratings.get(emp_id, 0.0)
         if rating == 0:
@@ -935,10 +945,14 @@ def apply_hike():
         )
         if cursor.rowcount:
             updated += 1
+            hiked.append((emp_id, current_ctc, new_ctc, hike_pct))
 
     db.commit()
     cursor.close()
     db.close()
+    for emp_id, old_ctc, new_ctc, hike_pct in hiked:
+        audit_changes("apply_hike", "salary_config", emp_id, {"monthly_ctc": old_ctc}, {"monthly_ctc": new_ctc},
+                      hidden=("monthly_ctc",), hike_pct=hike_pct, quarter=f"Q{q} {yr}")
     flash(f"Hike applied to {updated} employee(s) successfully.", "success")
     return redirect(tpath(f"/performance?tab=hike&quarter={q}&year={yr}"))
 
@@ -1114,8 +1128,9 @@ def api_salary_config_post():
         return jsonify({"ok": False, "msg": "salary_per_day must be a number"}), 400
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT 1 FROM salary_config WHERE employee_id=%s", (emp_id,))
-    if cursor.fetchone():
+    cursor.execute("SELECT salary_per_day FROM salary_config WHERE employee_id=%s", (emp_id,))
+    prev = cursor.fetchone()
+    if prev:
         cursor.execute("UPDATE salary_config SET salary_per_day=%s WHERE employee_id=%s", (enc_salary, emp_id))
     else:
         cursor.execute("INSERT INTO salary_config (employee_id, salary_per_day) VALUES (%s,%s)",
@@ -1123,7 +1138,8 @@ def api_salary_config_post():
     db.commit()
     cursor.close()
     db.close()
-    _audit("update_salary", "salary_config", emp_id, "salary_per_day updated (via API)")  # amount omitted
+    audit_changes("update_salary", "salary_config", emp_id, {"salary_per_day": amount(prev[0])} if prev else {},
+                  {"salary_per_day": amount(salary)}, hidden=("salary_per_day",), via="api")
     return jsonify({"ok": True})
 
 
@@ -1195,6 +1211,7 @@ def api_salary_report():
     month = int_param(request.args.get("month", company_today().month))
     # Same computation as the web salary report and disbursement (QA BUG-34).
     salary_data = compute_salary_data_for_month(year, month)
+    audit_read("view_salary_report", "payroll", f"{year}-{month:02d}", employees=len(salary_data), via="api")
     return jsonify({"ok": True, "salary_data": salary_data,
                     "month_name": datetime.date(year, month, 1).strftime("%B %Y"),
                     "year": year, "month": month})
@@ -1242,8 +1259,10 @@ def view_payslip(emp_id, year, month):
         )
         return redirect(tpath("/login"))
     html = _render_payslip_html(emp_id, year, month)
-    # build_salary_slip_html() escapes every employee value; its <style> and
-    # style="" attributes are allowed explicitly (security audit P1).
+    if session.get("admin_logged_in") and isinstance(html, str):
+        audit_read("view_payslip", "payroll", f"{emp_id}:{year}-{month:02d}")
+    # build_salary_slip_html() escapes every employee value; its style=""
+    # attributes are allowed explicitly (security review 2026-11-20).
     return trusted_html(html) if isinstance(html, str) else html
 
 
@@ -1297,20 +1316,15 @@ def _render_payslip_html(emp_id, year, month):
         company_name=company_name,
         emp_designation=designation, emp_dept=dept,
         pan=pan, uan=uan, bank_account=bank_acct, bank_name=bank_nm,
-        payroll_cfg=payroll_cfg
+        payroll_cfg=payroll_cfg, style_nonce=csp_nonce(),
     )
 
 
 @payroll_bp.route("/download_payslip/<emp_id>/<int:year>/<int:month>")
 @any_user_required
 def download_payslip(emp_id, year, month):
-    # Same IDOR/role guard as view_payslip() below -- this route is safe
-    # today only because it happens to call view_payslip() as a plain
-    # Python function (which runs its own inline ownership check first),
-    # not because it has a guard of its own. A future refactor that reuses
-    # the payslip-rendering logic through a different path (a shared
-    # helper, a bulk-export route) could silently lose that guard, so it's
-    # checked explicitly here too rather than relying on it being inherited.
+    # Same IDOR/role guard as view_payslip() above, checked here in full:
+    # this route renders through _render_payslip_html(), which has none.
     if not enforce_ownership(emp_id, "payslip", f"{year}-{month:02d}"):
         return redirect(tpath("/login"))
     if session.get("admin_logged_in") and session.get("admin_role", "admin") != "admin":
@@ -1320,9 +1334,11 @@ def download_payslip(emp_id, year, month):
             resource_type="payslip", resource_id=f"{emp_id}:{year}-{month:02d}",
         )
         return redirect(tpath("/login"))
-    html = view_payslip(emp_id, year, month)
+    html = _render_payslip_html(emp_id, year, month)
     if not isinstance(html, str):
         return html  # redirect or error response
+    if session.get("admin_logged_in"):
+        audit_read("download_payslip", "payroll", f"{emp_id}:{year}-{month:02d}")
     from flask import Response
     filename = f"payslip_{emp_id}_{year}_{month:02d}.html"
     return Response(
@@ -1468,6 +1484,8 @@ def download_tax_statement(emp_id, year):
     session_emp = session.get("employee_id")
     if session_emp != emp_id and session.get("admin_role") != "admin":
         return jsonify({"ok": False, "msg": "Unauthorized access."}), 403
+    if session_emp != emp_id:
+        audit_read("download_tax_statement", "salary_config", f"{emp_id}:{year}")
 
     db = get_db_connection()
     cur = db.cursor()
@@ -1489,7 +1507,7 @@ def download_tax_statement(emp_id, year):
     <html>
     <head>
       <title>Form 16 / Tax Statement - {year}</title>
-      <style>
+      <style{csp_nonce_attr()}>
         body {{ font-family: Arial, sans-serif; padding: 30px; color: #0f172a; }}
         .header {{ border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px; }}
         .box {{ background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; margin-bottom: 16px; }}

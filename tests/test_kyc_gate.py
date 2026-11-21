@@ -85,7 +85,10 @@ def test_money_and_mass_mail_routes_carry_the_gate(endpoint):
 def test_document_upload_leaves_review_pending():
     """The upload helper must not approve; the automated worker only acts on
     'pending_review' and skipped every auto-approved application."""
+    import ast
     import inspect
+    import textwrap
     from blueprints.org import applications
-    src = inspect.getsource(applications._save_application_documents)
-    assert "_approve_application_reviewed(" not in src.split('"""', 2)[2]
+    tree = ast.parse(textwrap.dedent(inspect.getsource(applications._save_application_documents)))
+    calls = [n.func.id for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)]
+    assert "_approve_application_reviewed" not in calls

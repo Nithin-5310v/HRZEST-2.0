@@ -19,7 +19,7 @@
           <div class="admin-search-results" id="adminSearchResults" role="listbox"></div>
         </div>
       </div>
-      <script nonce="{{ csp_nonce }}" src="{{ static_url('portal-search.js') }}" defer></script>
+      <script src="{{ static_url('portal-search.js') }}" defer></script>
 
       {% if leave_sent %}
       <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Leave request submitted! Admin has been notified by email.</div>

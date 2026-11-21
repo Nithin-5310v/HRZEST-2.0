@@ -138,15 +138,11 @@ def checks(with_db=False):
         "leaves the proxy's own address out as the server's traffic.",
         "" if _env("TRUSTED_PROXY_HOPS") else "Set it to the number of proxies in front of the app (1 behind nginx).")
 
-    dash = _env("SOC_DASHBOARD_URL")
-    if dash and not _https(dash):
-        add(FAIL, "External SOC dashboard", "SOC_DASHBOARD_URL is not https://: /super_admin/soc refuses to embed it.",
-            "Serve the soc-dashboard over HTTPS and use that address.")
-    elif dash:
-        add(PASS, "External SOC dashboard", "SOC_DASHBOARD_URL is an https:// address.")
-    if _env("SOC_ADMIN_TOKEN"):
-        add(WARN, "Old dashboard token", "SOC_ADMIN_TOKEN is still set; nothing reads it any more.",
-            "Remove it, and change the token on the soc-dashboard: it used to be visible in the page.")
+    old = [k for k in ("SOC_DASHBOARD_URL", "SOC_ADMIN_TOKEN") if _env(k)]
+    if old:
+        add(WARN, "Old SOC dashboard setting", " and ".join(old) + " still set; nothing reads it any more "
+            "(/socperson is the only SOC console).",
+            "Remove it. If that external dashboard still runs, change its admin token: it used to be visible in the page.")
 
     n = (len(soc_scope.test_networks()), len(soc_scope.test_accounts()), len(soc_scope.test_companies()))
     add(INFO, "Your testing left out", f"{n[0]} address range(s), {n[1]} account(s), {n[2]} company(ies) listed "

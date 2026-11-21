@@ -32,6 +32,13 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 
+# Audit actions that read or change pay, payslips or bank details
+# (blueprints/payroll.py, disbursement, self-service): what payroll_off_hours watches.
+PAYROLL_ACTIONS = ("view_salary_list", "view_salary_report", "export_salary_report", "view_payslip",
+                   "download_payslip", "download_tax_statement", "update_salary", "apply_hike",
+                   "update_bank_details", "save_payout_bank_config", "unlock_payroll")
+
+
 def _int(name, default):
     try:
         return max(1, int(os.environ.get(name, str(default))))
@@ -57,6 +64,13 @@ def _rules():
     stuff_n = _int("DETECT_STUFFING_ATTEMPTS", 8)
     spray_ips = _int("DETECT_SPRAY_IPS", 5)
     mass_n = _int("DETECT_MASS_EXPORT_COUNT", 5)
+    spike_n = _int("DETECT_HTTP_ERROR_SPIKE_COUNT", 100)
+    session_nets = _int("DETECT_SESSION_NETWORKS", 4)
+    try:
+        grace = max(0, int(os.environ.get("DETECT_OFF_HOURS_GRACE_MINUTES", "120")))
+    except ValueError:
+        grace = 120
+    spike_x = _int("DETECT_HTTP_ERROR_SPIKE_FACTOR", 5)
     reveal_n = _int("DETECT_PII_REVEAL_COUNT", 20)
     travel_km = _int("DETECT_TRAVEL_KM", 200)
     travel_min = _int("DETECT_TRAVEL_MINUTES", 60)
@@ -155,6 +169,46 @@ def _rules():
             lambda r: (r[0], f"{r[1]} Content-Security-Policy violations on {r[0]} from {r[2]} different "
                        f"sources in 10 minutes (possible script injection)", {"path": r[0]}),
         ),
+        # Request telemetry (utils/http_telemetry.py): one status code (or all 5xx)
+        # answered far more often in the last 10 minutes than in an average 10
+        # minutes of the day before, and at least DETECT_HTTP_ERROR_SPIKE_COUNT times.
+        Rule(
+            "http_error_spike", "WARNING", 60, "global",
+            "WITH coded AS (SELECT CASE WHEN status >= 500 THEN '5xx' ELSE status::text END AS code, minute, hits "
+            "  FROM att_master.http_minute_stats WHERE (status IN (401, 403, 404, 429) OR status >= 500) "
+            "  AND minute >= NOW() - INTERVAL '24 hours 10 minutes'), "
+            "recent AS (SELECT code, SUM(hits) AS n FROM coded WHERE minute >= NOW() - INTERVAL '10 minutes' GROUP BY code), "
+            "usual AS (SELECT code, SUM(hits) / 144.0 AS per10 FROM coded "
+            "  WHERE minute < NOW() - INTERVAL '10 minutes' GROUP BY code) "
+            "SELECT r.code, r.n, COALESCE(u.per10, 0) FROM recent r LEFT JOIN usual u ON u.code = r.code "
+            "WHERE r.n >= %s AND r.n >= %s * GREATEST(COALESCE(u.per10, 0), 1) ORDER BY r.n DESC",
+            lambda: (spike_n, spike_x),
+            lambda r: (f"http_{r[0]}", f"{int(r[1])} HTTP {r[0]} responses in 10 minutes "
+                       f"(usually about {round(float(r[2]))})", {"reason": f"http_{r[0]}", "count": int(r[1])}),
+        ),
+        # utils/session_context.py: a signed-in session used from another browser
+        # family (a copied session cookie; DevTools device emulation is the usual
+        # harmless cause) ...
+        Rule(
+            "session_browser_switch", "WARNING", 60, "global",
+            "SELECT identifier, COUNT(*), MAX(ip) FROM security_events "
+            "WHERE event_type = 'session.browser_changed' AND identifier IS NOT NULL "
+            "AND created_at > NOW() - INTERVAL '10 minutes' GROUP BY identifier",
+            lambda: (),
+            lambda r: (r[0], f"A session of '{r[0]}' switched to another browser ({r[1]} change(s) in 10 minutes, "
+                       f"latest from {r[2]}): a copied session cookie, or DevTools device emulation",
+                       {"identifier": r[0], "ip": r[2]}),
+        ),
+        # ... or one account's session hopping across several networks.
+        Rule(
+            "session_network_hopping", "WARNING", 60, "global",
+            "SELECT identifier, COUNT(DISTINCT ip) FROM security_events "
+            "WHERE event_type = 'session.network_changed' AND identifier IS NOT NULL "
+            "AND created_at > NOW() - INTERVAL '30 minutes' GROUP BY identifier HAVING COUNT(DISTINCT ip) >= %s",
+            lambda: (session_nets,),
+            lambda r: (r[0], f"A session of '{r[0]}' moved across {r[1]} networks in 30 minutes",
+                       {"identifier": r[0], "count": int(r[1])}),
+        ),
         # ── tenant-scoped ──
         Rule(
             "mass_export", "WARNING", 60, "tenant",
@@ -164,6 +218,36 @@ def _rules():
             lambda: (mass_n,),
             lambda r: (r[0], f"'{r[0]}' performed {r[1]} export/download actions in 10 minutes",
                        {"identifier": r[0]}),
+        ),
+        # Pay, payslip or bank data used outside the company's working hours
+        # (company_settings: shift_start / shift_end in its time zone, working
+        # days, holidays), with DETECT_OFF_HOURS_GRACE_MINUTES either side.
+        # Night shifts (end before start) wrap past midnight. One alert per
+        # actor per hour, listing what was done.
+        Rule(
+            "payroll_off_hours", "WARNING", 60, "tenant",
+            "WITH cfg AS (SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = c.timezone) "
+            "    THEN c.timezone ELSE 'Asia/Kolkata' END AS tz, "
+            "  EXTRACT(HOUR FROM COALESCE(c.shift_start, TIME '09:00')) * 60 "
+            "    + EXTRACT(MINUTE FROM COALESCE(c.shift_start, TIME '09:00')) AS s, "
+            "  EXTRACT(HOUR FROM COALESCE(c.shift_end, TIME '18:00')) * 60 "
+            "    + EXTRACT(MINUTE FROM COALESCE(c.shift_end, TIME '18:00')) AS e, "
+            "  lower(COALESCE(NULLIF(c.working_days, ''), 'Mon,Tue,Wed,Thu,Fri')) AS days "
+            "  FROM (SELECT 1) one LEFT JOIN (SELECT * FROM company_settings ORDER BY id LIMIT 1) c ON TRUE), "
+            "acc AS (SELECT a.actor, a.action, "
+            "  (a.created_at AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE cfg.tz AS local, cfg.s, cfg.e, cfg.days "
+            "  FROM audit_logs a CROSS JOIN cfg WHERE a.created_at > NOW() - INTERVAL '10 minutes' "
+            "  AND a.action = ANY(%s) AND COALESCE(a.actor_type, '') <> 'system'), "
+            "off AS (SELECT *, EXTRACT(HOUR FROM local) * 60 + EXTRACT(MINUTE FROM local) AS m FROM acc) "
+            "SELECT actor, COUNT(*), string_agg(DISTINCT action, ', '), to_char(MIN(local), 'Dy DD Mon HH24:MI'), "
+            "to_char(MAX(local), 'HH24:MI') FROM off "
+            "WHERE position(lower(to_char(local, 'Dy')) IN days) = 0 "
+            "OR local::date IN (SELECT date FROM holidays) "
+            "OR (CASE WHEN s <= e THEN m < s - %s OR m > e + %s ELSE m < s - %s AND m > e + %s END) "
+            "GROUP BY actor",
+            lambda: (list(PAYROLL_ACTIONS), grace, grace, grace, grace),
+            lambda r: (r[0], f"'{r[0]}' used payroll or bank data {r[1]} time(s) outside working hours "
+                       f"({r[3]} to {r[4]}, company time): {r[2]}", {"identifier": r[0], "reason": r[2]}),
         ),
         Rule(
             "sensitive_admin_change", "WARNING", 5, "tenant",

@@ -477,9 +477,10 @@ def _reject_application_reviewed(application, reviewed_by, reason):
 def _save_application_documents(application, files):
     """Shared document-upload logic for both web and mobile. `files` is a
     dict-like of {doc_kind: FileStorage} (request.files works directly).
-    Returns (True, None) on success -- documents are saved and queued for
-    review (automated check, or a platform admin); login is not blocked
-    meanwhile, only payouts and bulk email (utils/kyc_gate.py) -- or
+    Returns (True, None) on success -- documents are saved and the
+    application left at doc_review_status='pending_review' for
+    utils/document_verification.py's worker (then, if it can't decide, the
+    platform-admin queue) to review; login isn't blocked meanwhile -- or
     (False, error_message).
 
     'rejected' is deliberately allowed back in here -- re-uploading
@@ -541,14 +542,25 @@ def _save_application_documents(application, files):
     mcur.close()
     mconn.close()
 
-    # No approval here (security audit P3, 2026-11-20). The documents stay
-    # 'pending_review' with verification_job_status='pending', so
-    # utils/document_verification.py's automated check (or a platform admin)
-    # decides. They used to be approved right here, and because that worker
-    # skips anything not 'pending_review', the duplicate GST/PAN/CIN check
-    # never ran for a self-serve company. Login is not gated on this; the
-    # company works in restricted mode (utils/kyc_gate.py: no payouts, no
-    # bulk email) until the review approves it.
+    # Deliberately NOT approved here. KYC review doesn't gate login
+    # ('pending_review' never blocks it -- blueprints/auth.py's
+    # _kyc_verification_blocks_login), so a new company is already live;
+    # the review just has to actually happen. This used to call
+    # _approve_application_reviewed() straight away, which flipped the row
+    # to 'approved' before utils/document_verification.py's worker ever
+    # saw it -- the worker skips anything not 'pending_review', so the
+    # duplicate GST/PAN/CIN fraud check never ran and the platform-admin
+    # queue (which lists 'pending_review') stayed empty. Leaving it pending
+    # hands it to the worker: a confident pass is approved automatically,
+    # a confident duplicate is rejected (tenant suspended), anything
+    # unclear waits in the platform-admin queue.
+    #
+    # A re-upload after a rejection stays suspended until that review
+    # approves it -- _approve_application_reviewed() reinstates the tenant
+    # then, rather than corrected documents reinstating themselves unseen.
+    # Until approved the company works in restricted mode: no payout setup,
+    # no salary disbursement, no bulk email (utils/kyc_gate.py; security
+    # review 2026-11-20, audit P3 option B).
     application["doc_review_status"] = "pending_review"
     return True, None
 

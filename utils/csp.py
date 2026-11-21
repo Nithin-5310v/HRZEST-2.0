@@ -10,9 +10,9 @@ so the CSP stopped nothing and only Jinja's autoescaping protected the page.
 
 Now only markup the developers wrote gets through:
 
-* **<script>/<style> tags** carry ``nonce="{{ csp_nonce }}"`` written in the
-  template source. tests/test_csp_explicit_nonce.py fails CI for any tag
-  without one. Nothing adds nonces to a rendered response any more.
+* **<script>/<style> tags** get the nonce from the template source at compile
+  time (app_setup/templating.py's CspNonceExtension). Nothing adds nonces to
+  a rendered response any more.
 * **style="" attributes** are hashed while the template is rendered, from the
   template's own source text. ``CspStyleAttrExtension`` wraps each attribute
   that is written in a template file in a ``{% filter csp_style_attr %}``

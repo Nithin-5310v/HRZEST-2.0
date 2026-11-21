@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     {# Raw-IP loopback → localhost normalization now happens server-side
          (app.py's _normalize_loopback_host), before login sets any cookie. #}
-    <script nonce="{{ csp_nonce }}">
+    <script>
       (function(){
       })();
     </script>
@@ -12,13 +12,13 @@
     <title>My Portal — {{ emp[1] }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
     <link rel="stylesheet" href="{{ static_url('login-loader.css') }}" />
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
+    <script src="{{ static_url('login-loader.js') }}" data-logo="{{ static_url('brand/hrzest-mark.svg') }}"></script>
     {# defer: jsQR() is only ever called from inside the camera-scan loop,
          well after user interaction starts a scan -- nothing needs this
          130KB library synchronously during initial parse, so deferring it
          lets the rest of the page render without waiting on it. #}
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('jsQR.min.js') }}" defer></script>
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('toast.js') }}"></script>
+    <script src="{{ static_url('jsQR.min.js') }}" defer></script>
+    <script src="{{ static_url('toast.js') }}"></script>
     <link rel="stylesheet" href="{{ static_url('toast.css') }}" />
 {% include "employee_portal/_styles.html" %}
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
@@ -30,7 +30,7 @@
   <link rel="stylesheet" href="{{ static_url('employee-theme.css') }}" />
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
+  <script src="{{ static_url('ui-motion.js') }}"></script>
   <link rel="stylesheet" href="{{ static_url('dashboard-unify.css') }}" />
 </head>
   <body>
@@ -53,12 +53,12 @@
 
 {% include "_employee_portal_scripts.html" %}
 
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('darkmode.min.js') }}"></script>
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('employee_sidebar.js') }}"></script>
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('animate-core.min.js') }}"></script>
+  <script src="{{ static_url('darkmode.min.js') }}"></script>
+  <script src="{{ static_url('employee_sidebar.js') }}"></script>
+  <script src="{{ static_url('animate-core.min.js') }}"></script>
 
   {# AI CHAT ASSISTANT #}
-  <style nonce="{{ csp_nonce }}">
+  <style>
     #aiChatBubble {
       position: fixed; right: 24px; bottom: 24px; z-index: 900;
       width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
@@ -129,7 +129,7 @@
       <button id="aiChatSend" aria-label="Send"><i class="ti ti-send"></i></button>
     </div>
   </div>
-  <script nonce="{{ csp_nonce }}">
+  <script>
   (function() {
     var bubble   = document.getElementById('aiChatBubble');
     var panel    = document.getElementById('aiChatPanel');
@@ -235,7 +235,7 @@
   {# /AI CHAT ASSISTANT #}
 
   {# NOTIFICATION BELL #}
-  <style nonce="{{ csp_nonce }}">
+  <style>
     #notifBell {
       position: fixed; right: 24px; top: 20px; z-index: 901;
       width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e2e8f0; cursor: pointer;
@@ -295,7 +295,7 @@
     </div>
     <div id="notifList"><div id="notifEmpty">No notifications yet.</div></div>
   </div>
-  <script nonce="{{ csp_nonce }}">
+  <script>
   (function() {
     var bell     = document.getElementById('notifBell');
     var badge    = document.getElementById('notifBadge');
@@ -410,7 +410,7 @@
        built): GET http://127.0.0.1:<port>/risk ->
          {"risk_score": 0-100, "threat_vectors": ["weak_encryption", ...]}
   #}
-  <script nonce="{{ csp_nonce }}">
+  <script>
   (function() {
     var AGENT_URL = 'http://127.0.0.1:47823/risk'; // placeholder — match the real agent's port
     var POLL_MS   = 30000;
@@ -454,8 +454,8 @@
   })();
   </script>
   {# /DEVICE POSTURE RELAY #}
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('js/i18n.js') }}"></script>
-  <script nonce="{{ csp_nonce }}">
+  <script src="{{ static_url('js/i18n.js') }}"></script>
+  <script>
     function enrollTouchID() {
       if (!window.PublicKeyCredential) {
         alert('❌ Touch ID / WebAuthn is not supported by your current browser.');

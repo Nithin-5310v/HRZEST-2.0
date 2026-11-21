@@ -15,7 +15,7 @@
 {% block page_css %}
     <link rel="stylesheet" href="{{ static_url('employee-portal-content.css') }}" />
     <link rel="stylesheet" href="{{ static_url('animate-core.min.css') }}" />
-    <style nonce="{{ csp_nonce }}">
+    <style>
       /* employee-portal-content.css hard-codes #view-dashboard to display:block
          unconditionally ("visible by default so the page never shows blank"),
          which is right for employee_portal.html (whose default view really is
@@ -372,9 +372,9 @@
 {% endblock %}
 
 {% block scripts %}
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('jsQR.min.js') }}" defer></script>
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('animate-core.min.js') }}"></script>
-    <script nonce="{{ csp_nonce }}">
+    <script src="{{ static_url('jsQR.min.js') }}" defer></script>
+    <script src="{{ static_url('animate-core.min.js') }}"></script>
+    <script>
       // This shell's own "last active tab" memory and landing tab -- kept
       // separate from employee_portal.html's (which shares the same origin,
       // so a plain localStorage key would otherwise leak between the two).

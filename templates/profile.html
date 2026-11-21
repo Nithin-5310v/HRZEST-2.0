@@ -3,7 +3,7 @@
 {% block title %}Organization{% endblock %}
 
 {% block page_css %}
-<style nonce="{{ csp_nonce }}">
+<style>
 
   .p-card {
     background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
@@ -878,7 +878,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script nonce="{{ csp_nonce }}">
+<script>
 (function () {
   // The header's Change logo button saves as soon as a file is chosen.
   var logo = document.getElementById('org-logo-file');
@@ -888,7 +888,7 @@
 })();
 </script>
 {% if active_tab == 'company' %}
-<script nonce="{{ csp_nonce }}">
+<script>
 (function () {
   // Cards are read-only until Edit. The whole form saves at once, so a
   // mandatory field left blank on a closed card opens that card.
@@ -927,7 +927,7 @@
 </script>
 {% endif %}
 {% if active_tab == 'contact' %}
-<script nonce="{{ csp_nonce }}">
+<script>
 (function () {
   document.querySelectorAll('.org-panel').forEach(function (panel) {
     var toggle = panel.querySelector('[data-edit-toggle]');
@@ -947,7 +947,7 @@
 </script>
 {% endif %}
 {% if active_tab == 'policies' %}
-<script nonce="{{ csp_nonce }}">
+<script>
 (function () {
   var templates = {{ policy_templates|tojson }};
   var cat = document.getElementById('pol-category');

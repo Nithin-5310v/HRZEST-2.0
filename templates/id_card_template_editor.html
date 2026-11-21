@@ -3,7 +3,7 @@
 {% block title %}ID Card Template{% endblock %}
 
 {% block page_css %}
-<style nonce="{{ csp_nonce }}">
+<style>
     .breadcrumb{font-size:14px;color:#64748b;margin-bottom:8px}
     .breadcrumb a{color:#1e3a8a;text-decoration:none}
     .page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:22px}
@@ -113,7 +113,7 @@
 {% endblock %}
 
 {% block scripts %}
-  <script nonce="{{ csp_nonce }}">
+  <script>
     var FIELD_DEFS = {
       photo:           {side: 'front', label: 'Photo',          color: '#2563eb'},
       logo:            {side: 'front', label: 'Company Logo',   color: '#7c3aed'},

@@ -212,8 +212,8 @@
               </div>
             </div>
 
-            <script nonce="{{ csp_nonce }}" src="https://checkout.razorpay.com/v1/checkout.js"></script>
-            <script nonce="{{ csp_nonce }}">
+            <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+            <script>
             (function() {
               const PER_EMPLOYEE_PAISE = {{ per_employee_paise }};
               let currentOrder = null;

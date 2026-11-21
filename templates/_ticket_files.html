@@ -2,7 +2,7 @@
    Used by the company's ticket page and Platform Admin's. `base` is the URL the
    attachment id is appended to. #}
 {% macro ticket_files_style() %}
-<style nonce="{{ csp_nonce }}">
+<style>
   .tk-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .tk-file { display: inline-flex; align-items: center; gap: 8px; max-width: 260px; padding: 6px 10px 6px 6px;
     border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #0f172a; text-decoration: none; font-size: 13.5px; }

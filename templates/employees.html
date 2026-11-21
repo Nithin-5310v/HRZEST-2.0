@@ -46,18 +46,18 @@
 
 {% include "employees/_modal_qr.html" %}
 
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('js/seat-pay.js') }}"></script>
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('js/photo-check.js') }}"></script>
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('js/employees.js') }}"></script>
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('js/employee-import.js') }}"></script>
+    <script src="{{ static_url('js/seat-pay.js') }}"></script>
+    <script src="{{ static_url('js/photo-check.js') }}"></script>
+    <script src="{{ static_url('js/employees.js') }}"></script>
+    <script src="{{ static_url('js/employee-import.js') }}"></script>
 {% endblock %}
 
 {% block scripts %}
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('js/employees-selection.js') }}"></script>
+  <script src="{{ static_url('js/employees-selection.js') }}"></script>
 
 {% include "employees/_modals_shift_break.html" %}
 
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('js/employees-shift-break.js') }}"></script>
+  <script src="{{ static_url('js/employees-shift-break.js') }}"></script>
 
 
 {% endblock %}

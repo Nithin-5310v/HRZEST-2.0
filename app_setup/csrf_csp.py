@@ -12,7 +12,6 @@ import re
 import secrets
 from extensions import app, app_log
 from flask import current_app, flash, jsonify, redirect, request, session, url_for
-from urllib.parse import urlsplit
 from utils.helpers import invalidate_settings_cache, static_url as _static_url
 from app_setup.templating import _csrf_token
 import utils.csp as _csp
@@ -158,11 +157,12 @@ def _add_csrf_fields(html, token):
     return b"".join(parts)
 
 
-# Security audit P1 (2026-11-20): nothing adds CSP nonces to the rendered
-# response any more, and style="" attributes are no longer hashed from it.
-# Templates write nonce="{{ csp_nonce }}" on their own tags, and style hashes
-# are registered while a template renders (utils/csp.py). The scripts below
-# are this module's own, so they get the nonce where they are injected.
+# Nothing adds CSP nonces to the rendered response (security audit P1): template
+# tags get them at compile time (app_setup/templating.py's CspNonceExtension),
+# and style="" hashes are registered while a template renders, from its source
+# (utils/csp.py) -- the response is no longer scanned for style attributes, so an
+# injected one gets no hash. The scripts below are this module's own, so they
+# get the nonce where they are injected.
 _CSRF_SCRIPT = (
     b'<script>(function(){'
     b'var m=document.querySelector(\'meta[name="csrf-token"]\');'
@@ -344,24 +344,12 @@ def _security_headers(response):
         _razorpay_script_src = " https://checkout.razorpay.com https://cdn.razorpay.com" if _is_razorpay_page else ""
         _razorpay_frame_src = "https://checkout.razorpay.com https://api.razorpay.com" if _is_razorpay_page else ""
         _razorpay_connect_src = " https://api.razorpay.com https://lumberjack.razorpay.com" if _is_razorpay_page else ""
-        # /super_admin/soc (blueprints/platform_admin.py) embeds the standalone
-        # SOC dashboard in an iframe. Without this, the default frame-src 'none'
-        # makes the browser refuse to load it and the page shows an empty box.
-        # Only that service's own origin (scheme://host:port of SOC_DASHBOARD_URL,
-        # never the path or the token) is allowed, and only on this one page.
-        _soc_frame_src = ""
-        if request.path == "/super_admin/soc":
-            _soc_url = urlsplit(os.environ.get("SOC_DASHBOARD_URL", ""))
-            if _soc_url.scheme in ("http", "https") and _soc_url.netloc:
-                _soc_frame_src = f"{_soc_url.scheme}://{_soc_url.netloc}"
         if _is_turnstile_page and _is_razorpay_page:
             _frame_src = "https://challenges.cloudflare.com " + _razorpay_frame_src
         elif _is_turnstile_page:
             _frame_src = "https://challenges.cloudflare.com"
         elif _is_razorpay_page:
             _frame_src = _razorpay_frame_src
-        elif _soc_frame_src:
-            _frame_src = _soc_frame_src
         else:
             _frame_src = "'none'"
         _is_employee_portal_page = request.path == "/employee_portal"
@@ -414,13 +402,18 @@ def _bust_settings_cache(response):
 
 @app.after_request
 def _inject_csrf_meta(response):
-    """Inject the CSRF meta tag, hidden fields and helper scripts into every
-    successful (status<300) HTML page.
+    """Inject CSRF meta tag and auto-inject script into every normal
+    (status<300) HTML page.
 
-    CSP nonces are no longer added here (security audit P1, 2026-11-20).
-    Error pages carry their own nonce: templates write nonce="{{ csp_nonce }}"
-    and utils/helpers/http.py's _error_page() goes through
-    utils.csp.trusted_html().
+    This no longer touches CSP nonces on the rest of the page: it used to
+    stamp the nonce onto every <script>/<style> tag in the finished HTML,
+    which also blessed any tag an attacker had injected, so the CSP stopped
+    nothing. Templates now get the nonce at compile time
+    (app_setup/templating.py's CspNonceExtension) and Python-built pages add
+    it themselves (utils.helpers.csp_nonce_attr). Only the scripts this
+    function adds get it here.
+    style="" attribute hashes likewise come only from template source
+    (utils/csp.py), never from scanning the response.
     """
     if not response.content_type.startswith("text/html"):
         return response
@@ -441,14 +434,11 @@ def _inject_csrf_meta(response):
                          + b'<script src="' + _actions_src + b'"></script>')
         if session.get("admin_logged_in") or session.get("employee_id"):
             _body_scripts += _KILLSWITCH_SCRIPT
-        # These are this module's own fixed scripts, so they are given the
-        # nonce here, explicitly. Nothing else in the response is touched:
-        # a <script> that reached the page any other way gets no nonce and
-        # the browser refuses to run it (security audit P1).
-        nonce = _csp.csp_nonce().encode()
+        nonce = _csp.csp_nonce()
         if nonce:
-            _body_scripts = _body_scripts.replace(b"<script", b'<script nonce="' + nonce + b'"')
-        data = _CSRF_BODY_RE.sub(_body_scripts + b'</body>', data, count=1)
+            # Only our own constants above -- never page content.
+            _body_scripts = _body_scripts.replace(b"<script", b'<script nonce="' + nonce.encode() + b'"')
+        data = _CSRF_BODY_RE.sub(lambda _m: _body_scripts + b'</body>', data, count=1)
         response.set_data(data)
     except Exception as exc:
         # Silent failure here means CSRF-token/killswitch injection silently

@@ -7,10 +7,10 @@
     <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
     <link rel="stylesheet" href="{{ static_url('toast.css') }}" />
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('toast.js') }}"></script>
+    <script src="{{ static_url('toast.js') }}"></script>
     <link rel="stylesheet" href="{{ static_url('chat.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
-    <style nonce="{{ csp_nonce }}">
+    <style>
       :root {
         --bg-main: #f3f4f8; --bg-card: #ffffff; --surface-2: #f8f9fc;
         --border-color: #e3e5ec; --border-strong: #d3d6e3;
@@ -298,10 +298,10 @@
     </style>
     {# Shared Zoho-style console theme (blue, clean light canvas), loaded last #}
   <link rel="stylesheet" href="{{ static_url('platform-theme.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('platform-topbar.js') }}" defer></script>
+  <script src="{{ static_url('platform-topbar.js') }}" defer></script>
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
   <body>
     {% include "_platform_sidebar.html" %}
@@ -474,14 +474,6 @@
               >
               Audit Log
             </a>
-            {% if soc_dashboard_configured %}
-            <a href="/super_admin/soc" title="Cross-app Security Operations Center — login attempts, failed logins, and suspicious activity across HRMS Portal, Job Portal, Gradzest Portal and Food Delivery App"
-               style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
-               data-hover-style="background:#fee2e2;box-shadow:var(--shadow-md);transform:translateY(-1px)"
-              >
-              <i class="ti ti-shield-lock"></i> SOC Dashboard
-            </a>
-            {% endif %}
             <a href="/super_admin/tickets" title="Trackable support tickets across every company"
                style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);border:1px solid var(--primary-soft-border);color:var(--primary-dark);padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
                data-hover-style="background:#e0e2fa;box-shadow:var(--shadow-md);transform:translateY(-1px)"
@@ -839,7 +831,7 @@
       </section>
     </div>
 
-    <script nonce="{{ csp_nonce }}">
+    <script>
       function openPaymentModal(row) {
         var d = row.dataset;
         document.getElementById('pmCompany').textContent = d.company + ' (' + d.subdomain + ')';
@@ -924,8 +916,8 @@
         </form>
       </div>
     </div>
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('chat.js') }}"></script>
-    <script nonce="{{ csp_nonce }}">
+    <script src="{{ static_url('chat.js') }}"></script>
+    <script>
       var tcTenantId = null;
       var tcPollTimer = null;
       var tcMsgs = document.getElementById('tcMsgs');

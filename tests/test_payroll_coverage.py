@@ -606,9 +606,10 @@ class TestEmployeeDataIsEscapedInGeneratedHtml:
     """my_attendance_pdf and download_tax_statement assemble whole HTML pages
     from f-strings. HR/admin can edit an employee's name/role, and
     download_tax_statement's emp_id comes straight from the URL, so any of
-    them reaching the page unescaped is script injection. These pages go
-    through utils.csp.trusted_html(), which gives every <script>/<style> tag
-    in them the CSP nonce, so escaping is what keeps an injected tag inert."""
+    them reaching the page unescaped is script injection. Escaping is the
+    first line of defence; the CSP is the second -- these pages' own <style>
+    gets a nonce, and an injected <script> never does (utils.csp.trusted_html,
+    tests/test_csp_source_nonce.py)."""
 
     PAYLOAD = "<script>alert(1)</script>"
     ESCAPED = "&lt;script&gt;alert(1)&lt;/script&gt;"

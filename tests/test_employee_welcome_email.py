@@ -63,23 +63,6 @@ def _cleanup_employee(db_engine, emp_id):
             os.remove(path)
 
 
-class TestEmployeeLoginUrlHelper:
-    def test_no_session_falls_back_to_bare_login(self, client):
-        with flask_app.test_request_context("/"):
-            from utils.helpers import employee_login_url
-            url = employee_login_url()
-            assert url.endswith("/login")
-            assert url.startswith("http")
-
-    def test_tenant_slug_in_session_is_included(self, client):
-        with flask_app.test_request_context("/"):
-            from flask import session
-            session["tenant_slug"] = "acme"
-            from utils.helpers import employee_login_url
-            url = employee_login_url()
-            assert url.endswith("/acme/login")
-
-
 class TestAddEmployeePageWelcomeEmail:
     def test_add_employee_sends_email_with_set_password_link(self, client, seed_admin, db_engine, monkeypatch):
         _mock_face_detected(monkeypatch)

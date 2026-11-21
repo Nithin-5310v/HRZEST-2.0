@@ -13,8 +13,8 @@
          well after user interaction starts a scan -- nothing needs this
          130KB library synchronously during initial parse, so deferring it
          lets the rest of the page render without waiting on it. #}
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('jsQR.min.js') }}" defer></script>
-    <style nonce="{{ csp_nonce }}">
+    <script src="{{ static_url('jsQR.min.js') }}" defer></script>
+    <style>
       * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
 
       body {
@@ -661,8 +661,8 @@
       </div>
     </div>
 
-    <script nonce="{{ csp_nonce }}" type="application/json" id="serverCfg">{"auth":{{ auth_cfg | tojson }},"combo":{{ (first_method if first_method else 'qr_face') | tojson }}}</script>
-    <script nonce="{{ csp_nonce }}">
+    <script type="application/json" id="serverCfg">{"auth":{{ auth_cfg | tojson }},"combo":{{ (first_method if first_method else 'qr_face') | tojson }}}</script>
+    <script>
       /* ── helpers & state ── */
       const $ = id => document.getElementById(id);
       const _srv = JSON.parse(document.getElementById('serverCfg').textContent);
@@ -1471,7 +1471,7 @@
       $("fpVerifyBtn")?.addEventListener("click", () => handleFingerprintVerify());
       $("fpEnrolBtn")?.addEventListener("click", () => handleFingerprintEnroll());
     </script>
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('darkmode.min.js') }}"></script>
+  <script src="{{ static_url('darkmode.min.js') }}"></script>
 
 
 </body>

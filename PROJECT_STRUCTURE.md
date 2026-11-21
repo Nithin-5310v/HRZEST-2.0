@@ -154,7 +154,7 @@ HRZEST/
 | --- | --- |
 | Public site & sign-up | `landing.html` (home), `create_org.html` (one-step sign-up + inline email code), `create_org_verify_otp.html` (Google/Microsoft sign-up code), `create_org_pay.html`, `create_org_setup_trial.html`, `create_org_upload_documents.html`, `create_org_pending.html`, `create_org_status.html` |
 | Login & account security | `admin_login.html` (one login page for admin, HR, manager, employee; email + password), `mfa_verify.html`, `step_up_mfa.html`, `admin_mfa_required.html`, `forgot_password.html` (one form, by email, any company), `*_reset_password.html`, `force_change_pin.html`, `security_lockout.html` |
-| Company admin dashboard | `admin_base.html` (layout: sidebar, banners, registration checklist, chat widget), `admin.html` (dashboard), `employees.html`, `employee_detail.html`, `edit_employee.html`, `today_attendance.html`, `bulk_attendance.html`, `monthly_report.html`, `leave_*.html`, `overtime.html`, `salary.html`, `salary_report.html`, `payroll_settings.html`, `admin_payslips.html`, `onboarding*.html`, `offer_letter*.html`, `performance*.html`, `analytics.html`, `org_chart.html`, `activity_log.html`, `admin_tools.html`, `settings.html`, `profile.html`, `company_details.html`, `company_verification.html`, `seat_checkout.html`, `pay_overdue_bill.html`, `id_card_template_editor.html` |
+| Company admin dashboard | `admin_base.html` (layout: sidebar, banners, registration checklist, chat widget), `admin.html` (dashboard), `employees.html`, `employee_detail.html`, `edit_employee.html`, `today_attendance.html`, `bulk_attendance.html`, `monthly_report.html`, `leave_*.html`, `overtime.html`, `salary.html`, `salary_report.html`, `payroll_settings.html`, `admin_payslips.html`, `onboarding*.html`, `offer_letter*.html`, `performance*.html`, `analytics.html`, `org_chart.html`, `activity_log.html`, `admin_tools.html`, `settings.html`, `profile.html`, `company_details.html`, `company_verification.html`, `pay_overdue_bill.html`, `id_card_template_editor.html` |
 | HR dashboard | `hr_dashboard.html` |
 | Employee self-service | `employee_portal.html`, `employee_profile.html`, `employee_attendance_detail.html`, `my_compoff.html`, `my_onboarding.html`, `my_performance.html` |
 | Platform Admin (SaaS operator) | `super_admin_*.html` — dashboard, company profiles, applications, duplicate alerts, audit log, support tickets, SOC view |
@@ -234,8 +234,8 @@ Plain JavaScript (no framework, no build step).
 **Main `utils/` groups**
 - **Money:** `salary_utils.py`, `plan_limits.py`, `razorpay_utils.py`, `payment_history.py`, `payout_utils.py`, `tax_invoice.py`
 - **Attendance:** `attendance_utils.py`, `leave_utils.py`, `geo.py`, `face_utils.py`, `liveness.py`, `punch_integrity.py`, `config.py`
-- **Email, chat & files:** `email_utils.py` (queued email), `chat_utils.py`, `push_utils.py`, `storage.py`, `csv_export.py`, `task_queue.py`
-- **AI:** `ai_client.py`, `ai_assistant.py`, `ai_helpdesk.py`, `ai_resume_parser.py`, `ai_interview_evaluator.py`, `ai_attrition_analytics.py`
+- **Email, chat & files:** `email_utils.py` (queued email), `chat_utils.py`, `push_utils.py`, `storage.py`, `csv_export.py`
+- **AI:** `ai_client.py`, `ai_assistant.py`, `ai_helpdesk.py`, `ai_interview_evaluator.py`, `ai_attrition_analytics.py`
 - **Shared:** `helpers.py` (company settings, uploads, `tpath()`, `static_url()`), `tenant_routing.py`, `request_guard.py`
 - **Security:** see block 10.
 
@@ -323,7 +323,6 @@ https://<server>/<company>/login   ──►  tenants.subdomain = "<company>"  �
 | --- | --- |
 | Scheduled jobs (APScheduler, started in `wsgi.py`): daily attendance report, auto-debit billing, billing reconciliation, dunning, salary disbursement prep, trial expiry + reminder, security detections, audit anchor + verify, privacy retention purge | `wsgi.py`, the matching `blueprints/` / `utils/` module, `utils/job_runs.py` (runs each job once across processes) |
 | Worker threads: email queue, company-document verification | `utils/email_utils.py`, `utils/document_verification.py` |
-| Heavy jobs (PDF / Excel) | `utils/task_queue.py` (Redis + RQ when configured) |
 | Payments | Razorpay — `utils/razorpay_utils.py`, `blueprints/billing.py`, `webhooks.py` |
 | Email | SMTP — `utils/email_utils.py` |
 | AI | Anthropic Claude — `utils/ai_client.py` |

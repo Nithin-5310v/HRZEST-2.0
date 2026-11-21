@@ -525,7 +525,11 @@
           {% elif request.args.get('pwd_error') == 'wrong' %}
             <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Current password is incorrect.</div>
           {% elif request.args.get('pwd_error') == 'short' %}
-            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> New password must be at least 6 characters.</div>
+            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> New password must be at least 12 characters.</div>
+          {% elif request.args.get('pwd_error') == 'personal' %}
+            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Password must not contain your name, username, email, company name or &#39;HRzest&#39;.</div>
+          {% elif request.args.get('pwd_error') == 'breached' %}
+            <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> This password has appeared in a known data breach, so attackers try it first. Please choose a different one.</div>
           {% elif request.args.get('pwd_error') == 'mismatch' %}
             <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> New passwords do not match.</div>
           {% endif %}
@@ -584,7 +588,7 @@
           </div>
         </div>
 
-        <script nonce="{{ csp_nonce }}">
+        <script>
         (function() {
           function toBytes(b64url) {
             const b64 = b64url.replace(/-/g,'+').replace(/_/g,'/');

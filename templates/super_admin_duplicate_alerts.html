@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
     <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
     <link rel="stylesheet" href="{{ static_url('toast.css') }}" />
-    <script nonce="{{ csp_nonce }}" src="{{ static_url('toast.js') }}"></script>
-    <style nonce="{{ csp_nonce }}">
+    <script src="{{ static_url('toast.js') }}"></script>
+    <style>
       :root {
         --bg-main: #f3f4f8; --bg-card: #ffffff; --surface-2: #f8f9fc;
         --border-color: #e3e5ec;
@@ -85,10 +85,10 @@
     </style>
     {# Shared Zoho-style console theme (blue, clean light canvas), loaded last #}
   <link rel="stylesheet" href="{{ static_url('platform-theme.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('platform-topbar.js') }}" defer></script>
+  <script src="{{ static_url('platform-topbar.js') }}" defer></script>
   {# 3D motion & depth layer (static/ui-motion.*): loaded in <head>, no defer #}
   <link rel="stylesheet" href="{{ static_url('ui-motion.css') }}" />
-  <script nonce="{{ csp_nonce }}" src="{{ static_url('ui-motion.js') }}"></script>
+  <script src="{{ static_url('ui-motion.js') }}"></script>
 </head>
   <body>
     {% include "_platform_sidebar.html" %}
@@ -229,7 +229,7 @@
         {% endif %}
       </div>
 
-      <script nonce="{{ csp_nonce }}">
+      <script>
         function toggleAllAlerts(master) {
           document.querySelectorAll('.alert-select').forEach(function (cb) { cb.checked = master.checked; });
           updateAlertBulkBar();

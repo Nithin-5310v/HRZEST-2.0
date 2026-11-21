@@ -3,7 +3,7 @@
 {% block title %}Org Chart{% endblock %}
 
 {% block page_css %}
-  <style nonce="{{ csp_nonce }}">
+  <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif}
     body{background:#f0f4ff;min-height:100vh;display:flex}
 
@@ -161,7 +161,7 @@
   <span class="u-c-94a3b8 u-ml-4">Click card → Profile &nbsp;|&nbsp; Drag to pan</span>
 </div>
 
-<script nonce="{{ csp_nonce }}">
+<script>
 // ─── CONFIG ───────────────────────────────────────────
 const NODE_W     = 160;
 const NODE_H     = 155;

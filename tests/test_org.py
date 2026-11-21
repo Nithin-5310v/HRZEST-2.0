@@ -421,13 +421,14 @@ class TestSignupFlow:
             assert app_row[0] == "provisioned"
             assert app_row[1] is not None
             # Documents were uploaded (inside signup_company) and wait for
-            # review: no longer auto-approved, so the automated fraud check
-            # actually runs (security review 2026-11-20, audit P3).
+            # review -- never approved in the same call, or the automated
+            # check and the platform-admin queue would both skip them --
+            # while the company is already live.
             assert app_row[2] == "pending_review"
             assert app_row[3] == gst
 
-            # The platform admin approves the pending documents; it must
-            # NOT attempt to re-provision or change tenants.status.
+            # The platform admin's "approve" on a live company records the
+            # review -- it must NOT re-provision or change tenants.status.
             self._login_platform_admin(client)
             resp = client.post(f"/super_admin/applications/{application_id}/approve", follow_redirects=False)
             assert resp.status_code in (301, 302)
@@ -451,7 +452,7 @@ class TestSignupFlow:
         schema_name = "att_" + slug.replace("-", "_")
         _drop_schema(db_engine, schema_name)
         try:
-            _application_id, landed = signup_verified(client, monkeypatch, "straightin@test.local", company_name)
+            application_id, landed = signup_verified(client, monkeypatch, "straightin@test.local", company_name)
             assert landed == slug
             with client.session_transaction() as sess:
                 assert sess.get("admin_logged_in") is True
@@ -470,20 +471,26 @@ class TestSignupFlow:
             assert save_company_details(client, slug).headers["Location"] == f"/{slug}/profile"
             assert "1 of 3 done" in client.get(f"/{slug}/profile").get_data(as_text=True)
 
-            upload_documents(client, slug)   # now waits for review (security review 2026-11-20)
-            cur = db_engine.cursor()
-            cur.execute("UPDATE att_master.tenant_applications SET doc_review_status='approved' "
-                        "WHERE tenant_id=(SELECT id FROM att_master.tenants WHERE db_name=%s)", (schema_name,))
-            cur.close()
-            db_engine.commit()
-            assert "2 of 3 done" in client.get(f"/{slug}/profile").get_data(as_text=True)
+            # Submitted documents count as the company's part done, shown
+            # "Under review" until the review approves them.
+            upload_documents(client, slug)
+            page = client.get(f"/{slug}/profile").get_data(as_text=True)
+            assert "2 of 3 done" in page and "Under review" in page
 
-            # Payment: an active auto-debit mandate finishes the checklist.
+            # Payment: an active auto-debit mandate is the last step...
             cur = db_engine.cursor()
             cur.execute("INSERT INTO att_master.auto_debit_mandates (tenant_schema, company_name, status) "
                         "VALUES (%s, %s, 'active')", (schema_name, company_name))
             cur.close()
             db_engine.commit()
+            page = client.get(f"/{slug}/profile").get_data(as_text=True)
+            assert "3 of 3 done" in page and "Under review" in page
+
+            # ...and the checklist goes once the documents are approved.
+            from blueprints.org.applications import _approve_application_reviewed, _fetch_application_row
+            from extensions import app as flask_app
+            with flask_app.test_request_context():
+                assert _approve_application_reviewed(_fetch_application_row(application_id), "test-reviewer")[0]
             assert "Complete your registration" not in client.get(f"/{slug}/profile").get_data(as_text=True)
         finally:
             cur = db_engine.cursor()

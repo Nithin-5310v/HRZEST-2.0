@@ -12,6 +12,7 @@ from utils.face_utils import _face_recognition_available, face_recognition, dete
 from utils.helpers import (
     _audit,
     _db,
+    audit_changes,
     _validate_image_file,
     company_today,
     decrypt_pii,
@@ -363,11 +364,21 @@ def employee_profile_assign_hr(emp_id):
         cursor.execute("UPDATE employees SET assigned_hr_username=%s WHERE employee_id=%s", (new_hr, emp_id))
         db.commit()
         label = hr_label(cursor, new_hr)
-    if new_hr != prev_hr:
-        _audit("reassign_employee_hr", "employees", emp_id,
-               f"assigned HR changed from {prev_hr or 'Unassigned'!r} to {new_hr or 'Unassigned'!r}")
+    audit_changes("reassign_employee_hr", "employees", emp_id,
+                  {"assigned_hr_username": prev_hr}, {"assigned_hr_username": new_hr})
     flash(f"{name} is now managed by {label}." if new_hr else f"{name} no longer has an assigned HR.", "success")
     return redirect(tpath(f"/employee_profile/{emp_id}"))
+
+
+# Fields edit_employee() records old -> new values for in the audit log. The
+# job title and assigned HR get their own rows (update_employee_role /
+# reassign_employee_hr: the sensitive-change detection watches those).
+_EDIT_AUDIT_PLAIN = ("name", "date_of_joining", "department", "manager_name", "manager_id",
+                     "shift_id", "work_mode", "work_lat", "work_lon")
+# Encrypted at rest: the audit log says they changed, never their values.
+_EDIT_AUDIT_HIDDEN = ("email", "phone", "gender", "dob", "blood_group", "address", "city", "state",
+                      "pincode", "emergency_contact_name", "emergency_contact_phone",
+                      "emergency_contact_relation")
 
 
 @employees_bp.route("/edit_employee", methods=["POST"])
@@ -418,14 +429,16 @@ def edit_employee():
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    # Fetched before the UPDATE specifically to audit a role (job-title)
-    # change -- this is HR display data, not admin_users.role (the real
-    # privilege field, which has no write path at all outside account
-    # creation), but it had no audit trail on any write path before.
-    cursor.execute("SELECT role, assigned_hr_username FROM employees WHERE employee_id=%s", (emp_id,))
+    # Read before the UPDATE so the audit log can record what changed.
+    # `role` is the job title -- HR display data, not admin_users.role (the
+    # real privilege field, which has no write path outside account creation).
+    _audit_cols = ("role", "assigned_hr_username") + _EDIT_AUDIT_PLAIN + _EDIT_AUDIT_HIDDEN
+    cursor.execute(f"SELECT {', '.join(_audit_cols)} FROM employees WHERE employee_id=%s", (emp_id,))  # nosec B608 -- fixed column names
     _prev_row = cursor.fetchone()
-    _prev_role = _prev_row[0] if _prev_row else None
-    _prev_hr = _prev_row[1] if _prev_row else None
+    _before = dict(zip(_audit_cols, _prev_row)) if _prev_row else {}
+    for _col in _EDIT_AUDIT_HIDDEN:
+        _before[_col] = decrypt_pii(_before.get(_col))
+    _prev_hr = _before.get("assigned_hr_username")
 
     # Reassigning which HR manages this employee is an admin-only action --
     # an HR-scoped editor (already confirmed above to own this employee)
@@ -486,11 +499,23 @@ def edit_employee():
         _notify_old_email(_old_email_row[0], name)
     cursor.close()
     db.close()
-    if role != _prev_role:
-        _audit("update_employee_role", "employees", emp_id, f"role changed from {_prev_role!r} to {role!r}")
-    if _reassign_sql and _new_hr != _prev_hr:
-        _audit("reassign_employee_hr", "employees", emp_id,
-               f"assigned HR changed from {_prev_hr or 'Unassigned'!r} to {_new_hr or 'Unassigned'!r}")
+    _after = {
+        "name": name, "date_of_joining": date_of_joining, "department": department,
+        "manager_name": manager_name, "manager_id": manager_id, "shift_id": shift_id,
+        "work_mode": work_mode, "work_lat": work_lat, "work_lon": work_lon,
+        # the form's plain values, compared with the decrypted old ones
+        "email": email, "phone": phone,
+        **{col: request.form.get(field, "").strip() or None for col, field in (
+            ("gender", "gender"), ("dob", "dob"), ("blood_group", "blood_group"),
+            ("address", "address"), ("city", "city"), ("state", "state"), ("pincode", "pincode"),
+            ("emergency_contact_name", "ec_name"), ("emergency_contact_phone", "ec_phone"),
+            ("emergency_contact_relation", "ec_rel"))},
+    }
+    if _prev_row:
+        audit_changes("update_employee", "employees", emp_id, _before, _after, hidden=_EDIT_AUDIT_HIDDEN)
+        audit_changes("update_employee_role", "employees", emp_id, _before, {"role": role})
+        if _reassign_sql:
+            audit_changes("reassign_employee_hr", "employees", emp_id, _before, {"assigned_hr_username": _new_hr})
     flash(f"Employee '{emp_id}' updated successfully.", "success")
     return redirect(tpath("/employees"))
 
