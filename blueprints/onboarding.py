@@ -13,7 +13,7 @@ from utils.auth import admin_required, employee_required, api_required, employee
 from utils.helpers import (
     tpath, get_company_settings, company_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
     company_today, company_now, _create_notification, int_param, encrypt_amount, amount,
-    self_service_emp_id, self_service_return_path,
+    self_service_emp_id, self_service_return_path, audit_read,
 )
 from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
@@ -105,6 +105,8 @@ def download_onboarding_document(task_id):
     # extension intact, unlike building a name from task_title alone.
     import os as _os
     download_name = f"{secure_filename(task_title or 'document')}{_os.path.splitext(stored_ref)[1]}"
+    if is_admin:
+        audit_read("download_onboarding_document", "employee_onboarding_tasks", task_id, employee=doc_emp_id)
     return send_file(BytesIO(data), as_attachment=True, download_name=download_name)
 
 
@@ -409,6 +411,7 @@ def export_onboarding_csv():
         pct = round(int(r[8] or 0) / int(r[7] or 1) * 100) if r[7] else 0
         writer.writerow([r[0], r[1], r[2] or "", r[3], r[4], r[5], r[6], r[7], r[8] or 0, f"{pct}%"])
     output.seek(0)
+    audit_read("export_onboarding", "employee_onboarding", None, rows=len(rows), format="csv")
     from flask import Response
     return Response(output.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": f"attachment;filename=onboarding_export_{company_today()}.csv"})

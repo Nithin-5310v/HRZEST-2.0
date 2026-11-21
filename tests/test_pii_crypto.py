@@ -3,7 +3,7 @@
 import pytest
 from cryptography.fernet import Fernet
 
-from utils.pii_crypto import PiiCipher, DecryptionError, looks_encrypted, PREFIX
+from utils.pii_crypto import PiiCipher, DecryptionError, looks_like_fernet, looks_like_v2, PREFIX
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def test_previous_key_decrypts_but_primary_encrypts(key):
 def test_plaintext_is_not_ciphertext(key):
     c = PiiCipher([key])
     for v in ("Female", "1988-03-10", "hz2:", "gAAAAA-not-really"):
-        assert not looks_encrypted(v)
+        assert not looks_like_v2(v) and not looks_like_fernet(v)
         with pytest.raises(ValueError):
             c.decrypt(v)
 

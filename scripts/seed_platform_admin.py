@@ -52,7 +52,7 @@ def main():
     args = ap.parse_args()
 
     password = args.password or getpass.getpass("Platform admin password: ")
-    _pw_ok, _pw_err = validate_new_password(password)
+    _pw_ok, _pw_err = validate_new_password(password, (args.username, args.email))
     if not _pw_ok:
         raise SystemExit(_pw_err)
 

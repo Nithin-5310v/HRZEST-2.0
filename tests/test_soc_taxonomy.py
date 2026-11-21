@@ -108,13 +108,6 @@ def test_alert_and_severity_rules():
     assert tax.severity_of("x", None) == "info"
 
 
-def test_family_filters_cover_exact_and_prefix_members():
-    exact, prefixes = tax.event_types_for_family("waf")
-    assert "waf.sqli_blocked" in exact and "waf." in prefixes
-    _, det = tax.event_types_for_family("detection")
-    assert det == ["detection."]
-
-
 def test_tenant_hint():
     assert tax.tenant_hint("/acme/admin") == "acme"
     assert tax.tenant_hint("/acme") == "acme"

@@ -1,7 +1,7 @@
 """
 Coverage tests for database.py.
 Targets uncovered lines: schema validation, master/tenant connections,
-tenant schema creation, deprecated create_tenant_database().
+tenant schema creation.
 """
 import pytest
 
@@ -90,15 +90,6 @@ class TestCreateTenantSchema:
         from database import create_tenant_schema
         with pytest.raises(ValueError):
             create_tenant_schema("bad schema!")
-
-
-class TestCreateTenantDatabase:
-
-    def test_create_tenant_database_raises_runtime_error(self):
-        """Line 210: deprecated function raises RuntimeError."""
-        from database import create_tenant_database
-        with pytest.raises(RuntimeError, match="create_tenant_schema"):
-            create_tenant_database("any_name")
 
 
 class TestPooledConnection:

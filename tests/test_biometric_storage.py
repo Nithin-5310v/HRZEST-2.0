@@ -30,13 +30,11 @@ def test_save_image_is_ciphertext_on_disk(tmp_path, img):
         Image.open(p)                       # unreadable without the key
 
 
-def test_open_image_and_load_face_image_round_trip(tmp_path, img):
+def test_open_image_round_trip(tmp_path, img):
     p = str(tmp_path / "EMP001.jpg")
     storage.save_image(img, p)
     back = storage.open_image(p)
     assert back.size == (32, 24)
-    arr = storage.load_face_image(p)
-    assert arr.shape == (24, 32, 3)
 
 
 def test_legacy_plaintext_photo_still_reads(tmp_path):

@@ -151,10 +151,6 @@ def looks_like_v2(value: str) -> bool:
         return False
 
 
-def looks_encrypted(value) -> bool:
-    return isinstance(value, str) and (looks_like_v2(value) or looks_like_fernet(value))
-
-
 class PiiCipher:
     """keys: primary (encrypts) first, then previous keys (decrypt only)."""
 

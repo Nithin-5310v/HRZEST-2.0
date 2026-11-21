@@ -451,6 +451,9 @@ def create_org_upload_documents():
         flash("Application not found. Please start again.", "error")
         return redirect("/create_org")
 
+    # A rejected company is suspended; its re-upload stays suspended until
+    # the review approves it (see _save_application_documents).
+    was_rejected = application.get("doc_review_status") == "rejected"
     ok, error = _save_application_documents(application, request.files)
     if not ok:
         flash(error, "error")
@@ -464,7 +467,11 @@ def create_org_upload_documents():
     # please-wait screen, which only still applies to a legacy in-flight
     # application that somehow reached here pre-provisioned.
     if application["status"] == "provisioned":
-        flash("Documents submitted -- your company is live. Log in below.", "info")
+        if was_rejected:
+            flash("Documents submitted -- we'll review them and email you. "
+                  "You can log in again once they're approved.", "info")
+        else:
+            flash("Documents submitted -- your company is live. Log in below.", "info")
         return redirect(f"/create_org/status/{application['id']}")
     return redirect(f"/create_org/pending?application_id={application['id']}")
 

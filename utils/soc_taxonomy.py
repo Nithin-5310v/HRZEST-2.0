@@ -249,16 +249,6 @@ def family_of(event_type):
     return classify(event_type)["family"]
 
 
-def event_types_for_family(family):
-    """Exact event types that belong to a family (used to build SQL filters)
-    plus the prefixes that default into it. -> (exact:list, prefixes:list)."""
-    exact = [k for k, v in _EXACT.items() if v[0] == family]
-    prefixes = [p + "." for p, v in _PREFIX.items() if v[0] == family]
-    if family == "detection":
-        prefixes = ["detection."]
-    return exact, prefixes
-
-
 def level_rank(level):
     return LEVEL_RANK.get((level or "").upper(), 1)
 

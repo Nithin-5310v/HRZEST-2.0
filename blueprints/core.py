@@ -14,7 +14,7 @@ from utils.auth import (
     admin_required,
     api_required, api_role_required, HR_ROLE, check_password_hash, generate_password_hash, password_needs_rehash, _hash_token,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
-    validate_new_password, dummy_password_check, _mask_identifier, stamp_password_version,
+    validate_new_password, own_company_name, dummy_password_check, _mask_identifier, stamp_password_version,
     turnstile_enabled, _TURNSTILE_SITE_KEY, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge
@@ -22,7 +22,7 @@ from utils.totp import send_mfa_login_email
 from utils.helpers import (
     _db, get_auth_config, validate_employee_email_domain,
     get_pending_counts, tpath, add_employee_seat_cap_check,
-    get_company_settings, _safe_app_url, company_today, encrypt_contact,
+    get_company_settings, _safe_app_url, company_today, encrypt_contact, csp_nonce_attr,
 )
 from utils.plan_limits import get_tenant_employee_count, calculate_price, format_price_inr, get_billing_snapshot
 from utils.email_utils import public_contact_email
@@ -456,8 +456,8 @@ def api_dashboard():
 @api_required
 def api_billing_status():
     """Mobile equivalent of the web's employee-count/seat-limit banner
-    (templates/employees.html) and Seats & Billing page
-    (templates/seat_checkout.html) -- same underlying data, same tables,
+    (templates/employees.html) and Settings -> Billing
+    (templates/settings/_fin_billing.html) -- same underlying data, same tables,
     just JSON instead of server-rendered HTML."""
     co = get_company_settings()
     employee_count = get_tenant_employee_count(g.tenant_db)
@@ -568,7 +568,8 @@ def _bridge_link_expired_response():
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
         "<title>Link Expired</title>"
-        "<style>body{font-family:'Segoe UI',sans-serif;background:#f1f5f9;display:flex;"
+        f"<style{csp_nonce_attr()}>"
+        "body{font-family:'Segoe UI',sans-serif;background:#f1f5f9;display:flex;"
         "align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;}"
         ".card{max-width:380px;text-align:center;background:#fff;border-radius:16px;"
         "padding:32px 24px;box-shadow:0 4px 20px rgba(0,0,0,0.08);}"
@@ -909,7 +910,7 @@ def api_employee_signup():
         except ValueError:
             return jsonify({"ok": False, "msg": "Date of joining must be in YYYY-MM-DD format."}), 400
 
-    _pw_ok, _pw_err = validate_new_password(password)
+    _pw_ok, _pw_err = validate_new_password(password, (emp_id, name, email, own_company_name()))
     if not _pw_ok:
         return jsonify({"ok": False, "msg": _pw_err}), 400
 
