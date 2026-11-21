@@ -990,7 +990,7 @@ export default function EmployeesScreen({ navigation }) {
                 <Text style={{ fontSize: 11, fontWeight: "700", color: "#475467", marginTop: 10 }}>INITIAL PASSWORD</Text>
                 <TextInput
                   style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10, marginTop: 4 }}
-                  placeholder="At least 8 characters"
+                  placeholder="At least 12 characters"
                   placeholderTextColor={colors.textLight}
                   value={newEmpPassword}
                   onChangeText={setNewEmpPassword}

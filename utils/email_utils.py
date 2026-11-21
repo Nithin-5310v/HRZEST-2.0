@@ -31,6 +31,43 @@ def _mask_email(email):
     return f"{local[:1]}***@{domain}"
 
 
+_SMTP_PORTS = frozenset({25, 465, 587, 2525})
+
+
+def smtp_host_problem(host, port):
+    """Why a tenant-set SMTP host/port may not be used, or None.
+
+    Security review 2026-11-20: the host is company-entered, so without this
+    the "send test email" button could make the server connect to internal
+    addresses (cloud metadata 169.254.169.254, 10.x, localhost services) and
+    probe them. Only the usual mail ports, and only hosts that resolve to
+    public addresses. A name that doesn't resolve is left to fail normally.
+    Off in development (APP_ENV=development), where a local relay is normal.
+    """
+    import ipaddress
+    import socket
+    if os.environ.get("APP_ENV", "production") == "development":
+        return None
+    try:
+        port = int(port)
+    except (TypeError, ValueError):
+        return "SMTP port must be a number."
+    if port not in _SMTP_PORTS:
+        return "SMTP port must be one of 25, 465, 587 or 2525."
+    host = (host or "").strip()
+    if not host:
+        return "SMTP host is required."
+    try:
+        infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError):
+        return None
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if not ip.is_global or ip.is_multicast:
+            return "SMTP host must be a public mail server."
+    return None
+
+
 def get_email_config():
     """Return SMTP config dict from DB, falling back to .env values.
 
@@ -232,6 +269,9 @@ def send_email_smtp(to_email, subject, html_body, config,
         msg.attach(part)
     context = ssl.create_default_context()
     port = int(config.get("port", 587))
+    _host_err = smtp_host_problem(config.get("host"), port)
+    if _host_err:
+        raise ValueError(_host_err)
     if port == 465:
         with smtplib.SMTP_SSL(config["host"], port, context=context, timeout=20) as server:
             server.login(config["user"], config["password"])

@@ -103,6 +103,19 @@ class TestLocalRules:
         assert check_new_password("Ab1!xyz") == (False, "short")
         assert check_new_password("") == (False, "short")
 
+    def test_minimum_is_twelve_characters(self):
+        """Security review 2026-11-20: 12, not 8 (NIST SP 800-63B)."""
+        assert check_new_password("Orbit-77kett") == (True, None)        # 12
+        assert check_new_password("Orbit-77ket") == (False, "short")     # 11
+
+    def test_absurdly_long_password_is_refused(self):
+        assert check_new_password("k" * 257) == (False, "long")
+
+    def test_company_signup_uses_the_shared_rule(self):
+        from blueprints.org.validation import _validate_signup_account
+        msg = _validate_signup_account("Policy Test Co", "policy@example.com", "9876543210", "Elevenchars")
+        assert msg and "12 characters" in msg
+
     @pytest.mark.parametrize("password, context", [
         ("RaviKumar#2025", ("ravi.kumar",)),            # username, punctuation ignored
         ("priya!Secure99", ("priya@acme.in",)),         # email local part

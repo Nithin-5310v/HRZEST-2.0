@@ -591,6 +591,37 @@ class TestApiRegisterEmployee:
         }, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 400
 
+    def test_no_password_does_not_default_to_the_employee_id(
+            self, client, seed_admin, db_engine, cleanup_emp_files):
+        """Security audit P4.2 follow-up: the starting password used to be the
+        employee ID itself, so anyone who knew the ID could sign in first."""
+        from utils.auth import check_password_hash
+        cleanup_emp_files.append("APIREG2")
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.post("/api/employees", data={
+            "name": "Api NoPass", "emp_id": "APIREG2",
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg"),
+        }, headers={"Authorization": f"Bearer {token}"})
+        cur = db_engine.cursor()
+        try:
+            assert resp.status_code == 200
+            cur.execute("SELECT password, force_pin_change FROM employees WHERE employee_id='APIREG2'")
+            pw_hash, force_change = cur.fetchone()
+            assert not check_password_hash(pw_hash, "APIREG2")
+            assert force_change == 1
+        finally:
+            cur.execute("DELETE FROM employees WHERE employee_id='APIREG2'")
+            cur.close()
+
+    def test_short_starting_password_is_rejected(self, client, seed_admin):
+        token = _admin_bearer_token(client, seed_admin)
+        resp = client.post("/api/employees", data={
+            "name": "Api Short", "emp_id": "APIREG3", "password": "Short@123",
+            "face": (io.BytesIO(_jpeg_bytes()), "f.jpg"),
+        }, headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 400
+        assert "12 characters" in resp.get_json()["msg"]
+
 
 class TestApiEmployeeDetail:
     def test_not_found(self, client, seed_admin):

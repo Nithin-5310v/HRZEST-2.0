@@ -32,7 +32,7 @@ from flask import copy_current_request_context, current_app, g, jsonify, request
 from database import get_db_connection, transaction
 from extensions import app_log, limiter, log_security_event
 from qr_generator import generate_qr
-from utils.auth import HR_ROLE, admin_required, generate_password_hash
+from utils.auth import HR_ROLE, admin_required, generate_password_hash, require_access
 from utils.billing_notices import notify_employee_added
 from utils.email_utils import _mask_email, get_email_config
 from utils.helpers import (
@@ -274,6 +274,7 @@ def employee_import_template():
 
 @employees_bp.route("/api/employees/import/preview", methods=["POST"])
 @admin_required
+@require_access("employees", "edit")
 @limiter.limit("30 per minute")
 def employee_import_preview():
     rows, error = _read_sheet(request.files.get("file"))
@@ -330,6 +331,7 @@ def _insert_employee(cursor, db, r, emp_id, password, company_id, assigned_hr):
 
 @employees_bp.route("/api/employees/import", methods=["POST"])
 @admin_required
+@require_access("employees", "edit")
 @limiter.limit("10 per minute")
 def employee_import():
     rows, error = _read_sheet(request.files.get("file"))

@@ -14,7 +14,9 @@ from tests.conftest import TEST_OFFICE
 
 
 @pytest.fixture(autouse=True)
-def _clean_attendance(seed_employee, db_engine):
+def _clean_attendance(seed_employee, db_engine, app_gps_checkin_on):
+    # app_gps_checkin_on: offline sync follows the company's check-in policy
+    # (security review 2026-11-20); these tests exercise the geofence itself.
     """Each test punches TST001 for 'today' — without this, an earlier
     test's login+logout leaks into the next test as a false 'day already
     complete' duplicate rejection."""

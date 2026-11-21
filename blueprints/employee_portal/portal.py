@@ -7,10 +7,10 @@ from database import get_db_connection
 from flask import jsonify, redirect, render_template, request, session
 from utils.attendance_utils import fetch_holidays_set, get_billable_past_days, infer_type_legacy, is_company_working_day
 from utils.auth import (
-    employee_api_required, employee_required, own_company_name, session_account_ok, validate_new_password,
+    employee_api_required, employee_required, own_company_name,
+    session_or_bearer_required, validate_new_password,
 )
 from utils.helpers import (
-    _db,
     amount,
     coerce_datetime,
     company_today,
@@ -22,6 +22,7 @@ from utils.helpers import (
 )
 from utils.leave_utils import assign_leave_balances_for_employee
 from utils.tenant_files import resolve_face_photo
+from utils.data_cache import data_cache
 from . import _fmt_t, employee_portal_bp
 
 
@@ -539,28 +540,13 @@ def api_employee_change_password():
 
 
 @employee_portal_bp.route("/api/employee/portal", methods=["GET"])
+@session_or_bearer_required(session_kinds=("employee",), token_types=("employee",))
+@data_cache("employee_portal")
 def api_employee_portal():
+    # An employee session that passes the per-request checks, or a live
+    # employee app token (security audit P2: standard guard, not inline).
     from flask import g as _g
-    # A session only counts if it passes the same per-request checks the
-    # decorators apply (kill switch, account active, password unchanged).
-    emp_id = (session.get("employee_id") if session_account_ok() else None) or getattr(_g, "api_emp_id", None)
-    if not emp_id:
-        auth = request.headers.get("Authorization", "")
-        if auth.startswith("Bearer "):
-            from utils.auth import _hash_token, _TOKEN_NOT_STALE_SQL, _employment_ended_sql, access_cutoff_date
-            token_hash = _hash_token(auth[7:])
-            with _db() as (cursor, _conn):
-                cursor.execute(
-                    "SELECT t.identity FROM api_tokens t WHERE t.token=%s AND t.token_type='employee' "
-                    f"AND t.expires_at > NOW() AND {_TOKEN_NOT_STALE_SQL} "
-                    f"AND NOT {_employment_ended_sql('t.identity')}",  # nosec B608 -- fixed module constants
-                    (token_hash, access_cutoff_date())
-                )
-                row = cursor.fetchone()
-                if row:
-                    emp_id = row[0]
-    if not emp_id:
-        return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    emp_id = _g.auth_identity
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

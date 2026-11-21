@@ -45,7 +45,10 @@ AGENT_HOST = "127.0.0.1"   # loopback ONLY — binding 0.0.0.0 would let any
 # this employee's device-risk data. Never widen
 # this without re-deriving the whole trust model.
 AGENT_PORT = 47823          # matches AGENT_URL in employee_portal.html
-ALLOWED_ORIGIN = os.environ.get("PORTAL_ORIGIN", "https://localhost:5000")
+ALLOWED_ORIGIN = os.environ.get("PORTAL_ORIGIN", "https://hrzest.com")
+# A DNS-rebinding page reaches this server under its own hostname; refusing
+# any Host other than the loopback address stops it reading the answer.
+_ALLOWED_HOSTS = {f"127.0.0.1:{AGENT_PORT}", f"localhost:{AGENT_PORT}"}
 CACHE_TTL_SEC = 10           # avoid re-shelling out on every rapid poll/retry
 SUBPROCESS_TIMEOUT = 5
 
@@ -198,7 +201,7 @@ def _score_gateway(ssid, gateway_ip, gateway_mac):
         _save_trust_store(store)
         return 0, []
     if pinned != gateway_mac:
-        return 65, [f"arp_gateway_mac_changed:{pinned}->{gateway_mac}"]   # alone crosses 60 —
+        return 65, ["arp_gateway_mac_changed"]   # alone crosses 60 —
         # this is the actual
         # spoofing signature
     return 0, []
@@ -247,10 +250,37 @@ class _RiskHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # don't spam a console window with every 30s poll
 
+    def _refuse(self, code):
+        self.send_response(code)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _caller_allowed(self):
+        """Loopback Host only (blocks DNS rebinding), and a browser caller
+        must be the portal itself (Origin), not any open tab."""
+        if (self.headers.get("Host") or "").strip().lower() not in _ALLOWED_HOSTS:
+            return False
+        origin = self.headers.get("Origin")
+        return origin is None or origin == ALLOWED_ORIGIN
+
+    def do_OPTIONS(self):
+        # Chrome's Private Network Access preflight for a public page calling loopback.
+        if self.path != "/risk" or not self._caller_allowed():
+            self._refuse(403)
+            return
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
+        self.send_header("Access-Control-Allow-Methods", "GET")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def do_GET(self):
         if self.path != "/risk":
-            self.send_response(404)
-            self.end_headers()
+            self._refuse(404)
+            return
+        if not self._caller_allowed():
+            self._refuse(403)
             return
         body = json.dumps(compute_posture()).encode()
         self.send_response(200)

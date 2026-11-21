@@ -14,6 +14,7 @@ from utils.helpers import (
     get_pending_action_counts,
 )
 from utils.payment_history import get_payment_history, get_plan_details
+from utils.data_cache import data_cache
 from . import admin_views_bp
 
 
@@ -164,6 +165,7 @@ def admin():
 
 @admin_views_bp.route("/api/admin/search")
 @admin_required
+@data_cache("admin_views")
 def api_admin_search():
     """Omnisearch across employees, tickets and leave requests for the
     admin dashboard's search bar. Static admin-page matches (Settings,
@@ -232,6 +234,7 @@ def api_admin_search():
 @admin_views_bp.route("/api/dashboard_live")
 @admin_required
 @require_access("attendance")
+@data_cache("admin_views")
 def dashboard_live():
     def fmt(t):
         if t is None:
@@ -309,6 +312,7 @@ def dashboard_live():
 @admin_views_bp.route("/api/attendance_chart_data")
 @admin_required
 @require_access("attendance")
+@data_cache("admin_views")
 def attendance_chart_data():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)

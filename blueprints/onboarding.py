@@ -9,7 +9,11 @@ from flask import Blueprint, request, session, redirect, render_template, render
 from database import get_db_connection
 from werkzeug.utils import secure_filename
 from utils.attendance_utils import standard_working_days_per_month
-from utils.auth import admin_required, employee_required, api_required, employee_api_required, any_user_required, require_access
+from utils.auth import (
+    admin_required, employee_required, api_required, employee_api_required, any_user_required, require_access,
+    api_require_access,
+)
+from utils.csp import trusted_html
 from utils.helpers import (
     tpath, get_company_settings, company_url, _db, hr_scope_column, hr_scope_denied, _validate_upload,
     company_today, company_now, _create_notification, int_param, encrypt_amount, amount,
@@ -19,6 +23,7 @@ from utils.storage import save_private, open_private
 from utils.email_utils import get_email_config, send_email_smtp, send_email_async
 from extensions import limiter, app_log, app, log_security_event
 from utils.tokens import waf_safe_token
+from utils.data_cache import data_cache
 
 onboarding_bp = Blueprint("onboarding", __name__)
 
@@ -112,10 +117,13 @@ def download_onboarding_document(task_id):
 
 @onboarding_bp.route("/api/onboarding", methods=["GET"])
 @api_required
+@api_require_access("onboarding", "view")
+@data_cache("onboarding")
 def api_onboarding():
     """API endpoint to fetch real onboarding records from database."""
+    _scope_sql, _scope_args = hr_scope_column("e")   # team-scoped token: its team only
     with _db() as (cursor, conn):
-        cursor.execute("""
+        cursor.execute(f"""
             SELECT eo.id, e.employee_id, e.name, COALESCE(e.role,'Role'), COALESCE(e.department,'General'),
                    ot.name AS template_name, eo.assigned_date, eo.due_date, COALESCE(eo.status,'In Progress'),
                    COUNT(eot.id) AS total_tasks,
@@ -124,9 +132,10 @@ def api_onboarding():
             JOIN employees e ON e.employee_id = eo.employee_id
             LEFT JOIN onboarding_templates ot ON ot.id = eo.template_id
             LEFT JOIN employee_onboarding_tasks eot ON eot.onboarding_id = eo.id
+            WHERE 1=1 {_scope_sql}
             GROUP BY eo.id, e.employee_id, e.name, e.role, e.department, ot.name, eo.assigned_date, eo.due_date, eo.status
             ORDER BY eo.assigned_date DESC
-        """)
+        """, _scope_args)  # nosec B608 -- fixed fragment
         rows = cursor.fetchall()
         records = []
         for r in rows:
@@ -150,6 +159,8 @@ def api_onboarding():
 
 @onboarding_bp.route("/api/onboarding/<int:ob_id>/tasks", methods=["GET"])
 @api_required
+@api_require_access("onboarding", "view")
+@data_cache("onboarding")
 def api_onboarding_tasks(ob_id):
     """Bearer-token twin of the task list half of onboarding_detail() below
     -- lets mobile show and update an individual onboarding's checklist,
@@ -177,6 +188,7 @@ def api_onboarding_tasks(ob_id):
 
 @onboarding_bp.route("/api/onboarding/task/<int:task_id>/update", methods=["POST"])
 @api_required
+@api_require_access("onboarding", "edit")
 def api_onboarding_task_update(task_id):
     """Bearer-token twin of onboarding_admin_task_update() below -- same
     two effects (set the task's status/notes, and auto-complete the parent
@@ -409,7 +421,9 @@ def export_onboarding_csv():
                     "Due Date", "Status", "Total Tasks", "Done Tasks", "Progress %"])
     for r in rows:
         pct = round(int(r[8] or 0) / int(r[7] or 1) * 100) if r[7] else 0
-        writer.writerow([r[0], r[1], r[2] or "", r[3], r[4], r[5], r[6], r[7], r[8] or 0, f"{pct}%"])
+        from utils.csv_export import spreadsheet_safe
+        writer.writerow([spreadsheet_safe(v) for v in
+                         (r[0], r[1], r[2] or "", r[3], r[4], r[5], r[6], r[7], r[8] or 0, f"{pct}%")])
     output.seek(0)
     audit_read("export_onboarding", "employee_onboarding", None, rows=len(rows), format="csv")
     from flask import Response
@@ -707,6 +721,7 @@ def onboarding_close():
 
 @onboarding_bp.route("/offer_letter/<int:ob_id>")
 @admin_required
+@require_access("onboarding", "edit")
 def offer_letter(ob_id):
     db = get_db_connection()
     cursor = db.cursor()
@@ -718,7 +733,8 @@ def offer_letter(ob_id):
         WHERE eo.id = %s
     """, (ob_id,))
     ob = cursor.fetchone()
-    if not ob:
+    # Team scope (security review 2026-11-20): offer letters carry the CTC.
+    if not ob or hr_scope_denied(ob[1]):
         cursor.close()
         db.close()
         flash("Onboarding record not found.", "danger")
@@ -741,9 +757,18 @@ def offer_letter(ob_id):
 
 @onboarding_bp.route("/offer_letter_save", methods=["POST"])
 @admin_required
+@require_access("onboarding", "edit")
 def offer_letter_save():
     ob_id = request.form.get("ob_id")
-    employee_id = request.form.get("employee_id")
+    # The employee comes from the onboarding record, never from the form, so a
+    # letter can't be forged for someone else (security review 2026-11-20).
+    with _db() as (_c, _conn):
+        _c.execute("SELECT employee_id FROM employee_onboarding WHERE id=%s", (ob_id,))
+        _ob_row = _c.fetchone()
+    if not _ob_row or hr_scope_denied(_ob_row[0]):
+        flash("Onboarding record not found.", "danger")
+        return redirect(tpath("/onboarding"))
+    employee_id = _ob_row[0]
     designation = request.form.get("designation", "")
     department = request.form.get("department", "")
     work_location = request.form.get("work_location", "")
@@ -790,6 +815,7 @@ def offer_letter_save():
 
 @onboarding_bp.route("/offer_letter_view/<int:letter_id>")
 @admin_required
+@require_access("onboarding", "view")
 def offer_letter_view(letter_id):
     db = get_db_connection()
     cursor = db.cursor()
@@ -808,7 +834,7 @@ def offer_letter_view(letter_id):
     co = get_company_settings()
     cursor.close()
     db.close()
-    if not letter:
+    if not letter or hr_scope_denied(letter[2]):
         flash("Offer letter not found.", "error")
         return redirect(tpath("/onboarding"))
     return render_template("offer_letter_view.html", letter=letter, co=co)
@@ -846,6 +872,15 @@ def _generate_offer_letter_pdf(letter, co):
     company = co.get("company_name", "Company")
     co_address = co.get("address", "")
     co_email_val = co.get("email", "")
+    # Every value below goes into ReportLab Paragraph markup, which reads
+    # tags such as <img src="/local/file"/>: escaped, so admin-entered text
+    # can't inject markup into a PDF served through the public candidate link
+    # (security review 2026-11-20).
+    from xml.sax.saxutils import escape as _rl_escape
+    (emp_name, designation, department, work_location, reporting_to, notes, company, co_address,
+     co_email_val, ref_num) = (_rl_escape(str(v or "")) for v in (
+        emp_name, designation, department, work_location, reporting_to, notes, company, co_address,
+        co_email_val, ref_num))
 
     def ps(name, **kw):
         base = dict(fontName="Helvetica", fontSize=10, leading=14, textColor=DARK)
@@ -889,7 +924,7 @@ def _generate_offer_letter_pdf(letter, co):
     # ── To block ───────────────────────────────────────────────────────────
     story.append(Paragraph("<b>To,</b>", sNormal))
     story.append(Paragraph(emp_name, sNormal))
-    story.append(Paragraph(f"Employee ID: {letter[2]}", sNormal))
+    story.append(Paragraph(f"Employee ID: {_rl_escape(str(letter[2] or ''))}", sNormal))
     story.append(Spacer(1, 8))
 
     # ── Subject ────────────────────────────────────────────────────────────
@@ -1038,6 +1073,7 @@ def _generate_offer_letter_pdf(letter, co):
 
 @onboarding_bp.route("/offer_letter_send/<int:letter_id>", methods=["POST"])
 @admin_required
+@require_access("onboarding", "edit")
 def offer_letter_send(letter_id):
     db = get_db_connection()
     cursor = db.cursor()
@@ -1054,6 +1090,8 @@ def offer_letter_send(letter_id):
     """, (letter_id,))
     letter = cursor.fetchone()
     co = get_company_settings()
+    if letter and hr_scope_denied(letter[2]):
+        letter = None
     if not letter or not letter[18]:
         flash("Employee email not found.", "error")
         cursor.close()
@@ -1399,9 +1437,10 @@ def offer_letter_pdf(token):
     cursor.close()
     db.close()
     if not letter:
-        return "<html><body style='font-family:Segoe UI,sans-serif;padding:60px;text-align:center;'>" \
-               "<h2 style='color:#dc2626;'>Invalid or expired link.</h2>" \
-               "<p>Please contact HR for a copy of your offer letter.</p></body></html>", 404
+        return trusted_html(
+            "<html><body style='font-family:Segoe UI,sans-serif;padding:60px;text-align:center;'>"
+            "<h2 style='color:#dc2626;'>Invalid or expired link.</h2>"
+            "<p>Please contact HR for a copy of your offer letter.</p></body></html>"), 404
     co = get_company_settings()
     pdf_bytes = _generate_offer_letter_pdf(letter, co)
     emp_name = letter[17]
@@ -1435,18 +1474,18 @@ def offer_letter_respond(token, action):
     if not row:
         cursor.close()
         db.close()
-        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+        return trusted_html("""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <h2 style="color:#dc2626;">Invalid or expired link.</h2>
-          <p>This offer letter link is not valid. Please contact HR.</p></body></html>""", 404
+          <p>This offer letter link is not valid. Please contact HR.</p></body></html>"""), 404
     letter_id, emp_id, existing_response, status = row
     if existing_response:
         label = "accepted" if existing_response == "accept" else "declined"
         color = "#16a34a" if existing_response == "accept" else "#dc2626"
         cursor.close()
         db.close()
-        return f"""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+        return trusted_html(f"""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <h2 style="color:{color};">You have already {label} this offer.</h2>
-          <p>Please contact HR if you wish to change your response.</p></body></html>"""
+          <p>Please contact HR if you wish to change your response.</p></body></html>""")
     if request.method == "GET":
         cursor.close()
         db.close()
@@ -1471,17 +1510,17 @@ def offer_letter_respond(token, action):
     cursor.close()
     db.close()
     if action == "accept":
-        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+        return trusted_html("""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <div style="font-size:56px;">&#127881;</div>
           <h2 style="color:#16a34a;margin-top:16px;">Offer Accepted!</h2>
           <p style="font-size:15px;margin-top:8px;">Thank you for accepting the offer. HR will reach out to you with next steps.</p>
-          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>"""
+          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>""")
     else:
-        return """<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
+        return trusted_html("""<html><body style="font-family:Segoe UI,sans-serif;text-align:center;padding:60px;color:#374151;">
           <div style="font-size:56px;">&#128533;</div>
           <h2 style="color:#dc2626;margin-top:16px;">Offer Declined</h2>
           <p style="font-size:15px;margin-top:8px;">We have noted your decision. Thank you for considering us. We wish you the best.</p>
-          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>"""
+          <p style="margin-top:24px;font-size:13px;color:#9ca3af;">You may close this window.</p></body></html>""")
 
 
 def _build_onboarding_context(emp_id):
@@ -1639,6 +1678,7 @@ def my_onboarding_task_done():
 
 @onboarding_bp.route("/api/employee/onboarding", methods=["GET"])
 @employee_api_required
+@data_cache("onboarding")
 def api_my_onboarding():
     """Bearer-token twin of my_onboarding() -- same query shape, JSON
     instead of a rendered template. Optional ?ob_id= selects a specific

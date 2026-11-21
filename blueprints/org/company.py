@@ -4,6 +4,7 @@ from extensions import log_security_event
 from flask import flash, g, jsonify, redirect, render_template, request
 from utils.auth import admin_required, api_required, api_role_required
 from utils.helpers import _safe_app_url, tpath
+from utils.data_cache import data_cache
 from . import org_bp
 from .applications import _APPLICATION_DOC_KINDS, _GENERIC_DUPLICATE_MSG, _save_application_documents
 from .duplicates import _record_duplicate_alert, check_duplicate_gst
@@ -201,6 +202,7 @@ def save_company_details(tenant, fields, logo_file):
 @org_bp.route("/api/admin/registration", methods=["GET"])
 @api_required
 @api_role_required("admin")
+@data_cache("org")
 def api_admin_registration():
     """The app's registration checklist (registration_checklist()), for the
     company its /<company_slug>/ prefix resolved to. steps is empty once

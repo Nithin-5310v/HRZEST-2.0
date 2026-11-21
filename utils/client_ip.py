@@ -129,7 +129,12 @@ def apply_proxy_fix(wsgi_app):
     hops = trusted_proxy_hops()
     if hops == 0:
         return wsgi_app
-    return ProxyFix(wsgi_app, x_for=hops, x_proto=hops, x_host=hops)
+    # x_host=0: nginx passes the real Host header through (proxy_set_header
+    # Host $host), so X-Forwarded-Host is never needed -- and nginx forwards a
+    # client-sent one untouched, which let anyone choose request.host and so
+    # the links in emailed reset/welcome/pay messages and the WebAuthn origin
+    # (Host-header poisoning; security review 2026-11-20).
+    return ProxyFix(wsgi_app, x_for=hops, x_proto=hops, x_host=0)
 
 
 # ── Shared-IP detection ──────────────────────────────────────────────────────

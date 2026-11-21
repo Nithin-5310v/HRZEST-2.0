@@ -12,9 +12,11 @@ from utils.auth import (
 )
 from utils.helpers import (
     tpath, _audit, _validate_upload, _safe_referrer_redirect, hr_scope_denied, _create_notification, validate_emp_id,
+    hr_scope_subquery,
     self_service_emp_id, self_service_return_path, audit_read,
 )
 from utils.storage import save_private, open_private, delete_private
+from utils.data_cache import data_cache
 
 documents_bp = Blueprint("documents", __name__)
 
@@ -218,8 +220,13 @@ def _fmt_doc(row):
 @documents_bp.route("/api/documents", methods=["GET"])
 @api_required
 @api_role_required("admin", "hr")
+@data_cache("documents")
 def api_documents_list():
     emp_id = request.args.get("emp_id", "").strip()
+    # Team scope for a team-scoped token (security review 2026-11-20).
+    _scope_sql, _scope_args = hr_scope_subquery("d")
+    if emp_id and hr_scope_denied(emp_id):
+        return jsonify({"ok": True, "documents": []})
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     if emp_id:
@@ -234,8 +241,9 @@ def api_documents_list():
             SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name,
                    d.uploaded_by, d.uploaded_at, d.expiry_date
             FROM employee_documents d JOIN employees e ON e.employee_id=d.employee_id
+            WHERE 1=1 {_scope_sql}
             ORDER BY d.uploaded_at DESC
-        """)
+        """.format(_scope_sql=_scope_sql), _scope_args)  # nosec B608 -- fixed fragment
     docs = [_fmt_doc(r) for r in cursor.fetchall()]
     cursor.close()
     db.close()
@@ -251,6 +259,8 @@ def api_documents_upload():
     f = request.files.get("document")
     if not emp_id or not doc_type or not f or not f.filename:
         return jsonify({"ok": False, "msg": "employee_id, doc_type, and a file are all required."}), 400
+    if hr_scope_denied(emp_id):
+        return jsonify({"ok": False, "msg": "Unknown employee."}), 404
     ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
@@ -292,7 +302,7 @@ def api_documents_delete(did):
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT employee_id, stored_name FROM employee_documents WHERE id=%s", (did,))
     row = cursor.fetchone()
-    if not row:
+    if not row or hr_scope_denied(row[0]):
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": "Document not found."}), 404
@@ -310,6 +320,7 @@ def api_documents_delete(did):
 
 @documents_bp.route("/api/employee/documents", methods=["GET"])
 @employee_api_required
+@data_cache("documents")
 def api_my_documents_list():
     emp_id = _g.api_emp_id
     db = get_db_connection()

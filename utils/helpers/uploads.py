@@ -181,17 +181,21 @@ def save_uploaded_logo(file_storage, name_hint):
     provided" as optional and skip calling this entirely rather than
     treating it as an error.
 
-    Deterministic filename (no re-upload dedup needed): a second signup
-    attempt for the same subdomain just overwrites the previous file,
-    which is fine since a subdomain can only ever back one live tenant."""
+    The filename gets a random suffix (security review 2026-11-20). It used
+    to be just the slug, and the public signup saved the logo before
+    checking the slug was free, so anyone could overwrite a live company's
+    logo by signing up with that company's address. Each upload is now a
+    new, unguessable file; the caller stores the returned path."""
     from flask import current_app
     from utils.storage import save_public
     ok, err = _validate_image_file(file_storage)
     if not ok:
         return None, err
     ext = os.path.splitext(file_storage.filename)[1].lower()
+    import secrets as _secrets
     safe_name = _LOGO_NAME_RE.sub("", name_hint.lower()) or "logo"
-    return save_public(current_app.root_path, file_storage, f"company_logos/{safe_name}{ext}",
+    unique = f"{safe_name}-{_secrets.token_hex(8)}"
+    return save_public(current_app.root_path, file_storage, f"company_logos/{unique}{ext}",
                        content_type=file_storage.content_type)
 
 

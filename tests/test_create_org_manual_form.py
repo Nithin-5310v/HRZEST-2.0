@@ -136,7 +136,7 @@ class TestRenderedFormReachesTheBackend:
         _, body = _manual_form(page)
         values = {
             "company_name": "Manual Form Co", "admin_email": "mf@manualform.test", "admin_mobile": "+91 98765 43210",
-            "admin_password": "password123",
+            "admin_password": "password-1234",
             "_csrf_token": html.unescape(re.search(r'name="_csrf_token"\s+value="([^"]+)"', body).group(1)),
         }
         # Only send what the page actually renders -- a field the form dropped

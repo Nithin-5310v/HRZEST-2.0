@@ -16,7 +16,10 @@ services:
     restart: always
     user: "10001:10001" # matches the loki image's built-in non-root user
     ports:
-      - "3100:3100"
+      # Never 0.0.0.0: Docker-published ports bypass ufw, and Loki runs with
+      # auth_enabled: false. Set LOKI_BIND_ADDR to this host's PRIVATE IP so only
+      # the app server (via the security group) can push (security review 2026-11-20).
+      - "${LOKI_BIND_ADDR:-127.0.0.1}:3100:3100"
     volumes:
       - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
       - ./rules:/loki/rules/fake:ro   # single-tenant (auth_enabled: false) org id is "fake"
@@ -53,7 +56,9 @@ services:
     restart: always
     user: "472:472" # grafana image's built-in non-root user
     ports:
-      - "3000:3000"
+      # Loopback by default; reach Grafana over an SSH tunnel, or set
+      # GRAFANA_BIND_ADDR to the private IP behind the admin-CIDR security group.
+      - "${GRAFANA_BIND_ADDR:-127.0.0.1}:3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana-provisioning:/etc/grafana/provisioning:ro

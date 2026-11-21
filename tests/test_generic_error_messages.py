@@ -135,6 +135,8 @@ class TestOAuthCallbacks:
         def _fail(*args, **kwargs):
             raise OAuthError(DETAIL)
         monkeypatch.setattr(oauth_signup, "complete_oauth", _fail)
+        from tests.conftest import bind_oauth_state
+        bind_oauth_state(client, "s")
 
         resp = client.get(path, follow_redirects=False)
 

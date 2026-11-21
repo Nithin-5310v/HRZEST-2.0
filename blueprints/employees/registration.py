@@ -13,7 +13,7 @@ from html import escape as _html_escape
 from qr_generator import generate_qr
 from urllib.parse import urlencode
 from utils.attendance_utils import standard_working_days_per_month
-from utils.auth import HR_ROLE, admin_required, generate_password_hash, session_account_ok
+from utils.auth import HR_ROLE, admin_required, generate_password_hash, require_access, session_or_bearer_required
 from utils.billing_notices import notify_employee_added
 from utils.email_utils import _mask_email, get_email_config, send_email_smtp
 from utils.helpers import (
@@ -35,6 +35,7 @@ from utils.tenant_files import face_photo_path
 from utils.webauthn_utils import _enroll_fingerprint_from_form
 from . import employees_bp
 from utils.tokens import waf_safe_token
+from utils.data_cache import data_cache
 
 
 def _send_welcome_credentials_email(emp_id, name, email, password=None, must_change=True):
@@ -167,6 +168,7 @@ def assign_default_onboarding(cursor, db, emp_id):
 
 @employees_bp.route("/add_employee_page", methods=["POST"])
 @admin_required
+@require_access("employees", "edit")
 def add_employee_page():
     name = request.form.get("name", "").strip()
     emp_id = request.form.get("emp_id", "").strip()
@@ -416,9 +418,9 @@ def add_employee_page():
 
 
 @employees_bp.route("/api/generate_emp_id")
+@session_or_bearer_required(session_kinds=("admin",), token_types=(), msg="not logged in")
+@data_cache("employees")
 def generate_emp_id():
-    if not session.get("admin_logged_in") or not session_account_ok():
-        return jsonify({"error": "not logged in"}), 401
     company_id_raw = request.args.get("company_id", "").strip()
     if not company_id_raw.isdigit() and session.get("active_company_id"):
         company_id_raw = str(session.get("active_company_id"))

@@ -145,7 +145,7 @@
               {% elif request.args.get('pwd_error') == 'mismatch' %}
                 <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> New passwords do not match.</div>
               {% elif request.args.get('pwd_error') == 'weak' %}
-                <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> Password must be at least 8 characters.</div>
+                <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> Password must be at least 12 characters.</div>
               {% elif request.args.get('pwd_error') == 'personal' %}
                 <div class="u-mb-14 u-c-dc2626 u-fs-13"><i class="ti ti-circle-x"></i> Password must not contain your name, username, email, company name or &#39;HRzest&#39;.</div>
               {% elif request.args.get('pwd_error') == 'breached' %}

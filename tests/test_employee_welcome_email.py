@@ -122,8 +122,11 @@ class TestApiRegisterEmployeeWelcomeEmail:
             to, subject, html = sent[0]
             assert to == "welmail003@test.local"
             assert "/employee_reset_password/" in html and "/login" in html
-            # No password given: the account's temporary password is the Employee ID.
-            assert html.count(emp_id) >= 2 and "Temporary password" in html
+            # No password given: the temporary password is random (it used to be
+            # the Employee ID, which anyone knowing the ID could use first --
+            # security review 2026-11-20).
+            assert emp_id in html and "Temporary password" in html
+            assert "Temporary password" in html
         finally:
             _cleanup_employee(db_engine, emp_id)
 

@@ -15,6 +15,7 @@ import calendar
 import io as _io
 import openpyxl
 from markupsafe import escape
+from utils.csp import trusted_html
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from flask import (
     Blueprint, request, session, redirect, jsonify, render_template,
@@ -22,15 +23,16 @@ from flask import (
 )
 
 from database import get_db_connection
+from utils.csv_export import spreadsheet_safe
 from extensions import app_log, limiter, log_security_event
 from utils.auth import (
     admin_required, employee_required, api_required, enforce_ownership, role_required, api_role_required, require_access,
-    email_settings_step_up_valid, any_user_required,
+    email_settings_step_up_valid, any_user_required, api_require_access,
 )
 from utils.helpers import (
     tpath, _audit, decrypt_pii, encrypt_pii, get_pending_counts, get_company_settings, company_today, coerce_datetime,
     hr_scope_column, int_param, parse_finite_float, encrypt_amount, amount, self_service_emp_id, csp_nonce, csp_nonce_attr,
-    audit_changes, audit_read,
+    audit_changes, audit_read, hr_scope_denied,
 )
 from utils.email_utils import get_email_config, send_email_async, send_email_smtp, _mask_email
 from utils.attendance_utils import (
@@ -42,6 +44,7 @@ from utils.salary_utils import (
     apply_statutory_deductions,
 )
 import utils.config as cfg
+from utils.data_cache import data_cache
 
 payroll_bp = Blueprint("payroll", __name__)
 
@@ -86,6 +89,12 @@ def update_salary():
     emp_id = request.form["emp_id"]
     salary = request.form["salary"]
     hike_date = request.form.get("hike_date") or None
+    # Team scope, and no self-raise for anyone below the owner (security
+    # review 2026-11-20).
+    if session.get("admin_role") not in ("admin", "superadmin") and (
+            hr_scope_denied(emp_id) or emp_id == session.get("admin_username")):
+        flash("You can't change this salary.", "error")
+        return redirect(tpath("/settings?tab=salary"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT salary_per_day, last_revised FROM salary_config WHERE employee_id=%s", (emp_id,))
@@ -307,7 +316,7 @@ def _build_salary_report_workbook(year, month, active_cid=None):
         ]
         fill = alt_fill if idx % 2 == 0 else None
         for col, val in enumerate(row_data, 1):
-            cell = ws.cell(row=idx + 1, column=col, value=val)
+            cell = ws.cell(row=idx + 1, column=col, value=spreadsheet_safe(val))
             cell.border = thin_border
             cell.alignment = center
             if fill:
@@ -583,6 +592,7 @@ def send_all_salary_emails():
 
 @payroll_bp.route("/lock_payroll", methods=["POST"])
 @admin_required
+@require_access("payroll", "edit")
 def lock_payroll():
     year = int_param(request.form["year"])
     month = int_param(request.form["month"])
@@ -603,6 +613,7 @@ def lock_payroll():
 
 @payroll_bp.route("/unlock_payroll", methods=["POST"])
 @admin_required
+@require_access("payroll", "edit")
 def unlock_payroll():
     year = int_param(request.form["year"])
     month = int_param(request.form["month"])
@@ -670,6 +681,7 @@ def api_unlock_payroll():
 @payroll_bp.route("/api/payroll/status", methods=["GET"])
 @api_required
 @api_role_required("admin", "hr")
+@data_cache("payroll")
 def api_payroll_status():
     """Whether a given year/month's payroll run is locked -- lets mobile
     show the same locked/unlocked state the web page's own query drives."""
@@ -810,7 +822,7 @@ def my_attendance_pdf():
                  "Half Day": "#dc2626", "Present": "#d97706"}.get(final, "#6b7280")
         rows_html += (
             f"<tr><td>{d.strftime('%d %b %Y')}</td><td>{d.strftime('%A')}</td><td>{fmt(lt)}</td>"
-            f"<td>{fmt(lot)}</td><td style='color:{color};font-weight:600;'>{final or 'Absent'}</td></tr>"
+            f"<td>{fmt(lot)}</td><td style='color:{color};font-weight:600;'>{escape(final or 'Absent')}</td></tr>"
         )
 
     billable = len(billable_past)
@@ -844,7 +856,7 @@ def my_attendance_pdf():
     <div class="sub">{escape(emp[1])} &nbsp;·&nbsp; {escape(emp[0])} &nbsp;·&nbsp; {escape(emp[2] or 'Employee')}</div>
     <div class="sub">{month_name}</div></div>
   <div class="meta">Generated: {company_today().strftime('%d %b %Y')}<br>
-    <button onclick="window.print()" style="margin-top:8px;padding:8px 16px;background:#1e3a8a;color:white;
+    <button type="button" data-on-click="print()" style="margin-top:8px;padding:8px 16px;background:#1e3a8a;color:white;
       border:none;border-radius:8px;cursor:pointer;font-size:13px;">🖨️ Print / Save PDF</button>
   </div>
 </div>
@@ -860,7 +872,9 @@ def my_attendance_pdf():
 <tbody>{rows_html}</tbody></table>
 <div class="footer">HRzest.com &nbsp;·&nbsp; {escape(emp[1])} &nbsp;·&nbsp; {month_name}</div>
 </body></html>"""
-    return html
+    # Built here with every DB value escaped, so its own <style> and style=""
+    # attributes are allowed explicitly (security audit P1).
+    return trusted_html(html)
 
 
 @payroll_bp.route("/apply_hike", methods=["POST"])
@@ -1044,6 +1058,7 @@ def award_performance_bonus():
 
 @payroll_bp.route("/save_hike_config", methods=["POST"])
 @admin_required
+@require_access("payroll", "edit")
 def save_hike_config():
     q = int_param(request.form.get("quarter", 1))
     yr = int_param(request.form.get("year", company_today().year))
@@ -1081,6 +1096,7 @@ def save_hike_config():
 @api_required
 @api_role_required("admin")
 @limiter.limit("10 per minute")
+@data_cache("payroll")
 def api_salary_config_get():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -1132,12 +1148,16 @@ def api_salary_config_post():
 
 @payroll_bp.route("/api/monthly_report", methods=["GET"])
 @api_required
+@api_require_access("attendance", "view")
+@data_cache("payroll")
 def api_monthly_report():
     year = int_param(request.args.get("year", company_today().year))
     month = int_param(request.args.get("month", company_today().month))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT employee_id, name FROM employees ORDER BY name")
+    _scope_sql, _scope_args = hr_scope_column()   # a team-scoped token sees only its team
+    cursor.execute(f"SELECT employee_id, name FROM employees WHERE 1=1 {_scope_sql} ORDER BY name",  # nosec B608
+                   _scope_args)
     employees = cursor.fetchall()
     _, last_day = calendar.monthrange(year, month)
     cursor.execute("""
@@ -1245,7 +1265,9 @@ def view_payslip(emp_id, year, month):
     html = _render_payslip_html(emp_id, year, month)
     if session.get("admin_logged_in") and isinstance(html, str):
         audit_read("view_payslip", "payroll", f"{emp_id}:{year}-{month:02d}")
-    return html
+    # build_salary_slip_html() escapes every employee value; its style=""
+    # attributes are allowed explicitly (security review 2026-11-20).
+    return trusted_html(html) if isinstance(html, str) else html
 
 
 def _render_payslip_html(emp_id, year, month):
@@ -1511,7 +1533,7 @@ def download_tax_statement(emp_id, year):
     </body>
     </html>
     """
-    return html_content, 200, {"Content-Type": "text/html"}
+    return trusted_html(html_content), 200, {"Content-Type": "text/html"}
 
 
 # ---------------- API: SHIFTS (JSON) ----------------

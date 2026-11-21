@@ -17,6 +17,7 @@ from database import get_db_connection
 from utils.auth import admin_required, any_user_required, api_required, api_role_required, employee_api_required, employee_required
 from utils.helpers import post_announcement
 from utils.push_utils import register_push_token
+from utils.data_cache import data_cache
 
 notifications_bp = Blueprint("notifications", __name__)
 
@@ -35,6 +36,7 @@ def _fmt(row):
 
 @notifications_bp.route("/api/notifications", methods=["GET"])
 @api_required
+@data_cache("notifications")
 def api_get_notifications():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -119,6 +121,7 @@ def api_register_push_token():
 
 @notifications_bp.route("/api/employee/notifications", methods=["GET"])
 @employee_api_required
+@data_cache("notifications")
 def api_employee_get_notifications():
     emp_id = _g.api_emp_id
     db = get_db_connection()

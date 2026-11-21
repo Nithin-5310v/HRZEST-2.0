@@ -54,7 +54,7 @@ from utils.helpers import tpath, _safe_app_url
 from utils.session_risk import ensure_session_id
 from utils.oauth_client import (
     provider_configured, build_authorize_url, complete_oauth, OAuthError,
-    PERSONAL_EMAIL_DOMAINS,
+    PERSONAL_EMAIL_DOMAINS, binding_ok, set_binding_cookie,
 )
 from utils.tokens import waf_safe_token
 
@@ -146,7 +146,7 @@ def oauth_signup_start(provider):
     except RuntimeError:
         flash(f"Sign up with {provider.title()} isn't available right now.", "error")
         return redirect("/create_org")
-    return redirect(url)
+    return set_binding_cookie(redirect(url), url)
 
 
 @oauth_signup_bp.route("/create_org/<provider>/callback")
@@ -164,6 +164,11 @@ def oauth_signup_callback(provider):
         return redirect("/create_org")
 
     redirect_uri = f"{_safe_app_url()}/create_org/{provider}/callback"
+    if not binding_ok(request, state):
+        log_security_event("auth.oauth_state_unbound", "OAuth callback without this browser's binding cookie",
+                           level="WARNING", provider=provider)
+        flash("Sign-up failed. Please try again.", "error")
+        return redirect("/create_org")
     try:
         identity = complete_oauth(provider, code, state, redirect_uri)
     except OAuthError as exc:
@@ -464,7 +469,7 @@ def oauth_login_start(provider):
     except RuntimeError:
         flash(f"Sign in with {provider.title()} isn't available right now.", "error")
         return redirect(tpath("/login"))
-    return redirect(url)
+    return set_binding_cookie(redirect(url), url)
 
 
 @oauth_signup_bp.route("/oauth/callback/<provider>")
@@ -481,6 +486,11 @@ def oauth_login_callback(provider):
         flash("Sign-in failed. Please try again.", "error")
         return redirect("/login")
 
+    if not binding_ok(request, state):
+        log_security_event("auth.oauth_state_unbound", "OAuth callback without this browser's binding cookie",
+                           level="WARNING", provider=provider)
+        flash("Sign-in failed. Please try again.", "error")
+        return redirect("/login")
     redirect_uri = f"{_safe_app_url()}/oauth/callback/{provider}"
     try:
         identity = complete_oauth(provider, code, state, redirect_uri)
@@ -513,6 +523,18 @@ def oauth_login_callback(provider):
 
     username, role, _active = row
     g.tenant_db = db_name  # request-scoped; makes the log line below (and anything else this request touches) resolve against the right schema
+    # Same account checks as the password login (security review
+    # 2026-11-20): an HR/manager whose employment has ended, or a company
+    # whose KYC documents were rejected, can't get in through OAuth either.
+    from blueprints.auth import _kyc_verification_blocks_login
+    from utils.auth import access_ended_message, employment_ended_on
+    _ended_on = employment_ended_on(username)
+    if _ended_on:
+        flash(access_ended_message(_ended_on), "error")
+        return redirect(f"/{subdomain}/login")
+    if _kyc_verification_blocks_login():
+        flash("Your company's documents were not approved. Check your email for details.", "error")
+        return redirect(f"/{subdomain}/login")
     _start_admin_session(username, role)
     log_security_event(
         "auth.oauth_login_success", f"OAuth login for '{username}' via {provider}",

@@ -22,6 +22,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.magzest.attendance",
+      "allowBackup": false,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",

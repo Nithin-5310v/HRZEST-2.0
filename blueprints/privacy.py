@@ -17,6 +17,7 @@ from database import get_db_connection
 from utils.auth import employee_api_required, role_required
 from utils.helpers import _audit
 from utils import privacy
+from utils.data_cache import data_cache
 
 privacy_bp = Blueprint("privacy", __name__)
 
@@ -113,6 +114,7 @@ def api_employee_consent():
 # ── administrator ───────────────────────────────────────────────────────────
 @privacy_bp.route("/api/admin/privacy/requests", methods=["GET"])
 @role_required("admin")
+@data_cache("privacy")
 def api_admin_privacy_requests():
     status = request.args.get("status", "open")
     db = get_db_connection()

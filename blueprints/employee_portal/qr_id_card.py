@@ -7,6 +7,7 @@ from qr_generator import generate_qr
 from utils.auth import employee_api_required, any_user_required
 from utils.helpers import self_service_emp_id
 from utils.storage import open_private
+from utils.data_cache import data_cache
 from . import employee_portal_bp
 
 
@@ -44,6 +45,7 @@ def my_qr():
 
 @employee_portal_bp.route("/api/employee/my_qr")
 @employee_api_required
+@data_cache("employee_portal")
 def api_my_qr():
     """Bearer-token twin of my_qr() above -- mobile has no session cookie
     (see mobile/src/api/client.js's own comment on this exact class of

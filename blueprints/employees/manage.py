@@ -28,6 +28,7 @@ from utils.storage import decrypted_stream, save_upload
 from utils.tenant_files import face_photo_path
 from . import employees_bp
 from utils.tokens import waf_safe_token
+from utils.data_cache import data_cache
 
 
 # Which module's edit access each admin_action needs (Settings -> Roles &
@@ -46,6 +47,19 @@ def admin_action():
     if not module or not can_access(module, "edit"):
         flash("You don't have access to that section.", "error")
         return redirect(tpath("/admin"))
+    # Security review 2026-11-20: a team-scoped role acts only on its own
+    # team, and nobody below the owner changes their own salary, password or
+    # face photo through here (the face photo is what check-in matches).
+    _target = (request.form.get("emp_id") or "").strip()
+    if _target and session.get("admin_role") != "admin":
+        if _hr_scope_denied(_target):
+            flash("Employee not found.", "error")
+            return redirect(tpath("/admin"))
+        if action in ("salary", "reset_password", "update_face") and _target == session.get("admin_username"):
+            log_security_event("access.denied", "Role-holder tried to change their own record via admin_action",
+                               level="WARNING", identifier=session.get("admin_username"), action=action)
+            flash("You can't change your own record here. Ask the Administrator.", "error")
+            return redirect(tpath("/admin"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
 
@@ -150,6 +164,9 @@ def admin_action():
 @require_access("employees", "edit")
 @limiter.limit("10 per minute")
 def delete_employee(emp_id):
+    if session.get("admin_role") != "admin" and (_hr_scope_denied(emp_id) or emp_id == session.get("admin_username")):
+        flash("Employee not found.", "error")
+        return redirect(tpath("/employees"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("SELECT face_image, qr_code FROM employees WHERE employee_id=%s", (emp_id,))
@@ -367,6 +384,7 @@ _EDIT_AUDIT_HIDDEN = ("email", "phone", "gender", "dob", "blood_group", "address
 
 @employees_bp.route("/edit_employee", methods=["POST"])
 @admin_required
+@require_access("employees", "edit")
 def edit_employee():
     emp_id = request.form["emp_id"].strip()
     if _hr_scope_denied(emp_id):
@@ -447,6 +465,22 @@ def edit_employee():
 
     _enc_email, _email_bidx = encrypt_contact("email", email)
     _enc_phone, _phone_bidx = encrypt_contact("phone", phone)
+    # The email is where password-reset links and login codes go, so changing
+    # it is changing who can sign in as this person (security review
+    # 2026-11-20). Only the owner Administrator may change the email of
+    # someone holding an access role, or their own; every change is audited
+    # and the old address is told.
+    cursor.execute("SELECT email, email_bidx FROM employees WHERE employee_id=%s", (emp_id,))
+    _old_email_row = cursor.fetchone()
+    _email_changed = bool(_old_email_row) and (_old_email_row[1] or None) != (_email_bidx or None)
+    if _email_changed and session.get("admin_role") != "admin" and (
+            access_role or emp_id == session.get("admin_username")):
+        cursor.close()
+        db.close()
+        log_security_event("access.denied", "Non-owner tried to change a role-holder's email",
+                           level="WARNING", identifier=session.get("admin_username"), target=emp_id)
+        flash("Only the Administrator can change the email of someone with an access role.", "error")
+        return redirect(tpath(f"/employee_profile/{emp_id}"))
     cursor.execute(
         "UPDATE employees SET name=%s, email=%s, email_bidx=%s, role=%s, access_role=%s, date_of_joining=%s, "
         "department=%s, manager_name=%s, manager_id=%s, phone=%s, phone_bidx=%s, gender=%s, dob=%s, blood_group=%s, "
@@ -461,6 +495,9 @@ def edit_employee():
          work_mode, work_lat, work_lon) + _reassign_params + (emp_id,)
     )
     db.commit()
+    if _email_changed:
+        _audit("change_employee_email", "employees", emp_id, "sign-in email changed")
+        _notify_old_email(_old_email_row[0], name)
     cursor.close()
     db.close()
     _after = {
@@ -486,6 +523,7 @@ def edit_employee():
 
 @employees_bp.route("/api/employee_info/<emp_id>")
 @admin_required
+@data_cache("employees")
 def api_employee_info(emp_id):
     if _hr_scope_denied(emp_id):
         return jsonify({"error": "not found"}), 404
@@ -539,3 +577,20 @@ def api_employee_info(emp_id):
         "ec_phone": decrypt_pii(ec_phone) or "",
         "ec_rel": decrypt_pii(ec_rel) or "",
     })
+
+
+def _notify_old_email(old_encrypted_email, name):
+    """Tell the previous address that the sign-in email was changed, so a
+    takeover through an email change doesn't go unnoticed. Best effort."""
+    try:
+        from utils.email_utils import get_email_config, send_email_async
+        from utils.helpers import decrypt_pii
+        old = decrypt_pii(old_encrypted_email) if old_encrypted_email else None
+        if not old:
+            return
+        body = ("<p>Hello,</p><p>The sign-in email address on your HRZEST account was just changed "
+                "by your company's administrator. If you didn't expect this, contact your HR or "
+                "administrator straight away.</p>")
+        send_email_async(old, "Your HRZEST sign-in email was changed", body, get_email_config())
+    except Exception:
+        app_log.warning("Old-address notice for an email change could not be queued", exc_info=True)

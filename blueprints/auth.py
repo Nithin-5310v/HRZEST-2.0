@@ -15,15 +15,15 @@ from flask import (
 from extensions import app, limiter, app_log, log_security_event
 from database import get_db_connection
 from utils.auth import (
-    generate_password_hash, check_password_hash, password_needs_rehash, _hash_token,
+    generate_password_hash, check_password_hash, password_needs_rehash,
     _check_login_lockout, _record_login_failure, _clear_login_failures,
     admin_required, role_required, employee_required, any_user_required, employee_api_required,
     _get_failed_count, verify_turnstile, turnstile_enabled,
     CAPTCHA_AFTER_ATTEMPTS, _TURNSTILE_SITE_KEY, HR_ROLE, MANAGER_ROLE,
     api_required, validate_new_password, check_new_password, own_company_name,
     verify_and_update_password, _mask_identifier,
-    dummy_password_check, record_password_change, stamp_password_version, _TOKEN_NOT_STALE_SQL,
-    session_account_ok, employment_ended_on, access_ended_message,
+    dummy_password_check, record_password_change, stamp_password_version,
+    session_or_bearer_required, employment_ended_on, access_ended_message,
 )
 from utils.login_otp import issue_challenge, verify_challenge, discard_challenge
 from utils.helpers import (
@@ -34,6 +34,7 @@ from utils.email_utils import get_email_config, send_email_smtp, send_email_asyn
 from utils.session_risk import end_session_server_side, ensure_session_id
 from utils.totp import verify_totp_code, send_mfa_login_email, mark_totp_enabled
 from utils.face_utils import verify_uploaded_face
+from utils.data_cache import data_cache
 from utils.webauthn_utils import (
     webauthn, _webauthn_available, _wa_rp_id, _wa_check_rp_id, _wa_origins,
     _wa_b64url_encode, _wa_b64url_decode, _wa_verify_and_store_registration,
@@ -1164,6 +1165,21 @@ def _request_password_reset(login):
     return "send_failed", _RESET_SEND_FAILED
 
 
+# One answer whatever happened (security review 2026-11-20). The specific
+# outcomes ("no account", "no email on file") told anyone which emails and
+# employee IDs exist in every company on the platform; they now go only to
+# the server log.
+_RESET_UNIFORM_MSG = (f"If an account matches, a password reset link has been sent to the email address on file. "
+                      f"It expires in {RESET_TOKEN_VALID_HOURS} hours. No email? Contact your HR or administrator.")
+
+
+def _log_reset_outcome(outcome):
+    if outcome in ("send_failed", "not_configured"):
+        app_log.error("Password reset email not sent: %s", outcome)
+    else:
+        app_log.info("Password reset request: %s", outcome)
+
+
 @auth_bp.route("/forgot_password", methods=["GET", "POST"])
 @auth_bp.route("/admin_forgot_password", methods=["GET", "POST"])
 @auth_bp.route("/employee_forgot_password", methods=["GET", "POST"])
@@ -1177,10 +1193,9 @@ def forgot_password():
     if not login:
         return render_template("forgot_password.html", sent=False, message=None, email="",
                                error="Please enter your email address.")
-    outcome, msg = _request_password_reset(login)
-    if outcome == "sent":
-        return render_template("forgot_password.html", sent=True, message=msg, error=None, email=login)
-    return render_template("forgot_password.html", sent=False, message=None, error=msg, email=login)
+    outcome, _msg = _request_password_reset(login)
+    _log_reset_outcome(outcome)
+    return render_template("forgot_password.html", sent=True, message=_RESET_UNIFORM_MSG, error=None, email=login)
 
 
 @auth_bp.route("/api/forgot_password", methods=["POST"])
@@ -1188,16 +1203,15 @@ def forgot_password():
 @limiter.limit("20 per hour")
 def api_forgot_password():
     """The app's "Forgot password?": the same search and email as the web
-    form. 200 when a link was sent, 404 when no account has this email, 422
-    when it has no email on file, 400 for an empty box, 503 when the email
-    couldn't be sent."""
+    form. Always 200 with the same message (no account enumeration), 400 for
+    an empty box."""
     data = request.get_json(silent=True) or {}
     login = str(data.get("email") or "").strip()
     if not login:
         return jsonify({"ok": False, "code": "empty", "msg": "Please enter your email address."}), 400
-    outcome, msg = _request_password_reset(login)
-    status = {"sent": 200, "not_found": 404, "no_email": 422}.get(outcome, 503)
-    return jsonify({"ok": outcome == "sent", "code": outcome, "msg": msg}), status
+    outcome, _msg = _request_password_reset(login)
+    _log_reset_outcome(outcome)
+    return jsonify({"ok": True, "code": "sent", "msg": _RESET_UNIFORM_MSG}), 200
 
 
 @auth_bp.route("/admin_reset_password/<token>", methods=["GET", "POST"])
@@ -1325,8 +1339,6 @@ def force_change_pin():
             error = _pw_err
         elif new_pwd != confirm:
             error = "Passwords do not match."
-        elif new_pwd in ("1234", "12345678", "password", "admin123"):
-            error = "That password is too common. Please choose a stronger one."
         else:
             db = get_db_connection()
             cursor = db.cursor(buffered=True)
@@ -1359,15 +1371,11 @@ def force_change_pin():
 
 @auth_bp.route("/webauthn/status", methods=["GET"])
 def webauthn_status():
-    """Diagnostic endpoint -- shows WebAuthn config without exposing sensitive data."""
-    return jsonify({
-        "webauthn_available": _webauthn_available,
-        "rp_id": _wa_rp_id() if _webauthn_available else None,
-        "expected_origins": _wa_origins() if _webauthn_available else [],
-        "challenge_in_session": bool(session.get("wa_reg_challenge")),
-        "request_host": request.host,
-        "request_scheme": request.scheme,
-    })
+    """Public capability probe: only whether fingerprint/passkey sign-in is
+    available. The RP id, expected origins and the request's host/scheme
+    are no longer returned -- internal configuration an outsider has no need
+    for (security review 2026-11-20); they are in the server log at boot."""
+    return jsonify({"webauthn_available": _webauthn_available})
 
 
 def _wa_has_credential(emp_id):
@@ -1436,7 +1444,9 @@ def api_kiosk_enroll_face_verify():
     cursor.close()
     db.close()
     if not row:
-        return jsonify({"ok": False, "msg": "Employee not found"}), 404
+        # Same answer as a failed face match, so this unauthenticated kiosk
+        # endpoint can't be used to test which employee IDs exist.
+        return jsonify({"ok": False, "msg": "Face not recognised. Please try again."}), 401
 
     from utils.tenant_files import face_logs_dir
     face_dir = face_logs_dir()
@@ -1507,7 +1517,18 @@ def webauthn_registration_options():
         return jsonify({"ok": False, "error": "Could not start WebAuthn registration. Please try again."}), 500
 
 
+def _wa_decoy_credential_id(emp_id):
+    """A stable, fake credential id for an employee ID with no passkey (or
+    no such employee), so the response looks the same either way and can't
+    be used to enumerate employees (security review 2026-11-20)."""
+    import hmac as _hmac
+    import hashlib as _hashlib
+    key = (app.secret_key or "").encode() if isinstance(app.secret_key, str) else (app.secret_key or b"")
+    return _hmac.new(key, b"wa-decoy:" + emp_id.encode(), _hashlib.sha256).digest()[:32]
+
+
 @auth_bp.route("/webauthn/authentication-options", methods=["GET"])
+@limiter.limit("20 per minute")
 def webauthn_authentication_options():
     """Server-generated WebAuthn authentication options with challenge stored in session."""
     if not _webauthn_available:
@@ -1534,6 +1555,10 @@ def webauthn_authentication_options():
                     )]
             except Exception as db_exc:
                 app_log.warning("WebAuthn auth-options: DB lookup failed for emp=%s: %s", emp_id, db_exc)
+            if not allow_creds:
+                allow_creds = [PublicKeyCredentialDescriptor(
+                    id=_wa_decoy_credential_id(emp_id), transports=[AuthenticatorTransport.INTERNAL]
+                )]
 
         options = webauthn.generate_authentication_options(
             rp_id=rp_id, allow_credentials=allow_creds, user_verification=UserVerificationRequirement.REQUIRED,
@@ -1708,43 +1733,18 @@ def webauthn_unenroll():
 
 @auth_bp.route("/api/employee/<emp_id>/webauthn-credential", methods=["GET"])
 @limiter.limit("30 per minute")
+@session_or_bearer_required()
+@data_cache("auth")
 def get_employee_webauthn_credential(emp_id):
-    """Return the stored WebAuthn credential_id -- requires an active admin or employee session."""
-    is_admin = session.get("admin_logged_in")
-    session_emp = session.get("employee_id")
-    if (is_admin or session_emp) and not session_account_ok():
-        is_admin = session_emp = None  # stale/flagged session -- fall through to Bearer check
-    token_emp = None  # set below only for an employee-type Bearer token
-    if not (is_admin or session_emp):
-        # Also accept a valid Bearer token (kiosk uses admin token)
-        auth = request.headers.get("Authorization", "")
-        if auth.startswith("Bearer "):
-            token_hash = _hash_token(auth[7:])
-            with _db() as (cursor, _):
-                cursor.execute(
-                    "SELECT t.identity, t.token_type FROM api_tokens t WHERE t.token=%s AND t.expires_at > NOW() "
-                    f"AND {_TOKEN_NOT_STALE_SQL}",  # nosec B608 -- fixed module constant
-                    (token_hash,)
-                )
-                token_row = cursor.fetchone()
-                if not token_row:
-                    return jsonify({"ok": False, "msg": "Unauthorized"}), 401
-                # Same ownership rule as a real employee session below --
-                # this path previously only checked the token was valid,
-                # never binding its identity to `emp_id` at all, so any
-                # employee's own token could fetch any OTHER employee's
-                # credential_id. An admin-type token (kiosk) is still
-                # unrestricted, matching the comment above.
-                if token_row[1] == "employee":
-                    token_emp = token_row[0]
-        else:
-            return jsonify({"ok": False, "msg": "Unauthorized"}), 401
+    """Return the stored WebAuthn credential_id -- for a signed-in admin or
+    employee (session or app token; the kiosk uses an admin token)."""
+    from flask import g as _g
     emp_id = emp_id.strip().upper()
     # Employees (session- or token-based) may only retrieve their own
     # credential; admins and admin-type Bearer tokens can retrieve any.
-    if session_emp and not is_admin and session_emp.upper() != emp_id:
-        return jsonify({"ok": False, "msg": "Unauthorized"}), 403
-    if token_emp and token_emp.upper() != emp_id:
+    # The token path once skipped this binding and leaked other employees'
+    # credential IDs; the guard is now the standard decorator (audit P2).
+    if _g.auth_kind != "admin" and str(_g.auth_identity).upper() != emp_id:
         return jsonify({"ok": False, "msg": "Unauthorized"}), 403
     try:
         db = get_db_connection()

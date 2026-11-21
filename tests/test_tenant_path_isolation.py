@@ -76,7 +76,7 @@ class TestPathBasedLogin:
     def test_login_under_company_slug_sets_tenant_session(self, client, two_tenants):
         slug_a, schema_a, _, _ = two_tenants
         resp = client.post(f"/{slug_a}/login", data={
-            "identifier": ADMIN_A, "password": "password123",
+            "identifier": ADMIN_A, "password": "password-1234",
         }, follow_redirects=False)
         assert resp.status_code == 302
         assert resp.headers["Location"].startswith(f"/{slug_a}/")
@@ -105,7 +105,7 @@ class TestCrossTenantSessionIsolation:
         slug_a, schema_a, slug_b, schema_b = two_tenants
 
         client.post(f"/{slug_a}/login", data={
-            "identifier": ADMIN_A, "password": "password123",
+            "identifier": ADMIN_A, "password": "password-1234",
         }, follow_redirects=False)
         with client.session_transaction() as sess:
             assert sess.get("tenant_slug") == slug_a  # sanity check
@@ -129,7 +129,7 @@ class TestCrossTenantSessionIsolation:
         the SAME company's URL must never trigger a false-positive clear."""
         slug_a, schema_a, _, _ = two_tenants
         client.post(f"/{slug_a}/login", data={
-            "identifier": ADMIN_A, "password": "password123",
+            "identifier": ADMIN_A, "password": "password-1234",
         }, follow_redirects=False)
 
         resp = client.get(f"/{slug_a}/admin", follow_redirects=False)
@@ -145,7 +145,7 @@ class TestCrossTenantSessionIsolation:
         mismatch -- only an actual DIFFERENT company's URL should clear."""
         slug_a, _, _, _ = two_tenants
         client.post(f"/{slug_a}/login", data={
-            "identifier": ADMIN_A, "password": "password123",
+            "identifier": ADMIN_A, "password": "password-1234",
         }, follow_redirects=False)
 
         resp = client.get("/healthz", follow_redirects=False)
@@ -174,7 +174,7 @@ class TestBareLoginKeepsSessionCompany:
 
         client.get(f"/{slug_a}/login")
         resp = client.post("/login", data={
-            "identifier": ADMIN_A, "password": "password123",
+            "identifier": ADMIN_A, "password": "password-1234",
         }, follow_redirects=False)
         assert resp.headers["Location"] == "/mfa_verify"
 
@@ -190,7 +190,7 @@ class TestBareLoginKeepsSessionCompany:
         slug_a, schema_a, _, _ = two_tenants
         client.get(f"/{slug_a}/login")
         resp = client.post("/login", data={
-            "identifier": ADMIN_A, "password": "password123",
+            "identifier": ADMIN_A, "password": "password-1234",
         }, follow_redirects=False)
         assert resp.status_code == 302
         with client.session_transaction() as sess:
@@ -226,7 +226,7 @@ class TestFormFieldCannotSelectTenant:
         # Log in as tenant A's admin -- session/tenant_db is now bound to
         # schema_a, exactly like every other request in this file.
         client.post(f"/{slug_a}/login", data={
-            "identifier": ADMIN_A, "password": "password123",
+            "identifier": ADMIN_A, "password": "password-1234",
         }, follow_redirects=False)
         with client.session_transaction() as sess:
             assert sess.get("tenant_db") == schema_a  # sanity check

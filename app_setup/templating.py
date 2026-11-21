@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import utils.config as cfg
+import utils.csp as _csp
 from database import get_db_connection, get_master_db
 from extensions import app, app_log
 from flask import g as _g, session
@@ -188,6 +189,11 @@ class CspNonceExtension(Extension):
 
 app.jinja_env.add_extension(CspNonceExtension)
 app.jinja_env.globals["csp_nonce"] = csp_nonce
+# style="" attributes written in template source are allowed by hash while the
+# template renders; markup that arrives through a variable is not (utils/csp.py;
+# security review 2026-11-20 -- the response used to hash every style="" in it).
+app.jinja_env.filters["csp_style_attr"] = _csp.csp_style_attr_filter
+app.jinja_env.add_extension(_csp.CspStyleAttrExtension)
 
 
 @app.context_processor

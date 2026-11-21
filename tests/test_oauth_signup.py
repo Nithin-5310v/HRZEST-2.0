@@ -156,6 +156,15 @@ class TestCompleteOAuth:
 # blueprints/oauth_signup.py -- route-level, complete_oauth() mocked out
 # ===========================================================================
 
+
+@pytest.fixture(autouse=True)
+def _bound_oauth_state(client):
+    """The route-level tests return with state=xyz; this is the cookie the
+    start of that flow would have set in the browser."""
+    from tests.conftest import bind_oauth_state
+    bind_oauth_state(client, "xyz")
+
+
 def _start_signup(client, monkeypatch, sub, email, name):
     """Returns from the provider for `email` and lands on the emailed-code
     step. Returns (pending_id, token, emailed_code)."""
