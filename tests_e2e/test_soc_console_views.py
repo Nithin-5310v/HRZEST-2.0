@@ -220,7 +220,7 @@ def test_every_view_renders_cleanly(browser, soc, viewport):
         page.wait_for_load_state("networkidle")
         page.locator("#view tbody tr").first.locator("td").first.click()     # the row, not its IP link
         expect(page.locator("#drawer")).to_be_visible()
-        page.wait_for_load_state("networkidle")
+        expect(page.locator("#drawer")).to_contain_text("Event type")         # its details, not the placeholder
         if SHOTS:
             page.screenshot(path=os.path.join(SHOTS, f"{viewport}-event-drawer.png"), full_page=True)
         # A firewall decision: the last table on the Firewall view is "Recent decisions".
@@ -235,6 +235,40 @@ def test_every_view_renders_cleanly(browser, soc, viewport):
         if SHOTS:
             page.screenshot(path=os.path.join(SHOTS, f"{viewport}-firewall-drawer.png"), full_page=True)
         assert problems == [], "\n".join(problems)
+    finally:
+        ctx.close()
+
+
+@pytest.mark.parametrize("leave", ["escape", "navigate"])
+def test_details_that_arrive_after_you_left_do_not_reopen_the_drawer(browser, soc, leave):
+    """The event drawer opens with a placeholder and fills in when its request
+    returns. Closing it (Esc) or going to another view first must win: the late
+    reply used to reopen the drawer over whatever was on screen."""
+    ctx = browser.new_context(viewport=VIEWPORTS["desktop"])
+    page = ctx.new_page()
+    try:
+        _sign_in(page, soc)
+        page.goto(soc["url"] + "/socperson#/events")
+        page.wait_for_load_state("networkidle")
+        held = []
+        page.route(re.compile(r"/socperson/api/events/\d+$"), lambda route: held.append(route))   # hold the detail request
+        page.locator("#view tbody tr").first.locator("td").first.click()
+        expect(page.locator("#drawer")).to_be_visible()
+        for _ in range(100):                           # the handler runs while Playwright waits
+            if held:
+                break
+            page.wait_for_timeout(50)
+        assert len(held) == 1, "the event detail request never went out"
+        if leave == "escape":
+            page.keyboard.press("Escape")
+        else:
+            page.goto(soc["url"] + "/socperson#/traffic")
+        expect(page.locator("#drawer")).to_be_hidden()
+        with page.expect_response(re.compile(r"/socperson/api/events/\d+$")):
+            held.pop().continue_()
+        page.wait_for_timeout(300)                     # let the reply's handler run
+        expect(page.locator("#drawer")).to_be_hidden()
+        expect(page.locator("#scrim")).to_be_hidden()
     finally:
         ctx.close()
 

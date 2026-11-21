@@ -284,20 +284,27 @@
   }
   SOC.confirm = function (msg, opts) { return dialog(msg, Object.assign({ danger: true }, opts || {})); };
   SOC.prompt = function (msg, opts) { return dialog(msg, Object.assign({ input: true }, opts || {})); };
-  var drawerEl = document.getElementById('drawer'), scrim = document.getElementById('scrim'), lastFocus = null;
+  // `shown` moves on with every open and close. A drawer that fills in after a
+  // request (an event, a case) keeps what open() returned and checks showing()
+  // before filling, so a reply that arrives after the drawer was closed,
+  // replaced, or left (route() closes it) can't reopen it over another view.
+  var drawerEl = document.getElementById('drawer'), scrim = document.getElementById('scrim'), lastFocus = null, shown = 0;
   SOC.drawer = {
     open: function (title, node) {
-      lastFocus = document.activeElement;
+      if (drawerEl.hidden) lastFocus = document.activeElement;   // not the drawer's own Close when it refills
       document.getElementById('drawerTitle').textContent = title;
       var b = document.getElementById('drawerBody'); b.textContent = ''; b.appendChild(node);
       drawerEl.hidden = false; scrim.hidden = false;
       document.getElementById('drawerClose').focus();
+      return ++shown;
     },
     close: function () {
+      shown++;
       drawerEl.hidden = true; scrim.hidden = true;
       if (lastFocus && lastFocus.focus) lastFocus.focus();
     },
-    isOpen: function () { return !drawerEl.hidden; }
+    isOpen: function () { return !drawerEl.hidden; },
+    showing: function (token) { return token === shown && !drawerEl.hidden; }
   };
   document.getElementById('drawerClose').addEventListener('click', SOC.drawer.close);
   scrim.addEventListener('click', SOC.drawer.close);
