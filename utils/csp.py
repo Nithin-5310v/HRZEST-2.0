@@ -31,7 +31,7 @@ import re
 
 from flask import g, has_request_context
 from jinja2.ext import Extension
-from markupsafe import Markup
+from markupsafe import escape
 
 # A style="" attribute in template *source*. Single-quoted style='' attributes
 # are not used in templates (the test suite checks), so only the double-quoted
@@ -86,10 +86,11 @@ def csp_style_attr_filter(value):
     rendered attribute value and return it unchanged.
 
     The block's body arrives as Markup (Jinja has already escaped every
-    variable in it), so it is returned as Markup to avoid escaping it twice.
+    variable in it); escape() returns Markup as it is and escapes anything
+    else, so nothing is escaped twice and nothing unescaped gets through.
     """
     allow_style_attr(value)
-    return Markup(value)
+    return escape(value)
 
 
 class CspStyleAttrExtension(Extension):
