@@ -62,6 +62,19 @@ def _parse_networks(cidrs):
 _BUILTIN_NETS = _parse_networks(_BUILTIN_PROTECTED_CIDRS)
 
 
+def internal_networks():
+    """The built-in non-routable ranges (loopback, RFC1918, CGNAT, link-local,
+    ULA) as CIDR strings -- for SQL that must apply is_internal_ip's rule
+    server-side (utils/firewall_events.py)."""
+    return [str(n) for n in _BUILTIN_NETS]
+
+
+def never_ban_networks():
+    """Every range is_protected_ip refuses to ban: the built-in internal ranges
+    plus WAF_NEVER_BAN_CIDRS. ipaddress network objects."""
+    return list(_BUILTIN_NETS) + _extra_networks()
+
+
 def _extra_networks():
     """Operator-supplied never-ban CIDRs (office egress IPs, uptime probes,
     the reverse proxy). Re-read on each call: it's a handful of CIDRs and

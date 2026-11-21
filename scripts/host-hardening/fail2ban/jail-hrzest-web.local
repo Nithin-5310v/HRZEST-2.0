@@ -1,0 +1,57 @@
+# /etc/fail2ban/jail.d/hrzest-web.local -- web-tier jails (docs/FIREWALL.md,
+# layer 3). Installed by scripts/host-hardening/install_fail2ban_web.sh next
+# to hrzest-sshd.local (SSH + recidive, from install_ssh_hardening.sh).
+#
+# A ban here drops the address at the host firewall (nftables) for a while.
+# The firewall agent reads /var/log/fail2ban.log and reports every ban to the
+# SOC console, where it waits in Ban review: an analyst can make it a
+# platform-wide ban (copied to the AWS edge too) or trust the address if it is
+# a customer office. Behind the AWS edge a host-level ban does not stop web
+# traffic (it arrives from the load balancer), so there that review step is
+# what turns a fail2ban ban into a real one.
+#
+# Thresholds are high on purpose: customers often share one office or
+# mobile-network address, and a shift-start login rush must not ban them.
+# __IGNOREIP__ is filled in by the installer (--ignore).
+
+[hrzest-modsec]
+# Requests ModSecurity refused (attack payloads, scanners).
+enabled   = true
+backend   = auto
+filter    = hrzest-modsec
+logpath   = /var/log/nginx/hrzest-error.log
+port      = http,https
+banaction = nftables-multiport
+maxretry  = 5
+findtime  = 10m
+bantime   = 1h
+bantime.increment = true
+bantime.maxtime   = 1w
+ignoreip  = 127.0.0.1/8 ::1 __IGNOREIP__
+
+[hrzest-nginx-limit]
+# Sustained rate-limit refusals (hzwaf_* zones): a flood, not a busy office.
+enabled   = true
+backend   = auto
+filter    = hrzest-nginx-limit
+logpath   = /var/log/nginx/hrzest-error.log
+port      = http,https
+banaction = nftables-multiport
+maxretry  = 120
+findtime  = 10m
+bantime   = 15m
+ignoreip  = 127.0.0.1/8 ::1 __IGNOREIP__
+
+[hrzest-nginx-auth]
+# Failed API sign-ins (401/403 from /api/login and friends). Web form sign-ins
+# answer 200 either way, so the app's own account lockout covers those.
+enabled   = true
+backend   = auto
+filter    = hrzest-nginx-auth
+logpath   = /var/log/nginx/hrzest-access.json
+port      = http,https
+banaction = nftables-multiport
+maxretry  = 30
+findtime  = 10m
+bantime   = 1h
+ignoreip  = 127.0.0.1/8 ::1 __IGNOREIP__

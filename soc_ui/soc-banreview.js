@@ -12,8 +12,8 @@
   const BAN_DURATIONS = [['15', '15 minutes'], ['60', '1 hour'], ['1440', '24 hours'], ['10080', '7 days'], ['43200', '30 days'], ['0', 'Until lifted']];
   const TRUST_DAYS = [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['365', '1 year'], ['0', 'Until revoked']];
   const TABS = [['pending', 'Pending'], ['trusted', 'Trusted'], ['banned', 'Banned'], ['dismissed', 'Dismissed']];
-  const SOURCE_LABEL = { waf: 'WAF blocks', ratelimit: 'Rate limit', honeypot: 'Honeypot path', 'honeypot-tcp': 'Decoy port' };
-  const SOURCE_CLS = { waf: 'sev-high', ratelimit: 'sev-low', honeypot: 'sev-critical', 'honeypot-tcp': 'sev-critical' };
+  const SOURCE_LABEL = { waf: 'WAF blocks', ratelimit: 'Rate limit', honeypot: 'Honeypot path', 'honeypot-tcp': 'Decoy port', fail2ban: 'fail2ban (host)' };
+  const SOURCE_CLS = { waf: 'sev-high', ratelimit: 'sev-low', honeypot: 'sev-critical', 'honeypot-tcp': 'sev-critical', fail2ban: 'sev-high' };
 
   const select = (options, value, attrs) => {
     const s = h('select', Object.assign({ class: 'select' }, attrs || {}));

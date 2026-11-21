@@ -26,6 +26,7 @@ import time
 import urllib.parse
 
 from utils import soc_taxonomy as tax
+from utils.scanner_signatures import SCANNER_UA_RE
 
 MAX_BYTES = int(float(os.environ.get("SOC_LOG_MAX_MB", "5")) * 1024 * 1024)
 MAX_LINES = 100_000
@@ -218,9 +219,7 @@ _PROBE_PATHS = re.compile(
     r"/\.env\b|/\.git(?:/|$)|/\.aws/|/\.ssh/|/\.svn|/\.DS_Store|/wp-(?:admin|login|content|includes)|/xmlrpc\.php|/phpmyadmin"
     r"|/pma/|/vendor/phpunit|/actuator(?:/|$)|/server-status|/cgi-bin/|/config\.(?:php|json|ya?ml)|/backup\.(?:zip|sql|tar|gz)"
     r"|/id_rsa|/boaform/|/HNAP1|/_ignition/|/solr/|/jenkins|/\.well-known/security\.txt\.bak|/admin\.php|/shell\.php|/eval-stdin\.php", _I)
-_SCANNER_UA = re.compile(
-    r"sqlmap|nikto|nmap|masscan|zgrab|gobuster|dirbuster|dirb\b|wpscan|nuclei|acunetix|nessus|openvas|burp|havij|w3af"
-    r"|arachni|metasploit|ffuf|feroxbuster|whatweb|netsparker|appscan|paros|skipfish|jaeles|dalfox", _I)
+_SCANNER_UA = SCANNER_UA_RE     # shared with the in-app WAF, which blocks on it
 _TOOL_UA = re.compile(r"^(?:curl|wget|python-requests|go-http-client|libwww-perl|okhttp|java/|httpclient)", _I)
 _LOGIN_PATH = re.compile(
     r"/(?:login|admin_login|admin-login|employee_login|super_admin/login|soc/login|api/login|api/employee/login"

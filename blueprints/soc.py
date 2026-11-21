@@ -252,7 +252,8 @@ def logout_everywhere():
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "soc_ui")
 _PUBLIC_ASSETS = frozenset({"login.css"})
 _PRIVATE_ASSETS = frozenset({"soc.css", "soc-core.js", "soc-views.js", "soc-analysis.js", "soc-banreview.js",
-                             "soc-traffic.js", "soc-health.js"})
+                             "soc-traffic.js", "soc-health.js",
+                             "soc-firewall.js"})
 
 
 @soc_bp.route("/socperson/assets/<name>")
@@ -681,3 +682,31 @@ def api_ban_review_decide():
     ok, msg = soc_ban_review.decide(d.get("ip"), d.get("action"), _actor(), _ip(),
                                     minutes=d.get("minutes"), days=d.get("days"), note=d.get("note"))
     return _ok(message=msg) if ok else _err(msg)
+
+
+# ── firewall layers (utils/firewall_events.py; view: soc_ui/soc-firewall.js) ──
+_FIREWALL_HOURS = (1, 24, 168, 720)
+
+
+def _firewall_hours():
+    hours = clamp_int(request.args.get("hours"), 24, 1, 720)
+    return hours if hours in _FIREWALL_HOURS else 24
+
+
+@soc_bp.route("/socperson/api/firewall")
+@soc_required("viewer")
+def api_firewall():
+    from utils import firewall_events
+    return _ok(**firewall_events.overview(_firewall_hours()))
+
+
+@soc_bp.route("/socperson/api/firewall/events")
+@soc_required("viewer")
+def api_firewall_events():
+    from utils import firewall_events
+    before = request.args.get("before")
+    rows = firewall_events.events(
+        _firewall_hours(), layer=request.args.get("layer") or None, action=request.args.get("action") or None,
+        ip=(request.args.get("ip") or "").strip() or None,
+        before_id=clamp_int(before, 0, 1, 2 ** 62) if before else None)
+    return _ok(events=rows)

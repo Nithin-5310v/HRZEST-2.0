@@ -1,0 +1,46 @@
+# /etc/systemd/system/hrzest-fw-agent.service -- the firewall agent
+# (scripts/firewall_agent/hrzest_fw_agent.py, docs/FIREWALL.md). Installed by
+# scripts/firewall_agent/install_firewall_agent.sh.
+#
+# Root, because it reads root/adm-owned logs and edits an nftables table, but
+# boxed in: those two capabilities only, a read-only OS, its own state
+# directory as the one writable path, no home directories, no new privileges.
+[Unit]
+Description=HRZEST firewall agent (firewall layers <-> SOC console)
+After=network-online.target ufw.service nginx.service fail2ban.service hrzest.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/hrzest/firewall-agent.env
+ExecStart=/usr/bin/python3 -I /opt/hrzest-fw/hrzest_fw_agent.py run
+Restart=always
+RestartSec=5
+StateDirectory=hrzest-fw
+StateDirectoryMode=0700
+
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_DAC_READ_SEARCH
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/hrzest-fw
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+MemoryMax=256M
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -146,6 +146,50 @@ STATEMENTS = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_soc_ban_reviews_status ON soc_ban_reviews (status, last_seen DESC)",
+    # Block / allow decisions from every firewall layer (utils/firewall_events.py,
+    # docs/FIREWALL.md): the AWS edge WAF, VPC flow logs, the host firewall,
+    # nginx + ModSecurity, fail2ban and the app's own guards. One row per
+    # decision, or per (source, rule, address, minute) when a reporter
+    # aggregates; `hits` carries the count. `path` and `detail` are
+    # attacker-controlled text: the console renders them as text only.
+    """
+    CREATE TABLE IF NOT EXISTS firewall_events (
+        id           BIGSERIAL    PRIMARY KEY,
+        occurred_at  TIMESTAMP    NOT NULL,
+        received_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        layer        VARCHAR(16)  NOT NULL
+                     CHECK (layer IN ('edge','network','host','proxy','fail2ban','app')),
+        action       VARCHAR(12)  NOT NULL
+                     CHECK (action IN ('block','allow','count','challenge','ban','unban')),
+        src_ip       VARCHAR(64),
+        dst_port     INT,
+        protocol     VARCHAR(10),
+        method       VARCHAR(10),
+        host         VARCHAR(255),
+        path         VARCHAR(512),
+        rule         VARCHAR(200),
+        detail       VARCHAR(500),
+        country      VARCHAR(2),
+        hits         INT          NOT NULL DEFAULT 1 CHECK (hits > 0),
+        source       VARCHAR(64)  NOT NULL
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_firewall_events_time ON firewall_events (occurred_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_firewall_events_ip ON firewall_events (src_ip, occurred_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_firewall_events_layer ON firewall_events (layer, action, occurred_at DESC)",
+    # One row per reporter (the app itself, each host's firewall agent): when it
+    # last reported and the status it sent, so the console can say which layer
+    # has gone quiet instead of showing a reassuring zero.
+    """
+    CREATE TABLE IF NOT EXISTS firewall_sources (
+        source        VARCHAR(64)  PRIMARY KEY,
+        first_seen    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_seen     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_ip       VARCHAR(64),
+        events_total  BIGINT       NOT NULL DEFAULT 0,
+        status_json   TEXT
+    )
+    """,
 ]
 
 

@@ -35,7 +35,10 @@ from utils.soc_util import clamp_int, iso, looks_like_ip
 
 STATUSES = ("pending", "banned", "dismissed", "trusted")
 ACTIONS = ("ban", "dismiss", "trust")
-SOURCES = ("waf", "ratelimit", "honeypot", "honeypot-tcp")
+# fail2ban: a host-level ban (nginx/ModSecurity jails), reported by the firewall
+# agent (utils/firewall_events.py). It lapses on the host by itself; here it
+# can become a platform-wide ban, or be trusted.
+SOURCES = ("waf", "ratelimit", "honeypot", "honeypot-tcp", "fail2ban")
 MAX_BAN_MINUTES = 60 * 24 * 365
 MAX_TRUST_DAYS = 365
 LIST_LIMIT = 200
