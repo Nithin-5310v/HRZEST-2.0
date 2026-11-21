@@ -286,7 +286,21 @@ def api_me():
 @soc_bp.route("/socperson/api/pulse")
 @soc_required("viewer")
 def api_pulse():
-    return _ok(**soc_queries.pulse())
+    from utils import live_feed
+    return _ok(**soc_queries.pulse(), kpis=live_feed.kpis())
+
+
+@soc_bp.route("/socperson/api/stream")
+@soc_required("viewer")
+def api_stream():
+    """The live feed (utils/live_feed.py): one short Server-Sent Events response;
+    the browser reconnects after `retry` and sends Last-Event-ID."""
+    from utils import live_feed
+    last = live_feed.parse_last_id(request.headers.get("Last-Event-ID") or request.args.get("since"))
+    resp = make_response(live_feed.stream_body(last))
+    resp.mimetype = "text/event-stream"
+    resp.headers["X-Accel-Buffering"] = "no"
+    return resp
 
 
 @soc_bp.route("/socperson/api/traffic")
