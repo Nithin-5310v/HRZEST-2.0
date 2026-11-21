@@ -11,6 +11,7 @@ from utils.face_utils import _face_recognition_available, face_recognition, dete
 from utils.helpers import (
     _audit,
     _validate_image_file,
+    audit_changes,
     add_employee_seat_cap_check,
     amount,
     decrypt_pii,
@@ -194,9 +195,10 @@ def api_edit_employee(emp_id):
         return jsonify({"ok": False, "msg": "name required"}), 400
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("SELECT role FROM employees WHERE employee_id=%s", (emp_id,))
+    cursor.execute("SELECT name, email, role, date_of_joining FROM employees WHERE employee_id=%s", (emp_id,))
     _prev_row = cursor.fetchone()
-    _prev_role = _prev_row[0] if _prev_row else None
+    _before = dict(zip(("name", "email", "role", "date_of_joining"), _prev_row)) if _prev_row else {}
+    _before["email"] = decrypt_pii(_before.get("email"))
     _enc_email, _email_bidx = encrypt_contact("email", email)
     cursor.execute(
         "UPDATE employees SET name=%s, email=%s, email_bidx=%s, role=%s, date_of_joining=%s WHERE employee_id=%s",
@@ -205,8 +207,10 @@ def api_edit_employee(emp_id):
     db.commit()
     cursor.close()
     db.close()
-    if role != _prev_role:
-        _audit("update_employee_role", "employees", emp_id, f"role changed from {_prev_role!r} to {role!r} (via API)")
+    if _prev_row:
+        audit_changes("update_employee", "employees", emp_id, _before,
+                      {"name": name, "email": email, "date_of_joining": date_of_joining}, hidden=("email",))
+        audit_changes("update_employee_role", "employees", emp_id, _before, {"role": role})
     return jsonify({"ok": True, "msg": "Employee updated."})
 
 

@@ -25,6 +25,7 @@ from database import get_db_connection
 from utils.auth import role_required, HR_ROLE
 from utils.helpers import (
     tpath, hr_scope_column, hr_scope_subquery, hr_scope_denied, get_company_settings, company_today, int_param,
+    audit_read,
 )
 from utils.attendance_utils import attendance_pct_series
 
@@ -236,6 +237,7 @@ def api_hr_dashboard_payroll_report():
         "net": e.get("net", 0),
         "payslip_url": tpath(f"/api/hr_dashboard/payroll/payslip/{e['emp_id']}/{year}/{month}"),
     } for e in salary_data]
+    audit_read("view_salary_report", "payroll", f"{year}-{month:02d}", employees=len(rows), via="hr_dashboard")
     return jsonify({"ok": True, "year": year, "month": month, "rows": rows})
 
 
@@ -250,7 +252,10 @@ def api_hr_dashboard_payslip(emp_id, year, month):
     if hr_scope_denied(emp_id):
         return "Employee not found", 404
     from blueprints.payroll import _render_payslip_html
-    return _render_payslip_html(emp_id, year, month)
+    html = _render_payslip_html(emp_id, year, month)
+    if isinstance(html, str):
+        audit_read("view_payslip", "payroll", f"{emp_id}:{year}-{month:02d}", via="hr_dashboard")
+    return html
 
 
 @hr_dashboard_bp.route("/api/hr_dashboard/payroll/overtime")
