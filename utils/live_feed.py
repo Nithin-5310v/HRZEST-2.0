@@ -63,7 +63,9 @@ def kpis():
                     "COALESCE(SUM(hits) FILTER (WHERE status = 403), 0) "
                     "FROM http_minute_stats WHERE minute >= NOW() - INTERVAL '1 hour'")
         s401, s403 = cur.fetchone()
+    from utils import session_registry
     value = {
+        "signed_in": session_registry.count_signed_in(),
         "failed_logins_1h": failed_1h, "failed_logins_24h": failed_24h, "lockouts_24h": lockouts_24h,
         "alerts_1h": alerts_1h, "alerts_24h": alerts_24h,
         "blocked_ips": blocked, "blocked_ips_testing": blocked_testing,

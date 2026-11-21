@@ -556,6 +556,14 @@
         </div>
         {% endif %}
 
+        {# Where this account is signed in (blueprints/my_sessions.py) #}
+        <div class="section u-mt-22" id="my-sessions">
+          <h3><i class="ti ti-devices hz-ico" aria-hidden="true"></i> Where you're signed in</h3>
+          <p class="u-fs-13 u-c-64748b u-m-0-0-16">Every browser signed in to your account right now. Sign out any you don't recognise, then change your password.</p>
+          <div data-my-sessions data-endpoint="{{ tpath('/api/my/sessions') }}"></div>
+        </div>
+        <script src="{{ static_url('js/my-sessions.js') }}" defer></script>
+
         {% if fp_enabled %}
         {# FINGERPRINT ENROLLMENT #}
         <div class="section u-mt-22" id="fp-enroll-section">
