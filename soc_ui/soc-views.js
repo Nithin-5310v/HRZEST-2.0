@@ -87,8 +87,9 @@
     e.path ? h('div', { class: 'mono note wrap' }, (e.method || '') + ' ' + e.path) : null);
 
   SOC.openEvent = function (id) {
-    SOC.drawer.open('Event #' + id, SOC.skeleton());
+    const token = SOC.drawer.open('Event #' + id, SOC.skeleton());
     api.get('/socperson/api/events/' + id).then(({ event: e }) => {
+      if (!SOC.drawer.showing(token)) return;      // closed or left while it loaded
       const box = h('div', { class: 'stack' });
       box.appendChild(h('div', { class: 'row' }, SOC.level(e.level), SOC.chip(e.family_label || e.family, 'plain'), SOC.mitre(e.mitre)));
       box.appendChild(h('p', null, e.message));
@@ -128,7 +129,7 @@
         if (list && list.length) box.appendChild(SOC.card(t, h('ul', { class: 'list' }, list.map(eventRowLite))));
       });
       SOC.drawer.open('Event #' + id, box);
-    }).catch((err) => SOC.drawer.open('Event #' + id, SOC.callout(err.message, 'bad')));
+    }).catch((err) => SOC.drawer.showing(token) && SOC.drawer.open('Event #' + id, SOC.callout(err.message, 'bad')));
   };
 
   /* ============ overview ============ */
@@ -434,8 +435,9 @@
 
   /* ============ cases ============ */
   function openCase(id) {
-    SOC.drawer.open('Case #' + id, SOC.skeleton());
+    const token = SOC.drawer.open('Case #' + id, SOC.skeleton());
     Promise.all([api.get('/socperson/api/cases/' + id), api.get('/socperson/api/assignees')]).then(([{ case: c }, { assignees }]) => {
+      if (!SOC.drawer.showing(token)) return;      // closed or left while it loaded
       const box = h('div', { class: 'stack' });
       const status = select([['open', 'Open'], ['investigating', 'Investigating'], ['contained', 'Contained'], ['resolved', 'Resolved'], ['false_positive', 'False positive']], c.status, { id: 'cStatus' });
       const sev = select(['critical', 'high', 'medium', 'low', 'info'].map((s) => [s, s]), c.severity, { id: 'cSev2' });
@@ -467,7 +469,7 @@
           act(api.post('/socperson/api/cases/' + id + '/notes', { body: note.value }), 'Note added').then(() => openCase(id)).catch(() => {});
         } }, note, h('button', { class: 'btn small', type: 'submit' }, 'Add note')) : null)));
       SOC.drawer.open('Case #' + id, box);
-    }).catch((err) => SOC.drawer.open('Case #' + id, SOC.callout(err.message, 'bad')));
+    }).catch((err) => SOC.drawer.showing(token) && SOC.drawer.open('Case #' + id, SOC.callout(err.message, 'bad')));
   }
   SOC.register({
     id: 'cases', label: 'Cases', title: 'Cases',
