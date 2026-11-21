@@ -442,7 +442,7 @@ jobs:
           tests/test_soc_console.py tests/test_soc_ban_review.py tests/test_soc_password.py
           tests/test_soc_digest.py tests/test_soc_posture_alerts.py tests/test_platform_admin_soc.py
           tests/test_soc_loganalysis.py tests/test_soc_taxonomy.py tests/test_http_telemetry.py
-          tests/test_health_telemetry.py
+          tests/test_health_telemetry.py tests/test_soc_live_feed.py
 
   e2e-soc:
     # The SOC console in a real browser:

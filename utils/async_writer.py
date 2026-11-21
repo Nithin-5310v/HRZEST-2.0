@@ -71,11 +71,32 @@ def set_synchronous_mode(enabled: bool = True):
     _SYNCHRONOUS_MODE = enabled
 
 
-def is_synchronous_mode() -> bool:
-    """True under the test suite (see set_synchronous_mode). Callers that
-    batch writes themselves (utils/firewall_events.py) flush at once then,
-    so a test sees the row as soon as the request returns."""
-    return _SYNCHRONOUS_MODE
+def _request_schema():
+    """The company schema of the request queuing a write (flask.g.tenant_db),
+    or None outside a request / for the default schema."""
+    try:
+        from flask import g, has_app_context
+        if has_app_context():
+            return getattr(g, "tenant_db", None)
+    except Exception:
+        return None
+    return None
+
+
+def _run(fn, args, kwargs, schema):
+    """Run a queued write the way it would have run in the request: with that
+    request's company schema, so database.get_db_connection() inside it points
+    at the same schema. The writer thread has no request of its own, and before
+    this every queued write fell back to "public" -- failed company logins were
+    counted where the lockout never looked, and company session risk scores
+    never reached the session they were about (tests/test_async_writer_schema.py)."""
+    if not schema:
+        return fn(*args, **kwargs)
+    from flask import g
+    from extensions import app
+    with app.app_context():
+        g.tenant_db = schema
+        return fn(*args, **kwargs)
 
 
 def enqueue_write(fn, *args, **kwargs):
@@ -84,6 +105,11 @@ def enqueue_write(fn, *args, **kwargs):
     (sustained overload), the write is dropped rather than blocking the
     request thread, which would defeat the purpose of calling this at all.
     Rate-limits its own drop-warning so a flood can't also flood the logs.
+
+    The write runs against the queuing request's company schema, exactly as
+    it would have run inline (and as the test suite runs it). A write that
+    belongs in one fixed schema opens that schema itself
+    (extensions._persist_security_event -> public).
     """
     if _SYNCHRONOUS_MODE:
         try:
@@ -93,7 +119,7 @@ def enqueue_write(fn, *args, **kwargs):
                           getattr(fn, "__name__", fn), e)
         return
     try:
-        _write_queue.put_nowait((fn, args, kwargs))
+        _write_queue.put_nowait((fn, args, kwargs, _request_schema()))
     except queue.Full:
         global _last_drop_log
         import time as _t
@@ -114,9 +140,9 @@ def _worker():
     the original problem; 1 writer means there's never anything to fight
     over)."""
     while True:
-        fn, args, kwargs = _write_queue.get()
+        fn, args, kwargs, schema = _write_queue.get()
         try:
-            fn(*args, **kwargs)
+            _run(fn, args, kwargs, schema)
         except Exception as e:
             app_log.error("Async security write failed (%s): %s",
                           getattr(fn, "__name__", fn), e)

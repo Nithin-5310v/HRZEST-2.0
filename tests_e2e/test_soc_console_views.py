@@ -250,3 +250,28 @@ def test_long_attacker_values_wrap_instead_of_widening_the_page(browser, soc):
         assert page.evaluate("document.documentElement.scrollWidth - window.innerWidth") <= 1
     finally:
         ctx.close()
+
+
+def test_new_events_arrive_live(browser, soc, db_conn):
+    """The live feed (/socperson/api/stream): an event recorded while the Events
+    list is open is announced within seconds, without reloading the page."""
+    ctx = browser.new_context(viewport=VIEWPORTS["desktop"])
+    page = ctx.new_page()
+    try:
+        problems, _ = _watch(page, {"view": "live feed"})
+        _sign_in(page, soc)
+        expect(page.locator("#view")).to_contain_text("Right now", timeout=10_000)
+        expect(page.locator("#liveText")).to_contain_text("Live", timeout=10_000)
+        page.goto(soc["url"] + "/socperson#/events")
+        expect(page.locator("#view tbody tr").first).to_be_visible(timeout=10_000)
+        page.wait_for_timeout(500)
+        cur = db_conn.cursor()
+        cur.execute("INSERT INTO public.security_events (event_type, level, message, identifier, ip, path, method, tenant) "
+                    "VALUES ('auth.failure', 'WARNING', 'Invalid password', 'live@acme.example', '45.33.32.156', '/login', "
+                    "'POST', 'e2e-co')")
+        cur.close()
+        # the stream reconnects every 5 s; well under the 30 s fallback poll
+        expect(page.locator("#view")).to_contain_text("1 new event since this list loaded", timeout=12_000)
+        assert problems == [], "\n".join(problems)
+    finally:
+        ctx.close()
