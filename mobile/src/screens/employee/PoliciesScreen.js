@@ -79,7 +79,10 @@ export default function PoliciesScreen() {
   const contactRows = contact ? [
     contact.contact_email && { icon: "mail-outline", text: contact.contact_email, url: `mailto:${contact.contact_email}` },
     contact.contact_phone && { icon: "call-outline", text: contact.contact_phone, url: `tel:${contact.contact_phone.replace(/[^\d+]/g, "")}` },
-    contact.website && { icon: "globe-outline", text: contact.website, url: contact.website },
+    // https only: the website is admin-entered text, and Linking.openURL would
+    // otherwise open any scheme (intent:, file:, a javascript: page...).
+    contact.website && /^https:\/\//i.test(contact.website.trim()) &&
+      { icon: "globe-outline", text: contact.website, url: contact.website.trim() },
   ].filter(Boolean) : [];
 
   return (
