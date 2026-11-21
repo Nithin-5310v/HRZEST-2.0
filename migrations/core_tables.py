@@ -523,6 +523,24 @@ def _init_core_tables(cursor, db):
             updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Signed-in sessions, so people can see and end their own and the SOC can
+    # list them (utils/session_registry.py). Whether one is still alive also
+    # depends on session_risk.status (logout, password change, revocation).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            sid          VARCHAR(64)  PRIMARY KEY,
+            identifier   VARCHAR(150) NOT NULL,
+            kind         VARCHAR(20)  NOT NULL,
+            started_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_seen_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            ip           VARCHAR(64),
+            network      VARCHAR(64),
+            browser      VARCHAR(80),
+            ended_at     TIMESTAMP,
+            ended_reason VARCHAR(80)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_sessions_identifier ON user_sessions (identifier, last_seen_at DESC)")
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS security_events (
             id          SERIAL PRIMARY KEY,

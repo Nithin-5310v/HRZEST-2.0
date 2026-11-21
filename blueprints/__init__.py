@@ -47,6 +47,7 @@ BLUEPRINTS = (
     ("privacy", "privacy_bp"),
     ("soc", "soc_bp"),
     ("firewall_ingest", "firewall_ingest_bp"),
+    ("my_sessions", "my_sessions_bp"),
 )
 
 

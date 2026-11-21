@@ -552,6 +552,16 @@ def api_ban_bulk():
     return _ok(results=soc_actions.bulk_ban(ips, d.get("reason"), d.get("minutes"), _actor(), _ip()))
 
 
+@soc_bp.route("/socperson/api/signed_in")
+@soc_required("viewer")
+def api_signed_in():
+    """Every signed-in session across companies (utils/session_registry.py).
+    Raw session ids only for the role that can revoke them."""
+    from utils import session_registry
+    analyst = soc_auth.ROLE_RANK[soc_auth.current_user()["role"]] >= soc_auth.ROLE_RANK["analyst"]
+    return _ok(**session_registry.signed_in_everywhere(include_sid=analyst))
+
+
 @soc_bp.route("/socperson/api/sessions/revoke", methods=["POST"])
 @soc_required("analyst")
 def api_revoke_session():
