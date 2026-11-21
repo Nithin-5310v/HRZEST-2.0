@@ -29,6 +29,9 @@ ROUTES = [
     ("events-filtered", "#/events?ip=185.220.101.1"),
     ("traffic", "#/traffic"),
     ("health", "#/health"),
+    ("firewall", "#/firewall"),
+    ("firewall-filtered", "#/firewall?hours=168&layer=proxy"),
+    ("firewall-address", "#/firewall?ip=185.220.101.1"),
     ("brief-kpi", "#/explain?kind=kpi&value=failed_logins"),
     ("brief-family", "#/explain?kind=family&value=waf"),
     ("lookup-empty", "#/entity"),
@@ -77,6 +80,26 @@ SEED_EVENTS = [
 ]
 
 
+SEED_FIREWALL = [
+    # (layer, action, ip, port, protocol, method, path, rule, detail, country, hits, minutes ago) -- docs/FIREWALL.md
+    ("edge", "block", "185.220.101.1", 443, "tcp", "GET", "/e2e-co/employees?id=1' OR 1=1--",
+     "AWSManagedRulesSQLiRuleSet:SQLi_QUERYARGUMENTS", None, "DE", 6, 40),
+    ("edge", "allow", None, None, None, None, None, "AllowedRequests", None, None, 1250, 35),
+    ("network", "block", "45.33.32.156", 5432, "tcp", None, None, "vpc-reject", None, None, 3, 33),
+    ("host", "block", "45.33.32.156", 3389, "tcp", None, None, "FW-DROP", None, None, 12, 30),
+    # a very long attacker path: must wrap, never widen the page
+    ("proxy", "block", "185.220.101.1", 443, "tcp", "GET", "/download?file=" + "..%2F" * 40 + "etc%2Fpasswd",
+     "949110", "CRS rules 930100,930110,932160", None, 4, 25),
+    ("fail2ban", "ban", "185.220.101.1", None, None, None, None, "hrzest-modsec", None, None, 1, 24),
+    ("app", "block", "45.33.32.156", None, "tcp", "POST", "/e2e-co/api/login", "ip_ban", "Credential stuffing",
+     None, 9, 20),
+]
+FIREWALL_STATUS = {"version": "1.0.0", "mode": "edge", "dropped_events": 0,
+                   "layers": {"host": {"ok": True}, "proxy": {"ok": True}, "fail2ban": {"ok": True},
+                              "edge": {"ok": False, "error": "AccessDeniedException"}},
+                   "blocklist": {"entries": 2, "skipped": 0, "synced_at": "2026-11-21T10:00:00"}}
+
+
 @pytest.fixture
 def soc(monkeypatch, db_conn, base_url):
     codes = []
@@ -94,6 +117,8 @@ def soc(monkeypatch, db_conn, base_url):
         cur.execute("DELETE FROM att_master.http_minute_stats WHERE tenant='e2e-co'")
         cur.execute("DELETE FROM att_master.http_telemetry_flushes WHERE host='e2e-seed'")
         cur.execute("DELETE FROM att_master.health_snapshots WHERE host='e2e-seed'")
+        cur.execute("DELETE FROM att_master.firewall_events WHERE source='e2e-host'")
+        cur.execute("DELETE FROM att_master.firewall_sources WHERE source IN ('e2e-host', 'e2e-quiet-host')")
     clean()
     cur.execute("INSERT INTO att_master.tenants (company_name, subdomain, db_name, status) "
                 "VALUES ('E2E Co', 'e2e-co', %s, 'active')", (os.environ["DB_NAME"],))
@@ -124,6 +149,14 @@ def soc(monkeypatch, db_conn, base_url):
         for source, metrics in (("host", host), ("postgres", pg), ("app", app)):
             cur.execute("INSERT INTO att_master.health_snapshots (taken_at, host, source, ok, metrics) VALUES "
                         "(NOW() - (%s * INTERVAL '1 minute'), 'e2e-seed', %s, TRUE, %s)", (ago, source, json.dumps(metrics)))
+    for layer, action, ip, port, proto, method, path, rule, detail, country, hits, ago in SEED_FIREWALL:
+        cur.execute("INSERT INTO att_master.firewall_events (occurred_at, layer, action, src_ip, dst_port, protocol, "
+                    "method, path, rule, detail, country, hits, source) VALUES (NOW() - (%s * INTERVAL '1 minute'), "
+                    "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'e2e-host')",
+                    (ago, layer, action, ip, port, proto, method, path, rule, detail, country, hits))
+    cur.execute("INSERT INTO att_master.firewall_sources (source, last_seen, last_ip, events_total, status_json) VALUES "
+                "('e2e-host', NOW(), '127.0.0.1', 1290, %s), "
+                "('e2e-quiet-host', NOW() - INTERVAL '2 hours', '127.0.0.1', 10, NULL)", (json.dumps(FIREWALL_STATUS),))
     cur.execute("INSERT INTO att_master.soc_cases (title, severity, status, created_by, summary) "
                 "VALUES ('Credential stuffing against Acme', 'high', 'investigating', 'e2e', 'Three accounts tried')")
     cur.execute("INSERT INTO att_master.soc_ban_reviews (ip, source, reason, hits) VALUES "
@@ -190,6 +223,17 @@ def test_every_view_renders_cleanly(browser, soc, viewport):
         page.wait_for_load_state("networkidle")
         if SHOTS:
             page.screenshot(path=os.path.join(SHOTS, f"{viewport}-event-drawer.png"), full_page=True)
+        # A firewall decision: the last table on the Firewall view is "Recent decisions".
+        where["view"] = "firewall-drawer"
+        page.goto(soc["url"] + "/socperson#/firewall?layer=proxy")
+        page.wait_for_load_state("networkidle")
+        page.locator("#view table").last.locator("tbody tr").first.locator("td").first.click()
+        expect(page.locator("#drawer")).to_be_visible()
+        expect(page.locator("#drawer")).to_contain_text("949110")
+        if page.evaluate("document.documentElement.scrollWidth - window.innerWidth") > 1:
+            add("firewall decision drawer widens the page")
+        if SHOTS:
+            page.screenshot(path=os.path.join(SHOTS, f"{viewport}-firewall-drawer.png"), full_page=True)
         assert problems == [], "\n".join(problems)
     finally:
         ctx.close()

@@ -81,6 +81,10 @@ def rate_limit_exceeded(e):
     waf.record_breach_and_maybe_ban(request.remote_addr, "Repeated rate-limit breaches")
     log_security_event("ratelimit.exceeded", f"Rate limit exceeded: {getattr(e, 'description', '')}",
                        level="WARNING")
+    from utils.firewall_events import record_app_block
+    record_app_block("rate_limit", ip=request.remote_addr, method=request.method, host=request.host,
+                     path=(request.script_root or "") + request.path,
+                     detail=str(getattr(e, "description", "") or "")[:200])
     if wants_json_response():
         return jsonify({"ok": False, "msg": "Too many requests. Please slow down and try again shortly."}), 429
     return _error_page(429, "⏳", "Too Many Requests",

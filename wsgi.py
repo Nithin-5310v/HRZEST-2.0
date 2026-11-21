@@ -128,6 +128,7 @@ else:
         from utils.detections import run_detections
         from utils.privacy_jobs import run_retention_purge
         from utils.audit_jobs import emit_anchors, run_full_verification
+        from utils.firewall_events import purge_old_events as purge_firewall_events
         from utils.soc_digest import JOB_ID as _SOC_DIGEST_JOB, digest_hour, send_daily_digest
         from utils.http_telemetry import purge_old as purge_http_telemetry
         from utils.health_telemetry import purge_old as purge_health_snapshots, take_snapshot as take_health_snapshot
@@ -274,6 +275,15 @@ else:
                 trigger="cron",
                 hour=3, minute=50,
                 id="health_snapshot_purge",
+                replace_existing=True,
+            )
+            # Firewall decisions older than FIREWALL_EVENT_RETENTION_DAYS (90)
+            # from att_master.firewall_events (utils/firewall_events.py).
+            _scheduler.add_job(
+                func=_scheduled_job("firewall_events_purge", purge_firewall_events),
+                trigger="cron",
+                hour=3, minute=55,
+                id="firewall_events_purge",
                 replace_existing=True,
             )
             # SOC daily summary email to SOC_LOGIN_EMAILS (utils/soc_digest.py);

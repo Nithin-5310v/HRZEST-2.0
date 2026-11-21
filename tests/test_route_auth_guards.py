@@ -58,6 +58,8 @@ ALLOWED_UNGUARDED = {
     "billing.create_order": "signup checkout; re-checks application status",
     "billing.verify_payment": "Razorpay signature verified",
     "webhooks.receive_webhook": "provider signature verified",
+    "firewall_ingest.report_events": "firewall agent HMAC verified (FIREWALL_AGENT_SECRET); 404 when unset",
+    "firewall_ingest.blocklist": "firewall agent HMAC verified (FIREWALL_AGENT_SECRET); 404 when unset",
     "oauth_signup.oauth_signup_start": "OAuth start",
     "oauth_signup.oauth_signup_callback": "OAuth callback; server-side state + PKCE",
     "oauth_signup.oauth_signup_verify_page": "signup OTP step; pending-signup token checked",

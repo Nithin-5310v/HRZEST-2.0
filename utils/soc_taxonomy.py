@@ -101,7 +101,13 @@ _EXACT = {
     "waf.sqli_blocked": ("waf", "SQL injection blocked", ["T1190"]),
     "waf.xss_blocked": ("waf", "Cross-site scripting blocked", ["T1190"]),
     "waf.path_traversal_blocked": ("waf", "Path traversal blocked", ["T1190", "T1083"]),
+    "waf.jndi_blocked": ("waf", "JNDI / Log4Shell probe blocked", ["T1190"]),
+    "waf.scanner_ua_blocked": ("waf", "Attack tool blocked (User-Agent)", ["T1595.002"]),
     "waf.auto_ban": ("waf", "IP auto-banned after repeated blocks", ["T1190"]),
+    # The other firewall layers (docs/FIREWALL.md). Named firewall.* so the
+    # Overview's "WAF blocks" counter (event_type LIKE 'waf.%') stays the app's own.
+    "firewall.fail2ban_ban": ("waf", "fail2ban banned an address on the host", ["T1110", "T1190"]),
+    "firewall.agent_signature_invalid": ("waf", "Firewall agent request with a bad signature", []),
     # Named secops.* rather than waf.* so soc_queries' "WAF blocks" counter
     # (event_type LIKE 'waf.%') doesn't count them as blocks.
     "secops.ban_review_raised": ("waf", "Address awaiting a SOC ban decision", ["T1190"]),
@@ -154,6 +160,7 @@ _PREFIX = {
     "auth": ("auth", []),
     "access": ("access", []),
     "waf": ("waf", ["T1190"]),
+    "firewall": ("waf", []),
     "honeypot": ("honeypot", ["T1595"]),
     "secops": ("honeypot", []),
     "session": ("session", []),

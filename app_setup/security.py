@@ -12,6 +12,7 @@ import utils.waf as waf
 from database import get_db_connection
 from extensions import app, app_log, log_security_event
 from flask import abort, current_app, flash, jsonify, redirect, request, session, url_for
+from utils import firewall_events
 from utils.client_ip import is_protected_ip, warn_if_client_ip_collapsed
 from utils.helpers import get_company_settings, tpath as _tpath
 from app_setup.config import _SESSION_MAX_AGE
@@ -31,12 +32,23 @@ except Exception:  # pragma: no cover -- Pillow missing
     pass
 
 
+def _note_block(rule, detail=None):
+    """Record a refused request in the SOC's firewall view (layer 'app').
+    Buffered and batched off the request thread: utils/firewall_events.py."""
+    firewall_events.record_app_block(
+        rule, ip=request.remote_addr, method=request.method, host=request.host,
+        path=(request.script_root or "") + request.path, detail=detail)
+
+
 @app.before_request
 def _enforce_ip_ban():
-    """Application-layer IP ban, enforced before every other before_request
-    hook (registered second, right after the perf timer) so a banned source
-    never reaches session/auth logic, let alone a route handler. Backs the
-    SOC dashboard's one-click ban action (blueprints/admin_views.py). Static
+    """Application-layer IP and CIDR ban, enforced before every other
+    before_request hook (registered second, right after the perf timer) so a
+    banned source never reaches session/auth logic, let alone a route
+    handler. Backs the SOC console's ban action (utils/soc_actions.py); the
+    firewall agent copies the same platform list to the host firewall and the
+    AWS edge (docs/FIREWALL.md), so this is the last of three places a banned
+    source is refused, and the only one that sees company-level bans. Static
     assets stay reachable -- banning is about stopping active app usage
     (login attempts, API calls), not making the banned party's browser look
     broken in a way that itself signals "you got blocked, try harder.\""""
@@ -50,7 +62,11 @@ def _enforce_ip_ban():
         # allow-listed probe) can't identify one client, so a ban row for
         # it -- including one written before this guard existed -- would
         # lock out every visitor behind it. See utils/client_ip.py.
-        warn_if_client_ip_collapsed(ip)
+        # Server-to-server channels (the honeypot, the firewall agent) post
+        # from loopback or a container address by design: not a sign that
+        # visitors' addresses are being hidden, so not worth that warning.
+        if not request.path.startswith("/webhooks/"):
+            warn_if_client_ip_collapsed(ip)
         return
     db = get_db_connection()
     cursor = db.cursor()
@@ -61,18 +77,26 @@ def _enforce_ip_ban():
         # bans (utils/waf.ban_ip) are written to public.banned_ips so an
         # attacker can't hop to another tenant's URL to shake them off;
         # check both. With no tenant active the two names are one table.
+        # Range bans (public.banned_cidrs, typed CIDR) are platform-wide.
         try:
             cursor.execute(
-                "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW()) "
+                "SELECT 'ip_ban', reason FROM banned_ips "
+                "WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW()) "
                 "UNION ALL "
-                "SELECT reason FROM public.banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW()) "
+                "SELECT 'ip_ban', reason FROM public.banned_ips "
+                "WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW()) "
+                "UNION ALL "
+                "SELECT 'cidr_ban', reason FROM public.banned_cidrs "
+                "WHERE cidr >>= %s::inet AND (expires_at IS NULL OR expires_at > NOW()) "
                 "LIMIT 1",
-                (ip, ip),
+                (ip, ip, ip),
             )
         except Exception:
-            # Schema-qualified name unsupported (SQLite dev fallback).
+            # SQLite dev fallback (no schemas, no inet), or a database that
+            # predates public.banned_cidrs. The connection is autocommit, so
+            # the failed statement leaves nothing half-done behind it.
             cursor.execute(
-                "SELECT reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())",
+                "SELECT 'ip_ban', reason FROM banned_ips WHERE ip=%s AND (expires_at IS NULL OR expires_at > NOW())",
                 (ip,),
             )
         row = cursor.fetchone()
@@ -80,6 +104,7 @@ def _enforce_ip_ban():
         cursor.close()
         db.close()
     if row:
+        _note_block(row[0], detail=(row[1] or "")[:200])
         return jsonify({"ok": False, "msg": "Access denied."}), 403
 
 
@@ -96,19 +121,22 @@ def _enforce_ip_ban():
 # Not a real exposure either way -- every one of these routes only ever
 # uses the identifier in a parameterized query, never executes or reflects
 # it -- so exempting them costs no actual protection.
-_WAF_EXEMPT_PATHS = {"/login", "/admin_login", "/employee_login", "/api/login", "/api/employee/login", "/api/signin"}
+# Every /api/x route also answers as /api/v1/x (app.py, _register_api_v1_aliases),
+# so the versioned sign-in paths get the same treatment.
+_WAF_EXEMPT_PATHS = {"/login", "/admin_login", "/employee_login", "/api/login", "/api/employee/login", "/api/signin",
+                     "/api/v1/login", "/api/v1/employee/login", "/api/v1/signin"}
 
 
 @app.before_request
 def _waf_inspect_request():
     """Native signature-based WAF: rejects requests whose query string,
     form fields, JSON body, uploaded filenames, or path segments match a
-    known SQLi/XSS/path-traversal shape. Runs immediately after the IP ban
-    check (before session/CSRF/route logic) so a malicious payload is
-    rejected before it can reach anything else. See utils/waf.py."""
+    known SQLi/XSS/path-traversal shape, and requests whose headers carry a
+    JNDI lookup, an injection in User-Agent/Referer, or an attack tool's
+    User-Agent. Runs immediately after the IP ban check (before
+    session/CSRF/route logic) so a malicious payload is rejected before it
+    can reach anything else. See utils/waf.py."""
     if request.path.startswith("/static/") or request.path == "/healthz":
-        return
-    if request.path in _WAF_EXEMPT_PATHS:
         return
     # SOC analysts legitimately search for and paste attack strings (an SQLi payload
     # as an event filter, a hostile log excerpt). Exempt only authenticated
@@ -116,7 +144,16 @@ def _waf_inspect_request():
     # that API uses bound parameters only (utils/soc_queries.py).
     if request.path.startswith("/socperson/api/") and session.get("soc_uid"):
         return
-    hit = waf.inspect_request(request)
+    # Headers apply on the credential endpoints too: their exemption below is
+    # about not answering differently for an injection-shaped *username*, and
+    # a scanner's User-Agent says nothing about credentials. The decoy paths
+    # are left to the honeypot, which raises a ban review on the first touch:
+    # a scanner finding /.env is what it exists to see.
+    hit = None
+    if request.endpoint != "honeypot_routes.honeypot_trap":
+        hit = waf.inspect_headers(request)
+    if hit is None and request.path not in _WAF_EXEMPT_PATHS:
+        hit = waf.inspect_request(request)
     if hit:
         event_type, field, matched = hit
         ip = request.remote_addr
@@ -124,6 +161,7 @@ def _waf_inspect_request():
             event_type, f"WAF blocked request: signature matched in {field}",
             level="ERROR", field=field, matched=matched[:100],
         )
+        _note_block(event_type, detail=f"{field}: {matched[:100]}")
         waf.record_breach_and_maybe_ban(ip, f"Repeated WAF blocks ({event_type})")
         return jsonify({"ok": False, "msg": "Request blocked by security policy."}), 403
 

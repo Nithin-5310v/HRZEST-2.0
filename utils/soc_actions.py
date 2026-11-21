@@ -29,23 +29,32 @@ def _text(value):
 
 
 # ── IP bans ──────────────────────────────────────────────────────────
+# A ban made here is enforced by the app at once, and copied by the firewall
+# agent to the host firewall and the AWS edge block list within seconds
+# (utils/firewall_events.blocklist, docs/FIREWALL.md).
 def ban_ip(ip, reason, minutes, actor, actor_ip):
+    """Ban one address, or a range given in CIDR form (203.0.113.0/24)."""
     ip = _text(ip)
     reason = _text(reason)
-    if not looks_like_ip(ip):
+    from utils import waf
+    if "/" in ip:
+        net, problem = waf.cidr_ban_problem(ip, actor_ip=actor_ip)
+        if problem:
+            return False, problem
+        ip = str(net)
+    elif not looks_like_ip(ip):
         return False, "That is not a valid IP address."
     if not 3 <= len(reason) <= 240:
         return False, "Give a reason (3-240 characters)."
     if ip == actor_ip:
         return False, "You cannot ban the address you are connected from."
-    if _protected(ip):
+    if "/" not in ip and _protected(ip):
         return False, ("That address is private, shared or on the never-ban list; banning it would block every "
                        "visitor behind it.")
     if minutes in (None, "", 0, "0"):
         minutes = None
     else:
         minutes = clamp_int(minutes, 60, 1, MAX_BAN_MINUTES)
-    from utils import waf
     written = waf.ban_ip(ip, f"SOC: {reason}", banned_by=f"soc:{actor}", minutes=minutes)
     soc_auth.audit(actor, "ban_ip" if written else "ban_ip_failed", target=ip,
                    detail=f"{reason} | {'permanent' if minutes is None else str(minutes) + ' min'}", ip=actor_ip)
@@ -57,8 +66,10 @@ def ban_ip(ip, reason, minutes, actor, actor_ip):
 
 def unban_ip(ip, actor, actor_ip, tenant_id=None):
     """Lift a platform-wide ban, or with `tenant_id` one left in that company's
-    own banned_ips (older rows; see soc_queries.bans)."""
+    own banned_ips (older rows; see soc_queries.bans). A CIDR lifts a range ban."""
     ip = _text(ip)
+    if "/" in ip and tenant_id is None:
+        return _unban_cidr(ip, actor, actor_ip)
     if not looks_like_ip(ip):
         return False, "That is not a valid IP address."
     schema, where = "public", "platform"
@@ -77,6 +88,25 @@ def unban_ip(ip, actor, actor_ip, tenant_id=None):
                    detail="removed" if removed else "no ban found", ip=actor_ip)
     if not removed:
         return False, "That address is not banned."
+    _invalidate()
+    return True, "unbanned"
+
+
+def _unban_cidr(cidr, actor, actor_ip):
+    import ipaddress
+    try:
+        net = ipaddress.ip_network(cidr, strict=False)
+    except ValueError:
+        return False, "That is not a valid address range (CIDR)."
+    with write_cursor("public") as cur:
+        cur.execute("SELECT to_regclass('public.banned_cidrs')")
+        removed = 0
+        if cur.fetchone()[0] is not None:
+            cur.execute("DELETE FROM public.banned_cidrs WHERE cidr = %s::cidr", (str(net),))
+            removed = cur.rowcount
+    soc_auth.audit(actor, "unban_ip", target=str(net), detail="removed" if removed else "no ban found", ip=actor_ip)
+    if not removed:
+        return False, "That range is not banned."
     _invalidate()
     return True, "unbanned"
 
