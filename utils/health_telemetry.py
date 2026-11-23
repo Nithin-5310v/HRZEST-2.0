@@ -100,13 +100,13 @@ def _disks(paths):
     out, seen = [], set()
     for path in paths:
         try:
+            device = os.stat(path).st_dev     # the filesystem it is on
             usage = shutil.disk_usage(path)
         except OSError:
             continue
-        key = (usage.total, usage.free)
-        if key in seen:                       # same filesystem as one already listed
-            continue
-        seen.add(key)
+        if device in seen:                    # same filesystem as one already listed (comparing sizes
+            continue                          # was racy: free space moves between two reads)
+        seen.add(device)
         out.append({"path": path, "total": usage.total, "used": usage.used, "free": usage.free,
                     "used_percent": round(100.0 * usage.used / usage.total, 1) if usage.total else None})
     return out
