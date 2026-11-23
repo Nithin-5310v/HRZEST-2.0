@@ -275,8 +275,10 @@
         const rows = (events) => Array.from(table(events).querySelectorAll('tbody tr'));
 
         const qBox = h('input', { class: 'input', type: 'search', 'aria-label': 'Search events', placeholder: 'Search message, account, path, type, fields, or an exact IP…', value: state.q });
-        const fam = select([['', 'All areas']].concat(FAMILIES), state.family, { 'aria-label': 'Area' });
-        const lvl = select([['', 'All levels']].concat(LEVELS.map((l) => [l, l[0] + l.slice(1).toLowerCase()])), state.level, { 'aria-label': 'Level' });
+        // The dropdowns apply as soon as they change (they used to wait for Search, so
+        // picking a level looked like it did nothing); the text boxes still wait for Enter.
+        const fam = select([['', 'All areas']].concat(FAMILIES), state.family, { 'aria-label': 'Area', onchange: () => apply() });
+        const lvl = select([['', 'All levels']].concat(LEVELS.map((l) => [l, l[0] + l.slice(1).toLowerCase()])), state.level, { 'aria-label': 'Level', onchange: () => apply() });
         const ipBox = h('input', { class: 'input', 'aria-label': 'Source IP', placeholder: 'Source IP', value: state.ip });
         const idBox = h('input', { class: 'input', 'aria-label': 'Account', placeholder: 'Account', value: state.identifier });
         const tnBox = h('input', { class: 'input', 'aria-label': 'Tenant slug', placeholder: 'Tenant', value: state.tenant });
@@ -389,10 +391,20 @@
       const p = ctl.params;
       const kind = p.identifier ? 'identifier' : 'ip';
       const value = p.identifier || p.ip || '';
-      const kindSel = select([['ip', 'IP address'], ['identifier', 'Account']], kind, { 'aria-label': 'Lookup type' });
-      const box = h('input', { class: 'input', 'aria-label': 'Value', placeholder: 'IP address, or account (email, username, ID)', value });
-      const days = select([['7', '7 days'], ['30', '30 days'], ['90', '90 days']], p.days || '30', { 'aria-label': 'Look-back' });
-      const go = () => { if (box.value.trim()) SOC.go('entity', { [kindSel.value]: box.value.trim(), days: days.value }); };
+      // Empty "Look up" now says what is missing (required), and the dropdowns re-run the
+      // lookup when there is something to look up; both used to do nothing.
+      const kindSel = select([['ip', 'IP address'], ['identifier', 'Account']], kind, { 'aria-label': 'Lookup type', onchange: () => box.value.trim() && go() });
+      const box = h('input', { class: 'input', 'aria-label': 'Value', placeholder: 'IP address, or account (email, username, ID)', value, required: true });
+      const days = select([['7', '7 days'], ['30', '30 days'], ['90', '90 days']], p.days || '30', { 'aria-label': 'Look-back', onchange: () => box.value.trim() && go() });
+      // An email or user name looked up as "IP address" (the default) went to the IP
+      // endpoint and came back "Request failed (400)": look up what was typed as an account.
+      const isIp = (v) => /^\d{1,3}(\.\d{1,3}){3}$/.test(v) || (v.includes(':') && /^[0-9a-f:.]+$/i.test(v));
+      const go = () => {
+        const v = box.value.trim();
+        if (!v) { box.reportValidity(); return; }
+        if (kindSel.value === 'ip' && !isIp(v)) kindSel.value = 'identifier';
+        SOC.go('entity', { [kindSel.value]: v, days: days.value });
+      };
       const bar = h('form', { class: 'filters', onsubmit: (e) => { e.preventDefault(); go(); } }, kindSel, box, days, h('button', { class: 'btn', type: 'submit' }, 'Look up'));
       root.textContent = ''; root.appendChild(bar);
       if (!value) { root.appendChild(SOC.empty('Enter an IP address or an account identifier to see everything the platform recorded about it.')); return; }

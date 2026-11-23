@@ -421,3 +421,68 @@ def test_log_search_with_loki_connected(browser, soc, stand_in_loki):
             "Loki could not run this query: parse error at line 1, col 12: syntax error")
     finally:
         ctx.close()
+
+
+def test_filters_and_repeated_clicks_respond(browser, soc):
+    """Clicks that used to do nothing (found by clicking every control on every view):
+    a filter dropdown waited for a separate button, a button pressed again with the
+    same filters (or the tab you are on) changed nothing, an empty Look up said
+    nothing, and an email looked up as "IP address" failed with a 400."""
+    ctx = browser.new_context(viewport=VIEWPORTS["desktop"])
+    page = ctx.new_page()
+    try:
+        problems, _ = _watch(page, {"view": "filters"})
+        _sign_in(page, soc)
+
+        def wait_loaded():
+            page.wait_for_load_state("networkidle")
+            expect(page.locator("#view .skel")).to_have_count(0, timeout=10_000)
+
+        # Events: the Level dropdown applies on its own.
+        page.goto(soc["url"] + "/socperson#/events")
+        wait_loaded()
+        with page.expect_request(lambda r: "/socperson/api/events?" in r.url and "level=CRITICAL" in r.url):
+            page.get_by_label("Level", exact=True).select_option("CRITICAL")
+        expect(page).to_have_url(re.compile(r"#/events\?.*level=CRITICAL"))
+
+        # Firewall: Layer applies on its own, and Filter pressed again reloads.
+        page.goto(soc["url"] + "/socperson#/firewall")
+        wait_loaded()
+        with page.expect_request(lambda r: "/socperson/api/firewall/events?" in r.url and "layer=proxy" in r.url):
+            page.get_by_label("Layer", exact=True).select_option("proxy")
+        wait_loaded()
+        with page.expect_request(lambda r: "/socperson/api/firewall/events?" in r.url and "layer=proxy" in r.url):
+            page.click("#view button:has-text('Filter')")
+        wait_loaded()
+
+        # The tab you are on reloads instead of ignoring the click.
+        page.goto(soc["url"] + "/socperson#/response?tab=signedin")
+        wait_loaded()
+        with page.expect_request(lambda r: "/socperson/api/signed_in" in r.url):
+            page.get_by_role("tab", name="Signed in", exact=True).click()
+        wait_loaded()
+
+        # Lookup: empty says what is missing; an email under "IP address" is looked up as an account.
+        page.goto(soc["url"] + "/socperson#/entity")
+        wait_loaded()
+        box = page.get_by_label("Value", exact=True)
+        page.click("#view button:has-text('Look up')")
+        assert box.evaluate("e => !e.validity.valid && e.validationMessage !== ''")
+        box.fill("asha@acme.example")
+        with page.expect_response(lambda r: "/socperson/api/entity/" in r.url) as resp:
+            page.click("#view button:has-text('Look up')")
+        assert resp.value.status == 200 and "/entity/identifier" in resp.value.url
+        expect(page).to_have_url(re.compile(r"#/entity\?identifier=asha%40acme\.example"))
+        wait_loaded()
+
+        # The event drawer's close button closes it.
+        page.goto(soc["url"] + "/socperson#/events")
+        wait_loaded()
+        page.locator("#view tbody tr").first.locator("td").first.click()
+        expect(page.locator("#drawer")).to_contain_text("Event type")
+        page.click("#drawerClose")
+        expect(page.locator("#drawer")).to_be_hidden()
+
+        assert problems == [], "\n".join(problems)
+    finally:
+        ctx.close()
