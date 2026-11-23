@@ -66,6 +66,23 @@ def _ensure_test_database(name):
 # The name must contain "test" (scripts/profile_requests.py and scripts/factory_reset.py refuse otherwise).
 os.environ["DB_NAME"] = _test_db_name(os.environ)
 assert "test" in os.environ["DB_NAME"], "HRZEST_TEST_DB must contain 'test'"
+
+
+def _refuse_non_local_db_host(environ):
+    """Roadmap 7.2 (21 Nov 2026): the harness deletes and rewrites every row
+    after each test, so it must never point at a shared or production server.
+    Only a local server is accepted; a container setup names its database
+    host explicitly in HRZEST_TEST_ALLOWED_DB_HOSTS (comma-separated)."""
+    host = (environ.get("DB_HOST") or "localhost").strip().lower()
+    allowed = {"localhost", "127.0.0.1", "::1", ""}
+    allowed |= {h.strip().lower() for h in environ.get("HRZEST_TEST_ALLOWED_DB_HOSTS", "").split(",") if h.strip()}
+    if host not in allowed:
+        raise RuntimeError(
+            f"Refusing to run the test suite against database host {host!r}: tests wipe and rewrite every table. "
+            "Use a local PostgreSQL, or list a disposable container host in HRZEST_TEST_ALLOWED_DB_HOSTS.")
+
+
+_refuse_non_local_db_host(os.environ)
 _ensure_test_database(os.environ["DB_NAME"])
 os.environ["APP_ENV"] = "development"   # avoids HTTPS-only cookies
 os.environ["SECRET_KEY"] = "test-secret-key-not-for-production"
@@ -302,8 +319,40 @@ def db_engine():
             f"Another test run is already using database '{os.environ['DB_NAME']}'. Running two suites on one "
             "database corrupts both. Wait for it to finish, or give this run its own database: "
             "HRZEST_TEST_DB=att_test_<name> python -m pytest ...", returncode=3)
+    _require_restore_privilege(conn)
     yield conn
     conn.close()
+
+
+_RESTORE_PRIVILEGE_HELP = (
+    "The test harness restores the database after every test with triggers off "
+    "(SET session_replication_role = replica), and the role it connects as ({role!r}) may not do that.\n"
+    "Fix it once, on the TEST server only -- never give the app's runtime role superuser:\n"
+    "  1. Create the split roles:  PG_ADMIN_USER=postgres PG_ADMIN_PASS=... HRZEST_OWNER_ROLE=hrzest_owner "
+    "HRZEST_OWNER_PASS=... HRZEST_APP_ROLE=hrzest_app HRZEST_APP_PASS=... python scripts/provision_db_roles.py\n"
+    "  2. As postgres (PostgreSQL 15+):  GRANT SET ON PARAMETER session_replication_role TO hrzest_owner;\n"
+    "  3. Run pytest with DB_USER=hrzest_app DB_OWNER_USER=hrzest_owner DB_OWNER_PASS=...\n"
+    "  python scripts/test_db_doctor.py shows which server, database and role this run uses.\n"
+    "(PostgreSQL {version}: before 15 only a superuser can set this parameter -- use a disposable local instance.)"
+)
+
+
+def _require_restore_privilege(conn):
+    """Roadmap HR-07: without this check every single test failed at teardown
+    with "permission denied to set parameter session_replication_role" (59
+    teardown errors in one onboarding run). Stop once, up front, with the fix."""
+    import psycopg2
+    cur = conn.cursor()
+    try:
+        cur.execute("SET session_replication_role = replica")
+        cur.execute("SET session_replication_role = DEFAULT")
+    except psycopg2.errors.InsufficientPrivilege:
+        cur.execute("SELECT current_user, current_setting('server_version')")
+        role, version = cur.fetchone()
+        cur.close()
+        conn.close()
+        pytest.exit(_RESTORE_PRIVILEGE_HELP.format(role=role, version=version), returncode=3)
+    cur.close()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -608,10 +657,14 @@ def _reset_db_after_test(db_engine, _db_baseline_snapshot):
     yield
     snap, baseline_schemas = _db_baseline_snapshot
     cur = db_engine.cursor()
-    extra_schemas = _list_user_schemas(cur) - baseline_schemas
-    _restore_snapshot(cur, snap, extra_schemas)
-    cur.close()
-    _clear_process_caches()
+    try:
+        extra_schemas = _list_user_schemas(cur) - baseline_schemas
+        _restore_snapshot(cur, snap, extra_schemas)
+    finally:
+        # Always closed and caches always cleared, even when the restore fails,
+        # so one broken teardown can't leave state behind for the next test.
+        cur.close()
+        _clear_process_caches()
 
 
 def _clear_process_caches():

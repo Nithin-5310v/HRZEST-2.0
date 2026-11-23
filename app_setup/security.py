@@ -43,7 +43,8 @@ def _note_block(rule, detail=None):
 @app.before_request
 def _enforce_ip_ban():
     """Application-layer IP and CIDR ban, enforced before every other
-    before_request hook (registered second, right after the perf timer) so a
+    security hook (it runs right after the tenant is resolved -- see app.py's
+    app_setup import order -- and before the WAF, session and auth hooks) so a
     banned source never reaches session/auth logic, let alone a route
     handler. Backs the SOC console's ban action (utils/soc_actions.py); the
     firewall agent copies the same platform list to the host firewall and the

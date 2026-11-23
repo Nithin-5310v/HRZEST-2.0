@@ -116,7 +116,7 @@ def _scheduled_job(job_id, fn):
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
 except ImportError:
-    app_log.warning("APScheduler not installed -- all 7 nightly scheduled jobs disabled. Run: pip install apscheduler")
+    app_log.warning("APScheduler not installed -- all scheduled jobs disabled. Run: pip install apscheduler")
 else:
     try:
         from blueprints.daily_report import generate_and_send_daily_report
