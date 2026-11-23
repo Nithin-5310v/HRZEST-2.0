@@ -13,6 +13,7 @@ import pytest
 
 from extensions import app as flask_app
 from tests.conftest import mock_package  # noqa: E402
+from utils.tokens import waf_safe_token  # noqa: E402
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -590,7 +591,7 @@ class TestCheckinCombosServerSide:
 
 def _approved_trial_application(db_engine):
     from utils.auth import _hash_token, generate_password_hash
-    token = secrets.token_urlsafe(32)
+    token = waf_safe_token(32)
     slug = "trial" + secrets.token_hex(3)
     cur = db_engine.cursor()
     cur.execute(
