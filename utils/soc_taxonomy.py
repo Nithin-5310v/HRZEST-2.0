@@ -91,6 +91,7 @@ _EXACT = {
     "auth.mfa_email_missing": ("auth", "MFA email missing", []),
     # --- access ---
     "access.denied": ("access", "Access denied", []),
+    "access.private_file_refused": ("access", "Stored file path outside private uploads refused", []),
     "tenant.session_mismatch": ("access", "Session used on another tenant's URL", ["T1078"]),
     # --- session ---
     "session.compromised": ("session", "Session flagged compromised", ["T1539"]),

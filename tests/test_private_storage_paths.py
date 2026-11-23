@@ -96,6 +96,15 @@ class TestOutside:
     def test_callers_see_a_missing_file(self):
         assert issubclass(PrivatePathError, FileNotFoundError)
 
+    def test_a_refusal_is_recorded_as_a_security_event(self, secret, monkeypatch):
+        import extensions
+        events = []
+        monkeypatch.setattr(extensions, "log_security_event", lambda et, msg, **kw: events.append((et, kw)))
+        with pytest.raises(PrivatePathError):
+            open_private(str(secret))
+        assert [et for et, _kw in events] == ["access.private_file_refused"]
+        assert "secret.txt" in events[0][1]["stored_ref"] and events[0][1]["level"] == "WARNING"
+
 
 def test_every_writer_saves_under_the_root_that_is_checked():
     """save_private() is given app.root_path (and qr_generator.py's own folder);
