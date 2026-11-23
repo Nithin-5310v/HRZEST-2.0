@@ -79,10 +79,11 @@ Then the route's own guard decorator runs (see
 
 ### After the route (`after_request`, in the order they run)
 
-1. `X-Robots-Tag: noindex` on private pages (`blueprints/seo.py`).
+1. `X-Robots-Tag: noindex` on private pages, and a page-view count for the
+   public ones in `INDEXABLE_PATHS` (`blueprints/seo.py`).
 2. Data-cache invalidation after a successful write (`utils/data_cache.py`).
 3. `Cache-Control: no-store` on everything except static files and public
-   robots/sitemap/security.txt (`app_setup/cache_control.py`).
+   robots/sitemap/llms.txt/security.txt (`app_setup/cache_control.py`).
 4. CSRF meta tag, hidden form fields and helper scripts injected into HTML
    pages (`_inject_csrf_meta`).
 5. Settings-cache refresh after a settings change.
@@ -151,7 +152,7 @@ function and guards). About 800 URL rules in total.
 | Payroll | `payroll`, `disbursement` |
 | Support and AI | `tickets`, `notifications`, `ai_hrms` |
 | Operators and security | `platform_admin` (package, `/super_admin`), `soc` (`/socperson`), `firewall_ingest`, `privacy`, `honeypot_routes` |
-| Infrastructure | `core` (home page, CSP reports, token API), `health` (`/healthz`), `seo`, `security_txt` |
+| Infrastructure | `core` (home page, CSP reports, token API), `health` (`/healthz`), `seo` (robots, sitemap, llms.txt, JSON-LD), `security_txt`, `legal` (`/privacy`, `/terms`) |
 
 `blueprints/trial_billing.py` has no routes; it only provides scheduled jobs.
 
