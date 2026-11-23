@@ -23,6 +23,8 @@ static/employee_docs/
 static/company_logos/
 static/id_card_templates/
 private_uploads/
+# GeoIP databases behind the SOC console's IP locations (scripts/update_geoip.sh)
+instance/geoip/
 venv/
 cert.pem
 key.pem

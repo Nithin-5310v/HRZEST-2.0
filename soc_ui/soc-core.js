@@ -167,10 +167,71 @@
         href: 'https://attack.mitre.org/techniques/' + id.replace('.', '/') + '/' }, id);
     });
   };
-  // Only what HRZEST recorded: no address is looked up at an outside service.
+  /* ---------- IP locations ----------
+   * Approximate, from the GeoIP files on the server (utils/ip_geo.py): no address
+   * is sent to an outside service. SOC.ipPlace() returns an empty span at once;
+   * the addresses of everything rendered in the same pass go out in one
+   * /socperson/api/geo request, and each answer is kept for the session. */
+  var geo = { known: new Map(), waiting: new Map(), queue: new Set(), timer: null, off: false };
+  var GEO_SCOPE = { loopback: 'this server', 'link-local': 'link-local', private: 'private network',
+    shared: 'carrier NAT', multicast: 'multicast', reserved: 'reserved range' };
+  SOC.geoText = function (g) {
+    if (!g) return '';
+    if (g.scope !== 'public') return GEO_SCOPE[g.scope] || '';
+    return [g.city, g.country_code || g.country].filter(Boolean).join(', ') || g.org || 'location unknown';
+  };
+  SOC.geoTitle = function (g) {
+    if (!g || g.scope !== 'public') return '';
+    var lines = [[g.city, g.region, g.country].filter(Boolean).join(', ') || 'Location unknown'];
+    if (g.asn || g.org) lines.push('Network: ' + [g.asn ? 'AS' + g.asn : '', g.org || ''].filter(Boolean).join(' '));
+    lines.push('Approximate: from the GeoIP database on the server');
+    return lines.join('\n');
+  };
+  function geoFill(el, g) {
+    var text = SOC.geoText(g);
+    el.textContent = text;
+    el.title = SOC.geoTitle(g);
+    el.hidden = !text;
+  }
+  function geoFlush() {
+    geo.timer = null;
+    var ips = Array.from(geo.queue);
+    geo.queue.clear();
+    for (var i = 0; i < ips.length; i += 50) send(ips.slice(i, i + 50));
+    function send(chunk) {
+      var settle = function (results) {
+        chunk.forEach(function (ip) {
+          var g = (results && results[ip]) || null;
+          geo.known.set(ip, g);
+          (geo.waiting.get(ip) || []).forEach(function (el) { geoFill(el, g); });
+          geo.waiting.delete(ip);
+        });
+      };
+      // Sent as a poll: filling in locations is not the analyst doing something.
+      SOC.api.get('/socperson/api/geo', { ips: chunk.join(',') }, true).then(function (d) {
+        if (!d.available) geo.off = true;
+        settle(d.results);
+      }, function () {
+        // Leave these blank and unremembered: the next render asks again.
+        chunk.forEach(function (ip) { geo.waiting.delete(ip); });
+      });
+    }
+  }
+  SOC.ipPlace = function (ip) {
+    if (!ip || geo.off) return null;
+    var el = h('span', { class: 'geo' });
+    el.hidden = true;
+    if (geo.known.has(ip)) { geoFill(el, geo.known.get(ip)); return el; }
+    if (geo.known.size > 5000) geo.known.clear();
+    if (!geo.waiting.has(ip)) { geo.waiting.set(ip, []); geo.queue.add(ip); }
+    geo.waiting.get(ip).push(el);
+    if (!geo.timer) geo.timer = setTimeout(geoFlush, 0);
+    return el;
+  };
   SOC.ipLink = function (ip) {
     if (!ip) return h('span', { class: 'muted' }, '–');
-    return h('a', { class: 'mono', href: '#/entity?ip=' + encodeURIComponent(ip), title: 'Look up ' + ip }, ip);
+    return h('span', { class: 'ip' }, h('a', { class: 'mono', href: '#/entity?ip=' + encodeURIComponent(ip), title: 'Look up ' + ip }, ip),
+      SOC.ipPlace(ip));
   };
   SOC.idLink = function (id) {
     return id && id !== 'None' ? h('a', { href: '#/entity?identifier=' + encodeURIComponent(id), title: 'Look up ' + id }, id) : h('span', { class: 'muted' }, '–');

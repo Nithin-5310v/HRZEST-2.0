@@ -1,0 +1,20 @@
+[Unit]
+Description=HRzest.com: refresh the GeoIP databases behind the SOC console's IP locations
+# Installed by scripts/install_ec2_autodeploy.sh; what it does is described in
+# scripts/update_geoip.sh. Runs the copy in the deployed checkout, so changes
+# to the script ship with a normal deploy.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/apps/HRZEST
+# For GEOIP_DIR, if the app's .env moves the databases somewhere else.
+EnvironmentFile=-/home/ubuntu/apps/HRZEST/.env
+ExecStart=/bin/bash /home/ubuntu/apps/HRZEST/scripts/update_geoip.sh
+TimeoutStartSec=30min
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
