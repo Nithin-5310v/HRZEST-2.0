@@ -27,7 +27,6 @@ Run with:
 import os
 import re
 import time
-import tempfile
 
 import pytest
 
@@ -804,9 +803,15 @@ class TestApplicationsQueueAndDetail:
 
 class TestApplicationDocument:
     @pytest.fixture
-    def application_with_doc(self, db_engine):
-        fd, path = tempfile.mkstemp(suffix=".pdf")
-        with os.fdopen(fd, "wb") as f:
+    def application_with_doc(self, db_engine, tmp_path, monkeypatch):
+        # Where save_application_document() puts it: under private_uploads/,
+        # the only folder open_private() reads from (utils/storage.py).
+        from utils import storage
+        monkeypatch.setattr(storage, "_APP_ROOT", str(tmp_path))
+        folder = tmp_path / "private_uploads" / "tenant_applications" / "test"
+        folder.mkdir(parents=True)
+        path = str(folder / "registration_cert.pdf")
+        with open(path, "wb") as f:
             f.write(b"%PDF-1.4 fake certificate contents")
 
         cur = db_engine.cursor()
