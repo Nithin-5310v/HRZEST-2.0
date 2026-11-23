@@ -12,6 +12,10 @@ password step has its own browser test (test_soc_password.py).
 import json
 import os
 import re
+import threading
+import urllib.parse
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 from playwright.sync_api import expect
@@ -308,5 +312,73 @@ def test_new_events_arrive_live(browser, soc, db_conn):
         # the stream reconnects every 5 s; well under the 30 s fallback poll
         expect(page.locator("#view")).to_contain_text("1 new event since this list loaded", timeout=12_000)
         assert problems == [], "\n".join(problems)
+    finally:
+        ctx.close()
+
+
+# A stand-in for Loki's query_range API, answering the way Loki 3.4 does (checked
+# against a real one): log lines as "streams", and a malformed query as HTTP 400
+# with Loki's reason in plain text.
+LOKI_LINE_AT = datetime(2026, 11, 23, 10, 0, 0, tzinfo=timezone.utc)
+HOSTILE_LINE = '{"level": "WARNING", "security_event": "waf_block", "path": "/x?q=<img src=x onerror=window.__pwned=1>"}'
+
+
+@pytest.fixture
+def stand_in_loki(monkeypatch):
+    queries = []
+
+    class Loki(BaseHTTPRequestHandler):
+        def do_GET(self):
+            url = urllib.parse.urlparse(self.path)
+            query = urllib.parse.parse_qs(url.query).get("query", [""])[0]
+            queries.append(query)
+            if query.count("{") != query.count("}"):
+                body, status, kind = b"parse error at line 1, col 12: syntax error: unexpected $end, expecting } or ,", 400, "text/plain"
+            else:
+                ts = str(int(LOKI_LINE_AT.timestamp()) * 10**9)
+                body = json.dumps({"status": "success", "data": {"resultType": "streams", "result": [
+                    {"stream": {"app": "hrms", "env": "production", "level": "WARNING", "security_event": "waf_block"},
+                     "values": [[ts, HOSTILE_LINE]]}]}}).encode()
+                status, kind = 200, "application/json"
+            self.send_response(status)
+            self.send_header("Content-Type", kind)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Loki)
+    threading.Thread(target=server.serve_forever, daemon=True, name="e2e-stand-in-loki").start()
+    monkeypatch.setenv("LOKI_URL", f"http://127.0.0.1:{server.server_address[1]}")
+    yield queries
+    server.shutdown()
+
+
+def test_log_search_with_loki_connected(browser, soc, stand_in_loki):
+    """The Logs view with a Loki behind it: the default search matches what the log
+    pipelines label (app="hrms"), lines are dated in the viewer's time zone and shown
+    as text, and a query Loki rejects shows Loki's own reason."""
+    ctx = browser.new_context(viewport=VIEWPORTS["desktop"], timezone_id="Asia/Kolkata")
+    page = ctx.new_page()
+    try:
+        problems, _ = _watch(page, {"view": "logs"})
+        _sign_in(page, soc)
+        page.goto(soc["url"] + "/socperson#/logs")
+        box = page.get_by_label("LogQL query")
+        expect(box).to_have_value('{app="hrms"} |= "security_event"')
+        page.click("#view button:has-text('Run')")
+        out = page.locator("#view .pre")
+        expect(out).to_contain_text("2026-11-23 15:30:00")                  # 10:00 UTC in Asia/Kolkata
+        expect(out).to_contain_text("<img src=x onerror=window.__pwned=1>")  # as text, never markup
+        assert page.evaluate("window.__pwned") is None
+        assert stand_in_loki[-1] == '{app="hrms"} |= "security_event"'
+        assert problems == [], "\n".join(problems)
+
+        box.fill('{app="hrms"')
+        page.click("#view button:has-text('Run')")
+        expect(page.locator("#view")).to_contain_text(
+            "Loki could not run this query: parse error at line 1, col 12: syntax error")
     finally:
         ctx.close()

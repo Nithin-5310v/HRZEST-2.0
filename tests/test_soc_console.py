@@ -1289,6 +1289,76 @@ class TestLoki:
         c, _ = soc("ann", "analyst")
         assert c.post("/socperson/api/loki/query", json={"query": '{a="b"}'}).status_code == 502
 
+    def test_a_query_loki_rejects_shows_lokis_reason(self, soc, monkeypatch):
+        # Loki 3.4 answers a malformed query with 400 and a plain-text reason
+        # (checked against a real Loki). The analyst sees it and can fix the query.
+        import io
+        import urllib.error
+        monkeypatch.setenv("LOKI_URL", "http://loki.internal:3100")
+        reason = b"parse error at line 1, col 12: syntax error: unexpected $end, expecting } or ,\n\x1b[31mmore"
+
+        def reject(req, timeout=None):
+            raise urllib.error.HTTPError(req.full_url, 400, "Bad Request", {}, io.BytesIO(reason))
+        monkeypatch.setattr("urllib.request.urlopen", reject)
+        c, _ = soc("ann", "analyst")
+        r = c.post("/socperson/api/loki/query", json={"query": '{app="hrms"'})
+        assert r.status_code == 400
+        msg = r.get_json()["msg"]
+        assert msg.startswith("Loki could not run this query: parse error at line 1, col 12")
+        assert "\x1b" not in msg and "more" not in msg
+
+    def test_a_loki_server_error_is_still_a_502(self, soc, monkeypatch):
+        import io
+        import urllib.error
+        monkeypatch.setenv("LOKI_URL", "http://loki.internal:3100")
+
+        def down(req, timeout=None):
+            raise urllib.error.HTTPError(req.full_url, 503, "Unavailable", {}, io.BytesIO(b"too many outstanding requests"))
+        monkeypatch.setattr("urllib.request.urlopen", down)
+        c, _ = soc("ann", "analyst")
+        r = c.post("/socperson/api/loki/query", json={"query": '{a="b"}'})
+        assert r.status_code == 502 and "outstanding" not in r.get_json()["msg"]
+
+    def test_metric_queries_are_refused_instead_of_listed_as_lines(self, soc, monkeypatch):
+        # count_over_time() answers with a matrix of [seconds, "count"] pairs; these
+        # used to be listed as log lines reading "1", dated 1970.
+        monkeypatch.setenv("LOKI_URL", "http://loki.internal:3100")
+        matrix = {"status": "success", "data": {"resultType": "matrix", "result": [
+            {"metric": {"app": "hrms"}, "values": [[1795425828, "1"], [1795425842, "3"]]}]}}
+
+        class Resp:
+            def read(self, n=-1):
+                return json.dumps(matrix).encode()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        monkeypatch.setattr("urllib.request.urlopen", lambda req, timeout=None: Resp())
+        c, _ = soc("ann", "analyst")
+        r = c.post("/socperson/api/loki/query", json={"query": 'count_over_time({app="hrms"}[5m])'})
+        assert r.status_code == 400 and "Metric queries" in r.get_json()["msg"]
+
+    def test_entries_with_structured_metadata_are_read(self, soc, monkeypatch):
+        monkeypatch.setenv("LOKI_URL", "http://loki.internal:3100")
+        streams = {"data": {"resultType": "streams", "result": [
+            {"stream": {"app": "hrms"}, "values": [["1795425828000000000", "a line", {"trace_id": "x"}]]}]}}
+
+        class Resp:
+            def read(self, n=-1):
+                return json.dumps(streams).encode()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        monkeypatch.setattr("urllib.request.urlopen", lambda req, timeout=None: Resp())
+        c, _ = soc("ann", "analyst")
+        r = c.post("/socperson/api/loki/query", json={"query": '{app="hrms"}'}).get_json()
+        assert r["lines"][0]["line"] == "a line" and r["lines"][0]["ts"] == 1795425828000000000
+
 
 class TestLogAnalysisEndpoint:
     def test_rejects_missing_file_and_reports_truncation(self, soc, monkeypatch):

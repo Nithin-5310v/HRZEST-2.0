@@ -84,7 +84,9 @@
   const eventRowLite = (e) => h('li', null,
     h('div', { class: 'row' }, SOC.level(e.level), h('a', { href: '#', onclick: (ev) => { ev.preventDefault(); SOC.openEvent(e.id); } }, e.label),
       h('span', { class: 'spacer' }), h('span', { class: 'note' }, fmt.time(e.created_at))),
-    e.path ? h('div', { class: 'mono note wrap' }, (e.method || '') + ' ' + e.path) : null);
+    // Two lines at most: one 400-character traversal path used to fill the Overview.
+    // The whole request is in the tooltip and in the event's drawer.
+    e.path ? h('div', { class: 'mono note wrap clamp2', title: (e.method || '') + ' ' + e.path }, (e.method || '') + ' ' + e.path) : null);
 
   SOC.openEvent = function (id) {
     const token = SOC.drawer.open('Event #' + id, SOC.skeleton());
@@ -703,20 +705,30 @@
           SOC.card('To enable this view', h('p', null, 'Run the log pipeline in observability/ (Loki + Promtail/Alloy, see observability/README.md), then set LOKI_URL on the app server, e.g. http://loki:3100, and restart.')));
         return;
       }
-      const q = h('input', { class: 'input', 'aria-label': 'LogQL query', value: ctl.params.q || '{job=~".+"} |= "security_event"' });
+      // Both log pipelines (observability/promtail, observability/alloy) label every line
+      // app="hrms"; neither sets `job`, so the old default {job=~".+"} matched nothing.
+      const q = h('input', { class: 'input', 'aria-label': 'LogQL query', value: ctl.params.q || '{app="hrms"} |= "security_event"' });
       const mins = select([['15', '15 min'], ['60', '1 hour'], ['360', '6 hours'], ['1440', '24 hours']], ctl.params.m || '60', { 'aria-label': 'Range' });
       const out = h('div');
+      // Loki's timestamps are real instants (nanoseconds), not the database's wall clock,
+      // so no SOC.skew here; shown with the date, in this browser's time zone like every other view.
+      const stamp = (ns) => {
+        const d = new Date(ns / 1e6), p = (n) => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+      };
       const run = () => {
         out.textContent = ''; out.appendChild(SOC.skeleton());
         api.post('/socperson/api/loki/query', { query: q.value, minutes: Number(mins.value), limit: 300 }).then((r) => {
           out.textContent = '';
           if (!r.lines.length) { out.appendChild(SOC.empty('No log lines matched.')); return; }
-          out.appendChild(h('div', { class: 'pre' }, r.lines.map((l) => (new Date(l.ts / 1e6).toISOString().slice(11, 19)) + '  ' + l.line).join('\n')));
+          out.appendChild(h('div', { class: 'pre' }, r.lines.map((l) => stamp(l.ts) + '  ' + l.line).join('\n')));
           out.appendChild(h('p', { class: 'note' }, r.lines.length + ' lines, newest first.'));
         }).catch((e) => { out.textContent = ''; out.appendChild(SOC.callout(e.message, 'bad')); });
       };
       root.append(h('form', { class: 'filters', onsubmit: (e) => { e.preventDefault(); run(); } }, q, mins, h('button', { class: 'btn', type: 'submit' }, 'Run')),
-        SOC.callout('LogQL, read-only, last 24 hours at most, 300 lines. Results appear as plain text.'), out);
+        SOC.callout('LogQL, read-only, last 24 hours at most, 300 lines. Results appear as plain text. ' +
+          'Every line is labelled app="hrms", env, level and (on security events) security_event; filter other fields with | json, ' +
+          'e.g. {app="hrms"} | json | ip="203.0.113.9".'), out);
     }
   });
 

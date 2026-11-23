@@ -255,6 +255,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 /* Attacker-controlled values (a 400-character path) wrap inside their card
    instead of widening it -- and with it the whole page on a phone. */
 .wrap { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+.clamp2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 
 /* overlays */
 .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 40; }
