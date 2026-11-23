@@ -167,6 +167,25 @@ def _waf_inspect_request():
         return jsonify({"ok": False, "msg": "Request blocked by security policy."}), 403
 
 
+def _end_session(api_msg, page_msg):
+    """Clear the session and answer: 401 JSON under /api/, otherwise a redirect
+    to the sign-in page this session belongs to.
+
+    A platform-admin session goes to the console's own /super_admin/login, as
+    its idle timeout (blueprints/platform_admin) and the CSRF handler already
+    do; every other session goes to the company login. Decided by the session,
+    not the URL, so a company admin who opens a /super_admin page is never
+    shown that the console exists (security review OBS-07). A browser signed
+    in to both goes by the page it asked for."""
+    tenant = session.get("admin_logged_in") or session.get("employee_id")
+    platform = session.get("platform_admin_logged_in") and (request.path.startswith("/super_admin") or not tenant)
+    session.clear()
+    if request.path.startswith("/api/"):
+        return jsonify({"ok": False, "msg": api_msg}), 401
+    flash(page_msg, "warning")
+    return redirect("/super_admin/login" if platform else url_for("auth.admin_login"))
+
+
 @app.before_request
 def _enforce_session_lifetime():
     """Expire sessions that are older than the absolute max age, regardless of
@@ -176,17 +195,10 @@ def _enforce_session_lifetime():
         return
     created = session.get("_session_created")
     if created and created < session_cutoff.cut_off_epoch():
-        session.clear()
-        if request.path.startswith("/api/"):
-            return jsonify({"ok": False, "msg": "You have been signed out. Please log in again."}), 401
-        flash("You have been signed out. Please log in again.", "warning")
-        return redirect(url_for("auth.admin_login"))
+        return _end_session("You have been signed out. Please log in again.",
+                            "You have been signed out. Please log in again.")
     if created and (time.time() - created) > _SESSION_MAX_AGE:
-        session.clear()
-        if request.path.startswith("/api/"):
-            return jsonify({"ok": False, "msg": "Session expired. Please log in again."}), 401
-        flash("Your session expired. Please log in again.", "warning")
-        return redirect(url_for("auth.admin_login"))
+        return _end_session("Session expired. Please log in again.", "Your session expired. Please log in again.")
 
 
 @app.before_request
@@ -210,11 +222,8 @@ def _enforce_idle_timeout():
     if last_activity:
         timeout_minutes = get_company_settings().get("session_timeout", 30)
         if (now - last_activity) > timeout_minutes * 60:
-            session.clear()
-            if request.path.startswith("/api/"):
-                return jsonify({"ok": False, "msg": "Session expired due to inactivity. Please log in again."}), 401
-            flash("Your session expired due to inactivity. Please log in again.", "warning")
-            return redirect(url_for("auth.admin_login"))
+            return _end_session("Session expired due to inactivity. Please log in again.",
+                                "Your session expired due to inactivity. Please log in again.")
     session["_last_activity"] = now
 
 

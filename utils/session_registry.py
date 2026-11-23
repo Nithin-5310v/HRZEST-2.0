@@ -144,6 +144,11 @@ def count_signed_in():
     return value
 
 
+def clear_count_cache():
+    """Make the next count_signed_in() count afresh (after sessions were ended)."""
+    _count_cache.update(at=0.0, value=None)
+
+
 def signed_in_everywhere(include_sid=False, limit=300):
     """Every signed-in session across companies, for the SOC console (your
     SOC_TEST_ACCOUNTS / SOC_TEST_COMPANIES left out, as everywhere there)."""

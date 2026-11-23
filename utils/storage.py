@@ -1,38 +1,25 @@
 # -*- coding: utf-8 -*-
-"""Upload storage helpers -- every upload path in this codebase (company
-logos, employee documents, KYC application documents, ID-card photos/QR
-codes) writes straight to the local filesystem under static/ or
-private_uploads/.
+"""Upload storage helpers. Every uploaded or generated file goes through one
+of three groups; callers, not this module, choose which.
 
-Callers, not this module, decide public vs. private:
-  - save_public(): local path is under static/ (Flask serves it
-    directly). For company logos, ID card template backgrounds -- pure
-    branding artwork with no encoded meaning, genuinely safe to be
-    world-readable.
-  - save_private(): local path is OUTSIDE static/ (mirrors
-    utils/helpers.py's save_application_document() convention) -- callers
-    must use open_private()/delete_private(), never serve the raw path
-    directly, for anything that needs an auth check first (employee
-    documents, KYC application documents, attendance QR codes -- see
-    qr_generator.py's generate_qr(): the QR image itself IS a bearer
-    credential, an unsigned copy of it under static/ would let anyone who
-    can guess an employee_id fetch a permanently-valid, replayable
-    check-in code for that person with no login at all, which is exactly
-    the attack qr_generator.py's own HMAC signature was added to prevent
-    -- so the image has to be gated the same way the signature already
-    is).
-
-Wired in today: utils/helpers.py's save_uploaded_logo() (public) and
-save_application_document() (private) -- the two centralized,
-single-purpose upload helpers already existed as one call site each,
-making them the safe, low-risk first integration point. The remaining
-scattered inline os.path.join(...).save(...) call sites (employee ID
-photos/QR codes in blueprints/employees.py, employee_docs in
-blueprints/documents.py, kiosk face-log photos in
-blueprints/employee_portal.py) still write directly to local disk --
-migrating those needs their matching read-back call sites (send_file,
-send_from_directory, direct Image.open()) updated in the same pass, a
-larger and riskier change to make blind. Follow-up, not done here.
+  - save_public(): under static/, served as is with no sign-in. Only company
+    logos use it (utils/helpers/uploads.py's save_uploaded_logo()): branding
+    with nothing sensitive in it.
+  - save_private() / open_private() / delete_private(): under
+    private_uploads/, encrypted at rest, and read back only by a route that
+    checks who is asking. Used for employee documents (blueprints/documents.py),
+    onboarding task documents (blueprints/onboarding.py), announcement and
+    support-ticket attachments, company-signup KYC documents
+    (save_application_document()) and attendance QR codes (qr_generator.py:
+    the image is itself a check-in credential, so it is gated like the HMAC
+    signature in it). save_private() returns an opaque stored_ref: pass it
+    back to open_private()/delete_private(), never build a URL from it.
+    Those two only touch files inside private_uploads/ (PrivatePathError
+    otherwise; see _private_path()).
+  - read_file() / save_image() / save_upload() / open_image() / send_image() /
+    decrypted_stream(): photos under UPLOAD_FOLDER (dataset/) -- face
+    photos, kiosk check-in faces, admin photos -- addressed by plain paths
+    and encrypted the same way (see the section further down).
 """
 import io
 import os
@@ -131,8 +118,11 @@ def _private_path(stored_ref):
     except ValueError:      # an embedded NUL, or another drive (Windows)
         inside = False
     if not inside:
-        from extensions import app_log
-        app_log.warning("private file reference refused: outside private_uploads (%.120r)", stored_ref)
+        # Only save_private() writes these, so one pointing elsewhere means a
+        # database row was changed by something else: worth the SOC's eyes.
+        from extensions import log_security_event
+        log_security_event("access.private_file_refused", "Stored file path outside private_uploads refused",
+                           level="WARNING", stored_ref=repr(stored_ref)[:200])
         raise PrivatePathError("stored file reference is outside private_uploads")
     return path
 
