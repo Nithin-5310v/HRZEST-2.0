@@ -90,8 +90,8 @@ COPY --chown=appuser:appuser . .
 # Runtime directories that are gitignored — compose.yaml mounts named
 # volumes over these, so ownership here only matters for `podman run`
 # without compose (defense in depth, not the primary permission story).
-RUN mkdir -p static/qrcodes static/employee_docs dataset \
-    && chown -R appuser:appuser static dataset
+RUN mkdir -p private_uploads static/employee_docs dataset \
+    && chown -R appuser:appuser private_uploads static dataset
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
