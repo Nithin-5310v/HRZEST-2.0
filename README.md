@@ -2,6 +2,8 @@
 
 A full-featured, self-hosted employee management and attendance platform built with Flask, PostgreSQL, face recognition, WebAuthn (passkeys), and GPS geo-fencing. Includes a React Native mobile app and a full CI/CD pipeline.
 
+**Developers: start with the [developer guide](docs/developer/README.md)** — architecture, local setup, conventions, testing, release, security, database, configuration, mobile app and troubleshooting.
+
 ---
 
 ## Features
@@ -25,7 +27,7 @@ A full-featured, self-hosted employee management and attendance platform built w
 
 ## Prerequisites
 
-- Python 3.14+
+- Python 3.14 (CI and production; 3.12 also works for development)
 - PostgreSQL 16+
 - `cmake`, `dlib` build tools (for face recognition — see Containerfile for the full list)
 - Node.js 18+ (for mobile app only)
@@ -232,9 +234,9 @@ employee-attendance-system/
 
 ## Architecture notes
 
-- **Blueprint migration complete** — all routes live in `blueprints/` (21 blueprints, ~18k lines). `app.py` (~3.3k lines) now holds only shared setup: context processors, request hooks (CSRF/WAF/CSP/session timeout), DB schema init/migrations, and error handlers. See `wsgi.py` for the full blueprint registration list.
+- **Blueprints** — all routes live in `blueprints/` (37 modules and packages, registered in order by `blueprints/__init__.py`). `app.py` is a thin entry point: the request hooks live in `app_setup/` (imported in a fixed order), migrations in `migrations/`.
 - **CSP** — Content-Security-Policy is generated dynamically per-response. Inline event handlers are sha256-hashed at render time; no `'unsafe-inline'` is used.
-- **Multi-tenancy** — subdomain-based tenant routing via `_resolve_tenant()` in `app.py`. Each organisation gets its own PostgreSQL schema within the shared database. `/create_org` self-signup is open by default (Turnstile-protected when `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` are set), with pricing tiers enforced from `utils/plan_limits.py`. Company subdomains require wildcard DNS/TLS (not yet configured — see the SaaS pivot plan) to actually route; until then, new tenants provision correctly but aren't reachable by subdomain.
+- **Multi-tenancy** — each company has its own URL path, `https://<server>/<company>/...`, and its own PostgreSQL schema within the shared database. `utils/tenant_routing.py` (`TenantPrefixMiddleware`) finds the company from the first path segment and `app_setup/tenant.py`'s `_resolve_tenant()` binds the request and session to it; see [docs/developer/architecture.md](docs/developer/architecture.md#which-company-a-request-belongs-to). `/create_org` self-signup is open by default (Turnstile-protected when `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` are set), with pricing tiers enforced from `utils/plan_limits.py`.
 - **Platform admin console** — `/super_admin` (`blueprints/platform_admin/`), a cross-tenant operator panel (list all companies, change plan, suspend/reactivate) with its own login identity in `att_master.platform_admins`, separate from any tenant's `admin_users`. No account is seeded automatically — run `python scripts/seed_platform_admin.py --username <user> --email <email>` (prompts for the password, or pass `--password`) once per deployment; safe to re-run since it upserts by username.
 - **Rate limiting** — `flask-limiter` with an in-memory backend (no Redis in this deployment — counters are per-worker, not shared across `GUNICORN_WORKERS`).
 
