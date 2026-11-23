@@ -77,7 +77,7 @@ python run_dev.py
 - The first start creates every table and the default company. Sign in at
   `/login` with username `admin` and the `ADMIN_PASSWORD` from `.env`.
 
-To try the multi-company paths, register a company at `/create_org`. It gets its
+To try the multi-company paths, register a company at `/signup`. It gets its
 own address, `http://127.0.0.1:5000/<company>/login`, and its own schema.
 
 ### Platform admin and SOC console

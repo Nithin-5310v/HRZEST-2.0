@@ -32,6 +32,22 @@ Every company lives under its own path prefix, `/<company>/...` (see
 | A static file | `static_url("app.css")` | a hand-built `/static/...` path |
 | A `fetch()` from a page | a path the page already prefixes, or `{{ tpath('/api/...') }}` | assuming the page is at the site root |
 
+## Adding a public page
+
+Public pages (home, `/signup`, `/privacy`, `/terms`, `/security-policy`) are
+the only ones search engines may index. A new one needs all of these:
+
+1. Its path in `INDEXABLE_PATHS` (`blueprints/seo.py`). That also puts it in the
+   sitemap and counts its page views; any other page gets `noindex`.
+2. Its first path segment in `RESERVED_PATH_SEGMENTS` (`utils/tenant_routing.py`),
+   so no company can take it as its address.
+3. Its endpoint in the allow-list in `tests/test_route_auth_guards.py`.
+4. A unique `<title>` and description, one `<h1>`, and
+   `{{ public_meta(title, description, path) }}` from `templates/_public_meta.html`
+   (canonical, social preview, icons). Policy-style pages can extend
+   `templates/legal_layout.html`, which adds breadcrumbs and the footer links.
+5. A line in `/llms.txt` (`blueprints/seo.py`) if it's a main page.
+
 ## Database access
 
 - **Always parameterised SQL:** `cursor.execute("... WHERE id=%s", (id,))`. Only
