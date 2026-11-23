@@ -16,7 +16,7 @@ def _assert_no_store(resp):
 @pytest.mark.parametrize("path", [
     "/login",
     "/admin_login",
-    "/create_org",
+    "/signup",
     "/admin_forgot_password",
     "/employee_forgot_password",
     "/super_admin/login",

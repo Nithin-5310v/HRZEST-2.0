@@ -5,19 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HRzest.com - HR, Attendance & Payroll Platform</title>
   <meta name="description" content="HR platform for attendance (face recognition, QR, GPS geo-fencing), leave, overtime, payroll and payslips, onboarding and performance reviews.">
-  <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}">
-  <link rel="canonical" href="{{ seo_base_url }}/">
-  {% if google_site_verification %}<meta name="google-site-verification" content="{{ google_site_verification }}">{% endif %}
-
-  {# Social sharing previews (Slack, WhatsApp, LinkedIn, etc.) #}
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="HRzest">
-  <meta property="og:title" content="HRzest.com - HR, Attendance & Payroll Platform">
-  <meta property="og:description" content="Lead your workforce with clarity. HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.">
-  <meta property="og:url" content="{{ seo_base_url }}/">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="HRzest.com - HR, Attendance & Payroll Platform">
-  <meta name="twitter:description" content="Lead your workforce with clarity. HRzest is the all-in-one people platform that brings attendance, payroll, leave, onboarding and performance under one roof. With smart automation, secure access and a self-service portal for everyone, your team spends less time on paperwork and more time building your company.">
+  {% from "_public_meta.html" import public_meta with context %}
+  {{ public_meta("HRzest.com - HR, Attendance & Payroll Platform", "Lead your workforce with clarity. HRzest brings attendance, payroll, leave, onboarding and performance under one roof, with smart automation, secure access and a self-service portal for everyone.", "/") }}
 
   <script type="application/ld+json">
   {
@@ -35,6 +24,8 @@
     }
   }
   </script>
+  {# The company, its office and the website (blueprints/seo.py organization_schema) #}
+  <script type="application/ld+json">{{ organization_schema() | tojson }}</script>
 
   {# Icons: local Tabler set (no external CDN -- the app's CSP is style-src-elem 'self', which blocks cross-origin stylesheets) #}
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}">
@@ -67,7 +58,7 @@
         <a href="/login" class="btn btn-secondary" style="padding: 0.6rem 1.25rem;">
           <i class="ti ti-login"></i> Log In
         </a>
-        <a href="/create_org" class="btn btn-primary" style="padding: 0.6rem 1.25rem;">
+        <a href="/signup" class="btn btn-primary" style="padding: 0.6rem 1.25rem;">
           <i class="ti ti-building"></i> Register Company
         </a>
         <button class="mobile-nav-toggle" id="mobileNavToggle">
@@ -89,7 +80,7 @@
         </p>
 
         <div class="hero-ctas">
-          <a href="/create_org" class="btn btn-primary">
+          <a href="/signup" class="btn btn-primary">
             <i class="ti ti-building-bank"></i> Start Free Trial
           </a>
           <a href="#sandbox" class="btn btn-secondary">
@@ -549,7 +540,7 @@
           <li><i class="ti ti-circle-check"></i> Cancel anytime</li>
         </ul>
 
-        <a href="/create_org" class="btn btn-primary">
+        <a href="/signup" class="btn btn-primary">
           <i class="ti ti-building-bank"></i> Start Free Trial
         </a>
       </div>
@@ -595,7 +586,7 @@
           </div>
 
           {% if oauth_providers %}
-          <p style="color: var(--text-muted); margin-top: 1.5rem;">Prefer to sign up with {{ oauth_providers | map('title') | join(' or ') }}? <a href="/create_org" style="color:var(--accent-cyan); text-decoration:underline;">Use one-click sign-up</a></p>
+          <p style="color: var(--text-muted); margin-top: 1.5rem;">Prefer to sign up with {{ oauth_providers | map('title') | join(' or ') }}? <a href="/signup" style="color:var(--accent-cyan); text-decoration:underline;">Use one-click sign-up</a></p>
           {% endif %}
         </div>
 
@@ -935,6 +926,11 @@
 
       <div class="footer-bottom">
         <div>&copy; 2026 <span class="hrzest-brand" style="font-size:0.95rem;">HRzest.com</span>. All rights reserved.</div>
+        <nav class="footer-legal" aria-label="Legal" style="display:flex; flex-wrap:wrap; gap:0.4rem 1.25rem;">
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms of Service</a>
+          <a href="/security-policy">Security</a>
+        </nav>
       </div>
     </div>
   </footer>

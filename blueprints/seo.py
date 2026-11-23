@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """SEO blueprint -- /robots.txt, /sitemap.xml, and crawler-facing headers.
 
-Only the two public marketing pages (the landing page and the company signup
-form) are meant to appear in search results. Everything else -- the tenant
+Only the public pages (the landing page, the company sign-up form, the
+privacy policy, the terms and the security policy) are meant to appear in
+search results. Everything else -- the tenant
 portals, every login/forgot-password page, the check-in kiosk, the platform
 admin console -- is private, so every response carries
 `X-Robots-Tag: noindex, nofollow` unless its path is in INDEXABLE_PATHS. The
@@ -26,11 +27,16 @@ seo_bp = Blueprint("seo", __name__)
 # www.hrzest.com redirects to it (utils/canonical_host.py, and nginx).
 _DEFAULT_BASE_URL = "https://hrzest.com"
 
-# Paths a search engine may index. Anything else gets noindex.
-INDEXABLE_PATHS = ("/", "/create_org", "/security-policy")
+# Paths a search engine may index. Anything else gets noindex. They are also
+# the pages whose views utils/analytics counts (see count_public_page_view).
+INDEXABLE_PATHS = ("/", "/signup", "/privacy", "/terms", "/security-policy")
 
 # Responses that must stay fetchable and un-tagged.
-_UNTAGGED_PATHS = ("/robots.txt", "/sitemap.xml", "/.well-known/security.txt")
+_UNTAGGED_PATHS = ("/robots.txt", "/sitemap.xml", "/llms.txt", "/.well-known/security.txt")
+
+# Crawlers, link-preview fetchers, uptime checks and scripts: not visitors.
+_BOT_UA = re.compile(r"bot|crawl|spider|slurp|preview|facebookexternalhit|lighthouse|pingdom|uptime|monitor|"
+                     r"headless|curl|wget|python-|go-http|java/|okhttp|zap|scanner", re.IGNORECASE)
 _UNTAGGED_PREFIXES = ("/static/",)
 
 # Never useful to crawl: the JSON APIs. robots.txt is public, so it must not
@@ -77,6 +83,103 @@ def sitemap_xml():
     return resp
 
 
+@seo_bp.route("/llms.txt")
+def llms_txt():
+    """A plain-language summary of the site for AI assistants (llmstxt.org)."""
+    from blueprints.trial_billing import TRIAL_DURATION_DAYS
+    from utils.tax_invoice import seller_details
+    base = _base_url()
+    s = seller_details()
+    try:
+        from utils.plan_limits import get_per_employee_paise
+        price = f"Rs {get_per_employee_paise() // 100} per employee per month"
+    except Exception:
+        price = "a flat price per employee per month"
+    lines = [
+        "# HRzest",
+        "",
+        "> HRzest is a cloud HR platform for companies in India: employee attendance with face recognition, "
+        "QR codes and GPS geo-fencing; leave and holidays; payroll and payslips; onboarding; performance "
+        "reviews; and a self-service portal and mobile app for employees.",
+        "",
+        f"Pricing: {price}, with a {TRIAL_DURATION_DAYS}-day free trial.",
+        "",
+        "## Pages",
+        f"- [Home]({base}/): what HRzest does, features and pricing",
+        f"- [Sign up]({base}/signup): register a company and start the free trial",
+        f"- [Privacy Policy]({base}/privacy): what personal data HRzest handles and why",
+        f"- [Terms of Service]({base}/terms): the terms for using HRzest",
+        f"- [Security policy]({base}/security-policy): how to report a security vulnerability",
+        "",
+        "## Contact",
+        f"- Email: {s['email']}",
+        f"- Phone: {s['phone']}",
+        f"- Address: {', '.join(s['address_lines'])}, India",
+        "",
+    ]
+    resp = Response("\n".join(lines), mimetype="text/plain")
+    resp.headers["Content-Type"] = "text/plain; charset=utf-8"
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
+def _postal_address(s):
+    """schema.org PostalAddress from the invoice address lines
+    ("street|area, city|State - PIN")."""
+    lines = list(s["address_lines"])
+    pin = re.search(r"\b\d{6}\b", lines[-1]) if lines else None
+    street_lines = lines[:-1] if len(lines) > 1 else lines
+    parts = ", ".join(street_lines).split(", ")
+    locality = parts[-1] if len(parts) > 1 else ""
+    street = ", ".join(parts[:-1]) if locality else ", ".join(parts)
+    address = {"@type": "PostalAddress", "streetAddress": street, "addressRegion": s["state"], "addressCountry": "IN"}
+    if locality:
+        address["addressLocality"] = locality
+    if pin:
+        address["postalCode"] = pin.group(0)
+    return address
+
+
+@seo_bp.app_template_global()
+def organization_schema():
+    """JSON-LD for the landing page: the company (Organization), its office
+    (ProfessionalService, a schema.org LocalBusiness type) and the website.
+    Every fact comes from utils/tax_invoice.seller_details(), the same
+    details printed on invoices -- nothing here is made up for SEO."""
+    from utils.tax_invoice import seller_details
+    s = seller_details()
+    base = _base_url()
+    org_id = f"{base}/#organization"
+    address = _postal_address(s)
+    return {
+        "@context": "https://schema.org",
+        "@graph": [
+            {"@type": "Organization", "@id": org_id, "name": "HRzest", "url": f"{base}/",
+             "logo": f"{base}/static/brand/icon-512.png", "email": s["email"], "telephone": s["phone"],
+             "address": address,
+             "contactPoint": {"@type": "ContactPoint", "contactType": "customer support", "email": s["email"],
+                              "telephone": s["phone"], "areaServed": "IN", "availableLanguage": ["en"]}},
+            {"@type": "ProfessionalService", "@id": f"{base}/#office", "name": "HRzest", "url": f"{base}/",
+             "image": f"{base}/static/brand/og-image.png", "email": s["email"], "telephone": s["phone"],
+             "address": address, "parentOrganization": {"@id": org_id}},
+            {"@type": "WebSite", "@id": f"{base}/#website", "url": f"{base}/", "name": "HRzest",
+             "publisher": {"@id": org_id}},
+        ],
+    }
+
+
+@seo_bp.app_template_global()
+def breadcrumb_schema(items):
+    """JSON-LD BreadcrumbList for [(name, path), ...], home first."""
+    base = _base_url()
+    return {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [{"@type": "ListItem", "position": i, "name": name, "item": base + path}
+                            for i, (name, path) in enumerate(items, 1)],
+    }
+
+
 @seo_bp.app_context_processor
 def inject_seo_context():
     return {
@@ -94,6 +197,17 @@ def tag_private_pages_noindex(response):
     # request.script_root is non-empty for a tenant-prefixed URL (/acme/...), which
     # serves a copy of the same page under a different address -- not indexable.
     if path in INDEXABLE_PATHS and not request.script_root and response.status_code == 200:
+        count_public_page_view(path)
         return response
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
     return response
+
+
+def count_public_page_view(path):
+    """Server-side analytics (utils/analytics.py): one counter per public page
+    per day. No cookies, no script, no IP address stored. Only real page
+    loads count: GET (not HEAD), and not crawlers, previews or scripts."""
+    if request.method != "GET" or _BOT_UA.search(request.headers.get("User-Agent", "")):
+        return
+    from utils.analytics import track_page_view
+    track_page_view(path)

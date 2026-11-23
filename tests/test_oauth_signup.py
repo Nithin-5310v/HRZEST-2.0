@@ -251,16 +251,16 @@ class TestSignupEmailVerification:
     def test_wrong_token_cannot_use_the_code(self, client, db_engine, monkeypatch):
         pending_id, _token, otp = _start_signup(client, monkeypatch, "g-otp-5", self.EMAIL, "Admin")
         resp = _submit_code(client, pending_id, "not-the-token", otp)
-        assert resp.headers["Location"] == "/create_org"
+        assert resp.headers["Location"] == "/signup"
         assert client.get(f"/create_org/oauth/verify?id={pending_id}&token=not-the-token").status_code == 302
         assert _tenant_count(db_engine, self.EMAIL) == 0
 
     def test_malformed_token_never_reaches_a_redirect(self, client, db_engine, monkeypatch):
         pending_id, token, otp = _start_signup(client, monkeypatch, "g-otp-8", self.EMAIL, "Admin")
         for bad in (token + "&next=https://evil.example/x", token[:10]):
-            assert _submit_code(client, pending_id, bad, otp).headers["Location"] == "/create_org"
+            assert _submit_code(client, pending_id, bad, otp).headers["Location"] == "/signup"
             resend = client.post("/create_org/oauth/resend", data={"application_id": pending_id, "token": bad})
-            assert resend.headers["Location"] == "/create_org"
+            assert resend.headers["Location"] == "/signup"
         assert _tenant_count(db_engine, self.EMAIL) == 0
 
     def test_resend_replaces_the_code(self, client, db_engine, monkeypatch):
@@ -281,7 +281,7 @@ class TestSignupEmailVerification:
         try:
             pending_id, token, otp = _start_signup(client, monkeypatch, "g-otp-7", self.EMAIL, "Admin")
             assert _submit_code(client, pending_id, token, otp).headers["Location"].endswith("/admin")
-            assert _submit_code(client, pending_id, token, otp).headers["Location"] == "/create_org"
+            assert _submit_code(client, pending_id, token, otp).headers["Location"] == "/signup"
             assert _tenant_count(db_engine, self.EMAIL) == 1
         finally:
             self._drop_created(db_engine)

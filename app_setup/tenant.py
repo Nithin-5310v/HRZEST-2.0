@@ -64,8 +64,8 @@ def _resolve_tenant():
     # tenant slug in it; that route resolves its own tenant from the
     # server-side oauth_signup_states row instead. "/create_org" already
     # covers the OAuth *signup* entry points (/create_org/<provider>[/callback]),
-    # since no tenant exists yet at that point.
-    skip_prefixes = ("/static/", "/healthz", "/create_org", "/super_admin", "/oauth/callback")
+    # since no tenant exists yet at that point; "/signup" is the sign-up page.
+    skip_prefixes = ("/static/", "/healthz", "/create_org", "/signup", "/super_admin", "/oauth/callback")
     if any(request.path.startswith(p) for p in skip_prefixes):
         return
     # The SOC console is a platform surface, never tenant-scoped. Exact segment

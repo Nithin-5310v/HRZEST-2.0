@@ -75,7 +75,7 @@ class TestIndexingRules:
         assert '<meta name="google-site-verification" content="abc123token">' in client.get("/").get_data(as_text=True)
 
     def test_signup_page_is_indexable_with_description(self, client):
-        resp = client.get("/create_org")
+        resp = client.get("/signup")
         assert resp.status_code == 200
         assert "X-Robots-Tag" not in resp.headers
         html = resp.get_data(as_text=True)

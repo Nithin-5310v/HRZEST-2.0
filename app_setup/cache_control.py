@@ -43,6 +43,7 @@ _CACHEABLE_PATHS = frozenset({
     "/favicon.ico",
     "/robots.txt",
     "/sitemap.xml",
+    "/llms.txt",
     "/.well-known/security.txt",
 })
 

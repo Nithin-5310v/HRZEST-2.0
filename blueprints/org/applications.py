@@ -574,5 +574,5 @@ def _back_to_signup_form():
     if request.form.get("return_to") == "home":
         return redirect("/?registration=failed#register")
     if request.form.get("signup_plan") == "free":
-        return redirect("/create_org?free=1")
-    return redirect("/create_org")
+        return redirect("/signup?free=1")
+    return redirect("/signup")

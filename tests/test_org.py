@@ -46,7 +46,7 @@ class TestSignupPage:
         for name in ("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET",
                      "MICROSOFT_OAUTH_CLIENT_ID", "MICROSOFT_OAUTH_CLIENT_SECRET"):
             monkeypatch.setenv(name, "test-value")
-        resp = client.get("/create_org")
+        resp = client.get("/signup")
         assert resp.status_code == 200
         assert b"Start Your Organisation" in resp.data
         assert b"/create_org/google" in resp.data
@@ -82,7 +82,7 @@ class TestLandingPageLinks:
     def test_links_to_create_org_and_login(self, client):
         resp = client.get("/")
         assert resp.status_code == 200
-        assert b"/create_org" in resp.data
+        assert b"/signup" in resp.data
         assert b"/login" in resp.data
 
 
@@ -208,7 +208,7 @@ class TestSignupValidation:
                 "admin_password": "password-1234"}
         data[field] = value
         resp = client.post("/create_org", data=data, follow_redirects=False)
-        assert resp.headers["Location"] == "/create_org"
+        assert resp.headers["Location"] == "/signup"
         assert codes == []
 
     def test_valid_signup_starts_an_application_with_the_email_as_username(self, client, db_engine, monkeypatch):
@@ -231,7 +231,7 @@ class TestOneStepSignupPage:
     separate wizard steps any more."""
 
     def test_signup_form_asks_only_for_the_company_name_and_account(self, client):
-        page = client.get("/create_org").get_data(as_text=True)
+        page = client.get("/signup").get_data(as_text=True)
         for field in ("company_name", "admin_email", "admin_mobile", "admin_password"):
             assert f'name="{field}"' in page, field
         for field in ("gst_number", "subdomain", "logo", "otp_code"):
@@ -242,7 +242,7 @@ class TestOneStepSignupPage:
         """The "Your team's portal: .../your-company/login" hint under
         Company Name was removed from the sign-up page on request; it must
         not come back, and no hard-coded www.hrzest.com address either."""
-        page = client.get("/create_org").get_data(as_text=True)
+        page = client.get("/signup").get_data(as_text=True)
         assert "Your team's portal" not in page
         assert "/your-company/login</strong>" not in page
         assert "www.hrzest.com/your-company" not in page
@@ -263,7 +263,7 @@ class TestOneStepSignupPage:
         with client.session_transaction() as sess:
             sess.pop("org_access_token", None)
         resp = client.get(f"/create_org/verify_otp?application_id={application_id}")
-        assert resp.headers["Location"] == "/create_org"
+        assert resp.headers["Location"] == "/signup"
 
 
 class TestLegacyProfileStep:
@@ -285,9 +285,9 @@ class TestLegacyProfileStep:
         capture_codes(monkeypatch)
         application_id = application_id_from(start_signup(client, "early@profile.test"))
         page = client.get(f"/create_org/profile?application_id={application_id}")
-        assert page.headers["Location"] == "/create_org"
+        assert page.headers["Location"] == "/signup"
         resp = submit_profile(client, application_id, "Too Early Co", "too-early-co")
-        assert resp.headers["Location"] == "/create_org"
+        assert resp.headers["Location"] == "/signup"
 
     def test_profile_still_creates_an_old_applications_company(self, client, db_engine, monkeypatch):
         from app import init_master_db
@@ -631,9 +631,9 @@ class TestSignupFlow:
             # generic message that never reveals the real owner's details.
             codes = capture_codes(monkeypatch)
             resp = start_signup(client, "impersonator@test.local", "  acme duplicate test  ")
-            assert resp.headers["Location"] == "/create_org"
+            assert resp.headers["Location"] == "/signup"
             assert codes == []
-            page = client.get("/create_org")
+            page = client.get("/signup")
             assert b"already" in page.data
             assert b"dupname@test.local" not in page.data
 
@@ -779,9 +779,9 @@ class TestSignupFlow:
             # still be caught.
             codes = capture_codes(monkeypatch)
             resp = start_signup(client, f"  {shared_email.upper()}  ", "Wholly Unrelated Venture")
-            assert resp.headers["Location"] == "/create_org"
+            assert resp.headers["Location"] == "/signup"
             assert codes == []
-            assert b"already" in client.get("/create_org").data
+            assert b"already" in client.get("/signup").data
 
             cur.execute(
                 "SELECT match_type FROM att_master.tenant_duplicate_alerts "

@@ -59,8 +59,10 @@ def get_started_page():
     return redirect("/")
 
 
-@org_bp.route("/create_org", methods=["GET"])
+@org_bp.route("/signup", methods=["GET"])
 def create_org_page():
+    """The public sign-up page. Its old address, GET /create_org, redirects
+    here (create_org_old_address below); the form still posts to /create_org."""
     # Flashed messages live in the session cookie, not scoped to any one
     # page -- an unrelated admin-session-expiry notice (category
     # "warning", queued by app.py's _enforce_session_lifetime /
@@ -72,8 +74,7 @@ def create_org_page():
     # category "error" -- keep only those, drop everything else.
     if session.get("_flashes"):
         session["_flashes"] = [f for f in session["_flashes"] if f[0] == "error"]
-    from utils.analytics import track_page_view
-    track_page_view("/create_org")
+    # Page views are counted by blueprints/seo.py for every public page.
     return render_template(
         "create_org.html",
         per_employee_paise=get_per_employee_paise(),
@@ -82,6 +83,14 @@ def create_org_page():
         free_registration=request.args.get("free") == "1" and _free_registration_allowed(),
         portal_base=_safe_app_url(),
     )
+
+
+@org_bp.route("/create_org", methods=["GET"])
+def create_org_old_address():
+    """Old address of the sign-up page: 301 to /signup, keeping the query
+    string (?free=1 for a platform admin's free registration)."""
+    qs = request.query_string.decode("utf-8", "replace")
+    return redirect("/signup" + (f"?{qs}" if qs else ""), 301)
 
 
 @org_bp.route("/create_org", methods=["POST"])
@@ -98,7 +107,7 @@ def create_org():
     free_registration = request.form.get("signup_plan", "").strip().lower() == "free"
     if free_registration and not _free_registration_allowed():
         flash("Free registration can only be started from the Platform Admin dashboard.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
 
     if turnstile_enabled():
         token = request.form.get("cf-turnstile-response", "")
@@ -198,7 +207,7 @@ def create_org_verify_otp_page():
     application = _load_application(request.args.get("application_id", ""), session.get("org_access_token"))
     if not application or application["status"] != "started":
         flash("Your registration session has ended. Please start again.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     return render_template(
         "create_org.html", code_step=True, application=application,
         free_registration=bool(application["free_registration"]),
@@ -218,7 +227,7 @@ def create_org_verify_otp():
     application = _load_application(application_id, session.get("org_access_token"))
     if not application:
         flash("Application not found. Please start again.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     if application["status"] == "otp_verified" and not application["company_name"]:
         # Verified before step 1 asked for the company name: the old
         # company-profile step still finishes it.
@@ -239,7 +248,7 @@ def create_org_verify_otp():
                         application_id, error)
         flash(error if error == _GENERIC_DUPLICATE_MSG else
               f"Could not set up your company: {error}. Please contact support.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
 
     session.pop("org_access_token", None)
     session.pop("org_free_registration", None)
@@ -379,7 +388,7 @@ def create_org_profile_page():
     application = _load_profile_application(request.args.get("application_id", ""), session.get("org_access_token"))
     if not application:
         flash("Verify your email first, or start a new registration.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     return _render_profile_page(application)
 
 
@@ -393,7 +402,7 @@ def create_org_profile():
     application = _load_profile_application(request.form.get("application_id", ""), session.get("org_access_token"))
     if not application:
         flash("Verify your email first, or start a new registration.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     ok, error, _portal_url, _checkin_url = _save_company_profile(application, request.form, request.files.get("logo"))
     if not ok:
         flash(error, "error")
@@ -408,7 +417,7 @@ def create_org_resend_otp():
     application = _load_application(application_id, session.get("org_access_token"))
     if not application or application["status"] != "started":
         flash("This application can no longer receive a new code.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
 
     otp_code = _generate_otp()
     from database import get_master_db
@@ -449,7 +458,7 @@ def create_org_upload_documents():
     application = _load_application(application_id, access_token)
     if not application:
         flash("Application not found. Please start again.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
 
     # A rejected company is suspended; its re-upload stays suspended until
     # the review approves it (see _save_application_documents).
@@ -508,7 +517,7 @@ def create_org_status_page(application_id):
         application = _fetch_application_row(application_id)
     if not application:
         flash("Application not found.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     portal_url = f"{_safe_app_url()}/{application['subdomain']}/login" if application["status"] == "provisioned" else None
     return render_template("create_org_status.html", application=application, portal_url=portal_url,
                            access_token=access_token)

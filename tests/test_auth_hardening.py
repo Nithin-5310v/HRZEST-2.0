@@ -868,4 +868,4 @@ class TestStatusPageAfterTokenRotation:
     def test_still_denied_without_any_proof(self, client, db_engine):
         app_id, _token = _approved_trial_application(db_engine)
         resp = client.get(f"/create_org/status/{app_id}", follow_redirects=False)
-        assert resp.status_code == 302 and resp.headers["Location"] == "/create_org"
+        assert resp.status_code == 302 and resp.headers["Location"] == "/signup"

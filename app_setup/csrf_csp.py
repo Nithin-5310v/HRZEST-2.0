@@ -330,7 +330,9 @@ def _security_headers(response):
         # /create_org renders the same Turnstile widget on its manual-signup
         # form; without it here the script/frame/connect are all blocked, the
         # token comes back empty, and verify_turnstile() rejects every signup.
-        _is_turnstile_page = request.path in ("/admin_login", "/login", "/", "/create_org")
+        # /signup is the sign-up page; /create_org still renders it when a
+        # form post is rejected.
+        _is_turnstile_page = request.path in ("/admin_login", "/login", "/", "/signup", "/create_org")
         _turnstile_src = " https://challenges.cloudflare.com" if _is_turnstile_page else ""
         # Razorpay Checkout.js (see _is_razorpay_checkout_page()) -- without
         # this, the default 'self'-only script-src silently blocks

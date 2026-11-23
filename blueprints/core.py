@@ -153,9 +153,8 @@ def home():
     # or session state -- logged-in admins/employees and tenant-slug
     # visits used to be auto-redirected straight to their portal/login;
     # now everyone lands here first and clicks through themselves.
-    from utils.analytics import track_page_view
     from utils.plan_limits import get_per_employee_paise
-    track_page_view("/")
+    # Page views are counted by blueprints/seo.py for every public page.
     # The page's company-registration form (POST /create_org) comes back
     # here with ?registration=failed when its submission is rejected. Only
     # then does this page show flashes, and only "error" ones -- same rule

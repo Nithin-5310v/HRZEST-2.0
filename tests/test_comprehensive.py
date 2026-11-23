@@ -773,7 +773,7 @@ class TestSecurityHeaders:
         resp = client.get(path, follow_redirects=False)
         assert resp.headers.get("Cross-Origin-Opener-Policy") == "same-origin-allow-popups"
 
-    @pytest.mark.parametrize("path", ["/login", "/", "/settings/other", "/create_org"])
+    @pytest.mark.parametrize("path", ["/login", "/", "/settings/other", "/signup"])
     def test_other_pages_stay_same_origin(self, client, path):
         resp = client.get(path, follow_redirects=False)
         assert resp.headers.get("Cross-Origin-Opener-Policy") == "same-origin"
@@ -793,7 +793,7 @@ class TestSecurityHeaders:
         csp = resp.headers.get("Content-Security-Policy", "")
         assert "script-src" in csp or "default-src" in csp or csp == ""
 
-    @pytest.mark.parametrize("path", ["/", "/login", "/create_org", "/super_admin/login"])
+    @pytest.mark.parametrize("path", ["/", "/login", "/signup", "/super_admin/login"])
     def test_csp_sets_directives_without_a_fallback(self, client, path):
         """form-action and base-uri don't fall back to default-src, so a CSP
         without them allows any form target / <base> URL (ZAP 10055)."""
@@ -801,7 +801,7 @@ class TestSecurityHeaders:
         assert "form-action 'self'" in csp
         assert "base-uri 'self'" in csp
 
-    @pytest.mark.parametrize("path", ["/", "/login", "/create_org", "/super_admin/login"])
+    @pytest.mark.parametrize("path", ["/", "/login", "/signup", "/super_admin/login"])
     def test_csp_reports_via_report_to_with_report_uri_fallback(self, client, path):
         """report-to for browsers that support it (its endpoint name must match
         a Reporting-Endpoints entry); report-uri kept as Firefox's fallback."""

@@ -139,13 +139,13 @@ def oauth_signup_start(provider):
         return "Unknown provider", 404
     if not provider_configured(provider):
         flash(f"Sign up with {provider.title()} isn't available right now.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     redirect_uri = f"{_safe_app_url()}/create_org/{provider}/callback"
     try:
         url = build_authorize_url(provider, redirect_uri, mode="signup")
     except RuntimeError:
         flash(f"Sign up with {provider.title()} isn't available right now.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     return set_binding_cookie(redirect(url), url)
 
 
@@ -156,29 +156,29 @@ def oauth_signup_callback(provider):
         return "Unknown provider", 404
     if request.args.get("error"):
         flash("Sign-up was cancelled. Please try again.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     code = request.args.get("code")
     state = request.args.get("state")
     if not code or not state:
         flash("Sign-up failed. Please try again.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
 
     redirect_uri = f"{_safe_app_url()}/create_org/{provider}/callback"
     if not binding_ok(request, state):
         log_security_event("auth.oauth_state_unbound", "OAuth callback without this browser's binding cookie",
                            level="WARNING", provider=provider)
         flash("Sign-up failed. Please try again.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     try:
         identity = complete_oauth(provider, code, state, redirect_uri)
     except OAuthError as exc:
         app_log.warning("oauth_signup.signup_callback_failed: provider=%s error=%s", provider, exc)
         flash("Sign-up failed. Please try again.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
 
     if identity["mode"] != "signup":
         flash("Sign-up failed. Please try again.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
 
     blocked = _signup_blocked(identity["email"])
     if blocked:
@@ -297,7 +297,7 @@ def _run_on_pending(sql, params):
 
 def _expired_signup():
     flash("This sign-up has expired. Please start again.", "error")
-    return redirect("/create_org")
+    return redirect("/signup")
 
 
 @oauth_signup_bp.route("/create_org/oauth/verify", methods=["GET"])
@@ -400,7 +400,7 @@ def _provision_oauth_signup(provider, subject, email, name):
     if not ok:
         app_log.error("oauth_signup provisioning failed: provider=%s domain=%s error=%s", provider, domain, err)
         flash("Could not create your organisation. Please try again or contact support.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
 
     db_name = "att_" + portal_subdomain.replace("-", "_")
 
