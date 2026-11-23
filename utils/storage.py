@@ -105,10 +105,43 @@ def save_private(app_root_path, file_storage, rel_path):
     return full_path, None
 
 
+# The app's root directory. Every save_private() caller passes this same
+# directory (app.root_path, or qr_generator.py's own folder), so every
+# stored_ref lies under <_APP_ROOT>/private_uploads/
+# (tests/test_private_storage_paths.py checks the two agree).
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class PrivatePathError(FileNotFoundError):
+    """A stored_ref that does not resolve to a file inside private_uploads/.
+    A FileNotFoundError, so each caller's existing missing-file handling
+    applies (they all catch it and show "missing or unreadable")."""
+
+
+def _private_path(stored_ref):
+    """stored_ref resolved (symlinks and ".." included) if it lies inside
+    private_uploads/, else PrivatePathError. A stored_ref only ever comes from
+    save_private(), but it is read back from a database column: a row that
+    names ../../app.py, /etc/passwd or a link pointing out of the folder must
+    never be read or deleted."""
+    root = os.path.realpath(os.path.join(_APP_ROOT, "private_uploads"))
+    try:
+        path = os.path.realpath(stored_ref) if isinstance(stored_ref, str) and stored_ref else ""
+        inside = bool(path) and path != root and os.path.commonpath([root, path]) == root
+    except ValueError:      # an embedded NUL, or another drive (Windows)
+        inside = False
+    if not inside:
+        from extensions import app_log
+        app_log.warning("private file reference refused: outside private_uploads (%.120r)", stored_ref)
+        raise PrivatePathError("stored file reference is outside private_uploads")
+    return path
+
+
 def open_private(stored_ref):
     """Read back a private upload's bytes given the stored_ref save_private()
-    returned. Decrypts transparently (legacy plaintext files pass through)."""
-    with open(stored_ref, "rb") as f:
+    returned. Decrypts transparently (legacy plaintext files pass through).
+    Only files inside private_uploads/ are read (PrivatePathError otherwise)."""
+    with open(_private_path(stored_ref), "rb") as f:
         return _get_cipher().decrypt_bytes(f.read())
 
 
@@ -116,8 +149,9 @@ def delete_private(stored_ref):
     """Best-effort delete, mirroring the try/except-and-log pattern every
     local os.remove() call site in this codebase already uses -- returns
     True/False rather than raising, callers log the failure themselves
-    with their own context (which employee/application/etc. it belonged to)."""
-    os.remove(stored_ref)
+    with their own context (which employee/application/etc. it belonged to).
+    Only files inside private_uploads/ are deleted (PrivatePathError otherwise)."""
+    os.remove(_private_path(stored_ref))
     return True
 
 

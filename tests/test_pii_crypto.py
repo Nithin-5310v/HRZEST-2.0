@@ -91,10 +91,12 @@ def test_bytes_round_trip_and_legacy_passthrough(key):
         c.decrypt_bytes(blob[:-1] + bytes([blob[-1] ^ 1]))
 
 
-def test_storage_encrypts_on_disk_and_open_private_decrypts(tmp_path):
+def test_storage_encrypts_on_disk_and_open_private_decrypts(tmp_path, monkeypatch):
     import io as _io
     from werkzeug.datastructures import FileStorage
+    from utils import storage
     from utils.storage import save_private, open_private
+    monkeypatch.setattr(storage, "_APP_ROOT", str(tmp_path))     # open_private reads only <root>/private_uploads
     data = b"\x89PNG secret aadhaar scan"
     ref, err = save_private(str(tmp_path), FileStorage(stream=_io.BytesIO(data), filename="a.png"), "docs/a.png")
     assert err is None
@@ -104,10 +106,12 @@ def test_storage_encrypts_on_disk_and_open_private_decrypts(tmp_path):
     assert [p.name for p in (tmp_path / "private_uploads" / "docs").iterdir()] == ["a.png"]   # no temp leftovers
 
 
-def test_encrypt_private_uploads_script(tmp_path, capsys):
+def test_encrypt_private_uploads_script(tmp_path, capsys, monkeypatch):
     import importlib.util
     import os as _os
+    from utils import storage
     from utils.storage import open_private
+    monkeypatch.setattr(storage, "_APP_ROOT", str(tmp_path))     # open_private reads only <root>/private_uploads
     root = tmp_path / "private_uploads" / "x"
     root.mkdir(parents=True)
     (root / "old.pdf").write_bytes(b"legacy plaintext")
