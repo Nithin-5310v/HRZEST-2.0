@@ -95,13 +95,13 @@ def _register_api_v1_aliases():
 
 
 # ── Self-register blueprints when app.py is the entrypoint ────────────────────
-# wsgi.py and tests/conftest.py both register every blueprint on the shared
-# `app` instance BEFORE importing this module (documented in conftest.py) --
-# in that case core.home is already present and this is a no-op. Only a bare
-# `python app.py` reaches this branch, so it's the one path where app.py must
-# register the blueprints itself before _register_api_v1_aliases() runs,
-# otherwise every route (including "/") would 404 and v1 aliases would be
-# built from an empty url_map.
+# tests/conftest.py registers every blueprint on the shared `app` BEFORE
+# importing this module, so there core.home is already present and this is a
+# no-op. Everywhere else -- production (wsgi.py imports this module and never
+# registers blueprints itself), run_dev.py and a bare `python app.py` -- this is
+# where the blueprints get registered, and it must happen before
+# _register_api_v1_aliases() runs, otherwise every route (including "/") would
+# 404 and v1 aliases would be built from an empty url_map.
 if "core.home" not in app.view_functions:
     from blueprints import register_all
     register_all(app)
