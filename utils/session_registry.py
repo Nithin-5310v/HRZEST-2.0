@@ -21,6 +21,7 @@ same path logout uses: the app refuses that cookie on its very next request.
 import time
 
 from utils.session_context import session_ref
+from utils.session_cutoff import issued_before_cutoff_sql
 
 REFRESH_SECONDS = 300
 COUNT_TTL_SECONDS = 60
@@ -33,13 +34,15 @@ def lifetime_seconds():
     return int(value.total_seconds()) if hasattr(value, "total_seconds") else int(value)
 
 
-# Signed in: not ended anywhere, within the absolute lifetime and the idle timeout.
+# Signed in: not ended anywhere, within the absolute lifetime and the idle timeout,
+# and started after the last "sign out everyone" (utils/session_cutoff.py).
 # Parameters: lifetime seconds, refresh seconds.
 ALIVE_SQL = (
     "s.ended_at IS NULL AND s.started_at > NOW() - (%s * INTERVAL '1 second') "
     "AND s.last_seen_at > NOW() - (COALESCE((SELECT session_timeout FROM company_settings ORDER BY id LIMIT 1), 30) "
     "  * INTERVAL '1 minute') - (%s * INTERVAL '1 second') "
-    "AND NOT EXISTS (SELECT 1 FROM session_risk r WHERE r.sid = s.sid AND r.status IN ('compromised', 'revoked'))"
+    "AND NOT EXISTS (SELECT 1 FROM session_risk r WHERE r.sid = s.sid AND r.status IN ('compromised', 'revoked')) "
+    f"AND NOT {issued_before_cutoff_sql('s.started_at')}"  # nosec B608 -- fixed column name
 )
 
 

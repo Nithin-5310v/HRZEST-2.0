@@ -28,6 +28,7 @@ from utils.plan_limits import get_tenant_employee_count, calculate_price, format
 from utils.email_utils import public_contact_email
 from utils.billing_notices import notify_employee_added
 from utils.session_risk import is_session_compromised, ensure_session_id
+from utils.session_cutoff import issued_before_cutoff_sql
 from utils.data_cache import data_cache
 
 core_bp = Blueprint("core", __name__)
@@ -602,18 +603,20 @@ def mobile_bridge_login(token):
     with _db() as (cursor, conn):
         # Claim and consume in one statement: a SELECT followed by a
         # separate DELETE let two simultaneous requests both redeem the
-        # same single-use token.
+        # same single-use token. One minted before "sign out everyone"
+        # (utils/session_cutoff.py) is used up but refused.
         cursor.execute(
             "DELETE FROM mobile_bridge_tokens WHERE token_hash=%s AND expires_at > NOW() "
-            "RETURNING admin_username, target_path",
+            f"RETURNING admin_username, target_path, {issued_before_cutoff_sql('created_at')}",  # nosec B608 -- fixed column name
             (token_hash,)
         )
         row = cursor.fetchone()
-        if not row:
+        if not row or row[2]:
+            conn.commit()
             cursor.close()
             conn.close()
             return _bridge_link_expired_response()
-        username, target_path = row
+        username, target_path, _cut_off = row
         if target_path not in _BRIDGE_TARGET_ALLOWLIST:
             target_path = _BRIDGE_DEFAULT_TARGET
         cursor.execute("SELECT COALESCE(role,'admin') FROM admin_users WHERE username=%s", (username,))

@@ -610,6 +610,17 @@ def _init_core_tables(cursor, db):
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_banned_cidrs_gist ON public.banned_cidrs USING gist (cidr inet_ops)")
+    # "Sign out everyone" (utils/session_cutoff.py): sessions and API tokens
+    # issued before valid_after are refused. One row, platform-wide, hence
+    # always `public`. TIMESTAMPTZ: it is compared both with epoch seconds
+    # (browser sessions) and with the TIMESTAMP issue times in api_tokens.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS public.session_cutoff (
+            id          SMALLINT PRIMARY KEY CHECK (id = 1),
+            valid_after TIMESTAMPTZ NOT NULL,
+            set_by      VARCHAR(150)
+        )
+    """)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS email_queue (
