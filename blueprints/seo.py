@@ -87,9 +87,8 @@ def sitemap_xml():
 def llms_txt():
     """A plain-language summary of the site for AI assistants (llmstxt.org)."""
     from blueprints.trial_billing import TRIAL_DURATION_DAYS
-    from utils.tax_invoice import seller_details
     base = _base_url()
-    s = seller_details()
+    s = public_business_details()
     try:
         from utils.plan_limits import get_per_employee_paise
         price = f"Rs {get_per_employee_paise() // 100} per employee per month"
@@ -123,6 +122,16 @@ def llms_txt():
     return resp
 
 
+def public_business_details():
+    """The business details the public pages show: the invoice seller
+    details (utils/tax_invoice.seller_details: address, phone), with the
+    email the website shows visitors (utils/email_utils.public_contact_email,
+    CONTACT_EMAIL) rather than the invoice email."""
+    from utils.email_utils import public_contact_email
+    from utils.tax_invoice import seller_details
+    return {**seller_details(), "email": public_contact_email()}
+
+
 def _postal_address(s):
     """schema.org PostalAddress from the invoice address lines
     ("street|area, city|State - PIN")."""
@@ -144,10 +153,9 @@ def _postal_address(s):
 def organization_schema():
     """JSON-LD for the landing page: the company (Organization), its office
     (ProfessionalService, a schema.org LocalBusiness type) and the website.
-    Every fact comes from utils/tax_invoice.seller_details(), the same
-    details printed on invoices -- nothing here is made up for SEO."""
-    from utils.tax_invoice import seller_details
-    s = seller_details()
+    Every fact comes from public_business_details() -- the details printed
+    on invoices and the public contact email; nothing here is made up for SEO."""
+    s = public_business_details()
     base = _base_url()
     org_id = f"{base}/#organization"
     address = _postal_address(s)

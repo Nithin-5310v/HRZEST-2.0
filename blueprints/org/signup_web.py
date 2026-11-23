@@ -87,10 +87,11 @@ def create_org_page():
 
 @org_bp.route("/create_org", methods=["GET"])
 def create_org_old_address():
-    """Old address of the sign-up page: 301 to /signup, keeping the query
-    string (?free=1 for a platform admin's free registration)."""
-    qs = request.query_string.decode("utf-8", "replace")
-    return redirect("/signup" + (f"?{qs}" if qs else ""), 301)
+    """Old address of the sign-up page: 301 to /signup. Only ?free=1 (a
+    platform admin's free registration) is carried over; the target is
+    never built from raw request input (tests/test_qa_open_redirect.py)."""
+    free = request.args.get("free") == "1"
+    return redirect("/signup?free=1" if free else "/signup", 301)
 
 
 @org_bp.route("/create_org", methods=["POST"])

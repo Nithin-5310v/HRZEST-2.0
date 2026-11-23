@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """The public Privacy Policy (/privacy) and Terms of Service (/terms).
 
-The business details on both pages (address, email, phone) come from
-utils/tax_invoice.seller_details(), the same details printed on invoices.
+The business details on both pages come from
+blueprints/seo.public_business_details(): the address and phone printed on
+invoices, and the public contact email (CONTACT_EMAIL).
 Change LEGAL_UPDATED whenever the wording of either page changes.
 """
 from flask import Blueprint, redirect, render_template
@@ -15,8 +16,8 @@ LEGAL_UPDATED = "23 November 2026"
 
 def legal_context():
     """What legal_layout.html needs (also used by /security-policy)."""
-    from utils.tax_invoice import seller_details
-    return {"seller": seller_details(), "legal_updated": LEGAL_UPDATED, "legal_year": LEGAL_UPDATED[-4:]}
+    from blueprints.seo import public_business_details
+    return {"seller": public_business_details(), "legal_updated": LEGAL_UPDATED, "legal_year": LEGAL_UPDATED[-4:]}
 
 
 @legal_bp.route("/privacy")
