@@ -143,12 +143,35 @@ def record_app_block(rule, *, ip, method=None, host=None, path=None, detail=None
                 _pending[key] = row
             else:
                 _dropped += 1
+    except Exception:       # recording must never be why a request fails
+        return
+    # Getting the row written is a separate step on purpose: when it failed
+    # inside the block above (an import that had gone missing), every app
+    # block stayed in memory and never reached the SOC console, silently.
+    try:
         from utils.async_writer import is_synchronous_mode
         if is_synchronous_mode():
             flush()
-        else:
-            _ensure_flusher()
-    except Exception:       # recording must never be why a request fails
+            return
+    except Exception:
+        _warn_once("firewall_events: could not check the writer mode; writing in the background")
+    try:
+        _ensure_flusher()
+    except Exception:
+        _warn_once("firewall_events: could not start the background writer; app blocks are not being recorded")
+
+
+_warned = set()
+
+
+def _warn_once(message):
+    if message in _warned:
+        return
+    _warned.add(message)
+    try:
+        from extensions import app_log
+        app_log.warning(message, exc_info=True)
+    except Exception:
         pass
 
 
