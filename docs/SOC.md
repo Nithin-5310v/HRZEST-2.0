@@ -8,7 +8,8 @@ typing `https://<host>/socperson`.
 ## Genuine activity only
 
 Every number, chart and list shows only what HRZEST itself recorded about real activity.
-Nothing is sample data, and no address is looked up at an outside service. Three kinds of
+Nothing is sample data, and no address is looked up at an outside service (locations come
+from a database file on the server: see [IP locations](#ip-locations)). Three kinds of
 recorded event are left out everywhere at once (`utils/soc_scope.py`):
 
 * **The server's own traffic**: events whose address is loopback, private, CGNAT or
@@ -128,6 +129,7 @@ on their next request.
 | `HTTP_TELEMETRY` | on | `off` stops counting requests for the **Traffic** view and the `http_error_spike` detection. |
 | `HTTP_TELEMETRY_RETENTION_DAYS` | 14 | How long per-minute request counts are kept (purged nightly at 03:40). |
 | `HEALTH_RETENTION_DAYS` | 30 | How long the per-minute server / database readings for the **Health** view are kept (purged nightly at 03:50). |
+| `GEOIP_DIR` | `instance/geoip` in the checkout | Folder holding `city.mmdb` and `asn.mmdb` for [IP locations](#ip-locations). `GEOIP_CITY_DB` / `GEOIP_ASN_DB` name either file directly instead (e.g. MaxMind GeoLite2 files). No files, no locations. |
 | `SOC_AUTO_BAN` | false | `true` bans automated detections at once (the old behaviour) instead of queueing them in **Ban review**. Leave off when an analyst watches the queue: customers often share one office or mobile-network address. |
 
 ## What each view shows
@@ -139,7 +141,7 @@ Every number is a count, time or state as recorded; where the console draws a co
 * **Alerts / Events** – as soon as the live feed brings events that match the filters, the list says how many arrived and offers to show them (it never reshuffles under you); search and filter `security_events` (text, level, area, IP, account, tenant); open any event for its fields, related activity from the same source/account, its audit-chain hash and ATT&CK mapping; open a case or ban the source from there.
 * **Traffic** – every request the app answered, counted per minute by route pattern (`/view_payslip/<emp_id>/...`, never the raw URL), method, status and company (`utils/http_telemetry.py`): requests and 4xx / 5xx over time, the 95th-percentile response time, counts per status code, and per route the request count, 50th / 95th / 99th percentile and slowest time and its 401 / 403 / 404 / 429 / 5xx answers. Response times come from a histogram, so they are shown as upper bounds ("≤ 250 ms"). Each worker writes its counts once a minute: with nothing written yet the view says *No telemetry recorded yet*, and if no worker has written for 3 minutes it says *Source offline* with the time of the last write. This console's own requests, static files and health checks are left out.
 * **Health** – readings taken once a minute (`utils/health_telemetry.py`) from three sources: the **server** (CPU busy %, load average, memory and swap, uptime, disk use of the root and app filesystems), **PostgreSQL** (round-trip time of `SELECT 1`, connections against `max_connections`, active and idle-in-transaction sessions, the longest running query and open transaction, waiting locks, database size, commits / rollbacks per minute, deadlocks and cache-hit ratio) and the **app service** (how long the service and the snapshot's worker have been up, worker memory and threads), with trends over the window. CPU, memory, load and uptime need Linux `/proc`; on another OS the view says which readings could not be taken. Each source shows *No telemetry recorded yet* before its first reading, *Source offline since …* when its newest reading is over 3 minutes old, and the kind of failure (never its message) when a reading failed. Session states in PostgreSQL are only complete when the app's database role can read all statistics (`pg_read_all_stats`); the view says when it cannot.
-* **Lookup** – everything recorded about an IP or an account: what it did, who/what it touched, paths requested, recent events, and whether it is banned (on the platform list or a company's own list, lifted from the list it is on).
+* **Lookup** – everything recorded about an IP or an account: what it did, who/what it touched, paths requested, recent events, and whether it is banned (on the platform list or a company's own list, lifted from the list it is on). For an IP, a **Location** card: place, coordinates, the network that owns the address (AS number, name, address block) and which database said so, as of when.
 * **Log analysis** – drop in an nginx/Apache access log, JSON lines (including this app's own) or sshd/auth log. Finds SQL injection, XSS, path traversal, command injection, SSRF, scanner user agents, sensitive-file probes, login brute force, credential stuffing, "possible success after many attempts", path enumeration, request floods and 5xx spikes; scores each source (points per kind of finding, shown on hover) and recommends block/watch; exports IOCs and can ban every recommended public address in one step. Nothing is stored.
 * **Logs (Loki)** – optional LogQL search of shipped logs (`LOKI_URL`). It starts from `{app="hrms"} |= "security_event"`, the label both log pipelines in `observability/` put on every line; other fields are filtered with `| json` (`{app="hrms"} | json | ip="203.0.113.9"`). Lines are shown as plain text with the date and time in your time zone. A query Loki can't parse shows Loki's own reason; metric queries (`count_over_time`, `rate`) are refused, since the view lists lines.
 * **Firewall** – block / allow decisions from every firewall layer: the AWS edge WAF and VPC flow logs (once the edge exists), the host firewall, nginx + ModSecurity, fail2ban and the app's own guards, with each reporter's heartbeat so a layer that goes quiet shows as *not reporting*. Allowed traffic is counted at the edge only. See [FIREWALL.md](FIREWALL.md).
@@ -152,6 +154,32 @@ Every number is a count, time or state as recorded; where the console draws a co
 * **Audit integrity** – verifies the hash chain over `security_events` on demand. The verifier streams the table, so memory stays flat at any size; a button press stops after 45 seconds on a very long chain, and the scheduled check (03:45 nightly) verifies all of it.
 * **Posture** – live configuration checks with the setting to change. Reports whether a control is on, never a secret.
 * **Users & audit** (admin) – accounts (whether each is still listed in `SOC_LOGIN_EMAILS`, disable / enable, unlock) and the append-only record of everything done in the console.
+
+## IP locations
+
+Every IP address the console shows (event lists and drawers, the busiest sources, sessions,
+bans, Ban review, the Firewall view, log analysis, the audit trail) carries its approximate
+place, such as *London, GB*, with the region, country and owning network on hover. The
+Lookup view has the full record. Addresses that can't have a location say what they are
+instead: *private network*, *carrier NAT*, *this server*, *link-local* or *reserved range*
+(the documentation addresses `scripts/generate_real_events.py` uses are reserved).
+
+* **Where it comes from:** two GeoIP database files on the server, read by
+  `utils/ip_geo.py`. No address is sent anywhere; the browser asks the console's own
+  `/socperson/api/geo` for every address on screen in one request.
+* **Getting the files:** `scripts/update_geoip.sh` downloads DB-IP's free monthly *IP to
+  City Lite* and *IP to ASN Lite* (CC BY 4.0; the Lookup view shows the credit the licence
+  asks for), checks each one, and only then replaces the old file. On the EC2 host the
+  auto-deploy installs `hrzest-geoip.timer`, which runs it a few minutes after it is installed and on
+  the 5th of every month (`journalctl -u hrzest-geoip` shows what it did;
+  `sudo systemctl start hrzest-geoip` runs it now). Anywhere else, run
+  `bash scripts/update_geoip.sh` from the checkout. The app notices a new file within a minute.
+* **MaxMind instead:** GeoLite2-City and GeoLite2-ASN (free account) are the same format.
+  Point `GEOIP_CITY_DB` / `GEOIP_ASN_DB` at them and keep them updated yourself.
+* **How far to trust it:** usually right about the country, often about the city. Mobile,
+  VPN, proxy and cloud addresses show where the network is registered, not where the
+  person is. The Lookup view warns when the data is over 60 days old.
+* **Without the files** the console shows no locations and works as before.
 
 ## Real test traffic on a local or dev server
 
@@ -179,7 +207,7 @@ GEN_ADMIN_USER=admin GEN_ADMIN_PASSWORD=... python scripts/generate_real_events.
 ## Limits to know about
 
 * Each event records the company its request ran as (`security_events.tenant`, also inside the hash-chained `extra_json`). Events from before that was recorded fall back to the first segment of the request path, which usually does not name the company (the company prefix is taken out of the path before the app sees it), so older company activity is mostly unattributed. Platform pages belong to no company.
-* There is no GeoIP or threat-intelligence enrichment, on purpose: the console shows only what HRZEST recorded. Location, VPN and hosting checks have to be done outside it.
+* Locations are estimates from a free offline database (see [IP locations](#ip-locations)). There is no threat-intelligence enrichment: reputation, VPN and hosting checks have to be done outside the console (the owning network's name is often a hint).
 * The append-only trigger stops the application role from rewriting the SOC audit trail, not a database owner; forward it off-box for that (see `SECURITY_HARDENING.md`).
 * Cross-tenant views read each tenant in turn (cached 45 s, 300 tenants max, short per-tenant timeout); a tenant that errors is skipped and counted.
 * The Logs view was checked against a real Loki 3.4.2 holding lines labelled the way both log pipelines label them (`app="hrms"`, `env`, `level`, `security_event`): searches, `| json` filters, Loki's reason for a malformed query, and the refusal of metric queries. The automated browser test uses a stand-in that answers the same way, since CI has no Loki.

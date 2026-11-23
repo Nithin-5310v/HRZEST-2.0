@@ -9,6 +9,8 @@
 #
 # Installs the script as /usr/local/bin/hrzest-autodeploy, adds the
 # hrzest-autodeploy service and its 2-minute timer, and starts the timer.
+# Also adds hrzest-geoip (scripts/update_geoip.sh: the monthly GeoIP download
+# behind the SOC console's IP locations) and starts its timer, in every mode.
 # The mode is remembered in /etc/hrzest, so a reinstall (which a deploy does
 # by itself when these files change) keeps it:
 #
@@ -43,7 +45,12 @@ esac
 
 sudo install -m 755 "$here/ec2_autodeploy.sh" /usr/local/bin/hrzest-autodeploy
 sudo install -m 644 "$here/hrzest-autodeploy.service" "$here/hrzest-autodeploy.timer" /etc/systemd/system/
+sudo install -m 644 "$here/hrzest-geoip.service" "$here/hrzest-geoip.timer" /etc/systemd/system/
 sudo systemctl daemon-reload
+# The GeoIP refresh doesn't depend on the deploy mode. A failure here leaves
+# the console without locations, never the deploy broken.
+sudo systemctl enable hrzest-geoip.timer && sudo systemctl restart hrzest-geoip.timer \
+  || echo "WARNING: could not start hrzest-geoip.timer; the SOC console shows no IP locations until it runs" >&2
 
 # Host nginx hardening (scripts/nginx-hardening.conf: server_tokens off). Only
 # ever applied if nginx accepts it: a config error here must never take the

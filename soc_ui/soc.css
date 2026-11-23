@@ -224,6 +224,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .chip.mitre { color: var(--info); font-family: ui-monospace, Menlo, monospace; font-weight: 600; } .chip.mitre::before { display: none; }
 .chip.ok { color: var(--ok); } .chip.bad { color: var(--critical); }
 
+/* an address and its approximate location (SOC.ipLink) */
+.geo { margin-left: 7px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.geo[hidden] { display: none; }
+
 /* bars */
 .hbars > div { display: grid; grid-template-columns: minmax(80px, 38%) 1fr auto; gap: 8px; align-items: center; padding: 3px 0; }
 .hbars .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

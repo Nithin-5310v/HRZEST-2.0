@@ -1,0 +1,16 @@
+[Unit]
+Description=Refresh HRzest.com's GeoIP databases every month
+
+[Timer]
+# DB-IP publishes each month's Lite files during the month's first days.
+OnCalendar=*-*-05 04:20:00
+# Missed while the host was off: run at the next boot instead.
+Persistent=true
+RandomizedDelaySec=1h
+# Also a few minutes after the timer is (re)installed, so a new host gets
+# locations without waiting for the 5th. A file under 20 days old is kept,
+# so this costs nothing on a reinstall.
+OnActiveSec=3min
+
+[Install]
+WantedBy=timers.target

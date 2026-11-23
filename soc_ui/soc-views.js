@@ -62,7 +62,7 @@
       act(api.post('/socperson/api/bans', { ip, reason: reason.value, minutes: Number(dur.value) }), ip + ' banned')
         .then(() => { SOC.drawer.close(); SOC.refreshPulse(); if (done) done(); }).catch(() => {});
     } },
-      h('p', null, 'Ban ', h('strong', { class: 'mono' }, ip), ' at the application layer. Private, shared and never-ban addresses are refused.'),
+      h('p', null, 'Ban ', h('strong', { class: 'mono' }, ip), SOC.ipPlace(ip), ' at the application layer. Private, shared and never-ban addresses are refused.'),
       field('Reason', reason, 'banReason'), field('Duration', dur, 'banDur'),
       h('button', { class: 'btn danger', type: 'submit' }, 'Ban address'));
     return form;
@@ -384,6 +384,35 @@
     }
   });
 
+  // The IP lookup's Location card: an estimate from the GeoIP files on the
+  // server (utils/ip_geo.py), with which database said so and how old it is.
+  function locationCard(g, st) {
+    st = st || { available: false, databases: [], attribution: [] };
+    if (!st.available) {
+      return SOC.card('Location', h('p', { class: 'muted' },
+        'No GeoIP database is installed on the server, so no locations are shown. scripts/update_geoip.sh installs one (docs/SOC.md, "IP locations").'));
+    }
+    let body;
+    if (!g) body = SOC.empty('No location for this address.');
+    else if (g.scope !== 'public') body = h('p', null, 'Not a public internet address (' + SOC.geoText(g) + '), so it has no location.');
+    else if (!g.country && !g.city && !g.asn && !g.org) body = h('p', null, 'The GeoIP database has no entry for this address.');
+    else {
+      body = SOC.kv([
+        ['Place', [g.city, g.region, g.country].filter(Boolean).join(', ') || 'Not in the database'],
+        ['Coordinates', g.latitude != null && g.longitude != null
+          ? h('span', { class: 'mono' }, g.latitude.toFixed(3) + ', ' + g.longitude.toFixed(3) + (g.accuracy_km ? '  (within ' + g.accuracy_km + ' km)' : '')) : null],
+        ['Network', g.asn || g.org ? [g.asn ? 'AS' + g.asn : '', g.org || ''].filter(Boolean).join(' ') : null],
+        ['Address block', g.network ? h('span', { class: 'mono' }, g.network) : null]
+      ]);
+    }
+    const stale = st.databases.filter((db) => db.stale);
+    return SOC.card('Location', h('div', { class: 'stack' }, body,
+      stale.length ? SOC.callout('The GeoIP data is ' + Math.max(...stale.map((db) => db.age_days)) + ' days old; scripts/update_geoip.sh refreshes it.', 'warn') : null,
+      h('p', { class: 'note' }, 'Approximate. Mobile, VPN and cloud addresses show where the network is registered, not where the person is. From ',
+        st.databases.map((db, i) => [i ? ', ' : '', db.type + ' (built ' + db.built + ')']), '. ',
+        st.attribution.map((a, i) => [i ? ' · ' : '', h('a', { href: a.url, target: '_blank', rel: 'noopener noreferrer' }, a.text)]))));
+  }
+
   /* ============ entity lookup ============ */
   SOC.register({
     id: 'entity', label: 'Lookup', title: 'IP & account lookup', icon: 'entity',
@@ -408,10 +437,12 @@
       const bar = h('form', { class: 'filters', onsubmit: (e) => { e.preventDefault(); go(); } }, kindSel, box, days, h('button', { class: 'btn', type: 'submit' }, 'Look up'));
       root.textContent = ''; root.appendChild(bar);
       if (!value) { root.appendChild(SOC.empty('Enter an IP address or an account identifier to see everything the platform recorded about it.')); return; }
-      const d = (await api.get(kind === 'ip' ? '/socperson/api/entity/ip/' + encodeURIComponent(value) : '/socperson/api/entity/identifier',
-        kind === 'ip' ? { days: days.value } : { value, days: days.value })).entity;
+      const res = await api.get(kind === 'ip' ? '/socperson/api/entity/ip/' + encodeURIComponent(value) : '/socperson/api/entity/identifier',
+        kind === 'ip' ? { days: days.value } : { value, days: days.value });
+      const d = res.entity;
       const out = h('div', { class: 'stack' });
       const title = h('div', { class: 'row' }, h('h2', { class: 'mono' }, d.value),
+        kind === 'ip' && res.geo ? h('span', { class: 'muted', title: SOC.geoTitle(res.geo) }, SOC.geoText(res.geo)) : null,
         d.ban ? SOC.chip('banned', 'bad') : null, d.protected ? SOC.chip('shared / private', 'plain') : null);
       const acts = h('div', { class: 'row' });
       if (kind === 'ip' && needs('analyst')) {
@@ -423,6 +454,7 @@
       if (needs('analyst')) acts.appendChild(h('button', { class: 'btn small', type: 'button', onclick: () => SOC.drawer.open('New case', SOC.caseForm({ title: 'Investigate ' + d.value, severity: d.high_severity ? 'high' : 'medium', summary: d.events + ' events in ' + d.days + ' days', source_type: kind === 'ip' ? 'ip' : 'manual' })) }, 'Open case'));
       acts.appendChild(h('a', { class: 'btn ghost small', href: '#/events?' + (kind === 'ip' ? 'ip=' : 'identifier=') + encodeURIComponent(d.value) }, 'All events'));
       out.append(title, acts);
+      if (kind === 'ip') out.appendChild(locationCard(res.geo, res.geo_status));
       if (d.excluded) out.appendChild(SOC.callout(d.excluded, 'warn'));
       if (d.ban) out.appendChild(SOC.callout((d.ban.company ? 'Banned in ' + d.ban.company + '\'s own list' + (d.ban.other_companies ? ' (and ' + d.ban.other_companies + ' other compan' + (d.ban.other_companies === 1 ? 'y' : 'ies') + ')' : '') + ' by ' : 'Banned by ') + (d.ban.by || 'unknown') + ' on ' + fmt.time(d.ban.at) + ' — ' + (d.ban.reason || 'no reason recorded') + (d.ban.expires ? ' (until ' + fmt.time(d.ban.expires) + ')' : ' (until lifted)'), 'bad'));
       out.appendChild(h('div', { class: 'grid kpis' },

@@ -177,7 +177,7 @@
             SOC.toast(okN + ' banned, ' + (res.results.length - okN) + ' skipped', okN ? 'good' : 'bad');
             SOC.refreshPulse();
             const skipped = res.results.filter((x) => !x.ok);
-            if (skipped.length) results.appendChild(SOC.card('Skipped', h('ul', { class: 'list' }, skipped.map((x) => h('li', null, h('span', { class: 'mono' }, x.ip), ' — ', x.message)))));
+            if (skipped.length) results.appendChild(SOC.card('Skipped', h('ul', { class: 'list' }, skipped.map((x) => h('li', null, h('span', { class: 'mono' }, x.ip), SOC.ipPlace(x.ip), ' — ', x.message)))));
           }).catch((e) => SOC.toast(e.message, 'bad'));
         } }, 'Ban all recommended (' + ips.length + ')') : null,
         SOC.can('analyst') ? h('button', { class: 'btn', type: 'button', onclick: () => SOC.drawer.open('New case', SOC.caseForm({

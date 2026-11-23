@@ -11,3 +11,5 @@ requirements.lock text eol=lf
 scripts/host-hardening/** text eol=lf
 scripts/firewall_agent/** text eol=lf
 *.tf              text eol=lf
+# GeoIP databases (tests/fixtures/geoip): binary, never line-ending converted.
+*.mmdb            binary

@@ -826,6 +826,62 @@ class TestEntitiesAndDetections:
         assert [e["label"] for e in d["events"]] == ["Photo replay"]
 
 
+class TestIpLocations:
+    """Locations come from the GeoIP files on the server (utils/ip_geo.py);
+    tests/fixtures/geoip stands in for DB-IP's files. PUBLIC_IP is in Fremont there."""
+
+    @pytest.fixture
+    def geoip(self, monkeypatch):
+        from utils import ip_geo
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "geoip")
+        monkeypatch.delenv("GEOIP_CITY_DB", raising=False)
+        monkeypatch.delenv("GEOIP_ASN_DB", raising=False)
+
+        def use(installed=True):
+            monkeypatch.setenv("GEOIP_DIR", here if installed else os.path.join(here, "not-installed"))
+            ip_geo.reset()
+        yield use
+        ip_geo.reset()
+
+    def test_one_request_places_every_address_on_screen(self, soc, geoip):
+        geoip()
+        c, _ = soc("vic", "viewer")
+        r = c.get("/socperson/api/geo", query_string={"ips": f"{PUBLIC_IP}, 10.0.0.1,not-an-ip,81.2.69.142,"})
+        d = r.get_json()
+        assert r.status_code == 200 and d["available"] is True
+        assert set(d["results"]) == {PUBLIC_IP, "10.0.0.1", "81.2.69.142"}
+        here = d["results"][PUBLIC_IP]
+        assert (here["city"], here["region"], here["country_code"]) == ("Fremont", "California", "US")
+        assert (here["asn"], here["org"], here["network"]) == (64503, "Example Cloud Hosting", "45.33.32.0/20")
+        assert d["results"]["10.0.0.1"] == {"scope": "private"}
+        assert d["attribution"] == [{"text": "IP geolocation by DB-IP", "url": "https://db-ip.com"}]
+        assert c.get("/socperson/api/geo").get_json()["results"] == {}
+
+    def test_ip_lookup_carries_the_location_and_its_source(self, soc, geoip, db_engine):
+        geoip()
+        c, _ = soc()
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP, identifier="u1")
+        d = c.get(f"/socperson/api/entity/ip/{PUBLIC_IP}").get_json()
+        assert d["entity"]["events"] == 1
+        assert d["geo"]["city"] == "Fremont"
+        assert d["geo_status"]["available"] is True
+        assert [db["kind"] for db in d["geo_status"]["databases"]] == ["city", "asn"]
+
+    def test_without_the_files_nothing_is_located_and_nothing_breaks(self, soc, geoip, db_engine):
+        geoip(installed=False)
+        c, _ = soc()
+        d = c.get("/socperson/api/geo", query_string={"ips": PUBLIC_IP}).get_json()
+        assert (d["available"], d["results"], d["attribution"]) == (False, {}, [])
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP, identifier="u1")
+        e = c.get(f"/socperson/api/entity/ip/{PUBLIC_IP}").get_json()
+        assert e["entity"]["events"] == 1 and e["geo"] is None and e["geo_status"]["available"] is False
+
+    def test_needs_a_console_session(self, client, geoip):
+        geoip()
+        r = client.get("/socperson/api/geo", query_string={"ips": PUBLIC_IP})
+        assert r.status_code == 401 and r.get_json()["ok"] is False
+
+
 class TestResponseActions:
     def test_ban_lifecycle_is_audited_and_enforced(self, soc, db_engine):
         c, _ = soc("ann", "analyst")
@@ -1599,10 +1655,28 @@ class TestGenuineActivityOnly:
         d = c.get("/socperson/api/ban-reviews").get_json()
         assert [r["ip"] for r in d["reviews"]] == [PUBLIC_IP] and d["counts"]["pending"] == 1
 
-    def test_nothing_is_looked_up_outside(self, soc, db_engine):
+    def test_nothing_is_looked_up_outside(self, soc, db_engine, monkeypatch):
+        # IP locations are read from GeoIP files on this server (utils/ip_geo.py), so
+        # placing an address must not open a single network connection, not even DNS.
+        # The old outside lookup (proxycheck.io: utils/soc_geo.py, soc_ip_intel) stays gone.
         import importlib.util
+        import socket
+        import urllib.request
+        from utils import ip_geo
+        monkeypatch.setenv("GEOIP_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "geoip"))
+        ip_geo.reset()
         c, _ = soc()
-        assert c.get("/socperson/api/geo", query_string={"ips": PUBLIC_IP}).status_code == 404
+        add_event(db_engine, "auth.failure", ip=PUBLIC_IP, identifier="u1")
+
+        def no_network(*args, **kwargs):
+            raise AssertionError(f"the console reached out to the network: {args!r}")
+        for target, name in ((socket, "getaddrinfo"), (socket, "create_connection"), (socket.socket, "connect"),
+                             (socket.socket, "connect_ex"), (urllib.request, "urlopen")):
+            monkeypatch.setattr(target, name, no_network)
+        d = c.get("/socperson/api/geo", query_string={"ips": f"{PUBLIC_IP},81.2.69.142"}).get_json()
+        assert d["results"][PUBLIC_IP]["city"] == "Fremont" and d["results"]["81.2.69.142"]["city"] == "London"
+        assert c.get(f"/socperson/api/entity/ip/{PUBLIC_IP}").get_json()["geo"]["country_code"] == "US"
+        ip_geo.reset()
         assert importlib.util.find_spec("utils.soc_geo") is None
         cur = db_engine.cursor()
         cur.execute("SELECT to_regclass('att_master.soc_ip_intel')")
