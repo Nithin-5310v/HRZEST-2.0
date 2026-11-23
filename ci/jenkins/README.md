@@ -64,6 +64,38 @@ commit — `git push https://github.com/Nithin-5310v/HRZEST-2.0.git +<commit>:re
 `develop`, merge it into `main` and tick **HOTFIX** when approving. Then
 merge `main` back into `develop` so the branches don't drift.
 
+## Branch rules on GitHub
+
+Two repository rulesets, kept as files in `ci/github/rulesets/`, hold the
+branches to this process. Only the repository owner can apply them.
+
+- **`develop-and-main.json`**:
+  - `develop` and `main` change only through a merged PR: no direct pushes,
+    no force-pushes, no deleting.
+  - A PR can be merged only once these checks have passed: every job in
+    `deploy.yml` that runs on each PR, plus "Code Quality & Security
+    Scanning" and "Security & Code Quality Audit".
+  - No approving review is required, so you can still merge your own PR.
+  - It applies to admins too (there are no bypass actors).
+- **`production.json`**: `production` can't be deleted. It still accepts
+  force-pushes, because Jenkins moves it with one and a rollback is one.
+
+To apply them, go to **Settings → Rules → Rulesets → New ruleset → Import a
+ruleset** and pick each file. Or, signed in to `gh` as the owner:
+
+```bash
+gh api -X POST repos/Nithin-5310v/HRZEST-2.0/rulesets --input ci/github/rulesets/develop-and-main.json
+gh api -X POST repos/Nithin-5310v/HRZEST-2.0/rulesets --input ci/github/rulesets/production.json
+```
+
+The older ruleset named `protect` is disabled and covers no branch; delete it.
+
+`tests/test_branch_rulesets.py` fails if a required check no longer matches
+a job that runs on every PR, because a renamed job would block every merge.
+**When you rename a CI job**, update the file and the ruleset on GitHub
+together. In an emergency, the owner can set a ruleset's enforcement to
+*Disabled* and turn it back on afterwards.
+
 ## Files
 
 | File | What it does |
@@ -76,6 +108,7 @@ merge `main` back into `develop` so the branches don't drift.
 | `ci/jenkins/deploy_dev.ps1`, `start_dev_server.ps1` | Deploy to / (re)start the development copy, with rollback. |
 | `ci/jenkins/deploy_prod.ps1` | Releasing to production: the "ran in development" check, moving the `production` branch, waiting until it's live. |
 | `scripts/ec2_autodeploy.sh`, `install_ec2_autodeploy.sh` | The server side of a production deploy (backup, switch, health check, rollback). |
+| `ci/github/rulesets/*.json` | The GitHub branch rules above, ready to import. |
 
 ## Setting it up on a PC
 

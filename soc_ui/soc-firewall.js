@@ -148,13 +148,14 @@
             ]
           }))));
 
-        const layerSel = select([['', 'All layers']].concat(LAYERS.map(([k, l]) => [k, l])), layer, { 'aria-label': 'Layer' });
-        const actionSel = select([['', 'All decisions'], ['block', 'Block'], ['ban', 'Ban'], ['challenge', 'Challenge'], ['count', 'Count'], ['allow', 'Allow'], ['unban', 'Unban']], action, { 'aria-label': 'Decision' });
+        // A dropdown applies as soon as it changes, like the Window above; it used to wait
+        // for the Filter button, so picking a layer looked like it did nothing.
+        const applyFilters = () => SOC.go('firewall', { hours, layer: layerSel.value, action: actionSel.value, ip: ipBox.value.trim() });
+        const layerSel = select([['', 'All layers']].concat(LAYERS.map(([k, l]) => [k, l])), layer, { 'aria-label': 'Layer', onchange: applyFilters });
+        const actionSel = select([['', 'All decisions'], ['block', 'Block'], ['ban', 'Ban'], ['challenge', 'Challenge'], ['count', 'Count'], ['allow', 'Allow'], ['unban', 'Unban']], action, { 'aria-label': 'Decision', onchange: applyFilters });
         const ipBox = h('input', { class: 'input', 'aria-label': 'Source IP', placeholder: 'Source IP', value: ip });
-        const filters = h('form', { class: 'filters', onsubmit: (e) => {
-          e.preventDefault();
-          SOC.go('firewall', { hours, layer: layerSel.value, action: actionSel.value, ip: ipBox.value.trim() });
-        } }, layerSel, actionSel, ipBox, h('button', { class: 'btn', type: 'submit' }, 'Filter'));
+        const filters = h('form', { class: 'filters', onsubmit: (e) => { e.preventDefault(); applyFilters(); } },
+          layerSel, actionSel, ipBox, h('button', { class: 'btn', type: 'submit' }, 'Filter'));
         frag.appendChild(SOC.card('Recent decisions', h('div', null, filters, eventsTable(ev.events),
           ev.events.length >= 200 ? h('p', { class: 'note' }, 'Showing the newest 200. Narrow the filters to see older ones.') : null)));
 

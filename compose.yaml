@@ -214,13 +214,17 @@ services:
         max-size: "10m"
         max-file: "3"
     volumes:
-      # :z (lowercase) — this volume is also mounted read-only into nginx
-      # below; shared SELinux label lets both containers access it. :Z
-      # (uppercase, private label) on a volume actually shared between
-      # containers would make it inaccessible to the second one under
-      # SELinux-enforcing hosts.
-      - qrcodes:/app/static/qrcodes:z
-      - dataset:/app/dataset:ro,Z # Hardened to read-only if writes aren't needed
+      # Everything the app writes at runtime (the root filesystem is read-only):
+      # - private_uploads: employee and onboarding documents, announcement and
+      #   ticket attachments, signup KYC documents and attendance QR codes,
+      #   encrypted, served only through signed-in routes (utils/storage.py).
+      # - dataset: UPLOAD_FOLDER -- face, check-in and admin photos. Written at
+      #   every face enrolment and check-in, so it cannot be read-only.
+      # :Z (private SELinux label): neither is shared with another container.
+      - private_uploads:/app/private_uploads:Z
+      - dataset:/app/dataset:Z
+      # Where employee documents lived before private_uploads/. Kept so files
+      # from that time are not lost; app_setup/security.py 404s its URLs.
       - documents:/app/static/employee_docs:Z
       # world-readable (see deploy.sh): under rootless Podman's default user
       # namespace, container UID 1001 maps to an arbitrary high host UID, not
@@ -231,8 +235,8 @@ services:
       - ./cert.pem:/app/cert.pem:ro,z
       - ./key.pem:/app/key.pem:ro,z
     # Read-only root: gunicorn logs to stdout/stderr (no files to write),
-    # and everything the app writes at runtime already goes to one of the
-    # named volumes above. /tmp covers stdlib tempfile use (PDF/Excel
+    # and everything the app writes at runtime goes to private_uploads or
+    # dataset above. /tmp covers stdlib tempfile use (PDF/Excel
     # export) — see Containerfile's PYTHONDONTWRITEBYTECODE for why the
     # app's own source tree doesn't need to be writable either.
     read_only: true
@@ -342,11 +346,10 @@ services:
       # unmodified image) never sees. Bind-mount the same repo checkout the
       # app was built from; static/*.min.css and *.min.js are pre-minified
       # and committed as-is (no build step regenerates them), so this exactly
-      # matches what the app container serves. Must come before the qrcodes
-      # line below so that named volume can override the qrcodes/ subpath
-      # with the runtime-shared one instead of this read-only snapshot.
+      # matches what the app container serves. No runtime volume is mounted
+      # here: attendance QR codes are check-in credentials and live in the
+      # app's private_uploads volume (qr_generator.py), never under /static/.
       - ./static:/app/static:ro,Z
-      - qrcodes:/app/static/qrcodes:ro,z
     # nginx-unprivileged still needs to write its pid file, client body
     # buffers, and proxy/fastcgi cache dirs — all under /var/cache/nginx
     # and /var/run — plus /tmp, even though it never touches disk for
@@ -370,7 +373,7 @@ services:
 
 volumes:
   postgres_data:
-  qrcodes:
+  private_uploads:
   dataset:
   documents:
   clamav_data:

@@ -348,7 +348,13 @@
     });
     return { name: parts[0] || 'overview', params: params };
   }
-  SOC.go = function (name, params) { location.hash = '#/' + name + SOC.api.qs(params); };
+  SOC.go = function (name, params) {
+    var hash = '#/' + name + SOC.api.qs(params);
+    // Setting the address it already has fires no hashchange, so Filter / Look up
+    // pressed again with the same values, or the tab you are on, used to do nothing.
+    if (location.hash === hash) route();
+    else location.hash = hash;
+  };
   function clearTimers() { SOC.timers.forEach(clearInterval); SOC.timers = []; liveSubs = { events: [], pulse: [] }; }
   function route() {
     var r = parseHash(), view = SOC.views[r.name];
