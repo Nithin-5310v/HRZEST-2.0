@@ -355,7 +355,6 @@
     if (!view || !SOC.can(view.min || 'viewer')) { SOC.go('overview'); return; }
     clearTimers(); destroyCharts();
     if (SOC.drawer.isOpen()) SOC.drawer.close();
-    current = { view: view, params: r.params };
     document.getElementById('title').textContent = view.title || view.label;
     document.title = (view.title || view.label) + ' · SOC';
     Array.prototype.forEach.call(document.querySelectorAll('#nav a'), function (a) {
@@ -363,23 +362,35 @@
     });
     document.getElementById('side').classList.remove('open');
     document.getElementById('menuBtn').setAttribute('aria-expanded', 'false');
-    viewRoot.textContent = ''; viewRoot.appendChild(SOC.skeleton());
+    // Each navigation renders into its own box. A view that is still awaiting its
+    // data when you move on (e.g. Overview right after sign-in, then a quick click
+    // to Events) used to finish later and paint itself over the new view, and hook
+    // its polls and live-feed handlers onto it. Now its late writes land in a
+    // detached box nobody sees, and its timers/subscriptions are refused.
+    var me = current = { view: view, params: r.params };
+    var alive = function () { return current === me; };
+    var root = document.createElement('div');
+    root.appendChild(SOC.skeleton());
+    viewRoot.textContent = ''; viewRoot.appendChild(root);
     var ctl = {
       params: r.params,
+      alive: alive,
       poll: function (fn, ms) {
-        SOC.timers.push(setInterval(function () { if (!document.hidden) fn(); }, ms));
+        if (!alive()) return;
+        SOC.timers.push(setInterval(function () { if (!document.hidden && alive()) fn(); }, ms));
       },
       // Live feed: fn(events) when new security events arrive, fn(pulse) every few seconds.
-      onEvents: function (fn) { liveSubs.events.push(fn); },
-      onPulse: function (fn) { liveSubs.pulse.push(fn); }
+      onEvents: function (fn) { if (alive()) liveSubs.events.push(fn); },
+      onPulse: function (fn) { if (alive()) liveSubs.pulse.push(fn); }
     };
-    Promise.resolve().then(function () { return view.render(viewRoot, ctl); }).then(function () {
-      viewRoot.focus({ preventScroll: true });
+    Promise.resolve().then(function () { return view.render(root, ctl); }).then(function () {
+      if (alive()) viewRoot.focus({ preventScroll: true });
     }).catch(function (err) {
-      viewRoot.textContent = '';
+      if (!alive()) return;
+      root.textContent = '';
       var retry = h('button', { class: 'btn small', type: 'button' }, 'Retry');
       retry.addEventListener('click', route);
-      viewRoot.appendChild(SOC.callout([(err && err.message) || 'Something went wrong. ', ' ', retry], 'bad'));
+      root.appendChild(SOC.callout([(err && err.message) || 'Something went wrong. ', ' ', retry], 'bad'));
     });
   }
   SOC.reload = route;
