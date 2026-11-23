@@ -1,0 +1,46 @@
+{
+  "name": "develop and main: merge through PRs with passing checks",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/develop", "refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "bypass_actors": [],
+  "rules": [
+    {"type": "deletion"},
+    {"type": "non_fast_forward"},
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          {"context": "Syntax & structure check", "integration_id": 15368},
+          {"context": "Mobile lockfile (npm ci as Expo's builds run it)", "integration_id": 15368},
+          {"context": "Dependency & secret scan", "integration_id": 15368},
+          {"context": "Static analysis (Bandit + Semgrep)", "integration_id": 15368},
+          {"context": "Secret scan (TruffleHog)", "integration_id": 15368},
+          {"context": "Pytest", "integration_id": 15368},
+          {"context": "Pytest (least-privilege database roles)", "integration_id": 15368},
+          {"context": "Browser tests (SOC console)", "integration_id": 15368},
+          {"context": "Podman build", "integration_id": 15368},
+          {"context": "Code Quality & Security Scanning", "integration_id": 15368},
+          {"context": "Security & Code Quality Audit", "integration_id": 15368}
+        ]
+      }
+    }
+  ]
+}
