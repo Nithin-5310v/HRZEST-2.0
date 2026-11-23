@@ -20,9 +20,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from playwright.sync_api import expect
 
-from utils import soc_auth
+from utils import ip_geo, soc_auth
 
 EMAIL = "e2e-soc-admin@example.invalid"
+GEOIP_FIXTURES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tests", "fixtures", "geoip")
 SHOTS = os.environ.get("SOC_AUDIT_SHOTS", "")
 
 # (name, hash route) -- every registered view, plus the drill-downs people use most.
@@ -111,6 +112,12 @@ def soc(monkeypatch, db_conn, base_url):
     monkeypatch.setenv("SOC_LOGIN_EMAILS", EMAIL)
     monkeypatch.delenv("SOC_ALLOWED_CIDRS", raising=False)
     monkeypatch.setattr(soc_auth, "deliver_login_code", lambda email, code: codes.append(code) or True)
+    # IP locations from the test GeoIP files (made by tests/fixtures/geoip/make_fixtures.py),
+    # so every view below is also checked with a location beside each address.
+    monkeypatch.setenv("GEOIP_DIR", GEOIP_FIXTURES)
+    monkeypatch.delenv("GEOIP_CITY_DB", raising=False)
+    monkeypatch.delenv("GEOIP_ASN_DB", raising=False)
+    ip_geo.reset()
     cur = db_conn.cursor()
 
     def clean():
@@ -171,6 +178,7 @@ def soc(monkeypatch, db_conn, base_url):
     yield {"codes": codes, "url": base_url.replace("127.0.0.1", "localhost")}
     clean()
     cur.close()
+    ip_geo.reset()
 
 
 def _sign_in(page, soc):
@@ -326,6 +334,67 @@ def test_long_attacker_values_wrap_instead_of_widening_the_page(browser, soc):
         page.wait_for_load_state("networkidle")
         expect(page.locator("#view")).to_contain_text(re.compile("Path traversal|traversal", re.I))
         assert page.evaluate("document.documentElement.scrollWidth - window.innerWidth") <= 1
+    finally:
+        ctx.close()
+
+
+def test_every_address_shows_where_it_is(browser, soc):
+    """Each IP on screen gets its place from the server's GeoIP files, asked for in
+    batches and only once per session; the Lookup page has the full record."""
+    ctx = browser.new_context(viewport=VIEWPORTS["desktop"])
+    page = ctx.new_page()
+    try:
+        problems, _ = _watch(page, {"view": "ip locations"})
+        geo_calls = []
+        page.on("request", lambda r: "/socperson/api/geo" in r.url and geo_calls.append(r.url))
+        _sign_in(page, soc)                          # lands on the Overview: its addresses are looked up
+        page.wait_for_load_state("networkidle")
+        page.goto(soc["url"] + "/socperson#/events")
+        rows = page.locator("#view tbody tr")
+        expect(rows.first).to_be_visible(timeout=10_000)
+        # 45.33.32.156 is in Fremont in the test files; 185.220.101.1 isn't in them;
+        # 203.0.113.50 is a documentation address.
+        for ip, place in (("45.33.32.156", "Fremont, US"), ("185.220.101.1", "location unknown"),
+                          ("203.0.113.50", "reserved range")):
+            cell = page.locator("#view td .ip", has=page.locator(f"a:text-is('{ip}')")).first
+            expect(cell.locator(".geo")).to_have_text(place, timeout=10_000)
+        expect(page.locator("#view td .ip .geo", has_text="Fremont, US").first).to_have_attribute(
+            "title", re.compile(r"Fremont, California, United States\nNetwork: AS64503 Example Cloud Hosting"))
+        page.wait_for_load_state("networkidle")
+        # The Overview asked for its addresses in one go; the Events list, showing the
+        # same ones, asked again for none of them.
+        asked = [ip for url in geo_calls
+                 for ip in urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)["ips"][0].split(",")]
+        assert "45.33.32.156" in asked and len(asked) == len(set(asked)), geo_calls
+        assert len(geo_calls) <= 2, geo_calls
+
+        page.goto(soc["url"] + "/socperson#/entity?ip=45.33.32.156")
+        card = page.locator("#view section.card", has=page.locator("h3:text-is('Location')"))
+        expect(card).to_contain_text("Fremont, California, United States", timeout=10_000)
+        expect(card).to_contain_text("AS64503 Example Cloud Hosting")
+        expect(card).to_contain_text("45.33.32.0/20")
+        expect(card).to_contain_text("DBIP-City-Lite (built ")
+        expect(card.locator("a", has_text="IP geolocation by DB-IP")).to_have_attribute("href", "https://db-ip.com")
+        assert problems == [], "\n".join(problems)
+    finally:
+        ctx.close()
+
+
+def test_without_geoip_files_the_console_shows_no_locations(browser, soc, monkeypatch):
+    monkeypatch.setenv("GEOIP_DIR", os.path.join(GEOIP_FIXTURES, "not-installed"))
+    ip_geo.reset()
+    ctx = browser.new_context(viewport=VIEWPORTS["desktop"])
+    page = ctx.new_page()
+    try:
+        problems, _ = _watch(page, {"view": "no geoip"})
+        _sign_in(page, soc)
+        page.goto(soc["url"] + "/socperson#/events")
+        expect(page.locator("#view tbody tr").first).to_be_visible(timeout=10_000)
+        page.wait_for_load_state("networkidle")
+        expect(page.locator("#view .geo:visible")).to_have_count(0)
+        page.goto(soc["url"] + "/socperson#/entity?ip=45.33.32.156")
+        expect(page.locator("#view")).to_contain_text("No GeoIP database is installed on the server", timeout=10_000)
+        assert problems == [], "\n".join(problems)
     finally:
         ctx.close()
 

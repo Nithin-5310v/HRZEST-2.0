@@ -164,7 +164,7 @@ if deploy_to "$target" "$current" && healthy; then
   # nginx-hardening.conf only counts on a host with nginx's conf.d/ (the
   # installer skips it otherwise, so comparing it there would reinstall on
   # every deploy).
-  files="ec2_autodeploy.sh hrzest-autodeploy.service hrzest-autodeploy.timer"
+  files="ec2_autodeploy.sh hrzest-autodeploy.service hrzest-autodeploy.timer hrzest-geoip.service hrzest-geoip.timer"
   [ -f scripts/nginx-hardening.conf ] && [ -d /etc/nginx/conf.d ] && files="$files nginx-hardening.conf"
   for f in $files; do
     installed="/etc/systemd/system/$f"

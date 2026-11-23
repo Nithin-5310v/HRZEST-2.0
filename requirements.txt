@@ -53,6 +53,11 @@ apscheduler>=3.11.3
 # ── Malware scanning ──────────────────────────────────────────────────────────
 clamd>=1.0.2
 
+# ── IP locations in the SOC console ───────────────────────────────────────────
+# Reads the GeoIP .mmdb files on the server (utils/ip_geo.py); no lookups leave
+# the box. Without the files it does nothing.
+maxminddb>=3.3.0
+
 # ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv>=1.2.4
 python-json-logger>=4.2.0

@@ -80,7 +80,7 @@
         .catch((err) => SOC.toast(err.message, 'bad'));
     } },
       SOC.kv([
-        ['Address', h('span', { class: 'mono' }, r.ip)],
+        ['Address', [h('span', { class: 'mono' }, r.ip), SOC.ipPlace(r.ip)]],
         ['Detected by', SOURCE_LABEL[r.source] || r.source],
         ['Latest reason', r.reason],
         ['Hits', String(r.hits)],

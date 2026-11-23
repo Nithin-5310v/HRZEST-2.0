@@ -379,10 +379,24 @@ def api_detections():
 @soc_bp.route("/socperson/api/entity/ip/<path:ip>")
 @soc_required("viewer")
 def api_entity_ip(ip):
+    from utils import ip_geo
     from utils.soc_util import looks_like_ip
     if not looks_like_ip(ip):
         return _err("That is not a valid IP address.")
-    return _ok(entity=soc_queries.entity_ip(ip, request.args.get("days")))
+    return _ok(entity=soc_queries.entity_ip(ip, request.args.get("days")),
+               geo=ip_geo.lookup(ip), geo_status=ip_geo.status())
+
+
+@soc_bp.route("/socperson/api/geo")
+@soc_required("viewer")
+def api_geo():
+    """Approximate locations for up to 100 addresses (?ips=a,b,c), read from the
+    GeoIP files on this server (utils/ip_geo.py); nothing is looked up outside."""
+    from utils import ip_geo
+    ips = [p.strip() for p in (request.args.get("ips") or "").split(",") if p.strip()]
+    st = ip_geo.status()
+    return _ok(available=st["available"], attribution=st["attribution"],
+               results=ip_geo.lookup_many(ips) if st["available"] else {})
 
 
 @soc_bp.route("/socperson/api/brief")
