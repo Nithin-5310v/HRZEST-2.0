@@ -319,6 +319,23 @@ class TestAppBlocksAreRecorded:
         hits = {r["src_ip"]: r["hits"] for r in written[0]}
         assert hits == {ATTACKER: 50, OTHER: 1}
 
+    def test_the_writer_says_it_runs_inline_under_the_suite(self):
+        """record_app_block() asks the writer this; when the function went
+        missing, every app block silently stayed in memory."""
+        from utils import async_writer
+        assert async_writer.is_synchronous_mode() is True
+
+    def test_a_failing_mode_check_still_records_in_the_background(self, monkeypatch):
+        from utils import async_writer
+
+        def gone():
+            raise ImportError("is_synchronous_mode")
+        monkeypatch.setattr(async_writer, "is_synchronous_mode", gone)
+        started = []
+        monkeypatch.setattr(firewall_events, "_ensure_flusher", lambda: started.append(True))
+        firewall_events.record_app_block("ip_ban", ip=ATTACKER, method="GET", path="/x")
+        assert started == [True]
+
     def test_recording_never_raises(self, monkeypatch):
         from utils import client_ip
 
