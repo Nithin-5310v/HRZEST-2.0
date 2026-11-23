@@ -9,17 +9,17 @@ tests/test_security_review_2026_11_20.py.
 """
 import datetime
 import hashlib
-import secrets
 
 import pytest
 
 from utils.auth import check_password_hash
+from utils.tokens import waf_safe_token
 
 NEW_PW = "Reset-Orbit-Kettle-77"
 
 
 def _set_token(db_engine, table, key_col, key, expired=False):
-    token = secrets.token_urlsafe(32)
+    token = waf_safe_token(32)
     expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=-1 if expired else 1)
     cur = db_engine.cursor()
     cur.execute(f"UPDATE {table} SET reset_token=%s, reset_token_expiry=%s WHERE {key_col}=%s",  # nosec B608 -- test literals
@@ -133,7 +133,7 @@ def test_reset_ends_other_sessions(client, db_engine, seed_admin):
 
 @pytest.mark.parametrize("route", ["admin_reset_password", "employee_reset_password"])
 def test_reset_page_cannot_leak_its_token(client, route):
-    resp = client.get(f"/{route}/{secrets.token_urlsafe(32)}")
+    resp = client.get(f"/{route}/{waf_safe_token(32)}")
     cc = resp.headers.get("Cache-Control", "")
     assert "no-store" in cc
     # The token is in the URL: no full URL may go to another site in a Referer.

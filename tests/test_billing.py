@@ -34,6 +34,7 @@ import pytest
 
 from utils.auth import _hash_token, generate_password_hash
 from utils.plan_limits import calculate_price, format_price_inr
+from utils.tokens import waf_safe_token
 from tests.conftest import patch_package  # noqa: E402
 
 pytestmark = pytest.mark.usefixtures("razorpay_demo_mode")
@@ -41,7 +42,7 @@ pytestmark = pytest.mark.usefixtures("razorpay_demo_mode")
 
 def _insert_application(db_engine, status="approved_pending_payment", **overrides):
     suffix = secrets.token_hex(4)
-    access_token = secrets.token_urlsafe(32)
+    access_token = waf_safe_token(32)
     fields = {
         "company_name": overrides.pop("company_name", f"Billing Test Co {suffix}"),
         "subdomain": overrides.pop("subdomain", f"billing-test-{suffix}"),
