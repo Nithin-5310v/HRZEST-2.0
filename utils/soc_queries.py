@@ -1186,6 +1186,7 @@ def loki_query(query, minutes=60, limit=200):
     """Run a LogQL range query against the configured Loki. Read-only, bounded,
     and the target URL comes only from the LOKI_URL environment variable (never
     from the request), so it cannot be turned into an SSRF primitive."""
+    import urllib.error
     import urllib.parse
     import urllib.request
     base = _loki_base()
@@ -1200,12 +1201,29 @@ def loki_query(query, minutes=60, limit=200):
     params = urllib.parse.urlencode({"query": query, "limit": limit, "direction": "backward",
                                      "start": end - minutes * 60 * int(1e9), "end": end})
     req = urllib.request.Request(base + "/loki/api/v1/query_range?" + params, headers={"Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=10) as resp:       # nosec B310 -- scheme checked, URL from env only
-        body = json.loads(resp.read(8 * 1024 * 1024))
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:       # nosec B310 -- scheme checked, URL from env only
+            body = json.loads(resp.read(8 * 1024 * 1024))
+    except urllib.error.HTTPError as exc:
+        if exc.code != 400:
+            raise
+        # Loki says in plain text why it can't run a query ("parse error at line 1,
+        # col 12: syntax error: ..."). Without this the analyst saw only "HTTPError".
+        first = (exc.read(2000).decode("utf-8", "replace").strip().splitlines() or [""])[0]
+        reason = "".join(ch for ch in first if ch.isprintable())[:300]
+        raise ValueError("Loki could not run this query: " + (reason or "it was refused as invalid.")) from None
+    data = body.get("data") or {}
+    if data.get("resultType", "streams") != "streams":
+        # count_over_time(), rate() and friends answer with numbers per time step
+        # ("matrix"/"vector"), which used to be listed as log lines reading "1",
+        # dated 1970 (their timestamps are seconds, not nanoseconds).
+        raise ValueError('This view lists log lines, so use a log query such as {app="hrms"} |= "error". '
+                         "Metric queries (count_over_time, rate, ...) are not shown here.")
     lines = []
-    for stream in (body.get("data", {}).get("result") or []):
+    for stream in (data.get("result") or []):
         labels = stream.get("stream", {})
-        for ts, line in stream.get("values", []):
+        for entry in stream.get("values", []):
+            ts, line = entry[0], entry[1]       # a third item (structured metadata) may follow
             lines.append({"ts": int(ts), "labels": {k: str(v)[:80] for k, v in list(labels.items())[:8]}, "line": line[:2000]})
     lines.sort(key=lambda r: -r["ts"])
     return {"configured": True, "lines": lines[:limit], "minutes": minutes}
