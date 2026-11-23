@@ -274,6 +274,45 @@ def test_details_that_arrive_after_you_left_do_not_reopen_the_drawer(browser, so
         ctx.close()
 
 
+def test_a_view_that_finishes_loading_after_you_left_does_not_paint_over_the_next(browser, soc):
+    """Sign-in lands on Overview, which waits on /api/overview. Moving to Events
+    before that reply arrives must keep Events on screen: the late Overview render
+    used to wipe #view and draw itself over the Events list (CI then clicked
+    Overview's top-IP link instead of an event row and landed on the IP profile)."""
+    ctx = browser.new_context(viewport=VIEWPORTS["desktop"])
+    page = ctx.new_page()
+    try:
+        problems, _ = _watch(page, {"view": "overview -> events"})
+        held = []
+
+        def hold_first(route):                         # hold the landing request, pass any later one
+            if held:
+                route.continue_()
+            else:
+                held.append(route)
+        page.route(re.compile(r"/socperson/api/overview\b"), hold_first)
+        _sign_in(page, soc)
+        for _ in range(100):                           # Overview's request goes out on landing
+            if held:
+                break
+            page.wait_for_timeout(50)
+        assert held, "the Overview request never went out"
+        page.goto(soc["url"] + "/socperson#/events")
+        expect(page.locator("#view")).to_contain_text("Export CSV", timeout=10_000)
+        with page.expect_response(re.compile(r"/socperson/api/overview\b")):
+            held[0].continue_()
+        page.wait_for_timeout(500)                     # let Overview's late render run
+        expect(page.locator("#title")).to_have_text("Events")
+        expect(page.locator("#view")).to_contain_text("Export CSV")
+        expect(page.locator("#view")).not_to_contain_text("Right now")
+        page.locator("#view tbody tr").first.locator("td").first.click()
+        expect(page.locator("#drawer")).to_be_visible()
+        expect(page.locator("#drawer")).to_contain_text("Event type")
+        assert problems == [], "\n".join(problems)
+    finally:
+        ctx.close()
+
+
 def test_long_attacker_values_wrap_instead_of_widening_the_page(browser, soc):
     ctx = browser.new_context(viewport=VIEWPORTS["phone"])
     page = ctx.new_page()
