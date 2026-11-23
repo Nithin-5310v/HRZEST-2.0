@@ -151,6 +151,18 @@ Every number is a count, time or state as recorded; where the console draws a co
 * **Posture** – live configuration checks with the setting to change. Reports whether a control is on, never a secret.
 * **Users & audit** (admin) – accounts (whether each is still listed in `SOC_LOGIN_EMAILS`, disable / enable, unlock) and the append-only record of everything done in the console.
 
+## Real test traffic on a local or dev server
+
+`scripts/generate_real_events.py` fills a local or dev HRZEST with real activity by using it over HTTP. It signs in and browses as an admin, tries made-up accounts from one address (credential stuffing), probes like a scanner (honeypot paths, SQL injection and path traversal in the URL, an attack-tool User-Agent), downloads the salary report six times, reuses a session cookie from another browser and network, and calls the mobile API. The app records all of it exactly as it would for anyone, so Events, Alerts, Detections, Traffic, Ban review and Response → Signed in show what really happened. Nothing is written to the database directly.
+
+```
+GEN_ADMIN_USER=admin GEN_ADMIN_PASSWORD=... python scripts/generate_real_events.py http://localhost:5000 [--company acme] [--scenario probes] [--rounds 3]
+```
+
+- **Credentials** come from the environment only (`GEN_ADMIN_USER` / `GEN_ADMIN_PASSWORD`, optionally `GEN_EMPLOYEE_ID` / `GEN_EMPLOYEE_PASSWORD`). Scenarios needing a missing one are skipped. The failed sign-ins use made-up accounts, so your own account is never locked out.
+- **Source addresses** are documentation addresses (192.0.2.x, 198.51.100.x, 203.0.113.x, never real hosts) sent as `X-Forwarded-For`. Start the server with `TRUSTED_PROXY_HOPS=1` so it uses them; otherwise every request comes from 127.0.0.1, which the console leaves out as the server's own traffic. Don't list those ranges in `SOC_TEST_CIDRS`. The scanner address usually ends up banned or in Ban review.
+- **Where it runs:** this machine and private-network addresses only. Any other host needs `--allow-host <that exact host>`, and `hrzest.com` / `www.hrzest.com` (plus `GEN_REFUSE_HOSTS`) are refused whatever is passed.
+
 ## How it is protected
 
 * Separate accounts, session keys and guard from every other login; other sessions grant nothing here and a console session grants nothing elsewhere.

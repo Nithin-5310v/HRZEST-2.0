@@ -112,6 +112,16 @@ pytest starts, for example with a small wrapper that calls
    Razorpay, OAuth) patch the call site (`urllib.request.urlopen`,
    `send_email_smtp`, ...), so the code under test still runs.
 
+## Real traffic for the SOC console
+
+To see the SOC console (`/socperson`) with real data on your machine, run the app with `TRUSTED_PROXY_HOPS=1` and point `scripts/generate_real_events.py` at it. It signs in, fails sign-ins, probes like a scanner, exports payroll, reuses a session from another browser and calls the mobile API, all over HTTP, so every event is one the app really recorded:
+
+```
+GEN_ADMIN_USER=admin GEN_ADMIN_PASSWORD=... python scripts/generate_real_events.py http://localhost:5000
+```
+
+It only runs against this machine or a private address (others need `--allow-host`; production is always refused). The details are in [docs/SOC.md](../SOC.md#real-test-traffic-on-a-local-or-dev-server).
+
 ## Mobile tests
 
 ```bash
