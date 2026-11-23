@@ -138,7 +138,9 @@ HRZEST/
 ├── requirements.txt, requirements.lock, .python-version
 │
 │ ═══ 13. Docs ══════════════════════════════════════════════════════════════════════
-├── docs/                           SECURITY_HARDENING.md, SOC.md, RESTORE.md,
+├── docs/                           developer/ (the developer guide — start at
+│                                   docs/developer/README.md), SECURITY_HARDENING.md,
+│                                   SOC.md, RESTORE.md, FIREWALL.md, ENCRYPTION_AT_REST.md,
 │                                   MODERNIZATION.md, QA_AUDIT.md, DEPENDENCIES.txt,
 │                                   HRzest_Project_Overview.pptx
 └── README.md, PROJECT_STRUCTURE.md, SECURITY.md      (kept at the top, where GitHub looks)
@@ -301,7 +303,7 @@ https://<server>/<company>/login   ──►  tenants.subdomain = "<company>"  �
 
 ## 8. Mobile app
 
-**Where:** `mobile/` — Expo SDK 57, React Native 0.86, React 19. Admin, HR, manager and employee in one app. It runs in **Expo Go** for development (see `mobile/.env.example` for the server address, `EXPO_PUBLIC_API_BASE_URL`).
+**Where:** `mobile/` — Expo SDK 58, React Native 0.88, React 19. Admin, HR, manager and employee in one app. It runs in **Expo Go** for development (see `mobile/.env.example` for the server address, `EXPO_PUBLIC_API_BASE_URL`).
 
 | Part | Where |
 | --- | --- |
@@ -365,10 +367,11 @@ More detail: `SECURITY.md`, `docs/SECURITY_HARDENING.md`.
 
 | What | Where |
 | --- | --- |
-| Live server (EC2) | systemd + Gunicorn (`gunicorn.conf.py`) behind nginx, PostgreSQL on the same host. It **pulls `main` automatically** once its CI checks pass: `scripts/ec2_autodeploy.sh`, `scripts/hrzest-autodeploy.service` / `.timer`, `scripts/install_ec2_autodeploy.sh` |
+| Live server (EC2) | systemd + Gunicorn (`gunicorn.conf.py`) behind nginx, PostgreSQL on the same host. Every 2 minutes it deploys whatever the **`production` branch** points at, which Jenkins moves only after a release is approved (the commit must also be on `main` with green CI): `scripts/ec2_autodeploy.sh`, `scripts/hrzest-autodeploy.service` / `.timer`, `scripts/install_ec2_autodeploy.sh`. See [docs/developer/ci-and-release.md](docs/developer/ci-and-release.md) |
 | Container route | `Containerfile` (Podman), `compose.yaml` (+ `compose.prod.yaml`, `compose.lowmem.yaml`, `compose.image.yaml`), `entrypoint.sh`, `deploy.sh`, `scripts/deploy_verified_image.sh` |
 | Web server | `nginx/nginx.conf.template` (rendered by `init-letsencrypt.sh`), `nginx.conf`, `nginx.conf.example` |
-| CI (GitHub Actions) | `.github/workflows/ci-cd.yml` (lint, Bandit, pytest, Semgrep, Podman build), `security.yml`, `dast.yml`, `deploy.yml` (SSH deploy job, currently disabled); `.github/dependabot.yml` |
+| CI (GitHub Actions) | `.github/workflows/ci-cd.yml` (flake8, pip-audit, Bandit, pytest, Semgrep), `deploy.yml` (static analysis, Pytest, DB-role and browser tests, Podman build, signed image; its deploy job is disabled), `security.yml`, `mobile-tests.yml`, `mobile-update.yml` (OTA updates), `dast.yml`; `.github/dependabot.yml` |
+| CD (Jenkins, on the office PC) | `Jenkinsfile`, `ci/jenkins/` — `develop` → development copy, `main` → approval → `production` branch |
 | Host & backups | `scripts/host_hardening.sh`, `scripts/backup_db.sh`, `hrzest-backup.service` / `.timer`, `scripts/provision_db_roles.py` |
 | Logs & monitoring | `observability/` (Grafana Alloy → Loki → Grafana, security alert rules) |
 | Dependencies | `requirements.txt`, `requirements.lock` (hash-pinned), `requirements-dev.txt`, `docs/DEPENDENCIES.txt`; `mobile/package.json` |
@@ -380,7 +383,9 @@ More detail: `SECURITY.md`, `docs/SECURITY_HARDENING.md`.
 
 At the top: `README.md` (setup) · `PROJECT_STRUCTURE.md` (this map) · `SECURITY.md` (security policy).
 
-In `docs/`: `docs/SECURITY_HARDENING.md` · `docs/SOC.md` · `docs/RESTORE.md` (backup restore) · `docs/MODERNIZATION.md` · `docs/QA_AUDIT.md` · `docs/HRzest_Project_Overview.pptx`
+**Developer guide:** [`docs/developer/`](docs/developer/README.md) — architecture, local setup, conventions, testing, CI and release, sign-in and security, database, configuration, mobile, troubleshooting.
+
+In `docs/`: `docs/SECURITY_HARDENING.md` · `docs/ENCRYPTION_AT_REST.md` · `docs/FIREWALL.md` · `docs/SOC.md` · `docs/RESTORE.md` (backup restore) · `docs/TESTING_DATABASE.md` · `docs/BARE_METAL_TO_CONTAINERS.md` · `docs/MODERNIZATION.md` · `docs/QA_AUDIT.md` · `docs/HRzest_Project_Overview.pptx`
 
 ---
 
