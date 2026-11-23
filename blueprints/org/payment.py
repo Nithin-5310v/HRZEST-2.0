@@ -32,7 +32,7 @@ def create_org_pay_page(application_id):
     mconn.close()
     if not row:
         flash("Application not found.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     company_name, status = row
     if status != "approved_pending_payment":
         return redirect(f"/create_org/status/{application_id}")
@@ -68,7 +68,7 @@ def create_org_setup_trial_page(application_id):
     mconn.close()
     if not row:
         flash("Application not found.", "error")
-        return redirect("/create_org")
+        return redirect("/signup")
     company_name, status, payment_option = row
     if payment_option != "trial" or status != "approved_pending_payment":
         return redirect(f"/create_org/status/{application_id}")

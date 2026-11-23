@@ -1,0 +1,129 @@
+{% extends "legal_layout.html" %}
+{% set page_title = "Privacy Policy" %}
+{% set page_description = "What personal data HRzest handles, why, who it is shared with, how long it is kept, and the rights you have over it." %}
+{% set page_path = "/privacy" %}
+{% set crumb = [("Home", "/"), ("Privacy Policy", "/privacy")] %}
+{% block content %}
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: {{ legal_updated }}</p>
+  <p class="note">We're reviewing this policy with legal advice. If anything changes, we'll update this page and its date.</p>
+
+  <p class="lead">HRzest (<a href="/">hrzest.com</a>) is an HR platform that companies use to run attendance,
+     leave, payroll, onboarding and performance for their employees. This policy explains what personal data
+     we handle, why, and the choices and rights you have. It's written for India's Digital Personal Data
+     Protection Act, 2023 (DPDP Act) and the Information Technology Act, 2000 and its rules.</p>
+
+  <h2>1. Who is responsible for your data</h2>
+  <ul>
+    <li><strong>If you're an employee</strong> of a company that uses HRzest, your employer decides what data
+        is collected about you and why. Under the DPDP Act your employer is the <em>Data Fiduciary</em>, and
+        HRzest processes that data on its behalf as a <em>Data Processor</em>. Please contact your employer
+        first about your data; we'll help them respond.</li>
+    <li><strong>If you sign up a company, contact us or visit our website</strong>, HRzest is responsible for
+        the data we collect from you.</li>
+  </ul>
+  <p>Contact: HRzest, {{ seller.address_lines | join(", ") }}, India &middot;
+     <a href="mailto:{{ seller.email }}">{{ seller.email }}</a> &middot; {{ seller.phone }}</p>
+
+  <h2>2. What we collect</h2>
+  <h3>From companies that sign up</h3>
+  <ul>
+    <li>Company details: name, web address, GSTIN, logo, billing address and verification (KYC) documents.</li>
+    <li>The administrator's name, email address, mobile number and password. We store passwords only as a
+        one-way hash and never see them.</li>
+    <li>Payment records. Payments are handled by Razorpay; we never receive or store your full card or bank
+        account number.</li>
+  </ul>
+  <h3>About employees (entered or collected on the employer's behalf)</h3>
+  <ul>
+    <li>Identity and job details: name, employee ID, contact details, department, role, manager and joining date.</li>
+    <li>Attendance: check-in and check-out times, shifts, leave and holidays.</li>
+    <li><strong>Face data</strong>, if the employer uses face check-in: a registered face photo and a face
+        template derived from it, plus a photo taken at each check-in to confirm it's really you.</li>
+    <li><strong>Location</strong>, if the employer uses geo-fenced check-in: your device's location at the
+        moment you check in or out. We don't track your location at any other time.</li>
+    <li>Payroll: salary, deductions, bank details for salary payment, and payslips.</li>
+    <li>Documents you or your employer upload, onboarding tasks, and performance reviews.</li>
+  </ul>
+  <h3>Technical and security data</h3>
+  <ul>
+    <li>IP address, browser and device type, sign-in times and security events, used to keep accounts safe
+        and to detect and block attacks.</li>
+    <li>Website traffic: we count how many times each public page is viewed per day. This uses no cookies and
+        no tracking script, and doesn't store your IP address.</li>
+  </ul>
+
+  <h2>3. Why we use it</h2>
+  <ul>
+    <li>To provide the service your employer or company signed up for: attendance, leave, payroll, onboarding
+        and performance.</li>
+    <li>To verify check-ins (face, QR code or location), so attendance records are accurate.</li>
+    <li>To create and secure accounts, send sign-in codes, password resets and service emails.</li>
+    <li>To bill companies and keep tax records.</li>
+    <li>To keep the platform secure, prevent fraud and comply with the law.</li>
+  </ul>
+  <p>We don't sell personal data, and we don't use it for advertising.</p>
+
+  <h2>4. Face and location data need consent</h2>
+  <p>Face recognition and location-based check-in are used only where the employer has turned them on. Because
+     this data is sensitive, the employer must tell its employees how it's used and get their consent before
+     turning these features on. HRzest keeps a record of consent given and withdrawn. To withdraw your consent,
+     tell your employer or email us; after that, face or location check-in won't be used for you, so ask your
+     employer about another way to record attendance. Withdrawing consent doesn't affect check-ins made before it.</p>
+
+  <h2>5. Who we share it with</h2>
+  <p>We share personal data only with your employer (for employee data) and with the service providers that run
+     parts of HRzest for us, under contracts that require them to protect it:</p>
+  <table>
+    <tr><th>Provider</th><th>What for</th></tr>
+    <tr><td>Amazon Web Services</td><td>Hosting the application and database (servers in India)</td></tr>
+    <tr><td>Microsoft 365</td><td>Sending email: sign-in codes, password resets, payslips and notices</td></tr>
+    <tr><td>Razorpay</td><td>Taking payments and subscriptions</td></tr>
+    <tr><td>Google and Microsoft</td><td>Only if you choose "Sign up with Google" or "Sign up with Microsoft"</td></tr>
+    <tr><td>Cloudflare Turnstile</td><td>Telling people from bots on sign-up and sign-in forms, where it's turned on</td></tr>
+    <tr><td>Anthropic</td><td>AI features (such as resume reading and the HR assistant), only when someone uses them</td></tr>
+    <tr><td>Have I Been Pwned</td><td>Checking a new password against known leaked passwords. Only the first 5 characters of the password's hash are sent, never the password.</td></tr>
+    <tr><td>Expo</td><td>Delivering push notifications to the HRzest mobile app</td></tr>
+  </table>
+  <p>Some of these providers may process data outside India. We may also disclose data when the law requires it.</p>
+
+  <h2>6. How long we keep it</h2>
+  <ul>
+    <li>Photos taken at check-in: 30 days.</li>
+    <li>Check-in verification records (for spotting fake or replayed check-ins): 180 days.</li>
+    <li>Registered face templates: while the person is employed there, and removed when their data is erased.</li>
+    <li>Attendance and payroll records: as long as employment, tax and labour laws require, after which they are
+        deleted or no longer linked to a person.</li>
+    <li>Company account data: while the company uses HRzest, and afterwards as the law requires (for example,
+        invoices).</li>
+  </ul>
+
+  <h2>7. How we protect it</h2>
+  <p>All traffic is encrypted (HTTPS). Sensitive personal fields are encrypted in the database, passwords are
+     hashed, administrators use two-factor authentication, access is limited by role, and security-relevant
+     actions are recorded in a tamper-evident audit log.</p>
+
+  <h2>8. Cookies</h2>
+  <p>We use only cookies needed for the site to work: a sign-in session cookie, a short-lived cookie that shows a
+     loading screen after you sign in, and a short-lived cookie that protects "Sign up with Google/Microsoft"
+     from forgery. We don't use advertising or analytics cookies. Your browser's local storage also remembers a
+     few display choices, such as a collapsed sidebar.</p>
+
+  <h2>9. Your rights</h2>
+  <p>Under the DPDP Act you can ask to access your personal data, correct or update it, erase it, withdraw
+     consent, nominate someone to act for you, and raise a grievance. If you're an employee, ask your employer:
+     HRzest gives employers tools to export or erase an employee's data. You can also email us at
+     <a href="mailto:{{ seller.email }}">{{ seller.email }}</a>. We'll reply within 30 days. If you're not
+     satisfied with our answer, you can complain to the Data Protection Board of India.</p>
+
+  <h2>10. Children</h2>
+  <p>HRzest is for businesses and their employees. It isn't meant for anyone under 18.</p>
+
+  <h2>11. Changes to this policy</h2>
+  <p>If we change this policy, we'll post the new version here with a new date, and tell company
+     administrators about important changes by email.</p>
+
+  <h2>12. Grievance officer</h2>
+  <p>For any question or complaint about personal data, contact our grievance officer at
+     <a href="mailto:{{ seller.email }}">{{ seller.email }}</a> or {{ seller.address_lines | join(", ") }}, India.</p>
+{% endblock %}

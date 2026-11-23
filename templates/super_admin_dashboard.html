@@ -368,10 +368,10 @@
       </section>
 
       <section class="page-section">
-        <div class="section-heading"><img class="icon-photo" src="{{ static_url('icons/photos/chart-bar.png') }}" alt=""> Finance</div>
+        <div class="section-heading"><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/chart-bar.png') }}" alt=""> Finance</div>
         <div class="section-body">
           <div class="card pnl-card">
-            <h2><img class="icon-photo" src="{{ static_url('icons/photos/chart-bar.png') }}" alt=""> Profit &amp; Loss</h2>
+            <h2><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/chart-bar.png') }}" alt=""> Profit &amp; Loss</h2>
             <div class="pnl-figures">
               <div class="pnl-figure">
                 <div class="pnl-figure-label">Revenue (MRR)</div>
@@ -403,7 +403,7 @@
 
             {% if pnl.is_loss %}
             <div class="pnl-suggestion">
-              <img class="icon-photo" src="{{ static_url('icons/photos/alert-triangle.jpg') }}" alt="">
+              <img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/alert-triangle.jpg') }}" alt="">
               <strong>Operating at a loss.</strong>
               {% if pnl.suggested_rate_display %}
               Consider raising the per-employee rate to <strong>{{ pnl.suggested_rate_display }}/employee/month</strong>
@@ -426,7 +426,7 @@
               <label>Monthly Maintenance Cost (₹)
                 <input type="number" name="monthly_maintenance" min="0" step="0.01" value="{{ '%.2f' | format(costs.maintenance_paise / 100) }}" placeholder="0.00" />
               </label>
-              <button type="submit"><img class="icon-photo" src="{{ static_url('icons/photos/device-floppy.jpg') }}" alt=""> Save Costs</button>
+              <button type="submit"><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/device-floppy.jpg') }}" alt=""> Save Costs</button>
             </form>
           </div>
         </div>
@@ -439,7 +439,7 @@
         </div>
         <div class="section-body">
           <div class="section-toolbar">
-            <a href="/create_org?free=1" target="_blank" rel="noopener" class="new-co-btn"
+            <a href="/signup?free=1" target="_blank" rel="noopener" class="new-co-btn"
                title="Opens the same registration wizard as a paid signup (company details, email code, documents) without the payment step."
                style="text-decoration:none;display:inline-flex;align-items:center;">
               New Company (Free)
@@ -448,7 +448,7 @@
                     title="Change the flat per-employee monthly rate — applies to every new signup, top-up, and bill immediately">
               Edit Rate ({{ per_employee_paise | plan_price }})
             </button>
-            <a href="/create_org" target="_blank" rel="noopener" title="Opens the same public registration + Razorpay checkout a self-service customer would use — hand this to a client to pay on the spot."
+            <a href="/signup" target="_blank" rel="noopener" title="Opens the same public registration + Razorpay checkout a self-service customer would use — hand this to a client to pay on the spot."
                style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-soft);border:1px solid var(--primary-soft-border);color:var(--primary-dark);padding:8px 16px;border-radius:10px;font-size:15px;font-weight:700;text-decoration:none;transition:background-color .15s,box-shadow .15s,transform .15s;"
                data-hover-style="background:#e0e2fa;box-shadow:var(--shadow-md);transform:translateY(-1px)"
               >
@@ -624,9 +624,9 @@
             {% else %}
             <div class="empty-state">
               {% if q or status_filter != 'all' %}
-              <img class="icon-photo-lg" src="{{ static_url('icons/photos/search.jpg') }}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;"><p style="margin-top:8px;">No companies match your search.</p>
+              <img loading="lazy" class="icon-photo-lg" src="{{ static_url('icons/photos/search.jpg') }}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;"><p style="margin-top:8px;">No companies match your search.</p>
               {% else %}
-              <img src="{{ static_url('icons/photos/building-off.jpg') }}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;"><p style="margin-top:8px;">No companies registered yet.</p>
+              <img loading="lazy" src="{{ static_url('icons/photos/building-off.jpg') }}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:8px;"><p style="margin-top:8px;">No companies registered yet.</p>
               {% endif %}
             </div>
             {% endif %}
@@ -635,10 +635,10 @@
       </section>
 
       <section class="page-section">
-        <div class="section-heading"><img class="icon-photo" src="{{ static_url('icons/photos/message-2.jpg') }}" alt=""> Leads</div>
+        <div class="section-heading"><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/message-2.jpg') }}" alt=""> Leads</div>
         <div class="section-body">
       <div class="card section-card">
-        <h2><img class="icon-photo" src="{{ static_url('icons/photos/message-2.jpg') }}" alt=""> "Talk to Us" Requests</h2>
+        <h2><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/message-2.jpg') }}" alt=""> "Talk to Us" Requests</h2>
         {% if leads %}
         <table>
           <thead>
@@ -676,10 +676,10 @@
       </section>
 
       <section class="page-section">
-        <div class="section-heading"><img class="icon-photo" src="{{ static_url('icons/photos/message-2.jpg') }}" alt=""> Product Feedback</div>
+        <div class="section-heading"><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/message-2.jpg') }}" alt=""> Product Feedback</div>
         <div class="section-body">
       <div class="card section-card">
-        <h2><img class="icon-photo" src="{{ static_url('icons/photos/message-2.jpg') }}" alt=""> Landing Page Feedback</h2>
+        <h2><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/message-2.jpg') }}" alt=""> Landing Page Feedback</h2>
         {% if feedback_items %}
         <table>
           <thead>
@@ -705,13 +705,13 @@
       </section>
 
       <section class="page-section">
-        <div class="section-heading"><img class="icon-photo" src="{{ static_url('icons/photos/receipt.jpg') }}" alt=""> Payments</div>
+        <div class="section-heading"><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/receipt.jpg') }}" alt=""> Payments</div>
         <div class="section-body">
       <div class="card section-card">
         <h2 style="display:flex;align-items:center;justify-content:space-between;">
-          <span><img class="icon-photo" src="{{ static_url('icons/photos/receipt.jpg') }}" alt=""> Recent Payments</span>
+          <span><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/receipt.jpg') }}" alt=""> Recent Payments</span>
           <a href="/super_admin/export/payments.csv" class="mini-btn mini-btn-link" style="font-size:13px;" title="Export full payment history as CSV">
-            <img class="icon-photo-sm" src="{{ static_url('icons/photos/download.jpg') }}" alt=""> Export CSV
+            <img loading="lazy" class="icon-photo-sm" src="{{ static_url('icons/photos/download.jpg') }}" alt=""> Export CSV
           </a>
         </h2>
         {% if recent_payments %}
@@ -757,7 +757,7 @@
       <div class="pay-modal-overlay" id="payModalOverlay" role="dialog" aria-modal="true" aria-label="Transaction details" data-on-click="HZ.ifSelf(event, this, 'closePaymentModal')">
         <div class="pay-modal-sheet">
           <div class="pay-modal-head">
-            <h3><img class="icon-photo" src="{{ static_url('icons/photos/receipt-2.jpg') }}" alt=""> Transaction Details</h3>
+            <h3><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/receipt-2.jpg') }}" alt=""> Transaction Details</h3>
             <button type="button" class="pay-modal-close" data-on-click="closePaymentModal()" aria-label="Close">&times;</button>
           </div>
           <div class="pay-modal-body">
@@ -781,7 +781,7 @@
       <div class="pay-modal-overlay" id="deleteModalOverlay" role="dialog" aria-modal="true" aria-label="Delete company" data-on-click="HZ.ifSelf(event, this, 'closeDeleteModal')">
         <div class="pay-modal-sheet">
           <div class="pay-modal-head">
-            <h3><img class="icon-photo" src="{{ static_url('icons/photos/trash.jpg') }}" alt=""> Delete Company</h3>
+            <h3><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/trash.jpg') }}" alt=""> Delete Company</h3>
             <button type="button" class="pay-modal-close" data-on-click="closeDeleteModal()" aria-label="Close">&times;</button>
           </div>
           <div class="pay-modal-body">
@@ -807,10 +807,10 @@
       </div>
 
       <section class="page-section">
-        <div class="section-heading"><img class="icon-photo" src="{{ static_url('icons/photos/history.jpg') }}" alt=""> Activity</div>
+        <div class="section-heading"><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/history.jpg') }}" alt=""> Activity</div>
         <div class="section-body">
       <div class="card activity-card">
-        <h2><img class="icon-photo" src="{{ static_url('icons/photos/history.jpg') }}" alt=""> Recent Activity</h2>
+        <h2><img loading="lazy" class="icon-photo" src="{{ static_url('icons/photos/history.jpg') }}" alt=""> Recent Activity</h2>
         {% if recent_activity %}
         <div class="activity-list">
           {% for ev in recent_activity %}

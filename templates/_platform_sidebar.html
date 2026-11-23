@@ -12,7 +12,7 @@
   <a class="pa-nav-item {{ 'active' if _p.startswith('/super_admin/duplicate-alerts') }}" href="/super_admin/duplicate-alerts"><span class="pa-nav-icon"><i class="ti ti-copy"></i></span>Duplicate Alerts</a>
   <a class="pa-nav-item {{ 'active' if _p.startswith('/super_admin/audit-log') }}" href="/super_admin/audit-log"><span class="pa-nav-icon"><i class="ti ti-history"></i></span>Audit Log</a>
   <a class="pa-nav-item {{ 'active' if _p.startswith('/super_admin/tickets') }}" href="/super_admin/tickets"><span class="pa-nav-icon"><i class="ti ti-headset"></i></span>Support Tickets</a>
-  <a class="pa-nav-item" href="/create_org?free=1" target="_blank" rel="noopener"><span class="pa-nav-icon"><i class="ti ti-plus"></i></span>New Company (Free)</a>
+  <a class="pa-nav-item" href="/signup?free=1" target="_blank" rel="noopener"><span class="pa-nav-icon"><i class="ti ti-plus"></i></span>New Company (Free)</a>
   <form action="/super_admin/logout" method="POST" class="pa-nav-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
     <button type="submit" class="pa-nav-item"><span class="pa-nav-icon"><i class="ti ti-logout"></i></span>Sign Out</button>

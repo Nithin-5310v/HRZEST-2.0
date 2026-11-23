@@ -87,7 +87,7 @@ def test_response_processing_does_not_bless_injected_tags():
     assert all('nonce="test-nonce-123"' in t for t in appended), appended
 
 
-@pytest.mark.parametrize("path", ["/", "/login", "/create_org"])
+@pytest.mark.parametrize("path", ["/", "/login", "/signup"])
 def test_every_tag_on_a_real_page_carries_the_response_nonce(client, path):
     """Template tags plus the CSRF/client-log/hz-actions scripts
     _inject_csrf_meta appends -- all ours, so all must carry this

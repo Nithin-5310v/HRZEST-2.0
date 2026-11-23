@@ -437,7 +437,7 @@ class TestNewCompanyFreeLink:
     def test_dashboard_links_to_the_free_registration_wizard(self, client):
         _login_platform_admin(client)
         page = client.get("/super_admin").get_data(as_text=True)
-        assert 'href="/create_org?free=1"' in page
+        assert 'href="/signup?free=1"' in page
         assert "/super_admin/tenants/create" not in page
 
     def test_direct_create_route_is_gone(self, client):

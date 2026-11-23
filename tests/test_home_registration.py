@@ -66,12 +66,12 @@ class TestHomeRegistrationErrors:
 
     def test_without_return_to_still_goes_to_create_org(self, client):
         resp = client.post("/create_org", data=dict(_SHORT_PASSWORD))
-        assert resp.headers["Location"] == "/create_org"
+        assert resp.headers["Location"] == "/signup"
 
     def test_return_to_accepts_only_home(self, client):
         for value in ("https://evil.example/", "//evil.example", "/admin", "HOME"):
             resp = client.post("/create_org", data=dict(_SHORT_PASSWORD, return_to=value))
-            assert resp.headers["Location"] == "/create_org", value
+            assert resp.headers["Location"] == "/signup", value
 
     def test_home_leaves_unrelated_flashes_alone(self, client):
         with client.session_transaction() as s:

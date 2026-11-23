@@ -21,7 +21,7 @@ _OAUTH_ENV = ("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET",
 _EMAIL = "owner@freereg.test"
 
 
-def _page(client, url="/create_org?free=1"):
+def _page(client, url="/signup?free=1"):
     resp = client.get(url)
     assert resp.status_code == 200
     return resp.get_data(as_text=True)
@@ -64,7 +64,7 @@ class TestFreeRegistrationFlow:
     def test_only_a_platform_admin_can_start_one(self, client, db_engine, monkeypatch):
         codes = capture_codes(monkeypatch)
         resp = start_signup(client, _EMAIL, signup_plan="free")
-        assert resp.headers["Location"] == "/create_org"
+        assert resp.headers["Location"] == "/signup"
         assert codes == [] and _application(db_engine) is None
 
     def test_starts_with_the_email_code_like_a_paid_signup(self, client, db_engine, monkeypatch):
@@ -82,7 +82,7 @@ class TestFreeRegistrationFlow:
         _login_platform_admin(client)
         capture_codes(monkeypatch)
         resp = start_signup(client, _EMAIL, password="short", signup_plan="free")
-        assert resp.headers["Location"] == "/create_org?free=1"
+        assert resp.headers["Location"] == "/signup?free=1"
 
     def test_code_creates_an_active_invoiced_company_and_returns_to_platform_admin(
             self, client, db_engine, monkeypatch):

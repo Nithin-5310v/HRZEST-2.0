@@ -313,6 +313,13 @@
       if (flag && clear) el.value = '';
     },
     removeParent: function (el) { if (el.parentNode) el.parentNode.remove(); },
+    // "Back" link: go back in history when there is one (return false so the
+    // link's own href is not followed); otherwise follow the href. Stands in
+    // for href="javascript:history.back()", which the CSP blocks.
+    back: function () {
+      if (window.history.length > 1) { window.history.back(); return false; }
+      return true;
+    },
     // disable a form's submit button(s) once it is sent (no double submit)
     disableSubmit: function (form) {
       form.querySelectorAll('button[type=submit]').forEach(function (b) { b.disabled = true; });

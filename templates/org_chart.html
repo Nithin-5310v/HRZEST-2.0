@@ -308,7 +308,7 @@ function render() {
         ${childCount > 0 ? `<div class="reports-badge">${childCount}</div>` : ''}
         <div class="avatar-wrap">
           ${n.has_photo
-            ? `<img class="avatar-img" src="/dataset/${encodeURIComponent(n.id)}.jpg" data-on-error="HZ.showNextOnError(this)" /><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
+            ? `<img class="avatar-img" src="/dataset/${encodeURIComponent(n.id)}.jpg" alt="" loading="lazy" data-on-error="HZ.showNextOnError(this)" /><div class="avatar-placeholder u-bg-color u-d-none">${initials(n.name)}</div>`
             : `<div class="avatar-placeholder u-bg-color">${initials(n.name)}</div>`
           }
         </div>

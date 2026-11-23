@@ -147,7 +147,7 @@ def test_trusted_html_marks_only_the_markup_it_is_given():
 
 # --- real pages: nothing the developers wrote is blocked ----------------------------
 
-@pytest.mark.parametrize("path", ["/", "/login", "/admin_login", "/create_org", "/forgot_password",
+@pytest.mark.parametrize("path", ["/", "/login", "/admin_login", "/signup", "/forgot_password",
                                   "/security-policy", "/this-route-does-not-exist-xyz"])
 def test_public_pages_tags_have_nonce_and_styles_have_hashes(client, path):
     _assert_page_is_csp_clean(client.get(path), path)

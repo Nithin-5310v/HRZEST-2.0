@@ -10,7 +10,7 @@ CSS = "/static/auth_split.css"
 
 # The wizard steps past /create_org need a live application to reach, so
 # those templates are rendered directly; the rest are fetched by route.
-ROUTES = ["/login", "/super_admin/login", "/admin_forgot_password", "/employee_forgot_password", "/create_org"]
+ROUTES = ["/login", "/super_admin/login", "/admin_forgot_password", "/employee_forgot_password", "/signup"]
 TEMPLATES = [
     "mfa_verify.html", "admin_reset_password.html", "employee_reset_password.html",
     "create_org_verify_otp.html", "create_org_upload_documents.html",

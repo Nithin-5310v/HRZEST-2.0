@@ -19,7 +19,7 @@ class TestCreateOrgPage:
     These are the lighter GET-page and malformed-POST coverage cases."""
 
     def test_get_shows_form(self, client):
-        rv = client.get("/create_org")
+        rv = client.get("/signup")
         assert rv.status_code == 200
         assert b"Start Your Organisation" in rv.data
 
@@ -42,7 +42,7 @@ class TestCreateOrgPage:
             "admin_email": "admin@testcorp.com",
         }, follow_redirects=False)
         assert rv.status_code in (301, 302)
-        assert rv.headers.get("Location") == "/create_org"
+        assert rv.headers.get("Location") == "/signup"
 
 
 # ── org_chart_page ────────────────────────────────────────────────────────────

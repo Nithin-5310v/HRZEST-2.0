@@ -102,7 +102,7 @@
       .live-date { font-size: 14px; color: rgba(255,255,255,0.65); letter-spacing: 0.8px; }
 
       /* ── TITLE ── */
-      h2 { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
+      h1, h2 { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
       .sub { font-size: 14px; color: #64748b; margin-bottom: 20px; line-height: 1.5; }
 
       /* ── SCANNER WRAP ── */
@@ -441,7 +441,7 @@
       body.dark-mode::before { background-image: radial-gradient(circle, #30363d 1px, transparent 1px) !important; opacity: 0.5 !important; }
       body.dark-mode .topbar { background: linear-gradient(90deg,#0d1117,#161b22) !important; border-bottom: 1px solid #30363d !important; box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important; }
       body.dark-mode .card { background: #161b22 !important; border-color: #30363d !important; color: #cdd9e5 !important; box-shadow: 0 20px 60px rgba(0,0,0,0.4) !important; }
-      body.dark-mode h2 { color: #cdd9e5 !important; }
+      body.dark-mode h1, body.dark-mode h2 { color: #cdd9e5 !important; }
       body.dark-mode .live-date { color: rgba(255,255,255,0.5) !important; }
       body.dark-mode .sub { color: #768390 !important; }
       body.dark-mode .scanner-wrap { background: #1c2128 !important; border-color: #30363d !important; }
@@ -488,7 +488,7 @@
           <div class="live-time" id="liveTime"></div>
           <div class="live-date" id="liveDate"></div>
         </div>
-        <h2>Mark Attendance</h2>
+        <h1>Mark Attendance</h1>
 
         {# Method cards: shown only when admin enables the corresponding auth option #}
         {% set show_qr_face = auth_cfg.qr_enabled and auth_cfg.face_enabled %}

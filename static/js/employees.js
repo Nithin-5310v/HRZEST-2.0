@@ -592,7 +592,7 @@
           + '<style nonce="' + _employeesScriptNonce + '">body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f5f9;}'
           + 'img{max-width:520px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.15);}'
           + '@media print{body{background:#fff;}}<\/style><\/head>'
-          + '<body><img src="' + img.src + '" \/><\/body><\/html>');
+          + '<body><img alt="ID card" src="' + img.src + '" \/><\/body><\/html>');
         win.document.close();
         var printImg = win.document.querySelector('img');
         if (printImg.complete) win.print();

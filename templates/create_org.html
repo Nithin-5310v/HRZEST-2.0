@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Register Organisation — HRzest Enterprise Platform</title>
   <meta name="description" content="Register your organisation on HRzest: face recognition attendance, GPS geo-fencing and automated payroll on one secure HR platform." />
-  <link rel="canonical" href="{{ seo_base_url }}/create_org" />
-  <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
+  {% from "_public_meta.html" import public_meta with context %}
+  {{ public_meta("Register Organisation — HRzest Enterprise Platform", "Register your organisation on HRzest: face recognition attendance, GPS geo-fencing and automated payroll on one secure HR platform.", "/signup") }}
+  <script type="application/ld+json">{{ breadcrumb_schema([("Home", "/"), ("Sign up", "/signup")]) | tojson }}</script>
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('shared.min.css') }}" />
   <link rel="stylesheet" href="{{ static_url('landing_v2.css') }}" />
@@ -231,7 +232,7 @@
         {% if application.admin_mobile %}
         <div class="entered-row"><i class="ti ti-phone"></i><span>{{ application.admin_mobile }}</span></div>
         {% endif %}
-        <a href="/create_org{{ '?free=1' if free_registration else '' }}" class="entered-change">Change details</a>
+        <a href="/signup{{ '?free=1' if free_registration else '' }}" class="entered-change">Change details</a>
       </div>
 
       <form method="POST" action="/create_org/verify_otp">
@@ -379,6 +380,10 @@
         {% endif %}
 
         <button type="submit" class="btn-submit"><span>Send Verification Code</span> <i class="ti ti-arrow-right"></i></button>
+        <p class="legal-agree" style="margin-top:12px;font-size:13px;color:var(--text-muted);text-align:center;">
+          By signing up you agree to our <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>
+          and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
+        </p>
       </form>
 
       <a href="/login" class="footer-login-link" style="margin-top: 18px;">Already registered? Log in to your corporate workspace →</a>

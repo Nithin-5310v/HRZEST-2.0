@@ -1,0 +1,42 @@
+{#- Shared head tags and breadcrumbs for the public (indexable) pages.
+    Import with context, since the macros use static_url and seo_base_url:
+      {% from "_public_meta.html" import public_meta, breadcrumbs with context %}
+    public_meta() goes inside <head>, after <title> and the description. -#}
+
+{% macro public_meta(title, description, path) -%}
+  <link rel="canonical" href="{{ seo_base_url }}{{ path }}">
+  <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ static_url('brand/favicon-32.png') }}">
+  <link rel="apple-touch-icon" href="{{ static_url('brand/apple-touch-icon.png') }}">
+  <meta name="theme-color" content="#2563eb">
+  {% if google_site_verification %}<meta name="google-site-verification" content="{{ google_site_verification }}">{% endif %}
+  {#- Social sharing previews (WhatsApp, LinkedIn, Slack, X ...) #}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HRzest">
+  <meta property="og:locale" content="en_IN">
+  <meta property="og:title" content="{{ title }}">
+  <meta property="og:description" content="{{ description }}">
+  <meta property="og:url" content="{{ seo_base_url }}{{ path }}">
+  <meta property="og:image" content="{{ seo_base_url }}{{ static_url('brand/og-image.png') }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="HRzest: HR, attendance and payroll in one secure platform">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ title }}">
+  <meta name="twitter:description" content="{{ description }}">
+  <meta name="twitter:image" content="{{ seo_base_url }}{{ static_url('brand/og-image.png') }}">
+  <meta name="twitter:image:alt" content="HRzest: HR, attendance and payroll in one secure platform">
+{%- endmacro %}
+
+{#- items: [(name, path), ...], home first, current page last. Renders the
+    visible trail and its schema.org BreadcrumbList. #}
+{% macro breadcrumbs(items) -%}
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <ol>
+      {%- for name, path in items %}
+      <li>{% if not loop.last %}<a href="{{ path }}">{{ name }}</a>{% else %}<span aria-current="page">{{ name }}</span>{% endif %}</li>
+      {%- endfor %}
+    </ol>
+  </nav>
+  <script type="application/ld+json">{{ breadcrumb_schema(items) | tojson }}</script>
+{%- endmacro %}

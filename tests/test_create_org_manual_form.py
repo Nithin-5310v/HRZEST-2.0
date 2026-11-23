@@ -19,7 +19,7 @@ HANDLER_FIELDS = {"company_name", "admin_email", "admin_mobile", "admin_password
 
 
 def _page(client):
-    resp = client.get("/create_org")
+    resp = client.get("/signup")
     assert resp.status_code == 200
     return resp, resp.get_data(as_text=True)
 

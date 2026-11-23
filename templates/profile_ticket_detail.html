@@ -7,7 +7,7 @@
 <style>
   .back-link { display: inline-flex; align-items: center; gap: 6px; color: #1e3a8a; text-decoration: none; font-weight: 600; font-size: 15px; margin-bottom: 16px; }
   .p-card { max-width: 780px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 2px 8px rgba(15,23,42,0.05); margin-bottom: 20px; }
-  .p-card h2 { font-size: 19px; color: #0f172a; margin-bottom: 4px; }
+  .p-card h1, .p-card h2 { font-size: 19px; color: #0f172a; margin-bottom: 4px; }
   .badge-pill { padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 700; text-transform: capitalize; }
   .badge-success { background: #dcfce7; color: #15803d; }
   .badge-pending { background: #fef9c3; color: #854d0e; }
@@ -32,7 +32,7 @@
   <div class="p-card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
       <div>
-        <h2>{{ ticket.subject }}</h2>
+        <h1>{{ ticket.subject }}</h1>
         <div style="font-size:14px;color:#64748b;">#{{ ticket.id }} &middot; {{ ticket.priority|capitalize }} priority &middot; raised {{ ticket.created_at.strftime('%d %b %Y') if ticket.created_at else '—' }}</div>
       </div>
       <span class="badge-pill {{ 'badge-success' if ticket.status in ('resolved','closed') else 'badge-pending' }}">{{ ticket.status.replace('_', ' ') }}</span>
