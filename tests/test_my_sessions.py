@@ -164,14 +164,14 @@ class TestSocConsole:
 class TestLiveCount:
     def test_the_live_strip_counts_signed_in_sessions(self, client, db_engine):
         from utils import live_feed, session_registry
-        session_registry._count_cache.update(at=0.0, value=None)
+        session_registry.clear_count_cache()
         before = session_registry.count_signed_in()["count"]
         slug, _schema = _make_tenant(db_engine, "cnt" + secrets.token_hex(3))
         company = flask_app.test_client()
         company.post(f"/{slug}/login", data={"identifier": "iso_admin", "password": "IsoAdmin@123"})
         company.get(f"/{slug}/admin")
-        session_registry._count_cache.update(at=0.0, value=None)
+        session_registry.clear_count_cache()
         live_feed._kpi_cache.update(at=0.0, value=None)
         assert live_feed.kpis()["signed_in"]["count"] == before + 1
-        session_registry._count_cache.update(at=0.0, value=None)
+        session_registry.clear_count_cache()
         live_feed._kpi_cache.update(at=0.0, value=None)
