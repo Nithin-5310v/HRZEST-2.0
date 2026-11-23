@@ -57,7 +57,7 @@ def test_no_template_uses_inline_event_handlers():
         f'data-on-<event>="fn(...)" (static/hz-actions.js) instead: {found}')
 
 
-@pytest.mark.parametrize("path", ["/", "/login", "/create_org", "/checkin", "/admin_forgot_password"])
+@pytest.mark.parametrize("path", ["/", "/login", "/signup", "/checkin", "/admin_forgot_password"])
 def test_script_src_never_allows_unsafe_hashes(client, path):
     resp = client.get(path)
     csp = resp.headers.get("Content-Security-Policy", "")
@@ -66,7 +66,7 @@ def test_script_src_never_allows_unsafe_hashes(client, path):
     assert "unsafe-inline" not in script_src
 
 
-@pytest.mark.parametrize("path", ["/login", "/create_org", "/checkin"])
+@pytest.mark.parametrize("path", ["/login", "/signup", "/checkin"])
 def test_pages_load_the_handler_binder(client, path):
     resp = client.get(path)
     if resp.status_code != 200:

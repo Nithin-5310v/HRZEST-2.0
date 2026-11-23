@@ -49,4 +49,5 @@ def legacy_security_txt():
 
 @security_txt_bp.route("/security-policy")
 def security_policy():
-    return render_template("security_policy.html", contact_email=CONTACT.removeprefix("mailto:"))
+    from blueprints.legal import legal_context
+    return render_template("security_policy.html", contact_email=CONTACT.removeprefix("mailto:"), **legal_context())

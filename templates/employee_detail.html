@@ -206,7 +206,7 @@
         {% endif %}
       </div>
       <div class="profile-info">
-        <div class="profile-name">{{ name }}</div>
+        <div class="profile-name" role="heading" aria-level="1">{{ name }}</div>
         <div class="profile-role">{{ role or 'No designation' }}{% if department %} · {{ department }}{% endif %}</div>
         <div class="profile-badges">
           <span class="pbadge pb-id">{{ emp_id }}</span>
@@ -645,7 +645,7 @@
       <div class="card-title"><i class="ti ti-qrcode"></i> QR Code</div>
       {% if qr_code %}
         <div class="center-col">
-          <img class="qr" src="{{ tpath('/employees/' ~ emp_id ~ '/qr') }}" alt="QR for {{ name }}">
+          <img class="qr" loading="lazy" src="{{ tpath('/employees/' ~ emp_id ~ '/qr') }}" alt="QR for {{ name }}">
           <a class="btn-dl" href="{{ tpath('/employees/' ~ emp_id ~ '/qr') }}" download="{{ emp_id }}_qr.png">
             <i class="ti ti-download"></i> Download QR
           </a>
@@ -668,7 +668,7 @@
       <div class="card-title"><i class="ti ti-camera"></i> Profile Photo</div>
       <div class="center-col">
         {% if face_image %}
-          <img class="photo" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}" data-on-click="openLb()">
+          <img class="photo" loading="lazy" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}" data-on-click="openLb()">
           <a class="btn-dl" href="/dataset/{{ emp_id }}.jpg" download="{{ emp_id }}_photo.jpg">
             <i class="ti ti-download"></i> Download Photo
           </a>

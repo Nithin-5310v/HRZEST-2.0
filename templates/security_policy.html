@@ -1,34 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Security &amp; vulnerability disclosure policy | HRZEST</title>
-  <meta name="description" content="How to report a security vulnerability in HRZEST, and what you can expect from us.">
-  <link rel="canonical" href="{{ seo_base_url }}/security-policy">
-  <style>
-    :root { --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --blue: #2563eb; --bg: #ffffff; }
-    @media (prefers-color-scheme: dark) { :root { --ink: #e2e8f0; --muted: #94a3b8; --line: #1e293b; --blue: #60a5fa; --bg: #0b1120; } }
-    body { margin: 0; background: var(--bg); color: var(--ink);
-           font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    main { max-width: 760px; margin: 0 auto; padding: 48px 16px 64px; }
-    header a { color: var(--blue); font-weight: 700; text-decoration: none; }
-    h1 { font-size: 30px; line-height: 1.25; margin: 24px 0 8px; }
-    h2 { font-size: 19px; margin: 32px 0 8px; }
-    p, li { color: var(--muted); }
-    strong, code { color: var(--ink); }
-    a { color: var(--blue); }
-    ul { padding-left: 20px; }
-    .lead { font-size: 17px; }
-    footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
-  </style>
-</head>
-<body>
-<main>
-  <header><a href="/">HRZEST</a></header>
-
+{% extends "legal_layout.html" %}
+{% set page_title = "Security & vulnerability disclosure policy" %}
+{% set page_description = "How to report a security vulnerability in HRzest, and what you can expect from us." %}
+{% set page_path = "/security-policy" %}
+{% set crumb = [("Home", "/"), ("Security policy", "/security-policy")] %}
+{% block content %}
   <h1>Security &amp; vulnerability disclosure policy</h1>
-  <p class="lead">We want HRZEST to be safe for the companies and employees who rely on it. If you think you've
+  <p class="lead">We want HRzest to be safe for the companies and employees who rely on it. If you think you've
      found a security vulnerability, please tell us. We'll work with you to fix it.</p>
 
   <h2>How to report</h2>
@@ -59,11 +36,8 @@
   </ul>
 
   <h2>In scope</h2>
-  <p><code>hrzest.com</code> and its company portals, the HRZEST mobile app, and the HRZEST API.</p>
-
-  <footer>
-    Machine-readable contact details: <a href="/.well-known/security.txt">/.well-known/security.txt</a>
-  </footer>
-</main>
-</body>
-</html>
+  <p><code>hrzest.com</code> and its company portals, the HRzest mobile app, and the HRzest API.</p>
+{% endblock %}
+{% block footer_extra %}
+    <p>Machine-readable contact details: <a href="/.well-known/security.txt">/.well-known/security.txt</a></p>
+{% endblock %}

@@ -193,7 +193,7 @@
                 <td class="col-mobile-hide">
                   {% if face_image %}
                     <button class="avatar-btn" data-on-click="openLightbox(this.dataset.empId,this.dataset.empName,true)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="View photo">
-                      <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}"
+                      <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}" loading="lazy"
                            data-on-error="HZ.showNextOnError(this)" />
                       <div class="avatar-ph u-d-none"><i class="ti ti-user"></i></div>
                       <div class="avatar-eye"><i class="ti ti-eye"></i></div>

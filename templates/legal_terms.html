@@ -1,0 +1,104 @@
+{% extends "legal_layout.html" %}
+{% set page_title = "Terms of Service" %}
+{% set page_description = "The terms for using HRzest: accounts, the free trial, billing, acceptable use, your data, and our responsibilities." %}
+{% set page_path = "/terms" %}
+{% set crumb = [("Home", "/"), ("Terms of Service", "/terms")] %}
+{% block content %}
+  <h1>Terms of Service</h1>
+  <p class="updated">Last updated: {{ legal_updated }}</p>
+  <p class="note">We're reviewing these terms with legal advice. If anything changes, we'll update this page and its date.</p>
+
+  <p class="lead">These terms are an agreement between HRzest ("we", "us") and the company that signs up for
+     HRzest ("you", the customer). By creating an account or using HRzest, you agree to them on behalf of your
+     company. If you don't agree, please don't use the service.</p>
+
+  <h2>1. The service</h2>
+  <p>HRzest is an online HR platform for attendance (including face, QR code and location check-in), leave,
+     payroll and payslips, onboarding, documents and performance reviews, with a web portal and a mobile app for
+     your employees. We may improve and change features over time; if we remove something important you rely
+     on, we'll tell you in advance.</p>
+
+  <h2>2. Your account</h2>
+  <ul>
+    <li>You must give accurate company and contact details and keep them up to date.</li>
+    <li>You're responsible for the accounts you create for administrators, HR staff, managers and employees,
+        and for keeping sign-in details secret. Tell us at once if you think an account has been misused.</li>
+    <li>You must be authorised to act for the company, and at least 18 years old.</li>
+  </ul>
+
+  <h2>3. Free trial</h2>
+  <p>New companies get a {{ trial_days }}-day free trial with full access, starting the first time an
+     administrator signs in. Depending on how you sign up, we may ask you to authorise a payment method first;
+     you won't be charged during the trial. Unless you cancel before it ends, your paid plan starts when the
+     trial ends.</p>
+
+  <h2>4. Prices and billing</h2>
+  <ul>
+    <li>HRzest costs {% if per_employee_rupees %}&#8377;{{ per_employee_rupees }}{% else %}a flat price{% endif %}
+        per employee per month. The price and the taxes that apply are shown before you pay and on your invoice.</li>
+    <li>Billing is monthly, collected by automatic debit through Razorpay from the payment method you authorise.
+        Adding employees beyond the number you've paid for needs an extra payment first.</li>
+    <li>We'll give you at least 30 days' notice of a price change. It applies from your next billing period.</li>
+    <li>If a payment fails, we'll tell you. If it stays unpaid after the grace period, we may limit access to
+        your account until it's paid. Your data isn't deleted because of a late payment.</li>
+  </ul>
+
+  <h2>5. Cancelling</h2>
+  <p>You can cancel at any time, and you won't be charged for later billing periods. Amounts already paid
+     aren't refunded, except where the law requires or we've charged you by mistake. If you think a charge is
+     wrong, email <a href="mailto:{{ seller.email }}">{{ seller.email }}</a> within 30 days of it.</p>
+
+  <h2>6. Your data</h2>
+  <ul>
+    <li>Your company's data, including your employees' data, belongs to you. We use it only to provide the
+        service, as described in our <a href="/privacy">Privacy Policy</a>.</li>
+    <li>For your employees' personal data you are the Data Fiduciary under India's DPDP Act, and we process it
+        for you. You're responsible for having a lawful basis to collect it, for telling your employees how it's
+        used, and for getting their consent before using face recognition or location check-in.</li>
+    <li>When you leave, you can ask us for an export of your data. We'll then delete it, except what the law
+        requires us to keep.</li>
+  </ul>
+
+  <h2>7. Acceptable use</h2>
+  <p>You must not:</p>
+  <ul>
+    <li>break the law, or use HRzest to collect data about people without the right to do so;</li>
+    <li>upload malware, or try to get into accounts, companies or systems that aren't yours;</li>
+    <li>overload, scan or attack the service (security research is welcome under our
+        <a href="/security-policy">security policy</a>);</li>
+    <li>copy, resell or reverse-engineer the service, or use it to build a competing product.</li>
+  </ul>
+  <p>We may suspend an account that breaks these rules or puts other customers at risk. Where we can, we'll
+     tell you first and give you a chance to fix it.</p>
+
+  <h2>8. Availability and support</h2>
+  <p>We work to keep HRzest available and secure, but we can't promise it will never be interrupted, for example
+     during maintenance or outages at our providers. Support is available by email at
+     <a href="mailto:{{ seller.email }}">{{ seller.email }}</a> and by phone on {{ seller.phone }}.</p>
+
+  <h2>9. Responsibility and liability</h2>
+  <ul>
+    <li>You're responsible for checking the attendance and payroll results HRzest produces before you rely on
+        them, for example before paying salaries or filing statutory returns.</li>
+    <li>To the extent the law allows, neither side is liable to the other for indirect or consequential loss, such
+        as lost profits, and our total liability under these terms is limited to the fees you paid us in the 12
+        months before the claim.</li>
+    <li>Nothing in these terms limits liability that can't be limited by law.</li>
+  </ul>
+
+  <h2>10. Ending the agreement</h2>
+  <p>You can stop using HRzest and cancel at any time. We may end these terms with 30 days' notice, or at once if
+     you seriously break them. Section 6 (your data) and section 9 (liability) continue after the agreement ends.</p>
+
+  <h2>11. Changes to these terms</h2>
+  <p>We'll post changes here with a new date, and email company administrators about important changes at least
+     30 days before they apply. Using HRzest after that means you accept the new terms.</p>
+
+  <h2>12. Law and disputes</h2>
+  <p>These terms are governed by the laws of India. The courts at Hyderabad, Telangana have jurisdiction over any
+     dispute about them.</p>
+
+  <h2>13. Contact</h2>
+  <p>HRzest, {{ seller.address_lines | join(", ") }}, India &middot;
+     <a href="mailto:{{ seller.email }}">{{ seller.email }}</a> &middot; {{ seller.phone }}</p>
+{% endblock %}

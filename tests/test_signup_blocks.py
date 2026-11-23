@@ -134,9 +134,9 @@ class TestBlockedSignupRefused:
         codes = capture_codes(monkeypatch)
         # Any capitalisation of the same address.
         resp = start_signup(client, email.upper())
-        assert resp.headers["Location"] == "/create_org"
+        assert resp.headers["Location"] == "/signup"
         assert codes == []
-        follow = client.get("/create_org").get_data(as_text=True)
+        follow = client.get("/signup").get_data(as_text=True)
         assert "We can&#39;t accept a new company registration" in follow
 
     def test_after_unblock_they_can_sign_up(self, client, db_engine, monkeypatch, alert):
@@ -166,7 +166,7 @@ class TestBlockedSignupRefused:
         cur.close()
         codes = capture_codes(monkeypatch)
         resp = start_signup(client, f"someone.else.{secrets.token_hex(3)}@example.test")
-        assert resp.headers["Location"] == "/create_org"
+        assert resp.headers["Location"] == "/signup"
         assert codes == []
 
     def test_other_signups_are_unaffected(self, client, db_engine, monkeypatch, alert):

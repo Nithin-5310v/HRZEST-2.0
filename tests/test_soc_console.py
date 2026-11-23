@@ -507,7 +507,7 @@ class TestIsolation:
 
     def test_console_is_not_advertised(self, client):
         link = re.compile(rb"""["'(=\s]/soc(?:person)?(?:["'/?#)\s<]|$)""")
-        for path in ("/robots.txt", "/sitemap.xml", "/", "/login", "/create_org"):
+        for path in ("/robots.txt", "/sitemap.xml", "/", "/login", "/signup"):
             assert not link.search(client.get(path).data), path
 
 
