@@ -1421,15 +1421,15 @@ def require_payout_2fa(f):
 # admin session carries.
 HR_ROLE = "hr"
 
-# Manager accounts have no standalone creation UI at all (unlike HR's
-# /hr_accounts) -- the only way one comes to exist is assigning an employee
-# a manager-based role in Settings -> Roles & Access (blueprints/auth.py's
-# _ensure_role_admin_account/_finish_employee_login). Scope is intentionally narrower than HR: just the
-# company-wide leave/resignation/overtime approval queues (see
-# blueprints/leave.py's _LEAVE_APPROVER_ROLES) -- no employees, payroll,
-# performance, onboarding, or tickets (blueprints/tickets.py explicitly
-# excludes 'manager' -- no per-team ownership concept exists to scope
-# those down to). Enforced web-side by app.py's _restrict_manager_role.
+# Manager accounts have no standalone creation UI (unlike HR's /hr_accounts):
+# one comes to exist only by assigning an employee a manager-based role in
+# Settings -> Roles & Access (blueprints/auth.py's _finish_employee_login;
+# utils/helpers/rbac.py's assign_employee_role). What a manager can reach is
+# that role's Roles & Access grid -- the built-in 'manager' role is seeded by
+# migrations/column_migrations.py's ensure_legacy_role -- limited to their own
+# team (utils/helpers/scoping.py), and enforced per route by @require_access /
+# @api_require_access through rbac.can_access(). There is no separate
+# manager-only hook.
 MANAGER_ROLE = "manager"
 
 

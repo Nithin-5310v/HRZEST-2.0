@@ -988,8 +988,10 @@ def _find_by_reset_token(cursor, table, id_column, token):
 # (/<company>/forgot_password, or after /login's company step) it looks there;
 # opened from the landing page or the app with no company, it looks in every
 # company -- it used to bounce to /login instead, so "Forgot password" from
-# the landing page never worked. It says plainly whether an account was found
-# (owner's decision, 2026-11-19); rate-limited here and in nginx.
+# the landing page never worked. Rate-limited here and in nginx. Whatever
+# happens, the person sees one uniform answer (_RESET_UNIFORM_MSG below); the
+# specific outcomes, including the messages just below, go only to the server
+# log (security review 2026-11-20, reversing the 2026-11-19 "say plainly").
 
 _RESET_NOT_FOUND_EMAIL = "No account found with this email address."
 _RESET_NOT_FOUND_ID = "No account found with this employee ID or username."

@@ -2,10 +2,11 @@
 """Request timing for utils/http_telemetry.py.
 
 Imported first among the app_setup modules (see app.py), so its
-before_request runs before the other hooks and its after_request runs after
-them: the time covers the whole request, and the status recorded is the one
-actually sent, including answers given by an earlier hook (an IP ban, a CSRF
-refusal, a redirect).
+before_request runs before every other app_setup hook (only extensions.py's
+request-ID hook and the rate limiter run earlier) and its after_request runs
+after them: the time covers the whole request, and the status recorded is the
+one actually sent, including answers given by an earlier hook (an IP ban, a
+CSRF refusal, a redirect).
 """
 import time
 

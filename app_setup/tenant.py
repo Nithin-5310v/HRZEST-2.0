@@ -42,8 +42,10 @@ def _normalize_loopback_host():
 @app.before_request
 def _resolve_tenant():
     """Determine the tenant database for this request and store it in
-    g.tenant_db. Registered second -- right after the perf timer, before
-    every other hook -- because get_db_connection() (database.py) reads
+    g.tenant_db. Registered early -- app_setup/tenant.py is imported right
+    after telemetry/config/templating, so this runs before the security hooks
+    (only the request-ID, rate-limiter, telemetry and loopback-host hooks come
+    first) -- because get_db_connection() (database.py) reads
     g.tenant_db and silently falls back to the "public" schema if it isn't
     set yet. _enforce_ip_ban and _enforce_admin_mfa_enrollment both call
     get_db_connection() directly; running this hook after either of them
