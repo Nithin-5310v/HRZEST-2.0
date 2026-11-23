@@ -96,9 +96,10 @@ export function AuthProvider({ children }) {
       setLoading(false);
     })();
 
-    // Any 401 from the API (expired/revoked token) clears the session and
-    // drops the user back on the login screen instead of leaving them
-    // stuck retrying calls with a dead token.
+    // A 401 from the dashboard's own session check (api/client.js's
+    // SESSION_CRITICAL_PATHS: an expired or revoked token) clears the session
+    // and drops the user back on the login screen instead of leaving them
+    // stuck retrying calls with a dead token. Other 401s are shown as errors.
     setUnauthorizedHandler(() => {
       secureMultiRemove(SESSION_KEYS).catch(() => {});
       setQueueOwner(null);
