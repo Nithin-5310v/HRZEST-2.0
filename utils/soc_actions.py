@@ -147,6 +147,22 @@ def revoke_session(tenant_id, sid, actor, actor_ip):
     return True, "revoked"
 
 
+def sign_out_everyone(actor, actor_ip):
+    """End every company session and API token issued up to now, in every
+    company (utils/session_cutoff.py). Console sessions are not affected."""
+    from utils import session_cutoff, session_registry
+    try:
+        session_cutoff.sign_out_everyone(actor)
+    except Exception as exc:
+        soc_auth.audit(actor, "sign_out_everyone", detail=f"failed: {type(exc).__name__}", ip=actor_ip)
+        return False, "Could not record the sign-out. Nobody was signed out."
+    soc_auth.audit(actor, "sign_out_everyone", detail="every company session and API token issued before now",
+                   ip=actor_ip)
+    session_registry._count_cache["value"] = None
+    _invalidate()
+    return True, "Everyone is signed out. People sign in again as usual."
+
+
 # ── cases ────────────────────────────────────────────────────────────
 def create_case(title, severity, source_type, source_event_id, summary, actor, actor_ip):
     title = _text(title)

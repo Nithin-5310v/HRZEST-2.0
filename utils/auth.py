@@ -18,6 +18,7 @@ from extensions import app_log, log_security_event
 from utils.session_risk import is_session_compromised, evaluate_session_risk
 from utils.async_writer import enqueue_write
 from utils.helpers import _db, company_today, platform_today
+from utils.session_cutoff import issued_before_cutoff_sql
 
 # ── Password hashing (Argon2id; bcrypt + pbkdf2 still verify) ────────────────
 # Argon2id (RFC 9106, winner of the Password Hashing Competition) is
@@ -995,12 +996,15 @@ def require_access(module, action="view"):
 # even if its row somehow survived the DELETE in record_password_change().
 # Expects api_tokens aliased `t`. Checks both account tables because an
 # HR/manager employee's admin-panel identity shares its id with the
-# employees row whose password it actually logs in with.
+# employees row whose password it actually logs in with. So is a token
+# minted before the platform-wide "sign out everyone" cut-off
+# (utils/session_cutoff.py).
 _TOKEN_NOT_STALE_SQL = (
     "NOT EXISTS (SELECT 1 FROM admin_users pa WHERE pa.username=t.identity "
     "AND pa.password_changed_at > t.created_at) "
     "AND NOT EXISTS (SELECT 1 FROM employees pe WHERE pe.employee_id=t.identity "
-    "AND pe.password_changed_at > t.created_at)"
+    "AND pe.password_changed_at > t.created_at) "
+    f"AND NOT {issued_before_cutoff_sql('t.created_at')}"  # nosec B608 -- fixed column name
 )
 
 

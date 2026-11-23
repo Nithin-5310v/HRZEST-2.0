@@ -504,6 +504,16 @@
         const dur = (s) => (s < 90 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : Math.floor(s / 3600) + ' h ' + Math.round((s % 3600) / 60) + ' min ago');
         root.appendChild(SOC.callout('Every signed-in company session right now, across tenants: not logged out, within the 8-hour limit and used ' +
           'within the company\'s idle timeout. Revoking ends it on its very next request. Your test accounts and companies are left out.'));
+        if (needs('admin')) {
+          root.appendChild(h('div', { class: 'row' }, h('button', { class: 'btn danger', type: 'button', onclick: async () => {
+            if (!(await SOC.confirm('Sign out everyone in every company? Every browser session and app sign-in made before now ends on its next request, ' +
+              'and people have to sign in again. Your console session is not affected.', { okText: 'Sign out everyone' }))) return;
+            act(api.post('/socperson/api/sessions/sign_out_everyone', {}), 'Everyone is signed out').then(() => SOC.reload()).catch(() => {});
+          } }, 'Sign out everyone')));
+        }
+        if (d.signed_out_everyone) {
+          root.appendChild(h('p', { class: 'note' }, 'Everyone was last signed out ' + fmt.time(d.signed_out_everyone.at) + ' (' + fmt.ago(d.signed_out_everyone.at) + ') by ' + (d.signed_out_everyone.by || 'unknown') + '.'));
+        }
         root.appendChild(h('p', { class: 'note' }, fmt.n(d.total) + ' signed in' + (d.total > d.sessions.length ? '; showing the ' + fmt.n(d.sessions.length) + ' most recently active' : '') + '.'));
         root.appendChild(SOC.table({
           empty: 'Nobody is signed in right now.', rows: d.sessions,

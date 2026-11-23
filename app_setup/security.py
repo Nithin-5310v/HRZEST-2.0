@@ -12,7 +12,7 @@ import utils.waf as waf
 from database import get_db_connection
 from extensions import app, app_log, log_security_event
 from flask import abort, current_app, flash, jsonify, redirect, request, session, url_for
-from utils import firewall_events
+from utils import firewall_events, session_cutoff
 from utils.client_ip import is_protected_ip, warn_if_client_ip_collapsed
 from utils.helpers import get_company_settings, tpath as _tpath
 from app_setup.config import _SESSION_MAX_AGE
@@ -169,10 +169,18 @@ def _waf_inspect_request():
 
 @app.before_request
 def _enforce_session_lifetime():
-    """Expire sessions that are older than the absolute max age, regardless of activity."""
+    """Expire sessions that are older than the absolute max age, regardless of
+    activity, and those started before the platform-wide "sign out everyone"
+    cut-off (utils/session_cutoff.py)."""
     if request.path.startswith("/static/") or request.path == "/healthz":
         return
     created = session.get("_session_created")
+    if created and created < session_cutoff.cut_off_epoch():
+        session.clear()
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "msg": "You have been signed out. Please log in again."}), 401
+        flash("You have been signed out. Please log in again.", "warning")
+        return redirect(url_for("auth.admin_login"))
     if created and (time.time() - created) > _SESSION_MAX_AGE:
         session.clear()
         if request.path.startswith("/api/"):

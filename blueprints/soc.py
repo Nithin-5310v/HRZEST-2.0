@@ -555,11 +555,15 @@ def api_ban_bulk():
 @soc_bp.route("/socperson/api/signed_in")
 @soc_required("viewer")
 def api_signed_in():
-    """Every signed-in session across companies (utils/session_registry.py).
-    Raw session ids only for the role that can revoke them."""
-    from utils import session_registry
+    """Every signed-in session across companies (utils/session_registry.py),
+    and when everyone was last signed out. Raw session ids only for the role
+    that can revoke them."""
+    from utils import session_cutoff, session_registry
+    from utils.soc_util import iso
     analyst = soc_auth.ROLE_RANK[soc_auth.current_user()["role"]] >= soc_auth.ROLE_RANK["analyst"]
-    return _ok(**session_registry.signed_in_everywhere(include_sid=analyst))
+    last = session_cutoff.last_cutoff()
+    return _ok(**session_registry.signed_in_everywhere(include_sid=analyst),
+               signed_out_everyone=({"at": iso(last["at"]), "by": last["by"]} if last else None))
 
 
 @soc_bp.route("/socperson/api/sessions/revoke", methods=["POST"])
@@ -568,6 +572,16 @@ def api_revoke_session():
     d = _body()
     ok, msg = soc_actions.revoke_session(clamp_int(d.get("tenant_id"), 0, 0, 2 ** 31 - 1), d.get("sid"), _actor(), _ip())
     return _ok(message=msg) if ok else _err(msg)
+
+
+@soc_bp.route("/socperson/api/sessions/sign_out_everyone", methods=["POST"])
+@soc_required("admin")
+def api_sign_out_everyone():
+    """Every company session and API token issued up to now is refused on its
+    next request (utils/session_cutoff.py). Admin only: it signs out every
+    person in every company at once."""
+    ok, msg = soc_actions.sign_out_everyone(_actor(), _ip())
+    return _ok(message=msg) if ok else _err(msg, 500)
 
 
 # ── API: cases ───────────────────────────────────────────────────────
