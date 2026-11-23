@@ -147,7 +147,7 @@
   .org-hero-mark { width: 68px; height: 68px; flex-shrink: 0; border-radius: 14px; background: #eef4ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; overflow: hidden; }
   .org-hero-mark img { width: 100%; height: 100%; object-fit: contain; background: #fff; padding: 6px; border: 1px solid #e5e7eb; border-radius: 14px; }
   .org-hero-text { flex: 1; min-width: 220px; }
-  .org-hero-text h2 { margin: 0; font-size: 24px; font-weight: 700; color: #101828; letter-spacing: -0.3px; overflow-wrap: anywhere; }
+  .org-hero-text h1, .org-hero-text h2 { margin: 0; font-size: 24px; font-weight: 700; color: #101828; letter-spacing: -0.3px; overflow-wrap: anywhere; }
   .org-hero-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; font-size: 15px; color: #475467; }
   .org-hero-meta i { margin-right: 5px; color: #98a2b3; }
   .org-tabs { display: flex; gap: 24px; padding: 0 24px; border-top: 1px solid #f0f1f3; overflow-x: auto; }
@@ -287,7 +287,9 @@
     <div class="org-hero">
       <span class="org-hero-mark">{% if co.logo_url %}<img src="{{ co.logo_url }}" alt="" />{% else %}{{ co.company_name[:1] | upper }}{% endif %}</span>
       <div class="org-hero-text">
-        <h2>{{ co.company_name }}</h2>
+        {# The company tab has no page heading of its own: the name is its H1. #}
+        {% set _hero_h = 'h1' if active_tab == 'company' else 'h2' %}
+        <{{ _hero_h }}>{{ co.company_name }}</{{ _hero_h }}>
         <div class="org-hero-meta">
           {% if co.company_code %}<span><i class="ti ti-id-badge-2"></i>{{ co.company_code }}</span>{% endif %}
           {% if co.industry %}<span><i class="ti ti-briefcase"></i>{{ co.industry }}</span>{% endif %}

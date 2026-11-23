@@ -34,7 +34,7 @@
       font-size: 34px; font-weight: 800; color: white; flex-shrink: 0; overflow: hidden;
     }
     .avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .hero-info h2 { font-size: 26px; font-weight: 800; }
+    .hero-info h1, .hero-info h2 { font-size: 26px; font-weight: 800; }
     .hero-info .sub { font-size: 16px; opacity: 0.8; margin-top: 4px; }
     .hero-badges { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
     .hbadge {
@@ -176,19 +176,19 @@
 
 {% block main %}
 
-  <a href="javascript:history.back()" class="back-btn"><i class="ti ti-arrow-left"></i> Back</a>
+  <a href="{{ tpath('/employees') }}" class="back-btn" data-on-click="return HZ.back()"><i class="ti ti-arrow-left"></i> Back</a>
 
   {# HERO #}
   <div class="hero">
     <div class="avatar">
       {% if emp[26] %}
-        <img src="/dataset/{{ emp[0] }}.jpg" data-on-error="HZ.avatarText(this, '{{ emp[1][0] | upper }}')" />
+        <img src="/dataset/{{ emp[0] }}.jpg" alt="{{ emp[1] }}" data-on-error="HZ.avatarText(this, '{{ emp[1][0] | upper }}')" />
       {% else %}
         {{ emp[1][0] | upper }}
       {% endif %}
     </div>
     <div class="hero-info">
-      <h2>{{ emp[1] }}</h2>
+      <h1>{{ emp[1] }}</h1>
       <div class="sub">{{ emp[0] }}{% if emp[9] %} &nbsp;·&nbsp; {{ emp[9] }}{% endif %}{% if emp[3] %} &nbsp;·&nbsp; {{ emp[3] }}{% endif %}</div>
       <div class="hero-badges">
         {% if emp[11] %}

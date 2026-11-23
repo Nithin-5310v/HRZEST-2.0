@@ -370,7 +370,7 @@ function render() {
     div.innerHTML = `<div class="node-card">
       ${cc > 0 ? `<div class="reports-badge">${cc}</div>` : ''}
       <div class="avatar-wrap">${n.has_photo
-        ? `<img class="avatar-img" src="/dataset/${esc(n.id)}.jpg" data-on-error="HZ.showNextOnError(this)"/><div class="avatar-placeholder" style="display:none;background:${color}">${initials(n.name)}</div>`
+        ? `<img class="avatar-img" src="/dataset/${esc(n.id)}.jpg" alt="" loading="lazy" data-on-error="HZ.showNextOnError(this)"/><div class="avatar-placeholder" style="display:none;background:${color}">${initials(n.name)}</div>`
         : `<div class="avatar-placeholder" style="background:${color}">${initials(n.name)}</div>`}</div>
       <div class="node-name" title="${esc(n.name)}">${esc(n.name)}</div>
       <div class="node-role" title="${esc(n.role)}">${esc(n.role)}</div>

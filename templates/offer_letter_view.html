@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Offer Letter — {{ letter[17] }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="{{ static_url('tabler-icons.min.css') }}"/>
   <link rel="stylesheet" href="{{ static_url('toast.css') }}"/>
   <script src="{{ static_url('toast.js') }}"></script>
@@ -24,7 +23,7 @@
       max-width: 740px; margin: 0 auto 16px;
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
     }
-    .toolbar-info h2 { font-size: 15px; font-weight: 700; color: #111827; }
+    .toolbar-info h1, .toolbar-info h2 { font-size: 15px; font-weight: 700; color: #111827; }
     .toolbar-info p  { font-size: 13px; color: #6b7280; margin-top: 2px; }
     .btn { padding: 8px 14px; border: none; border-radius: 7px; font-size: 14px; font-weight: 600;
            cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
@@ -175,7 +174,7 @@
 
 <div class="toolbar">
   <div class="toolbar-info">
-    <h2>Offer Letter &nbsp;·&nbsp; {{ letter[17] }}</h2>
+    <h1>Offer Letter &nbsp;·&nbsp; {{ letter[17] }}</h1>
     <p>
       {% if letter[14]=='accepted' %}<span class="status-accepted">&#10003; Accepted</span>
       {% elif letter[14]=='rejected' %}<span class="status-rejected">&#10005; Declined</span>

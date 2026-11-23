@@ -16,7 +16,7 @@
     .card{background:#fff;border:1px solid #dbeafe;border-radius:16px;padding:22px;margin-bottom:18px}
     .sec-title{font-size:14px;font-weight:800;color:#1e3a8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
     .emp-card{background:linear-gradient(135deg,#0f2460,#1e3a8a);color:#fff;border-radius:16px;padding:22px 26px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
-    .emp-card h2{font-size:22px;font-weight:800;margin-bottom:4px}
+    .emp-card h1,.emp-card h2{font-size:22px;font-weight:800;margin-bottom:4px}
     .emp-card p{font-size:15px;opacity:.75}
     .rating-big{text-align:center}
     .rating-big .num{font-size:40px;font-weight:900;color:#f59e0b}
@@ -92,7 +92,7 @@
   {% set emp_id, emp_name, emp_role, emp_dept, emp_email, emp_phone = emp %}
   <div class="emp-card">
     <div>
-      <h2>{{ emp_name }}</h2>
+      <h1>{{ emp_name }}</h1>
       <p>{{ emp_id }} &nbsp;·&nbsp; {{ emp_role }} &nbsp;·&nbsp; {{ emp_dept or 'No Department' }}</p>
       <p class="u-mt-6">
         <i class="ti ti-mail u-fs-13"></i> {{ emp_email or '—' }}

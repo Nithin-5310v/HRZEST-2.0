@@ -206,8 +206,8 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 <body>
 <div class="wrap">
   <div class="print-btn">
-    <button class="btn btn-back" onclick="history.back()">&#8592; Back</button>
-    <button class="btn btn-print" onclick="window.print()">&#128438; Download / Print PDF</button>
+    <button type="button" class="btn btn-back" data-on-click="history.back()">&#8592; Back</button>
+    <button type="button" class="btn btn-print" data-on-click="print()">&#128438; Download / Print PDF</button>
   </div>
 
   <div class="hdr">

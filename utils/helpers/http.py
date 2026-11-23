@@ -73,6 +73,9 @@ def _error_page(code, icon, title, subtitle, hint):
     # Same landing_v2.css design system as admin_login.html/create_org.html
     # (see admin_login.html's header comment) -- this page used to be the
     # last one still on the old plain blue-and-white style.
+    # hz-actions.js is loaded here explicitly: _inject_csrf_meta only adds it
+    # to status<300 pages, and "Go Back" needs it (a javascript: URL is
+    # blocked by the CSP).
     return trusted_html(f"""<!doctype html>
 <html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{code} – {title}</title>
@@ -100,7 +103,8 @@ def _error_page(code, icon, title, subtitle, hint):
   }}
   .code {{ font-family: var(--font-heading); font-size: 15px; font-weight: 800; letter-spacing: 2px;
            color: var(--accent-cyan); margin-bottom: 8px; text-transform: uppercase; }}
-  .title {{ font-family: var(--font-heading); font-size: 22px; font-weight: 800; color: var(--text-main); margin-bottom: 10px; }}
+  .title {{ font-family: var(--font-heading); font-size: 22px; font-weight: 800; color: var(--text-main); margin-bottom: 10px;
+           line-height: inherit; letter-spacing: normal; }}
   .sub {{ font-size: 14px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.6; }}
   .hint {{ font-size: 12.5px; color: var(--text-subtle); margin-bottom: 28px; }}
   .actions {{ display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }}
@@ -125,12 +129,13 @@ def _error_page(code, icon, title, subtitle, hint):
 <div class="box">
   <div class="icon">{icon}</div>
   <div class="code">Error {code}</div>
-  <div class="title">{title}</div>
+  <h1 class="title">{title}</h1>
   <div class="sub">{subtitle}</div>
   <div class="hint">{hint}</div>
   <div class="actions">
     <a href="{back_link}" class="btn">{back_label}</a>
-    <a href="javascript:history.back()" class="sec">← Go Back</a>
+    <a href="{back_link}" class="sec" data-on-click="return HZ.back()">← Go Back</a>
   </div>
 </div>
+<script src="{static_url('hz-actions.js')}"{csp_nonce_attr()}></script>
 </body></html>"""), code
