@@ -145,3 +145,14 @@ class TestRecordParsing:
         assert ip_geo._network({"autonomous_system_number": "64500", "autonomous_system_organization": 7}, 24, "81.2.69.1") == {
             "asn": None, "org": None, "network": "81.2.69.0/24"}
         assert ip_geo._place({"registered_country": {"iso_code": "DE", "names": {"en": "Germany"}}})["country"] == "Germany"
+
+    @pytest.mark.parametrize("raw, shown", [
+        ("Atria Convergence Technologies Pvt. Ltd.,", "Atria Convergence Technologies Pvt. Ltd."),
+        ("  Example Transit Ltd ,; ", "Example Transit Ltd"),
+        ("Cloudflare, Inc.", "Cloudflare, Inc."),
+        (" ,", None),
+        ("", None),
+    ])
+    def test_names_lose_stray_spaces_and_trailing_commas(self, raw, shown):
+        assert ip_geo._network({"autonomous_system_organization": raw}, None, "81.2.69.1")["org"] == shown
+        assert ip_geo._place({"city": {"names": {"en": raw}}})["city"] == shown
