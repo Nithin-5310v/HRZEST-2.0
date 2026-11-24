@@ -23,6 +23,7 @@ import datetime
 import ipaddress
 import logging
 import os
+import re
 import threading
 import time
 
@@ -34,6 +35,7 @@ STALE_DAYS = 60             # older than this, status() says the data is stale
 _RECHECK_SECONDS = 60       # how often the files are stat()ed for a replacement
 _CACHE_MAX = 20000          # cached answers per process before the cache is emptied
 _TEXT_MAX = 120
+_TRAILING_JUNK = re.compile(r"[\s,;]+$")
 
 _SHARED_NAT = ipaddress.ip_network("100.64.0.0/10")    # carrier-grade NAT (RFC 6598)
 # Private in the everyday sense: RFC 1918 and IPv6 unique-local. (Python's
@@ -129,7 +131,11 @@ def scope(addr):
 
 
 def _text(value):
-    return value[:_TEXT_MAX] if isinstance(value, str) and value else None
+    """A name from a record, without stray spaces or the trailing comma some
+    registry entries carry ("Atria Convergence Technologies Pvt. Ltd.,")."""
+    if not isinstance(value, str):
+        return None
+    return _TRAILING_JUNK.sub("", value.strip())[:_TEXT_MAX].rstrip() or None
 
 
 def _name(rec):
