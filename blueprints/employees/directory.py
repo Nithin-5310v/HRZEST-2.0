@@ -8,6 +8,7 @@ from utils.attendance_utils import _td_to_time
 from utils.auth import HR_ROLE, admin_required, api_required, require_access
 from utils.dlp import has_pii_clearance, mask_tail
 from utils.data_cache import data_cache
+from utils.document_expiry import expiry_status
 from utils.helpers import (
     _db,
     amount,
@@ -407,11 +408,12 @@ def employee_detail(emp_id):
     # which are the separate verification-document workflow below (kept
     # out of this general list so the same row never shows twice).
     cursor.execute(
-        "SELECT id, doc_type, original_name, uploaded_by, uploaded_at FROM employee_documents "
+        "SELECT id, doc_type, original_name, uploaded_by, uploaded_at, expiry_date FROM employee_documents "
         "WHERE employee_id=%s AND doc_kind IS NULL ORDER BY uploaded_at DESC",
         (emp_id,)
     )
-    emp_docs = cursor.fetchall()
+    # + (expiry status, days left) for the list's badge (utils/document_expiry.py)
+    emp_docs = [(*row, *expiry_status(row[5])) for row in cursor.fetchall()]
 
     # Employee verification documents (Company Onboarding -> Trial ->
     # Document Verification -> Subscription Activation, blueprints/

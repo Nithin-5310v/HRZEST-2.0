@@ -17,6 +17,7 @@ import * as ImagePicker from "expo-image-picker";
 
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import EmptyState from "../../components/ui/EmptyState";
+import ExpiryDateField from "../../components/documents/ExpiryDateField";
 import { fetchEmployeeDocuments, uploadDocument, deleteMyDocument } from "../../api/client";
 import { useTheme } from "../../store/ThemeContext";
 
@@ -36,6 +37,7 @@ export default function DocumentsScreen() {
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [photoUri, setPhotoUri] = useState(null);
+  const [expiryDate, setExpiryDate] = useState("");
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -63,6 +65,7 @@ export default function DocumentsScreen() {
   const openUploadModal = () => {
     setDocType(DOC_TYPES[0]);
     setPhotoUri(null);
+    setExpiryDate("");
     setUploadModalVisible(true);
   };
 
@@ -94,6 +97,7 @@ export default function DocumentsScreen() {
       name: `${docType.replace(/\s+/g, "_")}.jpg`,
       type: "image/jpeg",
     });
+    if (expiryDate) formData.append("expiry_date", expiryDate);
 
     let res;
     try {
@@ -212,6 +216,8 @@ export default function DocumentsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            <ExpiryDateField value={expiryDate} onChange={setExpiryDate} colors={colors} />
 
             <TouchableOpacity accessibilityRole="button"
               onPress={handlePickPhoto}

@@ -2,21 +2,22 @@
 """Documents blueprint -- admin and employee document management."""
 import uuid
 from io import BytesIO
-from flask import Blueprint, request, session, redirect, flash, send_file, jsonify, g as _g
+from flask import Blueprint, request, session, redirect, flash, send_file, jsonify, render_template, g as _g
 from extensions import app, app_log
 from database import get_db_connection, transaction
 from werkzeug.utils import secure_filename
 from utils.auth import (
     admin_required, enforce_ownership, api_required, api_role_required, employee_api_required,
-    any_user_required,
+    any_user_required, require_access,
 )
 from utils.helpers import (
     tpath, _audit, _validate_upload, _safe_referrer_redirect, hr_scope_denied, _create_notification, validate_emp_id,
-    hr_scope_subquery,
+    hr_scope_subquery, int_param,
     self_service_emp_id, self_service_return_path, audit_read,
 )
 from utils.storage import save_private, open_private, delete_private
 from utils.data_cache import data_cache
+from utils.document_expiry import expiry_report, parse_expiry
 
 documents_bp = Blueprint("documents", __name__)
 
@@ -45,6 +46,10 @@ def upload_document():
     if not ok:
         flash(err, "danger")
         return redirect(tpath(f"/employee_detail/{emp_id}"))
+    expiry_date, err = parse_expiry(request.form.get("expiry_date"))
+    if err:
+        flash(err, "danger")
+        return redirect(tpath(f"/employee_detail/{emp_id}"))
     orig_name = f.filename
     rel_path = f"employee_documents/{emp_id}/{uuid.uuid4()}_{secure_filename(orig_name)}"
     stored_ref, err = save_private(app.root_path, f, rel_path)
@@ -53,8 +58,6 @@ def upload_document():
         return redirect(tpath(f"/employee_detail/{emp_id}"))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    expiry_raw = request.form.get("expiry_date", "").strip()
-    expiry_date = expiry_raw if expiry_raw else None
     cursor.execute(
         "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by, expiry_date) "
         "VALUES (%s,%s,%s,%s,'admin',%s)",
@@ -105,6 +108,25 @@ def delete_document(did):
     flash("Document deleted.", "success")
     target = _safe_referrer_redirect(request.referrer or "", fallback)  # same-site referrers only
     return redirect(target)
+
+
+@documents_bp.route("/documents/expiring")
+@admin_required
+@require_access("employees")
+def expiring_documents():
+    """Documents already expired and those expiring within ?days= (default
+    30), for a whole-company role or a team-scoped role's own people. The
+    analytics dashboard's document-expiry alerts link here."""
+    days = max(1, min(int_param(request.args.get("days", 30)), 366))
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    try:
+        report = expiry_report(cursor, days)
+    finally:
+        cursor.close()
+        db.close()
+    return render_template("expiring_documents.html", active_nav="employees",
+                           day_choices=(7, 30, 60, 90), **report)
 
 
 @documents_bp.route("/download_document/<int:did>")
@@ -158,6 +180,10 @@ def upload_my_document():
     if not ok:
         flash(err, "danger")
         return redirect(self_service_return_path())
+    expiry_date, err = parse_expiry(request.form.get("expiry_date"))
+    if err:
+        flash(err, "danger")
+        return redirect(self_service_return_path("#documents"))
     orig_name = f.filename
     rel_path = f"employee_documents/{emp_id}/{uuid.uuid4()}_{secure_filename(orig_name)}"
     stored_ref, err = save_private(app.root_path, f, rel_path)
@@ -167,8 +193,9 @@ def upload_my_document():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by) VALUES (%s,%s,%s,%s,'employee')",
-        (emp_id, doc_type, orig_name, stored_ref)
+        "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by, expiry_date) "
+        "VALUES (%s,%s,%s,%s,'employee',%s)",
+        (emp_id, doc_type, orig_name, stored_ref, expiry_date)
     )
     db.commit()
     cursor.close()
@@ -264,6 +291,9 @@ def api_documents_upload():
     ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
+    expiry_date, err = parse_expiry(request.form.get("expiry_date"))
+    if err:
+        return jsonify({"ok": False, "msg": err}), 400
 
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
@@ -280,17 +310,16 @@ def api_documents_upload():
         cursor.close()
         db.close()
         return jsonify({"ok": False, "msg": f"Upload failed: {err}"}), 500
-    expiry_raw = (request.form.get("expiry_date") or "").strip()
     cursor.execute(
         "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by, expiry_date) "
         "VALUES (%s,%s,%s,%s,'admin',%s)",
-        (emp_id, doc_type, orig_name, stored_ref, expiry_raw or None)
+        (emp_id, doc_type, orig_name, stored_ref, expiry_date)
     )
     db.commit()
     cursor.close()
     db.close()
     _audit("upload_document", "employee_documents", emp_id,
-           f"doc_type={doc_type} file={orig_name} expiry={expiry_raw or 'none'} (via mobile)")
+           f"doc_type={doc_type} file={orig_name} expiry={expiry_date or 'none'} (via mobile)")
     return jsonify({"ok": True, "msg": "Document uploaded."})
 
 
@@ -348,6 +377,9 @@ def api_my_documents_upload():
     ok, err = _validate_upload(f, _DOC_ALLOWED_EXT)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
+    expiry_date, err = parse_expiry(request.form.get("expiry_date"))
+    if err:
+        return jsonify({"ok": False, "msg": err}), 400
 
     orig_name = f.filename
     rel_path = f"employee_documents/{emp_id}/{uuid.uuid4()}_{secure_filename(orig_name)}"
@@ -357,9 +389,9 @@ def api_my_documents_upload():
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute(
-        "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by) "
-        "VALUES (%s,%s,%s,%s,'employee')",
-        (emp_id, doc_type, orig_name, stored_ref)
+        "INSERT INTO employee_documents (employee_id, doc_type, original_name, stored_name, uploaded_by, expiry_date) "
+        "VALUES (%s,%s,%s,%s,'employee',%s)",
+        (emp_id, doc_type, orig_name, stored_ref, expiry_date)
     )
     db.commit()
     cursor.close()

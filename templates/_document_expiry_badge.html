@@ -1,0 +1,10 @@
+{# One document's expiry date with its state (utils/document_expiry.expiry_status).
+   Expects expiry_date, expiry_state ("expired" | "soon" | "ok") and days_left. #}
+{% set _shown = expiry_date if expiry_date is string else expiry_date.strftime('%d %b %Y') %}
+{% if expiry_state == 'expired' %}
+<span class="u-d-inline-block u-mt-4 u-p-2-8 u-br-20 u-fs-11 u-fw-700 u-bg-fef2f2 u-c-dc2626">Expired {{ _shown }}</span>
+{% elif expiry_state == 'soon' %}
+<span class="u-d-inline-block u-mt-4 u-p-2-8 u-br-20 u-fs-11 u-fw-700 u-bg-fffbeb u-c-d97706">Expires {{ _shown }} ({{ 'today' if days_left == 0 else 'in ' ~ days_left ~ (' day' if days_left == 1 else ' days') }})</span>
+{% else %}
+<span class="u-d-inline-block u-mt-4 u-p-2-8 u-br-20 u-fs-11 u-fw-700 u-bg-f0fdf4 u-c-16a34a">Expires {{ _shown }}</span>
+{% endif %}
