@@ -55,6 +55,10 @@ A newer push to the same branch cancels a build that's still testing or
 waiting for approval, so only the newest `main` commit can be approved.
 When `develop` and `main` build the same code at the same time, the `main`
 build waits for `develop` to finish deploying it before asking for approval.
+Their **test runs take turns** (`run_tests.py` holds a PostgreSQL advisory
+lock): the second build prints "another branch's test run is using this PC;
+waiting" and starts its tests when the first finishes. Two suites at once ran
+the PC out of memory and failed good builds.
 
 **Going back to an earlier release**: point `production` at that `main`
 commit — `git push https://github.com/Nithin-5310v/HRZEST-2.0.git +<commit>:refs/heads/production`

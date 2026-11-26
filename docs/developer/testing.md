@@ -85,7 +85,7 @@ broken code base but aren't:
 - `OSError: [WinError 1450] Insufficient system resources`.
 
 Use `-n 2`, close what you can, and check `pg_isready` before re-running.
-Jenkins runs its own suites against the same PostgreSQL, so avoid a full local
+Jenkins runs its own suites (one at a time) against the same PostgreSQL, so avoid a full local
 run while a Jenkins build is testing.
 
 ### In a git worktree

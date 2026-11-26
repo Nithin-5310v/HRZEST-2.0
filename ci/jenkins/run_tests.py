@@ -3,7 +3,15 @@
 The database login comes from HRZEST_ENV_FILE (the development copy's
 .env); tests/conftest.py then swaps DB_NAME for throwaway test databases.
 Each branch gets its own (att_test_jenkins_<branch>, plus _gw0.._gwN per
-xdist worker), so develop and main can build at the same time.
+xdist worker), so develop and main can build at the same time -- but their
+TEST RUNS take turns. Two full suites at once (4 workers each, plus the
+PostgreSQL they share) exhausted the Jenkins PC's memory: argon2 "Memory
+allocation error", failed logins, PostgreSQL crashing into recovery mode,
+and builds failing for no reason in the code (main #137, 2026-11-26). So
+this script holds a PostgreSQL advisory lock (TEST_RUN_LOCK_KEY) for the
+whole run; the other branch's run waits for it, up to LOCK_WAIT_MINUTES,
+then goes ahead anyway rather than fail the build. The lock lives on its
+own connection and is released when this process exits, even if killed.
 
 Those databases are dropped before every run, so each build starts as
 clean as GitHub Actions' fresh service database: a build cancelled
@@ -17,6 +25,7 @@ later builds of perfectly good code. Extra arguments go to pytest:
 import os
 import re
 import sys
+import time
 
 import psycopg2
 from dotenv import load_dotenv
@@ -31,13 +40,49 @@ base = f"att_test_jenkins_{branch}"
 os.environ["HRZEST_TEST_DB"] = base
 
 
-def drop_test_databases():
+# Any fixed 64-bit number; "HRZJTEST". Advisory locks are per database, so every
+# run takes it on the "postgres" database.
+TEST_RUN_LOCK_KEY = 0x48525A4A54455354
+LOCK_WAIT_MINUTES = float(os.environ.get("HRZEST_TEST_LOCK_WAIT_MINUTES") or 90)
+
+
+def _connect_postgres_db():
     conn = psycopg2.connect(
         host=os.environ.get("DB_HOST") or "localhost", port=int(os.environ.get("DB_PORT") or 5432),
         user=os.environ.get("DB_USER"), password=os.environ.get("DB_PASS"), dbname="postgres",
         connect_timeout=10,
     )
     conn.autocommit = True
+    return conn
+
+
+def wait_for_turn():
+    """Take the cross-branch test lock, waiting while the other branch's suite
+    runs. Returns the connection holding it (keep it open until pytest ends),
+    or None if the wait ran out and this run goes ahead without it."""
+    conn = _connect_postgres_db()
+    deadline = time.monotonic() + LOCK_WAIT_MINUTES * 60
+    waited = False
+    while True:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pg_try_advisory_lock(%s)", (TEST_RUN_LOCK_KEY,))
+            if cur.fetchone()[0]:
+                if waited:
+                    print("the other branch's test run has finished; starting this one", flush=True)
+                return conn
+        if time.monotonic() >= deadline:
+            print(f"still waiting after {LOCK_WAIT_MINUTES:g} minutes; running the tests anyway", flush=True)
+            conn.close()
+            return None
+        if not waited:
+            print("another branch's test run is using this PC; waiting for it to finish "
+                  "(running both at once exhausts the memory)", flush=True)
+            waited = True
+        time.sleep(30)
+
+
+def drop_test_databases():
+    conn = _connect_postgres_db()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT datname FROM pg_database WHERE datname ~ %s",
@@ -50,6 +95,7 @@ def drop_test_databases():
         conn.close()
 
 
+_turn = wait_for_turn()   # held until this process exits
 drop_test_databases()
 
 import pytest  # noqa: E402
