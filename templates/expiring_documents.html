@@ -1,0 +1,83 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Document Expiry{% endblock %}
+
+{% block page_css %}
+  <style>
+    .dx-header {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;
+      background: #fff; border: 1px solid #e6e9ef; border-radius: 12px;
+      padding: 18px 22px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+    }
+    .dx-header h1 { font-size: 21px; font-weight: 700; letter-spacing: -.2px; display: flex; align-items: center; gap: 10px; margin: 0; }
+    .dx-header h1 i { color: #2563eb; }
+    .dx-days { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 13px; color: #475569; }
+    .dx-days a { padding: 5px 12px; border-radius: 20px; border: 1px solid #dbeafe; color: #1e3a8a; text-decoration: none; font-weight: 600; }
+    .dx-days a.on { background: #1e3a8a; border-color: #1e3a8a; color: #fff; }
+    .dx-card { background: #fff; border: 1px solid #e6e9ef; border-radius: 12px; padding: 18px 22px; margin-bottom: 18px; }
+    .dx-card h2 { font-size: 15px; font-weight: 800; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+    .dx-card h2 .n { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
+    .dx-expired h2 { color: #b91c1c; }
+    .dx-expired h2 .n { background: #fef2f2; color: #b91c1c; }
+    .dx-soon h2 { color: #b45309; }
+    .dx-soon h2 .n { background: #fffbeb; color: #b45309; }
+    .dx-table { width: 100%; border-collapse: collapse; }
+    .dx-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #64748b;
+                   text-align: left; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+    .dx-table td { font-size: 13px; color: #1e293b; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+    .dx-table .muted { color: #64748b; }
+    .dx-table a { color: #1e3a8a; font-weight: 600; text-decoration: none; }
+    .dx-wrap { overflow-x: auto; }
+    .dx-empty { color: #64748b; font-size: 13px; padding: 6px 0; }
+  </style>
+{% endblock %}
+
+{% block main %}
+  <div class="dx-header">
+    <h1><i class="ti ti-file-alert"></i> Document Expiry</h1>
+    <div class="dx-days">
+      <span>Expiring within</span>
+      {% for d in day_choices %}
+        <a href="{{ tpath('/documents/expiring') }}?days={{ d }}" class="{{ 'on' if d == days else '' }}">{{ d }} days</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% macro doc_rows(docs, expired) %}
+    <div class="dx-wrap">
+      <table class="dx-table">
+        <thead>
+          <tr><th>Employee</th><th>Document</th><th>File</th><th>{{ 'Expired on' if expired else 'Expires on' }}</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for d in docs %}
+          <tr>
+            <td><a href="{{ tpath('/employee_detail/' ~ d.employee_id) }}">{{ d.employee_name }}</a>
+                <span class="muted">· {{ d.employee_id }}</span></td>
+            <td>{{ d.doc_type }}</td>
+            <td class="muted">{{ d.filename }}</td>
+            <td>{{ d.expiry_date.strftime('%d %b %Y') }}</td>
+            <td class="muted">
+              {% if expired %}{{ -d.days_left }} day{{ '' if d.days_left == -1 else 's' }} ago
+              {% elif d.days_left == 0 %}today
+              {% else %}in {{ d.days_left }} day{{ '' if d.days_left == 1 else 's' }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endmacro %}
+
+  <div class="dx-card dx-expired">
+    <h2><i class="ti ti-alert-octagon"></i> Expired <span class="n">{{ expired|length }}</span></h2>
+    {% if expired %}{{ doc_rows(expired, true) }}{% else %}<div class="dx-empty">No document has expired.</div>{% endif %}
+  </div>
+
+  <div class="dx-card dx-soon">
+    <h2><i class="ti ti-clock-exclamation"></i> Expiring within {{ days }} days <span class="n">{{ expiring|length }}</span></h2>
+    {% if expiring %}{{ doc_rows(expiring, false) }}{% else %}<div class="dx-empty">No document expires in the next {{ days }} days.</div>{% endif %}
+  </div>
+
+  <div class="dx-empty">Expiry dates are set when a document is uploaded (employee page → Documents). Dates are by the company's time zone ({{ today.strftime('%d %b %Y') }} today).</div>
+{% endblock %}

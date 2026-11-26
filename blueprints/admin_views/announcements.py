@@ -10,6 +10,7 @@ from utils.email_utils import get_email_config, send_email_smtp
 from utils.helpers import _validate_upload, int_param, post_announcement, tpath
 from utils.storage import delete_private, open_private, save_private
 from utils.data_cache import data_cache
+from utils.document_expiry import expiry_report
 from werkzeug.utils import secure_filename
 from . import _ANN_ALLOWED_EXT, admin_views_bp
 
@@ -161,28 +162,22 @@ def test_email():
 @admin_required
 @data_cache("admin_views")
 def api_expiring_documents():
+    """Documents expiring within ?days= (default 30), by the company's date and
+    limited to a team-scoped role's own people (utils/document_expiry.py);
+    already-expired ones are in "expired"."""
     days = int_param(request.args.get("days", 30))
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
-    cursor.execute("""
-        SELECT d.id, d.employee_id, e.name, d.doc_type, d.original_name, d.expiry_date,
-               (d.expiry_date - CURRENT_DATE) AS days_left
-        FROM employee_documents d
-        JOIN employees e ON e.employee_id = d.employee_id
-        WHERE d.expiry_date IS NOT NULL
-          AND d.expiry_date >= CURRENT_DATE
-          AND d.expiry_date <= CURRENT_DATE + (%s * INTERVAL '1 day')
-        ORDER BY d.expiry_date ASC
-    """, (days,))
-    rows = cursor.fetchall()
-    cursor.close()
-    db.close()
+    try:
+        report = expiry_report(cursor, days)
+    finally:
+        cursor.close()
+        db.close()
+
+    def _row(d):
+        return {**d, "expiry_date": d["expiry_date"].isoformat()}
     return jsonify({
         "ok": True,
-        "documents": [
-            {"id": r[0], "employee_id": r[1], "employee_name": r[2],
-             "doc_type": r[3], "filename": r[4],
-             "expiry_date": str(r[5]), "days_left": r[6]}
-            for r in rows
-        ]
+        "documents": [_row(d) for d in report["expiring"]],
+        "expired": [_row(d) for d in report["expired"]],
     })

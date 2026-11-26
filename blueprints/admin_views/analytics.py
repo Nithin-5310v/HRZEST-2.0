@@ -6,6 +6,7 @@ from extensions import app_log
 from flask import render_template
 from utils.attendance_utils import attendance_pct_series, is_company_working_day
 from utils.auth import admin_required, require_access
+from utils.document_expiry import expiry_report
 from utils.helpers import company_today, decrypt_pii, get_company_settings
 from . import admin_views_bp
 
@@ -175,28 +176,22 @@ def analytics():
     # Smart Alerts Panel
     smart_alerts = []
 
-    # These four were four separate round-trips scattered across alerts #2
-    # and #6 below -- same consolidation as the block above, run together
-    # up front so the alert-building logic below just reads the results.
+    # These three were separate round-trips scattered across alerts #2 and
+    # #6 below -- same consolidation as the block above, run together up
+    # front so the alert-building logic below just reads the results.
     week_start = today - datetime.timedelta(days=today.weekday())
     last_week_start = week_start - datetime.timedelta(days=7)
-    # expiry_date bounds computed in Python (today / today+30d) rather than
-    # Postgres's CURRENT_DATE + INTERVAL '30 days' -- the latter has no
-    # SQLite equivalent, so under the local dev fallback (database.py) this
-    # whole 4-column query silently failed and fetchone() returned None.
-    thirty_days_out = today + datetime.timedelta(days=30)
     cursor.execute("""
         SELECT
             (SELECT COUNT(*) FROM leave_requests WHERE leave_date >= %s),
             (SELECT COUNT(*) FROM leave_requests WHERE leave_date >= %s AND leave_date < %s),
-            (SELECT COUNT(*) FROM overtime_records WHERE status='Pending'),
-            (SELECT COUNT(*) FROM employee_documents
-                WHERE expiry_date IS NOT NULL
-                  AND expiry_date >= %s
-                  AND expiry_date <= %s)
-    """, (week_start, last_week_start, week_start, today, thirty_days_out))
-    (leaves_this_week, leaves_last_week,
-     ot_pending_count, expiring_docs) = cursor.fetchone()
+            (SELECT COUNT(*) FROM overtime_records WHERE status='Pending')
+    """, (week_start, last_week_start, week_start))
+    (leaves_this_week, leaves_last_week, ot_pending_count) = cursor.fetchone()
+    # Document expiry: the same report /documents/expiring shows (company
+    # date, team scope), so the alert's count matches the page it links to.
+    doc_expiry = expiry_report(cursor, 30)
+    expired_docs, expiring_docs = len(doc_expiry["expired"]), len(doc_expiry["expiring"])
 
     # 1. Employees absent 3+ consecutive working days
     working_days_back = []
@@ -305,14 +300,22 @@ def analytics():
             'link': '/overtime'
         })
 
-    # 7. Documents expiring in next 30 days
+    # 7. Documents already expired, and expiring in the next 30 days
+    if expired_docs > 0:
+        smart_alerts.append({
+            'level': 'danger',
+            'icon': 'ti-file-alert',
+            'title': f'{expired_docs} employee document{"s have" if expired_docs > 1 else " has"} expired',
+            'detail': 'Collect renewed copies and upload them with their new expiry date',
+            'link': '/documents/expiring'
+        })
     if expiring_docs > 0:
         smart_alerts.append({
             'level': 'warning',
             'icon': 'ti-file-alert',
             'title': f'{expiring_docs} employee document{"s" if expiring_docs > 1 else ""} expiring within 30 days',
             'detail': 'Review and renew documents before they expire',
-            'link': '/employees'
+            'link': '/documents/expiring'
         })
 
     if not smart_alerts:
