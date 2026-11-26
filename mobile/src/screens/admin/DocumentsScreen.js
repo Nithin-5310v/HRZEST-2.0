@@ -19,6 +19,7 @@ import * as ImagePicker from "expo-image-picker";
 import THEME from "../../constants/theme";
 import { useTheme } from "../../store/ThemeContext";
 import AdminHeader from "../../components/admin/AdminHeader";
+import ExpiryDateField from "../../components/documents/ExpiryDateField";
 import { fetchDocuments, fetchEmployees, uploadDocumentForEmployee, deleteDocument } from "../../api/client";
 
 const DOC_TYPES = ["Aadhaar Card", "PAN Card", "Passport", "Offer Letter", "Degree Certificate", "Other"];
@@ -40,6 +41,7 @@ export default function DocumentsScreen({ navigation }) {
   const [uploadEmpId, setUploadEmpId] = useState("");
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [photoUri, setPhotoUri] = useState(null);
+  const [expiryDate, setExpiryDate] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async (empId) => {
@@ -75,6 +77,7 @@ export default function DocumentsScreen({ navigation }) {
     setUploadEmpId(selectedEmpId || (employees[0]?.employee_id || employees[0]?.id || ""));
     setDocType(DOC_TYPES[0]);
     setPhotoUri(null);
+    setExpiryDate("");
     setUploadModalVisible(true);
   };
 
@@ -102,6 +105,7 @@ export default function DocumentsScreen({ navigation }) {
     formData.append("employee_id", uploadEmpId);
     formData.append("doc_type", docType);
     formData.append("document", { uri: photoUri, name: `${docType.replace(/\s+/g, "_")}.jpg`, type: "image/jpeg" });
+    if (expiryDate) formData.append("expiry_date", expiryDate);
 
     let res;
     try {
@@ -247,6 +251,8 @@ export default function DocumentsScreen({ navigation }) {
                     </TouchableOpacity>
                   ))}
                 </View>
+
+                <ExpiryDateField value={expiryDate} onChange={setExpiryDate} colors={colors} />
 
                 <TouchableOpacity accessibilityRole="button"
                   onPress={handlePickPhoto}

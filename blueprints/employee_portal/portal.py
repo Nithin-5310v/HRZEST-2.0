@@ -23,6 +23,7 @@ from utils.helpers import (
 from utils.leave_utils import assign_leave_balances_for_employee
 from utils.tenant_files import resolve_face_photo
 from utils.data_cache import data_cache
+from utils.document_expiry import expiry_status
 from . import _fmt_t, employee_portal_bp
 
 
@@ -362,10 +363,12 @@ def _build_portal_context(emp_id):
 
     try:
         cursor.execute(
-            "SELECT id, doc_type, original_name, uploaded_by, uploaded_at FROM employee_documents WHERE employee_id=%s ORDER BY uploaded_at DESC",
+            "SELECT id, doc_type, original_name, uploaded_by, uploaded_at, expiry_date FROM employee_documents "
+            "WHERE employee_id=%s ORDER BY uploaded_at DESC",
             (emp_id,)
         )
-        my_docs = cursor.fetchall()
+        # + (expiry status, days left) for the Expires column (utils/document_expiry.py)
+        my_docs = [(*row, *expiry_status(row[5])) for row in cursor.fetchall()]
     except Exception:
         my_docs = []
 
