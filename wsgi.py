@@ -13,7 +13,6 @@ see the "Register blueprints" section below for the full list. app.py now
 holds only shared setup: init_db, error handlers, before/after_request
 hooks, and template filters.
 """
-import os
 import sys
 
 # ── Encoding fix for Windows ──────────────────────────────────────────────────
