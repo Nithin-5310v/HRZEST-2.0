@@ -16,7 +16,7 @@ from email import encoders
 from email.utils import formatdate, make_msgid
 from database import get_db_connection, get_master_db
 from extensions import app, app_log
-from utils.helpers import decrypt_pii
+from utils.helpers import decrypt_pii, platform_today
 from utils import graph_mail
 
 
@@ -152,7 +152,7 @@ def render_email(template, **context):
     """HTML of templates/emails/<template> (layout: emails/base.html).
     Rendered on the app's Jinja environment directly, so it works outside a
     request too (the queue worker, schedulers); .html templates autoescape."""
-    context.setdefault("year", _dt.date.today().year)
+    context.setdefault("year", platform_today().year)
     return app.jinja_env.get_template(f"emails/{template}").render(**context)
 
 

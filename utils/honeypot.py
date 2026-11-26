@@ -71,7 +71,7 @@ def _record_hit(port: int, protocol: str, peer_ip: str, captured: bytes):
     (CloudWatch agent, journald, whatever the deployment already uses for
     container logs) rather than growing it unbounded here."""
     entry = {
-        "time": datetime.datetime.utcnow().isoformat() + "Z",
+        "time": datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "service": SERVICE_NAME,
         "port": port,
         "protocol": protocol,

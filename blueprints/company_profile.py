@@ -37,7 +37,7 @@ from utils.storage import save_upload
 from utils.tenant_files import face_photo_path
 from utils.auth import role_required, api_required, api_role_required, admin_required, require_access
 from utils.helpers import (
-    tpath, get_company_settings,
+    tpath, get_company_settings, company_today,
     TRIAL_EMPLOYEE_CAP, _tenant_is_trialing, invalidate_settings_cache,
     _validate_image_file, save_uploaded_logo,
 )
@@ -405,7 +405,7 @@ def profile_company_info():
         admin_job_title=job_title or "", admin_email=admin_email or "",
         admin_mobile=admin_mobile or co.get("contact_phone") or "",
         is_owner_admin=session.get("admin_role") == OWNER_ROLE, own_profile=own_profile,
-        own_departments=departments, today_iso=datetime.date.today().isoformat(),
+        own_departments=departments, today_iso=company_today().isoformat(),
     )
 
 

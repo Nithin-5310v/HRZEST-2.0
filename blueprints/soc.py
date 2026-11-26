@@ -366,7 +366,7 @@ def api_events_csv():
     soc_auth.audit(_actor(), "export_events", detail=f"{min(len(rows), 5000)} rows", ip=_ip())
     resp = make_response(csv_text)
     resp.headers["Content-Type"] = "text/csv; charset=utf-8"
-    resp.headers["Content-Disposition"] = "attachment; filename=soc-events-%s.csv" % datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
+    resp.headers["Content-Disposition"] = "attachment; filename=soc-events-%s.csv" % datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d-%H%M")
     return resp
 
 

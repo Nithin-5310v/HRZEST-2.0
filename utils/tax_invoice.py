@@ -32,6 +32,7 @@ from flask import g as _g
 
 from extensions import app_log
 from database import get_master_db, get_db_connection
+from utils.helpers import platform_today
 
 KINDS = ("signup", "seat_topup", "invoice")
 
@@ -225,7 +226,7 @@ def _load_payment(kind_key, row_id):
     p = {"amount_paise": int(r[0] or 0), "qty": max(1, int(r[1] or 1)), "paid_at": r[2],
          "order_id": r[3], "payment_id": r[4], "tenant_schema": r[5], "company_name": r[6],
          "admin_email": r[7]}
-    paid_on = _as_date(p["paid_at"]) or datetime.date.today()
+    paid_on = _as_date(p["paid_at"]) or platform_today()
     ref = p["payment_id"] or p["order_id"] or ""
     is_test = ref.startswith("demo_")
     from utils.billing_cycle import tenant_anchor, period_end as cycle_period_end
@@ -369,7 +370,7 @@ def issue_invoice(kind_key, row_id):
     p = _load_payment(kind_key, row_id)
     if not p:
         return None
-    issued_on = _as_date(p["paid_at"]) or datetime.date.today()
+    issued_on = _as_date(p["paid_at"]) or platform_today()
     fy = financial_year(issued_on)
     conn = get_master_db()
     cur = conn.cursor(buffered=True)

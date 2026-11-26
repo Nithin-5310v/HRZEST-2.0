@@ -16,6 +16,7 @@ from utils.helpers import (
     decrypt_pii_date,
     get_company_settings,
     get_pending_counts,
+    company_today,
     hr_scope_denied as _hr_scope_denied,
     tpath,
 )
@@ -91,7 +92,7 @@ def view_employees():
     resigned_set = {r[0] for r in cursor.fetchall()}
     cursor.execute(
         "SELECT DISTINCT employee_id FROM leave_requests "
-        "WHERE status='Approved' AND leave_date=CURRENT_DATE"
+        "WHERE status='Approved' AND leave_date=%s", (company_today(),)
     )
     on_leave_set = {r[0] for r in cursor.fetchall()}
 
@@ -196,10 +197,10 @@ def view_employees():
         cursor.execute(f"""
             SELECT
               SUM(CASE WHEN status != 'Completed' THEN 1 ELSE 0 END),
-              SUM(CASE WHEN status != 'Completed' AND due_date < CURRENT_DATE THEN 1 ELSE 0 END)
+              SUM(CASE WHEN status != 'Completed' AND due_date < %s THEN 1 ELSE 0 END)
             FROM employee_onboarding
             WHERE 1=1 {_ob_filter}
-        """, _ob_params)  # nosec B608 -- _ob_filter is a hardcoded literal chosen by is_hr_scoped, never user input
+        """, (company_today(), *_ob_params))  # nosec B608 -- _ob_filter is a hardcoded literal chosen by is_hr_scoped, never user input
         _ob = cursor.fetchone()
         ob_active = int(_ob[0] or 0)
         ob_overdue = int(_ob[1] or 0)
@@ -351,7 +352,7 @@ def employee_detail(emp_id):
     cursor.execute("SELECT COUNT(*) FROM resignation_requests WHERE employee_id=%s AND status='Accepted'", (emp_id,))
     is_resigned = cursor.fetchone()[0] > 0
     cursor.execute(
-        "SELECT COUNT(*) FROM leave_requests WHERE employee_id=%s AND status='Approved' AND leave_date=CURRENT_DATE", (emp_id,))
+        "SELECT COUNT(*) FROM leave_requests WHERE employee_id=%s AND status='Approved' AND leave_date=%s", (emp_id, company_today()))
     is_on_leave = cursor.fetchone()[0] > 0
 
     if is_resigned:
