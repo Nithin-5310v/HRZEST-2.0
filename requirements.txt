@@ -38,7 +38,7 @@ bcrypt>=5.0.0
 # Argon2id password hashing (utils/auth.py); bcrypt above stays for verifying
 # and upgrading existing hashes on login.
 argon2-cffi>=25.1.0
-pyotp>=2.12.0
+pyotp>=2.12.1
 
 # ── Cache / rate-limit backend ────────────────────────────────────────────────
 redis>=8.1.0
