@@ -42,7 +42,7 @@ required.
 
 | Variable | Purpose |
 | --- | --- |
-| `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL` | The default company's first admin, created on first start |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL` | The default company's first admin, created on first start. `ADMIN_PASSWORD` must meet the password rules (12+ characters, not the username or email, not in a known breach) or no admin is created. Remove it from `.env` once the admin exists |
 | `MANDATORY_LOGIN_MFA`, `MANDATORY_ADMIN_MFA`, `MANDATORY_PLATFORM_ADMIN_MFA`, `REQUIRE_EMAIL_2FA` | Emailed sign-in codes and TOTP enrolment; all on by default |
 | `PASSWORD_BREACH_CHECK` | Check new passwords against Pwned Passwords (on by default) |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Cloudflare CAPTCHA after 2 failed sign-ins (off if unset) |

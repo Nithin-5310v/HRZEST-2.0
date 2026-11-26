@@ -698,13 +698,13 @@ TEST_OFFICE = {"lat": 17.494664737165042, "lon": 78.40496618113566}
 @pytest.fixture(autouse=True)
 def _platform_admin_rows_not_required(request, monkeypatch):
     """Most tests build a super-admin session for a username that has no
-    platform_admins row. The per-request "operator still exists" check
-    (security review 2026-11-20) is stubbed for them; tests marked
-    real_platform_admin_check exercise the real one."""
+    platform_admins row. The per-request "operator still exists and the
+    password hasn't been reset since sign-in" check is stubbed for them;
+    tests marked real_platform_admin_check exercise the real one."""
     if request.node.get_closest_marker("real_platform_admin_check"):
         return
     import blueprints.platform_admin as _pa
-    monkeypatch.setattr(_pa, "_platform_admin_still_exists", lambda _u: True)
+    monkeypatch.setattr(_pa, "_platform_admin_session_current", lambda _u, _v: True)
 
 
 def bind_oauth_state(client, state):
