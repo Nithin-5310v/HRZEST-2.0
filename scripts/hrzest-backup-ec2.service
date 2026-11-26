@@ -1,0 +1,28 @@
+[Unit]
+Description=HRzest nightly database backup (encrypted)
+# The EC2 host's version of hrzest-backup.service: gunicorn under systemd from
+# /home/ubuntu/apps/HRZEST, PostgreSQL 16 on the same host. The Podman-era
+# hrzest-backup.service next to this file assumes /opt/employee-attendance and
+# an "attendance" user, which this host doesn't have.
+# Installed as /etc/systemd/system/hrzest-backup.service by
+# scripts/install_ec2_backup.sh; see docs/RESTORE.md.
+After=postgresql.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/apps/HRZEST
+# DB_* (and DB_PASS) come from the app's own .env; /etc/hrzest/backup.env is
+# read second, so its BACKUP_* settings win over anything in .env.
+EnvironmentFile=/home/ubuntu/apps/HRZEST/.env
+EnvironmentFile=/etc/hrzest/backup.env
+# bash explicitly, so a checkout that lost the file's executable bit still works.
+ExecStart=/bin/bash /home/ubuntu/apps/HRZEST/scripts/backup_db.sh
+# Pings BACKUP_HEARTBEAT_URL (e.g. a Healthchecks.io check) only on success:
+# ExecStartPost doesn't run after a failed ExecStart, so a broken backup shows
+# up as a missed ping instead of going unnoticed.
+ExecStartPost=/bin/sh -c '[ -z "$BACKUP_HEARTBEAT_URL" ] || curl -fsS -m 10 --retry 2 "$BACKUP_HEARTBEAT_URL" >/dev/null 2>&1 || true'
+# Stay out of the app's way on a 2 GB host.
+Nice=10
+IOSchedulingClass=idle

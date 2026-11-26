@@ -18,8 +18,10 @@ If you're reading this because production is down, skip to
   machine with the private key) decrypts, restores into a throw-away
   database, checks table counts and recomputes the audit hash chain.
 - Scheduled daily at 02:15 server time via `scripts/hrzest-backup.service`
-  + `scripts/hrzest-backup.timer` (systemd). Local copies older than 30
-  days are pruned automatically.
+  + `scripts/hrzest-backup.timer` (systemd) on a container host. The EC2
+  production server uses its own units instead; see
+  [EC2 host: nightly backups](#ec2-host-nightly-backups). Local copies older
+  than 30 days are pruned automatically.
 - `BACKUP_HEARTBEAT_URL` (optional, `.env.example`) pings a dead-man's-switch
   monitor (Healthchecks.io, Cronitor, etc.) on every successful run — set
   this up so a silently-broken backup job is discovered by an alert, not by
@@ -41,6 +43,55 @@ If you're reading this because production is down, skip to
    journalctl -u hrzest-backup.service -n 50 --no-pager
    ls -la backups/
    ```
+
+## EC2 host: nightly backups
+
+The production server runs gunicorn under systemd from
+`/home/ubuntu/apps/HRZEST`, not containers, so it uses
+`scripts/hrzest-backup-ec2.service` and `scripts/hrzest-backup-ec2.timer`,
+installed as `hrzest-backup.service`/`.timer` by
+`scripts/install_ec2_backup.sh`.
+
+- Every night at 03:00 India time, `scripts/backup_db.sh` writes an encrypted
+  `db_backup_<date>.sql.gz.gpg` (plus `.sha256`) to
+  `/home/ubuntu/backups/nightly` and deletes copies older than 30 days.
+  Settings live in `/etc/hrzest/backup.env`.
+- Separately, every deploy saves a plain `pg_dumpall` copy to
+  `/home/ubuntu/backups/pre-deploy` first (the last 10 are kept;
+  `scripts/ec2_autodeploy.sh`).
+- Both sit on the server. Set `BACKUP_REMOTE` in `/etc/hrzest/backup.env` to
+  copy the nightly files somewhere else as well.
+
+**Setup.** On a PC with GnuPG (Git Bash includes it), make the backup key.
+A window asks for a passphrase:
+
+```bash
+gpg --quick-gen-key "HRzest database backups" future-default default never
+FPR=$(gpg --list-keys --with-colons "HRzest database backups" | awk -F: '/^fpr/{print $10; exit}')
+mkdir -p ~/hrzest-backup-setup && cp scripts/install_ec2_backup.sh scripts/hrzest-backup-ec2.* ~/hrzest-backup-setup/
+gpg --armor --export "$FPR" > ~/hrzest-backup-setup/hrzest-backup-public.asc
+pscp -r -i <key.ppk> ~/hrzest-backup-setup ubuntu@<server>:/home/ubuntu/
+gpg --armor --export-secret-keys "$FPR" > ~/hrzest-backup-PRIVATE-key.asc
+```
+
+Keep the private key file and its passphrase in two safe places away from the
+server (a password manager, a USB stick). Without them the nightly backups
+can't be read. Then, on the server as `ubuntu`:
+
+```bash
+bash ~/hrzest-backup-setup/install_ec2_backup.sh ~/hrzest-backup-setup/hrzest-backup-public.asc
+```
+
+It imports the public key, installs and starts the timer, and takes the first
+backup straight away. Check it later with
+`systemctl list-timers hrzest-backup.timer` and
+`sudo journalctl -u hrzest-backup -n 50`.
+
+**Restoring a nightly backup.** Copy the `.gpg` file to the PC that holds the
+private key, decrypt it (`gpg --decrypt <file>.sql.gz.gpg | gunzip > backup.sql`),
+then follow the [restore procedure](#restore-procedure) below with
+`backup.sql`. `scripts/restore_test.sh` does the same into a throw-away
+database to prove a backup works.
 
 ## Restore procedure
 
