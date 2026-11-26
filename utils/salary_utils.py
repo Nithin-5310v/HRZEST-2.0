@@ -11,7 +11,6 @@ app.py's own import, and app.py importing utils.helpers/utils.auth/etc.
 already happens at its own module top level.
 """
 import html as _html
-import datetime
 import utils.config as cfg
 from utils.attendance_utils import infer_type_legacy
 from utils.dlp import mask_tail
@@ -101,7 +100,13 @@ def apply_statutory_deductions(entry, payroll_cfg=None, standard_days=26):
 def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month, salary_data,
                            company_name="", emp_designation="", emp_dept="",
                            pan="", uan="", bank_account="", bank_name="",
-                           payroll_cfg=None, standard_days=26, style_nonce=""):
+                           payroll_cfg=None, standard_days=26, style_nonce="", generated_on=None):
+    # generated_on: the "Generated on" date. Default: today by the company's
+    # own clock (company_today() reads the cached company settings and falls
+    # back to IST), never the server's UTC date, which is yesterday until 05:30 IST.
+    if generated_on is None:
+        from utils.helpers import company_today  # lazy: see the import note at the top
+        generated_on = company_today()
     # style_nonce: the response's CSP nonce, passed only when this HTML is
     # served as a page (payroll.py's payslip view). Emailed payslips get
     # none -- a nonce means nothing in an email and differs per request.
@@ -291,7 +296,7 @@ def build_salary_slip_html(emp_name, emp_id, emp_email, month_name, year, month,
 
   <div class="footer">
     <span>This is a system-generated payslip. Contact HR for any discrepancies.</span>
-    <span>Generated on {datetime.date.today().strftime('%d %B %Y')}</span>
+    <span>Generated on {generated_on.strftime('%d %B %Y')}</span>
   </div>
 </div>
 </body>

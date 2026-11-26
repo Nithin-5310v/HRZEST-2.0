@@ -528,9 +528,12 @@ def employee_portal():
 def api_employee_change_password():
     from flask import g as _g
     from utils.auth import verify_and_update_password
-    data = request.get_json() or {}
-    current_password = data.get("current_password", "").strip()
-    new_password = data.get("new_password", "").strip()
+    data = request.get_json(silent=True)
+    data = data if isinstance(data, dict) else {}
+    # A number or list here used to reach .strip() and answer 500.
+    current_password, new_password = data.get("current_password"), data.get("new_password")
+    current_password = current_password.strip() if isinstance(current_password, str) else ""
+    new_password = new_password.strip() if isinstance(new_password, str) else ""
     if not current_password or not new_password:
         return jsonify({"ok": False, "msg": "current_password and new_password required"}), 400
     emp_id = _g.api_emp_id

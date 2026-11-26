@@ -54,7 +54,7 @@ def _send_welcome_credentials_email(emp_id, name, email, password=None, must_cha
         return False
     token = secrets.token_hex(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+    expiry = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) + datetime.timedelta(hours=24)
     db = get_db_connection()
     cursor = db.cursor(buffered=True)
     cursor.execute("UPDATE employees SET reset_token=%s, reset_token_expiry=%s WHERE employee_id=%s",

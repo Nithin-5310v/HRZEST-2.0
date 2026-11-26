@@ -129,10 +129,11 @@ def classify_logout(punch_time, s_half, s_end):
 
 
 def classify_by_worked_minutes(login_status, total_minutes, s_start, s_end):
-    today_d = datetime.date.today()
+    # Any fixed day will do: only the clock times matter (IST has no DST).
+    day = datetime.date(2000, 1, 3)
     shift_mins = max(1, int((
-        datetime.datetime.combine(today_d, s_end) -
-        datetime.datetime.combine(today_d, s_start)
+        datetime.datetime.combine(day, s_end) -
+        datetime.datetime.combine(day, s_start)
     ).total_seconds() / 60))
     if total_minutes >= shift_mins * 0.75:
         return "Late - Full Day" if login_status == "Late Login" else "Full Day"

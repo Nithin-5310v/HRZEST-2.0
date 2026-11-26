@@ -426,9 +426,9 @@ def render_hr_hub(tab, page):
     leaves = cursor.fetchall()
     cursor.execute(f"""
         SELECT employee_id, SUM(CASE WHEN COALESCE(is_half_day,0)=1 THEN 0.5 ELSE 1 END)
-        FROM leave_requests WHERE EXTRACT(YEAR FROM leave_date)=EXTRACT(YEAR FROM CURRENT_DATE) AND status='Approved'
+        FROM leave_requests WHERE EXTRACT(YEAR FROM leave_date)=%s AND status='Approved'
         {_co_sub} {_hr_sub} {_mgr_sub} GROUP BY employee_id
-    """, _co_args + _hr_args + _mgr_args)  # nosec B608
+    """, (company_today().year,) + _co_args + _hr_args + _mgr_args)  # nosec B608
     leave_used = {row[0]: float(row[1]) for row in cursor.fetchall()}
     cursor.execute("SELECT id, name, annual_quota FROM leave_types WHERE is_active=1 ORDER BY id")
     leave_types_list = cursor.fetchall()

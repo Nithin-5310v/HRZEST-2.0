@@ -7,6 +7,9 @@ traffic stat cards (blueprints/platform_admin.py).
 import datetime
 from database import get_master_db
 from extensions import app_log
+# The platform's calendar day (IST), not the database's CURRENT_DATE (UTC):
+# a view at 01:00 IST belongs to today's count, not yesterday's.
+from utils.helpers import platform_today
 
 
 def track_page_view(path: str):
@@ -16,9 +19,9 @@ def track_page_view(path: str):
         conn = get_master_db()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO page_views (path, view_date, count) VALUES (%s, CURRENT_DATE, 1) "
+            "INSERT INTO page_views (path, view_date, count) VALUES (%s, %s, 1) "
             "ON CONFLICT (path, view_date) DO UPDATE SET count = page_views.count + 1",
-            (path,)
+            (path, platform_today())
         )
         conn.commit()
         cur.close()
@@ -36,10 +39,10 @@ def get_traffic_stats():
     try:
         conn = get_master_db()
         cur = conn.cursor(buffered=True)
-        today = datetime.date.today()
+        today = platform_today()
         week_ago = today - datetime.timedelta(days=6)
 
-        cur.execute("SELECT COALESCE(SUM(count), 0) FROM page_views WHERE view_date = CURRENT_DATE")
+        cur.execute("SELECT COALESCE(SUM(count), 0) FROM page_views WHERE view_date = %s", (today,))
         today_total = cur.fetchone()[0]
 
         cur.execute("SELECT COALESCE(SUM(count), 0) FROM page_views WHERE view_date >= %s", (week_ago,))
