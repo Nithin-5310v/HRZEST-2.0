@@ -45,11 +45,11 @@ n8n workflow contract (see .env.example for the two env vars):
 import os
 import json
 import time
-import datetime
 import threading
 import urllib.request
 import urllib.error
 from extensions import app_log
+from utils.helpers import company_today
 
 _API_URL = "https://api.anthropic.com/v1/messages"
 _API_VERSION = "2023-06-01"
@@ -176,7 +176,7 @@ def _n8n_webhook_secret():
 
 def build_employee_context(cursor, emp_id):
     """Compact, scoped summary of this employee's own data for the system prompt."""
-    today = datetime.date.today()
+    today = company_today()
 
     cursor.execute(
         "SELECT name, role, department, designation, work_mode FROM employees WHERE employee_id=%s",

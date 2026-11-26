@@ -965,7 +965,7 @@ def _new_reset_token():
     """(token, token_hash, expiry) for a password-reset link (forgot_password)."""
     token = secrets.token_hex(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=RESET_TOKEN_VALID_HOURS)
+    expiry = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) + datetime.timedelta(hours=RESET_TOKEN_VALID_HOURS)
     return token, token_hash, expiry
 
 
@@ -977,7 +977,7 @@ def _find_by_reset_token(cursor, table, id_column, token):
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     cursor.execute(
         f"SELECT {id_column} FROM {table} WHERE reset_token=%s AND reset_token_expiry > %s",  # nosec B608 -- call-site literals
-        (token_hash, datetime.datetime.utcnow())
+        (token_hash, datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None))
     )
     return cursor.fetchone()
 

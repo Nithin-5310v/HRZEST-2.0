@@ -20,7 +20,7 @@ import datetime
 from extensions import app, app_log, log_security_event
 from database import get_master_db
 from utils.plan_limits import get_tenant_employee_count, get_per_employee_paise, format_price_inr
-from utils.helpers import coerce_datetime
+from utils.helpers import coerce_datetime, platform_today
 
 # Trial length, in days, from first login (not from approval/provisioning --
 # see app.py's inject_billing_lock_status(), which is what actually stamps
@@ -125,8 +125,14 @@ def _run_ended_trial_grace_check(now=None):
     Paying the overdue bill or switching on auto-debit lifts it
     (billing_dunning._mark_invoice_paid_and_unlock / auto_debit.confirm)."""
     from blueprints.billing_dunning import _GRACE_DAYS
-    now = now or datetime.datetime.now()
-    today = now.date()
+    # `now` is compared with grace_period_ends_at, a naive server-clock
+    # timestamp; `today` is the calendar day a reminder belongs to, on the
+    # platform's clock like billing_dunning's own reminders (QA BUG-27).
+    # A `now` passed in (tests stepping through the grace days) sets both.
+    if now is None:
+        now, today = datetime.datetime.now(), platform_today()
+    else:
+        today = now.date()
     conn = get_master_db()
     cur = conn.cursor(buffered=True)
     cur.execute(
@@ -196,7 +202,7 @@ def _convert_one_trial(tenant_id, company_name, db_name):
         from blueprints.billing_dunning import _GRACE_DAYS
         _set_subscription_status(tenant_id, "past_due")
         grace_ends = datetime.datetime.now() + datetime.timedelta(days=_GRACE_DAYS)
-        _set_grace(tenant_id, grace_ends, datetime.date.today())
+        _set_grace(tenant_id, grace_ends, platform_today())
         log_security_event(
             "trial_billing.no_mandate_at_expiry",
             f"Trial ended for '{db_name}' with no payment mandate on file",

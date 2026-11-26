@@ -59,7 +59,10 @@ def _legacy_qr_accepted(today=None) -> bool:
     except ValueError:
         _log.error("QR_LEGACY_ACCEPT_UNTIL=%r is not YYYY-MM-DD -- legacy QR codes refused", raw)
         return False
-    return (today or datetime.date.today()) <= until
+    if today is None:
+        from utils.helpers import platform_today
+        today = platform_today()
+    return today <= until
 
 
 def generate_qr(emp_id, tenant=None):

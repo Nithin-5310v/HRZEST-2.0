@@ -122,7 +122,7 @@ def api_hr_dashboard_employees():
     rows = cursor.fetchall()
     cursor.execute("SELECT DISTINCT employee_id FROM resignation_requests WHERE status='Accepted'")
     resigned_set = {r[0] for r in cursor.fetchall()}
-    cursor.execute("SELECT DISTINCT employee_id FROM leave_requests WHERE status='Approved' AND leave_date=CURRENT_DATE")
+    cursor.execute("SELECT DISTINCT employee_id FROM leave_requests WHERE status='Approved' AND leave_date=%s", (company_today(),))
     on_leave_set = {r[0] for r in cursor.fetchall()}
     cursor.close()
     db.close()

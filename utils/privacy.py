@@ -190,7 +190,7 @@ def export_employee_data(cursor, employee_id, decrypt=None):
             profile[col] = "[on file]"
 
     data = {
-        "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat() + "Z",
         "employee_id": employee_id,
         "profile": profile,
         "attendance": _rows(cursor, "attendance", "employee_id", employee_id),
@@ -276,7 +276,7 @@ def erase_employee(cursor, employee_id, upload_folder=None, remove_file=None):
 
     manifest = {"employee_id": employee_id, "files_removed": 0, "rows_deleted": {},
                 "blanked": [], "kept": list(_KEPT),
-                "erased_at": datetime.datetime.utcnow().isoformat() + "Z"}
+                "erased_at": datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None).isoformat() + "Z"}
 
     # biometric + file artefacts
     for ref in (face_ref, qr_ref):

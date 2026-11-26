@@ -1453,7 +1453,7 @@ def offer_letter_send(letter_id):
             attachment_filename=f"Offer_Letter_{safe_name}.pdf",
         )
 
-        token_expiry = datetime.datetime.utcnow() + datetime.timedelta(days=30)
+        token_expiry = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) + datetime.timedelta(days=30)
         cursor.execute(
             "UPDATE offer_letters SET sent_at=NOW(), status='sent', response_token=%s, "
             "response_token_expiry=%s, candidate_response=NULL, responded_at=NULL WHERE id=%s",
