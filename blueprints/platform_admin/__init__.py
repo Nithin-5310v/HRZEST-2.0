@@ -65,19 +65,35 @@ def _paginate(items, page, per_page):
     return items[start:start + per_page], page, total_pages
 
 
-def _platform_admin_still_exists(username):
+def platform_admin_password_version(username):
+    """The operator's password_changed_at as an opaque string: '' if it was
+    never reset, None if there is no such operator. Raises on a DB error.
+    Compared as a value read from the same column, never against the app's
+    clock, so clock skew can't sign anyone out."""
+    conn = get_master_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT password_changed_at FROM platform_admins WHERE username=%s", (username,))
+        row = cur.fetchone()
+        cur.close()
+    finally:
+        conn.close()
+    if row is None:
+        return None
+    return row[0].isoformat() if row[0] else ""
+
+
+def _platform_admin_session_current(username, session_version):
+    """False once the operator is deleted or their password was reset after
+    this session signed in. Fails open on a DB error, like the other
+    per-request account checks, so an outage doesn't lock the console."""
     if not username:
         return False
     try:
-        conn = get_master_db()
-        cur = conn.cursor()
-        cur.execute("SELECT 1 FROM platform_admins WHERE username=%s", (username,))
-        found = cur.fetchone() is not None
-        cur.close()
-        conn.close()
-        return found
+        current = platform_admin_password_version(username)
     except Exception:
         return True
+    return current is not None and current == (session_version or "")
 
 
 def _platform_admin_required(view):
@@ -97,9 +113,9 @@ def _platform_admin_required(view):
             abort(404)
         # A deleted operator's session ends on its next request, not at the
         # 30-minute idle / 8-hour absolute timeout (security review
-        # 2026-11-20). Fails open on a DB error, like the other per-request
-        # account checks, so an outage doesn't lock the console.
-        if not _platform_admin_still_exists(session.get("platform_admin_username")):
+        # 2026-11-20). So does one signed in before a password reset.
+        if not _platform_admin_session_current(session.get("platform_admin_username"),
+                                               session.get("platform_admin_pwv")):
             session.clear()
             abort(404)
         last_activity = session.get("platform_admin_last_activity", 0)

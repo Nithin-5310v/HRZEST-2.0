@@ -1,7 +1,54 @@
 import os
+import re
 
 from extensions import app_log
-from utils.auth import generate_password_hash
+from utils.auth import _mask_identifier, generate_password_hash, validate_new_password
+
+_EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+
+
+def _create_env_admin(cursor, db):
+    """Create the default company's first admin from ADMIN_USERNAME,
+    ADMIN_PASSWORD and ADMIN_EMAIL. Returns True if it was created; logs
+    why not otherwise. Caller has checked that no admin exists yet."""
+    username = os.environ.get("ADMIN_USERNAME", "admin").strip()
+    password = os.environ.get("ADMIN_PASSWORD", "").strip()
+    # role='admin' accounts authenticate via emailed one-time code only (see
+    # blueprints/auth.py's admin_login()) -- without an email on file here,
+    # a freshly seeded admin could never complete that first login.
+    email = os.environ.get("ADMIN_EMAIL", "").strip() or None
+    if not password:
+        app_log.warning("No admin account was created: ADMIN_PASSWORD isn't set in .env. "
+                        "Set it and restart with MIGRATIONS_FORCE=1.")
+        return False
+    if email and not _EMAIL_RE.fullmatch(email):
+        app_log.warning("ADMIN_EMAIL in .env isn't a single email address, so it was ignored.")
+        email = None
+    # Same rules as every other password (length, not the account's own
+    # name or email, not in a known breach): .env.example's placeholder,
+    # or "admin123", must not become the admin's real password.
+    ok, err = validate_new_password(password, (username, email))
+    if not ok:
+        app_log.error("No admin account was created: ADMIN_PASSWORD in .env doesn't meet the password "
+                      "rules. %s Set a stronger one and restart with MIGRATIONS_FORCE=1.", err)
+        return False
+    cursor.execute(
+        "INSERT INTO admin_users (username, password, email) VALUES (%s, %s, %s)",
+        (username, generate_password_hash(password), email)
+    )
+    db.commit()
+    if not email:
+        app_log.warning(
+            "Admin created: username=%s but ADMIN_EMAIL isn't set -- this account can't "
+            "log in until an email is added (Settings, or 'UPDATE admin_users SET email=...').",
+            username,
+        )
+    else:
+        app_log.info("Admin created: username=%s email=%s", username, _mask_identifier(email))
+    # The account exists now; the plain-text copy in .env (and in every
+    # backup of it) only helps someone who reads the file.
+    app_log.warning("Remove ADMIN_PASSWORD from .env now that the admin account exists.")
+    return True
 
 
 def _seed_defaults_and_admin(cursor, db, seed_admin=True):
@@ -29,31 +76,10 @@ def _seed_defaults_and_admin(cursor, db, seed_admin=True):
         return
 
     # Seed admin from env -- only if no admin exists yet
-    _admin_user = os.environ.get("ADMIN_USERNAME", "admin").strip()
-    _admin_pass = os.environ.get("ADMIN_PASSWORD", "").strip()
-    # role='admin' accounts authenticate via emailed one-time code only (see
-    # blueprints/auth.py's admin_login()) -- without an email on file here,
-    # a freshly seeded admin could never complete that first login.
-    _admin_email = os.environ.get("ADMIN_EMAIL", "").strip() or None
     cursor.execute("SELECT COUNT(*) FROM admin_users")
     admin_count = cursor.fetchone()[0]
-    if admin_count == 0 and _admin_pass:
-        cursor.execute(
-            "INSERT INTO admin_users (username, password, email) VALUES (%s, %s, %s)",
-            (_admin_user, generate_password_hash(_admin_pass), _admin_email)
-        )
-        db.commit()
-        if not _admin_email:
-            app_log.warning(
-                "Admin created: username=%s but ADMIN_EMAIL isn't set -- this account can't "
-                "log in until an email is added (Settings, or 'UPDATE admin_users SET email=...').",
-                _admin_user,
-            )
-        else:
-            app_log.info("Admin created: username=%s email=%s", _admin_user, _admin_email)
+    if admin_count == 0 and _create_env_admin(cursor, db):
         admin_count = 1
-    elif admin_count == 0 and not _admin_pass:
-        app_log.warning("ADMIN_PASSWORD not set in .env -- complete setup via /setup")
 
     # Auto-mark setup done for existing installs that already have an admin
     if admin_count > 0:

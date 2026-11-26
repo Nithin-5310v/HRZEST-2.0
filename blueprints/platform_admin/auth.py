@@ -8,7 +8,7 @@ from utils.auth import _mask_identifier, check_password_hash, dummy_password_che
 from utils.login_otp import discard_challenge, issue_challenge, verify_challenge
 from utils.session_risk import end_session_server_side, ensure_session_id
 from utils.totp import send_mfa_login_email
-from . import _MFA_OTP_TTL_SEC, platform_admin_bp
+from . import _MFA_OTP_TTL_SEC, platform_admin_bp, platform_admin_password_version
 
 
 def _complete_platform_admin_login(username):
@@ -25,6 +25,14 @@ def _complete_platform_admin_login(username):
     # as every other login flow, for free.
     session["_session_created"] = time.time()
     session.permanent = True
+    # Which password this session was opened with: a later reset
+    # (scripts/seed_platform_admin.py --reset) moves it, and
+    # _platform_admin_required then ends this session.
+    try:
+        session["platform_admin_pwv"] = platform_admin_password_version(username) or ""
+    except Exception as exc:
+        app_log.warning("Platform admin password version lookup failed: %s", type(exc).__name__)
+        session["platform_admin_pwv"] = ""
     # Server-side session id, so logout can revoke this session
     # (security review Section 9; checked by _platform_admin_required).
     ensure_session_id(session)

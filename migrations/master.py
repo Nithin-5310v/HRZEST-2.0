@@ -200,6 +200,12 @@ def _init_master_db_impl():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Moved by scripts/seed_platform_admin.py --reset. Each console
+        # session remembers the value it signed in under, and
+        # _platform_admin_required ends it once this moves, so a reset
+        # also signs out whoever held the old password. NULL until the
+        # first reset, which matches sessions made before this column.
+        cur.execute("ALTER TABLE platform_admins ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP DEFAULT NULL")
         # Internal messaging between the platform operator and a company's
         # own admin/HR staff (blueprints/platform_admin.py's per-tenant chat
         # panel, and admin_base.html's company-side widget). Lives here, not
