@@ -166,6 +166,13 @@ def api_onboarding_tasks(ob_id):
     -- lets mobile show and update an individual onboarding's checklist,
     which api_onboarding() above (the list view) deliberately only
     summarizes as tasksCompleted/totalTasks counts."""
+    # Same team scope as the web page (onboarding_detail): a team-scoped
+    # token only reads its own people's checklists.
+    with _db() as (cursor, conn):
+        cursor.execute("SELECT employee_id FROM employee_onboarding WHERE id=%s", (ob_id,))
+        owner = cursor.fetchone()
+    if not owner or hr_scope_denied(owner[0]):
+        return jsonify({"ok": False, "msg": "Onboarding not found."}), 404
     with _db() as (cursor, conn):
         cursor.execute("""
             SELECT id, task_title, task_description, requires_document, due_days,
@@ -196,18 +203,29 @@ def api_onboarding_task_update(task_id):
     behaves identically to doing it on web. ob_id is looked up from the
     task row itself rather than required from the caller, since it's not
     something the caller needs to already know."""
-    data = request.get_json(silent=True) or {}
-    new_status = (data.get("status") or "").strip()
-    notes = (data.get("admin_notes") or "").strip()
+    data = request.get_json(silent=True)
+    data = data if isinstance(data, dict) else {}
+    new_status, notes = data.get("status"), data.get("admin_notes") or ""
+    new_status = new_status.strip() if isinstance(new_status, str) else new_status
     if new_status not in ("Pending", "Done", "Skipped"):
         return jsonify({"ok": False, "msg": "status must be 'Pending', 'Done', or 'Skipped'."}), 400
+    if not isinstance(notes, str):
+        return jsonify({"ok": False, "msg": "admin_notes must be text."}), 400
+    notes = notes.strip()
+
+    # The employee comes from the task row itself, and a team-scoped token
+    # may only touch its own people's tasks -- the same check the web twin
+    # (onboarding_admin_task_update) got in the 2026-11 route audit.
+    with _db() as (cursor, conn):
+        cursor.execute(
+            "SELECT o.id, o.employee_id FROM employee_onboarding_tasks t "
+            "JOIN employee_onboarding o ON o.id = t.onboarding_id WHERE t.id=%s", (task_id,))
+        row = cursor.fetchone()
+    if not row or hr_scope_denied(row[1]):
+        return jsonify({"ok": False, "msg": "Task not found."}), 404
+    ob_id = row[0]
 
     with _db() as (cursor, conn):
-        cursor.execute("SELECT onboarding_id FROM employee_onboarding_tasks WHERE id=%s", (task_id,))
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({"ok": False, "msg": "Task not found."}), 404
-        ob_id = row[0]
 
         completed = company_now().replace(tzinfo=None) if new_status == "Done" else None
         cursor.execute(
