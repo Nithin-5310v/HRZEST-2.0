@@ -666,7 +666,10 @@ class _Analysis:
                                  ["T1078", "T1110.001"],
                                  "Assume the account is compromised: rotate credentials and inspect the session.")
                 f.add(self.ssh_ok[ip][0], note=f"{cnt} failures first")
-                self.ip_stats[ip]["flags"]["possible_success"] += 1
+                # The source may be untracked: once the address table is full
+                # (MAX_TRACKED_IPS), sshd lines are still counted here but get
+                # no per-source row. Indexing ip_stats raised KeyError.
+                _flag(self.ip_stats.get(ip), "possible_success")
 
     # ── report ────────────────────────────────────────────────────────
     def sources(self):

@@ -250,6 +250,20 @@ def test_hostile_lines_do_not_stall_the_analyser():
     json.dumps(r)
 
 
+def test_full_address_table_does_not_crash_on_an_accepted_ssh_login(monkeypatch):
+    """Once MAX_TRACKED_IPS sources are tracked, a new SSH source accepted after
+    repeated failures still gets its finding; it used to raise KeyError."""
+    monkeypatch.setattr(la, "MAX_TRACKED_IPS", 1)
+    lines = [nginx("45.33.33.1", "/")]
+    lines += [f"2026-10-16T10:00:{i:02d}+00:00 host sshd[1]: Failed password for root from 45.33.32.60 port 22 ssh2"
+              for i in range(6)]
+    lines.append("2026-10-16T10:01:00+00:00 host sshd[1]: Accepted password for root from 45.33.32.60 port 22 ssh2")
+    r = run(lines)
+    assert r["limits"]["ip_table_full"] is True
+    assert finding(r, "ssh_possible_success")["ips"] == [{"ip": "45.33.32.60", "count": 1}]
+    assert [s["ip"] for s in r["sources"]] == ["45.33.33.1"]
+
+
 def test_time_budget_stops_work(monkeypatch):
     monkeypatch.setattr(la, "TIME_BUDGET_SECONDS", -1)
     r = run([nginx("45.33.33.1", "/") for _ in range(3000)])
