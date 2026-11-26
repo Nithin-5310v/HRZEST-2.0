@@ -87,7 +87,7 @@ def _parse_ts(text, year=None):
     m = re.match(r"^([A-Z][a-z]{2})\s+(\d{1,2}) (\d\d):(\d\d):(\d\d)$", t)
     if m and m.group(1) in _MONTHS:
         try:
-            return datetime.datetime(year or datetime.datetime.utcnow().year, _MONTHS[m.group(1)],
+            return datetime.datetime(year or datetime.datetime.now(datetime.timezone.utc).year, _MONTHS[m.group(1)],
                                      int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5)))
         except ValueError:
             return None
@@ -111,77 +111,100 @@ def _valid_ip(text):
 
 
 def _parse_line(n, line):
+    """One log line -> Rec (kind json, http, ssh or generic), or None for a blank line."""
     line = line[:MAX_LINE_CHARS].rstrip("\r\n")
     if not line.strip():
         return None
-    s = line.lstrip()
-    if s.startswith("{"):
-        try:
-            obj = json.loads(s)
-        except ValueError:
-            obj = None
-        if isinstance(obj, dict):
-            r = Rec(n, line, "json")
-            for k in _JSON_IP:
-                if obj.get(k):
-                    r.ip = _valid_ip(str(obj[k]).split(",")[0])
-                    break
-            for k in _JSON_PATH:
-                if obj.get(k):
-                    r.path = str(obj[k])[:2000]
-                    break
-            for k in _JSON_TS:
-                if obj.get(k):
-                    r.ts = _parse_ts(obj[k])
-                    break
-            for k in _JSON_UA:
-                if obj.get(k):
-                    r.ua = str(obj[k])[:300]
-                    break
-            r.method = (str(obj.get("method") or obj.get("request_method") or "") or None)
-            st = obj.get("status") or obj.get("status_code")
-            try:
-                r.status = int(st) if st is not None else None
-            except (TypeError, ValueError):
-                r.status = None
-            r.event = obj.get("event_type")
-            r.level = (str(obj.get("level") or obj.get("levelname") or "").upper() or None)
-            r.user = obj.get("identifier") or obj.get("user") or obj.get("username")
-            r.user = str(r.user)[:100] if r.user else None
-            return r
+    obj = _json_object(line.lstrip())
+    if obj is not None:
+        return _parse_json(n, line, obj)
     m = _COMBINED.match(line)
     if m:
-        r = Rec(n, line, "http")
-        r.ip = _valid_ip(m.group("ip"))
-        r.ts = _parse_ts(m.group("ts"))
-        req = m.group("req")
-        method, _, rest = req.partition(" ")
-        if rest:
-            # Everything between the method and the trailing "HTTP/x.y" is the target. Servers log raw
-            # spaces for malformed (400) requests, so splitting on every space would drop the payload.
-            if _HTTP_VERSION.search(rest):
-                rest = rest[:rest.rfind(" ")]
-            r.method, r.path = method[:12], rest[:2000]
-        else:
-            r.method, r.path = None, req[:2000]
-        r.status = int(m.group("status"))
-        r.size = None if m.group("bytes") == "-" else int(m.group("bytes"))
-        r.ua = (m.group("ua") or "")[:300] or None
-        r.user = None if m.group("user") == "-" else m.group("user")[:100]
-        return r
+        return _parse_access(n, line, m)
     m = _SSH.match(line)
     if m:
-        r = Rec(n, line, "ssh")
-        r.ts = _parse_ts(m.group("ts"))
-        msg = m.group("msg")
-        ok = _SSH_OK.match(msg)
-        bad = None if ok else _SSH_FAIL.match(msg)
-        hit = ok or bad
-        if hit:
-            r.ip = _valid_ip(hit.group("ip"))
-            r.user = hit.group("user")[:100]
-            r.outcome = "success" if ok else "failure"
-        return r
+        return _parse_ssh(n, line, m)
+    return _parse_generic(n, line)
+
+
+def _json_object(s):
+    if not s.startswith("{"):
+        return None
+    try:
+        obj = json.loads(s)
+    except ValueError:
+        return None
+    return obj if isinstance(obj, dict) else None
+
+
+def _first_value(obj, keys):
+    """The value of the first of `keys` that is set (truthy) in `obj`, else None."""
+    for k in keys:
+        if obj.get(k):
+            return obj[k]
+    return None
+
+
+def _int_or_none(value):
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_json(n, line, obj):
+    r = Rec(n, line, "json")
+    ip = _first_value(obj, _JSON_IP)
+    r.ip = _valid_ip(str(ip).split(",")[0]) if ip is not None else None
+    path = _first_value(obj, _JSON_PATH)
+    r.path = str(path)[:2000] if path is not None else None
+    r.ts = _parse_ts(_first_value(obj, _JSON_TS))
+    ua = _first_value(obj, _JSON_UA)
+    r.ua = str(ua)[:300] if ua is not None else None
+    r.method = (str(obj.get("method") or obj.get("request_method") or "") or None)
+    r.status = _int_or_none(obj.get("status") or obj.get("status_code"))
+    r.event = obj.get("event_type")
+    r.level = (str(obj.get("level") or obj.get("levelname") or "").upper() or None)
+    user = obj.get("identifier") or obj.get("user") or obj.get("username")
+    r.user = str(user)[:100] if user else None
+    return r
+
+
+def _parse_access(n, line, m):
+    r = Rec(n, line, "http")
+    r.ip = _valid_ip(m.group("ip"))
+    r.ts = _parse_ts(m.group("ts"))
+    req = m.group("req")
+    method, _, rest = req.partition(" ")
+    if rest:
+        # Everything between the method and the trailing "HTTP/x.y" is the target. Servers log raw
+        # spaces for malformed (400) requests, so splitting on every space would drop the payload.
+        if _HTTP_VERSION.search(rest):
+            rest = rest[:rest.rfind(" ")]
+        r.method, r.path = method[:12], rest[:2000]
+    else:
+        r.method, r.path = None, req[:2000]
+    r.status = int(m.group("status"))
+    r.size = None if m.group("bytes") == "-" else int(m.group("bytes"))
+    r.ua = (m.group("ua") or "")[:300] or None
+    r.user = None if m.group("user") == "-" else m.group("user")[:100]
+    return r
+
+
+def _parse_ssh(n, line, m):
+    r = Rec(n, line, "ssh")
+    r.ts = _parse_ts(m.group("ts"))
+    msg = m.group("msg")
+    ok = _SSH_OK.match(msg)
+    hit = ok or _SSH_FAIL.match(msg)
+    if hit:
+        r.ip = _valid_ip(hit.group("ip"))
+        r.user = hit.group("user")[:100]
+        r.outcome = "success" if ok else "failure"
+    return r
+
+
+def _parse_generic(n, line):
     r = Rec(n, line, "generic")
     ip = _IP_ANY.search(line)
     r.ip = _valid_ip(ip.group(0)) if ip else None
@@ -272,6 +295,15 @@ class _Finding:
                 "line": rec.n, "ip": rec.ip, "ts": rec.ts.isoformat(sep=" ") if rec.ts else None,
                 "text": (note + " | " if note else "") + rec.text[:EVIDENCE_CHARS]})
 
+    def tally(self, ip, amount, text=None, ts=None):
+        """An aggregate hit (no single line to quote): `amount` more for `ip`, and
+        `text` as a summary evidence line while there is room."""
+        self.count += amount
+        if ip:
+            self.ips[ip] += amount
+        if text is not None and len(self.evidence) < EVIDENCE_PER_FINDING:
+            self.evidence.append({"line": None, "ip": ip, "ts": ts, "text": text})
+
     def out(self):
         return {"id": self.fid, "title": self.title, "severity": self.severity,
                 "mitre": _technique_list(self.mitre), "count": self.count,
@@ -283,350 +315,449 @@ _SEV_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 _SEV_POINTS = {"critical": 40, "high": 25, "medium": 12, "low": 4, "info": 0}
 TIMELINE_MAX_BUCKETS = 2000
 
+_BUCKET_STEP = {"minute": datetime.timedelta(minutes=1), "hour": datetime.timedelta(hours=1),
+                "day": datetime.timedelta(days=1)}
+_BUCKET_ZERO = {"minute": {"second": 0, "microsecond": 0}, "hour": {"minute": 0, "second": 0, "microsecond": 0},
+                "day": {"hour": 0, "minute": 0, "second": 0, "microsecond": 0}}
+_BUCKET_FORMAT = {"minute": "%Y-%m-%d %H:%M", "hour": "%Y-%m-%d %H:00", "day": "%Y-%m-%d"}
 
-def analyze(text, *, brute_force_min=10, enumeration_min=20, flood_per_minute=120):
-    """Analyse log text. -> JSON-serialisable report dict (see keys below).
 
-    Format is auto-detected per line, so a file may mix access-log, JSON and
-    sshd lines. Thresholds are parameters so tests (and later a settings
-    screen) can tune them without touching the detection logic."""
-    started = time.monotonic()
-    limits = {"truncated_bytes": False, "truncated_lines": False, "time_budget_hit": False,
-              "long_lines_clipped": 0, "ip_table_full": False}
-    if len(text) > MAX_BYTES:
-        text = text[:MAX_BYTES]
-        limits["truncated_bytes"] = True
+def _earlier(current, ts):
+    return ts if current is None or ts < current else current
 
-    findings = {}
 
-    def finding(fid, title, severity, mitre, advice=""):
-        if fid not in findings:
-            findings[fid] = _Finding(fid, title, severity, mitre, advice)
-        return findings[fid]
+def _later(current, ts):
+    return ts if current is None or ts > current else current
 
-    kinds = collections.Counter()
-    status_c = collections.Counter()
-    method_c = collections.Counter()
-    path_c = collections.Counter()
-    ua_c = collections.Counter()
-    tool_ua_c = collections.Counter()
-    ip_stats = {}
-    minute_ip = collections.Counter()       # (ip, minute) -> requests
-    minute_tot = collections.Counter()      # minute -> requests
-    minute_5xx = collections.Counter()
-    ssh_fail = collections.defaultdict(lambda: [0, set()])    # ip -> [count, users]
-    ssh_ok = collections.defaultdict(list)
-    hours = collections.Counter()
-    first_ts = last_ts = None
-    parsed = skipped = lines_read = 0
-    first_login_ok = {}         # ip -> (record, login POSTs seen before it)
 
-    def stats(ip):
-        s = ip_stats.get(ip)
+def _path_key(target):
+    return target.split("?", 1)[0][:200]
+
+
+def _new_source():
+    return {"requests": 0, "errors": 0, "bytes": 0, "paths": set(), "missing": set(),
+            "login_posts": 0, "login_fail": 0, "login_ok": 0, "users": set(),
+            "flags": collections.Counter(), "first": None, "last": None}
+
+
+def _flag(s, name):
+    if s is not None:
+        s["flags"][name] += 1
+
+
+def _iso(ts):
+    return ts.isoformat(sep=" ") if ts else None
+
+
+def _score_parts(s, sev_of):
+    """The parts a source's score is the sum of (capped at 100); they go out with
+    it so the page shows exactly how a source got its number."""
+    parts = []
+    for flag, c in s["flags"].items():
+        sev = sev_of.get(flag) or sev_of.get("app_event:" + flag) or "medium"
+        if c and _SEV_POINTS[sev]:
+            parts.append({"what": flag, "severity": sev, "points": _SEV_POINTS[sev]})
+    if s["requests"] >= 20 and s["errors"] / s["requests"] >= 0.6:
+        parts.append({"what": "60%+ of its 20+ requests failed", "severity": None, "points": 8})
+    return parts
+
+
+def _source_row(ip, s, sev_of):
+    parts = _score_parts(s, sev_of)
+    score = min(100, sum(p["points"] for p in parts))
+    return {
+        "ip": ip, "requests": s["requests"], "errors": s["errors"], "bytes": s["bytes"],
+        "distinct_paths": len(s["paths"]), "login_posts": s["login_posts"], "accounts": len(s["users"]),
+        "flags": sorted(s["flags"]), "score": score, "score_parts": sorted(parts, key=lambda p: -p["points"]),
+        "non_public": _ip_is_non_public(ip),
+        "verdict": ("block" if score >= 60 else "watch" if score >= 25 else "ok"),
+        "first": _iso(s["first"]), "last": _iso(s["last"])}
+
+
+def _timeline_bucket(first_ts, last_ts):
+    if not (first_ts and last_ts):
+        return None
+    span = last_ts - first_ts
+    if span <= datetime.timedelta(hours=3):
+        return "minute"
+    if span <= datetime.timedelta(days=3):
+        return "hour"
+    return "day"
+
+
+def _timeline_point(key):
+    return {"t": key, "requests": 0, "errors5xx": 0, "attack": 0}
+
+
+class _Analysis:
+    """The running totals of one analyze() call: fed one parsed line at a time,
+    then turned into aggregate findings, scored sources and the report."""
+
+    def __init__(self, text):
+        self.started = time.monotonic()
+        self.limits = {"truncated_bytes": False, "truncated_lines": False, "time_budget_hit": False,
+                       "long_lines_clipped": 0, "ip_table_full": False}
+        if len(text) > MAX_BYTES:
+            text = text[:MAX_BYTES]
+            self.limits["truncated_bytes"] = True
+        self.text = text
+        self.findings = {}
+        self.kinds = collections.Counter()
+        self.status_c = collections.Counter()
+        self.method_c = collections.Counter()
+        self.path_c = collections.Counter()
+        self.ua_c = collections.Counter()
+        self.tool_ua_c = collections.Counter()
+        self.ip_stats = {}
+        self.minute_ip = collections.Counter()       # (ip, minute) -> requests
+        self.minute_tot = collections.Counter()      # minute -> requests
+        self.minute_5xx = collections.Counter()
+        self.ssh_fail = collections.defaultdict(lambda: [0, set()])    # ip -> [count, users]
+        self.ssh_ok = collections.defaultdict(list)
+        self.hours = collections.Counter()
+        self.first_ts = self.last_ts = None
+        self.parsed = self.skipped = self.lines_read = 0
+        self.first_login_ok = {}         # ip -> (record, login POSTs seen before it)
+
+    def finding(self, fid, title, severity, mitre, advice=""):
+        if fid not in self.findings:
+            self.findings[fid] = _Finding(fid, title, severity, mitre, advice)
+        return self.findings[fid]
+
+    def stats(self, ip):
+        s = self.ip_stats.get(ip)
         if s is None:
-            if len(ip_stats) >= MAX_TRACKED_IPS:
-                limits["ip_table_full"] = True
+            if len(self.ip_stats) >= MAX_TRACKED_IPS:
+                self.limits["ip_table_full"] = True
                 return None
-            s = ip_stats[ip] = {"requests": 0, "errors": 0, "bytes": 0, "paths": set(), "missing": set(),
-                                "login_posts": 0, "login_fail": 0, "login_ok": 0, "users": set(),
-                                "flags": collections.Counter(), "first": None, "last": None}
+            s = self.ip_stats[ip] = _new_source()
         return s
 
-    for n, line in enumerate(text.splitlines(), 1):
-        if n > MAX_LINES:
-            limits["truncated_lines"] = True
-            break
-        if n % 1000 == 0 and (time.monotonic() - started) > TIME_BUDGET_SECONDS:
-            limits["time_budget_hit"] = True
-            break
-        lines_read = n
-        if len(line) > MAX_LINE_CHARS:
-            limits["long_lines_clipped"] += 1
-        rec = _parse_line(n, line)
-        if rec is None:
-            continue
+    # ── per line ──────────────────────────────────────────────────────
+    def read(self):
+        for n, line in enumerate(self.text.splitlines(), 1):
+            if n > MAX_LINES:
+                self.limits["truncated_lines"] = True
+                break
+            if n % 1000 == 0 and (time.monotonic() - self.started) > TIME_BUDGET_SECONDS:
+                self.limits["time_budget_hit"] = True
+                break
+            self.lines_read = n
+            if len(line) > MAX_LINE_CHARS:
+                self.limits["long_lines_clipped"] += 1
+            rec = _parse_line(n, line)
+            if rec is not None:
+                self.add(rec)
+
+    def add(self, rec):
+        s, minute = self._count(rec)
+        if rec.kind == "ssh":
+            self._ssh_line(rec, s)
+            return
+        target = rec.path or ""
+        scan_text = _decode(target) if target else ""
+        self._count_http(rec, s, minute, target)
+        self._app_event(rec, s)
+        self._signatures(rec, s, target, scan_text)
+        self._probe_and_client(rec, s, scan_text)
+        self._method_and_size(rec, s, target)
+        self._login(rec, s, target)
+
+    def _count(self, rec):
+        """Totals every record feeds, whatever its format. -> (source stats or None, minute or None)"""
         if rec.kind == "generic" and not rec.ip and not rec.ts:
-            skipped += 1      # no structure recognised; still scanned for attack shapes below
+            self.skipped += 1      # no structure recognised; still scanned for attack shapes
         else:
-            parsed += 1
-        kinds[rec.kind] += 1
+            self.parsed += 1
+        self.kinds[rec.kind] += 1
         if rec.ts:
-            first_ts = rec.ts if first_ts is None or rec.ts < first_ts else first_ts
-            last_ts = rec.ts if last_ts is None or rec.ts > last_ts else last_ts
-            hours[rec.ts.hour] += 1
-        s = stats(rec.ip) if rec.ip else None
+            self.first_ts = _earlier(self.first_ts, rec.ts)
+            self.last_ts = _later(self.last_ts, rec.ts)
+            self.hours[rec.ts.hour] += 1
+        s = self.stats(rec.ip) if rec.ip else None
         minute = rec.ts.replace(second=0, microsecond=0) if rec.ts else None
         if s is not None:
             s["requests"] += 1
             if rec.ts:
-                s["first"] = rec.ts if s["first"] is None or rec.ts < s["first"] else s["first"]
-                s["last"] = rec.ts if s["last"] is None or rec.ts > s["last"] else s["last"]
+                s["first"] = _earlier(s["first"], rec.ts)
+                s["last"] = _later(s["last"], rec.ts)
         if minute is not None:
-            minute_tot[minute] += 1
+            self.minute_tot[minute] += 1
             if rec.ip:
-                minute_ip[(rec.ip, minute)] += 1
+                self.minute_ip[(rec.ip, minute)] += 1
+        return s, minute
 
-        # ---- sshd ----
-        if rec.kind == "ssh":
-            if rec.outcome == "failure" and rec.ip:
-                ssh_fail[rec.ip][0] += 1
-                if len(ssh_fail[rec.ip][1]) < MAX_DISTINCT_PER_IP:
-                    ssh_fail[rec.ip][1].add(rec.user)
-                if s is not None:
-                    s["errors"] += 1
-                    if rec.user:
-                        s["users"].add(rec.user)
-                finding("ssh_bruteforce", "SSH password guessing", "high", ["T1110.001"],
-                        "Block the sources, enforce key-only SSH, and review any 'Accepted' line from the same source.").add(rec)
-            elif rec.outcome == "success" and rec.ip:
-                ssh_ok[rec.ip].append(rec)
-            continue
+    def _ssh_line(self, rec, s):
+        if rec.outcome == "failure" and rec.ip:
+            fails = self.ssh_fail[rec.ip]
+            fails[0] += 1
+            if len(fails[1]) < MAX_DISTINCT_PER_IP:
+                fails[1].add(rec.user)
+            if s is not None:
+                s["errors"] += 1
+                if rec.user:
+                    s["users"].add(rec.user)
+            self.finding("ssh_bruteforce", "SSH password guessing", "high", ["T1110.001"],
+                         "Block the sources, enforce key-only SSH, and review any 'Accepted' line from the same source.").add(rec)
+        elif rec.outcome == "success" and rec.ip:
+            self.ssh_ok[rec.ip].append(rec)
 
-        # ---- HTTP-ish ----
-        target = rec.path or ""
+    def _count_http(self, rec, s, minute, target):
         if rec.status:
-            status_c[rec.status // 100 * 100] += 1
+            self.status_c[rec.status // 100 * 100] += 1
             if rec.status >= 400 and s is not None:
                 s["errors"] += 1
             if rec.status >= 500 and minute is not None:
-                minute_5xx[minute] += 1
+                self.minute_5xx[minute] += 1
         if rec.method:
-            method_c[rec.method.upper()] += 1
+            self.method_c[rec.method.upper()] += 1
         if target:
-            path_c[target.split("?", 1)[0][:200]] += 1
+            self.path_c[_path_key(target)] += 1
         if rec.ua:
-            ua_c[rec.ua[:120]] += 1
-        if rec.size and s is not None:
+            self.ua_c[rec.ua[:120]] += 1
+        if s is None:
+            return
+        if rec.size:
             s["bytes"] += rec.size
-        if s is not None and target:
+        if target:
             if len(s["paths"]) < MAX_DISTINCT_PER_IP:
-                s["paths"].add(target.split("?", 1)[0][:200])
+                s["paths"].add(_path_key(target))
             if rec.status == 404 and len(s["missing"]) < MAX_DISTINCT_PER_IP:
-                s["missing"].add(target.split("?", 1)[0][:200])
+                s["missing"].add(_path_key(target))
 
-        # JSON security events already carry their own classification
-        if rec.kind == "json" and rec.event:
-            cls = tax.classify(rec.event)
-            if cls["mitre"] and tax.level_rank(rec.level) >= 2:
-                f = finding("app_event:" + cls["family"], "App security events: " + cls["family_label"],
-                            tax.severity_of(rec.event, rec.level) if tax.severity_of(rec.event, rec.level) != "info" else "medium",
-                            [m["id"] for m in cls["mitre"]], "Pivot on these in the Events view for full context.")
-                f.add(rec, note=rec.event)
-                if s is not None:
-                    s["flags"]["app_event"] += 1
+    def _app_event(self, rec, s):
+        """JSON security events already carry their own classification."""
+        if rec.kind != "json" or not rec.event:
+            return
+        cls = tax.classify(rec.event)
+        if not (cls["mitre"] and tax.level_rank(rec.level) >= 2):
+            return
+        severity = tax.severity_of(rec.event, rec.level)
+        f = self.finding("app_event:" + cls["family"], "App security events: " + cls["family_label"],
+                         severity if severity != "info" else "medium",
+                         [m["id"] for m in cls["mitre"]], "Pivot on these in the Events view for full context.")
+        f.add(rec, note=rec.event)
+        _flag(s, "app_event")
 
-        scan_text = _decode(target) if target else ""
-        ua = rec.ua or ""
-
-        # signature checks
+    def _signatures(self, rec, s, target, scan_text):
         if scan_text and (_SUSPICIOUS_CHARS.search(scan_text) or "%" in target):
-            for fid, title, sev, mitre, rx, advice in _SIGNATURES:
-                if rx.search(scan_text):
-                    finding(fid, title, sev, mitre, advice).add(rec)
-                    if s is not None:
-                        s["flags"][fid] += 1
+            self._match_signatures(rec, s, scan_text)
         elif rec.kind == "generic" and _SUSPICIOUS_CHARS.search(rec.text):
-            decoded = _decode(rec.text)
-            for fid, title, sev, mitre, rx, advice in _SIGNATURES:
-                if rx.search(decoded):
-                    finding(fid, title, sev, mitre, advice).add(rec)
-                    if s is not None:
-                        s["flags"][fid] += 1
-        if scan_text and _PROBE_PATHS.search(scan_text):
-            finding("probe", "Probe for sensitive / framework files", "medium", ["T1595.003"],
-                    "Confirm none of these paths exist; consider a WAF rule or honeypot for them.").add(rec)
-            if s is not None:
-                s["flags"]["probe"] += 1
-        if ua and _SCANNER_UA.search(ua):
-            finding("scanner_ua", "Security-scanner user agent", "medium", ["T1595.002"],
-                    "Expected only from your own authorised scans; otherwise block the source.").add(rec, note=ua[:60])
-            if s is not None:
-                s["flags"]["scanner_ua"] += 1
-        elif ua and _TOOL_UA.search(ua):
-            tool_ua_c[ua.split("/")[0][:40]] += 1
-        if rec.method and rec.method.upper() in _ODD_METHODS:
-            finding("odd_method", "Unusual HTTP method", "low", ["T1190"],
-                    "TRACE/CONNECT/WebDAV verbs are rarely legitimate on this app.").add(rec)
-            if s is not None:
-                s["flags"]["odd_method"] += 1
-        if len(target) > 1800 or "%00" in target:
-            finding("malformed", "Oversized or NUL-byte request target", "low", ["T1190"],
-                    "Often fuzzing or a smuggling attempt.").add(rec)
+            self._match_signatures(rec, s, _decode(rec.text))
 
-        # login behaviour
-        if target and _LOGIN_PATH.search(target.split("?", 1)[0]) and (rec.method or "").upper() == "POST" and s is not None:
-            s["login_posts"] += 1
-            if rec.status in (401, 403, 429):
-                s["login_fail"] += 1
-            elif rec.status in (301, 302, 303, 307, 308):
-                # This app re-renders the form (200) on a bad password and redirects (302)
-                # on success, so only a redirect counts as a likely success. Other stacks
-                # may answer 200 either way; the finding says "possible", not "confirmed".
-                s["login_ok"] += 1
-                first_login_ok.setdefault(rec.ip, (rec, s["login_posts"] - 1))
-            if rec.user:
-                s["users"].add(rec.user)
+    def _match_signatures(self, rec, s, text):
+        for fid, title, sev, mitre, rx, advice in _SIGNATURES:
+            if rx.search(text):
+                self.finding(fid, title, sev, mitre, advice).add(rec)
+                _flag(s, fid)
+
+    def _probe_and_client(self, rec, s, scan_text):
+        ua = rec.ua or ""
+        if scan_text and _PROBE_PATHS.search(scan_text):
+            self.finding("probe", "Probe for sensitive / framework files", "medium", ["T1595.003"],
+                         "Confirm none of these paths exist; consider a WAF rule or honeypot for them.").add(rec)
+            _flag(s, "probe")
+        if ua and _SCANNER_UA.search(ua):
+            self.finding("scanner_ua", "Security-scanner user agent", "medium", ["T1595.002"],
+                         "Expected only from your own authorised scans; otherwise block the source.").add(rec, note=ua[:60])
+            _flag(s, "scanner_ua")
+        elif ua and _TOOL_UA.search(ua):
+            self.tool_ua_c[ua.split("/")[0][:40]] += 1
+
+    def _method_and_size(self, rec, s, target):
+        if rec.method and rec.method.upper() in _ODD_METHODS:
+            self.finding("odd_method", "Unusual HTTP method", "low", ["T1190"],
+                         "TRACE/CONNECT/WebDAV verbs are rarely legitimate on this app.").add(rec)
+            _flag(s, "odd_method")
+        if len(target) > 1800 or "%00" in target:
+            self.finding("malformed", "Oversized or NUL-byte request target", "low", ["T1190"],
+                         "Often fuzzing or a smuggling attempt.").add(rec)
+
+    def _login(self, rec, s, target):
+        if s is None or not target or (rec.method or "").upper() != "POST" \
+                or not _LOGIN_PATH.search(target.split("?", 1)[0]):
+            return
+        s["login_posts"] += 1
+        if rec.status in (401, 403, 429):
+            s["login_fail"] += 1
+        elif rec.status in (301, 302, 303, 307, 308):
+            # This app re-renders the form (200) on a bad password and redirects (302)
+            # on success, so only a redirect counts as a likely success. Other stacks
+            # may answer 200 either way; the finding says "possible", not "confirmed".
+            s["login_ok"] += 1
+            self.first_login_ok.setdefault(rec.ip, (rec, s["login_posts"] - 1))
+        if rec.user:
+            s["users"].add(rec.user)
 
     # ── aggregate detections ──────────────────────────────────────────
-    for ip, s in ip_stats.items():
-        if s["login_posts"] >= brute_force_min:
-            f = finding("bruteforce", "Login brute force / password guessing", "high", ["T1110"],
-                        "Block or rate-limit the source; check whether any attempt succeeded (see 'possible success').")
-            f.count += s["login_posts"]
-            f.ips[ip] += s["login_posts"]
-            s["flags"]["bruteforce"] += 1
-            if not f.evidence or all(e["ip"] != ip for e in f.evidence):
-                if len(f.evidence) < EVIDENCE_PER_FINDING:
-                    f.evidence.append({"line": None, "ip": ip, "ts": None,
-                                       "text": f"{s['login_posts']} login POSTs, {s['login_fail']} refused (401/403/429)"})
-        if len(s["users"]) >= 5 and s["login_posts"] >= 8:
-            f = finding("stuffing", "Credential stuffing / spraying pattern", "critical", ["T1110.004", "T1110.003"],
-                        "One source trying many accounts: block it and force resets for any account that then succeeded.")
-            f.count += len(s["users"])
-            f.ips[ip] += len(s["users"])
-            s["flags"]["stuffing"] += 1
-            if len(f.evidence) < EVIDENCE_PER_FINDING:
-                f.evidence.append({"line": None, "ip": ip, "ts": None,
-                                   "text": f"{len(s['users'])} distinct accounts from one source"})
-        if len(s["missing"]) >= enumeration_min:
-            f = finding("enumeration", "Path enumeration (many distinct 404s)", "medium", ["T1595.003"],
-                        "Wordlist scanning. Block or tarpit; a honeypot path would make this visible earlier.")
-            f.count += len(s["missing"])
-            f.ips[ip] += len(s["missing"])
-            s["flags"]["enumeration"] += 1
-            if len(f.evidence) < EVIDENCE_PER_FINDING:
-                f.evidence.append({"line": None, "ip": ip, "ts": None,
-                                   "text": f"{len(s['missing'])} distinct missing paths, e.g. " + ", ".join(sorted(s["missing"])[:4])})
-    for ip, (rec, posts_before) in first_login_ok.items():
-        if posts_before >= brute_force_min:
-            f = finding("possible_success", "Possible successful login after many attempts", "critical", ["T1078", "T1110"],
-                        "Treat the account as compromised until proven otherwise: reset, revoke sessions, review activity.")
-            f.add(rec, note=f"redirect after {posts_before} earlier login POSTs")
-            ip_stats[ip]["flags"]["possible_success"] += 1
-    flood_ips = {}
-    for (ip, minute), c in minute_ip.items():
-        if c >= flood_per_minute:
-            flood_ips[ip] = max(flood_ips.get(ip, 0), c)
-    for ip, c in flood_ips.items():
-        f = finding("flood", "Request flood from one source", "medium", ["T1499"],
-                    "Rate-limit at the edge; confirm the source is not a legitimate integration.")
-        f.count += c
-        f.ips[ip] += c
-        if ip in ip_stats:
-            ip_stats[ip]["flags"]["flood"] += 1
-        if len(f.evidence) < EVIDENCE_PER_FINDING:
-            f.evidence.append({"line": None, "ip": ip, "ts": None, "text": f"peak {c} requests in one minute"})
-    for minute, c5 in minute_5xx.items():
-        tot = minute_tot.get(minute, 0)
-        if c5 >= 10 and tot and c5 / tot >= 0.2:
-            f = finding("error_spike", "Server-error spike", "medium", ["T1499"],
-                        "Correlate with deploys and with the attack findings above; may be exploitation or an outage.")
-            f.count += c5
-            if len(f.evidence) < EVIDENCE_PER_FINDING:
-                f.evidence.append({"line": None, "ip": None, "ts": minute.isoformat(sep=" "),
-                                   "text": f"{c5} of {tot} requests returned 5xx in this minute"})
-    for ip, (cnt, users) in ssh_fail.items():
-        if ip in ip_stats:
-            ip_stats[ip]["flags"]["ssh_bruteforce"] += 1
-        if len(users) >= 5:
-            f = finding("ssh_spray", "SSH username spraying", "high", ["T1110.003"],
-                        "One source trying many usernames; block it.")
-            f.count += len(users)
-            f.ips[ip] += len(users)
-        if cnt >= 5 and ssh_ok.get(ip):
-            f = finding("ssh_possible_success", "SSH login accepted after repeated failures", "critical",
-                        ["T1078", "T1110.001"], "Assume the account is compromised: rotate credentials and inspect the session.")
-            f.add(ssh_ok[ip][0], note=f"{cnt} failures first")
-            ip_stats[ip]["flags"]["possible_success"] += 1
+    def detect(self, brute_force_min, enumeration_min, flood_per_minute):
+        # One pass per source in table order: the order findings are first
+        # created in decides the report's order between equally ranked ones.
+        for ip, s in self.ip_stats.items():
+            self._bruteforce(ip, s, brute_force_min)
+            self._stuffing(ip, s)
+            self._enumeration(ip, s, enumeration_min)
+        self._possible_success(brute_force_min)
+        self._floods(flood_per_minute)
+        self._error_spikes()
+        self._ssh_detections()
 
-    # ── per-source scoring ────────────────────────────────────────────
-    sev_of = {fid: f.severity for fid, f in findings.items()}
-    sources = []
-    for ip, s in ip_stats.items():
-        # The score is only these parts added up (capped at 100); they go out
-        # with it so the page shows exactly how a source got its number.
-        parts = []
-        for flag, c in s["flags"].items():
-            sev = sev_of.get(flag) or sev_of.get("app_event:" + flag) or "medium"
-            if c and _SEV_POINTS[sev]:
-                parts.append({"what": flag, "severity": sev, "points": _SEV_POINTS[sev]})
-        if s["requests"] >= 20 and s["errors"] / s["requests"] >= 0.6:
-            parts.append({"what": "60%+ of its 20+ requests failed", "severity": None, "points": 8})
-        score = min(100, sum(p["points"] for p in parts))
-        sources.append({
-            "ip": ip, "requests": s["requests"], "errors": s["errors"], "bytes": s["bytes"],
-            "distinct_paths": len(s["paths"]), "login_posts": s["login_posts"], "accounts": len(s["users"]),
-            "flags": sorted(s["flags"]), "score": score, "score_parts": sorted(parts, key=lambda p: -p["points"]),
-            "non_public": _ip_is_non_public(ip),
-            "verdict": ("block" if score >= 60 else "watch" if score >= 25 else "ok"),
-            "first": s["first"].isoformat(sep=" ") if s["first"] else None,
-            "last": s["last"].isoformat(sep=" ") if s["last"] else None})
-    sources.sort(key=lambda x: (-x["score"], -x["requests"]))
+    def _bruteforce(self, ip, s, brute_force_min):
+        if s["login_posts"] < brute_force_min:
+            return
+        f = self.finding("bruteforce", "Login brute force / password guessing", "high", ["T1110"],
+                         "Block or rate-limit the source; check whether any attempt succeeded (see 'possible success').")
+        s["flags"]["bruteforce"] += 1
+        f.tally(ip, s["login_posts"], f"{s['login_posts']} login POSTs, {s['login_fail']} refused (401/403/429)")
 
-    out_findings = sorted((f.out() for f in findings.values()),
+    def _stuffing(self, ip, s):
+        if len(s["users"]) < 5 or s["login_posts"] < 8:
+            return
+        f = self.finding("stuffing", "Credential stuffing / spraying pattern", "critical", ["T1110.004", "T1110.003"],
+                         "One source trying many accounts: block it and force resets for any account that then succeeded.")
+        s["flags"]["stuffing"] += 1
+        f.tally(ip, len(s["users"]), f"{len(s['users'])} distinct accounts from one source")
+
+    def _enumeration(self, ip, s, enumeration_min):
+        if len(s["missing"]) < enumeration_min:
+            return
+        f = self.finding("enumeration", "Path enumeration (many distinct 404s)", "medium", ["T1595.003"],
+                         "Wordlist scanning. Block or tarpit; a honeypot path would make this visible earlier.")
+        s["flags"]["enumeration"] += 1
+        f.tally(ip, len(s["missing"]),
+                f"{len(s['missing'])} distinct missing paths, e.g. " + ", ".join(sorted(s["missing"])[:4]))
+
+    def _possible_success(self, brute_force_min):
+        for ip, (rec, posts_before) in self.first_login_ok.items():
+            if posts_before >= brute_force_min:
+                f = self.finding("possible_success", "Possible successful login after many attempts", "critical",
+                                 ["T1078", "T1110"],
+                                 "Treat the account as compromised until proven otherwise: reset, revoke sessions, review activity.")
+                f.add(rec, note=f"redirect after {posts_before} earlier login POSTs")
+                self.ip_stats[ip]["flags"]["possible_success"] += 1
+
+    def _floods(self, flood_per_minute):
+        peaks = {}
+        for (ip, _minute), c in self.minute_ip.items():
+            if c >= flood_per_minute:
+                peaks[ip] = max(peaks.get(ip, 0), c)
+        for ip, c in peaks.items():
+            f = self.finding("flood", "Request flood from one source", "medium", ["T1499"],
+                             "Rate-limit at the edge; confirm the source is not a legitimate integration.")
+            _flag(self.ip_stats.get(ip), "flood")
+            f.tally(ip, c, f"peak {c} requests in one minute")
+
+    def _error_spikes(self):
+        for minute, c5 in self.minute_5xx.items():
+            tot = self.minute_tot.get(minute, 0)
+            if c5 >= 10 and tot and c5 / tot >= 0.2:
+                f = self.finding("error_spike", "Server-error spike", "medium", ["T1499"],
+                                 "Correlate with deploys and with the attack findings above; may be exploitation or an outage.")
+                f.tally(None, c5, f"{c5} of {tot} requests returned 5xx in this minute", ts=_iso(minute))
+
+    def _ssh_detections(self):
+        for ip, (cnt, users) in self.ssh_fail.items():
+            _flag(self.ip_stats.get(ip), "ssh_bruteforce")
+            if len(users) >= 5:
+                self.finding("ssh_spray", "SSH username spraying", "high", ["T1110.003"],
+                             "One source trying many usernames; block it.").tally(ip, len(users))
+            if cnt >= 5 and self.ssh_ok.get(ip):
+                f = self.finding("ssh_possible_success", "SSH login accepted after repeated failures", "critical",
+                                 ["T1078", "T1110.001"],
+                                 "Assume the account is compromised: rotate credentials and inspect the session.")
+                f.add(self.ssh_ok[ip][0], note=f"{cnt} failures first")
+                # The source may be untracked: once the address table is full
+                # (MAX_TRACKED_IPS), sshd lines are still counted here but get
+                # no per-source row. Indexing ip_stats raised KeyError.
+                _flag(self.ip_stats.get(ip), "possible_success")
+
+    # ── report ────────────────────────────────────────────────────────
+    def sources(self):
+        sev_of = {fid: f.severity for fid, f in self.findings.items()}
+        rows = [_source_row(ip, s, sev_of) for ip, s in self.ip_stats.items()]
+        rows.sort(key=lambda x: (-x["score"], -x["requests"]))
+        return rows
+
+    def timeline(self, sources):
+        bucket = _timeline_bucket(self.first_ts, self.last_ts)
+        points = collections.OrderedDict()
+        if bucket:
+            fmt = _BUCKET_FORMAT[bucket]
+            self._quiet_buckets(points, bucket, fmt)
+            # re-walk the per-minute totals (already aggregated) instead of the lines
+            for minute in sorted(self.minute_tot):
+                key = minute.strftime(fmt)
+                slot = points.setdefault(key, _timeline_point(key))
+                slot["requests"] += self.minute_tot[minute]
+                slot["errors5xx"] += self.minute_5xx.get(minute, 0)
+            attack_ips = {src["ip"] for src in sources if src["flags"]}
+            for (ip, minute), c in self.minute_ip.items():
+                if ip in attack_ips:
+                    points[minute.strftime(fmt)]["attack"] += c
+        return {"bucket": bucket, "points": list(points.values())}
+
+    def _quiet_buckets(self, points, bucket, fmt):
+        """Every bucket from the first record to the last, quiet ones at zero:
+        without them a quiet stretch vanished and the chart drew a line across
+        it as if there had been traffic. (Bounded: a log whose dates are far
+        apart keeps only its busy buckets rather than thousands of empty ones.)"""
+        step = _BUCKET_STEP[bucket]
+        t = self.first_ts.replace(**_BUCKET_ZERO[bucket])
+        if (self.last_ts - t) / step > TIMELINE_MAX_BUCKETS:
+            return
+        while t <= self.last_ts:
+            key = t.strftime(fmt)
+            points[key] = _timeline_point(key)
+            t += step
+
+    def iocs(self, sources):
+        iocs = [{"type": "ip", "value": s["ip"], "reason": ",".join(s["flags"]) or "noisy"}
+                for s in sources if s["verdict"] != "ok" and not s["non_public"]]
+        for u, _count in self.ua_c.most_common(200):
+            if _SCANNER_UA.search(u):
+                iocs.append({"type": "user_agent", "value": u, "reason": "scanner"})
+        return iocs[:500]
+
+    def report(self):
+        sources = self.sources()
+        findings = sorted((f.out() for f in self.findings.values()),
                           key=lambda f: (-_SEV_RANK[f["severity"]], -f["count"]))
+        timeline = self.timeline(sources)
+        iocs = self.iocs(sources)
+        return {
+            "summary": self._summary(findings, sources),
+            "limits": self.limits,
+            "findings": findings,
+            "sources": sources[:50],
+            "status": {str(k): v for k, v in sorted(self.status_c.items())},
+            "methods": dict(self.method_c.most_common(10)),
+            "top_paths": [{"path": p, "count": c} for p, c in self.path_c.most_common(20)],
+            "top_user_agents": [{"ua": u, "count": c, "scanner": bool(_SCANNER_UA.search(u))}
+                                for u, c in self.ua_c.most_common(15)],
+            "tool_clients": dict(self.tool_ua_c.most_common(8)),
+            "hourly": [self.hours.get(h, 0) for h in range(24)],
+            "timeline": timeline,
+            "iocs": iocs,
+        }
 
-    span = (last_ts - first_ts) if first_ts and last_ts else None
-    if span is None:
-        bucket, fmt = None, None
-    elif span <= datetime.timedelta(hours=3):
-        bucket, fmt = "minute", "%Y-%m-%d %H:%M"
-    elif span <= datetime.timedelta(days=3):
-        bucket, fmt = "hour", "%Y-%m-%d %H:00"
-    else:
-        bucket, fmt = "day", "%Y-%m-%d"
-    timeline = collections.OrderedDict()
-    attack_ips = {src["ip"] for src in sources if src["flags"]}
-    if bucket:
-        # Every bucket from the first record to the last, quiet ones at zero:
-        # without them a quiet stretch vanished and the chart drew a line across
-        # it as if there had been traffic. (Bounded: a log whose dates are far
-        # apart keeps only its busy buckets rather than thousands of empty ones.)
-        step = {"minute": datetime.timedelta(minutes=1), "hour": datetime.timedelta(hours=1),
-                "day": datetime.timedelta(days=1)}[bucket]
-        zero = {"minute": {"second": 0, "microsecond": 0}, "hour": {"minute": 0, "second": 0, "microsecond": 0},
-                "day": {"hour": 0, "minute": 0, "second": 0, "microsecond": 0}}[bucket]
-        t = first_ts.replace(**zero)
-        if (last_ts - t) / step <= TIMELINE_MAX_BUCKETS:
-            while t <= last_ts:
-                key = t.strftime(fmt)
-                timeline[key] = {"t": key, "requests": 0, "errors5xx": 0, "attack": 0}
-                t += step
-        # re-walk the per-minute totals (already aggregated) instead of the lines
-        for minute in sorted(minute_tot):
-            key = minute.strftime(fmt)
-            slot = timeline.setdefault(key, {"t": key, "requests": 0, "errors5xx": 0, "attack": 0})
-            slot["requests"] += minute_tot[minute]
-            slot["errors5xx"] += minute_5xx.get(minute, 0)
-        for (ip, minute), c in minute_ip.items():
-            if ip in attack_ips:
-                timeline[minute.strftime(fmt)]["attack"] += c
-
-    iocs = [{"type": "ip", "value": s["ip"], "reason": ",".join(s["flags"]) or "noisy"}
-            for s in sources if s["verdict"] != "ok" and not s["non_public"]]
-    for u, c in ua_c.most_common(200):
-        if _SCANNER_UA.search(u):
-            iocs.append({"type": "user_agent", "value": u, "reason": "scanner"})
-
-    return {
-        "summary": {
-            "lines_read": lines_read, "records": parsed, "unparsed": skipped,
-            "formats": dict(kinds), "first": first_ts.isoformat(sep=" ") if first_ts else None,
-            "last": last_ts.isoformat(sep=" ") if last_ts else None,
-            "unique_ips": len(ip_stats), "findings": len(out_findings),
-            "critical": sum(1 for f in out_findings if f["severity"] == "critical"),
-            "high": sum(1 for f in out_findings if f["severity"] == "high"),
+    def _summary(self, findings, sources):
+        return {
+            "lines_read": self.lines_read, "records": self.parsed, "unparsed": self.skipped,
+            "formats": dict(self.kinds), "first": _iso(self.first_ts), "last": _iso(self.last_ts),
+            "unique_ips": len(self.ip_stats), "findings": len(findings),
+            "critical": sum(1 for f in findings if f["severity"] == "critical"),
+            "high": sum(1 for f in findings if f["severity"] == "high"),
             "block_candidates": sum(1 for s in sources if s["verdict"] == "block" and not s["non_public"]),
-            "elapsed_ms": int((time.monotonic() - started) * 1000)},
-        "limits": limits,
-        "findings": out_findings,
-        "sources": sources[:50],
-        "status": {str(k): v for k, v in sorted(status_c.items())},
-        "methods": dict(method_c.most_common(10)),
-        "top_paths": [{"path": p, "count": c} for p, c in path_c.most_common(20)],
-        "top_user_agents": [{"ua": u, "count": c, "scanner": bool(_SCANNER_UA.search(u))} for u, c in ua_c.most_common(15)],
-        "tool_clients": dict(tool_ua_c.most_common(8)),
-        "hourly": [hours.get(h, 0) for h in range(24)],
-        "timeline": {"bucket": bucket, "points": list(timeline.values())},
-        "iocs": iocs[:500],
-    }
+            "elapsed_ms": int((time.monotonic() - self.started) * 1000)}
+
+
+def analyze(text, *, brute_force_min=10, enumeration_min=20, flood_per_minute=120):
+    """Analyse log text. -> JSON-serialisable report dict (see _Analysis.report).
+
+    Format is auto-detected per line, so a file may mix access-log, JSON and
+    sshd lines. Thresholds are parameters so tests (and later a settings
+    screen) can tune them without touching the detection logic."""
+    run = _Analysis(text)
+    run.read()
+    run.detect(brute_force_min, enumeration_min, flood_per_minute)
+    return run.report()
