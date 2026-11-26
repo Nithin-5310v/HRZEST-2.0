@@ -1,0 +1,1487 @@
+{
+ "empty": {
+  "summary": {
+   "lines_read": 0,
+   "records": 0,
+   "unparsed": 0,
+   "formats": {},
+   "first": null,
+   "last": null,
+   "unique_ips": 0,
+   "findings": 0,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [],
+  "sha256": {
+   "summary": "4d1e13c67a1477eaa7596a19",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "4f53cda18c2baa0c0354bb5f",
+   "sources": "4f53cda18c2baa0c0354bb5f",
+   "status": "44136fa355b3678a1146ad16",
+   "methods": "44136fa355b3678a1146ad16",
+   "top_paths": "4f53cda18c2baa0c0354bb5f",
+   "top_user_agents": "4f53cda18c2baa0c0354bb5f",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "2fc1d7e09200ebbaf653336f",
+   "timeline": "c6cd62e493fed795ca307aba",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "blank_lines": {
+  "summary": {
+   "lines_read": 4,
+   "records": 0,
+   "unparsed": 0,
+   "formats": {},
+   "first": null,
+   "last": null,
+   "unique_ips": 0,
+   "findings": 0,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [],
+  "sha256": {
+   "summary": "c87cbc8cecb7b0218e9a3108",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "4f53cda18c2baa0c0354bb5f",
+   "sources": "4f53cda18c2baa0c0354bb5f",
+   "status": "44136fa355b3678a1146ad16",
+   "methods": "44136fa355b3678a1146ad16",
+   "top_paths": "4f53cda18c2baa0c0354bb5f",
+   "top_user_agents": "4f53cda18c2baa0c0354bb5f",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "2fc1d7e09200ebbaf653336f",
+   "timeline": "c6cd62e493fed795ca307aba",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "benign": {
+  "summary": {
+   "lines_read": 182,
+   "records": 182,
+   "unparsed": 0,
+   "formats": {
+    "http": 182
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:49:00",
+   "unique_ips": 20,
+   "findings": 0,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [],
+  "sha256": {
+   "summary": "495aec7c8e8859593954ab8e",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "4f53cda18c2baa0c0354bb5f",
+   "sources": "e7f98c2c96fe47fa7cb43a11",
+   "status": "1abb656b6d64bb9ee98d67cb",
+   "methods": "85fc64bac4dbcd58e664bfdf",
+   "top_paths": "bac2c46cbcb5c7d195f5413b",
+   "top_user_agents": "081be1ed8cccaa51bd0453b6",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "878e9708145ba28f09692783",
+   "timeline": "ece0236b4999ccd119fe240f",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "signatures": {
+  "summary": {
+   "lines_read": 39,
+   "records": 39,
+   "unparsed": 0,
+   "formats": {
+    "http": 39
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:38:00",
+   "unique_ips": 7,
+   "findings": 5,
+   "critical": 1,
+   "high": 4,
+   "block_candidates": 6,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "rce",
+   "sqli",
+   "traversal",
+   "xss",
+   "ssrf"
+  ],
+  "sha256": {
+   "summary": "fdf222a0409942cb34fe8482",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "0239287613d404712dc2c6ce",
+   "sources": "d1198a94a86b1e581fb0eff8",
+   "status": "ec67b135b8ab06da7f140292",
+   "methods": "7ae949e90b91de17e299bb15",
+   "top_paths": "e262ab57062ef6f23158045d",
+   "top_user_agents": "f811d0899916b9da3c360875",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "29c3cf354cdbfcc3828dee54",
+   "timeline": "9ef32ff8a5d3adcd519db351",
+   "iocs": "fff5c09f1ee7195224821ad7"
+  }
+ },
+ "generic_text": {
+  "summary": {
+   "lines_read": 8,
+   "records": 5,
+   "unparsed": 3,
+   "formats": {
+    "generic": 8
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:05:00",
+   "unique_ips": 4,
+   "findings": 3,
+   "critical": 0,
+   "high": 3,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "xss",
+   "sqli",
+   "traversal"
+  ],
+  "sha256": {
+   "summary": "760813d089ca455c6f900bad",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "fcff7a2c9fd1e193adce00fd",
+   "sources": "1f363a6a08ecf819ee0cd995",
+   "status": "44136fa355b3678a1146ad16",
+   "methods": "44136fa355b3678a1146ad16",
+   "top_paths": "4f53cda18c2baa0c0354bb5f",
+   "top_user_agents": "4f53cda18c2baa0c0354bb5f",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "55d8104da43cb8dcbe20a15e",
+   "timeline": "9b64a20456c1512019261afa",
+   "iocs": "2d452488a84ab455bcb7e1e6"
+  }
+ },
+ "probes_and_agents": {
+  "summary": {
+   "lines_read": 58,
+   "records": 58,
+   "unparsed": 0,
+   "formats": {
+    "http": 58
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:27:00",
+   "unique_ips": 20,
+   "findings": 5,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "probe",
+   "enumeration",
+   "scanner_ua",
+   "odd_method",
+   "malformed"
+  ],
+  "sha256": {
+   "summary": "01601257d6da6336b5b731d8",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "540f165c3821ebc6fbad632d",
+   "sources": "41ba0336477aa7bd3e131df7",
+   "status": "4c54077a362eccc5d8592f56",
+   "methods": "892f85910adf17f5b820015a",
+   "top_paths": "e4eb3deecdcfe08106998971",
+   "top_user_agents": "b8c5b7eb444d7ca23978760a",
+   "tool_clients": "e0edd2fe0e9e09b33532d70f",
+   "hourly": "2a876560a625ebaf438445c6",
+   "timeline": "439e31cef0457f455c073d9b",
+   "iocs": "e854cb93254cd6da43729cda"
+  }
+ },
+ "access_log_shapes": {
+  "summary": {
+   "lines_read": 11,
+   "records": 11,
+   "unparsed": 0,
+   "formats": {
+    "http": 11
+   },
+   "first": "2026-10-16 08:00:05",
+   "last": "2026-10-16 10:00:09",
+   "unique_ips": 7,
+   "findings": 1,
+   "critical": 0,
+   "high": 1,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "xss"
+  ],
+  "sha256": {
+   "summary": "f88cc0e9385b2cce19e82b3d",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "0bf12792bc8846f037c53cf9",
+   "sources": "831c0c654ea164b8bb4c24a7",
+   "status": "f2b37b476bb390529d18d5d0",
+   "methods": "1e0f5a9e5f8265cba72b0e25",
+   "top_paths": "e69f56e494d6ccbbbd9ecba6",
+   "top_user_agents": "1301f5740f9bafa4927f537c",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "84d5db0b574951c2f5dda05d",
+   "timeline": "532e760b122dfcda99ee94f1",
+   "iocs": "12808ead663756b74c5d7b7c"
+  }
+ },
+ "json_variants": {
+  "summary": {
+   "lines_read": 17,
+   "records": 14,
+   "unparsed": 3,
+   "formats": {
+    "json": 14,
+    "generic": 3
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:00:09",
+   "unique_ips": 11,
+   "findings": 8,
+   "critical": 1,
+   "high": 3,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "app_event:honeypot",
+   "app_event:waf",
+   "sqli",
+   "app_event:detection",
+   "probe",
+   "app_event:auth",
+   "scanner_ua",
+   "app_event:access"
+  ],
+  "sha256": {
+   "summary": "4b0d9c798c2e704cd1dddb87",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "24842752a489e46ad7676c03",
+   "sources": "97aae27cdd8edb11f5a193f1",
+   "status": "48cd85cd9a7160e24c9c2db1",
+   "methods": "c837a798b519d1908f87a2c8",
+   "top_paths": "b19926f9fd9c7bdc0fa4614d",
+   "top_user_agents": "6c002c81ae8b9d0dc8b496fd",
+   "tool_clients": "e862b66330b5767889824808",
+   "hourly": "6908049a7e9455c2a355c454",
+   "timeline": "3d034ee547bcd285b1b2f34d",
+   "iocs": "b7d6d571996ce7e1dead3444"
+  }
+ },
+ "logins": {
+  "summary": {
+   "lines_read": 72,
+   "records": 72,
+   "unparsed": 0,
+   "formats": {
+    "http": 72
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:20:00",
+   "unique_ips": 6,
+   "findings": 4,
+   "critical": 2,
+   "high": 1,
+   "block_candidates": 2,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "stuffing",
+   "possible_success",
+   "bruteforce",
+   "probe"
+  ],
+  "sha256": {
+   "summary": "87eb8dc94b05caebd946fe1b",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "69b08c4b5a068d4ed6656595",
+   "sources": "22d1c67d8bfcdf73beccaea9",
+   "status": "1709f3b97bc7ea5a4c9d6e19",
+   "methods": "5db0a67e603ba39b9a3625a1",
+   "top_paths": "fb2bb9ffe9a5c719b6f1b327",
+   "top_user_agents": "6949ad6d9ad628352b2b9573",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "57ac7840eaa10eedac1a9796",
+   "timeline": "63edb1d7efd307c7b65b6c8c",
+   "iocs": "4702f343d5cdcec924c66d48"
+  }
+ },
+ "logins_low_thresholds": {
+  "summary": {
+   "lines_read": 72,
+   "records": 72,
+   "unparsed": 0,
+   "formats": {
+    "http": 72
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:20:00",
+   "unique_ips": 6,
+   "findings": 4,
+   "critical": 2,
+   "high": 1,
+   "block_candidates": 2,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "stuffing",
+   "possible_success",
+   "bruteforce",
+   "probe"
+  ],
+  "sha256": {
+   "summary": "87eb8dc94b05caebd946fe1b",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "c8ffdc0da10d49557ed6e009",
+   "sources": "345979ee8da0f7b9b4f0ee1d",
+   "status": "1709f3b97bc7ea5a4c9d6e19",
+   "methods": "5db0a67e603ba39b9a3625a1",
+   "top_paths": "fb2bb9ffe9a5c719b6f1b327",
+   "top_user_agents": "6949ad6d9ad628352b2b9573",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "57ac7840eaa10eedac1a9796",
+   "timeline": "63edb1d7efd307c7b65b6c8c",
+   "iocs": "be1ccc36365aab71db3f4d59"
+  }
+ },
+ "json_stuffing": {
+  "summary": {
+   "lines_read": 10,
+   "records": 10,
+   "unparsed": 0,
+   "formats": {
+    "json": 10
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:00:09",
+   "unique_ips": 1,
+   "findings": 2,
+   "critical": 1,
+   "high": 1,
+   "block_candidates": 1,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "stuffing",
+   "bruteforce"
+  ],
+  "sha256": {
+   "summary": "128aea328acacc7ece3b33f5",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "2b2da4d45bb28c38b2c7fbc3",
+   "sources": "7da21a40d750ba0b6e547d45",
+   "status": "9ec3687e94f9d6bf58db593f",
+   "methods": "377c4bc63181f9651c4c4888",
+   "top_paths": "5ab86f75f4871d3eeb03c557",
+   "top_user_agents": "4f53cda18c2baa0c0354bb5f",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "6908049a7e9455c2a355c454",
+   "timeline": "d41bbd4a975059e6da0519d6",
+   "iocs": "a0eee841bc45d3c450d04026"
+  }
+ },
+ "enumeration": {
+  "summary": {
+   "lines_read": 50,
+   "records": 50,
+   "unparsed": 0,
+   "formats": {
+    "http": 50
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:29:00",
+   "unique_ips": 2,
+   "findings": 1,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "enumeration"
+  ],
+  "sha256": {
+   "summary": "24265fadb8d8c4b20febad83",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "e3bdc48b8cad21f31edeffac",
+   "sources": "f9d74c69a112ea600ababe0c",
+   "status": "92543e4856f69f217a9cc47e",
+   "methods": "e4275b990f827d431855c57c",
+   "top_paths": "72c9e861d3978dd6326bcc13",
+   "top_user_agents": "f38fa4bf7ceb396c87623a07",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "24a9ecc922b51c5bde7f28ed",
+   "timeline": "92a6e3ec1c56908069588a8f",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "enumeration_threshold": {
+  "summary": {
+   "lines_read": 50,
+   "records": 50,
+   "unparsed": 0,
+   "formats": {
+    "http": 50
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:29:00",
+   "unique_ips": 2,
+   "findings": 1,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "enumeration"
+  ],
+  "sha256": {
+   "summary": "24265fadb8d8c4b20febad83",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "cc2945776c9364db3cfe70df",
+   "sources": "f6cf20e4553867df4cc0309a",
+   "status": "92543e4856f69f217a9cc47e",
+   "methods": "e4275b990f827d431855c57c",
+   "top_paths": "72c9e861d3978dd6326bcc13",
+   "top_user_agents": "f38fa4bf7ceb396c87623a07",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "24a9ecc922b51c5bde7f28ed",
+   "timeline": "8235c94a8126670cdd33caee",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "flood": {
+  "summary": {
+   "lines_read": 520,
+   "records": 520,
+   "unparsed": 0,
+   "formats": {
+    "http": 520
+   },
+   "first": "2026-10-16 10:05:00",
+   "last": "2026-10-16 10:07:59",
+   "unique_ips": 3,
+   "findings": 1,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "flood"
+  ],
+  "sha256": {
+   "summary": "b448e3dd553f5561f9733769",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "2c9f8dcd0e2e9591ddb23ef9",
+   "sources": "e223e4ecc4c67d15cfbdf101",
+   "status": "c4068c269135143afae25057",
+   "methods": "1fa85711b61b3dbab5178e67",
+   "top_paths": "6cdb55063632b5a609112be2",
+   "top_user_agents": "75bffdc0b701fae70938a42d",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "b5bb5197389d311e2e67c289",
+   "timeline": "fe32875a67de3e12a453839e",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "error_spikes": {
+  "summary": {
+   "lines_read": 343,
+   "records": 343,
+   "unparsed": 0,
+   "formats": {
+    "http": 343
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:30:59",
+   "unique_ips": 4,
+   "findings": 1,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "error_spike"
+  ],
+  "sha256": {
+   "summary": "c8a9c6d719ad9bbcbf7673e3",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "369c206560d4800796a3309b",
+   "sources": "e31f75d55498927d34c6796d",
+   "status": "24aa90dc6b5d9fac92de865f",
+   "methods": "e9b21715c5cca0b0cc18379d",
+   "top_paths": "65eae883035ebbbd80e68053",
+   "top_user_agents": "383a6bdf836ff4b3a187bbba",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "87aa5f6482adcb09b0dc4a94",
+   "timeline": "3e509f9cf4683011bb180b6a",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "ssh": {
+  "summary": {
+   "lines_read": 32,
+   "records": 32,
+   "unparsed": 0,
+   "formats": {
+    "ssh": 32
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:08:03",
+   "unique_ips": 7,
+   "findings": 3,
+   "critical": 1,
+   "high": 2,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "ssh_possible_success",
+   "ssh_bruteforce",
+   "ssh_spray"
+  ],
+  "sha256": {
+   "summary": "51670323cb89d832844e3e99",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "6cf1024b6109f0a08fe3d8bc",
+   "sources": "570dfdf3543b77f9357a37e7",
+   "status": "44136fa355b3678a1146ad16",
+   "methods": "44136fa355b3678a1146ad16",
+   "top_paths": "4f53cda18c2baa0c0354bb5f",
+   "top_user_agents": "4f53cda18c2baa0c0354bb5f",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "93fca1b97a3dca843b148413",
+   "timeline": "d9477e89bb8bd50bca0c88c8",
+   "iocs": "a6572f1f7ea49bc28accbd6c"
+  }
+ },
+ "aggregate_caps": {
+  "summary": {
+   "lines_read": 1113,
+   "records": 1113,
+   "unparsed": 0,
+   "formats": {
+    "http": 1113
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:40:59",
+   "unique_ips": 7,
+   "findings": 4,
+   "critical": 1,
+   "high": 1,
+   "block_candidates": 7,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "stuffing",
+   "bruteforce",
+   "flood",
+   "enumeration"
+  ],
+  "sha256": {
+   "summary": "e197cac92b6efc4cab245aca",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "48dce7c223e0db979e01223d",
+   "sources": "a1f95badb3a60c55764c2567",
+   "status": "2cd974fb1096d36e88064a10",
+   "methods": "53cb1cede030f9753cb5096a",
+   "top_paths": "512d00f1bb2aa7ce2a4bdcad",
+   "top_user_agents": "95dccf04988e7ad59e179ba9",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "5312cd0b610a2969e9d91aee",
+   "timeline": "ec127043cb332db5ad3b9666",
+   "iocs": "d12f83ddfffc5c73b760101f"
+  }
+ },
+ "scoring": {
+  "summary": {
+   "lines_read": 91,
+   "records": 91,
+   "unparsed": 0,
+   "formats": {
+    "http": 88,
+    "json": 3
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:24:00",
+   "unique_ips": 6,
+   "findings": 6,
+   "critical": 0,
+   "high": 2,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "app_event:waf",
+   "xss",
+   "enumeration",
+   "probe",
+   "scanner_ua",
+   "odd_method"
+  ],
+  "sha256": {
+   "summary": "48c721dbc6f76e51a9980a17",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "2be82eef0ba9b3c90a567b00",
+   "sources": "92d6e493184a7e1b82898ead",
+   "status": "2be29f42b6e4839b74906eec",
+   "methods": "a90060ab941e840b9bfc1515",
+   "top_paths": "f1826288d1e2e5b9021f3308",
+   "top_user_agents": "97b7b57d7b219b4fa823980b",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "3a015a4603f6160b4a17355f",
+   "timeline": "9f419c7c760af46ef7a504d2",
+   "iocs": "5264415aab4de90ad03a498a"
+  }
+ },
+ "non_public": {
+  "summary": {
+   "lines_read": 192,
+   "records": 192,
+   "unparsed": 0,
+   "formats": {
+    "http": 192
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:20:00",
+   "unique_ips": 12,
+   "findings": 2,
+   "critical": 0,
+   "high": 1,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "bruteforce",
+   "scanner_ua"
+  ],
+  "sha256": {
+   "summary": "48cd081bb7ad16c59078e5a7",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "d03261d2fb70912b38895f32",
+   "sources": "4ef454e8740f95ad811c6e57",
+   "status": "9af6e2b0d67a81aa221fc57f",
+   "methods": "3397b984df8112e1708ae974",
+   "top_paths": "2ea8571d3a92956f81ddbf73",
+   "top_user_agents": "56a10e3e6b13bf8f046e2a57",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "0ff86334558cb1463cb6587e",
+   "timeline": "e2597e2cef906c1aa864b9c5",
+   "iocs": "7031285efde009c021667892"
+  }
+ },
+ "timeline_hour": {
+  "summary": {
+   "lines_read": 8,
+   "records": 8,
+   "unparsed": 0,
+   "formats": {
+    "http": 8
+   },
+   "first": "2026-10-16 08:00:00",
+   "last": "2026-10-16 12:30:00",
+   "unique_ips": 2,
+   "findings": 1,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "probe"
+  ],
+  "sha256": {
+   "summary": "5997b0afcf4f592d5fd7321b",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "910ce7e8e4ea55469fd2c916",
+   "sources": "8482d6c50aaa71013aa5e96e",
+   "status": "881dab048bcf85e1493d43cf",
+   "methods": "d5047c96b3f14c949257dceb",
+   "top_paths": "92a45c05778fee2025d6027d",
+   "top_user_agents": "637fe7437a901f7280e6f78e",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "225e4caf1b9fdf13ca71feb5",
+   "timeline": "ab4a3384e898a39515a2ac29",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "timeline_day": {
+  "summary": {
+   "lines_read": 6,
+   "records": 6,
+   "unparsed": 0,
+   "formats": {
+    "http": 6
+   },
+   "first": "2026-10-01 10:00:00",
+   "last": "2026-10-11 10:05:00",
+   "unique_ips": 2,
+   "findings": 1,
+   "critical": 0,
+   "high": 1,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "xss"
+  ],
+  "sha256": {
+   "summary": "8e595ef1053407cc9df79af6",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "bbdc25f100259b56ec2f6966",
+   "sources": "2398a5d1cc5166c24e9531c8",
+   "status": "a3f0455297be5e0e60b5ca77",
+   "methods": "fbae1b66402da8fe76d92f26",
+   "top_paths": "32fd0bb9583240a587d97b83",
+   "top_user_agents": "edc5e2d6b45c534a2ccb1143",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "4d5157510df928489500cab1",
+   "timeline": "e8d3cdc44a8002f9d928e337",
+   "iocs": "5ed1d3665cec335771920944"
+  }
+ },
+ "timeline_sparse": {
+  "summary": {
+   "lines_read": 3,
+   "records": 3,
+   "unparsed": 0,
+   "formats": {
+    "http": 3
+   },
+   "first": "2019-10-16 10:00:00",
+   "last": "2026-10-16 10:01:00",
+   "unique_ips": 2,
+   "findings": 1,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "probe"
+  ],
+  "sha256": {
+   "summary": "8f3448359b501108f7d4698c",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "ac9f3606b2b706375aecbaa5",
+   "sources": "4c8d525a832759641e8cb1ce",
+   "status": "f746c5bc268b5525f9c2af18",
+   "methods": "e5fd3d197223de1c89f9dc6e",
+   "top_paths": "bdf4aa2c6b7656f81a1eca28",
+   "top_user_agents": "2e8d582cd9f4af27b8cd4be9",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "70bf1d21b394fa2d3553d45f",
+   "timeline": "d2f97dd451d459ccf60c4bbe",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "timeline_bucket_cap": {
+  "summary": {
+   "lines_read": 3,
+   "records": 3,
+   "unparsed": 0,
+   "formats": {
+    "http": 3
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:30:00",
+   "unique_ips": 2,
+   "findings": 1,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "probe"
+  ],
+  "sha256": {
+   "summary": "8d6bf29d5d42b060f3a9b299",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "e2aa90a96fc225697ae70e5d",
+   "sources": "eb8173b364a11821843073a2",
+   "status": "f746c5bc268b5525f9c2af18",
+   "methods": "e5fd3d197223de1c89f9dc6e",
+   "top_paths": "bdf4aa2c6b7656f81a1eca28",
+   "top_user_agents": "2e8d582cd9f4af27b8cd4be9",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "70bf1d21b394fa2d3553d45f",
+   "timeline": "496582802f77477d1cdc9a2f",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "no_timestamps": {
+  "summary": {
+   "lines_read": 3,
+   "records": 3,
+   "unparsed": 0,
+   "formats": {
+    "generic": 3
+   },
+   "first": null,
+   "last": null,
+   "unique_ips": 2,
+   "findings": 1,
+   "critical": 0,
+   "high": 1,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "traversal"
+  ],
+  "sha256": {
+   "summary": "b048badfc74ba33a96b37913",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "efc74af33f4f1cef737b3f7e",
+   "sources": "f3952f6cb843253af6417c87",
+   "status": "44136fa355b3678a1146ad16",
+   "methods": "44136fa355b3678a1146ad16",
+   "top_paths": "4f53cda18c2baa0c0354bb5f",
+   "top_user_agents": "4f53cda18c2baa0c0354bb5f",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "2fc1d7e09200ebbaf653336f",
+   "timeline": "c6cd62e493fed795ca307aba",
+   "iocs": "07f65fb1b9d5f22cd3519ada"
+  }
+ },
+ "caps_on_lists": {
+  "summary": {
+   "lines_read": 80,
+   "records": 80,
+   "unparsed": 0,
+   "formats": {
+    "http": 80
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:35:00",
+   "unique_ips": 5,
+   "findings": 1,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "scanner_ua"
+  ],
+  "sha256": {
+   "summary": "1f153e2c230004f1919a72b3",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "16e89a201fc5d9742dbcfdc9",
+   "sources": "4839bea09e0c8a0e94f19c53",
+   "status": "fdfdffc0b8954317226af943",
+   "methods": "f2e3ad3a03af349a2735d21a",
+   "top_paths": "14a958a2626fbb95e6e5d718",
+   "top_user_agents": "3489afa10561b49a8efb2955",
+   "tool_clients": "bae3d4b335fe38cd723a5461",
+   "hourly": "d22d57de9f8c7f85147b721d",
+   "timeline": "6ab2bcc33a7b3744a5ca5618",
+   "iocs": "34b086656f941b02468605aa"
+  }
+ },
+ "many_offenders": {
+  "summary": {
+   "lines_read": 520,
+   "records": 520,
+   "unparsed": 0,
+   "formats": {
+    "http": 520
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:59:00",
+   "unique_ips": 520,
+   "findings": 1,
+   "critical": 0,
+   "high": 1,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "sqli"
+  ],
+  "sha256": {
+   "summary": "a9c060572f39f2ea9b96c3c7",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "8b042247c13b86a955baf82a",
+   "sources": "dec7f262af5e31b71af5d55f",
+   "status": "c4068c269135143afae25057",
+   "methods": "1fa85711b61b3dbab5178e67",
+   "top_paths": "1bd52d84bd92d8514dd2015e",
+   "top_user_agents": "75bffdc0b701fae70938a42d",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "b5bb5197389d311e2e67c289",
+   "timeline": "83203a5508fea53a38c193d2",
+   "iocs": "9ffdbac8340fba6fc1142c32"
+  }
+ },
+ "hostile": {
+  "summary": {
+   "lines_read": 8,
+   "records": 3,
+   "unparsed": 5,
+   "formats": {
+    "generic": 7,
+    "json": 1
+   },
+   "first": null,
+   "last": null,
+   "unique_ips": 2,
+   "findings": 0,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 3,
+   "ip_table_full": false
+  },
+  "finding_ids": [],
+  "sha256": {
+   "summary": "cb38ad1a8c83b3bb87afebe0",
+   "limits": "cbf09e311288a70440f62139",
+   "findings": "4f53cda18c2baa0c0354bb5f",
+   "sources": "5a2714d09ba50a5b3010592d",
+   "status": "44136fa355b3678a1146ad16",
+   "methods": "44136fa355b3678a1146ad16",
+   "top_paths": "4f53cda18c2baa0c0354bb5f",
+   "top_user_agents": "4f53cda18c2baa0c0354bb5f",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "2fc1d7e09200ebbaf653336f",
+   "timeline": "c6cd62e493fed795ca307aba",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "everything_mixed": {
+  "summary": {
+   "lines_read": 406,
+   "records": 403,
+   "unparsed": 3,
+   "formats": {
+    "http": 382,
+    "json": 8,
+    "ssh": 8,
+    "generic": 8
+   },
+   "first": "2026-10-16 08:00:05",
+   "last": "2026-10-16 10:07:00",
+   "unique_ips": 29,
+   "findings": 12,
+   "critical": 1,
+   "high": 6,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "app_event:honeypot",
+   "sqli",
+   "ssh_bruteforce",
+   "ssh_spray",
+   "xss",
+   "app_event:waf",
+   "traversal",
+   "flood",
+   "error_spike",
+   "probe",
+   "app_event:auth",
+   "scanner_ua"
+  ],
+  "sha256": {
+   "summary": "10ce786550f4aee5bf8a1ee7",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "ccf2f84e33efd0f9f97d9f8a",
+   "sources": "52677d4fe5b794f2ace05e2c",
+   "status": "a0e8d34bbed86a7c2e18bc44",
+   "methods": "becff6d75b05f5763d91cf89",
+   "top_paths": "21d8f8949bf5dcb08c0c289b",
+   "top_user_agents": "0a30028c51a464c05b8660fa",
+   "tool_clients": "e862b66330b5767889824808",
+   "hourly": "e50fc99ba0a34c6483b431ea",
+   "timeline": "dfef531ab85e3747442bebe8",
+   "iocs": "88648911edebc4c5c6caea8b"
+  }
+ },
+ "cap_lines": {
+  "summary": {
+   "lines_read": 50,
+   "records": 50,
+   "unparsed": 0,
+   "formats": {
+    "http": 50
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:00:00",
+   "unique_ips": 1,
+   "findings": 0,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": true,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [],
+  "sha256": {
+   "summary": "2a2c5fd91756e1ab6579fad9",
+   "limits": "0040dfa6a14b8a5d0c40ed58",
+   "findings": "4f53cda18c2baa0c0354bb5f",
+   "sources": "09ce41a00d84e1259b5c2242",
+   "status": "e545b0b07d356dee916dabee",
+   "methods": "e4275b990f827d431855c57c",
+   "top_paths": "a400ae95bb0b6e9f94651174",
+   "top_user_agents": "f38fa4bf7ceb396c87623a07",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "24a9ecc922b51c5bde7f28ed",
+   "timeline": "e6e36fffd3dab09e3d5596de",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "cap_bytes": {
+  "summary": {
+   "lines_read": 9,
+   "records": 9,
+   "unparsed": 0,
+   "formats": {
+    "http": 9
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:00:00",
+   "unique_ips": 1,
+   "findings": 0,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": true,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [],
+  "sha256": {
+   "summary": "fb0c9d446614c17e3e1740a0",
+   "limits": "230a7a2aebe46ca30acacae1",
+   "findings": "4f53cda18c2baa0c0354bb5f",
+   "sources": "21442495e662202c9ff96030",
+   "status": "64b501b86f6b4e5ee12f6e90",
+   "methods": "b7f11a3252a2af205c3b0bfa",
+   "top_paths": "07a3779e5defca40b9bff457",
+   "top_user_agents": "637fe7437a901f7280e6f78e",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "dfc185795ab17b321f11b947",
+   "timeline": "3ea4c68771fd58be98bf0b15",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "cap_time_budget": {
+  "summary": {
+   "lines_read": 999,
+   "records": 999,
+   "unparsed": 0,
+   "formats": {
+    "http": 999
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:59:00",
+   "unique_ips": 1,
+   "findings": 0,
+   "critical": 0,
+   "high": 0,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": true,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [],
+  "sha256": {
+   "summary": "2898c4160d032301e44cdd49",
+   "limits": "77a8891088ff0bd4878afbc1",
+   "findings": "4f53cda18c2baa0c0354bb5f",
+   "sources": "cf6b3e71e55fcaa15691daa3",
+   "status": "0f37da6219eb68840616bf5b",
+   "methods": "2ae3b6a43c842e8e1ddc35aa",
+   "top_paths": "d72228f339746ab8d217eb10",
+   "top_user_agents": "09f5275a738bf3721190d661",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "96e204c58b2429415a358632",
+   "timeline": "6fcbe1e5bb7c9b7619586f12",
+   "iocs": "4f53cda18c2baa0c0354bb5f"
+  }
+ },
+ "cap_tracked_ips": {
+  "summary": {
+   "lines_read": 193,
+   "records": 193,
+   "unparsed": 0,
+   "formats": {
+    "http": 186,
+    "json": 1,
+    "ssh": 6
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:24:00",
+   "unique_ips": 3,
+   "findings": 10,
+   "critical": 1,
+   "high": 4,
+   "block_candidates": 1,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": true
+  },
+  "finding_ids": [
+   "stuffing",
+   "xss",
+   "bruteforce",
+   "ssh_bruteforce",
+   "app_event:waf",
+   "flood",
+   "enumeration",
+   "error_spike",
+   "scanner_ua",
+   "odd_method"
+  ],
+  "sha256": {
+   "summary": "c61358c7a29d4c3b40eaa293",
+   "limits": "4fae32ff5087869f50830391",
+   "findings": "688ff969cd4054d62324ee4a",
+   "sources": "1b366715e4831d8efda1ca44",
+   "status": "5d9c36b456e9aff13bd18ea7",
+   "methods": "fc5c5246360756e2218978e9",
+   "top_paths": "6c96f2d4737e56463fc4b1c8",
+   "top_user_agents": "980531a1fa8a14fcd1dcc727",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "3f5746f242cb0fa74277f4a0",
+   "timeline": "ff72a035e989eae53698bf5e",
+   "iocs": "437f80c9d8bd6abb47f97fce"
+  }
+ },
+ "cap_distinct_per_ip": {
+  "summary": {
+   "lines_read": 30,
+   "records": 30,
+   "unparsed": 0,
+   "formats": {
+    "http": 21,
+    "ssh": 9
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:11:00",
+   "unique_ips": 3,
+   "findings": 4,
+   "critical": 1,
+   "high": 2,
+   "block_candidates": 0,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "stuffing",
+   "ssh_bruteforce",
+   "ssh_spray",
+   "enumeration"
+  ],
+  "sha256": {
+   "summary": "ec5e471309d5f96529471f2d",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "a11258003573bc8aa467e614",
+   "sources": "55c828c4781ca6ee9cc30168",
+   "status": "0087f433855499a0816339fe",
+   "methods": "39747fee37253026d0942f49",
+   "top_paths": "b49a063d38f0f59a86170d25",
+   "top_user_agents": "9525f5a05541e7bbc49b06f8",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "56bfc409da745befa1968fa8",
+   "timeline": "03ea21602e4c011342a577db",
+   "iocs": "7943103e0dfc8d6fd8b39291"
+  }
+ },
+ "cap_evidence": {
+  "summary": {
+   "lines_read": 239,
+   "records": 239,
+   "unparsed": 0,
+   "formats": {
+    "http": 239
+   },
+   "first": "2026-10-16 10:00:00",
+   "last": "2026-10-16 10:40:59",
+   "unique_ips": 9,
+   "findings": 9,
+   "critical": 2,
+   "high": 5,
+   "block_candidates": 8,
+   "elapsed_ms": 0
+  },
+  "limits": {
+   "truncated_bytes": false,
+   "truncated_lines": false,
+   "time_budget_hit": false,
+   "long_lines_clipped": 0,
+   "ip_table_full": false
+  },
+  "finding_ids": [
+   "stuffing",
+   "rce",
+   "bruteforce",
+   "sqli",
+   "traversal",
+   "xss",
+   "ssrf",
+   "flood",
+   "enumeration"
+  ],
+  "sha256": {
+   "summary": "bc3d9c792185edcc049b0db8",
+   "limits": "fb1a90ce75ae1dbdf24918b4",
+   "findings": "9aba394f9cbcf59305a31574",
+   "sources": "106143063fa250dffd17691b",
+   "status": "ba996d9c21288f9a3dddde42",
+   "methods": "ef78d6efe44523e8d3a132a6",
+   "top_paths": "f4b8529dc06a29a2195021e1",
+   "top_user_agents": "9e6d699b6a23cb671f7ed1a8",
+   "tool_clients": "44136fa355b3678a1146ad16",
+   "hourly": "580ee5322f493c717f58a8bf",
+   "timeline": "4170da58bc39f37c402fb892",
+   "iocs": "9c19ede5250adb2aea741784"
+  }
+ }
+}
