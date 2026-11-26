@@ -30,6 +30,8 @@ import shutil
 import threading
 import time
 
+import psycopg2
+
 from extensions import app_log
 
 SOURCES = ("host", "postgres", "app")
@@ -199,10 +201,10 @@ def read_postgres(cur):
     cur.fetchone()
     metrics = {"latency_ms": round((time.perf_counter() - t0) * 1000.0, 2)}
     cur.execute("SELECT current_setting('max_connections')::int, pg_is_in_recovery(), "
-                "pg_database_size(current_database()), EXTRACT(EPOCH FROM NOW() - pg_postmaster_start_time()), "
+                "EXTRACT(EPOCH FROM NOW() - pg_postmaster_start_time()), "
                 "pg_has_role(current_user, 'pg_read_all_stats', 'MEMBER')")
-    maxc, recovery, size, up, all_stats = cur.fetchone()
-    metrics.update(max_connections=maxc, in_recovery=bool(recovery), db_size_bytes=int(size),
+    maxc, recovery, up, all_stats = cur.fetchone()
+    metrics.update(max_connections=maxc, in_recovery=bool(recovery),
                    server_uptime_seconds=int(up), sees_all_sessions=bool(all_stats))
     cur.execute(
         "SELECT count(*), count(*) FILTER (WHERE state = 'active'), "
@@ -221,7 +223,28 @@ def read_postgres(cur):
     if row:
         for key, value in zip(("xact_commit", "xact_rollback", "deadlocks", "blks_hit", "blks_read", "temp_bytes"), row):
             metrics[key] = int(value or 0)
+    metrics["db_size_bytes"] = _database_size(cur)
     return metrics
+
+
+def _database_size(cur):
+    """pg_database_size() of this database, or None if it can't be read right now.
+
+    Read on its own, last, so a failure costs only this one number. It walks
+    every file of the database, and on Windows a file another connection has
+    just dropped can't be stat()ed until it's really gone ("could not stat file
+    ... Permission denied"); that made the whole PostgreSQL reading fail and
+    the Jenkins test for it flaky (main #137, 2026-11-26). The SOC health page
+    shows a missing size as a dash."""
+    try:
+        cur.execute("SELECT pg_database_size(current_database())")
+        return int(cur.fetchone()[0])
+    except psycopg2.Error as exc:
+        app_log.info("health snapshot: database size unavailable (%s)", type(exc).__name__)
+        with contextlib.suppress(Exception):
+            if not cur.connection.autocommit:
+                cur.connection.rollback()   # read-only so far; leaves the connection usable
+        return None
 
 
 # ── snapshot ─────────────────────────────────────────────────────────────────

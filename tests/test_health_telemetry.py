@@ -22,6 +22,22 @@ STAT_2 = "cpu  1600 0 700 8600 600 0 0 0 0 0\ncpu0 1600 0 700 8600 600 0 0 0 0 0
 MEMINFO = "MemTotal:       8000000 kB\nMemFree:  1000000 kB\nMemAvailable:   2000000 kB\nSwapTotal: 1000000 kB\nSwapFree: 750000 kB\n"
 
 
+class _SizeQueryFails:
+    """A real cursor whose pg_database_size() query fails on the server, the way
+    it can on Windows mid-drop: it asks for a database that doesn't exist."""
+
+    def __init__(self, cur):
+        self._cur = cur
+
+    def execute(self, sql, *args):
+        if "pg_database_size" in sql:
+            return self._cur.execute("SELECT pg_database_size('hrz_no_such_database')")
+        return self._cur.execute(sql, *args)
+
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
+
+
 def _master(sql, params=None):
     db = get_master_db()
     cur = db.cursor()
@@ -97,6 +113,33 @@ class TestReadings:
                     "blks_hit", "blks_read", "longest_query_seconds", "longest_transaction_seconds"):
             assert isinstance(m[key], (int, float)), key
         assert isinstance(m["sees_all_sessions"], bool) and m["in_recovery"] is False
+
+    def test_database_size_failure_keeps_the_other_readings(self, db_engine):
+        """pg_database_size() can fail on Windows while another connection drops a
+        table ("could not stat file ... Permission denied"; main #137). Only the
+        size is lost; every other reading is still returned."""
+        cur = _SizeQueryFails(db_engine.cursor())
+        m = ht.read_postgres(cur)
+        cur.close()
+        assert m["db_size_bytes"] is None
+        assert m["max_connections"] > 0 and m["connections"] >= 1 and "waiting_locks" in m
+
+    def test_database_size_failure_leaves_a_transaction_usable(self):
+        """On a connection that isn't autocommit, the failed size query would abort
+        the transaction; it's rolled back so the snapshot rows can still be written."""
+        db = get_master_db()
+        raw_cur = db.cursor()
+        raw_cur.connection.autocommit = False     # the real psycopg2 connection behind the pool wrapper
+        cur = _SizeQueryFails(raw_cur)
+        try:
+            assert ht.read_postgres(cur)["db_size_bytes"] is None
+            cur.execute("SELECT 1")
+            assert cur.fetchone()[0] == 1
+        finally:
+            raw_cur.connection.rollback()
+            raw_cur.connection.autocommit = True
+            cur.close()
+            db.close()
 
     def test_app_readings(self):
         m = ht.read_app()
