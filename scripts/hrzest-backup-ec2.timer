@@ -1,0 +1,13 @@
+[Unit]
+Description=Nightly HRzest database backup
+
+[Timer]
+# 03:00 in India, whatever the server's own time zone: the quietest hour for
+# attendance check-ins. The dump itself takes seconds.
+OnCalendar=*-*-* 03:00:00 Asia/Kolkata
+# A missed run (server off or rebooting at 03:00) runs as soon as it's back.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
