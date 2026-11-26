@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """platform_admin: dashboard, tenant list/status/delete, costs, rate, leads, CSV exports"""
+import math
 import os
 import re
 import time
@@ -481,6 +482,9 @@ def platform_admin_set_rate():
     try:
         rupees = float(raw)
     except ValueError:
+        flash("Enter a valid rate in rupees.", "error")
+        return redirect("/super_admin")
+    if not math.isfinite(rupees):  # "nan" / "inf" parse, then round() raised: a 500
         flash("Enter a valid rate in rupees.", "error")
         return redirect("/super_admin")
     if rupees <= 0:
