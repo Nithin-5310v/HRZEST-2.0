@@ -51,9 +51,11 @@ _SYNCHRONOUS_MODE = False
 
 
 def set_synchronous_mode(enabled: bool = True):
-    """Test-only: make enqueue_write() run its callable immediately on the
-    caller's thread instead of handing it to the background writer thread.
-    Called once from tests/conftest.py, never from production code.
+    """Make enqueue_write() run its callable immediately on the caller's
+    thread instead of handing it to the background writer thread. Called
+    once from tests/conftest.py, and by one-off command-line scripts
+    (scripts/seed_platform_admin.py) whose writes would otherwise be lost
+    when the process exits. Never from the web app.
 
     Two independent reasons this matters for tests specifically:
     (1) the background thread started at import time below calls

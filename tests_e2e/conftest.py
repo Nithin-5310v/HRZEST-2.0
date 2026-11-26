@@ -39,12 +39,12 @@ os.environ["MANDATORY_ADMIN_MFA"] = "false"
 os.environ["MANDATORY_LOGIN_MFA"] = "false"
 os.environ["MANDATORY_PLATFORM_ADMIN_MFA"] = "false"
 os.environ["REQUIRE_EMAIL_2FA"] = "false"
-# _seed_defaults_and_admin() (app.py) only creates the admin_users row seen
-# by ADMIN_USERNAME below if ADMIN_PASSWORD is set at that first boot -- see
-# its own docstring on why (a blank password means "no admin yet, use
-# /setup"). Values here are e2e-only, never real credentials.
+# migrations/seed.py only creates the admin_users row seen by ADMIN_USERNAME
+# below if ADMIN_PASSWORD is set at that first boot and meets the password
+# rules (so it must not contain "admin" or the username). Values here are
+# e2e-only, never real credentials.
 os.environ.setdefault("ADMIN_USERNAME", "e2e_admin")
-os.environ.setdefault("ADMIN_PASSWORD", "E2eAdmin#Passw0rd!")
+os.environ.setdefault("ADMIN_PASSWORD", "Wq7#rTz2!kLm9vXp")
 os.environ.setdefault("ADMIN_EMAIL", "e2e-admin@example.invalid")
 
 

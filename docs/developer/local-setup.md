@@ -84,7 +84,9 @@ own address, `http://127.0.0.1:5000/<company>/login`, and its own schema.
 
 - **Platform admin** (`/super_admin`, the operator panel over all companies): no
   account exists until you create one:
-  `python scripts/seed_platform_admin.py --username <user> --email <email>`.
+  `python scripts/seed_platform_admin.py --username <user> --email <email>`
+  (asks for the password twice). It won't touch an existing account unless you
+  add `--reset`, which sets a new password and signs out that operator's sessions.
 - **SOC console** (`/socperson`): see [docs/SOC.md](../SOC.md).
 
 ## Mobile app
