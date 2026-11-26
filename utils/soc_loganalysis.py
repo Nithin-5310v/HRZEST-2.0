@@ -87,7 +87,7 @@ def _parse_ts(text, year=None):
     m = re.match(r"^([A-Z][a-z]{2})\s+(\d{1,2}) (\d\d):(\d\d):(\d\d)$", t)
     if m and m.group(1) in _MONTHS:
         try:
-            return datetime.datetime(year or datetime.datetime.utcnow().year, _MONTHS[m.group(1)],
+            return datetime.datetime(year or datetime.datetime.now(datetime.timezone.utc).year, _MONTHS[m.group(1)],
                                      int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5)))
         except ValueError:
             return None
