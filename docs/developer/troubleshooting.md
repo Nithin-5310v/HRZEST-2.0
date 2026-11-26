@@ -20,7 +20,8 @@ passed elsewhere.
 **Fix:** check the database is back (`pg_isready -h localhost -p 5432` should say
 *accepting connections*; recovery can take minutes). Close what you can, then
 re-run with `-n 2`. Don't run a full suite while a Jenkins build is testing:
-they share the same PostgreSQL.
+they share the same PostgreSQL. (Jenkins' own `develop` and `main` test runs
+take turns since 26 Nov 2026, so they no longer overload the PC together.)
 
 ### "Another test run is already using database 'att_test...'"
 

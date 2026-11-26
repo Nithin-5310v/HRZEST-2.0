@@ -55,7 +55,7 @@ executors. A newer commit on a branch aborts that branch's running build.
 | --- | --- | --- | --- |
 | 1 | Python environment | both | Builds `%HRZEST_CI_HOME%\venvs\ci` from **Python 3.12** (`HRZEST_PYTHON`); pip runs only when requirements changed |
 | 2 | Lint | both | `python -m flake8 .` |
-| 3 | Tests | both | `ci\jenkins\run_tests.py -n 4`: full pytest suite on `att_test_jenkins_<branch>` databases, JUnit report |
+| 3 | Tests | both | `ci\jenkins\run_tests.py -n 4`: full pytest suite on `att_test_jenkins_<branch>` databases, JUnit report. **The two branches' test runs take turns** (a PostgreSQL advisory lock; the second waits up to 90 minutes, then runs anyway): two suites at once exhausted the PC's memory. |
 | 4 | Ran in development? | main | Is this commit's **file tree** listed in `C:\HRZEST-dev\verified-trees.txt`? If `develop` has the same tree, waits up to 40 minutes for its dev deploy. Never fails the build; only changes the approval message. |
 | 5 | Merged on GitHub? | main | Is the commit the merge commit of a merged PR into `main`, with every GitHub Actions push run green (waits up to 45 minutes for running checks)? If not, the build ends **UNSTABLE** and stops. |
 | 6 | Deploy to development | develop | `deploy_dev.ps1`: checks out the commit into `C:\HRZEST-dev\app`, updates the venv, starts `run_dev.py` on port 5050, waits up to 240 s for `/healthz`, and records the tree in `verified-trees.txt`. On failure it rolls the dev copy back to the previous commit. |
@@ -126,8 +126,9 @@ as over-the-air updates; native changes need a new build. See
 
 - Merge related PRs, then do one `develop` → `main` release. Each merge starts
   builds, and newer builds abort older ones.
-- Keep the Jenkins PC awake and not short of memory during a release. Both
-  branches' test suites can run at once against the same PostgreSQL.
+- Keep the Jenkins PC awake and not short of memory during a release. The two
+  branches' test runs take turns, so a `main` build can wait for a `develop`
+  test run (about 15 minutes) before its own tests start; that's expected.
 - Turn on GitHub branch protection for `main` ("Require a pull request before
   merging", 0 approvals, "Do not allow bypassing"). It isn't on today, and direct
   pushes have blocked several releases.
