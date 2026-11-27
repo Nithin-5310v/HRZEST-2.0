@@ -87,7 +87,7 @@ class TestJsonErrorsGiveTypeAndReason:
         resp = client.get("/api/session/risk-stream")
         body = resp.get_json()
         assert resp.status_code == 500 and body["error"] == "internal_server_error"
-        assert body["msg"].startswith("Internal Server Error: Something went wrong on our end.")
+        assert body["msg"] == "Internal Server Error: An unexpected error occurred. The team has been notified."
         assert "secret_table" not in str(body) and "psycopg2" not in str(body)
 
 
@@ -182,7 +182,7 @@ def test_hz_errors_never_writes_html():
     src = open(os.path.join(ROOT, "static", "hz-errors.js"), encoding="utf-8").read()
     assert "innerHTML" not in src and "insertAdjacentHTML" not in src
     for status in ("400", "401", "403", "404", "413", "429", "500", "502", "503", "504"):
-        assert re.search(rf"\b{status}: '[A-Z][^:']{{2,40}}: ", src), status
+        assert re.search(rf"\b{status}: ['\"][A-Z][^:'\"]{{2,40}}: ", src), status
 
 
 # ── One set of photo rules ──────────────────────────────────────────────────
