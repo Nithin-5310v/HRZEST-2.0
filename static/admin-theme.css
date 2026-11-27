@@ -295,3 +295,138 @@ body .main .dash-search .admin-search-input:focus { border-color: #2563eb; box-s
 body .main .dash-search .admin-search-icon { position: absolute; top: 50%; transform: translateY(-50%); left: 15px; font-size: 18px; color: #667085; z-index: 2; }
 body .main .dash-search:focus-within .admin-search-icon { color: #2563eb; }
 @media (max-width: 768px) { body .main .admin-search-wrap.dash-search { flex-basis: 100%; max-width: none; } }
+
+/* ==========================================================================
+   Spacing scale + button roles (shared by every admin page)
+
+   One scale -- 8 / 16 / 24 px -- so a page header, a card, a stats row and
+   a filter bar sit the same distance apart on every module, instead of the
+   22 / 18 / 20 / 14 / 12 each page_css picked for itself.
+   Both themes: spacing does not depend on light or dark mode.
+   ========================================================================== */
+body {
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+}
+body .main { padding: var(--sp-3); }
+body .main .page-header,
+body .main .page-hdr { margin-bottom: var(--sp-3); }
+body .main .section,
+body .main .panel { margin-bottom: var(--sp-3); }
+body .main .stat-grid,
+body .main .stats-row,
+body .main .kpi-grid { gap: var(--sp-2); margin-bottom: var(--sp-3); }
+body .main .filter-bar,
+body .main .filters,
+body .main .toolbar { gap: var(--sp-1); margin-bottom: var(--sp-2); }
+@media (max-width: 768px) {
+  body .main { padding: var(--sp-2); }
+}
+
+/* Button roles. Primary = solid blue (the page's main action), secondary =
+   white with a neutral outline (cancel / back / export), destructive = white
+   with a red outline (delete / reject). The page-specific names below used
+   to be navy, indigo, green, grey or pink on different pages. Sizes and
+   padding stay each page's own; this only unifies colour and weight. */
+body:not(.dark-mode) .main .btn-navy,
+body:not(.dark-mode) .main .btn-save,
+body:not(.dark-mode) .main .btn-success,
+body:not(.dark-mode) .main .btn-submit {
+  background: var(--ui-primary) !important;
+  background-image: none !important;
+  color: #fff !important;
+  border: 1px solid var(--ui-primary) !important;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06) !important;
+  font-weight: 600;
+}
+body:not(.dark-mode) .main .btn-navy:hover,
+body:not(.dark-mode) .main .btn-save:hover,
+body:not(.dark-mode) .main .btn-success:hover,
+body:not(.dark-mode) .main .btn-submit:hover {
+  background: var(--ui-primary-hover) !important;
+  border-color: var(--ui-primary-hover) !important;
+}
+body:not(.dark-mode) .main .btn-gray,
+body:not(.dark-mode) .main .btn-ghost,
+body:not(.dark-mode) .main .btn-light,
+body:not(.dark-mode) .main .btn-cancel {
+  background: #fff;
+  color: #344054;
+  border: 1px solid var(--ui-border-strong);
+}
+body:not(.dark-mode) .main .btn-gray:hover,
+body:not(.dark-mode) .main .btn-ghost:hover,
+body:not(.dark-mode) .main .btn-light:hover,
+body:not(.dark-mode) .main .btn-cancel:hover { background: #f9fafb; }
+body:not(.dark-mode) .main .btn-danger,
+body:not(.dark-mode) .main .btn-red,
+body:not(.dark-mode) .main .btn-reject {
+  background: #fff;
+  color: #d92d20;
+  border: 1px solid #fda29b;
+}
+body:not(.dark-mode) .main .btn-danger:hover,
+body:not(.dark-mode) .main .btn-red:hover,
+body:not(.dark-mode) .main .btn-reject:hover { background: #fef3f2; }
+
+/* ==========================================================================
+   Dark mode fixes (found by loading every admin page in dark mode and
+   measuring text contrast).
+
+   Cause: darkmode's shared rules turn text light everywhere, but boxes that
+   take a light tint from a utility class (u-bg-eff6ff ...) or an inline
+   style="background:#fef2f2" kept it, leaving pale text on a pale box.
+   These map each light tint to a dark tint of the same hue (blue, red,
+   amber, green, neutral).
+   ========================================================================== */
+/* blue tints */
+body.dark-mode .main :is([class*="u-bg-eff6ff"], [class*="u-bg-dbeafe"], [class*="u-bg-e0f2fe"], [style*="#eff6ff" i], [style*="#dbeafe" i], [style*="#e0f2fe" i], .banner.info) {
+  background: #14284d !important; border-color: #1e3a8a !important; }
+/* red tints */
+body.dark-mode .main :is([class*="u-bg-fef2f2"], [class*="u-bg-fee2e2"], [style*="#fef2f2" i], [style*="#fee2e2" i], .banner.danger) {
+  background: #3b1212 !important; border-color: #7f1d1d !important; }
+/* amber tints */
+body.dark-mode .main :is([class*="u-bg-fffbeb"], [class*="u-bg-fff7ed"], [class*="u-bg-fef9c3"], [class*="u-bg-fef3c7"], [style*="#fffbeb" i], [style*="#fff7ed" i], [style*="#fef9c3" i], [style*="#fef3c7" i], .banner.warn) {
+  background: #3b2f0b !important; border-color: #854d0e !important; }
+/* green tints */
+body.dark-mode .main :is([class*="u-bg-f0fdf4"], [class*="u-bg-dcfce7"], [style*="#f0fdf4" i], [style*="#dcfce7" i]) {
+  background: #12261a !important; border-color: #166534 !important; }
+/* neutral light surfaces (white / slate-50 / slate-100) used as button and card fills */
+body.dark-mode .main :is([class*="u-bg-fff "], [class*="u-bg-fff\""], [class*="u-bg-f8fafc"], [class*="u-bg-f1f5f9"], .feat-card, .btn-slip, .badge-neutral) {
+  background: #1c2128 !important; border-color: #30363d !important; color: #cdd9e5 !important; }
+/* settings: the SMTP identity gate, and inline-styled pale pills (Payslip Lookup) */
+body.dark-mode .main #email-2fa-gate { background: #3b1212 !important; border-color: #7f1d1d !important; }
+body.dark-mode .main #email-2fa-gate :is(.u-c-1e293b, .u-c-64748b) { color: #e6edf3 !important; }
+body.dark-mode .main a[style*="background:#eef2ff" i] { background: #1e1b4b !important; color: #c7d2fe !important; border-color: #3730a3 !important; }
+body.dark-mode .main .org-hero-mark { background: #14284d !important; }
+/* a button that is itself a tinted utility keeps a readable label */
+body.dark-mode .main :is(a, button)[class*="u-bg-"] { color: #cdd9e5 !important; }
+body.dark-mode .main .feat-name { color: #e6edf3 !important; }
+body.dark-mode .main .feat-desc { color: #8b949e !important; }
+/* green action buttons: solid, with a white label */
+body.dark-mode .main :is(.btn-green, .btn-success) { background: #15803d !important; color: #fff !important; border-color: #15803d !important; }
+/* org-chart boxes are dark blue: their grey sub-labels need to be lighter */
+body.dark-mode .main :is(.node-role, .node-id) { color: #cbd5e1 !important; }
+
+/* Roles & Access (templates/roles_*.html): the page's own colour variables are
+   light-only, so re-point them, then repaint the few hard-coded white fills. */
+body.dark-mode .rx {
+  --ink: #e6edf3; --ink-2: #b1bac4; --ink-3: #8b949e; --faint: #6e7681;
+  --line: #30363d; --line-2: #3d444d; --soft: #1c2128;
+  --blue: #60a5fa; --blue-2: #93c5fd; --blue-soft: #14284d;
+}
+body.dark-mode .rx .hy-panel { background: #161b22; border-color: #30363d; }
+body.dark-mode .rx .hy-panel-head { border-bottom-color: #30363d; }
+body.dark-mode .rx :is(.hy-count, .hy-under span, .rx-nav .rx-count, .rx-av-muted, .perm-quick, .rx-seg, .rx-btn-ghost, .rx-btn-danger, .rl-dlg-foot, .hy-lvl.l-none, .rl-acc .a-none, .perm-summary .s-none, .hy-chip-scope.s-team) {
+  background: #1c2128; border-color: #30363d; color: #b1bac4; }
+body.dark-mode .rx :is(.hy-item.active .hy-ic, .hy-item.active .hy-count) { background: #0d1117; color: #60a5fa; }
+body.dark-mode .rx .hy-item:hover { background: #1c2128; }
+body.dark-mode .rx :is(.mx-table td:first-child, .mx-table th:first-child) { background: #161b22; }
+/* solid fills stay a strong blue (the lighter --blue above is for text on dark) */
+body.dark-mode .rx :is(.rx-btn:not(.rx-btn-ghost):not(.rx-btn-danger), .hy-lvl.l-edit) { background: #2563eb; color: #fff; border-color: #2563eb; }
+/* a stronger blue for white labels on dark (the shared dark rule's lighter blue gives ~2.9:1) */
+body.dark-mode .main :is(.rx .rx-btn:not(.rx-btn-ghost):not(.rx-btn-danger), .wks-btn-primary) { background: #1d4ed8 !important; border-color: #1d4ed8 !important; color: #fff !important; }
+/* the authenticator key shown under the QR code */
+body.dark-mode .main #email-2fa-gate .u-ff-monospace { background: #0d1117 !important; color: #e6edf3 !important; padding: 2px 6px; border-radius: 4px; }
+body.dark-mode .rx .hy-item:not(.active) .hy-ic { background: #1c2128; color: #8b949e; }

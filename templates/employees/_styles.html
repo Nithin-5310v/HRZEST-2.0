@@ -95,6 +95,19 @@
          selector outranks both, so the placeholder actually stays hidden
          behind a loaded photo instead of rendering next to it. */
       .avatar-ph.u-d-none { display: none; }
+      /* No photo: coloured initials instead of a grey user icon. The colour
+         comes from the name (avatar_color filter), so it never changes. */
+      .avatar-ini { font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em; color: #fff; border-color: #fff; }
+      .avatar-ini.c0 { background: #2563eb; } .avatar-ini.c1 { background: #7c3aed; }
+      .avatar-ini.c2 { background: #0e7490; } .avatar-ini.c3 { background: #db2777; }
+      .avatar-ini.c4 { background: #c2410c; } .avatar-ini.c5 { background: #059669; }
+      .avatar-ini.c6 { background: #4f46e5; } .avatar-ini.c7 { background: #b45309; }
+      /* shared.min.css's dark rule for .avatar-ph is !important; these outrank it. */
+      body.dark-mode .avatar-ph.avatar-ini { color: #fff !important; border-color: #30363d !important; }
+      body.dark-mode .avatar-ph.avatar-ini.c0 { background: #2563eb !important; } body.dark-mode .avatar-ph.avatar-ini.c1 { background: #7c3aed !important; }
+      body.dark-mode .avatar-ph.avatar-ini.c2 { background: #0e7490 !important; } body.dark-mode .avatar-ph.avatar-ini.c3 { background: #db2777 !important; }
+      body.dark-mode .avatar-ph.avatar-ini.c4 { background: #c2410c !important; } body.dark-mode .avatar-ph.avatar-ini.c5 { background: #059669 !important; }
+      body.dark-mode .avatar-ph.avatar-ini.c6 { background: #4f46e5 !important; } body.dark-mode .avatar-ph.avatar-ini.c7 { background: #b45309 !important; }
       .avatar-btn { background: none; border: none; padding: 0; cursor: pointer; position: relative; display: inline-flex; border-radius: 50%; }
       .avatar-btn:hover .avatar { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.3); }
       .avatar-eye { position: absolute; inset: 0; border-radius: 50%; background: rgba(30,58,138,0.55); display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.18s; font-size: 13px; color: #fff; pointer-events: none; }
@@ -265,7 +278,7 @@
       body.dark-mode .dept-tab.active { background: #1e3a8a !important; color: #93c5fd !important; border-color: #1e3a8a !important; }
       body.dark-mode .dept-group-row td { background: #0f1f3d !important; color: #93c5fd !important; border-color: #1e3a8a !important; }
       body.dark-mode .section { background: #161b22 !important; border-color: #30363d !important; }
-      body.dark-mode .avatar-ph { background: #30363d !important; color: #768390 !important; border-color: #30363d !important; }
+      body.dark-mode .avatar-ph:not(.avatar-ini) { background: #30363d !important; color: #768390 !important; border-color: #30363d !important; }
       body.dark-mode .modal-box { background: #161b22 !important; border-color: #30363d !important; }
       body.dark-mode .modal-box h3 { color: #cdd9e5 !important; }
       body.dark-mode .btn-page { background: #1c2128 !important; border-color: #30363d !important; color: #94a3b8 !important; }

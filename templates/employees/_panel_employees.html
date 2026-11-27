@@ -195,12 +195,12 @@
                     <button class="avatar-btn" data-on-click="openLightbox(this.dataset.empId,this.dataset.empName,true)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="View photo">
                       <img class="avatar" src="/dataset/{{ emp_id }}.jpg" alt="{{ name }}" loading="lazy"
                            data-on-error="HZ.showNextOnError(this)" />
-                      <div class="avatar-ph u-d-none"><i class="ti ti-user"></i></div>
+                      <div class="avatar-ph avatar-ini c{{ name|avatar_color }} u-d-none">{{ name|avatar_initials }}</div>
                       <div class="avatar-eye"><i class="ti ti-eye"></i></div>
                     </button>
                   {% else %}
                     <button class="avatar-btn" data-on-click="openPhotoModal(this.dataset.empId,this.dataset.empName)" data-emp-id="{{ emp_id|e }}" data-emp-name="{{ name|e }}" title="Upload photo">
-                      <div class="avatar-ph"><i class="ti ti-user"></i></div>
+                      <div class="avatar-ph avatar-ini c{{ name|avatar_color }}">{{ name|avatar_initials }}</div>
                       <div class="avatar-eye"><i class="ti ti-camera-plus"></i></div>
                     </button>
                   {% endif %}
