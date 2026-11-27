@@ -494,6 +494,25 @@ class TestOfferLetterPdfGeneration:
 
 
 class TestOfferLetterSend:
+    def test_mail_failure_gives_the_reason_not_the_exception_text(
+            self, client, seed_admin, monkeypatch, offer_letter_row):
+        """The SMTP server's reply (hosts, accounts, codes) goes to the log;
+        the page says what failed and why in plain words."""
+        letter_id, _ = offer_letter_row
+
+        def _refused(*_a, **_k):
+            raise RuntimeError("535 5.7.8 auth failed for relay-internal.corp:587 user=hr-mailer")
+
+        monkeypatch.setattr(onboarding_module, "get_email_config", lambda: {
+            "host": "smtp.test.local", "port": 587, "user": "noreply@test.local",
+            "password": "x", "from_name": "Test Co", "from_email": "noreply@test.local",
+        })
+        monkeypatch.setattr(onboarding_module, "send_email_smtp", _refused)
+        _admin_session(client, seed_admin)
+        body = client.post(f"/offer_letter_send/{letter_id}", follow_redirects=True).get_data(as_text=True)
+        assert "Email not sent: the offer letter couldn" in body
+        assert "relay-internal" not in body and "535" not in body and "hr-mailer" not in body
+
     def test_not_configured_flashes_error(self, client, seed_admin, monkeypatch, offer_letter_row):
         letter_id, _ = offer_letter_row
         monkeypatch.setattr(onboarding_module, "get_email_config", lambda: None)

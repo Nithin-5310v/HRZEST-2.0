@@ -115,7 +115,7 @@ def api_register_employee():
     if _dup_exists:
         return jsonify({"ok": False, "msg": "Failed to create employee. Check for duplicate ID."}), 400
     # Validate extension, MIME type, magic bytes and size before writing to disk.
-    ok, err = _validate_image_file(file)
+    ok, err = _validate_image_file(file, person_photo=True)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
     filepath = face_photo_path(emp_id)
@@ -250,7 +250,7 @@ def api_update_employee_photo(emp_id):
     file = request.files.get("photo") or request.files.get("face")
     if not file or not file.filename:
         return jsonify({"ok": False, "msg": "No photo provided."}), 400
-    ok, err = _validate_image_file(file)
+    ok, err = _validate_image_file(file, person_photo=True)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
     db = get_db_connection()

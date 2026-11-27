@@ -37,7 +37,7 @@ def update_employee_photo(emp_id):
         db.close()
         return redirect(tpath("/employees"))
 
-    _img_ok, _img_err = _validate_image_file(file)
+    _img_ok, _img_err = _validate_image_file(file, person_photo=True)
     if not _img_ok:
         flash(_img_err, "error")
         cursor.close()

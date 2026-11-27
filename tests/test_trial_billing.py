@@ -28,6 +28,13 @@ from utils.plan_limits import (
 from tests.conftest import patch_package  # noqa: E402
 
 
+def _real_png():
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (240, 240), (90, 100, 110)).save(buf, "PNG")
+    return buf.getvalue()
+
+
 TENANT_SCHEMA = os.environ["DB_NAME"]  # the suite's default tenant schema (see conftest)
 
 
@@ -615,7 +622,9 @@ class TestTrialEmployeeCap:
         assert cur.fetchone() is None, "a partial employee record was created despite the block"
         cur.close()
 
-    _FAKE_PNG = b"\x89PNG\r\n\x1a\n" + b"x" * 32
+    # A real 240 x 240 photo: the server refuses photos of people that are
+    # unreadable or under 200 x 200 pixels (utils/helpers/uploads.py).
+    _FAKE_PNG = _real_png()
 
     def _post_add_employee(self, client, monkeypatch, name, emp_id):
         # add_employee_page() unconditionally requires a face photo (and,

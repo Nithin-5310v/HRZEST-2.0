@@ -103,4 +103,4 @@ class TestPickersStateTheRules:
             sess["employee_logged_in"] = True
             sess["employee_id"] = seed_employee["employee_id"]
         html = client.get("/employee_portal?photo_error=bad_format").get_data(as_text=True)
-        assert "Please choose a JPG or PNG photo of up to 5 MB." in html
+        assert "File type not allowed: please choose a JPG or PNG photo of up to 5 MB." in html

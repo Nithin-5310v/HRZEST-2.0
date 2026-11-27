@@ -25,6 +25,13 @@ from utils.helpers import invalidate_settings_cache
 TENANT_SCHEMA = os.environ["DB_NAME"]  # the suite's default tenant schema (see conftest)
 
 
+def _photo_png():
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (240, 240), (200, 180, 160)).save(buf, "PNG")
+    return buf.getvalue()
+
+
 def _admin_session(client, username, role="admin"):
     with client.session_transaction() as sess:
         sess["admin_logged_in"] = True
@@ -400,6 +407,9 @@ class TestOrganizationProfileForm:
     PNG = base64.b64decode(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
     )
+    # The admin's own photo: a real 240 x 240 image (photos of people must be
+    # at least 200 x 200 pixels; logos may be tiny like PNG above).
+    PHOTO = _photo_png()
 
     @pytest.fixture
     def org_admin(self, client, db_engine):
@@ -438,7 +448,7 @@ class TestOrganizationProfileForm:
         if logo:
             data["logo"] = (io.BytesIO(self.PNG), "logo.png")
         if photo:
-            data["photo"] = (io.BytesIO(self.PNG), "me.png")
+            data["photo"] = (io.BytesIO(self.PHOTO), "me.png")
         return client.post("/profile/details", data=data, content_type="multipart/form-data")
 
     def _state(self, cur):
@@ -516,6 +526,7 @@ class TestOrganizationProfileForm:
 
 class TestNewCompanyGate:
     PNG = TestOrganizationProfileForm.PNG
+    PHOTO = TestOrganizationProfileForm.PHOTO
 
     @pytest.fixture
     def pending_admin(self, client, db_engine, monkeypatch):
@@ -549,7 +560,7 @@ class TestNewCompanyGate:
     def _save(self, client):
         return client.post("/profile/details", data={
             **FORM_FIELDS, "company_code": "GATE1", "display_name": "Asha Rao",
-            "logo": (io.BytesIO(self.PNG), "logo.png"), "photo": (io.BytesIO(self.PNG), "me.png"),
+            "logo": (io.BytesIO(self.PNG), "logo.png"), "photo": (io.BytesIO(self.PHOTO), "me.png"),
         }, content_type="multipart/form-data")
 
     def test_dashboard_pages_go_to_the_organization_page(self, client, pending_admin):
