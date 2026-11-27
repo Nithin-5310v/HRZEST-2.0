@@ -43,7 +43,9 @@ pipeline {
         }
         stage('Tests') {
           steps {
-            bat '"%VENV%\\Scripts\\python.exe" ci\\jenkins\\run_tests.py -n 4'
+            // 2 xdist workers, not 4: on this 7.7 GB PC a single 4-worker run still
+            // crashed PostgreSQL mid-suite (develop #106 and #110, 2026-11-26/27).
+            bat '"%VENV%\\Scripts\\python.exe" ci\\jenkins\\run_tests.py -n 2'
           }
           post {
             always { junit allowEmptyResults: true, testResults: 'test-results.xml' }
