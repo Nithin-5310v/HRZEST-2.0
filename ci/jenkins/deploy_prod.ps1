@@ -36,7 +36,8 @@ param(
   [string] $GitHubRepo = 'Nithin-5310v/HRZEST-2.0',
   [string] $ProdUrl = $(if ($env:HRZEST_PROD_URL) { $env:HRZEST_PROD_URL } else { 'https://hrzest.com' }),
   [int] $CiWaitMinutes = 45,
-  [int] $DevWaitMinutes = 40,
+  # develop's run can wait its turn behind main's, then take ~30-40 min on 2 workers.
+  [int] $DevWaitMinutes = 90,
   [int] $LiveWaitMinutes = 25
 )
 $ErrorActionPreference = 'Stop'

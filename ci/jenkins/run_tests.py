@@ -13,6 +13,13 @@ whole run; the other branch's run waits for it, up to LOCK_WAIT_MINUTES,
 then goes ahead anyway rather than fail the build. The lock lives on its
 own connection and is released when this process exits, even if killed.
 
+Taking turns wasn't enough on its own: a single 4-worker suite still ran
+the PC out of memory alongside everything else running there (Jenkins,
+the dev copy, editors, browsers). PostgreSQL crashed mid-suite and
+thousands of tests failed with "connection already closed" (develop #106
+and #110, 2026-11-26/27). So the Jenkinsfile runs 2 workers: slower, but
+builds don't fail for lack of memory.
+
 Those databases are dropped before every run, so each build starts as
 clean as GitHub Actions' fresh service database: a build cancelled
 mid-test (a newer push aborts it) skips the per-test cleanup, and its
@@ -20,7 +27,7 @@ leftovers -- e.g. a company_settings row recreated with id 2, which
 breaks every test that updates "WHERE id=1" -- would otherwise fail
 later builds of perfectly good code. Extra arguments go to pytest:
 
-    python ci/jenkins/run_tests.py -n 4
+    python ci/jenkins/run_tests.py -n 2
 """
 import os
 import re

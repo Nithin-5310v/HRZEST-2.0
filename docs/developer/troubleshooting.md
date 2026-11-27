@@ -21,7 +21,8 @@ passed elsewhere.
 *accepting connections*; recovery can take minutes). Close what you can, then
 re-run with `-n 2`. Don't run a full suite while a Jenkins build is testing:
 they share the same PostgreSQL. (Jenkins' own `develop` and `main` test runs
-take turns since 26 Nov 2026, so they no longer overload the PC together.)
+take turns since 26 Nov 2026, and each uses 2 workers since 27 Nov 2026, after
+a single 4-worker run still crashed PostgreSQL.)
 
 ### "Another test run is already using database 'att_test...'"
 
