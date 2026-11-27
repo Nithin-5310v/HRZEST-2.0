@@ -27,6 +27,7 @@ import { shareBase64File } from "../../utils/fileShare";
 import SaasFilterSheet from "../../components/common/SaasFilterSheet";
 import { useTheme } from "../../store/ThemeContext";
 
+import { errorMessage } from "../../api/errors";
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
@@ -143,7 +144,7 @@ export default function SalaryPayslipsScreen({ navigation }) {
                   Alert.alert("Failed", res?.data?.msg || "Could not unlock payroll.");
                 }
               } catch (e) {
-                Alert.alert("Failed", e?.response?.data?.msg || "Could not unlock payroll.");
+                Alert.alert("Failed", errorMessage(e, "Could not unlock payroll."));
               }
               setPayrollLoading(false);
             },
@@ -171,7 +172,7 @@ export default function SalaryPayslipsScreen({ navigation }) {
                 Alert.alert("Failed", res?.data?.msg || "Could not lock payroll.");
               }
             } catch (e) {
-              Alert.alert("Failed", e?.response?.data?.msg || "Could not lock payroll.");
+              Alert.alert("Failed", errorMessage(e, "Could not lock payroll."));
             }
             setPayrollLoading(false);
           },
@@ -192,7 +193,7 @@ export default function SalaryPayslipsScreen({ navigation }) {
         Alert.alert("Export Failed", res?.data?.msg || "Could not generate the salary report.");
       }
     } catch (e) {
-      Alert.alert("Export Failed", e?.response?.data?.msg || "Could not generate the salary report.");
+      Alert.alert("Export Failed", errorMessage(e, "Could not generate the salary report."));
     } finally {
       setExporting(false);
     }
@@ -209,7 +210,7 @@ export default function SalaryPayslipsScreen({ navigation }) {
         Alert.alert("Email Failed", res?.data?.msg || `Could not send payslip for ${employee.name}.`);
       }
     } catch (e) {
-      Alert.alert("Email Failed", e?.response?.data?.msg || `Could not send payslip for ${employee.name}.`);
+      Alert.alert("Email Failed", errorMessage(e, `Could not send payslip for ${employee.name}.`));
     }
     setEmailing(false);
   };

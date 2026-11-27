@@ -16,6 +16,7 @@ import { fetchMyIdCard, fetchEmployeeIdCard } from "../api/client";
 import { shareBase64File } from "../utils/fileShare";
 import { useTheme } from "../store/ThemeContext";
 
+import { errorMessage } from "../api/errors";
 // Shared by both navigators: an employee reaches this with no params (own
 // card, /api/employee/my_id_card); an admin/HR session reaches it with
 // { empId, empName } from EmployeesScreen's detail modal (any employee
@@ -48,8 +49,7 @@ export default function IdCardScreen({ navigation, route }) {
       }
     } catch (e) {
       setError(
-        e?.response?.data?.msg ||
-          "Could not reach the server to load the ID card. Check your connection and try again."
+        errorMessage(e, "Could not reach the server to load the ID card. Check your connection and try again.")
       );
     } finally {
       setLoading(false);

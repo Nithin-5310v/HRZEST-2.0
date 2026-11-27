@@ -18,6 +18,7 @@ import { fetchEmployeeProfile, updateMyBankDetails } from "../../api/client";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import DetailCard from "../../components/profile/DetailCard";
 
+import { errorMessage } from "../../api/errors";
 export default function BankDetailsScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
@@ -96,7 +97,7 @@ export default function BankDetailsScreen() {
         Alert.alert("Save Failed", res?.data?.msg || "Could not update bank details.");
       }
     } catch (e) {
-      Alert.alert("Save Failed", e?.response?.data?.msg || "Could not update bank details.");
+      Alert.alert("Save Failed", errorMessage(e, "Could not update bank details."));
     }
     setSaving(false);
   };

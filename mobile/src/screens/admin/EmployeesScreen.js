@@ -37,6 +37,7 @@ import SaasFilterSheet from "../../components/common/SaasFilterSheet";
 import { localISODate } from "../../utils/dates";
 import { reportError } from "../../utils/crashReporting";
 
+import { checkPickedPhoto } from "../../utils/photoRules";
 export default function EmployeesScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
@@ -151,6 +152,12 @@ export default function EmployeesScreen({ navigation }) {
         quality: 0.8,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Too large or too small: say so now, with its size, not after uploading.
+        const problem = checkPickedPhoto(result.assets[0]);
+        if (problem) {
+          Alert.alert(problem.title, problem.message);
+          return;
+        }
         setNewEmpPhoto(result.assets[0].uri);
       }
     } catch (e) {
@@ -175,6 +182,12 @@ export default function EmployeesScreen({ navigation }) {
         quality: 0.8,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Too large or too small: say so now, with its size, not after uploading.
+        const problem = checkPickedPhoto(result.assets[0]);
+        if (problem) {
+          Alert.alert(problem.title, problem.message);
+          return;
+        }
         setNewEmpPhoto(result.assets[0].uri);
       }
     } catch (e) {
@@ -308,7 +321,10 @@ export default function EmployeesScreen({ navigation }) {
           type: "image/jpeg",
         });
         const up = await uploadPhotoForEmployee(empIdTrim, formData).catch((e) => e?.response || null);
-        if (!up?.data?.ok) photoFailed = up?.data?.msg || "The photo couldn't be uploaded.";
+        if (!up?.data?.ok) {
+          photoFailed = up?.data?.msg ||
+            "Photo not uploaded: couldn't reach the server. Check your connection and try again.";
+        }
       } catch (e) {
         photoFailed = "The photo couldn't be uploaded.";
         reportError(e, { where: "EmployeesScreen.addPhoto" });

@@ -20,6 +20,7 @@ import { submitLeaveRequest, fetchEmployeeLeaves, cancelLeaveRequest } from "../
 import { localISODate, parseISODate } from "../../utils/dates";
 import { reportError } from "../../utils/crashReporting";
 
+import { errorMessage } from "../../api/errors";
 const LEAVE_TYPES = [
   { label: "Casual Leave (CL)", value: "Casual Leave", icon: "briefcase-outline" },
   { label: "Sick Leave (SL)", value: "Sick Leave", icon: "medical-outline" },
@@ -115,7 +116,7 @@ export default function LeaveScreen() {
                 Alert.alert("Error", res?.data?.msg || "Could not cancel.");
               }
             } catch (e) {
-              Alert.alert("Error", e.response?.data?.msg || "Failed to connect.");
+              Alert.alert("Error", errorMessage(e, "Failed to connect."));
             }
             setCancelling(null);
           },
@@ -164,7 +165,7 @@ export default function LeaveScreen() {
                   ]
                 );
               } else {
-                Alert.alert("Submission Notice", serverMsg || "Failed to connect to server.");
+                Alert.alert("Submission Notice", errorMessage(e, "Failed to connect to server."));
               }
             }
             setLoading(false);

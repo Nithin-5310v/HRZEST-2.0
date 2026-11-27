@@ -36,6 +36,7 @@ import ProfileHeader from "../../components/profile/ProfileHeader";
 import { localISODate } from "../../utils/dates";
 import { reportError } from "../../utils/crashReporting";
 
+import { errorMessage } from "../../api/errors";
 export default function AttendanceScreen() {
   const navigation = useNavigation();
   const { signOut } = useAuth();
@@ -132,7 +133,7 @@ export default function AttendanceScreen() {
           [{ text: "Sign In", onPress: () => signOut() }]
         );
       } else if (e.response) {
-        Alert.alert("Notice", e.response?.data?.msg || "Could not mark attendance.");
+        Alert.alert("Notice", errorMessage(e, "Could not mark attendance."));
       } else {
         await queuePunch(lat, lon, { mocked });
         const existing = attendance.find((x) => x.date === todayIso);

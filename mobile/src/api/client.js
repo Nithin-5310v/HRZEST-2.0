@@ -2,6 +2,10 @@ import axios from 'axios';
 import { Alert } from 'react-native';
 import { API_BASE_URL } from '../config';
 import { secureGetItem } from '../utils/secureStorage';
+import { normalizeApiError } from './errors';
+
+// Screens import errorMessage from here along with the calls themselves.
+export { errorMessage } from './errors';
 
 const client = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
 
@@ -93,6 +97,10 @@ An admin can renew it at hrzest.com (sign in, then pay the outstanding bill).`,
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // Every failure gets a readable reason (api/errors.js): an HTML error
+    // page or empty body becomes { ok: false, msg: "Server unreachable: ..." },
+    // a dropped connection "Network error: ...".
+    normalizeApiError(error);
     const status = error?.response?.status;
     if (status === 402 && error?.response?.data?.billing_locked) {
       explainBillingLock(error.response.data);

@@ -28,6 +28,7 @@ import {
   NO_TIME_TYPES, buildRecord, initialEntry, isChanged, isMarked, savedSummary,
 } from "../../utils/attendanceEdit";
 
+import { errorMessage } from "../../api/errors";
 // ── Constants ──────────────────────────────────────────────────────
 
 const ATT_STATUS_OPTIONS = [
@@ -254,7 +255,7 @@ export default function MarkAttendanceScreen({ navigation, route }) {
         Alert.alert("Save Failed", res.data?.msg || "Could not save attendance. Please try again.");
       }
     } catch (e) {
-      const msg = e.response?.data?.msg || e.message || "Could not save attendance. Please check your connection and try again.";
+      const msg = errorMessage(e, "Could not save attendance. Please check your connection and try again.");
       Alert.alert("Save Failed", msg);
     }
     if (rowId) setSavingRow(null); else setSaving(false);

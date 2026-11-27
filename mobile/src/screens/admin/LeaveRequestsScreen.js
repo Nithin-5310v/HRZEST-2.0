@@ -20,6 +20,7 @@ import SaasFilterSheet from "../../components/common/SaasFilterSheet";
 import { fetchLeaveRequests, leaveAction } from "../../api/client";
 import { useTheme } from "../../store/ThemeContext";
 
+import { errorMessage } from "../../api/errors";
 export default function LeaveRequestsScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
@@ -97,7 +98,7 @@ export default function LeaveRequestsScreen({ navigation }) {
         Alert.alert("Failed", res?.data?.msg || `Could not mark leave request as ${actionType}.`);
       }
     } catch (e) {
-      Alert.alert("Failed", e?.response?.data?.msg || `Could not mark leave request as ${actionType}. Check your connection.`);
+      Alert.alert("Failed", errorMessage(e, `Could not mark leave request as ${actionType}. Check your connection.`));
     }
   };
 
