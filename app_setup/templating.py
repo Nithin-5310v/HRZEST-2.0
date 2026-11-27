@@ -144,6 +144,21 @@ def plan_price_filter(paise):
     return format_price_inr(paise)
 
 
+@app.template_filter("avatar_initials")
+def avatar_initials_filter(name):
+    """"Rahul Sharma" -> "RS", "priya" -> "P": the letters shown in the coloured
+    circle that stands in for a photo (employees list)."""
+    words = str(name or "").split()
+    return "".join(w[0] for w in words[:2]).upper() or "?"
+
+
+@app.template_filter("avatar_color")
+def avatar_color_filter(name):
+    """0-7, always the same for the same name (not hash(): that changes every
+    restart), so a person keeps their circle colour; the CSS has c0..c7."""
+    return sum(ord(c) for c in str(name or "").lower()) % 8
+
+
 def _csrf_token():
     if "_csrf" not in session:
         session["_csrf"] = secrets.token_hex(32)
