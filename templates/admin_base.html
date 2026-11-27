@@ -8,6 +8,8 @@
       // The sidebar collapse button was removed: always show the full sidebar
       // and forget any collapsed state saved earlier.
       try { localStorage.removeItem('sbc'); } catch (e) {}
+      // Sidebar shrunk to icons by the person (static/sidebar.js): apply it before first paint.
+      try { if (localStorage.getItem('hz_sidebar') === 'icons') document.documentElement.classList.add('sb-collapsed'); } catch (e) {}
     })();
     // Raw-IP loopback → localhost normalization now happens server-side
     // (app.py's _normalize_loopback_host), before login sets any cookie.
@@ -289,7 +291,7 @@
 
 {# ── SIDEBAR ── #}
 {% set _org_locked = co.org_profile_pending and session.admin_role in ('admin', 'superadmin') %}
-<div class="sidebar{{ ' sidebar--locked' if _org_locked }}" role="navigation" aria-label="Primary">
+<div class="sidebar{{ ' sidebar--locked' if _org_locked }}" role="navigation" aria-label="Primary" data-pins="{{ sidebar_pins|default('')|e }}">
   {# Base-type-aware: a custom role (Settings -> Roles & Access) built on the HR
      or Manager base counts as HR/Manager here, not just the literal built-in
      'hr'/'manager' roles. session.admin_base_type is set at login for any
@@ -300,6 +302,7 @@
   {# Company logo / name / plan now live in the blue top banner (below). #}
 
   {% set _tp = (pending_leaves|default(0)) + (pending_resignations|default(0)) + (pending_tickets|default(0)) %}
+
 
   <a class="nav-item {{ 'active' if active_nav == 'dashboard' }}" href="{{ tpath('/hr_dashboard') if _is_hr else tpath('/admin') }}" {{ 'aria-current=page' if active_nav == 'dashboard' }}>
     <span class="nav-icon"><i class="ti ti-home"></i></span>Dashboard
@@ -415,6 +418,10 @@
   </form>
 
 </div>
+
+{# Pinned items + drag-to-collapse for the sidebar above. Runs right here (not
+   deferred) so the menu is already in its final order and width at first paint. #}
+<script src="{{ static_url('sidebar.js') }}"></script>
 
 <div class="app-col">
 {# ── TOP BAR ── #}

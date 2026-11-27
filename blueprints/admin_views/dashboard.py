@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """admin_views: admin dashboard, omnisearch, live tiles, attendance chart, MFA-required page, activity log"""
 import datetime
+import json
+import re
 import utils.config as cfg
 from database import get_db_connection
 from flask import g, jsonify, render_template, request, session
@@ -226,6 +228,31 @@ def api_admin_search():
     cursor.close()
     db.close()
     return jsonify({"ok": True, "results": results})
+
+
+_PIN_PATH_RE = re.compile(r"/[A-Za-z0-9_/-]{0,80}")
+
+
+@admin_views_bp.route("/api/sidebar_pins", methods=["POST"])
+@admin_required
+def save_sidebar_pins():
+    """Remembers which left-sidebar items this person pinned (static/sidebar.js).
+    Body: {"pins": ["/employees", ...]} -- page paths, at most 12."""
+    pins = (request.get_json(silent=True) or {}).get("pins")
+    if (not isinstance(pins, list) or len(pins) > 12
+            or not all(isinstance(p, str) and _PIN_PATH_RE.fullmatch(p) for p in pins)):
+        return jsonify({"ok": False, "error": "pins must be a list of up to 12 page paths"}), 400
+    db = get_db_connection()
+    cursor = db.cursor(buffered=True)
+    cursor.execute(
+        "INSERT INTO admin_ui_prefs (username, sidebar_pins) VALUES (%s, %s) "
+        "ON CONFLICT (username) DO UPDATE SET sidebar_pins=EXCLUDED.sidebar_pins, updated_at=CURRENT_TIMESTAMP",
+        (session.get("admin_username") or "", json.dumps(pins)),
+    )
+    db.commit()
+    cursor.close()
+    db.close()
+    return jsonify({"ok": True})
 
 
 @admin_views_bp.route("/api/dashboard_live")

@@ -316,6 +316,29 @@ def inject_admin_name():
 
 
 @app.context_processor
+def inject_sidebar_pins():
+    """The signed-in person's pinned sidebar items, as the JSON text that
+    static/sidebar.js reads from data-pins in templates/admin_base.html; ""
+    means "nothing saved yet" (the script then pins the default three).
+    Fail-soft, like the other banner lookups above."""
+    if not session.get("admin_logged_in"):
+        return {}
+    pins = ""
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(buffered=True)
+        cursor.execute("SELECT sidebar_pins FROM admin_ui_prefs WHERE username=%s",
+                       (session.get("admin_username") or "",))
+        row = cursor.fetchone()
+        pins = (row[0] if row else "") or ""
+        cursor.close()
+        db.close()
+    except Exception:
+        app_log.warning("inject_sidebar_pins: lookup failed", exc_info=True)
+    return {"sidebar_pins": pins}
+
+
+@app.context_processor
 def inject_admin_avatar():
     """Photo for the profile avatar in templates/admin_base.html's top
     banner. HR and manager accounts log in with their employee ID, so they
