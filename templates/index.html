@@ -754,7 +754,13 @@
         $("statusBar").style.display = "flex";
         $("statusMsg").textContent   = msg;
       }
+      // Any error as plain "Type: reason" (static/hz-errors.js): camera,
+      // location, network and server problems -- never HTML or code.
+      function errText(err, fallback) {
+        return window.HZErrors ? HZErrors.describe(err, fallback) : ((err && err.message) || fallback);
+      }
       function showError(msg) {
+        if (window.HZErrors) msg = HZErrors.clean(msg);
         $("errorBox").textContent    = "❌ " + msg;   // text, never HTML (QA SEC-03)
         $("errorBox").style.display  = "block";
         $("statusBar").style.display = "none";
@@ -997,8 +1003,9 @@
           if (!authOptR.ok) {
             const errBody = await authOptR.text().catch(() => "");
             let errMsg = "";
-            try { errMsg = JSON.parse(errBody).error || JSON.parse(errBody).msg || ""; } catch(e) {}
-            fpError("❌ Server error (HTTP " + authOptR.status + ")" + (errMsg ? ": " + errMsg : "") + ". Check server logs.");
+            try { errMsg = JSON.parse(errBody).msg || JSON.parse(errBody).error || ""; } catch(e) {}
+            fpError("❌ " + (window.HZErrors ? HZErrors.clean(errMsg, authOptR.status)
+                                             : (errMsg || "Fingerprint check couldn't start. Please try again.")));
             return;
           }
           const authOpts = await authOptR.json();
@@ -1086,7 +1093,7 @@
           } else if (err.name === "AbortError") {
             fpError("❌ Fingerprint verification was cancelled. Please try again.");
           } else {
-            fpError("❌ Verification failed: " + (err.message || "Unknown error"));
+            fpError("❌ " + errText(err, "Verification failed: the fingerprint check didn't complete. Please try again."));
           }
         }
       }
@@ -1166,9 +1173,12 @@
           $("fpHint").textContent = "⏳ Getting enrolment options…";
           const optR = await fetch(`/webauthn/registration-options?emp_id=${encodeURIComponent(empId)}&name=${encodeURIComponent(empId)}`);
           if (!optR.ok) {
-            const errText = await optR.text().catch(() => "");
-            console.error("Enrolment options error:", optR.status, errText);
-            $("fpHint").textContent = "❌ Server error getting enrolment options (HTTP " + optR.status + "). Check server logs.";
+            const errBody = await optR.text().catch(() => "");
+            console.error("Enrolment options error:", optR.status, errBody);
+            let errMsg = "";
+            try { errMsg = JSON.parse(errBody).msg || JSON.parse(errBody).error || ""; } catch(e) {}
+            $("fpHint").textContent = "❌ " + (window.HZErrors ? HZErrors.clean(errMsg, optR.status)
+                                                              : (errMsg || "Enrolment couldn't start. Please try again."));
             $("fpHint").style.color = "#f59e0b";
             btn.disabled = false; btn.textContent = "🔐 Enrol Fingerprint";
             return;
@@ -1238,9 +1248,9 @@
           } else if (err.name === "InvalidStateError") {
             $("fpHint").textContent = "❌ A passkey for this account already exists on this device.";
           } else if (err.name === "SecurityError") {
-            $("fpHint").textContent = "❌ Security error: " + err.message + " (check RP ID / HTTPS config)";
+            $("fpHint").textContent = "❌ Blocked for security: fingerprint enrolment needs the site's secure https:// address (not an IP address). Ask your admin to check the kiosk's address.";
           } else {
-            $("fpHint").textContent = "❌ Enrolment failed: " + (err.message || err.name || "Unknown error");
+            $("fpHint").textContent = "❌ " + errText(err, "Enrolment failed: the fingerprint couldn't be registered. Please try again.");
           }
           btn.disabled = false; btn.textContent = "🔐 Enrol Fingerprint";
         }
@@ -1274,9 +1284,9 @@
           $("startBtn").disabled       = false;
           $("statusBar").style.display = "none";
           if (err.code === 1) {
-            showError("Location access denied. Please allow location in your browser settings.");
+            showError("Location blocked: allow location access for this site in your browser settings, then try again.");
           } else {
-            showError(err.message || "Something went wrong. Please try again.");
+            showError(errText(err, "Couldn't start: something went wrong. Please try again."));
           }
         }
       }
@@ -1309,7 +1319,7 @@
           $("statusBar").style.display = "none";
           $("methodOverlay").style.display      = "none";
           $("fingerprintOverlay").style.display = "none";
-          showError(err.message || "Something went wrong. Please try again.");
+          showError(errText(err, "Attendance not recorded: something went wrong. Please try again."));
         }
       }
 
@@ -1323,7 +1333,7 @@
         } catch (err) {
           stopCamera();
           $("startBtn").disabled = false;
-          showError(err.message || "Submission failed. Please try again.");
+          showError(errText(err, "Attendance not recorded: the submission failed. Please try again."));
         }
       }
 
@@ -1385,12 +1395,17 @@
             liveness:           liveness || undefined,
           }),
         });
-        const result = await resp.json();
+        // readJson never throws: a web page or proxy error instead of JSON
+        // becomes {ok: false, msg: "Server unreachable: ..."} (hz-errors.js).
+        const result = window.HZErrors ? await HZErrors.readJson(resp) : await resp.json();
 
         $("statusBar").style.display = "none";
         $("startBtn").disabled       = false;
 
-        if (!result.ok) { showError(result.msg); return; }
+        if (!result || !result.ok) {
+          showError((result && result.msg) || "Attendance not recorded: the server didn't confirm it. Please try again.");
+          return;
+        }
 
         populateResult(result);
         $("resultBox").style.display = "block";

@@ -635,6 +635,8 @@
         s.style.display = "block";
       }
       function wfhShowError(msg) {
+        // Plain "Type: reason", never HTML or code (static/hz-errors.js).
+        if (window.HZErrors) msg = HZErrors.clean(msg);
         document.getElementById("wfhError").textContent   = "❌ " + msg;
         document.getElementById("wfhError").style.display = "block";
         document.getElementById("wfhStatus").style.display= "none";
@@ -852,13 +854,18 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
           });
-          var result = await resp.json();
+          // readJson never throws: a web page or proxy error instead of JSON
+          // becomes {ok: false, msg: "Server unreachable: ..."} (hz-errors.js).
+          var result = window.HZErrors ? await HZErrors.readJson(resp) : await resp.json();
 
           document.getElementById("wfhStatus").style.display    = "none";
           document.getElementById("wfhPhaseLabel").style.display = "none";
           document.getElementById("wfhStartBtn").disabled        = false;
 
-          if (!result.ok) { wfhShowError(result.msg); return; }
+          if (!result || !result.ok) {
+            wfhShowError((result && result.msg) || "Attendance not recorded: the server didn't confirm it. Please try again.");
+            return;
+          }
 
           var statusMap = {
             "Full Day Login":  "Full Day Login ✅",  "Late Login": "Late Login ⚠️",
@@ -887,9 +894,11 @@
           document.getElementById("wfhStartBtn").disabled = false;
           document.getElementById("wfhStatus").style.display = "none";
           if (err.code === 1) {
-            wfhShowError("Location access denied. Please allow location in your browser settings.");
+            wfhShowError("Location blocked: allow location access for this site in your browser settings, then try again.");
           } else {
-            wfhShowError(err.message || "Something went wrong. Please try again.");
+            wfhShowError(window.HZErrors
+              ? HZErrors.describe(err, "Attendance not recorded: something went wrong. Please try again.")
+              : (err.message || "Attendance not recorded: something went wrong. Please try again."));
           }
         }
       }
