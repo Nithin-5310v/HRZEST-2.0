@@ -58,6 +58,17 @@ def _init_core_tables(cursor, db):
             name VARCHAR(100) NOT NULL
         )
     """)
+    # Per-person admin UI preferences (so far: which menu items are pinned to
+    # the top of the left sidebar -- static/sidebar.js, POST /api/sidebar_pins).
+    # Keyed by the login the session carries (admin username, or an HR/manager's
+    # employee ID), so it follows the person to another computer.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS admin_ui_prefs (
+            username VARCHAR(150) PRIMARY KEY,
+            sidebar_pins TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     # Company-wide policies (Terms, Rules, POSH, etc.) -- previously just
     # hardcoded static text in templates/employee_portal.html; this table
     # backs blueprints/policies.py's admin+HR CRUD (surfaced as the HR
