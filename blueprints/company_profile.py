@@ -311,16 +311,17 @@ def profile_details_save():
 
     img = None
     if has_photo:
-        ok, err = _validate_image_file(photo_file)
+        ok, err = _validate_image_file(photo_file, person_photo=True)
         if not ok:
-            flash(f"Profile photo: {err}", "error")
+            flash(f"Profile photo not saved. {err}", "error")
             return redirect(tpath("/profile"))
         try:
             img = Image.open(photo_file.stream)
             img.thumbnail((400, 400))
             img = img.convert("RGB")
         except (UnidentifiedImageError, OSError):
-            flash("Profile photo: that file isn't a readable image.", "error")
+            flash("Profile photo not saved. Unreadable photo: the file is damaged or isn't a complete image. "
+                  "Please choose a different photo.", "error")
             return redirect(tpath("/profile"))
 
     if has_logo:
@@ -450,7 +451,7 @@ def my_employee_profile_create():
         return redirect(back)
     photo = request.files.get("face")
     if photo and photo.filename:
-        ok, err = _validate_image_file(photo)
+        ok, err = _validate_image_file(photo, person_photo=True)
         if not ok:
             flash(err, "error")
             return redirect(back)

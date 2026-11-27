@@ -118,8 +118,9 @@
             </div>
             <div class="wsu-field wsu-field-wide">
               <label for="wsu-face">Face photo <span class="wsu-hint">(optional)</span></label>
-              <input type="file" id="wsu-face" name="face" accept=".jpg,.jpeg,.png,.webp,.bmp">
-              <span class="wsu-hint">Needed only for face check-in. JPG, PNG, WEBP or BMP &middot; up to 5 MB &middot; at least 200 &times; 200 px.</span>
+              <input type="file" id="wsu-face" name="face" accept=".jpg,.jpeg,.png,.webp,.bmp"
+                     data-photo-check data-photo-check-hint="wsu-face-hint">
+              <span class="wsu-hint" id="wsu-face-hint">Needed only for face check-in. {{ photo_rules_hint }}.</span>
             </div>
           </div>
           <div class="wsu-foot">
@@ -130,4 +131,9 @@
         {% endif %}
       </section>
       </div>
+{% endblock %}
+
+{% block scripts %}
+{# Checks a chosen face photo (size, pixels) before it uploads. #}
+<script src="{{ static_url('js/photo-check.js') }}"></script>
 {% endblock %}

@@ -20,6 +20,7 @@ import { useTheme } from "../../store/ThemeContext";
 import { changePassword } from "../../api/client";
 import { getBiometricLockEnabled, setBiometricLockEnabled } from "../../utils/preferences";
 
+import { errorMessage } from "../../api/errors";
 export default function SecurityScreen() {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
@@ -79,7 +80,7 @@ export default function SecurityScreen() {
         Alert.alert("Failed", res?.data?.msg || "Could not change password.");
       }
     } catch (e) {
-      Alert.alert("Failed", e?.response?.data?.msg || "Could not change password.");
+      Alert.alert("Failed", errorMessage(e, "Could not change password."));
     }
     setSaving(false);
   };

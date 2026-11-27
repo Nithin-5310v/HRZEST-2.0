@@ -12,6 +12,10 @@
     if (text != null) e.textContent = text;
     return e;
   }
+  // An error as plain "Type: reason" (static/hz-errors.js).
+  function _errText(e) {
+    return window.HZErrors ? HZErrors.describe(e) : ((e && e.message) || 'Something went wrong. Please try again.');
+  }
   function ago(seconds) {
     var s = Math.max(0, Math.floor(seconds || 0));
     if (s < 90) return 'just now';
@@ -32,7 +36,10 @@
       if (body) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
       return fetch(url, init).then(function (r) { // audit-ok: both callers (load, end) end the chain in .catch()
         return r.json().catch(function () { return {}; }).then(function (d) {
-          if (!r.ok || d.ok === false) throw new Error(d.msg || 'Something went wrong (' + r.status + ').');
+          if (!r.ok || d.ok === false) {
+            throw new Error(d.msg || (window.HZErrors ? HZErrors.reasonForStatus(r.status)
+                                                      : 'Something went wrong (' + r.status + ').'));
+          }
           return d;
         });
       });
@@ -44,7 +51,7 @@
       request('POST', base + '/end', body).then(function (d) {
         status.textContent = d.ended === 1 ? 'Signed out of 1 session.' : 'Signed out of ' + d.ended + ' sessions.';
         load();
-      }).catch(function (e) { status.textContent = e.message; });
+      }).catch(function (e) { status.textContent = _errText(e); });
     }
 
     function row(s) {
@@ -81,7 +88,7 @@
           list.appendChild(all);
         }
         if (!d.sessions.length) list.appendChild(el('p', 'u-fs-13 u-c-64748b u-m-0', 'No other signed-in sessions.'));
-      }).catch(function (e) { status.textContent = e.message; });
+      }).catch(function (e) { status.textContent = _errText(e); });
     }
     load();
   }

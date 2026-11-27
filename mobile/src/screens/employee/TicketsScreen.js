@@ -22,6 +22,7 @@ import EmptyTickets from "../../components/tickets/EmptyTickets";
 import { fetchEmployeeTickets, raiseTicket } from "../../api/client";
 import { useTheme } from "../../store/ThemeContext";
 
+import { errorMessage } from "../../api/errors";
 export default function TicketsScreen() {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
@@ -79,7 +80,7 @@ export default function TicketsScreen() {
         Alert.alert("Submission Failed", res?.data?.msg || "Could not submit your ticket.");
       }
     } catch (e) {
-      Alert.alert("Submission Failed", e?.response?.data?.msg || "Could not submit your ticket. Check your connection.");
+      Alert.alert("Submission Failed", errorMessage(e, "Could not submit your ticket. Check your connection."));
     }
     setSubmitting(false);
   };

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """helpers: response helpers: JSON-vs-HTML negotiation, the error page renderer"""
+import re
 from flask import g, has_app_context, jsonify, request, session
 from markupsafe import escape
 from utils.csp import trusted_html
@@ -57,12 +58,20 @@ def wants_json_response():
     )
 
 
+def error_code_slug(title):
+    """"Page Not Found" -> "page_not_found": the machine-readable error type
+    sent with JSON errors, beside the human-readable msg."""
+    return re.sub(r"[^a-z0-9]+", "_", (title or "error").lower()).strip("_") or "error"
+
+
 def _error_page(code, icon, title, subtitle, hint):
     # API clients (the mobile app, the pages' fetch() calls) can't parse an
     # HTML page; same {"ok": False, "msg": ...} shape as every API error
-    # (QA ERR-01). Only the generic title goes out -- never exception details.
+    # (QA ERR-01). msg says what went wrong and why ("Page Not Found: The
+    # page you're looking for ...") -- the fixed text below, never exception
+    # details.
     if wants_json_response():
-        return jsonify({"ok": False, "msg": title}), code
+        return jsonify({"ok": False, "error": error_code_slug(title), "msg": f"{title}: {subtitle}"}), code
     back_admin = session.get("admin_logged_in")
     back_emp = session.get("employee_id")
     back_link = "/admin" if back_admin else ("/employee_portal" if back_emp else "/")

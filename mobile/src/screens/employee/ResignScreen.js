@@ -20,6 +20,7 @@ import { fetchEmployeePortal, submitResignation } from "../../api/client";
 import { localISODate } from "../../utils/dates";
 import { reportError } from "../../utils/crashReporting";
 
+import { errorMessage } from "../../api/errors";
 const REASONS = [
   { icon: "trending-up-outline", label: "Career Growth" },
   { icon: "briefcase-outline", label: "Better Opportunity" },
@@ -91,7 +92,7 @@ export default function ResignScreen() {
                 Alert.alert("Error", res?.data?.msg || "Failed to submit resignation.");
               }
             } catch (e) {
-              Alert.alert("Error", e.response?.data?.msg || "Failed to submit resignation.");
+              Alert.alert("Error", errorMessage(e, "Failed to submit resignation."));
             } finally {
               setSubmitting(false);
             }

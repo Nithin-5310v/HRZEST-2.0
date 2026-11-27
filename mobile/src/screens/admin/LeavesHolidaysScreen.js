@@ -27,6 +27,7 @@ import {
 } from "../../api/client";
 import { useTheme } from "../../store/ThemeContext";
 
+import { errorMessage } from "../../api/errors";
 export default function LeavesHolidaysScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
@@ -94,7 +95,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
         Alert.alert("Action Failed", res?.data?.msg || "Could not update status.");
       }
     } catch (e) {
-      Alert.alert("Error", e?.response?.data?.msg || "Failed to update leave request.");
+      Alert.alert("Error", errorMessage(e, "Failed to update leave request."));
     }
   };
 
@@ -117,7 +118,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
         Alert.alert("Could Not Add", res?.data?.msg || "Please check the date and try again.");
       }
     } catch (e) {
-      Alert.alert("Could Not Add", e?.response?.data?.msg || "Please check the date and try again.");
+      Alert.alert("Could Not Add", errorMessage(e, "Please check the date and try again."));
     }
     setSavingHoliday(false);
   };
@@ -137,7 +138,7 @@ export default function LeavesHolidaysScreen({ navigation }) {
               Alert.alert("Could Not Remove", res?.data?.msg || "Please try again.");
             }
           } catch (e) {
-            Alert.alert("Could Not Remove", e?.response?.data?.msg || "Please try again.");
+            Alert.alert("Could Not Remove", errorMessage(e, "Please try again."));
           }
         },
       },

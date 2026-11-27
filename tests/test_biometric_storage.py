@@ -10,9 +10,9 @@ from utils import storage
 from tests.conftest import patch_package  # noqa: E402
 
 
-def _jpeg_bytes(color=(200, 30, 30)):
+def _jpeg_bytes(color=(200, 30, 30), size=(32, 24)):
     buf = io.BytesIO()
-    Image.new("RGB", (32, 24), color).save(buf, "JPEG")
+    Image.new("RGB", size, color).save(buf, "JPEG")
     return buf.getvalue()
 
 
@@ -75,7 +75,8 @@ def test_employee_photo_upload_is_encrypted_and_served_decrypted(client, seed_em
     with client.session_transaction() as sess:
         sess["employee_id"] = emp_id
         sess["role"] = "employee"
-    data = _jpeg_bytes((5, 200, 90))
+    # Photos of people must be at least 200 x 200 px (utils/helpers/uploads.py).
+    data = _jpeg_bytes((5, 200, 90), size=(240, 240))
     resp = client.post("/update_my_photo", data={"photo": (io.BytesIO(data), "me.jpg", "image/jpeg")},
                        content_type="multipart/form-data")
     assert resp.status_code in (302, 303)

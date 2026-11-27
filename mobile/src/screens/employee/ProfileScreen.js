@@ -26,6 +26,9 @@ import ProfileMenuCard from "../../components/profile/ProfileMenuCard";
 import DigitalIdCardModal from "../../components/employee/DigitalIdCardModal";
 import { reportError } from "../../utils/crashReporting";
 
+import { errorMessage } from "../../api/errors";
+import { checkPickedPhoto } from "../../utils/photoRules";
+import { NETWORK_MSG } from "../../api/errors";
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const { user, updateUser } = useAuth();
@@ -175,7 +178,7 @@ export default function ProfileScreen() {
         Alert.alert("Save Failed", res?.data?.msg || "Could not update your profile.");
       }
     } catch (e) {
-      Alert.alert("Save Failed", e?.response?.data?.msg || "Could not update your profile.");
+      Alert.alert("Save Failed", errorMessage(e, "Could not update your profile."));
     }
     setSubmitting(false);
   };
@@ -195,6 +198,12 @@ export default function ProfileScreen() {
       });
 
       if (!result.canceled && result.assets?.[0]?.uri) {
+        // Too large or too small: say so now, with its size, not after uploading.
+        const problem = checkPickedPhoto(result.assets[0]);
+        if (problem) {
+          Alert.alert(problem.title, problem.message);
+          return;
+        }
         const photoUri = result.assets[0].uri;
         setSubmitting(true);
         const formData = new FormData();
@@ -215,7 +224,8 @@ export default function ProfileScreen() {
           Alert.alert("Face Photo Registered 🎉", "Your official face photo has been registered successfully for Face Verification!");
           setProfileData((prev) => ({ ...prev, photo: photoUri }));
         } else {
-          Alert.alert("Upload Failed", res?.data?.msg || "Could not upload your photo. Check your connection and try again.");
+          Alert.alert("Upload Failed", res?.data?.msg ||
+            (res ? "Upload failed: the server didn't accept the photo. Please try again." : NETWORK_MSG));
         }
       }
     } catch (_) {

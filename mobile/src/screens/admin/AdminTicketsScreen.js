@@ -20,6 +20,7 @@ import AdminSearchBar from "../../components/admin/AdminSearchBar";
 import { fetchAllTickets, ticketAction } from "../../api/client";
 import { useTheme } from "../../store/ThemeContext";
 
+import { errorMessage } from "../../api/errors";
 const STATUSES = ["Open", "In Progress", "Resolved", "Closed"];
 
 const getStatusBadge = (status) => {
@@ -71,7 +72,7 @@ function TicketCard({ ticket, onUpdate }) {
         Alert.alert("Error", res?.data?.msg || "Failed to update ticket.");
       }
     } catch (e) {
-      Alert.alert("Error", e?.response?.data?.msg || "Failed to update ticket. Check your connection.");
+      Alert.alert("Error", errorMessage(e, "Failed to update ticket. Check your connection."));
     } finally {
       setSaving(false);
     }

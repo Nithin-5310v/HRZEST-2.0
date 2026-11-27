@@ -34,7 +34,7 @@ QR_FOLDER = os.path.join(flask_app.root_path, "private_uploads", "qrcodes")
 
 def _fake_jpeg_bytes():
     buf = io.BytesIO()
-    Image.new("RGB", (10, 10), color=(80, 90, 100)).save(buf, format="JPEG")
+    Image.new("RGB", (240, 240), color=(80, 90, 100)).save(buf, format="JPEG")
     buf.seek(0)
     return buf.read()
 

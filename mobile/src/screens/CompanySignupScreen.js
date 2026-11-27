@@ -18,6 +18,7 @@ import { API_BASE_URL } from "../config";
 import { useAuth } from "../store/AuthContext";
 import { WEB, WebPage, WebTopBar, WebNavButton, WebCard, WebCardHeader, WebButton, webAuthStyles } from "../theme/webAuthStyle";
 
+import { errorMessage } from "../api/errors";
 // Company signup is one step, the same as the website's (/create_org): the
 // company's name and the admin's account, then -- on this same card -- the
 // code emailed to verify the address. The code creates the company and
@@ -92,7 +93,7 @@ export default function CompanySignupScreen({ navigation }) {
         Alert.alert("Could Not Register", res?.data?.msg || "Please check your details and try again.");
       }
     } catch (err) {
-      Alert.alert("Could Not Register", err?.response?.data?.msg || err?.message || "Network error.");
+      Alert.alert("Could Not Register", errorMessage(err, "Network error."));
     }
     setLoading(false);
   };
@@ -120,7 +121,7 @@ export default function CompanySignupScreen({ navigation }) {
       }
       Alert.alert("Could Not Verify", data?.msg || "Please try again.");
     } catch (err) {
-      Alert.alert("Could Not Verify", err?.response?.data?.msg || err?.message || "Network error.");
+      Alert.alert("Could Not Verify", errorMessage(err, "Network error."));
     }
     setLoading(false);
   };
@@ -130,7 +131,7 @@ export default function CompanySignupScreen({ navigation }) {
       const res = await resendCompanySignupOtp(pending.applicationId, pending.accessToken);
       Alert.alert("Code Sent", res?.data?.msg || "A new code has been sent to your email.");
     } catch (err) {
-      Alert.alert("Could Not Resend", err?.response?.data?.msg || "Please wait a moment and try again.");
+      Alert.alert("Could Not Resend", errorMessage(err, "Please wait a moment and try again."));
     }
   };
 

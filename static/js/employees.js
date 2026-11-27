@@ -280,7 +280,10 @@
               + 'Click the <strong>lock icon</strong> in the address bar &rarr; <strong>Camera</strong> &rarr; <strong>Allow</strong>, then click the Camera button again.<br>'
               + 'Or use <strong>Upload Photo</strong> to select an image from your device.';
           } else {
-            errDiv.innerHTML = '<strong>Camera not available:</strong> ' + e.message + '<br>Use Upload Photo instead.';
+            // The reason as plain text (static/hz-errors.js), never the browser's raw message.
+            errDiv.textContent = (window.HZErrors ? HZErrors.describe(e, 'Camera not available: the camera could not be started.')
+                                                  : 'Camera not available: the camera could not be started.')
+                                 + ' Use Upload Photo instead.';
           }
           errDiv.style.display = 'block';
           document.getElementById('empCaptureBtn').style.display = 'none';
@@ -644,8 +647,9 @@
           if (!optResp.ok) {
             var errBody = await optResp.text().catch(function(){ return ''; });
             var errMsg = '';
-            try { errMsg = JSON.parse(errBody).error || JSON.parse(errBody).msg || ''; } catch(e) {}
-            status.textContent = '❌ Server error getting enrolment options (HTTP ' + optResp.status + ')' + (errMsg ? ': ' + errMsg : '') + '. Check server logs.';
+            try { errMsg = JSON.parse(errBody).msg || JSON.parse(errBody).error || ''; } catch(e) {}
+            status.textContent = '❌ ' + (window.HZErrors ? HZErrors.clean(errMsg, optResp.status)
+                                                          : (errMsg || 'Enrolment couldn\'t start. Please try again.'));
             status.style.color = '#dc2626';
             btn.disabled = false; btn.textContent = '👆 Enroll Fingerprint';
             return;
@@ -712,9 +716,10 @@
           } else if (e.name === 'InvalidStateError') {
             status.textContent = '❌ A passkey for this employee already exists on this device. Clear it or use a different device.';
           } else if (e.name === 'SecurityError') {
-            status.textContent = '❌ Security error: ' + e.message + ' — enrolment requires HTTPS with a domain name, not an IP address.';
+            status.textContent = '❌ Blocked for security: fingerprint enrolment needs the site\'s secure https:// address with a domain name, not an IP address.';
           } else {
-            status.textContent = '❌ ' + (e.message || 'Enrollment failed. Try a different browser.');
+            status.textContent = '❌ ' + (window.HZErrors ? HZErrors.describe(e, 'Enrolment failed: try a different browser.')
+                                                          : 'Enrolment failed: try a different browser.');
           }
         }
       }
@@ -745,8 +750,9 @@
           if (!optResp.ok) {
             var errBody = await optResp.text().catch(function(){ return ''; });
             var errMsg = '';
-            try { errMsg = JSON.parse(errBody).error || JSON.parse(errBody).msg || ''; } catch(e) {}
-            fpMsg.textContent = '❌ Server error (' + optResp.status + ')' + (errMsg ? ': ' + errMsg : '');
+            try { errMsg = JSON.parse(errBody).msg || JSON.parse(errBody).error || ''; } catch(e) {}
+            fpMsg.textContent = '❌ ' + (window.HZErrors ? HZErrors.clean(errMsg, optResp.status)
+                                                         : (errMsg || 'Enrolment couldn\'t start. Please try again.'));
             fpMsg.style.color = '#dc2626';
             fpMsg.style.display = 'block';
             enrollBtn.disabled = false; enrollBtn.textContent = '👆 Enroll Fingerprint';
@@ -829,9 +835,10 @@
           } else if (e.name === 'InvalidStateError') {
             fpMsg.textContent = '❌ A passkey for this employee already exists on this device.';
           } else if (e.name === 'SecurityError') {
-            fpMsg.textContent = '❌ Security error: ' + e.message;
+            fpMsg.textContent = '❌ Blocked for security: fingerprint enrolment needs the site\'s secure https:// address with a domain name, not an IP address.';
           } else {
-            fpMsg.textContent = '❌ ' + (e.message || 'Enrollment failed.');
+            fpMsg.textContent = '❌ ' + (window.HZErrors ? HZErrors.describe(e, 'Enrolment failed: please try again.')
+                                                         : 'Enrolment failed: please try again.');
           }
         }
       }

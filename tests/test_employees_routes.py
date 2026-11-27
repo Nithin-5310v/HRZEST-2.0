@@ -19,7 +19,7 @@ from utils.tenant_files import face_photo_path
 
 def _jpeg_bytes():
     buf = io.BytesIO()
-    Image.new("RGB", (10, 10), color=(50, 60, 70)).save(buf, format="JPEG")
+    Image.new("RGB", (240, 240), color=(50, 60, 70)).save(buf, format="JPEG")
     return buf.getvalue()
 
 
