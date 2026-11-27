@@ -26,6 +26,7 @@ import {
 } from "../../api/client";
 import { reportError } from "../../utils/crashReporting";
 
+import { errorMessage } from "../../api/errors";
 // company_settings.working_days is a free-form CSV of day abbreviations
 // (e.g. "Mon,Tue,Wed,Thu,Fri"), but this screen's UI is a simpler 3-chip
 // picker -- these two maps translate between them so the picker can stay
@@ -354,7 +355,7 @@ export default function SettingsScreen({ navigation, route }) {
         Alert.alert("Failed", res?.data?.msg || "Could not create shift.");
       }
     } catch (e) {
-      Alert.alert("Failed", e?.response?.data?.msg || "Could not create shift.");
+      Alert.alert("Failed", errorMessage(e, "Could not create shift."));
     }
   };
 

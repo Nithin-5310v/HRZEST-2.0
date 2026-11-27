@@ -11,12 +11,18 @@
         {% if request.args.get('photo_saved') %}
         <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Profile photo updated successfully.</div>
         {% endif %}
-        {% if request.args.get('photo_error') == 'no_face' %}
-        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> No face detected. Please upload a clear front-facing photo.</div>
-        {% elif request.args.get('photo_error') == 'bad_format' %}
-        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Photo not accepted. Please choose a JPG or PNG photo of up to 5 MB.</div>
-        {% elif request.args.get('photo_error') %}
-        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i> Photo upload failed. Please try again.</div>
+        {% set _photo_err = request.args.get('photo_error') %}
+        {% if _photo_err %}
+        <div class="flash-banner flash-banner-red"><i class="ti ti-circle-x hz-ico hz-bad" aria-hidden="true"></i>
+          {% if _photo_err == 'no_face' %}No face detected: the photo must show your face clearly, from the front. Please upload a different photo.
+          {% elif _photo_err == 'too_large' %}File too large: the photo is over {{ photo_max_mb }} MB. Please choose a smaller photo or reduce its size.
+          {% elif _photo_err == 'too_small' %}Photo too small: it must be at least {{ photo_min_px }} &times; {{ photo_min_px }} pixels so your face is clear. Please choose a larger photo.
+          {% elif _photo_err == 'unreadable' %}Unreadable photo: the file is damaged or isn't a complete image. Please choose a different photo.
+          {% elif _photo_err == 'blocked' %}Upload blocked: the photo couldn't be checked for viruses right now. Please try again in a few minutes.
+          {% elif _photo_err == 'no_file' %}No photo selected: please choose a photo to upload.
+          {% elif _photo_err == 'bad_format' %}File type not allowed: please choose a JPG or PNG photo of up to {{ photo_max_mb }} MB.
+          {% else %}Photo upload failed: the photo couldn't be saved. Please try again.{% endif %}
+        </div>
         {% endif %}
         {% if request.args.get('exp_saved') %}
         <div class="flash-banner flash-banner-green"><i class="ti ti-circle-check hz-ico hz-ok" aria-hidden="true"></i> Work experience entry added.</div>
@@ -656,8 +662,9 @@
               if (!optR.ok) {
                 const errBody = await optR.text().catch(() => "");
                 let errMsg = "";
-                try { errMsg = JSON.parse(errBody).error || JSON.parse(errBody).msg || ""; } catch(e) {}
-                showMsg('✖ Server error getting enrolment options (HTTP ' + optR.status + ')' + (errMsg ? ': ' + errMsg : '') + '. Check server logs.', true);
+                try { errMsg = JSON.parse(errBody).msg || JSON.parse(errBody).error || ""; } catch(e) {}
+                showMsg('✖ ' + (window.HZErrors ? HZErrors.clean(errMsg, optR.status)
+                                                : (errMsg || 'Enrolment couldn\'t start. Please try again.')), true);
                 return;
               }
               const regOpts = await optR.json();
@@ -722,11 +729,12 @@
               if (err.name === 'NotAllowedError') {
                 showMsg('✖ Enrollment cancelled or timed out. Please try again.', true);
               } else if (err.name === 'SecurityError') {
-                showMsg('✖ Security error: ' + err.message + ' — fingerprint enrollment requires HTTPS with a valid domain name (not an IP address).', true);
+                showMsg('✖ Blocked for security: fingerprint enrolment needs the site\'s secure https:// address with a domain name, not an IP address.', true);
               } else if (err.name === 'InvalidStateError') {
                 showMsg('✖ A passkey for this account already exists on this device. Remove it first or use a different device.', true);
               } else {
-                showMsg('✖ ' + (err.message || 'Unknown error'), true);
+                showMsg('✖ ' + (window.HZErrors ? HZErrors.describe(err, 'Enrolment failed: please try again.')
+                                                : 'Enrolment failed: please try again.'), true);
               }
             } finally {
               btn.disabled    = false;

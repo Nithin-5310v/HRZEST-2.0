@@ -17,6 +17,7 @@ from flask import g as _g, session
 from jinja2.ext import Extension
 from utils.auth import HR_ROLE, MANAGER_ROLE
 from utils.helpers import (
+    PHOTO_MIN_PX, PHOTO_RULES_HINT, _MAX_PHOTO_SIZE_MB,
     coerce_datetime, csp_nonce, get_companies_list, get_company_settings, get_overdue_onboarding_count,
     static_url as _static_url, tpath as _tpath,
 )
@@ -161,6 +162,11 @@ app.jinja_env.globals["timedelta"] = datetime.timedelta
 
 app.jinja_env.globals["tpath"] = _tpath
 app.jinja_env.globals["static_url"] = _static_url
+# The photo rules the server enforces (utils/helpers/uploads.py), so every
+# photo picker states them the same way.
+app.jinja_env.globals["photo_max_mb"] = _MAX_PHOTO_SIZE_MB
+app.jinja_env.globals["photo_min_px"] = PHOTO_MIN_PX
+app.jinja_env.globals["photo_rules_hint"] = PHOTO_RULES_HINT
 
 
 # A <script>/<style> tag in a template's own source, not yet carrying a nonce.

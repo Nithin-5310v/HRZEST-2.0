@@ -161,6 +161,23 @@ def delete_education_entry(entry_id):
     return redirect(self_service_return_path("#my-profile"))
 
 
+def _photo_error_code(err):
+    """Which banner the portal shows for a rejected photo (the page says
+    why: too large, too small, unreadable, ...); see _view_my_profile.html."""
+    text = (err or "").lower()
+    if text.startswith(("file too large", "photo too large")):
+        return "too_large"
+    if text.startswith("photo too small"):
+        return "too_small"
+    if text.startswith(("unreadable", "file type does not match", "empty file")):
+        return "unreadable"
+    if text.startswith("upload blocked"):
+        return "blocked"
+    if text.startswith("no photo selected"):
+        return "no_file"
+    return "bad_format"
+
+
 @employee_portal_bp.route("/update_my_photo", methods=["POST"])
 @any_user_required
 def update_my_photo():
@@ -169,9 +186,9 @@ def update_my_photo():
     if not emp_id:
         return redirect(tpath("/login"))
     file = request.files.get("photo")
-    ok, err = _validate_image_file(file)
+    ok, err = _validate_image_file(file, person_photo=True)
     if not ok:
-        return redirect(self_service_return_path("?photo_error=bad_format#my-profile"))
+        return redirect(self_service_return_path(f"?photo_error={_photo_error_code(err)}#my-profile"))
     try:
         # Upright by its EXIF orientation: it is saved without EXIF, so a
         # phone photo would otherwise be stored sideways.

@@ -454,10 +454,11 @@
             <span class="zf-upload-badge"><i class="ti ti-camera"></i></span>
           </label>
           <div class="zf-upload-text">
-            <input class="zf-file" type="file" id="p-photo-input" name="photo" accept=".jpg,.jpeg,.png,.webp" data-zf-name="p-photo-name">
+            <input class="zf-file" type="file" id="p-photo-input" name="photo" accept=".jpg,.jpeg,.png,.webp,.bmp"
+                   data-photo-check data-photo-check-hint="p-photo-name" data-photo-check-note="Save changes to apply.">
             <label class="zf-link" for="p-photo-input">{{ 'Change photo' if admin_avatar_url else 'Upload photo' }}</label>
             {% if admin_avatar_url %}<button class="zf-link zf-link-danger" type="submit" form="zf-photo-remove">Remove</button>{% endif %}
-            <span class="zf-hint" id="p-photo-name">Optional. JPG, PNG or WEBP, shown on your profile button.</span>
+            <span class="zf-hint" id="p-photo-name">Optional, shown on your profile button. {{ photo_rules_hint }}.</span>
           </div>
         </div>
         <div class="zf-grid">
@@ -537,8 +538,9 @@
           </div>
           <div class="zf-f own-emp-photo">
             <label class="zf-label" for="own-face">Face photo</label>
-            <input class="p-input zf-input" type="file" id="own-face" name="face" accept=".jpg,.jpeg,.png,.webp,.bmp">
-            <span class="zf-hint">Optional, needed for face check-in. JPG, PNG, WEBP or BMP &middot; up to 5 MB &middot; at least 200 &times; 200 px.</span>
+            <input class="p-input zf-input" type="file" id="own-face" name="face" accept=".jpg,.jpeg,.png,.webp,.bmp"
+                   data-photo-check data-photo-check-hint="own-face-hint">
+            <span class="zf-hint" id="own-face-hint">Optional, needed for face check-in. {{ photo_rules_hint }}.</span>
           </div>
         </div>
         <div class="own-emp-foot">
@@ -880,6 +882,8 @@
 {% endblock %}
 
 {% block scripts %}
+{# Checks a chosen profile or face photo (size, pixels) before it uploads. #}
+<script src="{{ static_url('js/photo-check.js') }}"></script>
 <script>
 (function () {
   // The header's Change logo button saves as soon as a file is chosen.

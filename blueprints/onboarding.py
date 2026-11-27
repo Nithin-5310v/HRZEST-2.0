@@ -1462,7 +1462,11 @@ def offer_letter_send(letter_id):
         db.commit()
         flash(f"Offer letter emailed to {emp_email}.", "success")
     except Exception as ex:
-        flash(f"Email failed: {ex}", "error")
+        # The exception's own text (SMTP server replies, file paths) goes to
+        # the log, not the page.
+        app_log.warning("Offer letter %s email failed (%s): %s", letter_id, type(ex).__name__, ex, exc_info=True)
+        flash("Email not sent: the offer letter couldn't be emailed. The mail server refused it or couldn't be "
+              "reached. Check Settings → Email and try again.", "error")
     cursor.close()
     db.close()
     return redirect(tpath(f"/offer_letter_view/{letter_id}"))

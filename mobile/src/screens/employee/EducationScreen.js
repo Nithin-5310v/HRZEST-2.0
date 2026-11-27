@@ -20,6 +20,7 @@ import EmptyState from "../../components/ui/EmptyState";
 import { useTheme } from "../../store/ThemeContext";
 import { fetchMyEducation, addMyEducation, deleteMyEducation } from "../../api/client";
 
+import { errorMessage } from "../../api/errors";
 export default function EducationScreen() {
   const { colors } = useTheme();
   const styles = React.useMemo(() => makeStyles(colors), [colors]);
@@ -79,7 +80,7 @@ export default function EducationScreen() {
         Alert.alert("Could Not Add", res?.data?.msg || "Please check the details and try again.");
       }
     } catch (e) {
-      Alert.alert("Could Not Add", e?.response?.data?.msg || "Please check the details and try again.");
+      Alert.alert("Could Not Add", errorMessage(e, "Please check the details and try again."));
     }
     setSaving(false);
   };
@@ -99,7 +100,7 @@ export default function EducationScreen() {
               Alert.alert("Could Not Remove", res?.data?.msg || "Please try again.");
             }
           } catch (e) {
-            Alert.alert("Could Not Remove", e?.response?.data?.msg || "Please try again.");
+            Alert.alert("Could Not Remove", errorMessage(e, "Please try again."));
           }
         },
       },

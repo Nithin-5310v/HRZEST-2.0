@@ -86,7 +86,9 @@ def rate_limit_exceeded(e):
                      path=(request.script_root or "") + request.path,
                      detail=str(getattr(e, "description", "") or "")[:200])
     if wants_json_response():
-        return jsonify({"ok": False, "msg": "Too many requests. Please slow down and try again shortly."}), 429
+        return jsonify({"ok": False, "error": "too_many_requests",
+                        "msg": "Too many requests: you've made too many requests in a short time. "
+                               "Please wait a moment and try again."}), 429
     return _error_page(429, "⏳", "Too Many Requests",
                        "You've made too many requests in a short period.",
                        "Please wait a moment before trying again.")
@@ -100,7 +102,9 @@ def database_unavailable(e):
     and alert (CRITICAL security events go to the alert webhook)."""
     log_security_event("db.unavailable", "PostgreSQL unavailable -- request answered 503", level="CRITICAL")
     if wants_json_response():
-        resp = jsonify({"ok": False, "msg": "Service temporarily unavailable. Please try again shortly."})
+        resp = jsonify({"ok": False, "error": "service_unavailable",
+                        "msg": "Service temporarily unavailable: the server can't reach its database right now. "
+                               "Please try again in a minute."})
     else:
         resp = _error_page(503, "🛠️", "Service Temporarily Unavailable",
                            "We can't reach the database right now.",
@@ -130,10 +134,11 @@ def payload_too_large(e):
     """An upload over MAX_CONTENT_LENGTH: back to the page it came from with
     a message, instead of a bare "Request Entity Too Large" page."""
     max_mb = (app.config.get("MAX_CONTENT_LENGTH") or 0) // (1024 * 1024)
-    msg = (f"That file is too large to upload (the limit is {max_mb} MB). Please choose a smaller file."
-           if max_mb else "That file is too large to upload. Please choose a smaller file.")
+    msg = (f"File too large: that file is too large to upload (the limit is {max_mb} MB). "
+           "Please choose a smaller file." if max_mb
+           else "File too large: that file is too large to upload. Please choose a smaller file.")
     if wants_json_response():
-        return jsonify({"ok": False, "msg": msg}), 413
+        return jsonify({"ok": False, "error": "file_too_large", "msg": msg}), 413
     flash(msg, "error")
     return redirect(_safe_referrer_redirect(request.referrer or "", "/"))
 
@@ -152,11 +157,36 @@ def internal_error(e):
                        "Please try again in a moment or contact your administrator.")
 
 
+# Why each HTTP error happens, in words a person can act on. Every error
+# reply -- page or JSON -- names the error type and gives one of these
+# reasons; never a traceback, SQL or HTML.
+_HTTP_REASONS = {
+    400: "The request was incomplete or had invalid values.",
+    401: "You need to sign in to do this.",
+    405: "This action isn't allowed here. The page may be out of date; reload it and try again.",
+    406: "The server can't answer in a format this page understands.",
+    408: "The request took too long to arrive. Check your connection and try again.",
+    409: "This conflicts with a change made meanwhile. Reload and try again.",
+    410: "This page or item has been removed.",
+    411: "The request was missing its size information.",
+    412: "Something changed since this page was loaded. Reload and try again.",
+    414: "The web address is too long.",
+    415: "The file or data format isn't supported here.",
+    416: "The requested part of the file isn't available.",
+    422: "Some values couldn't be processed. Check them and try again.",
+    431: "The request had too much header data. Clearing this site's cookies may help.",
+    501: "This action isn't supported by the server.",
+    502: "The server is restarting or unreachable. Please try again in a minute.",
+    503: "The service is temporarily unavailable. Please try again in a minute.",
+    504: "The server took too long to answer. Please try again in a minute.",
+}
+
+
 @app.errorhandler(Exception)
 def unhandled_exception(e):
     if isinstance(e, HTTPException):
         return _error_page(e.code, "⚠️", e.name,
-                           "The page you requested could not be processed.",
+                           _HTTP_REASONS.get(e.code, "The request could not be processed."),
                            "Use the buttons below to navigate back.")
     tb = _traceback.format_exc()
     app_log.error("Unhandled exception: %s", tb.replace('\n', '\\n'))

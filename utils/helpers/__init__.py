@@ -44,6 +44,7 @@ from .urls import (  # noqa: E402,F401
 )
 from .http import (  # noqa: E402,F401
     _error_page,
+    error_code_slug,
     csp_nonce,
     csp_nonce_attr,
     wants_json_response,
@@ -115,6 +116,8 @@ from .uploads import (  # noqa: E402,F401
     _MALWARE_SCAN_ENABLED,
     _MAX_DOC_SIZE_MB,
     _MAX_PHOTO_SIZE_MB,
+    PHOTO_MIN_PX,
+    PHOTO_RULES_HINT,
     _clamav_available,
     _clamd_lib,
     _scan_for_malware,

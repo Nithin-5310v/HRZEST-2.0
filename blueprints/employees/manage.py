@@ -74,7 +74,7 @@ def admin_action():
             db.close()
             return redirect(tpath("/admin"))
         name = row[0]
-        _img_ok, _img_err = _validate_image_file(file)
+        _img_ok, _img_err = _validate_image_file(file, person_photo=True)
         if not _img_ok:
             flash(_img_err, "error")
             cursor.close()

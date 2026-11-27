@@ -44,6 +44,7 @@ import EmployeeUpcomingEvents from "../../components/employee/EmployeeUpcomingEv
 import AiHelpdeskModal from "../../components/common/AiHelpdeskModal";
 import DigitalIdCardModal from "../../components/employee/DigitalIdCardModal";
 
+import { errorMessage } from "../../api/errors";
 export default function EmployeeDashboard({ navigation }) {
 
   const { user, signOut, updateUser } = useAuth();
@@ -227,7 +228,7 @@ export default function EmployeeDashboard({ navigation }) {
       } else if (e.response) {
         // The server answered and refused (mock location, outside the geofence, ...):
         // do not park it in the offline queue to be retried later.
-        Alert.alert("Notice", e.response?.data?.msg || "Could not mark attendance.");
+        Alert.alert("Notice", errorMessage(e, "Could not mark attendance."));
       } else {
         await queuePunch(lat, lon, { mocked });
         const q = await getPendingPunches();

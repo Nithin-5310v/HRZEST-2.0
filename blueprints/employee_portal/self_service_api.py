@@ -394,7 +394,7 @@ def api_employee_upload_photo():
     from PIL import Image
     emp_id = _g.api_emp_id
     file = request.files.get("photo")
-    ok, err = _validate_image_file(file)
+    ok, err = _validate_image_file(file, person_photo=True)
     if not ok:
         return jsonify({"ok": False, "msg": err}), 400
     try:

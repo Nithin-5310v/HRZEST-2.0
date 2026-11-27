@@ -281,7 +281,7 @@ def add_employee_page():
     file = request.files.get("face")
     filepath = None
     if file and file.filename:
-        _img_ok, _img_err = _validate_image_file(file)
+        _img_ok, _img_err = _validate_image_file(file, person_photo=True)
         if not _img_ok:
             flash(_img_err, "error")
             cursor.close()

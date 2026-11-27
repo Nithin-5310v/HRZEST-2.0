@@ -5,6 +5,7 @@ import MoreGrid from "../../components/MoreGrid";
 import { showsMeTab } from "../../navigation/roleRouting";
 import { useAuth } from "../../store/AuthContext";
 
+import { errorMessage } from "../../api/errors";
 // The admin's More tab: the screens that used to sit in the side menu.
 // Routes are AdminBottomNavigator's hidden tabs.
 const GROUPS = [
@@ -61,7 +62,7 @@ export default function AdminMoreScreen({ navigation }) {
       try {
         await switchToEmployeeView();
       } catch (err) {
-        Alert.alert("Can't Switch", err?.response?.data?.msg || "Please try again.");
+        Alert.alert("Can't Switch", errorMessage(err, "Please try again."));
       }
     },
   };

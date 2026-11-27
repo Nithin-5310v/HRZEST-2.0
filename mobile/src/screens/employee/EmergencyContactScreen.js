@@ -18,6 +18,7 @@ import { fetchEmployeeProfile, updateMyProfile } from "../../api/client";
 import ProfileHeader from "../../components/profile/ProfileHeader";
 import DetailCard from "../../components/profile/DetailCard";
 
+import { errorMessage } from "../../api/errors";
 export default function EmergencyContactScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
@@ -87,7 +88,7 @@ export default function EmergencyContactScreen() {
         Alert.alert("Save Failed", res?.data?.msg || "Could not update emergency contact.");
       }
     } catch (e) {
-      Alert.alert("Save Failed", e?.response?.data?.msg || "Could not update emergency contact.");
+      Alert.alert("Save Failed", errorMessage(e, "Could not update emergency contact."));
     }
     setSaving(false);
   };

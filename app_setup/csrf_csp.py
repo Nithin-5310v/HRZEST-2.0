@@ -432,7 +432,12 @@ def _inject_csrf_meta(response):
         # handlers, which script-src no longer allows (see
         # _security_headers).
         _actions_src = _static_url("hz-actions.js").encode()
+        # hz-errors.js: every error a page shows says what went wrong and
+        # why -- never an HTML page or "Unexpected token '<'" (see the file).
+        # After _CSRF_SCRIPT, so it wraps that script's fetch().
+        _errors_src = _static_url("hz-errors.js").encode()
         _body_scripts = (_CSRF_SCRIPT + _CLIENT_LOG_SCRIPT
+                         + b'<script src="' + _errors_src + b'"></script>'
                          + b'<script src="' + _actions_src + b'"></script>')
         if session.get("admin_logged_in") or session.get("employee_id"):
             _body_scripts += _KILLSWITCH_SCRIPT

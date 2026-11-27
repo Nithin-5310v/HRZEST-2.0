@@ -30,6 +30,7 @@ import {
 import { API_BASE_URL } from "../../config";
 import { useTheme } from "../../store/ThemeContext";
 
+import { errorMessage } from "../../api/errors";
 // The website's Organization page in the app: the company's details
 // (editable) and its own terms & policies, which employees read in their
 // Policies screen. GSTIN and documents stay on the website's verification.
@@ -42,7 +43,6 @@ const FIELDS = [
   { key: "address", label: "Registered address", placeholder: "Registered office address", maxLength: 500, multiline: true },
 ];
 
-const errorMessage = (err, fallback) => err?.response?.data?.msg || fallback;
 
 export default function OrganizationScreen({ navigation }) {
   const { colors } = useTheme();

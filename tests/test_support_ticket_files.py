@@ -101,7 +101,7 @@ class TestCompanyAttaches:
         resp = client.post("/profile/tickets", data={
             "subject": "Fake png", "description": "x", "attachments": [_file(b"<script>", "x.png")],
         }, content_type="multipart/form-data", follow_redirects=True)
-        assert b"Invalid PNG file." in resp.data
+        assert b"Invalid PNG file:" in resp.data
 
     def test_too_many_files(self, client, seed_admin, own_tenant, cleanup_files):  # noqa: F811
         _admin_session(client, "test_admin")
